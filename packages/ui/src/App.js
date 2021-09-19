@@ -67,7 +67,7 @@ export function App() {
     const [loading, setLoading] = useState(false);
     const timerRef = useRef();
     const [business, setBusiness] =  useState(null)
-    const { data: businessData } = useQuery(readAssetsQuery, { variables: { files: ['hours.md', 'business.json'] } });
+    const { data: businessData } = useQuery(readAssetsQuery, { variables: { files: ['business.json'] } });
     const [login] = useMutation(loginMutation);
     let history = useHistory();
 

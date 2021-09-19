@@ -1,23 +1,14 @@
 {
     "BUSINESS_NAME": {
-        "Short": "Far Out Rides",
-        "Long": "Far Out Rides, Inc."
-    },
-    "ADDRESS": {
-        "Label": "123 Not A Real Road Nio Essaia, A-IO, Urras, Tau Ceti System",
-        "Link": "https://www.google.com/maps/place/Airplane+Boneyard/@32.172526,-110.8544232,989m/data=!3m1!1e3!4m5!3m4!1s0x86d66436e88b5e4b:0x155d7f46897a7e88!8m2!3d32.172526!4d-110.8522345"
-    },
-    "PHONE": {
-        "Label": "(202) 555-0138",
-        "Link": "tel:+12025550138"
+        "Short": "Vrooli",
+        "Long": "Vrooli"
     },
     "EMAIL": {
-        "Label": "info@faroutrides.fakesite",
-        "Link": "mailto:info@faroutrides.fakesite"
+        "Label": "info@vrooli.com",
+        "Link": "mailto:info@vrooli.com"
     },
     "SOCIAL": {
-        "Facebook": "https://www.facebook.com/notarealfacebooklink",
-        "Instagram": "https://www.instagram.com/notarealinstagramlink"
+        "Twitter": "https://twitter.com/VrooliOfficial",
     },
-    "WEBSITE": "https://faroutrides.fakesite"
+    "WEBSITE": "https://vrooli.com"
 }
