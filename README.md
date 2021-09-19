@@ -1,4 +1,4 @@
-![Vrooli Logo with motto](images/Vrooli-display.png)
+![Vrooli Logo with motto](assets/private/readme-display.png)
 
 A collaborative tool for visualizing and automating tasks
 
