@@ -1,0 +1,17 @@
+{
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
+    "license": "MIT",
+    "devDependencies": {
+        "eslint": "^7.31.0",
+        "patch-package": "^6.4.7",
+        "postinstall-postinstall": "^2.1.0",
+        "ts-node": "^9.1.1",
+        "typescript": "^4.2.4"
+    },
+    "dependencies": {
+        "nodemon": "^2.0.7"
+    }
+}

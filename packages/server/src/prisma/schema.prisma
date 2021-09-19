@@ -1,0 +1,272 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["referentialActions", "orderByRelation"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DB_URL")
+}
+
+model knex_migrations {
+  id             Int       @id @default(autoincrement())
+  name           String?   @db.VarChar(255)
+  batch          Int?
+  migration_time DateTime? @db.Timestamptz(6)
+}
+
+model knex_migrations_lock {
+  index     Int  @id @default(autoincrement())
+  is_locked Int?
+}
+
+model address {
+  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tag                   String?   @db.VarChar(128)
+  name                  String?   @db.VarChar(128)
+  country               String    @default("US") @db.VarChar(2)
+  administrativeArea    String    @db.VarChar(64)
+  subAdministrativeArea String?   @db.VarChar(64)
+  locality              String    @db.VarChar(64)
+  postalCode            String    @db.VarChar(16)
+  throughfare           String    @db.VarChar(256)
+  premise               String?   @db.VarChar(64)
+  deliveryInstructions  String?   @db.VarChar(2048)
+  businessId            String?   @db.Uuid
+  business              business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  order                 order[]
+}
+
+model business {
+  id                      String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                    String               @db.VarChar(128)
+  subscribedToNewsletters Boolean              @default(true)
+  created_at              DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime             @default(now()) @db.Timestamptz(6)
+  address                 address[]
+  discounts               business_discounts[]
+  employees               customer[]
+  email                   email[]
+  phone                   phone[]
+}
+
+model business_discounts {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  businessId String   @db.Uuid
+  discountId String   @db.Uuid
+  business   business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  discount   discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, discountId], name: "business_discounts_businessid_discountid_unique")
+}
+
+model customer {
+  id                             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  firstName                      String           @db.VarChar(128)
+  lastName                       String           @db.VarChar(128)
+  fullName                       String?
+  pronouns                       String           @default("they/them") @db.VarChar(128)
+  theme                          String           @default("light") @db.VarChar(255)
+  password                       String?          @db.VarChar(256)
+  loginAttempts                  Int              @default(0)
+  lastLoginAttempt               DateTime         @default(now()) @db.Timestamptz(6)
+  sessionToken                   String?          @db.VarChar(1024)
+  resetPasswordCode              String?          @unique @db.VarChar(256)
+  lastResetPasswordReqestAttempt DateTime?        @db.Timestamptz(6)
+  emailVerified                  Boolean          @default(false)
+  status                         String           @default("Unlocked")
+  businessId                     String?          @db.Uuid
+  created_at                     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime         @default(now()) @db.Timestamptz(6)
+  business                       business?        @relation(fields: [businessId], references: [id], onDelete: NoAction)
+  roles                          customer_roles[]
+  emails                         email[]
+  feedback                       feedback[]
+  orders                         order[]
+  phones                         phone[]
+}
+
+model customer_roles {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  customerId String   @db.Uuid
+  roleId     String   @db.Uuid
+  customer   customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  role       role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, roleId], name: "customer_roles_customerid_roleid_unique")
+}
+
+model discount {
+  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  discount           Decimal              @default(0) @db.Decimal(4, 4)
+  title              String               @default("") @db.VarChar(128)
+  comment            String?              @db.VarChar(1024)
+  terms              String?              @db.VarChar(4096)
+  business_discounts business_discounts[]
+  sku_discounts      sku_discounts[]
+}
+
+model email {
+  id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  emailAddress            String    @unique @db.VarChar(128)
+  receivesDeliveryUpdates Boolean   @default(true)
+  customerId              String?   @db.Uuid
+  businessId              String?   @db.Uuid
+  business                business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model feedback {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  text       String    @db.VarChar(4096)
+  customerId String?   @db.Uuid
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @db.Timestamptz(6)
+  customer   customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model image {
+  hash            String         @unique @db.VarChar(128)
+  alt             String?        @db.VarChar(256)
+  description     String?        @db.VarChar(1024)
+  usedFor         String?
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime       @default(now()) @db.Timestamptz(6)
+  files           image_file[]
+  labels          image_labels[]
+  product_images  product_images[]
+}
+
+model image_file {
+  hash   String @db.VarChar(128)
+  src    String @unique @db.VarChar(256)
+  width  Int
+  height Int
+  image  image  @relation(fields: [hash], references: [hash], onDelete: Cascade)
+}
+
+model image_labels {
+  id    Int    @id @default(autoincrement())
+  hash  String @db.VarChar(128)
+  label String @db.VarChar(255)
+  index Int
+  image image  @relation(fields: [hash], references: [hash], onDelete: Cascade)
+
+  @@unique([hash, label], name: "image_labels_hash_label_unique")
+}
+
+model order {
+  id                   String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  status               String       @default("Draft")
+  specialInstructions  String?      @db.VarChar(2048)
+  desiredDeliveryDate  DateTime?    @db.Timestamptz(6)
+  expectedDeliveryDate DateTime?    @db.Timestamptz(6)
+  isDelivery           Boolean      @default(true)
+  addressId            String?      @db.Uuid
+  customerId           String       @db.Uuid
+  created_at           DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime     @default(now()) @db.Timestamptz(6)
+  address              address?     @relation(fields: [addressId], references: [id], onDelete: NoAction)
+  customer             customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items                order_item[]
+}
+
+model order_item {
+  id       String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  quantity Int    @default(1)
+  orderId  String @db.Uuid
+  skuId    String @db.Uuid
+  order    order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sku      sku    @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, skuId], name: "order_item_orderid_skuid_unique")
+}
+
+model phone {
+  id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number                  String    @unique @db.VarChar(20)
+  receivesDeliveryUpdates Boolean   @default(true)
+  customerId              String?   @db.Uuid
+  businessId              String?   @db.Uuid
+  business                business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model product {
+  id         String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name       String         @unique @db.VarChar(256)
+  featured   Boolean        @default(false)
+  created_at DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at DateTime       @default(now()) @db.Timestamptz(6)
+  images     product_images[]
+  traits     product_trait[]
+  skus       sku[]
+}
+
+model product_images {
+  id           Int        @id @default(autoincrement())
+  productId    String     @db.Uuid
+  hash         String     @db.VarChar(128)
+  index        Int
+  isDisplay    Boolean    @default(false)
+  image        image      @relation(fields: [hash], references: [hash], onDelete: Cascade)
+  product      product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, hash], name: "product_images_productid_hash_unique")
+}
+
+model product_trait {
+  id        Int       @id @default(autoincrement())
+  productId String    @db.Uuid
+  name      String    @db.VarChar(128)
+  value     String    @db.VarChar(512)
+  product   product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, name], name: "product_trait_productid_name_unique")
+}
+
+model queue_task {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  name        String   @db.VarChar(256)
+  status      String   @default("Active")
+  description String?  @db.VarChar(1024)
+  result      String?  @db.VarChar(8192)
+  resultCode  Int?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model role {
+  id             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title          String           @unique @db.VarChar(128)
+  description    String?          @db.VarChar(2048)
+  customer_roles customer_roles[]
+}
+
+model sku {
+  id                String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sku               String          @unique @db.VarChar(32)
+  isDiscountable    Boolean         @default(false)
+  size              Decimal?        @db.Decimal(8, 2)
+  note              String?         @db.VarChar(2048)
+  availability      Int             @default(0)
+  price             Decimal?        @db.Decimal(8, 2)
+  status            String          @default("Active")
+  productId         String          @db.Uuid
+  created_at        DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime        @default(now()) @db.Timestamptz(6)
+  product           product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order_item        order_item[]
+  discounts         sku_discounts[]
+}
+
+model sku_discounts {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  skuId      String   @db.Uuid
+  discountId String   @db.Uuid
+  discount   discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  sku        sku      @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@unique([skuId, discountId], name: "sku_discounts_skuid_discountid_unique")
+}

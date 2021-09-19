@@ -1,0 +1,117 @@
+version: "3.9"
+services:
+    ui:
+        build:
+            context: .
+            dockerfile: ./packages/ui/Dockerfile
+            args:
+                PROJECT_DIR: "${PROJECT_DIR}"
+        container_name: ui
+        environment: 
+            NODE_ENV: "${NODE_ENV}"
+            PROJECT_DIR: "${PROJECT_DIR}"
+            REACT_APP_SITE_NAME: "${SITE_NAME}"
+            REACT_APP_SERVER_ROUTE: "${SERVER_ROUTE}"
+            REACT_APP_SERVER_PORT: "${SERVER_PORT}"
+            REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
+            VIRTUAL_HOST: "${VIRTUAL_HOST}"
+            VIRTUAL_PATH: "/"
+            VIRTUAL_PORT: "${UI_PORT}"
+            VIRTUAL_PATH: "/"
+            LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
+            LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+        ports:
+            - "${UI_PORT}:${UI_PORT}"
+        networks:
+            - proxy
+            - app
+        volumes:
+            - ./packages/ui:${PROJECT_DIR}/packages/ui:z
+            - ./packages/shared:${PROJECT_DIR}/packages/shared:z
+        depends_on: 
+                - redis
+                - db
+        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/ui.sh"
+    server:
+        build:
+            context: .
+            dockerfile: ./packages/server/Dockerfile
+            args:
+                PROJECT_DIR: "${PROJECT_DIR}"
+        container_name: server
+        environment: 
+            NODE_ENV: "${NODE_ENV}"
+            JWT_SECRET: "${JWT_SECRET}"
+            PROJECT_DIR: "${PROJECT_DIR}"
+            REDIS_CONN: "redis:6379"
+            DB_CONN: "db:5432" 
+            DB_NAME: "${DB_NAME}"
+            DB_USER: "${DB_USER}"
+            DB_PASSWORD: "${DB_PASSWORD}"
+            DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
+            CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
+            PRISMA_INTROSPECT: "${PRISMA_INTROSPECT}"
+            ADMIN_EMAIL: "${ADMIN_EMAIL}"
+            ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+            SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
+            SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
+            SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"
+            REACT_APP_SITE_NAME: "${SITE_NAME}"
+            REACT_APP_SERVER_ROUTE: "${SERVER_ROUTE}"
+            UI_PORT: "${UI_PORT}"
+            REACT_APP_SERVER_PORT: "${SERVER_PORT}"
+            VIRTUAL_HOST: "${VIRTUAL_HOST}"
+            VIRTUAL_PATH: "/v1"
+            VIRTUAL_PORT: "${SERVER_PORT}"
+            VIRTUAL_PATH: "${SERVER_ROUTE}"
+            LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
+            LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
+        ports:
+            - "${SERVER_PORT}:${SERVER_PORT}"
+        networks:
+            - proxy
+            - app
+        volumes:
+            - ./packages/server:${PROJECT_DIR}/packages/server:z
+            - ./packages/shared:${PROJECT_DIR}/packages/shared:z
+            # - ./packages/server/src/prisma:${PROJECT_DIR}/packages/server/src/prisma:z
+            - ./assets:${PROJECT_DIR}/assets:z
+        depends_on: 
+            - redis
+            - db
+        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/server.sh"
+    db:
+        image: postgres:13
+        restart: always
+        container_name: db
+        environment: 
+            POSTGRES_DB: "${DB_NAME}"
+            POSTGRES_USER: "${DB_USER}"
+            POSTGRES_PASSWORD: "${DB_PASSWORD}"
+        ports:
+                - 5432:5432
+        networks:
+           - app       
+        volumes:
+            - ./data/postgres:/var/lib/postgresql/data
+    redis:
+        image: redis
+        container_name: redis
+        networks:
+          - app        
+        ports:
+            - 6379:6379
+    # adminer:
+    #     image: adminer
+    #     restart: always
+    #     depends_on: 
+    #         - db
+    #     ports: 
+    #         - 8080:8080
+
+networks:
+  proxy:
+    external:
+      name: nginx-proxy
+  app:
+
