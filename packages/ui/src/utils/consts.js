@@ -42,18 +42,19 @@ export const PUBS = {
 }
 
 export const LINKS = {
-    About: "/about",
-    Admin: "/admin",
-    AdminContactInfo: "/admin/contact-info",
-    AdminCustomers: "/admin/customers",
-    AdminHero: "/admin/hero",
-    ForgotPassword: "/forgot-password",
-    Home: "/",
-    LogIn: "/login",
-    PrivacyPolicy: "/privacy-policy",
-    Profile: "/profile",
-    Register: "/register",
-    ResetPassword: "/password-reset",
-    Terms: "/terms-and-conditions",
-    Waitlist: "/join-us"
+    About: "/about", // Overview of project, the vision, and the team
+    Admin: "/admin", // Admin portal. Contains cards that link to every admin page
+    AdminContactInfo: "/admin/contact-info", // Admin page for updating contact information (business.json file)
+    AdminCustomers: "/admin/customers", // Admin page for customer statistics and contact information
+    AdminHero: "/admin/hero", // Admin page for updating hero slideshow
+    ForgotPassword: "/forgot-password", // Page for sending password reset request emails
+    Home: "/", // Home page. Similar to the about page, but more project details and less vision
+    LogIn: "/login", // Page with log in form
+    Portal: "/portal", // Main page for logged-in customers. Shows created and liked routines, displayed either as a knowledge graph or classical file structure
+    PrivacyPolicy: "/privacy-policy", // Privacy policy
+    Profile: "/profile", // View and update profile and settings
+    Register: "/register", // Page with register form
+    ResetPassword: "/password-reset", // Page to reset password, after clicking on password reset link in email
+    Terms: "/terms-and-conditions", // Terms and conditions
+    Waitlist: "/join-us" // Form to join waitlist
 }

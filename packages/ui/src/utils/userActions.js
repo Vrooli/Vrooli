@@ -2,7 +2,6 @@ import {
     Person as PersonIcon,
     PersonAdd as PersonAddIcon,
     Settings as SettingsIcon,
-    Shop as ShopIcon,
 } from '@material-ui/icons';
 import { ROLES } from '@local/shared';
 import { LINKS } from 'utils';

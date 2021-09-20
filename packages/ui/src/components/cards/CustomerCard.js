@@ -57,7 +57,7 @@ function CustomerCard({
         [ACCOUNT_STATUS.WaitingApproval]: 'Waiting Approval',
         [ACCOUNT_STATUS.SoftLock]: 'Soft Locked',
         [ACCOUNT_STATUS.HardLock]: 'Hard Locked',
-    }), [theme])
+    }), [])
 
     const edit = () => {
         onEdit(customer);
@@ -120,6 +120,7 @@ function CustomerCard({
             case ACCOUNT_STATUS.Deleted:
                 actions.push(undelete_action);
                 actions.push(permanent_delete_action);
+                break;
             default:
                 break;
         }

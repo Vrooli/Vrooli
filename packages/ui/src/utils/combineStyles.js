@@ -8,8 +8,6 @@ export function combineStyles(...styles) {
             // Objects need no change.
             return arg;
         });
-
-        console.log('COMBINING STYLES', outStyles)
         return outStyles.reduce((acc, val) => Object.assign(acc, val));
     };
 }

@@ -67,9 +67,9 @@ function ContactInfo({
     }
 
     const contactInfo = [
-        ['Find us on Twitter', business?.SOCIAL?.Twitter, TwitterIcon],
-        ['Email Us', business?.EMAIL?.Label, business?.EMAIL?.Link, EmailIcon],
-        ['Source code', business?.SOCIAL?.GitHub, GitHubIcon],
+        ['Find us on Twitter', 'Twitter', business?.SOCIAL?.Twitter, TwitterIcon],
+        ['Email Us', 'Email', business?.EMAIL?.Link, EmailIcon],
+        ['Source code', 'Code', business?.SOCIAL?.GitHub, GitHubIcon],
     ]
 
     return (

@@ -34,7 +34,7 @@ function ResetPasswordForm({
             mutationWrapper({
                 mutation: resetPassword,
                 data: { variables: { id: urlParams.id, code: urlParams.code, newPassword: values.newPassword } },
-                onSuccess: (response) => { onSessionUpdate(response.data.resetPassword); onRedirect(LINKS.Shopping) },
+                onSuccess: (response) => { onSessionUpdate(response.data.resetPassword); onRedirect(LINKS.Portal) },
                 successMessage: () => 'Password reset.',
             })
         },

@@ -18,7 +18,6 @@ import {
     Cancel as CancelIcon,
     Close as CloseIcon,
 } from '@material-ui/icons';
-import _ from 'lodash';
 import { DEFAULT_PRONOUNS, addCustomerSchema } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { addCustomerMutation } from 'graphql/mutation';

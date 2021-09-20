@@ -38,7 +38,7 @@ function LogInForm({
                 mutation: login,
                 data: { variables: { ...values, verificationCode: urlParams.code } },
                 successCondition: (response) => response.data.login !== null,
-                onSuccess: (response) => { onSessionUpdate(response.data.login); onRedirect(LINKS.Shopping) },
+                onSuccess: (response) => { onSessionUpdate(response.data.login); onRedirect(LINKS.Portal) },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(PUBS.AlertDialog, {
