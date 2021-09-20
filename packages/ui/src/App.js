@@ -67,7 +67,7 @@ export function App() {
     const [loading, setLoading] = useState(false);
     const timerRef = useRef();
     const [business, setBusiness] =  useState(null)
-    const { data: businessData } = useQuery(readAssetsQuery, { variables: { files: ['hours.md', 'business.json'] } });
+    const { data: businessData } = useQuery(readAssetsQuery, { variables: { files: ['business.json'] } });
     const [login] = useMutation(loginMutation);
     let history = useHistory();
 
@@ -78,10 +78,7 @@ export function App() {
 
     useEffect(() => {
         if (businessData === undefined) return;
-        let data = businessData.readAssets[1] ? JSON.parse(businessData.readAssets[1]) : {};
-        let hoursRaw = businessData.readAssets[0];
-        data.hours = hoursRaw;
-        setBusiness(data);
+        setBusiness(businessData.readAssets[0] ? JSON.parse(businessData.readAssets[0]) : {});
     }, [businessData])
 
     useEffect(() => {
