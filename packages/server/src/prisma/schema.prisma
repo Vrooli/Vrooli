@@ -34,7 +34,6 @@ model address {
   deliveryInstructions  String?   @db.VarChar(2048)
   businessId            String?   @db.Uuid
   business              business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  order                 order[]
 }
 
 model business {
@@ -44,20 +43,9 @@ model business {
   created_at              DateTime             @default(now()) @db.Timestamptz(6)
   updated_at              DateTime             @default(now()) @db.Timestamptz(6)
   address                 address[]
-  discounts               business_discounts[]
   employees               customer[]
   email                   email[]
   phone                   phone[]
-}
-
-model business_discounts {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  businessId String   @db.Uuid
-  discountId String   @db.Uuid
-  business   business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  discount   discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
-
-  @@unique([businessId, discountId], name: "business_discounts_businessid_discountid_unique")
 }
 
 model customer {
@@ -82,7 +70,6 @@ model customer {
   roles                          customer_roles[]
   emails                         email[]
   feedback                       feedback[]
-  orders                         order[]
   phones                         phone[]
 }
 
@@ -94,16 +81,6 @@ model customer_roles {
   role       role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([customerId, roleId], name: "customer_roles_customerid_roleid_unique")
-}
-
-model discount {
-  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  discount           Decimal              @default(0) @db.Decimal(4, 4)
-  title              String               @default("") @db.VarChar(128)
-  comment            String?              @db.VarChar(1024)
-  terms              String?              @db.VarChar(4096)
-  business_discounts business_discounts[]
-  sku_discounts      sku_discounts[]
 }
 
 model email {
@@ -134,7 +111,6 @@ model image {
   updated_at      DateTime       @default(now()) @db.Timestamptz(6)
   files           image_file[]
   labels          image_labels[]
-  product_images  product_images[]
 }
 
 model image_file {
@@ -155,33 +131,6 @@ model image_labels {
   @@unique([hash, label], name: "image_labels_hash_label_unique")
 }
 
-model order {
-  id                   String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  status               String       @default("Draft")
-  specialInstructions  String?      @db.VarChar(2048)
-  desiredDeliveryDate  DateTime?    @db.Timestamptz(6)
-  expectedDeliveryDate DateTime?    @db.Timestamptz(6)
-  isDelivery           Boolean      @default(true)
-  addressId            String?      @db.Uuid
-  customerId           String       @db.Uuid
-  created_at           DateTime     @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime     @default(now()) @db.Timestamptz(6)
-  address              address?     @relation(fields: [addressId], references: [id], onDelete: NoAction)
-  customer             customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  items                order_item[]
-}
-
-model order_item {
-  id       String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  quantity Int    @default(1)
-  orderId  String @db.Uuid
-  skuId    String @db.Uuid
-  order    order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  sku      sku    @relation(fields: [skuId], references: [id], onDelete: Cascade)
-
-  @@unique([orderId, skuId], name: "order_item_orderid_skuid_unique")
-}
-
 model phone {
   id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   number                  String    @unique @db.VarChar(20)
@@ -190,39 +139,6 @@ model phone {
   businessId              String?   @db.Uuid
   business                business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
-}
-
-model product {
-  id         String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name       String         @unique @db.VarChar(256)
-  featured   Boolean        @default(false)
-  created_at DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at DateTime       @default(now()) @db.Timestamptz(6)
-  images     product_images[]
-  traits     product_trait[]
-  skus       sku[]
-}
-
-model product_images {
-  id           Int        @id @default(autoincrement())
-  productId    String     @db.Uuid
-  hash         String     @db.VarChar(128)
-  index        Int
-  isDisplay    Boolean    @default(false)
-  image        image      @relation(fields: [hash], references: [hash], onDelete: Cascade)
-  product      product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([productId, hash], name: "product_images_productid_hash_unique")
-}
-
-model product_trait {
-  id        Int       @id @default(autoincrement())
-  productId String    @db.Uuid
-  name      String    @db.VarChar(128)
-  value     String    @db.VarChar(512)
-  product   product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([productId, name], name: "product_trait_productid_name_unique")
 }
 
 model queue_task {
@@ -242,31 +158,4 @@ model role {
   title          String           @unique @db.VarChar(128)
   description    String?          @db.VarChar(2048)
   customer_roles customer_roles[]
-}
-
-model sku {
-  id                String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  sku               String          @unique @db.VarChar(32)
-  isDiscountable    Boolean         @default(false)
-  size              Decimal?        @db.Decimal(8, 2)
-  note              String?         @db.VarChar(2048)
-  availability      Int             @default(0)
-  price             Decimal?        @db.Decimal(8, 2)
-  status            String          @default("Active")
-  productId         String          @db.Uuid
-  created_at        DateTime        @default(now()) @db.Timestamptz(6)
-  updated_at        DateTime        @default(now()) @db.Timestamptz(6)
-  product           product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  order_item        order_item[]
-  discounts         sku_discounts[]
-}
-
-model sku_discounts {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  skuId      String   @db.Uuid
-  discountId String   @db.Uuid
-  discount   discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
-  sku        sku      @relation(fields: [skuId], references: [id], onDelete: Cascade)
-
-  @@unique([skuId, discountId], name: "sku_discounts_skuid_discountid_unique")
 }

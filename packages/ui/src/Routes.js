@@ -21,19 +21,13 @@ const {
     AboutPage,
     AdminContactPage,
     AdminCustomerPage,
-    AdminGalleryPage,
     AdminHeroPage,
     AdminMainPage,
-    AdminInventoryPage,
-    AdminOrderPage,
-    CartPage,
     FormPage,
-    GalleryPage,
     HomePage,
     NotFoundPage,
     Page,
     PrivacyPolicyPage,
-    ShoppingPage,
     TermsPage,
 } = lazily(() => import('./pages'));
 
@@ -42,7 +36,6 @@ function Routes({
     onSessionUpdate,
     business,
     userRoles,
-    cart,
     onRedirect
 }) {
 
@@ -107,17 +100,6 @@ function Routes({
                     render={() => (
                         <Page title={title('Terms & Conditions')} {...common}>
                             <TermsPage business={business} />
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={`${LINKS.Gallery}/:img?`}
-                    sitemapIndex={true}
-                    priority={0.3}
-                    render={() => (
-                        <Page title={title('Gallery')} {...common}>
-                            <GalleryPage />
                         </Page>
                     )}
                 />
@@ -188,26 +170,6 @@ function Routes({
                         </Page>
                     )}
                 />
-                <Route
-                    exact
-                    path={`${LINKS.Shopping}/:sku?`}
-                    sitemapIndex={true}
-                    priority={0.9}
-                    render={() => (
-                        <Page title={title('Shop')} {...common} restrictedToRoles={Object.values(ROLES)} redirect={LINKS.LogIn}>
-                            <ShoppingPage {...common} session={session} cart={cart} />
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={LINKS.Cart}
-                    render={() => (
-                        <Page title={title('Cart')} {...common} restrictedToRoles={Object.values(ROLES)} redirect={LINKS.LogIn}>
-                            <CartPage {...common} cart={cart} />
-                        </Page>
-                    )}
-                />
                 {/* END CUSTOMER PAGES */}
                 {/* START ADMIN PAGES */}
                 <Route
@@ -233,24 +195,9 @@ function Routes({
                         <AdminCustomerPage />
                     </Page>
                 )} />
-                <Route exact path={LINKS.AdminGallery} render={() => (
-                    <Page title={"Edit Gallery"} {...common} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
-                        <AdminGalleryPage />
-                    </Page>
-                )} />
                 <Route exact path={LINKS.AdminHero} render={() => (
                     <Page title={"Edit Hero"} {...common} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
                         <AdminHeroPage />
-                    </Page>
-                )} />
-                <Route exact path={LINKS.AdminInventory} render={() => (
-                    <Page title={"Edit Inventory Info"} {...common} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
-                        <AdminInventoryPage />
-                    </Page>
-                )} />
-                <Route exact path={LINKS.AdminOrders} render={() => (
-                    <Page title={"Order Page"} {...common} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
-                        <AdminOrderPage userRoles={userRoles} />
                     </Page>
                 )} />
                 {/* END ADMIN PAGES */}
@@ -271,7 +218,6 @@ Routes.propTypes = {
     session: PropTypes.object,
     onSessionUpdate: PropTypes.func.isRequired,
     roles: PropTypes.array,
-    cart: PropTypes.object,
     onRedirect: PropTypes.func.isRequired,
 }
 

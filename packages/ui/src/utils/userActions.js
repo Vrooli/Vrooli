@@ -3,7 +3,6 @@ import {
     PersonAdd as PersonAddIcon,
     Settings as SettingsIcon,
     Shop as ShopIcon,
-    ShoppingCart as ShoppingCartIcon
 } from '@material-ui/icons';
 import { ROLES } from '@local/shared';
 import { LINKS } from 'utils';
@@ -18,7 +17,7 @@ import _ from 'lodash';
 //      icon: Material-UI Icon,
 //      number of notifications: int,
 //  ]
-export function getUserActions(session, userRoles, cart) {
+export function getUserActions(session, userRoles) {
     let actions = [];
 
     // If someone is not logged in, display sign up/log in links
@@ -30,9 +29,7 @@ export function getUserActions(session, userRoles, cart) {
         if (userRoles && haveArray.some(r => [ROLES.Owner, ROLES.Admin].includes(r?.role?.title))) {
             actions.push(['Manage Site', 'admin', LINKS.Admin, null, SettingsIcon, 0]);
         }
-        actions.push(['Shop', 'shop', LINKS.Shopping, null, ShopIcon, 0],
-            ['Profile', 'profile', LINKS.Profile, null, PersonIcon, 0],
-            ['Cart', 'cart', LINKS.Cart, null, ShoppingCartIcon, cart?.items?.length ?? 0]);
+        actions.push(['Profile', 'profile', LINKS.Profile, null, PersonIcon, 0]);
     }
 
     return actions;

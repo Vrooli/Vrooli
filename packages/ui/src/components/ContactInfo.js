@@ -13,8 +13,8 @@ import {
 } from '@material-ui/core';
 import { 
     Email as EmailIcon,
-    Phone as PhoneIcon,
-    Room as RoomIcon
+    GitHub as GitHubIcon,
+    Twitter as TwitterIcon,
 } from "@material-ui/icons";
 import { makeStyles } from '@material-ui/styles';
 
@@ -67,9 +67,9 @@ function ContactInfo({
     }
 
     const contactInfo = [
-        ['Open in Google Maps', business?.ADDRESS?.Label, business?.ADDRESS?.Link, RoomIcon],
-        ['Call Us', business?.PHONE?.Label, business?.PHONE?.Link, PhoneIcon],
-        ['Email Us', business?.EMAIL?.Label, business?.EMAIL?.Link, EmailIcon]
+        ['Find us on Twitter', business?.SOCIAL?.Twitter, TwitterIcon],
+        ['Email Us', business?.EMAIL?.Label, business?.EMAIL?.Link, EmailIcon],
+        ['Source code', business?.SOCIAL?.GitHub, GitHubIcon],
     ]
 
     return (

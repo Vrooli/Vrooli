@@ -1,10 +1,8 @@
 import { gql } from 'graphql-tag';
-import { customerSessionFields, orderFields, orderItemFields } from 'graphql/fragment';
+import { customerSessionFields } from 'graphql/fragment';
 
 export const signUpMutation = gql`
     ${customerSessionFields}
-    ${orderFields}
-    ${orderItemFields}
     mutation signUp(
         $firstName: String!
         $lastName: String!
@@ -28,12 +26,6 @@ export const signUpMutation = gql`
         password: $password
     ) {
         ...customerSessionFields
-        cart {
-            ...orderFields
-            items {
-                ...orderItemFields
-            }
-        }
     }
 }
 `

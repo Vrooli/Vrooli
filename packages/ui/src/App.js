@@ -63,7 +63,6 @@ export function App() {
     // so no need to validate session on first load
     const [session, setSession] = useState(null);
     const [theme, setTheme] = useState(themes.light);
-    const [cart, setCart] = useState(null);
     const [loading, setLoading] = useState(false);
     const timerRef = useRef();
     const [business, setBusiness] =  useState(null)
@@ -86,7 +85,6 @@ export function App() {
         if (session?.theme) setTheme(themes[session?.theme])
         else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
         else setTheme(themes.light);
-        setCart(session?.cart ?? null);
     }, [session])
 
     const handlers = {
@@ -153,7 +151,6 @@ export function App() {
                                     business={business}
                                     onSessionUpdate={checkLogin}
                                     roles={session?.roles}
-                                    cart={cart}
                                     onRedirect={redirect}
                                 />
                                 {loading ?
@@ -168,11 +165,10 @@ export function App() {
                                     onSessionUpdate={checkLogin}
                                     business={business}
                                     userRoles={session?.roles}
-                                    cart={cart}
                                     onRedirect={redirect}
                                 />
                             </div>
-                            <BottomNav session={session} userRoles={session?.roles} cart={cart} />
+                            <BottomNav session={session} userRoles={session?.roles} />
                             <Footer session={session} business={business} />
                         </main>
                     </div>

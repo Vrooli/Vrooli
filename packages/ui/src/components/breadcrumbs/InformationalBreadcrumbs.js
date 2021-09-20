@@ -4,7 +4,6 @@ import { BreadcrumbsBase } from './BreadcrumbsBase';
 
 const paths = [
     ['About Us', LINKS.About],
-    ['Gallery', LINKS.Gallery]
 ]
 
 const InformationalBreadcrumbs = ({...props}) => BreadcrumbsBase({

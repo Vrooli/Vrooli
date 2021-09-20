@@ -7,7 +7,7 @@ import { generateToken } from '../auth';
 import { customerNotifyAdmin, sendResetPasswordLink, sendVerificationLink } from '../worker/email/queue';
 import { HASHING_ROUNDS } from '../consts';
 import { PrismaSelect } from '@paljs/plugins';
-import { customerFromEmail, getCart, getCustomerSelect, upsertCustomer } from '../db/models/customer';
+import { customerFromEmail, getCustomerSelect, upsertCustomer } from '../db/models/customer';
 
 const _model = TABLES.Customer;
 const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 3;
@@ -47,8 +47,6 @@ export const typeDef = gql`
         theme: String!
         emailVerified: Boolean!
         status: AccountStatus!
-        cart: Order
-        orders: [Order!]!
         roles: [CustomerRole!]!
         feedback: [Feedback!]!
     }
@@ -134,10 +132,8 @@ export const resolvers = {
             // If username and password wasn't passed, then use the session cookie data to validate
             if (args.username === undefined && args.password === undefined) {
                 if (context.req.roles && context.req.roles.length > 0) {
-                    const cart = await getCart(context.prisma, info, context.req.customerId);
                     let userData = await context.prisma[_model].findUnique({ where: { id: context.req.customerId }, ...prismaInfo });
                     if (userData) {
-                        if (cart) userData.cart = cart;
                         return userData;
                     }
                     context.res.clearCookie(COOKIE.Session);
@@ -199,10 +195,7 @@ export const resolvers = {
                     ...prismaInfo
                 })
                 // Return cart, along with user data
-                const cart = await getCart(context.prisma, info, customer.id);
-                const userData = await context.prisma[_model].findUnique({ where: { id: customer.id }, ...prismaInfo });
-                if (cart) userData.cart = cart;
-                return userData;
+                return await context.prisma[_model].findUnique({ where: { id: customer.id }, ...prismaInfo });
             } else {
                 let new_status = ACCOUNT_STATUS.Unlocked;
                 let login_attempts = customer.loginAttempts + 1;
@@ -251,10 +244,7 @@ export const resolvers = {
             // Send email to business owner
             customerNotifyAdmin(`${args.firstName} ${args.lastName}`);
             // Return cart, along with user data
-            const cart = await getCart(context.prisma, info, customer.id);
-            const userData = await context.prisma[_model].findUnique({ where: { id: customer.id }, ...prismaInfo });
-            if (cart) userData.cart = cart;
-            return userData;
+            return await context.prisma[_model].findUnique({ where: { id: customer.id }, ...prismaInfo });
         },
         addCustomer: async (_, args, context, info) => {
             // Must be admin to add a customer directly
@@ -279,10 +269,7 @@ export const resolvers = {
                 }
             });
             // Return cart, along with user data
-            const cart = await getCart(context.prisma, info, customer.id);
-            const userData = await context.prisma[_model].findUnique({ where: { id: customer.id }, ...prismaInfo });
-            if (cart) userData.cart = cart;
-            return userData;
+            return await context.prisma[_model].findUnique({ where: { id: customer.id }, ...prismaInfo });
         },
         updateCustomer: async (_, args, context, info) => {
             // Must be admin, or updating your own
@@ -389,10 +376,7 @@ export const resolvers = {
             })
             // Return customer data
             const prismaInfo = getCustomerSelect(info);
-            const cart = await getCart(context.prisma, info, customer.id);
-            const customerData = await context.prisma[TABLES.Customer].findUnique({ where: { id: customer.id }, ...prismaInfo });
-            if (cart) customerData.cart = cart;
-            return customerData;
+            return await context.prisma[TABLES.Customer].findUnique({ where: { id: customer.id }, ...prismaInfo });
         },
         changeCustomerStatus: async (_, args, context, info) => {
             // Must be admin

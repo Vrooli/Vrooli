@@ -2,7 +2,7 @@ import { PrismaSelect } from "@paljs/plugins";
 import { TABLES } from "../tables";
 import { onlyPrimitives } from "../../utils/objectTools";
 import { CustomError } from "../../error";
-import { CODE, ORDER_STATUS } from '@local/shared';
+import { CODE } from '@local/shared';
 
 // Validates email address, and returns customer data
 export async function customerFromEmail(email, prisma) {
@@ -22,20 +22,6 @@ export function getCustomerSelect(info) {
     let prismaInfo = new PrismaSelect(info).value;
     delete prismaInfo.select.cart;
     return prismaInfo;
-}
-
-// 'cart' is not a field or relationship in the database,
-// so it must be manually queried
-export async function getCart(prisma, info, customerId) {
-    const selectInfo = new PrismaSelect(info).value.select.cart;
-    let results;
-    if (selectInfo) {
-        results = await prisma[TABLES.Order].findMany({ 
-            where: { customerId: customerId, status: ORDER_STATUS.Draft },
-            ...selectInfo
-        });
-    }
-    return results?.length > 0 ? results[0] : null;
 }
 
 // Upsert a customer, with business, emails, phones, and roles
@@ -107,8 +93,5 @@ export async function upsertCustomer({ prisma, info, data }) {
         })
     }
     const prismaInfo = getCustomerSelect(info);
-    const cart = await getCart(prisma, info, customer.id);
-    const customerData = await prisma[TABLES.Customer].findUnique({ where: { id: customer.id }, ...prismaInfo });
-    if (cart) customerData.cart = cart;
-    return customerData;
+    return await prisma[TABLES.Customer].findUnique({ where: { id: customer.id }, ...prismaInfo });
 }

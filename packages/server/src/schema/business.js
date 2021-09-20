@@ -11,7 +11,6 @@ export const typeDef = gql`
         id: ID
         name: String!
         subscribedToNewsletters: Boolean
-        discountIds: [ID!]
         employeeIds: [ID!]
     }
 
@@ -23,7 +22,6 @@ export const typeDef = gql`
         phones: [Phone!]!
         emails: [Email!]!
         employees: [Customer!]!
-        discounts: [Discount!]!
     }
 
     extend type Query {
