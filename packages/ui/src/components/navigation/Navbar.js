@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import Logo from 'assets/img/Logo.svg';
+import Logo from 'assets/img/Logo.png';
 import { LINKS } from 'utils';
 import { AppBar, Toolbar, Typography, Slide, useScrollTrigger } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
