@@ -78,10 +78,7 @@ export function App() {
 
     useEffect(() => {
         if (businessData === undefined) return;
-        let data = businessData.readAssets[1] ? JSON.parse(businessData.readAssets[1]) : {};
-        let hoursRaw = businessData.readAssets[0];
-        data.hours = hoursRaw;
-        setBusiness(data);
+        setBusiness(businessData.readAssets[0] ? JSON.parse(businessData.readAssets[0]) : {});
     }, [businessData])
 
     useEffect(() => {

@@ -4,7 +4,7 @@
 	From: United States
 
 /* SITE */
-	Last update: 2021-09-15
+	Last update: 2021-09-19
 	Language: English
 	Doctype: HTML5
 	IDE: VSCode, Atom, Vim, Gimp

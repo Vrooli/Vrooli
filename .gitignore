@@ -154,8 +154,6 @@ build/
 
 #Assets
 assets/images/
-assets/private/*.xlsx
-!assets/private/example_availability.xlsx
 
 .eslintcache
 package-lock.json
