@@ -1,5 +1,5 @@
 import * as yup from 'yup';
-import { ACCOUNT_STATUS, DEFAULT_PRONOUNS, ORDER_STATUS, SKU_STATUS } from './modelConsts';
+import { ACCOUNT_STATUS, DEFAULT_PRONOUNS } from './modelConsts';
 
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 50;
@@ -12,7 +12,6 @@ export const passwordSchema = yup.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASS
 export const businessSchema = yup.object().shape({
     name: yup.string().max(128).required(),
     subscribedToNewsletters: yup.boolean().optional(),
-    discountIds: yup.array().of(yup.string().required()).optional(),
     employeeIds: yup.array().of(yup.string().required()).optional(),
 })
 
@@ -28,15 +27,6 @@ export const addressSchema = yup.object().shape({
     premise: yup.string().max(64).optional(),
     deliveryInstructions: yup.string().max(1024).optional(),
     businessId: yup.string().max(128).required(),
-});
-
-export const discountSchema = yup.object().shape({
-    title: yup.string().max(128).required(),
-    discount: yup.number().min(0).max(1).required(),
-    comment: yup.string().max(1024).optional(),
-    terms: yup.string().max(4096).optional(),
-    businessIds: yup.array().of(yup.string().required()).optional(),
-    skuIds: yup.array().of(yup.string().required()).optional(),
 });
 
 export const emailSchema = yup.object().shape({
@@ -60,19 +50,6 @@ export const imageSchema = yup.object().shape({
     })).required(),
 });
 
-export const orderItemSchema = yup.object().shape({
-    quantity: yup.number().integer().default(1).required(),
-    skuId: yup.number().integer().required()
-});
-
-export const orderSchema = yup.object().shape({
-    status: yup.mixed().oneOf(Object.values(ORDER_STATUS)).optional(),
-    specialInstructions: yup.string().max(1024).optional(),
-    desiredDeliveryDate: yup.date().optional(),
-    isDelivery: yup.bool().required(),
-    items: yup.array().of(orderItemSchema).required(),
-});
-
 export const phoneSchema = yup.object().shape({
     number: yup.string().max(20).required(),
     receivesDeliveryUpdates: yup.bool().default(true).required(),
@@ -82,29 +59,6 @@ export const roleSchema = yup.object().shape({
     title: yup.string().max(128).required(),
     description: yup.string().max(2048).optional(),
     customerIds: yup.array().of(yup.string().required()).optional(),
-});
-
-export const skuSchema = yup.object().shape({
-    sku: yup.string().max(32).required(),
-    isDiscountable: yup.bool().default(true).optional(),
-    size: yup.string().max(32).default('N/A').optional(),
-    note: yup.string().max(2048).optional(),
-    availability: yup.number().integer().default(0).optional(),
-    price: yup.string().max(16).optional(),
-    status: yup.mixed().oneOf(Object.values(SKU_STATUS)).default(SKU_STATUS.Active).optional(),
-    productId: yup.string().optional(),
-    discountIds: yup.array().of(yup.string().required()).optional(),
-});
-
-export const traitSchema = yup.object().shape({
-    name: yup.string().max(256).required(),
-    value: yup.string().max(2048).required()
-})
-
-export const productSchema = yup.object().shape({
-    name: yup.string().max(256).required(),
-    traits: yup.array().of(traitSchema).required(),
-    images: yup.array().of(imageSchema).required()
 });
 
 export const customerSchema = yup.object().shape({

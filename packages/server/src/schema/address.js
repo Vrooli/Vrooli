@@ -34,7 +34,6 @@ export const typeDef = gql`
         throughfare: String!
         premise: String
         business: Business!
-        orders: [Order!]!
     }
 
     extend type Query {

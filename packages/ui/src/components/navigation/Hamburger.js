@@ -59,13 +59,11 @@ function Hamburger({
     business,
     logout,
     roles,
-    cart,
     onRedirect
 }) {
     const classes = useStyles();
     const theme = useTheme();
     const [contactOpen, setContactOpen] = useState(true);
-    const [socialOpen, setSocialOpen] = useState(false);
     const [open, setOpen] = useState(false);
 
     useEffect(() => {
@@ -83,14 +81,6 @@ function Hamburger({
     const handleContactClick = () => {
         setContactOpen(!contactOpen);
     };
-
-    const handleSocialClick = () => {
-        setSocialOpen(!socialOpen);
-    }
-
-    const newTab = (link) => {
-        window.open(link, "_blank");
-    }
 
     const optionsToList = (options) => {
         return options.map(([label, value, link, onClick, Icon, badgeNum], index) => (
@@ -117,10 +107,9 @@ function Hamburger({
     let nav_options = [
         ['Home', 'home', LINKS.Home, null, HomeIcon],
         ['About Us', 'about', LINKS.About, null, InfoIcon],
-        ['Gallery', 'gallery', LINKS.Gallery, null, PhotoLibraryIcon]
     ]
 
-    let customer_actions = getUserActions(session, roles, cart);
+    let customer_actions = getUserActions(session, roles);
     if (_.isObject(session) && Object.entries(session).length > 0) {
         customer_actions.push(['Log Out', 'logout', LINKS.Home, logout, ExitToAppIcon]);
     }
@@ -144,20 +133,6 @@ function Hamburger({
                     <Collapse className={classes.menuItem} in={contactOpen} timeout="auto" unmountOnExit>
                         <ContactInfo business={business} />
                     </Collapse>
-                    {/* Collapsible social media links */}
-                    <ListItem className={classes.menuItem} button onClick={handleSocialClick}>
-                        <ListItemIcon><ShareIcon className={classes.menuIcon} /></ListItemIcon>
-                        <ListItemText primary="Socials" />
-                        {socialOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    </ListItem>
-                    <Collapse in={socialOpen} timeout="auto" unmountOnExit>
-                        <ListItem className={classes.menuItem} button onClick={() => newTab(business?.SOCIAL?.Twitter)}>
-                            <ListItemIcon>
-                                <TwitterIcon className={classes.twitter} />
-                            </ListItemIcon>
-                            <ListItemText primary="Twitter" />
-                        </ListItem>
-                    </Collapse>
                     {optionsToList(nav_options)}
                     <Divider />
                     {optionsToList(customer_actions)}
@@ -172,7 +147,6 @@ Hamburger.propTypes = {
     session: PropTypes.object,
     logout: PropTypes.func.isRequired,
     roles: PropTypes.array,
-    cart: PropTypes.object,
 }
 
 export { Hamburger };

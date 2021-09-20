@@ -27,15 +27,6 @@ export function customerNotifyAdmin(name) {
     });
 }
 
-export function orderNotifyAdmin() {
-    emailQueue.add({
-        to: [process.env.SITE_EMAIL_USERNAME],
-        subject: "New Order Received!",
-        text: `A new order has been submitted. It can be viewed at ${WEBSITE}/admin/orders`,
-        html: `<p>A new order has been submitted. It can be viewed at <a href=\"${WEBSITE}/admin/orders\">${WEBSITE}/admin/orders</a></p>`
-    });
-}
-
 export function sendResetPasswordLink(email, customer_id, code) {
     emailQueue.add({
         to: [email],

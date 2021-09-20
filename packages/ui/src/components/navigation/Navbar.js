@@ -81,7 +81,6 @@ function Navbar({
     business,
     onSessionUpdate,
     roles,
-    cart,
     onRedirect
 }) {
     const classes = useStyles();
@@ -101,7 +100,6 @@ function Navbar({
         onSessionUpdate: onSessionUpdate,
         logout: logoutCustomer,
         roles: roles, 
-        cart: cart,
         onRedirect: onRedirect
     }
 
@@ -136,7 +134,6 @@ function Navbar({
 Navbar.propTypes = {
     session: PropTypes.object,
     roles: PropTypes.array,
-    cart: PropTypes.object,
 }
 
 export { Navbar };

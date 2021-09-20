@@ -30,11 +30,8 @@ function AdminMainPage() {
     const classes = useStyles();
 
     const card_data = [
-        ['Orders', "Approve, create, and edit customer's orders", LINKS.AdminOrders],
         ['Customers', "Approve new customers, edit customer information", LINKS.AdminCustomers],
-        ['Inventory', "Add, remove, and update inventory", LINKS.AdminInventory],
         ['Hero', "Add, remove, and rearrange hero (home page) images", LINKS.AdminHero],
-        ['Gallery', "Add, remove, and rearrange gallery images", LINKS.AdminGallery],
         ['Contact Info', "Edit business hours and other contact information", LINKS.AdminContactInfo],
     ]
 

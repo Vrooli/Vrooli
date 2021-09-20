@@ -9,7 +9,6 @@ import { Container, Button, IconButton, Badge, List, ListItem, ListItemIcon, Lis
 import {
     Info as InfoIcon,
     PhotoLibrary as PhotoLibraryIcon,
-    ShoppingCart as ShoppingCartIcon
 } from '@material-ui/icons';
 import { makeStyles } from '@material-ui/styles';
 import _ from 'lodash';
@@ -44,35 +43,20 @@ function NavList({
     business,
     logout,
     roles,
-    cart,
     onRedirect
 }) {
     const classes = useStyles();
     
-    let nav_options = getUserActions(session, roles, cart);
-
-    let cart_button;
+    let nav_options = getUserActions(session, roles);
     // If someone is not logged in, display sign up/log in links
     if (!_.isObject(session) || Object.keys(session).length === 0) {
         nav_options.push(['Sign Up', 'signup', LINKS.Register]);
     } else {
-        // Cart option is rendered differently, so we must take it out of the array
-        let cart_index = nav_options.length - 1;
-        let cart_option = nav_options[cart_index];
-        // Replace cart option with log out option
-        nav_options = updateArray(nav_options, cart_index, ['Log Out', 'logout', LINKS.Home, logout]);
-        cart_button = (
-            <IconButton edge="start" color="inherit" aria-label={cart_option[1]} onClick={() => onRedirect(LINKS.Cart)}>
-                <Badge badgeContent={cart_option[5]} color="error">
-                    <ShoppingCartIcon/>
-                </Badge>
-            </IconButton>
-        );
+        nav_options.push(['Log out', 'logout', LINKS.Home, logout])
     }
 
     let about_options = [
         ['About Us', 'about', LINKS.About, null, InfoIcon],
-        ['Gallery', 'gallery', LINKS.Gallery, null, PhotoLibraryIcon]
     ]
 
     const optionsToList = (options) => {
@@ -122,7 +106,6 @@ function NavList({
                 </List>
             </PopupMenu>
             {optionsToMenu(nav_options)}
-            {cart_button}
         </Container>
     );
 }
@@ -131,7 +114,6 @@ NavList.propTypes = {
     session: PropTypes.object,
     logout: PropTypes.func.isRequired,
     roles: PropTypes.array,
-    cart: PropTypes.object,
 }
 
 export { NavList };

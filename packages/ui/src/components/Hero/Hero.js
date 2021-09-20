@@ -76,7 +76,7 @@ function Hero({
                     type="submit"
                     color="secondary"
                     className={classes.mainButton}
-                    onClick={() => history.push(LINKS.Shopping)}
+                    onClick={() => history.push(LINKS.Waitlist)}
                 >
                     Join Waitlist
                 </Button>

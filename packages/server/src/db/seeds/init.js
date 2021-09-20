@@ -11,7 +11,7 @@ export async function seed() {
     const role_titles = (await db(TABLES.Role).select('title')).map(r => r.title);
     // Specify roles that should exist
     const role_data = [
-        ['Customer', 'This role allows a customer to order products'],
+        ['Customer', 'This role allows a customer to create routines and save their progress.'],
         ['Owner', 'This role grants administrative access. This comes with the ability to \
         approve new customers, change customer information, modify inventory and \
         contact hours, and more.'],

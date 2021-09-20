@@ -26,13 +26,12 @@ const useStyles = makeStyles((theme) => ({
 function BottomNav({
     session,
     userRoles,
-    cart,
     ...props
 }) {
     let history = useHistory();
     const classes = useStyles();
 
-    let actions = getUserActions(session, userRoles, cart);
+    let actions = getUserActions(session, userRoles);
 
     return (
         <BottomNavigation 
@@ -56,7 +55,6 @@ function BottomNav({
 BottomNav.propTypes = {
     session: PropTypes.object,
     userRoles: PropTypes.array,
-    cart: PropTypes.object,
 }
 
 export { BottomNav };

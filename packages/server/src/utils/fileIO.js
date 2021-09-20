@@ -2,7 +2,6 @@ import path from 'path';
 import fs from 'fs';
 import { IMAGE_SIZE, IMAGE_EXTENSION } from '@local/shared';
 import probe from 'probe-image-size';
-import convert from 'heic-convert';
 import sharp from 'sharp';
 import imghash from 'imghash';
 import { TABLES } from '../db';
@@ -145,16 +144,6 @@ export async function saveImage({ file, alt, description, labels, errorOnDuplica
         let image_buffer = await streamToBuffer(stream);
         const dimensions = probe.sync(image_buffer);
         console.log('GOT DIMENSIONS', dimensions);
-        // If image is .heic or .heif, convert to jpg. Thanks, Apple
-        if (['.heic', '.heif'].includes(extCheck.toLowerCase())) {
-            console.log('converting image buffer')
-            image_buffer = await convert({
-                buffer: image_buffer, // the HEIC file buffer
-                format: 'JPEG',      // output format
-                quality: 1           // the jpeg compression quality, between 0 and 1
-            });
-            extCheck = 'jpg'
-        }
         // Determine image hash
         const hash = await imghash.hash(image_buffer);
         console.log('IMAGE HASH', hash)

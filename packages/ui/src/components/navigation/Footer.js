@@ -1,10 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { LINKS, printAvailability } from 'utils';
+import { LINKS } from 'utils';
 import { makeStyles } from '@material-ui/styles';
 import { List, ListItem, ListItemIcon, ListItemText, Grid, Tooltip } from '@material-ui/core';
 import {
     Email as EmailIcon,
+    GitHub as GitHubIcon,
     Twitter as TwitterIcon,
 } from '@material-ui/icons';
 import { CopyrightBreadcrumbs } from 'components';
@@ -48,8 +49,9 @@ function Footer({
     const theme = useTheme();
 
     const contactLinks = [
-        ['contact-twitter', business?.SOCIAL?.Twitter, TwitterIcon],
-        ['contact-email', 'Email Us', business?.EMAIL?.Link, business?.EMAIL?.Label, EmailIcon],
+        ['contact-twitter', 'Find us on Twitter', business?.SOCIAL?.Twitter, 'Twitter', TwitterIcon],
+        ['contact-email', 'Have a question or feedback? Email us!', business?.EMAIL?.Link, 'Email Us', EmailIcon],
+        ['contact-github', 'Check out the source code, or contribute :)', business?.SOCIAL?.GitHub, 'Source Code', GitHubIcon],
     ]
 
     return (
@@ -62,15 +64,6 @@ function Footer({
                         </ListItem>
                         <ListItem button component="a" onClick={() => history.push(LINKS.About)} >
                             <ListItemText primary="About Us" />
-                        </ListItem>
-                        <ListItem button component="a" onClick={() => history.push(LINKS.Gallery)} >
-                            <ListItemText primary="Gallery" />
-                        </ListItem>
-                        <ListItem button component="a" onClick={() => history.push(LINKS.Shopping)} >
-                            <ListItemText primary="Shop" />
-                        </ListItem>
-                        <ListItem button component="a" onClick={() => printAvailability(session, business?.BUSINESS_NAME?.Long)} >
-                            <ListItemText primary="Print Availability" />
                         </ListItem>
                     </List>
                 </Grid>
