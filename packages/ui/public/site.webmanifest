@@ -1,6 +1,6 @@
 {
-    "name": "",
-    "short_name": "",
+    "name": "Vrooli - Visual Work Routines",
+    "short_name": "Vrooli",
     "icons": [
         {
             "src": "/android-chrome-192x192.png",
@@ -21,5 +21,7 @@
     ],
     "theme_color": "#ffffff",
     "background_color": "#ffffff",
-    "display": "standalone"
+    "display": "standalone",
+    "scope": "/",
+    "start_url": "/"
 }
