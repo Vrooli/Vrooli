@@ -4,9 +4,8 @@ import { LINKS, printAvailability } from 'utils';
 import { makeStyles } from '@material-ui/styles';
 import { List, ListItem, ListItemIcon, ListItemText, Grid, Tooltip } from '@material-ui/core';
 import {
-    Business as BusinessIcon,
     Email as EmailIcon,
-    Phone as PhoneIcon,
+    Twitter as TwitterIcon,
 } from '@material-ui/icons';
 import { CopyrightBreadcrumbs } from 'components';
 import { useTheme } from '@emotion/react';
@@ -49,8 +48,7 @@ function Footer({
     const theme = useTheme();
 
     const contactLinks = [
-        ['address', 'View in Google Maps', business?.ADDRESS?.Link, business?.ADDRESS?.Label, BusinessIcon],
-        ['contact-phone', 'Call Us', business?.PHONE?.Link, business?.PHONE?.Label, PhoneIcon],
+        ['contact-twitter', business?.SOCIAL?.Twitter, TwitterIcon],
         ['contact-email', 'Email Us', business?.EMAIL?.Link, business?.EMAIL?.Label, EmailIcon],
     ]
 

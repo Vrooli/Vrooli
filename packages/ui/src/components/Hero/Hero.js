@@ -71,14 +71,14 @@ function Hero({
             <Slider images={images} autoPlay={true} />
             <div className={classes.contentWrapper}>
                 <Typography variant='h2' component='h1' className={classes.title + ' ' + classes.textPop}>{text}</Typography>
-                <Typography variant='h4' component='h2' className={classes.subtitle + ' ' + classes.textPop}>{subtext}</Typography>
+                { subtext ? <Typography variant='h4' component='h2' className={classes.subtitle + ' ' + classes.textPop}>{subtext}</Typography> : null}
                 <Button
                     type="submit"
                     color="secondary"
                     className={classes.mainButton}
                     onClick={() => history.push(LINKS.Shopping)}
                 >
-                    Request Quote
+                    Join Waitlist
                 </Button>
             </div>
         </div>
@@ -87,7 +87,7 @@ function Hero({
 
 Hero.propTypes = {
     text: PropTypes.string.isRequired,
-    subtext: PropTypes.string.isRequired,
+    subtext: PropTypes.string,
 }
 
 export { Hero };

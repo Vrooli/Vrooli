@@ -7,7 +7,7 @@ import {
 function HomePage() {
     return (
         <div>
-            <Hero text="Need a fast, large, or cheap spaceship?" subtext="We've got you covered" />
+            <Hero text="Your portal to idea monetization" />
             <FeaturedProducts />
         </div >
     );

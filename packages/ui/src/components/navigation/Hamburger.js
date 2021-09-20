@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { 
     ContactInfo,
-    Copyright
 } from 'components';
 import { getUserActions, LINKS, PUBS, PubSub } from 'utils';
 import {
@@ -11,13 +10,12 @@ import {
     ExitToApp as ExitToAppIcon,
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
-    Facebook as FacebookIcon,
     Home as HomeIcon,
     Menu as MenuIcon,
     Info as InfoIcon,
-    Instagram as InstagramIcon,
     PhotoLibrary as PhotoLibraryIcon,
     Share as ShareIcon,
+    Twitter as TwitterIcon,
 } from '@material-ui/icons';
 import { IconButton, SwipeableDrawer, List, ListItem, ListItemIcon, Badge, Collapse, Divider, ListItemText } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
@@ -44,11 +42,8 @@ const useStyles = makeStyles((theme) => ({
     menuIcon: {
         color: theme.palette.primary.contrastText,
     },
-    facebook: {
-        fill: '#ffffff', //'#43609C', // UCLA blue
-    },
-    instagram: {
-        fill: '#ffffff', // '#F77737',
+    twitter: {
+        fill: theme.palette.primary.contrastText,
     },
     copyright: {
         color: theme.palette.primary.contrastText,
@@ -156,17 +151,11 @@ function Hamburger({
                         {socialOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                     </ListItem>
                     <Collapse in={socialOpen} timeout="auto" unmountOnExit>
-                        <ListItem className={classes.menuItem} button onClick={() => newTab(business?.SOCIAL?.Facebook)}>
+                        <ListItem className={classes.menuItem} button onClick={() => newTab(business?.SOCIAL?.Twitter)}>
                             <ListItemIcon>
-                                <FacebookIcon className={classes.facebook} />
+                                <TwitterIcon className={classes.twitter} />
                             </ListItemIcon>
-                            <ListItemText primary="Facebook" />
-                        </ListItem>
-                        <ListItem className={classes.menuItem} button onClick={() => newTab(business?.SOCIAL?.Instagram)}>
-                            <ListItemIcon>
-                                <InstagramIcon className={classes.instagram} />
-                            </ListItemIcon>
-                            <ListItemText primary="Instagram" />
+                            <ListItemText primary="Twitter" />
                         </ListItem>
                     </Collapse>
                     {optionsToList(nav_options)}
