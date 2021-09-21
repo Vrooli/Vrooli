@@ -50,6 +50,7 @@ export const LINKS = {
     ForgotPassword: '/forgot-password', // Page for sending password reset request emails
     Home: '/', // Home page. Similar to the about page, but more project details and less vision
     LogIn: '/login', // Page with log in form
+    Mission: '/mission', // More details about the project's overall vision
     Portal: '/portal', // Main page for logged-in customers. Shows created and liked routines, displayed either as a knowledge graph or classical file structure
     PrivacyPolicy: '/privacy-policy', // Privacy policy
     Profile: '/profile', // View and update profile and settings
