@@ -36,7 +36,6 @@ export async function authenticate(req, _, next) {
         // Now, set token and role variables for other middleware to use
         req.validToken = true;
         req.customerId = payload.customerId;
-        req.businessId = payload.businessId;
         req.roles = payload.roles;
         req.isCustomer = payload.isCustomer;
         req.isAdmin = payload.isAdmin;
@@ -45,13 +44,12 @@ export async function authenticate(req, _, next) {
 }
 
 // Generates a JSON Web Token (JWT)
-export async function generateToken(res, customerId, businessId) {
+export async function generateToken(res, customerId) {
     const customerRoles = await findCustomerRoles(customerId);
     const tokenContents = {
         iat: Date.now(),
         iss: `https://${process.env.SITE_NAME}/`,
         customerId: customerId,
-        businessId: businessId,
         roles: customerRoles,
         isCustomer: customerRoles.includes('customer' || 'admin'),
         isAdmin: customerRoles.includes('admin'),

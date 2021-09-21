@@ -11,10 +11,6 @@ export const CODE = {
         code: 'INVALID_ARGS',
         message: 'Error: Invalid arguments supplied'
     },
-    PhoneInUse: {
-        code: 'PHONE_IN_USE',
-        message: 'Error: Account with that phone number already exists'
-    },
     EmailInUse: {
         code: 'EMAIL_IN_USE',
         message: 'Error: Account with that email already exists'

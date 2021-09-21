@@ -15,7 +15,7 @@ The words of which the initial letter is capitalized have meanings defined under
 
 For the purposes of this Privacy Policy:
 * **Account** means a unique account created for You to access our Service or parts of our Service.
-* **Company** (referred to as either "the Company", "We", "Us" or "Our" in this Agreement) refers to <BUSINESS_NAME.Long>, [<ADDRESS.Label>](<ADDRESS.Link>).
+* **Company** (referred to as either "the Company", "We", "Us" or "Our" in this Agreement) refers to <BUSINESS_NAME.Long>.
 * **Cookies** are small files that are placed on Your computer, mobile device or any other device by a website, containing the details of Your browsing history on that website among its many uses.
 * **Device** means any device that can access the Service such as a computer, a cellphone or a digital tablet.
 * **Personal Data** is any information that relates to an identified or identifiable individual.
@@ -35,8 +35,7 @@ For the purposes of this Privacy Policy:
 While using Our Service, We may ask You to provide Us with certain personally identifiable information that can be used to contact or identify You. Personally identifiable information may include, but is not limited to:
 * Email address
 * First and last name
-* Phone number
-* Address, State, Province, ZIP/Postal code, City
+* Pronouns
 * Usage Data
 
 #### Usage Data
@@ -191,7 +190,7 @@ We describe the choices you have to manage your privacy and data across <BUSINES
 
 ### Categories of personal information we collect
 
-* **Identifiers** such as your name, phone number, and email address
+* **Identifiers** such as your name and email address
 * **Demographic information**, such as your language
 * **Commerical information**, such as your payment information and order history
 * **Other information you create or provide**, such as the content you upload (like photos or comments)

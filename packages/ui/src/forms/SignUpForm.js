@@ -21,9 +21,6 @@ import { useTheme } from '@emotion/react';
 import { formStyles } from './styles';
 
 const componentStyles = (theme) => ({
-    phoneInput: {
-        width: '100%',
-    },
 })
 
 const useStyles = makeStyles(combineStyles(formStyles, componentStyles));
@@ -43,9 +40,7 @@ function SignUpForm({
             firstName: '',
             lastName: '',
             pronouns: '',
-            business: '',
             email: '',
-            phone: '',
             password: '',
             confirmPassword: ''
         },
@@ -133,19 +128,6 @@ function SignUpForm({
                 <Grid item xs={12}>
                     <TextField
                         fullWidth
-                        id="business"
-                        name="business"
-                        autoComplete="business"
-                        label="Business"
-                        value={formik.values.business}
-                        onChange={formik.handleChange}
-                        error={formik.touched.business && Boolean(formik.errors.business)}
-                        helperText={formik.touched.business && formik.errors.business}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
                         id="email"
                         name="email"
                         autoComplete="email"
@@ -154,19 +136,6 @@ function SignUpForm({
                         onChange={formik.handleChange}
                         error={formik.touched.email && Boolean(formik.errors.email)}
                         helperText={formik.touched.email && formik.errors.email}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="phone"
-                        name="phone"
-                        autoComplete="tel"
-                        label="Phone Number"
-                        value={formik.values.phone}
-                        onChange={formik.handleChange}
-                        error={formik.touched.phone && Boolean(formik.errors.phone)}
-                        helperText={formik.touched.phone && formik.errors.phone}
                     />
                 </Grid>
                 <Grid item xs={12}>

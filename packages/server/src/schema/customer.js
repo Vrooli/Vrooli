@@ -1,10 +1,10 @@
 import { gql } from 'apollo-server-express';
 import { TABLES } from '../db';
 import bcrypt from 'bcrypt';
-import { ACCOUNT_STATUS, CODE, COOKIE, logInSchema, passwordSchema, signUpSchema, requestPasswordChangeSchema } from '@local/shared';
+import { ACCOUNT_STATUS, CODE, COOKIE, joinWaitlistSchema, logInSchema, passwordSchema, signUpSchema, requestPasswordChangeSchema } from '@local/shared';
 import { CustomError, validateArgs } from '../error';
 import { generateToken } from '../auth';
-import { customerNotifyAdmin, sendResetPasswordLink, sendVerificationLink } from '../worker/email/queue';
+import { customerNotifyAdmin, joinWaitlistConfirmation, sendResetPasswordLink, sendVerificationLink } from '../worker/email/queue';
 import { HASHING_ROUNDS } from '../consts';
 import { PrismaSelect } from '@paljs/plugins';
 import { customerFromEmail, getCustomerSelect, upsertCustomer } from '../db/models/customer';
@@ -29,8 +29,6 @@ export const typeDef = gql`
         lastName: String
         pronouns: String
         emails: [EmailInput!]
-        phones: [PhoneInput!]
-        business: BusinessInput
         theme: String
         status: AccountStatus
     }
@@ -42,8 +40,6 @@ export const typeDef = gql`
         fullName: String
         pronouns: String!
         emails: [Email!]!
-        phones: [Phone!]!
-        business: Business
         theme: String!
         emailVerified: Boolean!
         status: AccountStatus!
@@ -63,14 +59,11 @@ export const typeDef = gql`
             verificationCode: String
         ): Customer!
         logout: Boolean
-        # Creates a business, then creates a customer belonging to that business
         signUp(
             firstName: String!
             lastName: String!
             pronouns: String
-            business: String!
             email: String!
-            phone: String!
             theme: String!
             marketingEmails: Boolean!
             password: String!
@@ -85,9 +78,8 @@ export const typeDef = gql`
             id: ID!
             password: String
         ): Boolean
-        requestPasswordChange(
-            email: String!
-        ): Boolean
+        joinWaitlist(email: String!): Boolean
+        requestPasswordChange(email: String!): Boolean
         resetPassword(
             id: ID!
             code: String!
@@ -183,7 +175,7 @@ export const resolvers = {
             // Now we can validate the password
             const validPassword = bcrypt.compareSync(args.password, customer.password);
             if (validPassword) {
-                await generateToken(context.res, customer.id, customer.businessId);
+                await generateToken(context.res, customer.id);
                 await context.prisma[_model].update({
                     where: { id: customer.id },
                     data: { 
@@ -229,16 +221,14 @@ export const resolvers = {
                     firstName: args.firstName,
                     lastName: args.lastName,
                     pronouns: args.pronouns,
-                    business: {name: args.business},
                     password: bcrypt.hashSync(args.password, HASHING_ROUNDS),
                     theme: args.theme,
                     status: ACCOUNT_STATUS.Unlocked,
                     emails: [{ emailAddress: args.email }],
-                    phones: [{ number: args.phone }],
                     roles: [customerRole]
                 }
             })
-            await generateToken(context.res, customer.id, customer.businessId);
+            await generateToken(context.res, customer.id);
             // Send verification email
             sendVerificationLink(args.email, customer.id);
             // Send email to business owner
@@ -260,11 +250,9 @@ export const resolvers = {
                     firstName: args.input.firstName,
                     lastName: args.input.lastName,
                     pronouns: args.input.pronouns,
-                    business: args.input.business,
                     theme: 'light',
                     status: ACCOUNT_STATUS.Unlocked,
                     emails: args.input.emails,
-                    phones: args.input.phones,
                     roles: [customerRole]
                 }
             });
@@ -280,7 +268,6 @@ export const resolvers = {
                 select: {
                     id: true,
                     password: true,
-                    business: { select: { id: true } }
                 }
             });
             if(!bcrypt.compareSync(args.currentPassword, customer.password)) return new CustomError(CODE.BadCredentials);
@@ -313,6 +300,36 @@ export const resolvers = {
             }
             // Delete account
             await context.prisma[_model].delete({ where: { id: customer.id } });
+            return true;
+        },
+        joinWaitlist: async (_, args, context) => {
+            // Validate input format
+            const validateError = await validateArgs(joinWaitlistSchema, args);
+            if (validateError) return validateError;
+            // Validate email address
+            const emailRow = await context.prisma[TABLES.Email].findUnique({ where: { emailAddress: args.email } });
+            if (emailRow) throw new CustomError(CODE.EmailInUse);
+            // Generate confirmation code
+            const confirmationCode = bcrypt.genSaltSync(HASHING_ROUNDS).replace('/', '');
+            // Create new user
+            const customerRole = await context.prisma[TABLES.Role].findUnique({ where: { title: 'Customer' } });
+            if (!customerRole) return new CustomError(CODE.ErrorUnknown);
+            await upsertCustomer({
+                prisma: context.prisma,
+                data: {
+                    firstName: '',
+                    lastName: '',
+                    pronouns: '',
+                    theme: 'light',
+                    confirmationCode,
+                    confirmationCodeDate: new Date().toISOString(),
+                    status: ACCOUNT_STATUS.Unlocked,
+                    emails: args.email,
+                    roles: [customerRole]
+                }
+            });
+            // Send confirmation email
+            joinWaitlistConfirmation(args.email);
             return true;
         },
         requestPasswordChange: async (_, args, context) => {

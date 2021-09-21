@@ -33,12 +33,6 @@ export async function seed() {
     const has_admin = (await db(TABLES.CustomerRoles).where('roleId', role_admin_id)).length > 0;
     if (!has_admin) {
         console.info(`👩🏼‍💻 Creating admin account`);
-        // Insert admin's business
-        const business_id = (await db(TABLES.Business).insert([
-            {
-                name: 'Admin'
-            }
-        ]).returning('id'))[0];
         // Insert admin
         const customer_admin_id = (await db(TABLES.Customer).insert([
             {
@@ -47,7 +41,6 @@ export async function seed() {
                 password: bcrypt.hashSync(process.env.ADMIN_PASSWORD, HASHING_ROUNDS),
                 emailVerified: true,
                 status: ACCOUNT_STATUS.Unlocked,
-                businessId: business_id
             }
         ]).returning('id'))[0];
 

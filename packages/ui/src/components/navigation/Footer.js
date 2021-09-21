@@ -41,7 +41,6 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 function Footer({
-    session,
     business
 }) {
     const classes = useStyles();
@@ -64,6 +63,9 @@ function Footer({
                         </ListItem>
                         <ListItem button component="a" onClick={() => history.push(LINKS.About)} >
                             <ListItemText primary="About Us" />
+                        </ListItem>
+                        <ListItem button component="a" onClick={() => history.push(LINKS.Waitlist)} >
+                            <ListItemText primary="Join Waitlist" />
                         </ListItem>
                     </List>
                 </Grid>

@@ -44,15 +44,15 @@ const useStyles = makeStyles((theme) => ({
     navName: {
         position: 'relative',
         cursor: 'pointer',
-        fontSize: '2em',
+        fontSize: '3em',
         fontFamily: `'Lato', sans-serif;`,
         color: theme.palette.primary.contrastText,
     },
-    [theme.breakpoints.down(500)]: {
-        navName: {
-            fontSize: '1.5em',
-        }
-    },
+    // [theme.breakpoints.down(500)]: {
+    //     navName: {
+    //         fontSize: '1.5em',
+    //     }
+    // },
     [theme.breakpoints.down(350)]: {
         navName: {
             display: 'none',

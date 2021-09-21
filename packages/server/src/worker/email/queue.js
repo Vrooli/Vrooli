@@ -36,6 +36,15 @@ export function sendResetPasswordLink(email, customer_id, code) {
     });
 }
 
+export function joinWaitlistConfirmation(email) {
+    emailQueue.add({
+        to: [email],
+        subject: `You're on the waitlist for ${BUSINESS_NAME.Short}!`,
+        text: `Congratulations! You're on the waitlist for Vrooli. We'll let you know when the site is ready.`,
+        html: `<p>Congratulations!</p><p>You're on the waitlist for Vrooli.<p>We'll let you know when the site is ready.<p>`
+    });
+}
+
 export function sendVerificationLink(email, customer_id) {
     emailQueue.add({
         to: [email],

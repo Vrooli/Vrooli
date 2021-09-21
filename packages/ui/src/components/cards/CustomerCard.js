@@ -15,15 +15,13 @@ import {
     Email as EmailIcon,
     Lock as LockIcon,
     LockOpen as LockOpenIcon,
-    Phone as PhoneIcon,
 } from '@material-ui/icons';
 import { makeStyles } from '@material-ui/styles';
 import { changeCustomerStatusMutation, deleteCustomerMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { ACCOUNT_STATUS } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { useTheme } from '@emotion/react';
-import { emailLink, mapIfExists, phoneLink, PUBS, PubSub, showPhone } from 'utils';
+import { emailLink, mapIfExists, PUBS, PubSub } from 'utils';
 import { ListDialog } from 'components/dialogs';
 import { cardStyles } from './styles';
 
@@ -31,20 +29,12 @@ const useStyles = makeStyles(cardStyles);
 
 function CustomerCard({
     customer,
-    status = ACCOUNT_STATUS.Deleted,
     onEdit,
 }) {
     const classes = useStyles();
-    const theme = useTheme();
     const [changeCustomerStatus] = useMutation(changeCustomerStatusMutation);
     const [deleteCustomer] = useMutation(deleteCustomerMutation);
     const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-    const [phoneDialogOpen, setPhoneDialogOpen] = useState(false);
-
-    const callPhone = (phoneLink) => {
-        setPhoneDialogOpen(false);
-        if (phoneLink) window.location.href = phoneLink;
-    }
 
     const sendEmail = (emailLink) => {
         setEmailDialogOpen(false);
@@ -126,18 +116,11 @@ function CustomerCard({
         }
     }
 
-    // Phone and email [label, value] pairs
-    const phoneList = mapIfExists(customer, 'phones', (p) => ([showPhone(p.number), phoneLink(p.number)]));
+    // [label, value] pairs
     const emailList = mapIfExists(customer, 'emails', (e) => ([e.emailAddress, emailLink(e.emailAddress)]));
 
     return (
         <Card className={classes.cardRoot}>
-            {phoneDialogOpen ? (
-                <ListDialog
-                    title={`Call ${customer?.fullName}`}
-                    data={phoneList}
-                    onClose={callPhone} />
-            ) : null}
             {emailDialogOpen ? (
                 <ListDialog
                     title={`Email ${customer?.fullName}`}
@@ -159,14 +142,7 @@ function CustomerCard({
                             {action[1]}
                         </IconButton>
                     </Tooltip>
-                )}
-                {(phoneList?.length > 0) ?
-                    (<Tooltip title="View phone numbers" placement="bottom">
-                        <IconButton onClick={() => setPhoneDialogOpen(true)}>
-                            <PhoneIcon className={classes.icon} />
-                        </IconButton>
-                    </Tooltip>)
-                    : null}
+                )} 
                 {(emailList?.length > 0) ?
                     (<Tooltip title="View emails" placement="bottom">
                         <IconButton onClick={() => setEmailDialogOpen(true)}>

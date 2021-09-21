@@ -52,9 +52,6 @@ const useStyles = makeStyles((theme) => ({
         width: '100%',
         marginTop: theme.spacing(3),
     },
-    phoneInput: {
-        width: '100%',
-    },
 }));
 
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -74,9 +71,7 @@ function NewCustomerDialog({
             firstName: '',
             lastName: '',
             pronouns: '',
-            business: '',
             email: '',
-            phone: '',
         },
         validationSchema: addCustomerSchema,
         onSubmit: (values) => {
@@ -86,9 +81,7 @@ function NewCustomerDialog({
                     firstName: values.firstName,
                     lastName: values.lastName,
                     pronouns: values.pronouns,
-                    business: {name: values.business},
                     emails: [{ emailAddress: values.email }],
-                    phones: [{ number: values.phone }],
                 } } },
                 onSuccess: () => onClose(),
                 successMessage: () => 'Customer created.'
@@ -186,19 +179,6 @@ function NewCustomerDialog({
                         <Grid item xs={12}>
                             <TextField
                                 fullWidth
-                                id="business"
-                                name="business"
-                                autoComplete="business"
-                                label="Business"
-                                value={formik.values.business}
-                                onChange={formik.handleChange}
-                                error={formik.touched.business && Boolean(formik.errors.business)}
-                                helperText={formik.touched.business && formik.errors.business}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
                                 id="email"
                                 name="email"
                                 autoComplete="email"
@@ -207,19 +187,6 @@ function NewCustomerDialog({
                                 onChange={formik.handleChange}
                                 error={formik.touched.email && Boolean(formik.errors.email)}
                                 helperText={formik.touched.email && formik.errors.email}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                id="phone"
-                                name="phone"
-                                autoComplete="tel"
-                                label="Phone Number"
-                                value={formik.values.phone}
-                                onChange={formik.handleChange}
-                                error={formik.touched.phone && Boolean(formik.errors.phone)}
-                                helperText={formik.touched.phone && formik.errors.phone}
                             />
                         </Grid>
                     </Grid>

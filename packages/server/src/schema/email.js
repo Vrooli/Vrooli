@@ -12,7 +12,6 @@ export const typeDef = gql`
         emailAddress: String!
         receivesDeliveryUpdates: Boolean
         customerId: ID
-        businessId: ID
     }
 
     type Email {
@@ -20,7 +19,6 @@ export const typeDef = gql`
         emailAddress: String!
         receivesDeliveryUpdates: Boolean!
         customer: Customer
-        business: Business
     }
 
     extend type Query {
@@ -45,14 +43,14 @@ export const resolvers = {
     Mutation: {
         addEmail: async (_, args, context, info) => {
             // Must be admin, or adding to your own
-            if(!context.req.isAdmin || (context.req.businessId !== args.input.businessId)) return new CustomError(CODE.Unauthorized);
+            if(!context.req.isAdmin || (context.req.customerId !== args.input.customerId)) return new CustomError(CODE.Unauthorized);
             return await context.prisma[_model].create((new PrismaSelect(info).value), { data: { ...args.input } });
         },
         updateEmail: async (_, args, context, info) => {
             // Must be admin, or updating your own
             if(!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
             const curr = await context.prisma[_model].findUnique({ where: { id: args.input.id } });
-            if (context.req.businessId !== curr.businessId) return new CustomError(CODE.Unauthorized);
+            if (context.req.customerId !== curr.custmoerId) return new CustomError(CODE.Unauthorized);
             return await context.prisma[_model].update({
                 where: { id: args.input.id || undefined },
                 data: { ...args.input },
@@ -64,8 +62,8 @@ export const resolvers = {
             // TODO must keep at least one email per customer
             const specified = await context.prisma[_model].findMany({ where: { id: { in: args.ids } } });
             if (!specified) return new CustomError(CODE.ErrorUnknown);
-            const business_ids = [...new Set(specified.map(s => s.businessId))];
-            if (!context.req.isAdmin && (business_ids.length > 1 || context.req.business_id !== business_ids[0])) return new CustomError(CODE.Unauthorized);
+            const customerIds = [...new Set(specified.map(s => s.customerId))];
+            if (!context.req.isAdmin && (customerIds.length > 1 || context.req.customerId !== customerIds[0])) return new CustomError(CODE.Unauthorized);
             return await context.prisma[_model].deleteMany({ where: { id: { in: args.ids } } });
         }
     }

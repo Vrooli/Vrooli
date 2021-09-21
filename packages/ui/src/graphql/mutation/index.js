@@ -2,6 +2,7 @@ export * from './addCustomer';
 export * from './addImages';
 export * from './changeCustomerStatus';
 export * from './deleteCustomerMutation';
+export * from './joinWaitlist';
 export * from './updateCustomer';
 export * from './login';
 export * from './logout';
