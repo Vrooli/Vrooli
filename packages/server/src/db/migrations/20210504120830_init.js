@@ -31,7 +31,6 @@ export async function up (knex) {
         table.timestamp('lastResetPasswordReqestAttempt');
         table.string('confirmationCode', 256).unique();
         table.timestamp('confirmationCodeDate');
-        table.boolean('emailVerified').defaultTo(false).notNullable();
         table.enu('status', Object.values(ACCOUNT_STATUS)).defaultTo(ACCOUNT_STATUS.Unlocked).notNullable();
         table.timestamps(true, true);
     });
@@ -53,6 +52,7 @@ export async function up (knex) {
         table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v4()'));
         table.string('emailAddress', 128).notNullable().unique();
         table.boolean('receivesDeliveryUpdates').defaultTo(true).notNullable();
+        table.boolean('verified').defaultTo(false).notNullable();
         table.uuid('customerId').references('id').inTable(TABLES.Customer).notNullable().onUpdate('CASCADE').onDelete('CASCADE');
     });
     await knex.schema.createTable(TABLES.Image, (table) => {

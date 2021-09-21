@@ -4,6 +4,7 @@ import { ContactInfo } from 'components';
 import { actionsToList, createAction, getUserActions, LINKS, PUBS, PubSub } from 'utils';
 import {
     Close as CloseIcon,
+    ConnectWithoutContact as ConnectWithoutContactIcon,
     ContactSupport as ContactSupportIcon,
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
@@ -75,6 +76,7 @@ function Hamburger({
     };
 
     const nav_actions = [
+        createAction('Mission', 'mission', LINKS.Mission, null, ConnectWithoutContactIcon),
         createAction('About Us', 'about', LINKS.About, null, InfoIcon),
         ...getUserActions({ session, roles })
     ]

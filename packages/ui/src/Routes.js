@@ -10,14 +10,12 @@ import {
     LogInForm,
     ProfileForm,
     ResetPasswordForm,
-    SignUpForm,
+    // SignUpForm,
     WaitlistForm
 } from 'forms';
 import { ScrollToTop } from 'components';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
-// const AboutPage = lazy(() => import('./pages'), 'AboutPage');
-// const AdminContactPage = lazy(() => import ('./pages/admin/AdminContactPage/AdminContactPage'), 'AdminContactPage');
 const {
     AboutPage,
     AdminContactPage,
@@ -104,7 +102,7 @@ function Routes({
                         </Page>
                     )}
                 />
-                <Route
+                {/* <Route
                     exact
                     path={LINKS.Register}
                     sitemapIndex={true}
@@ -116,10 +114,10 @@ function Routes({
                             </FormPage>
                         </Page>
                     )}
-                />
+                /> */}
                 <Route
                     exact
-                    path={`${LINKS.Waitlist}`}
+                    path={`${LINKS.Waitlist}/:code?`}
                     sitemapIndex={true}
                     priority={0.8}
                     render={() => (

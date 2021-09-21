@@ -39,7 +39,6 @@ export async function seed() {
                 firstName: 'admin',
                 lastName: 'account',
                 password: bcrypt.hashSync(process.env.ADMIN_PASSWORD, HASHING_ROUNDS),
-                emailVerified: true,
                 status: ACCOUNT_STATUS.Unlocked,
             }
         ]).returning('id'))[0];
@@ -49,6 +48,7 @@ export async function seed() {
             {
                 emailAddress: process.env.ADMIN_EMAIL,
                 receivesDeliveryUpdates: false,
+                verified: true,
                 customerId: customer_admin_id
             }
         ])

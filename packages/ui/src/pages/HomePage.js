@@ -1,10 +1,12 @@
 import React from 'react';
 import { 
-    Hero 
+    Hero,
+    MissionSlide
 } from 'components';
-import { MissionSlide } from 'components/slides';
+import { useTheme } from '@emotion/react';
 
 function HomePage() {
+    const theme = useTheme();
     return (
         <div>
             <Hero text="Your portal to idea monetization" />

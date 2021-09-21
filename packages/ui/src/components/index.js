@@ -9,5 +9,6 @@ export * from './lists';
 export * from './navigation';
 export * from './PopupMenu';
 export * from './ScrollToTop';
+export * from './slides';
 export * from './Snack';
 export * from './TabPanel';

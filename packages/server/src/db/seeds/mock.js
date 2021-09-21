@@ -37,12 +37,11 @@ export async function seed() {
             firstName: 'Elon',
             lastName: 'Tusk🦏',
             password: bcrypt.hashSync('Elon', HASHING_ROUNDS),
-            emailVerified: true,
             status: ACCOUNT_STATUS.Unlocked,
         },
         emailsData: [
-            { emailAddress: 'notarealemail@afakesite.com', receivesDeliveryUpdates: false },
-            { emailAddress: 'backupemailaddress@afakesite.com', receivesDeliveryUpdates: false }
+            { emailAddress: 'notarealemail@afakesite.com', receivesDeliveryUpdates: false, verified: true },
+            { emailAddress: 'backupemailaddress@afakesite.com', receivesDeliveryUpdates: false, verified: false }
         ],
         roleIds: [ownerRoleId]
     });
@@ -53,11 +52,10 @@ export async function seed() {
             firstName: 'John',
             lastName: 'Cena',
             password: bcrypt.hashSync('John', HASHING_ROUNDS),
-            emailVerified: true,
             status: ACCOUNT_STATUS.Unlocked,
         },
         emailsData: [
-            { emailAddress: 'itsjohncena@afakesite.com', receivesDeliveryUpdates: false }
+            { emailAddress: 'itsjohncena@afakesite.com', receivesDeliveryUpdates: false, verified: true }
         ],
         roleIds: [customerRoleId]
     });
@@ -66,11 +64,10 @@ export async function seed() {
             firstName: 'Spongebob',
             lastName: 'Customerpants',
             password: bcrypt.hashSync('Spongebob', HASHING_ROUNDS),
-            emailVerified: true,
             status: ACCOUNT_STATUS.Unlocked,
         },
         emailsData: [
-            { emailAddress: 'spongebobmeboy@afakesite.com', receivesDeliveryUpdates: false }
+            { emailAddress: 'spongebobmeboy@afakesite.com', receivesDeliveryUpdates: false, verified: true }
         ],
         roleIds: [customerRoleId]
     });

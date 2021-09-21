@@ -6,7 +6,10 @@ import {
 } from 'components';
 import { actionsToMenu, createAction, getUserActions, LINKS } from 'utils';
 import { Container } from '@material-ui/core';
-import { Info as InfoIcon } from '@material-ui/icons';
+import { 
+    ConnectWithoutContact as ConnectWithoutContactIcon,
+    Info as InfoIcon 
+} from '@material-ui/icons';
 import { makeStyles } from '@material-ui/styles';
 import { useHistory } from 'react-router-dom';
 
@@ -44,6 +47,7 @@ function NavList({
     const history = useHistory();
 
     const nav_actions = [
+        createAction('Mission', 'mission', LINKS.Mission, null, ConnectWithoutContactIcon),
         createAction('About Us', 'about', LINKS.About, null, InfoIcon),
         ...getUserActions({ session, roles })
     ]

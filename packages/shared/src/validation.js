@@ -96,5 +96,8 @@ export const resetPasswordSchema = yup.object().shape({
 
 // Schema for joining the waitlist
 export const joinWaitlistSchema = yup.object().shape({
-    email: yup.string().email().required()
+    firstName: yup.string().max(128).required(),
+    lastName: yup.string().max(128).required(),
+    pronouns: yup.string().max(128).default(DEFAULT_PRONOUNS[0]).optional(),
+    email: yup.string().email().required(),
 })

@@ -3,6 +3,8 @@ import { LINKS } from 'utils';
 import { BreadcrumbsBase } from './BreadcrumbsBase';
 
 const paths = [
+    ['Home', LINKS.Home],
+    ['Mission', LINKS.Mission],
     ['About Us', LINKS.About],
 ]
 
