@@ -4,13 +4,11 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { getUserActions, LINKS } from 'utils';
-import { Container, Button, List, ListItem, ListItemIcon, ListItemText } from '@material-ui/core';
-import {
-    Info as InfoIcon,
-} from '@material-ui/icons';
+import { actionsToMenu, createAction, getUserActions, LINKS } from 'utils';
+import { Container } from '@material-ui/core';
+import { Info as InfoIcon } from '@material-ui/icons';
 import { makeStyles } from '@material-ui/styles';
-import _ from 'lodash';
+import { useHistory } from 'react-router-dom';
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -40,49 +38,15 @@ const useStyles = makeStyles((theme) => ({
 function NavList({
     session,
     business,
-    logout,
     roles,
-    onRedirect
 }) {
     const classes = useStyles();
-    
-    let nav_options = getUserActions(session, roles);
-    // If someone is not logged in, display sign up/log in links
-    if (!_.isObject(session) || Object.keys(session).length === 0) {
-        nav_options.push(['Sign Up', 'signup', LINKS.Register]);
-    } else {
-        nav_options.push(['Log out', 'logout', LINKS.Home, logout])
-    }
+    const history = useHistory();
 
-    let about_options = [
-        ['About Us', 'about', LINKS.About, null, InfoIcon],
+    const nav_actions = [
+        createAction('About Us', 'about', LINKS.About, null, InfoIcon),
+        ...getUserActions({ session, roles })
     ]
-
-    const optionsToList = (options) => {
-        return options.map(([label, value, link, onClick, Icon], index) => (
-            <ListItem className={classes.menuItem} button key={index} onClick={() => { onRedirect(link); if (onClick) onClick() }}>
-                {Icon ?
-                    (<ListItemIcon>
-                            <Icon className={classes.menuIcon} />
-                    </ListItemIcon>) : null}
-                <ListItemText primary={label} />
-            </ListItem>
-        ))
-    }
-
-    const optionsToMenu = (options) => {
-        return options.map(([label, value, link, onClick], index) => (
-            <Button
-                key={index}
-                variant="text"
-                size="large"
-                className={classes.navItem}
-                onClick={() => { onRedirect(link); if(onClick) onClick()}}
-            >
-                {label}
-            </Button>
-        ));
-    }
 
     return (
         <Container className={classes.root}>
@@ -94,17 +58,11 @@ function NavList({
             >
                 <ContactInfo className={classes.contact} business={business} />
             </PopupMenu>
-            <PopupMenu
-                text="About"
-                variant="text"
-                size="large"
-                className={classes.navItem}
-            >
-                <List>
-                    {optionsToList(about_options)}
-                </List>
-            </PopupMenu>
-            {optionsToMenu(nav_options)}
+            {actionsToMenu({
+                actions: nav_actions,
+                history,
+                classes: { button: classes.navItem },
+            })}
         </Container>
     );
 }

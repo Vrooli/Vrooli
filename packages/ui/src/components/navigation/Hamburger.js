@@ -1,24 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { 
-    ContactInfo,
-} from 'components';
-import { getUserActions, LINKS, PUBS, PubSub } from 'utils';
+import { ContactInfo } from 'components';
+import { actionsToList, createAction, getUserActions, LINKS, PUBS, PubSub } from 'utils';
 import {
     Close as CloseIcon,
     ContactSupport as ContactSupportIcon,
-    ExitToApp as ExitToAppIcon,
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
-    Home as HomeIcon,
     Menu as MenuIcon,
     Info as InfoIcon,
 } from '@material-ui/icons';
-import { IconButton, SwipeableDrawer, List, ListItem, ListItemIcon, Badge, Collapse, Divider, ListItemText } from '@material-ui/core';
+import { IconButton, SwipeableDrawer, List, ListItem, ListItemIcon, Collapse, ListItemText } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { CopyrightBreadcrumbs } from 'components';
 import { useTheme } from '@emotion/react';
-import _ from 'lodash';
+import { useHistory } from 'react-router';
 
 const useStyles = makeStyles((theme) => ({
     drawerPaper: {
@@ -54,11 +50,10 @@ const useStyles = makeStyles((theme) => ({
 function Hamburger({
     session,
     business,
-    logout,
     roles,
-    onRedirect
 }) {
     const classes = useStyles();
+    const history = useHistory();
     const theme = useTheme();
     const [contactOpen, setContactOpen] = useState(true);
     const [open, setOpen] = useState(false);
@@ -79,37 +74,10 @@ function Hamburger({
         setContactOpen(!contactOpen);
     };
 
-    const optionsToList = (options) => {
-        return options.map(([label, value, link, onClick, Icon, badgeNum], index) => (
-            <ListItem 
-                key={index}
-                className={classes.menuItem}
-                button
-                onClick={() => { 
-                    onRedirect(link); 
-                    if (onClick) onClick();
-                    closeMenu();
-                }}>
-                {Icon ?
-                    (<ListItemIcon>
-                        <Badge badgeContent={badgeNum ?? 0} color="error">
-                            <Icon className={classes.menuIcon} />
-                        </Badge>
-                    </ListItemIcon>) : null}
-                <ListItemText primary={label} />
-            </ListItem>
-        ))
-    }
-
-    let nav_options = [
-        ['Home', 'home', LINKS.Home, null, HomeIcon],
-        ['About Us', 'about', LINKS.About, null, InfoIcon],
+    const nav_actions = [
+        createAction('About Us', 'about', LINKS.About, null, InfoIcon),
+        ...getUserActions({ session, roles })
     ]
-
-    let customer_actions = getUserActions(session, roles);
-    if (_.isObject(session) && Object.entries(session).length > 0) {
-        customer_actions.push(['Log Out', 'logout', LINKS.Home, logout, ExitToAppIcon]);
-    }
 
     return (
         <React.Fragment>
@@ -130,9 +98,12 @@ function Hamburger({
                     <Collapse className={classes.menuItem} in={contactOpen} timeout="auto" unmountOnExit>
                         <ContactInfo business={business} />
                     </Collapse>
-                    {optionsToList(nav_options)}
-                    <Divider />
-                    {optionsToList(customer_actions)}
+                    {actionsToList({
+                        actions: nav_actions,
+                        history,
+                        classes: { listItem: classes.menuItem, listItemIcon: classes.menuIcon },
+                        onAnyClick: closeMenu,
+                    })}
                 </List>
                 <CopyrightBreadcrumbs className={classes.copyright} business={business} textColor={theme.palette.primary.contrastText} />
             </SwipeableDrawer>
