@@ -34,11 +34,6 @@ export const showPhone = (phone) => {
     return null;
 }
 
-// '+1 (555) 867-5309' -> '15558675309'
-export const storePhone = (phone) => {
-
-}
-
 // '15558675309' -> 'tel:+15558675309'
 export const phoneLink = (phone) => `tel:${phone}`
 export const emailLink = (address, subject = '', body = '') => `mailto:${address}?subject=${subject}&body=${body}`;

@@ -10,7 +10,8 @@ import {
     LogInForm,
     ProfileForm,
     ResetPasswordForm,
-    SignUpForm
+    SignUpForm,
+    WaitlistForm
 } from 'forms';
 import { ScrollToTop } from 'components';
 
@@ -112,6 +113,19 @@ function Routes({
                         <Page title={title('Sign Up')} {...common}>
                             <FormPage title="Sign Up" maxWidth="700px">
                                 <SignUpForm {...common} />
+                            </FormPage>
+                        </Page>
+                    )}
+                />
+                <Route
+                    exact
+                    path={`${LINKS.Waitlist}`}
+                    sitemapIndex={true}
+                    priority={0.8}
+                    render={() => (
+                        <Page title={title('Log In')} {...common}>
+                            <FormPage title="Join Waitlist" maxWidth="700px">
+                                <WaitlistForm {...common} />
                             </FormPage>
                         </Page>
                     )}

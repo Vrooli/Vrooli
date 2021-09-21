@@ -7,9 +7,7 @@ export const signUpMutation = gql`
         $firstName: String!
         $lastName: String!
         $pronouns: String
-        $business: String!
         $email: String!
-        $phone: String!
         $theme: String!
         $marketingEmails: Boolean!
         $password: String!
@@ -18,9 +16,7 @@ export const signUpMutation = gql`
         firstName: $firstName
         lastName: $lastName
         pronouns: $pronouns
-        business: $business
         email: $email
-        phone: $phone
         theme: $theme
         marketingEmails: $marketingEmails
         password: $password

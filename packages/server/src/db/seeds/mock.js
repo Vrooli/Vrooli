@@ -4,25 +4,16 @@ import bcrypt from 'bcrypt';
 import { HASHING_ROUNDS } from '../../consts';
 import { db } from '../db';
 
-// Create a user, with business, emails, phones, and roles
-async function createUser({ userData, businessData, emailsData, phonesData, roleIds }) {
-    let business = await db(TABLES.Business).select('id').where({ name: businessData.name }).first();
-    if (!business) {
-        console.info(`🏢 Creating business for ${userData.firstName}`);
-        business = (await db(TABLES.Business).insert([businessData]).returning('id'))[0];
-    }
+// Create a user, with emails, and roles
+async function createUser({ userData, emailsData, roleIds }) {
     let customer = await db(TABLES.Customer).select('id').where({ firstName: userData.firstName, lastName: userData.lastName }).first();
     if (!customer) {
         console.info(`👩🏼‍💻 Creating account for ${userData.firstName}`);
         // Insert account
-        const customerId = (await db(TABLES.Customer).insert([{ ...userData, businessId: business.id }]).returning('id'))[0];
+        const customerId = (await db(TABLES.Customer).insert([{ ...userData }]).returning('id'))[0];
         // Insert emails
         for (const email of emailsData) {
             await db(TABLES.Email).insert([{ ...email, customerId }]);
-        }
-        // Insert phones
-        for (const phone of phonesData) {
-            await db(TABLES.Phone).insert([{ ...phone, customerId }]);
         }
         // Insert roles
         for (const roleId of roleIds) {
@@ -42,7 +33,6 @@ export async function seed() {
 
     // Create user with owner role
     await createUser({
-        businessData: { name: 'SpaceX' },
         userData: {
             firstName: 'Elon',
             lastName: 'Tusk🦏',
@@ -54,16 +44,11 @@ export async function seed() {
             { emailAddress: 'notarealemail@afakesite.com', receivesDeliveryUpdates: false },
             { emailAddress: 'backupemailaddress@afakesite.com', receivesDeliveryUpdates: false }
         ],
-        phonesData: [
-            { number: '15558675309', receivesDeliveryUpdates: false },
-            { number: '5555555555', receivesDeliveryUpdates: false }
-        ],
         roleIds: [ownerRoleId]
     });
 
     // Create a few customers
     await createUser({
-        businessData: { name: 'Rocket supplier A' },
         userData: {
             firstName: 'John',
             lastName: 'Cena',
@@ -74,11 +59,9 @@ export async function seed() {
         emailsData: [
             { emailAddress: 'itsjohncena@afakesite.com', receivesDeliveryUpdates: false }
         ],
-        phonesData: [],
         roleIds: [customerRoleId]
     });
     await createUser({
-        businessData: { name: '🤘🏻A Steel Company' },
         userData: {
             firstName: 'Spongebob',
             lastName: 'Customerpants',
@@ -88,10 +71,6 @@ export async function seed() {
         },
         emailsData: [
             { emailAddress: 'spongebobmeboy@afakesite.com', receivesDeliveryUpdates: false }
-        ],
-        phonesData: [
-            { number: '15553214321', receivesDeliveryUpdates: false },
-            { number: '8762342222', receivesDeliveryUpdates: false }
         ],
         roleIds: [customerRoleId]
     });

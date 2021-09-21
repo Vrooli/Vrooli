@@ -22,14 +22,14 @@ const lightTheme = createTheme({
     palette: {
         mode: 'light',
         primary: {
-            light: '#4446a2',
-            main: '#344eb5',
-            dark: '#002784',
+            light: '#335b99',
+            main: '#1a237e',
+            dark: '#000051',
         },
         secondary: {
-            light: '#c8ffa5',
-            main: '#96d175',
-            dark: '#66a047',
+            light: '#c0ffff',
+            main: '#8cd1f4',
+            dark: '#59a0c1',
         },
         background: {
             default: '#e9ebf1',

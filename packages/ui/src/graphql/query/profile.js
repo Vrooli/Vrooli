@@ -8,18 +8,9 @@ export const profileQuery = gql`
             lastName
             pronouns
             theme
-            business {
-                id
-                name
-            }
             emails {
                 id
                 emailAddress
-                receivesDeliveryUpdates
-            }
-            phones {
-                id
-                number
                 receivesDeliveryUpdates
             }
         }

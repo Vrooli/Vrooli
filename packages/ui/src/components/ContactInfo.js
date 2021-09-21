@@ -3,12 +3,6 @@ import {
     BottomNavigation, 
     BottomNavigationAction, 
     IconButton, 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableContainer, 
-    TableHead,
-    TableRow, 
     Tooltip 
 } from '@material-ui/core';
 import { 
@@ -19,15 +13,6 @@ import {
 import { makeStyles } from '@material-ui/styles';
 
 const useStyles = makeStyles((theme) => ({
-    tableHead: {
-        background: theme.palette.primary.main,
-    },
-    tableHeadCell: {
-        color: theme.palette.primary.contrastText,
-    },
-    tableRow: {
-        background: theme.palette.background.paper,
-    },
     nav: {
         alignItems: 'baseline',
         background: 'transparent',
@@ -55,43 +40,14 @@ function ContactInfo({
         e.preventDefault();
     }
 
-    // Parse business hours markdown into 2D array, remove |'s, and reduce to 1D array
-    let hours;
-    try {
-        hours = business?.hours ? 
-            business.hours.split('\n').slice(2).map(row => row.split('|').map(r => r.trim()).filter(r => r !== '')) :
-            [];
-        hours = hours.map(row => `${row[0]}: ${row[1]}`)
-    } catch (error) {
-        console.error('Failed to read business hours', error);
-    }
-
     const contactInfo = [
-        ['Find us on Twitter', business?.SOCIAL?.Twitter, TwitterIcon],
-        ['Email Us', business?.EMAIL?.Label, business?.EMAIL?.Link, EmailIcon],
-        ['Source code', business?.SOCIAL?.GitHub, GitHubIcon],
+        ['Find us on Twitter', 'Twitter', business?.SOCIAL?.Twitter, TwitterIcon],
+        ['Email Us', 'Email', business?.EMAIL?.Link, EmailIcon],
+        ['Source code', 'Code', business?.SOCIAL?.GitHub, GitHubIcon],
     ]
 
     return (
         <div style={{ minWidth: 'fit-content', height: 'fit-content'}} {...props}>
-            <TableContainer>
-                <Table aria-label="contact-hours-table" size="small">
-                    <TableHead className={classes.tableHead}>
-                        <TableRow>
-                            <TableCell className={classes.tableHeadCell}>Hours</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {hours.map((row, index) => (
-                            <TableRow key={index} className={classes.tableRow}>
-                                <TableCell>
-                                    {row}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
             <BottomNavigation className={classes.nav} showLabels>
                 {contactInfo.map(([tooltip, label, link, Icon]) => (
                     <Tooltip title={tooltip} placement="top">

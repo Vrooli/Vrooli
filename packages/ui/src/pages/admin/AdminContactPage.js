@@ -52,7 +52,7 @@ function AdminContactPage({
     const applyHours = () => {
         // Data must be sent as a file to use writeAssets
         const blob = new Blob([hours], { type: 'text/plain' });
-        const file = new File([blob], 'hours.md', { type: blob.type });
+        const file = new File([blob], 'business.json', { type: blob.type });
         mutationWrapper({
             mutation: updateHours,
             data: { variables: { files: [file] } },

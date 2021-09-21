@@ -4,11 +4,10 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { getUserActions, LINKS, updateArray } from 'utils';
-import { Container, Button, IconButton, Badge, List, ListItem, ListItemIcon, ListItemText } from '@material-ui/core';
+import { getUserActions, LINKS } from 'utils';
+import { Container, Button, List, ListItem, ListItemIcon, ListItemText } from '@material-ui/core';
 import {
     Info as InfoIcon,
-    PhotoLibrary as PhotoLibraryIcon,
 } from '@material-ui/icons';
 import { makeStyles } from '@material-ui/styles';
 import _ from 'lodash';

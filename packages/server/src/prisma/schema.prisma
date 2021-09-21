@@ -20,34 +20,6 @@ model knex_migrations_lock {
   is_locked Int?
 }
 
-model address {
-  id                    String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  tag                   String?   @db.VarChar(128)
-  name                  String?   @db.VarChar(128)
-  country               String    @default("US") @db.VarChar(2)
-  administrativeArea    String    @db.VarChar(64)
-  subAdministrativeArea String?   @db.VarChar(64)
-  locality              String    @db.VarChar(64)
-  postalCode            String    @db.VarChar(16)
-  throughfare           String    @db.VarChar(256)
-  premise               String?   @db.VarChar(64)
-  deliveryInstructions  String?   @db.VarChar(2048)
-  businessId            String?   @db.Uuid
-  business              business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
-}
-
-model business {
-  id                      String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name                    String               @db.VarChar(128)
-  subscribedToNewsletters Boolean              @default(true)
-  created_at              DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at              DateTime             @default(now()) @db.Timestamptz(6)
-  address                 address[]
-  employees               customer[]
-  email                   email[]
-  phone                   phone[]
-}
-
 model customer {
   id                             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   firstName                      String           @db.VarChar(128)
@@ -59,18 +31,17 @@ model customer {
   loginAttempts                  Int              @default(0)
   lastLoginAttempt               DateTime         @default(now()) @db.Timestamptz(6)
   sessionToken                   String?          @db.VarChar(1024)
+  confirmationCode               String?          @unique @db.VarChar(256)
+  confirmationCodeDate           DateTime?        @db.Timestamptz(6)
   resetPasswordCode              String?          @unique @db.VarChar(256)
   lastResetPasswordReqestAttempt DateTime?        @db.Timestamptz(6)
   emailVerified                  Boolean          @default(false)
   status                         String           @default("Unlocked")
-  businessId                     String?          @db.Uuid
   created_at                     DateTime         @default(now()) @db.Timestamptz(6)
   updated_at                     DateTime         @default(now()) @db.Timestamptz(6)
-  business                       business?        @relation(fields: [businessId], references: [id], onDelete: NoAction)
   roles                          customer_roles[]
   emails                         email[]
   feedback                       feedback[]
-  phones                         phone[]
 }
 
 model customer_roles {
@@ -88,8 +59,6 @@ model email {
   emailAddress            String    @unique @db.VarChar(128)
   receivesDeliveryUpdates Boolean   @default(true)
   customerId              String?   @db.Uuid
-  businessId              String?   @db.Uuid
-  business                business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }
 
@@ -129,16 +98,6 @@ model image_labels {
   image image  @relation(fields: [hash], references: [hash], onDelete: Cascade)
 
   @@unique([hash, label], name: "image_labels_hash_label_unique")
-}
-
-model phone {
-  id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  number                  String    @unique @db.VarChar(20)
-  receivesDeliveryUpdates Boolean   @default(true)
-  customerId              String?   @db.Uuid
-  businessId              String?   @db.Uuid
-  business                business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }
 
 model queue_task {

@@ -19,9 +19,6 @@ const componentStyles = (theme) => ({
         paddingTop: theme.spacing(2),
         paddingBottom: theme.spacing(2),
     },
-    phoneInput: {
-        width: '100%',
-    }
 })
 
 const useStyles = makeStyles(combineStyles(formStyles, componentStyles));
@@ -37,10 +34,8 @@ function ProfileForm() {
         initialValues: {
             firstName: profile?.profile?.firstName ?? '',
             lastName: profile?.profile?.lastName ?? '',
-            business: profile?.profile?.business?.name ?? '',
             pronouns: profile?.profile?.pronouns ?? '',
             email: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].emailAddress : '',
-            phone: profile?.profile?.phones?.length > 0 ? profile.profile.phones[0].number : '1',
             theme: profile?.profile?.theme ?? 'light',
             marketingEmails: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].receivesDeliveryUpdates : false,
             currentPassword: '',
@@ -53,10 +48,6 @@ function ProfileForm() {
                 id: profile.profile.id,
                 firstName: values.firstName,
                 lastName: values.lastName,
-                business: {
-                    id: profile.profile.business.id,
-                    name: values.business
-                },
                 pronouns: values.pronouns,
                 emails: [
                     {
@@ -65,17 +56,10 @@ function ProfileForm() {
                         receivesDeliveryUpdates: values.marketingEmails
                     }
                 ],
-                phones: [
-                    {
-                        id: profile?.profile?.phones?.length > 0 ? profile.profile.phones[0].id : '',
-                        number: values.phone
-                    }
-                ],
                 theme: values.theme,
             });
-            // Only add email and phone ids if they previously existed
+            // Only add email ids if they previously existed
             if (profile?.profile?.emails?.length > 0) input.emails[0].id = profile.profile.emails[0].id;
-            if (profile?.profile?.phones?.length > 0) input.phones[0].id = profile.profile.phones[0].id;
             mutationWrapper({
                 mutation: updateCustomer,
                 data: { variables: {
@@ -148,19 +132,6 @@ function ProfileForm() {
                     <Grid item xs={12}>
                         <TextField
                             fullWidth
-                            id="business"
-                            name="business"
-                            autoComplete="business"
-                            label="Business"
-                            value={formik.values.business}
-                            onChange={formik.handleChange}
-                            error={formik.touched.business && Boolean(formik.errors.business)}
-                            helperText={formik.touched.business && formik.errors.business}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <TextField
-                            fullWidth
                             id="email"
                             name="email"
                             autoComplete="email"
@@ -169,19 +140,6 @@ function ProfileForm() {
                             onChange={formik.handleChange}
                             error={formik.touched.email && Boolean(formik.errors.email)}
                             helperText={formik.touched.email && formik.errors.email}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                    <TextField
-                            fullWidth
-                            id="phone"
-                            name="phone"
-                            autoComplete="tel"
-                            label="Phone Number"
-                            value={formik.values.phone}
-                            onChange={formik.handleChange}
-                            error={formik.touched.phone && Boolean(formik.errors.phone)}
-                            helperText={formik.touched.phone && formik.errors.phone}
                         />
                     </Grid>
                     <Grid item xs={12}>

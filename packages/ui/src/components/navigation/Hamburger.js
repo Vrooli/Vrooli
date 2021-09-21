@@ -13,9 +13,6 @@ import {
     Home as HomeIcon,
     Menu as MenuIcon,
     Info as InfoIcon,
-    PhotoLibrary as PhotoLibraryIcon,
-    Share as ShareIcon,
-    Twitter as TwitterIcon,
 } from '@material-ui/icons';
 import { IconButton, SwipeableDrawer, List, ListItem, ListItemIcon, Badge, Collapse, Divider, ListItemText } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
