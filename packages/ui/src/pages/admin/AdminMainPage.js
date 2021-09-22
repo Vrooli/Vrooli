@@ -31,7 +31,7 @@ function AdminMainPage() {
 
     const card_data = [
         ['Customers', "Approve new customers, edit customer information", LINKS.AdminCustomers],
-        ['Hero', "Add, remove, and rearrange hero (home page) images", LINKS.AdminHero],
+        ['Images', "Add, remove, and rearrange images for slides lists", LINKS.AdminImages],
         ['Contact Info', "Edit business hours and other contact information", LINKS.AdminContactInfo],
     ]
 

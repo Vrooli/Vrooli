@@ -7,9 +7,7 @@ import {
     Autocomplete,
     Button,
     Grid,
-    Link,
     TextField,
-    Typography
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { LINKS } from 'utils';
@@ -133,22 +131,6 @@ function WaitlistForm({
             >
                 Submit
             </Button>
-            <Grid container spacing={2}>
-                <Grid item xs={6}>
-                    <Link onClick={() => history.push(LINKS.LogIn)}>
-                        <Typography className={classes.clickSize}>
-                            Remember? Back to Log In
-                        </Typography>
-                    </Link>
-                </Grid>
-                <Grid item xs={6}>
-                    <Link onClick={() => history.push(LINKS.Register)}>
-                        <Typography className={`${classes.clickSize} ${classes.linkRight}`}>
-                            Don't have an account? Sign up
-                        </Typography>
-                    </Link>
-                </Grid>
-            </Grid>
         </form>
     );
 }

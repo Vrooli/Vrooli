@@ -1,4 +1,4 @@
-import { THEME, ACCOUNT_STATUS, IMAGE_USE, TASK_STATUS } from '@local/shared';
+import { THEME, ACCOUNT_STATUS, TASK_STATUS } from '@local/shared';
 import { TABLES } from '../tables';
 
 export async function up (knex) {
@@ -60,7 +60,7 @@ export async function up (knex) {
         table.string('hash', 128).notNullable().unique();
         table.string('alt', 256);
         table.string('description', 1024);
-        table.enu('usedFor', Object.values(IMAGE_USE));
+        table.string('usedFor');
         table.timestamps(true, true);
     });
     await knex.schema.createTable(TABLES.ImageFile, (table) => {

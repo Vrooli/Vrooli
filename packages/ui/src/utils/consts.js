@@ -46,7 +46,7 @@ export const LINKS = {
     Admin: '/admin', // Admin portal. Contains cards that link to every admin page
     AdminContactInfo: '/admin/contact-info', // Admin page for updating contact information (business.json file)
     AdminCustomers: '/admin/customers', // Admin page for customer statistics and contact information
-    AdminHero: '/admin/hero', // Admin page for updating hero slideshow
+    AdminImages: '/admin/images', // Admin page for updating hero slideshow
     ForgotPassword: '/forgot-password', // Page for sending password reset request emails
     Home: '/', // Home page. Similar to the about page, but more project details and less vision
     LogIn: '/login', // Page with log in form

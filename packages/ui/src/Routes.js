@@ -20,7 +20,7 @@ const {
     AboutPage,
     AdminContactPage,
     AdminCustomerPage,
-    AdminHeroPage,
+    AdminImagePage,
     AdminMainPage,
     FormPage,
     HomePage,
@@ -207,9 +207,9 @@ function Routes({
                         <AdminCustomerPage />
                     </Page>
                 )} />
-                <Route exact path={LINKS.AdminHero} render={() => (
-                    <Page title={"Edit Hero"} {...common} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
-                        <AdminHeroPage />
+                <Route exact path={LINKS.AdminImages} render={() => (
+                    <Page title={"Edit Image Lists"} {...common} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
+                        <AdminImagePage />
                     </Page>
                 )} />
                 {/* END ADMIN PAGES */}

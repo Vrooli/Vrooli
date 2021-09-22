@@ -2,7 +2,6 @@ import React from 'react';
 import {
     Box,
     Button,
-    Grid,
     Typography,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
@@ -16,7 +15,7 @@ const componentStyles = (theme) => ({
 
 const useStyles = makeStyles(combineStyles(slideStyles, componentStyles));
 
-function MissionSlide({
+function Hero({
     image,
     ...props
 }) {
@@ -27,14 +26,7 @@ function MissionSlide({
         <Box className={classes.slideRoot}>
             <img className={classes.slideBackground} alt={image?.url} src={image?.src} />
             <div className={classes.slidePad}>
-                <Typography variant='h2' component='h1' className={classes.titleCenter}>Our Mission</Typography>
-                <Grid container spacing={1}>
-                    <Grid item xs={6}>
-                        <Typography variant='h3' component='h2'>Bring the power of entrepreneurship to the masses, through the use of visual work routines</Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                    </Grid>
-                </Grid>
+                <Typography variant='h2' component='h1' className={`${classes.titleCenter} ${classes.textPop}`}>Your portal to idea monetization</Typography>
                 <Button
                     className={classes.buttonCenter}
                     type="submit"
@@ -48,4 +40,4 @@ function MissionSlide({
     );
 }
 
-export { MissionSlide };
+export { Hero };

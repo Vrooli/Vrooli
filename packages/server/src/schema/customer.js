@@ -128,7 +128,7 @@ export const resolvers = {
     Mutation: {
         login: async (_, args, context, info) => {
             // TEMP UNTIL WAITLIST IS GONE - only allow admin to log in
-            if (process.env.ADMIN_EMAIL !== args.email) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isAdmin && process.env.ADMIN_EMAIL !== args.email) return new CustomError(CODE.Unauthorized);
             const prismaInfo = getCustomerSelect(info);
             // If username and password wasn't passed, then use the session cookie data to validate
             if (args.username === undefined && args.password === undefined) {

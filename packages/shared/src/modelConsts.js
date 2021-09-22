@@ -34,6 +34,9 @@ export const IMAGE_SIZE = {
 }
 export const IMAGE_USE = {
     Hero: 'Hero',
+    Home: 'Home',
+    Mission: 'Mission',
+    About: 'About'
 }
 export const TASK_STATUS = {
     Unknown: 'Unknown',
