@@ -271,6 +271,9 @@ export const resolvers = {
                 }
             });
             if(!bcrypt.compareSync(args.currentPassword, customer.password)) return new CustomError(CODE.BadCredentials);
+            // Validate input format
+            const validateError = await validateArgs(profileSchema, args.input);
+            if (validateError) return validateError;
             const user = await upsertCustomer({
                 prisma: context.prisma,
                 info,

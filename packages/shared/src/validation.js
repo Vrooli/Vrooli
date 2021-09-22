@@ -1,12 +1,17 @@
 import * as yup from 'yup';
 import { ACCOUNT_STATUS } from './modelConsts';
 
+export const MIN_USERNAME_LENGTH = 3;
+export const MAX_USERNAME_LENGTH = 25;
+export const USERNAME_REGEX = /^[a-zA-Z0-9_.-]*$/;
+export const USERNAME_REGEX_ERROR = `Characters allowed: letters, numbers, '-', '.', '_'`;
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 50;
-// See https://stackoverflow.com/a/21456918/10240279 for more options
+// See https://stackoverflow. com/a/21456918/10240279 for more options
 export const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/;
 export const PASSWORD_REGEX_ERROR = "Must be at least 8 characters, with at least one character and one number";
 
+export const usernameSchema = yup.string().min(MIN_USERNAME_LENGTH).max(MAX_USERNAME_LENGTH).matches(USERNAME_REGEX, USERNAME_REGEX_ERROR);
 export const passwordSchema = yup.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH).matches(PASSWORD_REGEX, PASSWORD_REGEX_ERROR);
 
 export const emailSchema = yup.object().shape({
@@ -45,7 +50,7 @@ export const customerSchema = yup.object().shape({
 
 // Schema for creating a new account
 export const signUpSchema = yup.object().shape({
-    username: yup.string().max(128).required(),
+    username: usernameSchema.required(),
     email: yup.string().email().required(),
     marketingEmails: yup.boolean().required(),
     password: passwordSchema.required(),
@@ -54,13 +59,13 @@ export const signUpSchema = yup.object().shape({
 
 // Schema for creating a new customer
 export const addCustomerSchema = yup.object().shape({
-    username: yup.string().max(128).required(),
+    username: usernameSchema.required(),
     email: yup.string().email().required(),
 });
 
 // Schema for updating a customer profile
 export const profileSchema = yup.object().shape({
-    username: yup.string().max(128).required(),
+    username: usernameSchema.required(),
     email: yup.string().email().required(),
     theme: yup.string().max(128).required(),
     // Don't apply validation to current password. If you change password requirements, customers would be unable to change their password
@@ -88,6 +93,6 @@ export const resetPasswordSchema = yup.object().shape({
 
 // Schema for joining the waitlist
 export const joinWaitlistSchema = yup.object().shape({
-    username: yup.string().max(128).required(),
+    username: usernameSchema.required(),
     email: yup.string().email().required(),
 })
