@@ -35,7 +35,7 @@ export function getUserActions({ session, userRoles, exclude = [] }) {
         }
         actions.push(['Shop', 'shop', LINKS.Shopping, null, ShopIcon, 0],
             ['Profile', 'profile', LINKS.Profile, null, PersonIcon, 0],
-            ['Log out', 'logout', LINKS.Home, () => { const client = initializeApollo(); client.mutation({ mutatation: logoutMutation }) }, ExitToAppIcon, 0]);
+            ['Log out', 'logout', LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, ExitToAppIcon, 0]);
     }
 
     return actions.map(a => createAction(...a)).filter(a => !exclude.includes(a.value));
