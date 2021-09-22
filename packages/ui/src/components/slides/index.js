@@ -1,2 +1,1 @@
-export * from './Hero';
-export * from './MissionSlide';
+export * from './Slide';
