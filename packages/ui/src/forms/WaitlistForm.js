@@ -1,10 +1,9 @@
 import React, { useEffect } from 'react';
 import { joinWaitlistMutation, verifyWaitlistMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { DEFAULT_PRONOUNS, joinWaitlistSchema } from '@local/shared';
+import { joinWaitlistSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import {
-    Autocomplete,
     Button,
     Grid,
     TextField,
@@ -40,9 +39,7 @@ function WaitlistForm({
 
     const formik = useFormik({
         initialValues: {
-            firstName: '',
-            lastName: '',
-            pronouns: '',
+            username: '',
             email: '',
         },
         validationSchema: joinWaitlistSchema,
@@ -60,52 +57,18 @@ function WaitlistForm({
     return (
         <form className={classes.form} onSubmit={formik.handleSubmit}>
             <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12}>
                     <TextField
                         fullWidth
                         autoFocus
-                        id="firstName"
-                        name="firstName"
-                        autoComplete="fname"
-                        label="First Name"
-                        value={formik.values.firstName}
+                        id="username"
+                        name="username"
+                        autoComplete="username"
+                        label="Username"
+                        value={formik.values.username}
                         onChange={formik.handleChange}
-                        error={formik.touched.firstName && Boolean(formik.errors.firstName)}
-                        helperText={formik.touched.firstName && formik.errors.firstName}
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        id="lastName"
-                        name="lastName"
-                        autoComplete="lname"
-                        label="Last Name"
-                        value={formik.values.lastName}
-                        onChange={formik.handleChange}
-                        error={formik.touched.lastName && Boolean(formik.errors.lastName)}
-                        helperText={formik.touched.lastName && formik.errors.lastName}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <Autocomplete
-                        fullWidth
-                        freeSolo
-                        id="pronouns"
-                        name="pronouns"
-                        options={DEFAULT_PRONOUNS}
-                        value={formik.values.pronouns}
-                        onChange={(_, value) => formik.setFieldValue('pronouns', value)}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Pronouns"
-                                value={formik.values.pronouns}
-                                onChange={formik.handleChange}
-                                error={formik.touched.pronouns && Boolean(formik.errors.pronouns)}
-                                helperText={formik.touched.pronouns && formik.errors.pronouns}
-                            />
-                        )}
+                        error={formik.touched.username && Boolean(formik.errors.username)}
+                        helperText={formik.touched.username && formik.errors.username}
                     />
                 </Grid>
                 <Grid item xs={12}>

@@ -18,10 +18,7 @@ export async function up (knex) {
     await knex.schema.createTable(TABLES.Customer, (table) => {
         table.comment('A user of the system');
         table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v4()'));
-        table.string('firstName', 128).notNullable();
-        table.string('lastName', 128).notNullable();
-        table.specificType('fullName', `text GENERATED ALWAYS AS ("firstName" || ' ' || "lastName") stored`);
-        table.string('pronouns', 128).defaultTo('they/them').notNullable();
+        table.string('username', 128).notNullable().unique();
         table.string('theme').defaultTo(THEME.Light).notNullable();
         table.string('password', 256);
         table.integer('loginAttempts').defaultTo(0).notNullable();

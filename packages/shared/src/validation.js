@@ -1,5 +1,5 @@
 import * as yup from 'yup';
-import { ACCOUNT_STATUS, DEFAULT_PRONOUNS } from './modelConsts';
+import { ACCOUNT_STATUS } from './modelConsts';
 
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 50;
@@ -37,9 +37,7 @@ export const roleSchema = yup.object().shape({
 
 export const customerSchema = yup.object().shape({
     id: yup.string().max(256).optional(),
-    firstName: yup.string().max(128).required(),
-    lastName: yup.string().max(128).required(),
-    pronouns: yup.string().max(128).default(DEFAULT_PRONOUNS[0]).optional(),
+    username: yup.string().max(128).required(),
     emails: yup.array().of(emailSchema).required(),
     status: yup.mixed().oneOf(Object.values(ACCOUNT_STATUS)).optional(),
 });
@@ -47,9 +45,7 @@ export const customerSchema = yup.object().shape({
 
 // Schema for creating a new account
 export const signUpSchema = yup.object().shape({
-    firstName: yup.string().max(128).required(),
-    lastName: yup.string().max(128).required(),
-    pronouns: yup.string().max(128).default(DEFAULT_PRONOUNS[0]).optional(),
+    username: yup.string().max(128).required(),
     email: yup.string().email().required(),
     marketingEmails: yup.boolean().required(),
     password: passwordSchema.required(),
@@ -58,17 +54,13 @@ export const signUpSchema = yup.object().shape({
 
 // Schema for creating a new customer
 export const addCustomerSchema = yup.object().shape({
-    firstName: yup.string().max(128).required(),
-    lastName: yup.string().max(128).required(),
-    pronouns: yup.string().max(128).default(DEFAULT_PRONOUNS[0]).optional(),
+    username: yup.string().max(128).required(),
     email: yup.string().email().required(),
 });
 
 // Schema for updating a customer profile
 export const profileSchema = yup.object().shape({
-    firstName: yup.string().max(128).required(),
-    lastName: yup.string().max(128).required(),
-    pronouns: yup.string().max(128).default(DEFAULT_PRONOUNS[0]).optional(),
+    username: yup.string().max(128).required(),
     email: yup.string().email().required(),
     theme: yup.string().max(128).required(),
     // Don't apply validation to current password. If you change password requirements, customers would be unable to change their password
@@ -96,8 +88,6 @@ export const resetPasswordSchema = yup.object().shape({
 
 // Schema for joining the waitlist
 export const joinWaitlistSchema = yup.object().shape({
-    firstName: yup.string().max(128).required(),
-    lastName: yup.string().max(128).required(),
-    pronouns: yup.string().max(128).default(DEFAULT_PRONOUNS[0]).optional(),
+    username: yup.string().max(128).required(),
     email: yup.string().email().required(),
 })

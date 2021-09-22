@@ -36,8 +36,7 @@ export async function seed() {
         // Insert admin
         const customer_admin_id = (await db(TABLES.Customer).insert([
             {
-                firstName: 'admin',
-                lastName: 'account',
+                username: 'admin account',
                 password: bcrypt.hashSync(process.env.ADMIN_PASSWORD, HASHING_ROUNDS),
                 status: ACCOUNT_STATUS.Unlocked,
             }

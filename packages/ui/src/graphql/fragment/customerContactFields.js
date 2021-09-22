@@ -5,10 +5,7 @@ export const customerContactFields = gql`
     ${emailFields}
     fragment customerContactFields on Customer {
         id
-        firstName
-        lastName
-        fullName
-        pronouns
+        username
         emails {
             ...emailFields
         }

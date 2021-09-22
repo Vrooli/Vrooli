@@ -1,7 +1,7 @@
 import React from 'react';
 import { signUpMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { CODE, DEFAULT_PRONOUNS, signUpSchema } from '@local/shared';
+import { CODE, signUpSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -12,7 +12,6 @@ import {
     TextField,
     Typography
 } from '@material-ui/core';
-import { Autocomplete } from '@material-ui/lab';
 import { makeStyles } from '@material-ui/styles';
 import { combineStyles, LINKS, PUBS, PubSub } from 'utils';
 import { mutationWrapper } from 'graphql/utils/wrappers';
@@ -37,9 +36,7 @@ function SignUpForm({
     const formik = useFormik({
         initialValues: {
             marketingEmails: "true",
-            firstName: '',
-            lastName: '',
-            pronouns: '',
+            username: '',
             email: '',
             password: '',
             confirmPassword: ''
@@ -77,52 +74,18 @@ function SignUpForm({
     return (
         <form className={classes.form} onSubmit={formik.handleSubmit}>
             <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12}>
                     <TextField
                         fullWidth
                         autoFocus
-                        id="firstName"
-                        name="firstName"
-                        autoComplete="fname"
-                        label="First Name"
-                        value={formik.values.firstName}
+                        id="username"
+                        name="username"
+                        autoComplete="username"
+                        label="Username"
+                        value={formik.values.username}
                         onChange={formik.handleChange}
-                        error={formik.touched.firstName && Boolean(formik.errors.firstName)}
-                        helperText={formik.touched.firstName && formik.errors.firstName}
-                    />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
-                        id="lastName"
-                        name="lastName"
-                        autoComplete="lname"
-                        label="Last Name"
-                        value={formik.values.lastName}
-                        onChange={formik.handleChange}
-                        error={formik.touched.lastName && Boolean(formik.errors.lastName)}
-                        helperText={formik.touched.lastName && formik.errors.lastName}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <Autocomplete
-                        fullWidth
-                        freeSolo
-                        id="pronouns"
-                        name="pronouns"
-                        options={DEFAULT_PRONOUNS}
-                        value={formik.values.pronouns}
-                        onChange={(_, value) => formik.setFieldValue('pronouns', value)}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Pronouns"
-                                value={formik.values.pronouns}
-                                onChange={formik.handleChange}
-                                error={formik.touched.pronouns && Boolean(formik.errors.pronouns)}
-                                helperText={formik.touched.pronouns && formik.errors.pronouns}
-                            />
-                        )}
+                        error={formik.touched.username && Boolean(formik.errors.username)}
+                        helperText={formik.touched.username && formik.errors.username}
                     />
                 </Grid>
                 <Grid item xs={12}>

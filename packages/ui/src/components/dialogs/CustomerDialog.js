@@ -106,7 +106,7 @@ function CustomerDialog({
     
     const confirmDelete = useCallback(() => {
         PubSub.publish(PUBS.AlertDialog, {
-            message: `Are you sure you want to delete the account for ${currCustomer.firstName} ${currCustomer.lastName}?`,
+            message: `Are you sure you want to delete the account for ${currCustomer.username}?`,
             firstButtonText: 'Yes',
             firstButtonClicked: deleteCustomer,
             secondButtonText: 'No',
@@ -169,10 +169,7 @@ function CustomerDialog({
                     <Grid container spacing={0}>
                         <Grid className={classes.title} item xs={12}>
                             <Typography variant="h5">
-                                {customer?.fullName}
-                            </Typography>
-                            <Typography variant="h6">
-                                {customer?.business?.name}
+                                {customer?.username}
                             </Typography>
                         </Grid>
                     </Grid>

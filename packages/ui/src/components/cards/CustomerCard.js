@@ -64,7 +64,7 @@ function CustomerCard({
 
     const confirmPermanentDelete = useCallback(() => {
         PubSub.publish(PUBS.AlertDialog, {
-            message: `Are you sure you want to permanently delete the account for ${customer.firstName} ${customer.lastName}? THIS ACTION CANNOT BE UNDONE!`,
+            message: `Are you sure you want to permanently delete the account for ${customer.username}? THIS ACTION CANNOT BE UNDONE!`,
             firstButtonText: 'Yes',
             firstButtonClicked: () => {
                 mutationWrapper({
@@ -80,7 +80,7 @@ function CustomerCard({
 
     const confirmDelete = useCallback(() => {
         PubSub.publish(PUBS.AlertDialog, {
-            message: `Are you sure you want to delete the account for ${customer.firstName} ${customer.lastName}?`,
+            message: `Are you sure you want to delete the account for ${customer.username}?`,
             firstButtonText: 'Yes',
             firstButtonClicked: () => modifyCustomer(ACCOUNT_STATUS.Deleted, 'Customer deleted.'),
             secondButtonText: 'No',
@@ -123,17 +123,15 @@ function CustomerCard({
         <Card className={classes.cardRoot}>
             {emailDialogOpen ? (
                 <ListDialog
-                    title={`Email ${customer?.fullName}`}
+                    title={`Email ${customer?.username}`}
                     data={emailList}
                     onClose={sendEmail} />
             ) : null}
             <CardContent className={classes.content} onClick={() => onEdit(customer)}>
                 <Typography gutterBottom variant="h6" component="h2">
-                    {customer?.firstName} {customer?.lastName}
+                    {customer?.username}
                 </Typography>
                 <p>Status: {status_map[customer?.status]}</p>
-                <p>Business: {customer?.business?.name}</p>
-                <p>Pronouns: {customer?.pronouns ?? 'Unset'}</p>
             </CardContent>
             <CardActions>
                 {actions?.map((action, index) => 

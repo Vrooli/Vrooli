@@ -25,9 +25,7 @@ export const typeDef = gql`
 
     input CustomerInput {
         id: ID
-        firstName: String
-        lastName: String
-        pronouns: String
+        username: String
         emails: [EmailInput!]
         theme: String
         status: AccountStatus
@@ -35,10 +33,7 @@ export const typeDef = gql`
 
     type Customer {
         id: ID!
-        firstName: String!
-        lastName: String!
-        fullName: String
-        pronouns: String!
+        username: String!
         emails: [Email!]!
         theme: String!
         status: AccountStatus!
@@ -59,9 +54,7 @@ export const typeDef = gql`
         ): Customer!
         logout: Boolean
         signUp(
-            firstName: String!
-            lastName: String!
-            pronouns: String
+            username: String!
             email: String!
             theme: String!
             marketingEmails: Boolean!
@@ -78,9 +71,7 @@ export const typeDef = gql`
             password: String
         ): Boolean
         joinWaitlist(
-            firstName: String!
-            lastName: String!
-            pronouns: String!
+            username: String!
             email: String!
         ): Boolean
         verifyWaitlist(
@@ -114,7 +105,7 @@ export const resolvers = {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
             return await context.prisma[_model].findMany({
-                orderBy: { fullName: 'asc', },
+                orderBy: { username: 'asc', },
                 ...(new PrismaSelect(info).value)
             });
         },
@@ -231,9 +222,7 @@ export const resolvers = {
                 prisma: context.prisma,
                 info,
                 data: {
-                    firstName: args.firstName,
-                    lastName: args.lastName,
-                    pronouns: args.pronouns,
+                    username: args.username,
                     password: bcrypt.hashSync(args.password, HASHING_ROUNDS),
                     theme: args.theme,
                     status: ACCOUNT_STATUS.Unlocked,
@@ -245,7 +234,7 @@ export const resolvers = {
             // Send verification email
             sendVerificationLink(args.email, customer.id);
             // Send email to business owner
-            customerNotifyAdmin(`${args.firstName} ${args.lastName}`);
+            customerNotifyAdmin(args.username);
             // Return cart, along with user data
             return await context.prisma[_model].findUnique({ where: { id: customer.id }, ...prismaInfo });
         },
@@ -260,9 +249,7 @@ export const resolvers = {
                 prisma: context.prisma,
                 info,
                 data: {
-                    firstName: args.input.firstName,
-                    lastName: args.input.lastName,
-                    pronouns: args.input.pronouns,
+                    username: args.input.username,
                     theme: 'light',
                     status: ACCOUNT_STATUS.Unlocked,
                     emails: args.input.emails,
@@ -330,9 +317,7 @@ export const resolvers = {
             await upsertCustomer({
                 prisma: context.prisma,
                 data: {
-                    firstName: args.firstName,
-                    lastName: args.lastName,
-                    pronouns: args.pronouns,
+                    username: args.username,
                     theme: 'light',
                     confirmationCode,
                     confirmationCodeDate: new Date().toISOString(),
@@ -349,7 +334,7 @@ export const resolvers = {
             // Find customer
             const customer = await context.prisma[TABLES.Customer].findUnique({ 
                 where: { confirmationCode: args.confirmationCode },
-                select: { firstName: true, lastName: true, emails: { select: { emailAddress: true, verified: true } } }
+                select: { username: true, emails: { select: { emailAddress: true, verified: true } } }
             });
             if (!customer || customer.emails.length === 0) throw new CustomError(CODE.ErrorUnknown);
             if (!customer.emails[0].verified) {
@@ -358,7 +343,7 @@ export const resolvers = {
                     data: { verified: true }
                 });
                 joinedWaitlist(customer.emails[0].emailAddress);
-                joinWaitlistNotifyAdmin(`${customer.firstName} ${customer.lastName}`);
+                joinWaitlistNotifyAdmin(customer.username);
             }
             return true;
         },

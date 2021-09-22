@@ -3,14 +3,12 @@ import {
     Hero,
     MissionSlide
 } from 'components';
-import { useTheme } from '@emotion/react';
 import { useQuery } from '@apollo/client';
 import { imagesByLabelQuery } from 'graphql/query';
 import { IMAGE_SIZE, IMAGE_USE, SERVER_URL } from '@local/shared';
 import { getImageSrc } from 'utils';
 
 function HomePage() {
-    const theme = useTheme();
     // Load all images on home page
     const [imageData, setImageData] = useState([]);
     const { data: currImages } = useQuery(imagesByLabelQuery, { variables: { label: IMAGE_USE.Home } });

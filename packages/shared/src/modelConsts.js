@@ -4,13 +4,6 @@ export const ACCOUNT_STATUS = {
     SoftLock: 'SoftLock',
     HardLock: 'HardLock'
 }
-export const DEFAULT_PRONOUNS = [
-    "he/him/his",
-    "she/her/hers",
-    "they/them/theirs",
-    "ze/zir/zirs",
-    "ze/hir/hirs",
-]
 export const IMAGE_EXTENSION = {
     Bmp: '.bmp',
     Gif: '.gif',

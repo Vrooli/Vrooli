@@ -32,6 +32,8 @@ export async function upsertCustomer({ prisma, info, data }) {
     // Upsert customer
     let customer;
     if (!data.id) {
+        // Make sure username isn't in use
+        if (await prisma[TABLES.Customer].findUnique({ where: { username: data.username }})) throw new CustomError(CODE.UsernameInUse);
         customer = await prisma[TABLES.Customer].create({ data: cleanedData })
     } else {
         customer = await prisma[TABLES.Customer].update({ 
