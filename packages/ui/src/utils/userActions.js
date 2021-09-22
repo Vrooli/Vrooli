@@ -1,5 +1,7 @@
 import {
+    ConnectWithoutContact as ConnectWithoutContactIcon,
     ExitToApp as ExitToAppIcon,
+    Info as InfoIcon,
     Person as PersonIcon,
     PersonAdd as PersonAddIcon,
     Settings as SettingsIcon,
@@ -21,7 +23,10 @@ import {
 
 // Returns navigational actions available to the user
 export function getUserActions({ session, userRoles, exclude = [] }) {
-    let actions = [];
+    let actions = [
+        ['Mission', 'mission', LINKS.Mission, null, ConnectWithoutContactIcon, 0],
+        ['About Us', 'about', LINKS.About, null, InfoIcon, 0]
+    ];
 
     // If someone is not logged in, display sign up/log in links
     if (!_.isObject(session) || Object.entries(session).length === 0) {

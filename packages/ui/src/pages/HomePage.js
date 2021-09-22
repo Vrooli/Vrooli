@@ -4,8 +4,21 @@ import { useQuery } from '@apollo/client';
 import { imagesByLabelQuery } from 'graphql/query';
 import { IMAGE_USE, SERVER_URL } from '@local/shared';
 import { getImageSrc, LINKS } from 'utils';
+import { makeStyles } from '@material-ui/styles';
+
+const useStyles = makeStyles((theme) => ({
+    root: {
+        paddingTop: '0',
+    },
+    [theme.breakpoints.down(500)]: {
+        root: {
+            paddingTop: 'calc(14vh - 10px)',
+        }
+    },
+}))
 
 function HomePage() {
+    const classes = useStyles();
     // Load all images on home page
     const [imageData, setImageData] = useState([]);
     const [width, setWidth] = useState(window.innerWidth);
@@ -35,12 +48,10 @@ function HomePage() {
     // Slides in order
     const slides = [
         {
-            label: 'Hero',
             title: { text: 'Your portal to idea monetization', position: 'center', style: 'pop' },
             button: { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }
         },
         {
-            label: 'Mission',
             title: { text: 'Our Mission', position: 'center' },
             body: [
                 {
@@ -53,12 +64,84 @@ function HomePage() {
                 }
             ],
             button: { text: 'Learn More', position: 'center', color: 'secondary', link: LINKS.Mission }
-        }
+        },
+        {
+            title: { text: 'Understand your workflow', position: 'center' },
+            body: [
+                {
+                    xs: 12,
+                    content: [{ title: { text: 'talk about how visualizing routines makes the whole process approachable to newbies', textAlign: 'center' } }]
+                },
+            ],
+        },
+        {
+            title: { text: 'Intuitive interface', position: 'center' },
+            body: [
+                {
+                    xs: 6,
+                    content: [{ title: { text: 'talk about how routines can be created with drag n drop' } }]
+                },
+                {
+                    xs: 6,
+                    content: [{ title: { text: 'talk about how routines can be executed with simple UI' } }]
+                },
+            ],
+        },
+        {
+            title: { text: 'Build With the Community' },
+            body: [
+                {
+                    xs: 12,
+                    content: [{ title: { text: 'talk about how you can use public routines instead of designing everything yourself', textAlign: 'center' } }]
+                },
+            ],
+        },
+        {
+            title: { text: 'Say Goodbye to Endless Browser Tabs👋' },
+            body: [
+                {
+                    xs: 12,
+                    content: [{ title: { text: 'talk about how supported routines can be executed from Vrooli directly, to reduce context switching', textAlign: 'center' } }]
+                },
+            ],
+        },
+        {
+            title: { text: 'AI & Blockchain Support' },
+            body: [
+                {
+                    xs: 6,
+                    content: [{ title: { text: 'talk about how it is public API, and how AIs are encouraged to execute routines' } }]
+                },
+                {
+                    xs: 6,
+                    content: [{ title: { text: 'talk about how routines can be connected to smart contracts on Cardano for automation' } }]
+                },
+            ],
+        },
+        {
+            title: { text: 'Automatic Automation' },
+            body: [
+                {
+                    xs: 12,
+                    content: [{ title: { text: 'talk about how AI, smart contracts, and more specialized routines will allow everyones workflows to accelerate', textAlign: 'center' } }]
+                },
+            ],
+        },
+        {
+            title: { text: 'Join the Movement' },
+            body: [
+                {
+                    xs: 12,
+                    content: [{ video: { link: 'Avyeo1f38Aw' } }]
+                },
+            ],
+            button: { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }
+        },
     ]
 
     return (
-        <div>
-            {slides.map((data, index) => <Slide key={`slide-${index}`} data={{...data, background: { image: getImage(index)} }} />)}
+        <div className={classes.root}>
+            {slides.map((data, index) => <Slide key={`slide-${index}`} width={width} data={{...data, background: { image: getImage(index)} }} />)}
         </div >
     );
 }
