@@ -37,6 +37,10 @@ const useStyles = makeStyles(() => ({
                     paddingRight: 'max(1em, calc(15% - 75px))',
                 }
             },
+            '@font-face': {
+                fontFamily: 'SakBunderan',
+                src: `local('SakBunderan'), url('./fonts/SakBunderan.ttf') format('ttf')`,
+            }
         },
         contentWrap: {
             minHeight: '100vh',

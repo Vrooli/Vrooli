@@ -3,7 +3,6 @@ import {
     Person as PersonIcon,
     PersonAdd as PersonAddIcon,
     Settings as SettingsIcon,
-    Shop as ShopIcon,
 } from '@material-ui/icons';
 import { ROLES } from '@local/shared';
 import { LINKS } from 'utils';
@@ -33,8 +32,7 @@ export function getUserActions({ session, userRoles, exclude = [] }) {
         if (userRoles && haveArray.some(r => [ROLES.Owner, ROLES.Admin].includes(r?.role?.title))) {
             actions.push(['Manage Site', 'admin', LINKS.Admin, null, SettingsIcon, 0]);
         }
-        actions.push(['Shop', 'shop', LINKS.Shopping, null, ShopIcon, 0],
-            ['Profile', 'profile', LINKS.Profile, null, PersonIcon, 0],
+        actions.push(['Profile', 'profile', LINKS.Profile, null, PersonIcon, 0],
             ['Log out', 'logout', LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, ExitToAppIcon, 0]);
     }
 
