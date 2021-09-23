@@ -7,6 +7,7 @@ import { getImageSrc, LINKS } from 'utils';
 import { makeStyles } from '@material-ui/styles';
 import Relax from 'assets/img/relax.png';
 import BlankRoutine from 'assets/img/blank-routine-1.png';
+import MonkeyCoin from 'assets/img/monkey-coin-page.png';
 import Community from 'assets/img/community.svg';
 
 // const useStyles = makeStyles((theme) => ({
@@ -134,13 +135,23 @@ function HomePage() {
             body: [
                 {
                     xs: 12,
-                    content: [{ title: { text: 'Auto-generated routine interfaces unlock the possibility of performing entire routines through Vrooli. Benefits of this approach include:', textAlign: 'center' } }]
+                    content: [
+                        { title: { text: 'Auto-generated interfaces unlock the possibility of performing entire routines through Vrooli', textAlign: 'center' } },
+                    ]
                 },
                 {
                     xs: 12, sm: 6,
-                    content: [{ list: { color: 'white', items: [{ text: 'Reduced context switching' }, { text: 'Increased focus and organization'}], textAlign: 'center' }}]
+                    content: [{ image: { src: MonkeyCoin, alt: 'Non-descriptive visual work routine' } }]
+                },
+                {
+                    xs: 12, sm: 6,
+                    content: [
+                        { title: { text: 'Benefits of this approach include:', variant: 'h5' } },
+                        { list: { items: [{ text: 'Reduced context switching' }, { text: 'Increased focus and organization'}], variant: 'h5' }}
+                    ]
                 },
             ],
+            button: { text: 'How does it work?', position: 'center', link: 'https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e#82db' }
         },
         {
             title: { text: 'Build With the Community', color: 'white' },

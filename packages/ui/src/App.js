@@ -84,12 +84,12 @@ export function App() {
         setBusiness(businessData.readAssets[0] ? JSON.parse(businessData.readAssets[0]) : {});
     }, [businessData])
 
-    useEffect(() => {
-        // Determine theme
-        if (session?.theme) setTheme(themes[session?.theme])
-        else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
-        else setTheme(themes.light);
-    }, [session])
+    // useEffect(() => {
+    //     // Determine theme
+    //     if (session?.theme) setTheme(themes[session?.theme])
+    //     else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
+    //     else setTheme(themes.light);
+    // }, [session])
 
     const handlers = {
         OPEN_MENU: () => PubSub.publish(PUBS.BurgerMenuOpen, true),
