@@ -5,14 +5,26 @@ import { imagesByLabelQuery } from 'graphql/query';
 import { IMAGE_USE, SERVER_URL } from '@local/shared';
 import { getImageSrc, LINKS } from 'utils';
 import { makeStyles } from '@material-ui/styles';
+import Relax from 'assets/img/relax.png';
 import BlankRoutine from 'assets/img/blank-routine-1.png';
 import Community from 'assets/img/community.svg';
 
+// const useStyles = makeStyles((theme) => ({
+//     root: {
+//         paddingTop: '0',
+//     },
+//     [theme.breakpoints.down(500)]: {
+//         root: {
+//             paddingTop: 'calc(14vh - 10px)',
+//         }
+//     },
+// }))
+
 const useStyles = makeStyles((theme) => ({
     root: {
-        paddingTop: '0',
+        paddingTop: 'calc(7vh - 10px)',
     },
-    [theme.breakpoints.down(500)]: {
+    [theme.breakpoints.down(600)]: {
         root: {
             paddingTop: 'calc(14vh - 10px)',
         }
@@ -50,44 +62,83 @@ function HomePage() {
     // Slides in order
     const slides = [
         {
-            title: { text: 'Your portal to idea monetization', position: 'center', style: 'pop' },
+            title: { text: 'Entrepreneurship - Without the Hustle!', position: 'center', color: 'white' },
+            // background: { background: 'linear-gradient(344deg, rgba(34,81,149,1) 0%, rgba(17,119,168,1) 46%, rgba(74,152,180,1) 75%)' },
             background: { image: getImage(0)?.src },
-            button: { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }
-        },
-        {
-            title: { text: 'Our Mission', position: 'center' },
             body: [
                 {
                     xs: 12, sm: 6,
-                    content: [{ title: { text: 'Bring the power of entrepreneurship to the masses, through the use of visual work routines' } }]
+                    content: [{ title: { text: 'Getting things done has never been easier, through the power of visual work routines', textAlign: 'center', color: 'white' } }]
+                },
+                {
+                    xs: 12, sm: 6,
+                    content: [{ image: { src: Relax, alt: 'Man relaxing at beach - by Vecteezy' } }]
+                }
+            ],
+            button: { text: 'Learn More', position: 'center', color: 'secondary', link: LINKS.Mission }
+        },
+        {
+            title: { text: 'A What Routine?', position: 'center' },
+            background: { background: '#d7deef' },
+            body: [
+                {
+                    xs: 12,
+                    content: [
+                        { title: { text: 'A visual work routine is an intuitive process for completing a specific task - similar to a flowchart', textAlign: 'center' } },
+                    ]
+                },
+                {
+                    xs: 12, sm: 6,
+                    content: [
+                        { title: { text: 'Visual work routines transform entrepreneurship into a process that is:', variant: 'h5' } },
+                        { list: { items: [{ text: 'Approachable' }, { text: 'Transparent'}, { text: 'Automatable' }], variant: 'h5' }}
+                    ]
                 },
                 {
                     xs: 12, sm: 6,
                     content: [{ image: { src: BlankRoutine, alt: 'Non-descriptive visual work routine' } }]
                 }
             ],
-            button: { text: 'Learn More', position: 'center', color: 'secondary', link: LINKS.Mission }
         },
+        // {
+        //     title: { text: 'Our Mission', position: 'center' },
+        //     body: [
+        //         {
+        //             xs: 12,
+        //             content: [
+        //                 { title: { text: 'Transform entrepreneurship into a process that is:' } },
+        //                 { list: { items: [{ text: 'Approachable' }, { text: 'Transparent'}, { text: 'Automatable' }] }}
+        //             ]
+        //         }
+        //     ],
+        //     button: { text: 'Learn More', position: 'center', color: 'secondary', link: LINKS.Mission }
+        // },
         {
-            title: { text: 'Understand your workflow', position: 'center', color: 'white' },
+            title: { text: 'Understand Your Workflow', position: 'center', color: 'white' },
             background: { background: 'linear-gradient(344deg, rgba(5,4,34,1) 0%, rgba(16,31,142,1) 75%, rgba(59,102,154,1) 75%)' },
             body: [
                 {
                     xs: 12,
-                    content: [{ title: { text: 'talk about how visualizing routines makes the whole process approachable to newbies', textAlign: 'center', color: 'white' } }]
+                    content: [{ title: { text: `Routines may consist of subroutines, and each subroutine may also have its own routines`, textAlign: 'center', color: 'white' } }]
+                },
+                {
+                    xs: 12,
+                    content: [{ title: { text: `This hierarchy simplifies the process of building routines, and allows you to inspect each part of your workflow in as much abstraction as you'd like!`, textAlign: 'center', color: 'white' } }]
                 },
             ],
+            button: { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }
         },
         {
-            title: { text: 'Intuitive interface', position: 'center' },
+            title: { text: 'Say Goodbye to Endless Browser Tabs👋' },
+            background: { background: '#d7deef' },
             body: [
                 {
-                    xs: 12, sm: 6,
-                    content: [{ title: { text: 'talk about how routines can be created with drag n drop' } }]
+                    xs: 12,
+                    content: [{ title: { text: 'Auto-generated routine interfaces unlock the possibility of performing entire routines through Vrooli. Benefits of this approach include:', textAlign: 'center' } }]
                 },
                 {
                     xs: 12, sm: 6,
-                    content: [{ title: { text: 'talk about how routines can be executed with simple UI' } }]
+                    content: [{ list: { color: 'white', items: [{ text: 'Reduced context switching' }, { text: 'Increased focus and organization'}], textAlign: 'center' }}]
                 },
             ],
         },
@@ -107,16 +158,8 @@ function HomePage() {
             button: { text: `What's Project Catalyst?`, position: 'center', link: 'https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e#4f79' }
         },
         {
-            title: { text: 'Say Goodbye to Endless Browser Tabs👋' },
-            body: [
-                {
-                    xs: 12,
-                    content: [{ title: { text: 'talk about how supported routines can be executed from Vrooli directly, to reduce context switching', textAlign: 'center' } }]
-                },
-            ],
-        },
-        {
             title: { text: 'AI & Blockchain Support' },
+            background: { background: '#d7deef' },
             body: [
                 {
                     xs: 12, sm: 6,
@@ -139,7 +182,7 @@ function HomePage() {
         },
         {
             title: { text: 'Join the Movement', style: 'pop' },
-            background: { image: getImage(0)?.src },
+            background: { image: getImage(1)?.src, fixed: true },
             body: [
                 {
                     xs: 12,

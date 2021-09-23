@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
         objectFit: 'cover',
     },
     slidePad: {
-        padding: theme.spacing(2),
+        padding: theme.spacing(4),
         zIndex: 1,
     },
     titleCenter: {
@@ -74,6 +74,9 @@ const useStyles = makeStyles((theme) => ({
         },
     },
     [theme.breakpoints.down('sm')]: {
+        slidePad: {
+            padding: theme.spacing(2),
+        },
         bodyImage: {
             maxWidth: '75%',
         },
@@ -93,7 +96,7 @@ function Slide({
         if (data.background.image) {
             console.log('SETTIG BACKGROUND IMAGE', `url("${data.background.image}") no-repeat center center cover`)
             return {
-                background: `url(${data.background.image}) no-repeat center center`,
+                background: `url(${data.background.image}) no-repeat center center ${data.background.fixed ? 'fixed' : ''}`,
                 backgroundSize: 'cover',
             }
         }
@@ -111,7 +114,7 @@ function Slide({
         if (!child) return null;
         // If child has 'content' property, then it is a GridItem
         if (Array.isArray(child.content)) {
-            return <Grid className={classes.bodyGridItem} item xs={child.xs ?? 12} sm={child.sm}>
+            return <Grid className={classes.bodyGridItem} item xs={child.xs ?? 12} sm={child.sm} md={child.md}>
                 {child.content.map(grandchild => toBodyChild(grandchild))}
             </Grid>
         }
@@ -121,6 +124,8 @@ function Slide({
                 variant={child.title.variant ?? 'h4'}
                 component={child.title.component ?? 'h2'}
                 textAlign={child.title.textAlign ?? 'left'}
+                paddingBottom={child.title.paddingBottom ?? '0'}
+                margin='auto'
                 color={child.title.color}
             >
                 {child.title.text}
