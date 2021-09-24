@@ -55,6 +55,7 @@ export const LINKS = {
     PrivacyPolicy: '/privacy-policy', // Privacy policy
     Profile: '/profile', // View and update profile and settings
     Register: '/register', // Page with register form
+    Roadmap: '/mission#roadmap', // Start of roadmap slide
     Run: '/run', // Displays a UI corresponding to the current subroutine
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
     Search: '/search', // Search routines and users

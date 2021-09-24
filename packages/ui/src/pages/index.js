@@ -2,6 +2,7 @@ export * from './AboutPage';
 export * from './admin';
 export * from './FormPage';
 export * from './HomePage';
+export * from './MissionPage';
 export * from './NotFoundPage';
 export * from './Page';
 export * from './PrivacyPolicyPage';

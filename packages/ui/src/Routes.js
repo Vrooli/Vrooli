@@ -24,6 +24,7 @@ const {
     AdminMainPage,
     FormPage,
     HomePage,
+    MissionPage,
     NotFoundPage,
     Page,
     PrivacyPolicyPage,
@@ -66,6 +67,18 @@ function Routes({
                     render={() => (
                         <Page title={title('Home')} {...common}>
                             <HomePage />
+                        </Page>
+                    )}
+                />
+                <Route
+                    exact
+                    path={LINKS.Mission}
+                    sitemapIndex={true}
+                    priority={1.0}
+                    changefreq="monthly"
+                    render={() => (
+                        <Page title={title('Mission')} {...common}>
+                            <MissionPage />
                         </Page>
                     )}
                 />

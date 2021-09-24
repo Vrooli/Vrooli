@@ -53,6 +53,18 @@ const useStyles = makeStyles((theme) => ({
         maxHeight: '100%',
         objectFit: 'contain',
     },
+    bodyVideo: {
+        display: 'flex',
+        justifyContent: 'center',
+    },
+    buttonsContainer: {
+        display: 'flex',
+        justifyContent: 'center',
+        '& button': {
+            marginLeft: '16px', 
+            marginRight: '16px'
+        }
+    },
     buttonCenter: {
         display: 'flex',
         margin: 'auto',
@@ -94,7 +106,6 @@ function Slide({
     const backgroundStyle = useMemo(() => {
         if (!data.background) return null;
         if (data.background.image) {
-            console.log('SETTIG BACKGROUND IMAGE', `url("${data.background.image}") no-repeat center center cover`)
             return {
                 background: `url(${data.background.image}) no-repeat center center ${data.background.fixed ? 'fixed' : ''}`,
                 backgroundSize: 'cover',
@@ -147,7 +158,7 @@ function Slide({
             </ul>
         )
         // If child has 'video' property, then it is a YoutubeEmbed
-        if (child.video) return <YoutubeEmbed embedId={child.video.link} width={Math.min(width - 16, 600)} height={Math.floor(Math.min(width - 16, 600) * 9 / 16)} />
+        if (child.video) return <YoutubeEmbed className={classes.bodyVideo} embedId={child.video.link} width={Math.min(width - 16, 600)} height={Math.floor(Math.min(width - 16, 600) * 9 / 16)} />
         //TODO
         if (child.image) return <div className={classes.bodyImageContainer} ><img className={classes.bodyImage} alt={child.image.alt} src={child.image.src} /></div>
         //TODO
@@ -175,15 +186,14 @@ function Slide({
         </Button>
     }
 
-    console.log('STYLES', backgroundStyle)
-
     return (
-        <div className={classes.slideRoot} 
+        <div id={data?.id}
+            className={classes.slideRoot} 
             style={{...backgroundStyle}}>
             <div className={classes.slidePad}>
                 {toTitle(data?.title)}
                 {toBody(data?.body)}
-                {toButton(data?.button)}
+                <div className={classes.buttonsContainer}>{toButton(data?.button)}{data?.buttons ? data?.buttons.map(b => toButton(b)) : null}</div>
             </div>
         </div>
     );

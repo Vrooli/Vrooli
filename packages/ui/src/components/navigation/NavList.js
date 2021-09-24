@@ -42,7 +42,7 @@ function NavList({
     const classes = useStyles();
     const history = useHistory();
 
-    const nav_actions = getUserActions({ session, userRoles: roles });
+    const nav_actions = getUserActions({ session, userRoles: roles, exclude: ['home'] });
 
     return (
         <Container className={classes.root}>

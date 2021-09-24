@@ -18,6 +18,7 @@ const useStyles = (theme) => ({
 })
 
 function YoutubeEmbed({ 
+    className,
     embedId, 
     width, 
     height 
@@ -25,7 +26,7 @@ function YoutubeEmbed({
     const classes = useStyles();
 
     return (
-        <div className={classes.videoResponsive}>
+        <div className={`${classes.videoResponsive} ${className}`}>
             <iframe
                 width={width}
                 height={height}

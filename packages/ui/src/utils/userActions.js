@@ -1,6 +1,7 @@
 import {
     ConnectWithoutContact as ConnectWithoutContactIcon,
     ExitToApp as ExitToAppIcon,
+    Home as HomeIcon,
     Info as InfoIcon,
     Person as PersonIcon,
     PersonAdd as PersonAddIcon,
@@ -24,6 +25,7 @@ import {
 // Returns navigational actions available to the user
 export function getUserActions({ session, userRoles, exclude = [] }) {
     let actions = [
+        ['Home', 'home', LINKS.Home, null, HomeIcon, 0],
         ['Mission', 'mission', LINKS.Mission, null, ConnectWithoutContactIcon, 0],
         ['About Us', 'about', LINKS.About, null, InfoIcon, 0]
     ];

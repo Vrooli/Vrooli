@@ -75,11 +75,7 @@ function Hamburger({
         setContactOpen(!contactOpen);
     };
 
-    const nav_actions = [
-        createAction('Mission', 'mission', LINKS.Mission, null, ConnectWithoutContactIcon),
-        createAction('About Us', 'about', LINKS.About, null, InfoIcon),
-        ...getUserActions({ session, roles })
-    ]
+    const nav_actions = getUserActions({ session, roles, exclude: ['home'] });
 
     return (
         <React.Fragment>
