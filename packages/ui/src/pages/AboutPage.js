@@ -9,7 +9,7 @@ import MattSketch from 'assets/img/thought-sketch-edited-3.png';
 
 const useStyles = makeStyles((theme) => ({
     root: {
-        background: '#d7deef'
+        background: '#d7deef',
         paddingTop: 'calc(12vh - 10px)',
     },
     [theme.breakpoints.down(600)]: {
@@ -57,6 +57,10 @@ function AboutPage() {
                 {
                     content: [
                         { title: { text: 'Leader/Developer - Matt Halloran', variant: 'h5' } },
+                    ]
+                },
+                {
+                    content: [
                         { title: { text: `Matt is a 23-year-old with a life-long passion for contemplating the future. He is very detail-oriented, and spends a lot of time (arguably too much) examining our best chances for surviving the Great Filter. These thoughts led him to start Vrooli, in hopes that the platform will accelerate humanity's rate of progress - while preventing inequality from getting out of control.`, variant: 'h5' } },
                     ]
                 },
@@ -75,10 +79,10 @@ function AboutPage() {
                     content: [{ image: { src: MattSketch, alt: 'Illustrated drawing of the founder of Vrooli - Matt Halloran' } }]
                 },
                 {
-                    content: [{ buttons: [
+                    buttons: [
                         { text: 'Other Projects', position: 'center', color: 'secondary', link: 'https://github.com/MattHalloran' },
                         { text: 'Contact/Support', position: 'center', color: 'secondary', link: 'https://matthalloran.info/' }
-                    ]}]
+                    ]
                 },
                 {
                     content: [{ title: { text: 'Other Teammates - Possibly YOU!', variant: 'h5' } },]

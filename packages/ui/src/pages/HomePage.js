@@ -55,7 +55,7 @@ function HomePage() {
     const slides = [
         {
             id: 'get-things-done-easy',
-            title: { text: 'Entrepreneurship - Without the Hustle!', position: 'center', color: 'white' },
+            title: { text: 'Become an Entrepreneur - Without the Hustle!', position: 'center', color: 'white' },
             background: { background: 'linear-gradient(142deg, rgba(8,24,79,1) 16%, rgba(12,48,113,1) 61%, rgba(42,123,184,1) 93%)' },
             body: [
                 {
@@ -65,9 +65,11 @@ function HomePage() {
                 {
                     sm: 6,
                     content: [{ image: { src: Relax, alt: 'Man relaxing at beach - by Vecteezy' } }]
+                },
+                {
+                    buttons: [{ text: 'Learn More', position: 'center', color: 'secondary', link: LINKS.Mission }]
                 }
             ],
-            button: { text: 'Learn More', position: 'center', color: 'secondary', link: LINKS.Mission }
         },
         {
             id: 'routine-explanation',
@@ -103,8 +105,10 @@ function HomePage() {
                 {
                     content: [{ title: { text: `This hierarchy simplifies the process of building routines, and allows you to inspect each part of your workflow in as much abstraction as you'd like!`, textAlign: 'center', color: 'white' } }]
                 },
+                {
+                    buttons: [{ text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }]
+                }
             ],
-            button: { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }
         },
         {
             id: 'auto-generated-interfaces',
@@ -141,8 +145,10 @@ function HomePage() {
                     sm: 6,
                     content: [{ image: { src: Community, alt: 'Community illustration - by Vecteezy' } }]
                 },
+                {
+                    buttons: [{ text: `What's Project Catalyst?`, position: 'center', link: 'https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e#4f79' }]
+                }
             ],
-            button: { text: `What's Project Catalyst?`, position: 'center', link: 'https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e#4f79' }
         },
         {
             id: 'blockchain-and-ai',
@@ -173,11 +179,13 @@ function HomePage() {
                 {
                     content: [{ video: { link: 'Avyeo1f38Aw' } }]
                 },
-            ],
-            buttons: [
-                { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist },
-                { text: 'View Proposal', position: 'center', color: 'secondary', link: 'https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088' },
-                { text: 'Roadmap', position: 'center', color: 'secondary', link: LINKS.Roadmap }
+                {
+                    buttons: [
+                        { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist },
+                        { text: 'View Proposal', position: 'center', color: 'secondary', link: 'https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088' },
+                        { text: 'Roadmap', position: 'center', color: 'secondary', link: LINKS.Roadmap }
+                    ]
+                }
             ]
         },
     ]

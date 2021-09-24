@@ -60,15 +60,11 @@ const useStyles = makeStyles((theme) => ({
     },
     buttonsContainer: {
         display: 'flex',
-        justifyContent: 'center',
-        '& button': {
-            marginLeft: '16px', 
-            marginRight: '16px'
-        }
-    },
-    buttonCenter: {
-        display: 'flex',
         margin: 'auto',
+        maxWidth: '75%',
+    },
+    button: {
+        height: '100%',
     },
     textPop: {
         padding: '0',
@@ -85,6 +81,9 @@ const useStyles = makeStyles((theme) => ({
         slideRoot: {
             minHeight: '50vh',
         },
+        slidePad: {
+            padding: '2px'
+        }
     },
     [theme.breakpoints.down('sm')]: {
         slidePad: {
@@ -93,6 +92,9 @@ const useStyles = makeStyles((theme) => ({
         bodyImage: {
             maxWidth: '75%',
         },
+        buttonsContainer: {
+            maxWidth: '100%'
+        }
     }
 }))
 
@@ -119,7 +121,33 @@ function Slide({
         if (!title) return null;
         let titleClasses = `${classes.titleCenter}`;
         if (title.style === 'pop') titleClasses += ` ${classes.textPop}`;
-        return <Typography variant='h2' component='h1' className={titleClasses} style={{ color: title.color }}>{title.text}</Typography>
+        return <Typography variant={title.variant ?? 'h3'} component='h1' className={titleClasses} style={{ color: title.color, overflowWrap: title.overflowWrap ?? 'anywhere' }}>{title.text}</Typography>
+    }
+
+    const toButton = (button) => {
+        if (!button) return null;
+        let buttonClasses = `${classes.button}`;
+        return <Button
+            fullWidth
+            className={buttonClasses}
+            type="submit"
+            size="large"
+            color={button.color ?? 'secondary'}
+            onClick={() => button.link.includes('http') ? window.open(button.link, '_blank', 'noopener,noreferrer') : history.push(button.link)}
+        >
+            {button.text}
+        </Button>
+    }
+
+
+    const toButtonsGrid = (buttons, sm) => {
+        return <div className={classes.buttonsContainer}>
+            <Grid container spacing={1}>
+                {buttons.map(b => (
+                    <Grid item xs={12} sm={sm}>{toButton(b)}</Grid>
+                ))}
+            </Grid>
+        </div>
     }
 
     const toBodyChild = useCallback((child) => {
@@ -139,29 +167,38 @@ function Slide({
                 paddingBottom={child.title.paddingBottom ?? '0'}
                 margin='auto'
                 color={child.title.color}
+                style={{ overflowWrap: child.title.overflowWrap ?? 'anywhere' }}
             >
                 {child.title.text}
             </Typography>
         )
         // If child has 'list' property, then it is a list of Typography
         if (child.list) return (
-            <ul style={{paddingBottom: child.list.paddingBottom, margin: child.list.margin}}>
+            <ul style={{ paddingBottom: child.list.paddingBottom, margin: child.list.margin }}>
                 {child.list.items.map(item => (
-                    <li className={classes.bodyList} style={{color: item.color ?? child.list.color}}><Typography
-                    variant={item.variant ?? child.list.variant ?? 'h4'}
-                    component={item.component ?? child.list.component ?? 'h2'}
-                    textAlign={item.textAlign ?? child.list.textAlign ?? 'left'}
-                    color={item.color ?? child.list.color}
-                >
-                    {item.text}
-                </Typography></li>
+                    <li className={classes.bodyList} style={{ color: item.color ?? child.list.color }}><Typography
+                        variant={item.variant ?? child.list.variant ?? 'h4'}
+                        component={item.component ?? child.list.component ?? 'h2'}
+                        textAlign={item.textAlign ?? child.list.textAlign ?? 'left'}
+                        color={item.color ?? child.list.color}
+                        style={{ overflowWrap: item.overflowWrap ?? child.list.overflowWrap ?? 'break-word' }}
+                    >
+                        {item.text}
+                    </Typography></li>
                 ))}
             </ul>
         )
         // If child has 'video' property, then it is a YoutubeEmbed
         if (child.video) return <YoutubeEmbed className={classes.bodyVideo} embedId={child.video.link} width={Math.min(width - 16, 600)} height={Math.floor(Math.min(width - 16, 600) * 9 / 16)} />
-        if (child.image) return <div className={classes.bodyImageContainer} ><img className={classes.bodyImage} alt={child.image.alt} src={child.image.src} /></div>
-        if (child.buttons) return <div className={classes.buttonsContainer}>{child.buttons.map(b => toButton(b))}</div>
+        if (child.image) return <div className={classes.bodyImageContainer} ><img className={classes.bodyImage} style={{ maxWidth: child.image.maxWidth }} alt={child.image.alt} src={child.image.src} /></div>
+        if (child.buttons) {
+            console.log('in child.buttons', child.buttons)
+            if (child.buttons.length === 1) return toButtonsGrid(child.buttons, 12);
+            if (child.buttons.length === 2) return toButtonsGrid(child.buttons, 6);
+            if (child.buttons.length === 3) return toButtonsGrid(child.buttons, 4);
+            if (child.buttons.length === 4) return toButtonsGrid(child.buttons, 3);
+            return null;
+        }
         return null;
     }, [width])
 
@@ -172,28 +209,13 @@ function Slide({
         </Grid>
     }
 
-    const toButton = (button) => {
-        if (!button) return null;
-        let buttonClasses = `${classes.buttonCenter}`;
-        return <Button
-            className={buttonClasses}
-            type="submit"
-            size="large"
-            color={button.color ?? 'secondary'}
-            onClick={() => button.link.includes('http') ? window.open(button.link, '_blank', 'noopener,noreferrer') : history.push(button.link)}
-        >
-            {button.text}
-        </Button>
-    }
-
     return (
         <div id={data?.id}
-            className={classes.slideRoot} 
-            style={{...backgroundStyle}}>
+            className={classes.slideRoot}
+            style={{ ...backgroundStyle }}>
             <div className={classes.slidePad}>
                 {toTitle(data?.title)}
                 {toBody(data?.body)}
-                <div className={classes.buttonsContainer}>{toButton(data?.button)}{data?.buttons ? data?.buttons.map(b => toButton(b)) : null}</div>
             </div>
         </div>
     );

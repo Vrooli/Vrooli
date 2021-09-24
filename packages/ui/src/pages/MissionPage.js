@@ -10,7 +10,7 @@ import Target from 'assets/img/target.png';
 
 const useStyles = makeStyles((theme) => ({
     root: {
-        paddingTop: 'calc(7vh - 10px)',
+        paddingTop: 'calc(10vh - 10px)',
     },
     [theme.breakpoints.down(600)]: {
         root: {
@@ -67,10 +67,12 @@ function MissionPage() {
                 },
                 {
                     sm: 6,
-                    content: [{ image: { src: Thinking, alt: 'Person thinking - By Vecteezy' } }]
+                    content: [{ image: { src: Thinking, alt: 'Person thinking - By Vecteezy', maxWidth: '50%' } }]
+                },
+                {
+                    buttons: [{ text: `What's Project Catalyst?`, position: 'center', link: 'https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e#4f79' }]
                 }
             ],
-            button: { text: `What's Project Catalyst?`, position: 'center', link: 'https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e#4f79' }
         },
         {
             id: 'our-mission',
@@ -86,9 +88,11 @@ function MissionPage() {
                     content: [
                         { title: { text: 'Make entrepreneurship accessible to all by reducing the cost, labor, and knowledge required to implement your ideas', variant: 'h4', textAlign: 'center' } },
                     ]
+                },
+                {
+                    buttons: [{ text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }]
                 }
-            ],
-            buttons: [{ text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }]
+            ]
         },
         {
             id: 'welcome-to-vrooli',
@@ -99,11 +103,13 @@ function MissionPage() {
                     content: [
                         { title: { text: `We're building a future-friendly, open-source platform for automating entrepreneurship`, color: 'white', textAlign: 'center' } },
                     ]
+                },
+                {
+                    buttons: [
+                        { text: `How it Works`, position: 'center', link: 'https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e#e1eb' },
+                        { text: `Benefits of Vrooli`, position: 'center', link: LINKS.Benefits }
+                    ]
                 }
-            ],
-            buttons: [
-                { text: `How it Works`, position: 'center', link: 'https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e#e1eb' },
-                { text: `Benefits of Vrooli`, position: 'center', link: LINKS.Benefits }
             ]
         },
         {
@@ -166,12 +172,14 @@ function MissionPage() {
                             { text: 'Decentralize all the things!' },
                         ]}},
                     ]
+                },
+                {
+                    buttons: [
+                        { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist },
+                        { text: 'View Proposal', position: 'center', color: 'secondary', link: 'https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088' },
+                        { text: 'About the Team', position: 'center', color: 'secondary', link: LINKS.About },
+                    ]
                 }
-            ],
-            buttons: [
-                { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist },
-                { text: 'View Proposal', position: 'center', color: 'secondary', link: 'https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088' },
-                { text: 'About the Team', position: 'center', color: 'secondary', link: LINKS.About },
             ]
         },
     ]
