@@ -9,6 +9,7 @@ import MattSketch from 'assets/img/thought-sketch-edited-3.png';
 
 const useStyles = makeStyles((theme) => ({
     root: {
+        background: '#d7deef'
         paddingTop: 'calc(12vh - 10px)',
     },
     [theme.breakpoints.down(600)]: {

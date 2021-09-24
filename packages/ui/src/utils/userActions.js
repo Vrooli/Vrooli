@@ -1,3 +1,4 @@
+import React from 'react';
 import {
     ConnectWithoutContact as ConnectWithoutContactIcon,
     ExitToApp as ExitToAppIcon,
