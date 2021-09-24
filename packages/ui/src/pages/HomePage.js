@@ -55,7 +55,7 @@ function HomePage() {
     const slides = [
         {
             id: 'get-things-done-easy',
-            title: { text: 'Become an Entrepreneur - Without the Hustle!', position: 'center', color: 'white' },
+            title: { text: 'Become an Entrepreneur - Without the Hassle!', position: 'center', color: 'white' },
             background: { background: 'linear-gradient(142deg, rgba(8,24,79,1) 16%, rgba(12,48,113,1) 61%, rgba(42,123,184,1) 93%)' },
             body: [
                 {

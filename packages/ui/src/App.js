@@ -39,7 +39,7 @@ const useStyles = makeStyles(() => ({
             },
             '@font-face': {
                 fontFamily: 'SakBunderan',
-                src: `local('SakBunderan'), url('./fonts/SakBunderan.ttf') format('ttf')`,
+                src: `local('SakBunderan'), url('assets/fonts/SakBunderan.ttf') format('ttf')`,
             }
         },
         contentWrap: {

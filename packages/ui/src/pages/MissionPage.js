@@ -36,15 +36,11 @@ function MissionPage() {
 
     useEffect(() => {
         // Table data must be extensible, and needs position
-        setImageData(currImages?.imagesByLabel?.map((image, index) => ({
-            ...image,
-            src: `${SERVER_URL}/${getImageSrc(image, width)}`,
-            pos: index
-        })));
+        setImageData(currImages?.imagesByLabel);
     }, [currImages])
 
-    const getImage = useCallback((pos) => {
-        return imageData?.length > pos ? imageData[pos] : null
+    const getImage = useCallback((pos, size) => {
+        return imageData?.length > pos ? `${SERVER_URL}/${getImageSrc(image, size ?? width)}` : null;
     }, [imageData])
 
     // Slides in order
@@ -137,7 +133,7 @@ function MissionPage() {
         {
             id: 'roadmap',
             title: { text: 'Roadmap', position: 'center', style: 'pop' },
-            background: { image: getImage(1)?.src, fixed: true, alt: 'Rocket image - By Vectoreezy' },
+            background: { image: getImage(1, 2000)?.src, fixed: true, alt: 'Rocket image - By Vectoreezy' },
             body: [
                 {
                     content: [
