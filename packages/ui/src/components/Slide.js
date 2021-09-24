@@ -144,7 +144,7 @@ function Slide({
         )
         // If child has 'list' property, then it is a list of Typography
         if (child.list) return (
-            <ul>
+            <ul style={{paddingBottom: child.list.paddingBottom, margin: child.list.margin}}>
                 {child.list.items.map(item => (
                     <li className={classes.bodyList} style={{color: item.color ?? child.list.color}}><Typography
                     variant={item.variant ?? child.list.variant ?? 'h4'}

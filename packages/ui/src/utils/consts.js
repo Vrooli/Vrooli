@@ -47,6 +47,7 @@ export const LINKS = {
     AdminContactInfo: '/admin/contact-info', // Admin page for updating contact information (business.json file)
     AdminCustomers: '/admin/customers', // Admin page for customer statistics and contact information
     AdminImages: '/admin/images', // Admin page for updating hero slideshow
+    Benefits: '/#understand-your-workflow', // Start of slides overviewing benefits of using Vrooli
     ForgotPassword: '/forgot-password', // Page for sending password reset request emails
     Home: '/', // Home page. Similar to the about page, but more project details and less vision
     LogIn: '/login', // Page with log in form

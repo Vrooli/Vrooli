@@ -5,6 +5,7 @@ import { imagesByLabelQuery } from 'graphql/query';
 import { IMAGE_USE, SERVER_URL } from '@local/shared';
 import { getImageSrc, LINKS } from 'utils';
 import { makeStyles } from '@material-ui/styles';
+import { Box } from '@material-ui/core';
 import Relax from 'assets/img/relax.png';
 import BlankRoutine from 'assets/img/blank-routine-1.png';
 import MonkeyCoin from 'assets/img/monkey-coin-page.png';
@@ -70,7 +71,7 @@ function HomePage() {
         },
         {
             id: 'routine-explanation',
-            title: { text: 'A What Routine?', position: 'center' },
+            title: { text: (<React.Fragment>A <Box fontStyle="italic" display="inline">What</Box> Routine?</React.Fragment>), position: 'center' },
             background: { background: '#d7deef' },
             body: [
                 {
@@ -175,6 +176,7 @@ function HomePage() {
             ],
             buttons: [
                 { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist },
+                { text: 'View Proposal', position: 'center', color: 'secondary', link: 'https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088' },
                 { text: 'Roadmap', position: 'center', color: 'secondary', link: LINKS.Roadmap }
             ]
         },
