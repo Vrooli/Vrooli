@@ -159,9 +159,8 @@ function Slide({
         )
         // If child has 'video' property, then it is a YoutubeEmbed
         if (child.video) return <YoutubeEmbed className={classes.bodyVideo} embedId={child.video.link} width={Math.min(width - 16, 600)} height={Math.floor(Math.min(width - 16, 600) * 9 / 16)} />
-        //TODO
         if (child.image) return <div className={classes.bodyImageContainer} ><img className={classes.bodyImage} alt={child.image.alt} src={child.image.src} /></div>
-        //TODO
+        if (child.buttons) return <div className={classes.buttonsContainer}>{child.buttons.map(b => toButton(b))}</div>
         return null;
     }, [width])
 
