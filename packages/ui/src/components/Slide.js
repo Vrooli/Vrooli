@@ -78,9 +78,6 @@ const useStyles = makeStyles((theme) => ({
                 1px 1px 0 black`
     },
     [theme.breakpoints.down(500)]: {
-        slideRoot: {
-            minHeight: '50vh',
-        },
         slidePad: {
             padding: '2px'
         }
