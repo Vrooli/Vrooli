@@ -189,7 +189,6 @@ function Slide({
         if (child.video) return <YoutubeEmbed className={classes.bodyVideo} embedId={child.video.link} width={Math.min(width - 16, 600)} height={Math.floor(Math.min(width - 16, 600) * 9 / 16)} />
         if (child.image) return <div className={classes.bodyImageContainer} ><img className={classes.bodyImage} style={{ maxWidth: child.image.maxWidth }} alt={child.image.alt} src={child.image.src} /></div>
         if (child.buttons) {
-            console.log('in child.buttons', child.buttons)
             if (child.buttons.length === 1) return toButtonsGrid(child.buttons, 12);
             if (child.buttons.length === 2) return toButtonsGrid(child.buttons, 6);
             if (child.buttons.length === 3) return toButtonsGrid(child.buttons, 4);

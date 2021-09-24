@@ -40,7 +40,7 @@ function MissionPage() {
     }, [currImages])
 
     const getImage = useCallback((pos, size) => {
-        return imageData?.length > pos ? `${SERVER_URL}/${getImageSrc(image, size ?? width)}` : null;
+        return imageData?.length > pos ? `${SERVER_URL}/${getImageSrc(imageData[pos], size ?? width)}` : null;
     }, [imageData])
 
     // Slides in order
@@ -93,7 +93,7 @@ function MissionPage() {
         {
             id: 'welcome-to-vrooli',
             title: { text: 'Welcome to Vrooli', position: 'center', style: 'pop' },
-            background: { image: getImage(0)?.src, alt: 'Abstract network image - By Vectoreezy' },
+            background: { image: getImage(0), alt: 'Abstract network image - By Vectoreezy' },
             body: [
                 {
                     content: [
@@ -133,7 +133,7 @@ function MissionPage() {
         {
             id: 'roadmap',
             title: { text: 'Roadmap', position: 'center', style: 'pop' },
-            background: { image: getImage(1, 2000)?.src, fixed: true, alt: 'Rocket image - By Vectoreezy' },
+            background: { image: getImage(1, 2000), fixed: true, alt: 'Rocket image - By Vectoreezy' },
             body: [
                 {
                     content: [
