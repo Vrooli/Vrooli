@@ -13,7 +13,7 @@ import { CssBaseline, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from '@material-ui/core/styles';
 import { makeStyles } from '@material-ui/styles';
 import StyledEngineProvider from '@material-ui/core/StyledEngineProvider';
-import { useHistory } from 'react-router';
+import { useHistory, useLocation } from 'react-router';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { DndProvider } from 'react-dnd';
 import { useMutation, useQuery } from '@apollo/client';
@@ -63,6 +63,7 @@ const keyMap = {
 
 export function App() {
     const classes = useStyles();
+    const { pathname, hash } = useLocation();
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState(null);
@@ -73,6 +74,24 @@ export function App() {
     const { data: businessData } = useQuery(readAssetsQuery, { variables: { files: ['business.json'] } });
     const [login] = useMutation(loginMutation);
     let history = useHistory();
+
+    // If anchor tag in url, scroll to element
+    useEffect(() => {
+        // if not a hash link, scroll to top
+        if (hash === '') {
+          window.scrollTo(0, 0);
+        }
+        // else scroll to id
+        else {
+          setTimeout(() => {
+            const id = hash.replace('#', '');
+            const element = document.getElementById(id);
+            if (element) {
+              element.scrollIntoView();
+            }
+          }, 0);
+        }
+      }, [pathname]); // do this on route change
 
     useEffect(() => () => {
         clearTimeout(timerRef.current);
