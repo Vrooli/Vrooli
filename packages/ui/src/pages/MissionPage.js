@@ -7,6 +7,7 @@ import { getImageSrc, LINKS } from 'utils';
 import { makeStyles } from '@material-ui/styles';
 import Thinking from 'assets/img/thinking.png';
 import Target from 'assets/img/target.png';
+import Mission from 'assets/img/mission-2.png';
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -133,7 +134,7 @@ function MissionPage() {
         {
             id: 'roadmap',
             title: { text: 'Roadmap', position: 'center', style: 'pop' },
-            background: { image: getImage(1, 2000), fixed: true, alt: 'Rocket image - By Vectoreezy' },
+            background: { image: Mission, fixed: true, alt: 'Rocket image - By Vectoreezy' },
             body: [
                 {
                     content: [

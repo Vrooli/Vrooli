@@ -19,6 +19,7 @@ import { DndProvider } from 'react-dnd';
 import { useMutation, useQuery } from '@apollo/client';
 import { readAssetsQuery } from 'graphql/query/readAssets';
 import { loginMutation } from 'graphql/mutation';
+import SakBunderan from './assets/fonts/SakBunderan.woff';
 
 const useStyles = makeStyles(() => ({
         "@global": {
@@ -39,7 +40,7 @@ const useStyles = makeStyles(() => ({
             },
             '@font-face': {
                 fontFamily: 'SakBunderan',
-                src: `local('SakBunderan'), url('./assets/fonts/SakBunderan.ttf') format('truetype')`,
+                src: `local('SakBunderan'), url(${SakBunderan}) format('truetype')`,
             }
         },
         contentWrap: {
