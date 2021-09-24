@@ -121,7 +121,7 @@ function HomePage() {
                 {
                     sm: 6,
                     content: [
-                        { title: { text: 'Benefits of this approach include:', variant: 'h5' } },
+                        { title: { text: 'Benefits of this approach include:', variant: 'h4' } },
                         { list: { items: [{ text: 'Reduced context switching' }, { text: 'Increased focus and organization'}], variant: 'h5' }}
                     ]
                 },

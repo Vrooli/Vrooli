@@ -34,6 +34,7 @@ const useStyles = makeStyles((theme) => ({
         paddingBottom: '1em',
     },
     mainGrid: {
+        alignItems: 'center',
         paddingBottom: '2em',
     },
     bodyGridItem: {
