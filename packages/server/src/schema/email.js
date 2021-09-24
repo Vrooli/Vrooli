@@ -18,6 +18,7 @@ export const typeDef = gql`
         id: ID!
         emailAddress: String!
         receivesDeliveryUpdates: Boolean!
+        verified: Boolean!
         customer: Customer
     }
 

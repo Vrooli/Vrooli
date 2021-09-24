@@ -46,14 +46,17 @@ export const LINKS = {
     Admin: '/admin', // Admin portal. Contains cards that link to every admin page
     AdminContactInfo: '/admin/contact-info', // Admin page for updating contact information (business.json file)
     AdminCustomers: '/admin/customers', // Admin page for customer statistics and contact information
-    AdminHero: '/admin/hero', // Admin page for updating hero slideshow
+    AdminImages: '/admin/images', // Admin page for updating hero slideshow
+    Benefits: '/#understand-your-workflow', // Start of slides overviewing benefits of using Vrooli
     ForgotPassword: '/forgot-password', // Page for sending password reset request emails
     Home: '/', // Home page. Similar to the about page, but more project details and less vision
     LogIn: '/login', // Page with log in form
+    Mission: '/mission', // More details about the project's overall vision
     Portal: '/portal', // Main page for logged-in customers. Shows created and liked routines, displayed either as a knowledge graph or classical file structure
     PrivacyPolicy: '/privacy-policy', // Privacy policy
     Profile: '/profile', // View and update profile and settings
     Register: '/register', // Page with register form
+    Roadmap: '/mission#roadmap', // Start of roadmap slide
     Run: '/run', // Displays a UI corresponding to the current subroutine
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
     Search: '/search', // Search routines and users

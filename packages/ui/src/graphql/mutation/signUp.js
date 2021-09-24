@@ -4,18 +4,14 @@ import { customerSessionFields } from 'graphql/fragment';
 export const signUpMutation = gql`
     ${customerSessionFields}
     mutation signUp(
-        $firstName: String!
-        $lastName: String!
-        $pronouns: String
+        $username: String!
         $email: String!
         $theme: String!
         $marketingEmails: Boolean!
         $password: String!
     ) {
     signUp(
-        firstName: $firstName
-        lastName: $lastName
-        pronouns: $pronouns
+        username: $username
         email: $email
         theme: $theme
         marketingEmails: $marketingEmails

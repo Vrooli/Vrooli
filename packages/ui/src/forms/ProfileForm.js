@@ -1,10 +1,9 @@
 import React, { useState } from 'react'
-import { DEFAULT_PRONOUNS, profileSchema } from '@local/shared';
+import { profileSchema } from '@local/shared';
 import { useMutation, useQuery } from '@apollo/client';
 import { updateCustomerMutation } from 'graphql/mutation';
 import { profileQuery } from 'graphql/query';
 import { useFormik } from 'formik';
-import { Autocomplete } from '@material-ui/lab';
 import { combineStyles, PUBS, PubSub } from 'utils';
 import { Button, Container, FormHelperText, Grid, TextField, Checkbox, FormControlLabel } from '@material-ui/core';
 import FormControl from '@material-ui/core/FormControl';
@@ -32,9 +31,7 @@ function ProfileForm() {
     const formik = useFormik({
         enableReinitialize: true,
         initialValues: {
-            firstName: profile?.profile?.firstName ?? '',
-            lastName: profile?.profile?.lastName ?? '',
-            pronouns: profile?.profile?.pronouns ?? '',
+            username: profile?.profile?.username ?? '',
             email: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].emailAddress : '',
             theme: profile?.profile?.theme ?? 'light',
             marketingEmails: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].receivesDeliveryUpdates : false,
@@ -46,9 +43,7 @@ function ProfileForm() {
         onSubmit: (values) => {
             let input = ({
                 id: profile.profile.id,
-                firstName: values.firstName,
-                lastName: values.lastName,
-                pronouns: values.pronouns,
+                username: values.username,
                 emails: [
                     {
                         id: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].id : '',
@@ -81,52 +76,18 @@ function ProfileForm() {
         <form className={classes.form} onSubmit={formik.handleSubmit} disabled={!editing}>
             <Container>
                 <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12}>
                         <TextField
                             fullWidth
                             autoFocus
-                            id="firstName"
-                            name="firstName"
-                            autoComplete="fname"
-                            label="First Name"
-                            value={formik.values.firstName}
+                            id="username"
+                            name="username"
+                            autoComplete="username"
+                            label="Username"
+                            value={formik.values.username}
                             onChange={formik.handleChange}
-                            error={formik.touched.firstName && Boolean(formik.errors.firstName)}
-                            helperText={formik.touched.firstName && formik.errors.firstName}
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <TextField
-                            fullWidth
-                            id="lastName"
-                            name="lastName"
-                            autoComplete="lname"
-                            label="Last Name"
-                            value={formik.values.lastName}
-                            onChange={formik.handleChange}
-                            error={formik.touched.lastName && Boolean(formik.errors.lastName)}
-                            helperText={formik.touched.lastName && formik.errors.lastName}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                        <Autocomplete
-                            fullWidth
-                            freeSolo
-                            id="pronouns"
-                            name="pronouns"
-                            options={DEFAULT_PRONOUNS}
-                            value={formik.values.pronouns}
-                            onChange={(_, value) => formik.setFieldValue('pronouns', value)}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label="Pronouns"
-                                    value={formik.values.pronouns}
-                                    onChange={formik.handleChange}
-                                    error={formik.touched.pronouns && Boolean(formik.errors.pronouns)}
-                                    helperText={formik.touched.pronouns && formik.errors.pronouns}
-                                />
-                            )}
+                            error={formik.touched.username && Boolean(formik.errors.username)}
+                            helperText={formik.touched.username && formik.errors.username}
                         />
                     </Grid>
                     <Grid item xs={12}>

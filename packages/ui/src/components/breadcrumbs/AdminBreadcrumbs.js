@@ -4,7 +4,7 @@ import { BreadcrumbsBase } from './BreadcrumbsBase';
 
 const paths = [
     ['Customers', LINKS.AdminCustomers],
-    ['Hero', LINKS.AdminHero],
+    ['Images', LINKS.AdminImages],
     ['Contact Info', LINKS.AdminContactInfo]
 ]
 

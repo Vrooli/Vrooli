@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import { ACCOUNT_STATUS, CODE, COOKIE, joinWaitlistSchema, logInSchema, passwordSchema, signUpSchema, requestPasswordChangeSchema } from '@local/shared';
 import { CustomError, validateArgs } from '../error';
 import { generateToken } from '../auth';
-import { customerNotifyAdmin, joinWaitlistConfirmation, sendResetPasswordLink, sendVerificationLink } from '../worker/email/queue';
+import { confirmJoinWaitlist, customerNotifyAdmin, joinedWaitlist, joinWaitlistNotifyAdmin, sendResetPasswordLink, sendVerificationLink } from '../worker/email/queue';
 import { HASHING_ROUNDS } from '../consts';
 import { PrismaSelect } from '@paljs/plugins';
 import { customerFromEmail, getCustomerSelect, upsertCustomer } from '../db/models/customer';
@@ -25,9 +25,7 @@ export const typeDef = gql`
 
     input CustomerInput {
         id: ID
-        firstName: String
-        lastName: String
-        pronouns: String
+        username: String
         emails: [EmailInput!]
         theme: String
         status: AccountStatus
@@ -35,13 +33,9 @@ export const typeDef = gql`
 
     type Customer {
         id: ID!
-        firstName: String!
-        lastName: String!
-        fullName: String
-        pronouns: String!
+        username: String!
         emails: [Email!]!
         theme: String!
-        emailVerified: Boolean!
         status: AccountStatus!
         roles: [CustomerRole!]!
         feedback: [Feedback!]!
@@ -60,9 +54,7 @@ export const typeDef = gql`
         ): Customer!
         logout: Boolean
         signUp(
-            firstName: String!
-            lastName: String!
-            pronouns: String
+            username: String!
             email: String!
             theme: String!
             marketingEmails: Boolean!
@@ -78,7 +70,13 @@ export const typeDef = gql`
             id: ID!
             password: String
         ): Boolean
-        joinWaitlist(email: String!): Boolean
+        joinWaitlist(
+            username: String!
+            email: String!
+        ): Boolean
+        verifyWaitlist(
+            confirmationCode: String!
+        ): Boolean
         requestPasswordChange(email: String!): Boolean
         resetPassword(
             id: ID!
@@ -107,7 +105,7 @@ export const resolvers = {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
             return await context.prisma[_model].findMany({
-                orderBy: { fullName: 'asc', },
+                orderBy: { username: 'asc', },
                 ...(new PrismaSelect(info).value)
             });
         },
@@ -120,6 +118,8 @@ export const resolvers = {
     },
     Mutation: {
         login: async (_, args, context, info) => {
+            // TEMP UNTIL WAITLIST IS GONE - only allow admin to log in
+            if (!context.req.isAdmin && process.env.ADMIN_EMAIL !== args.email) return new CustomError(CODE.Unauthorized);
             const prismaInfo = getCustomerSelect(info);
             // If username and password wasn't passed, then use the session cookie data to validate
             if (args.username === undefined && args.password === undefined) {
@@ -151,11 +151,15 @@ export const resolvers = {
                 return new CustomError(CODE.MustResetPassword);
             }
             // Validate verification code, if supplied
-            if (args.verificationCode === customer.id && customer.emailVerified === false) {
+            if (args.verificationCode === customer.id) {
                 customer = await context.prisma[_model].update({
                     where: { id: customer.id },
-                    data: { status: ACCOUNT_STATUS.Unlocked, emailVerified: true }
+                    data: { status: ACCOUNT_STATUS.Unlocked }
                 })
+                await context.prisma[TABLES.Email].update({ 
+                    where: { emailAddress: args.email },
+                    data: { verified: true }
+                });
             }
             // Reset login attempts after 15 minutes
             const unable_to_reset = [ACCOUNT_STATUS.HardLock, ACCOUNT_STATUS.Deleted];
@@ -218,9 +222,7 @@ export const resolvers = {
                 prisma: context.prisma,
                 info,
                 data: {
-                    firstName: args.firstName,
-                    lastName: args.lastName,
-                    pronouns: args.pronouns,
+                    username: args.username,
                     password: bcrypt.hashSync(args.password, HASHING_ROUNDS),
                     theme: args.theme,
                     status: ACCOUNT_STATUS.Unlocked,
@@ -232,7 +234,7 @@ export const resolvers = {
             // Send verification email
             sendVerificationLink(args.email, customer.id);
             // Send email to business owner
-            customerNotifyAdmin(`${args.firstName} ${args.lastName}`);
+            customerNotifyAdmin(args.username);
             // Return cart, along with user data
             return await context.prisma[_model].findUnique({ where: { id: customer.id }, ...prismaInfo });
         },
@@ -247,9 +249,7 @@ export const resolvers = {
                 prisma: context.prisma,
                 info,
                 data: {
-                    firstName: args.input.firstName,
-                    lastName: args.input.lastName,
-                    pronouns: args.input.pronouns,
+                    username: args.input.username,
                     theme: 'light',
                     status: ACCOUNT_STATUS.Unlocked,
                     emails: args.input.emails,
@@ -271,6 +271,9 @@ export const resolvers = {
                 }
             });
             if(!bcrypt.compareSync(args.currentPassword, customer.password)) return new CustomError(CODE.BadCredentials);
+            // Validate input format
+            const validateError = await validateArgs(profileSchema, args.input);
+            if (validateError) return validateError;
             const user = await upsertCustomer({
                 prisma: context.prisma,
                 info,
@@ -308,7 +311,7 @@ export const resolvers = {
             if (validateError) return validateError;
             // Validate email address
             const emailRow = await context.prisma[TABLES.Email].findUnique({ where: { emailAddress: args.email } });
-            if (emailRow) throw new CustomError(CODE.EmailInUse);
+            if (emailRow) return new CustomError(CODE.EmailInUse);
             // Generate confirmation code
             const confirmationCode = bcrypt.genSaltSync(HASHING_ROUNDS).replace('/', '');
             // Create new user
@@ -317,19 +320,34 @@ export const resolvers = {
             await upsertCustomer({
                 prisma: context.prisma,
                 data: {
-                    firstName: '',
-                    lastName: '',
-                    pronouns: '',
+                    username: args.username,
                     theme: 'light',
                     confirmationCode,
                     confirmationCodeDate: new Date().toISOString(),
                     status: ACCOUNT_STATUS.Unlocked,
-                    emails: args.email,
+                    emails: [{ emailAddress: args.email }],
                     roles: [customerRole]
                 }
             });
             // Send confirmation email
-            joinWaitlistConfirmation(args.email);
+            confirmJoinWaitlist(args.email, confirmationCode);
+            return true;
+        },
+        verifyWaitlist: async (_, args, context) => {
+            // Find customer
+            const customer = await context.prisma[TABLES.Customer].findUnique({ 
+                where: { confirmationCode: args.confirmationCode },
+                select: { username: true, emails: { select: { emailAddress: true, verified: true } } }
+            });
+            if (!customer || customer.emails.length === 0) throw new CustomError(CODE.ErrorUnknown);
+            if (!customer.emails[0].verified) {
+                await context.prisma[TABLES.Email].update({ 
+                    where: { emailAddress: customer.emails[0].emailAddress },
+                    data: { verified: true }
+                });
+                joinedWaitlist(customer.emails[0].emailAddress);
+                joinWaitlistNotifyAdmin(customer.username);
+            }
             return true;
         },
         requestPasswordChange: async (_, args, context) => {

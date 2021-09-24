@@ -10,22 +10,21 @@ import {
     LogInForm,
     ProfileForm,
     ResetPasswordForm,
-    SignUpForm,
+    // SignUpForm,
     WaitlistForm
 } from 'forms';
 import { ScrollToTop } from 'components';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
-// const AboutPage = lazy(() => import('./pages'), 'AboutPage');
-// const AdminContactPage = lazy(() => import ('./pages/admin/AdminContactPage/AdminContactPage'), 'AdminContactPage');
 const {
     AboutPage,
     AdminContactPage,
     AdminCustomerPage,
-    AdminHeroPage,
+    AdminImagePage,
     AdminMainPage,
     FormPage,
     HomePage,
+    MissionPage,
     NotFoundPage,
     Page,
     PrivacyPolicyPage,
@@ -73,6 +72,18 @@ function Routes({
                 />
                 <Route
                     exact
+                    path={LINKS.Mission}
+                    sitemapIndex={true}
+                    priority={1.0}
+                    changefreq="monthly"
+                    render={() => (
+                        <Page title={title('Mission')} {...common}>
+                            <MissionPage />
+                        </Page>
+                    )}
+                />
+                <Route
+                    exact
                     path={LINKS.About}
                     sitemapIndex={true}
                     priority={0.7}
@@ -104,7 +115,7 @@ function Routes({
                         </Page>
                     )}
                 />
-                <Route
+                {/* <Route
                     exact
                     path={LINKS.Register}
                     sitemapIndex={true}
@@ -116,10 +127,10 @@ function Routes({
                             </FormPage>
                         </Page>
                     )}
-                />
+                /> */}
                 <Route
                     exact
-                    path={`${LINKS.Waitlist}`}
+                    path={`${LINKS.Waitlist}/:code?`}
                     sitemapIndex={true}
                     priority={0.8}
                     render={() => (
@@ -209,9 +220,9 @@ function Routes({
                         <AdminCustomerPage />
                     </Page>
                 )} />
-                <Route exact path={LINKS.AdminHero} render={() => (
-                    <Page title={"Edit Hero"} {...common} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
-                        <AdminHeroPage />
+                <Route exact path={LINKS.AdminImages} render={() => (
+                    <Page title={"Edit Image Lists"} {...common} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
+                        <AdminImagePage />
                     </Page>
                 )} />
                 {/* END ADMIN PAGES */}

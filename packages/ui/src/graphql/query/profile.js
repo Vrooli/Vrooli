@@ -4,9 +4,7 @@ export const profileQuery = gql`
     query {
         profile {
             id
-            firstName
-            lastName
-            pronouns
+            username
             theme
             emails {
                 id

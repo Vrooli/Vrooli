@@ -22,10 +22,7 @@ model knex_migrations_lock {
 
 model customer {
   id                             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  firstName                      String           @db.VarChar(128)
-  lastName                       String           @db.VarChar(128)
-  fullName                       String?
-  pronouns                       String           @default("they/them") @db.VarChar(128)
+  username                       String           @unique @db.VarChar(128)
   theme                          String           @default("light") @db.VarChar(255)
   password                       String?          @db.VarChar(256)
   loginAttempts                  Int              @default(0)
@@ -35,7 +32,6 @@ model customer {
   confirmationCodeDate           DateTime?        @db.Timestamptz(6)
   resetPasswordCode              String?          @unique @db.VarChar(256)
   lastResetPasswordReqestAttempt DateTime?        @db.Timestamptz(6)
-  emailVerified                  Boolean          @default(false)
   status                         String           @default("Unlocked")
   created_at                     DateTime         @default(now()) @db.Timestamptz(6)
   updated_at                     DateTime         @default(now()) @db.Timestamptz(6)
@@ -58,6 +54,7 @@ model email {
   id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   emailAddress            String    @unique @db.VarChar(128)
   receivesDeliveryUpdates Boolean   @default(true)
+  verified           Boolean   @default(false)
   customerId              String?   @db.Uuid
   customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }

@@ -4,13 +4,6 @@ export const ACCOUNT_STATUS = {
     SoftLock: 'SoftLock',
     HardLock: 'HardLock'
 }
-export const DEFAULT_PRONOUNS = [
-    "he/him/his",
-    "she/her/hers",
-    "they/them/theirs",
-    "ze/zir/zirs",
-    "ze/hir/hirs",
-]
 export const IMAGE_EXTENSION = {
     Bmp: '.bmp',
     Gif: '.gif',
@@ -34,6 +27,9 @@ export const IMAGE_SIZE = {
 }
 export const IMAGE_USE = {
     Hero: 'Hero',
+    Home: 'Home',
+    Mission: 'Mission',
+    About: 'About'
 }
 export const TASK_STATUS = {
     Unknown: 'Unknown',

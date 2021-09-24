@@ -1,66 +1,103 @@
-import React from 'react';
-import { InformationalBreadcrumbs } from 'components';
-import {
-    Grid,
-    Typography
-} from '@material-ui/core';
-import Facebook from 'assets/img/Facebook.png';
-import Instagram from 'assets/img/Instagram.png';
+import React, { useCallback, useState, useEffect } from 'react';
+import { Slide } from 'components';
+import { useQuery } from '@apollo/client';
+import { imagesByLabelQuery } from 'graphql/query';
+import { IMAGE_USE, SERVER_URL } from '@local/shared';
+import { getImageSrc, LINKS } from 'utils';
 import { makeStyles } from '@material-ui/styles';
-import { useTheme } from '@emotion/react';
-import { pageStyles } from './styles';
-import { combineStyles } from 'utils';
+import MattSketch from 'assets/img/thought-sketch-edited-3.png';
 
-const componentStyles = (theme) => ({
-    social: {
-        width: '80px',
-        height: '80px',
-    }
-})
+const useStyles = makeStyles((theme) => ({
+    root: {
+        paddingTop: 'calc(12vh - 10px)',
+    },
+    [theme.breakpoints.down(600)]: {
+        root: {
+            paddingTop: 'calc(14vh - 10px)',
+        }
+    },
+}))
 
-const useStyles = makeStyles(combineStyles(pageStyles, componentStyles));
-
-function AboutPage({
-    business,
-}) {
+function AboutPage() {
     const classes = useStyles();
-    const theme = useTheme();
-    const socials = [
-        [Facebook, 'Facebook', business?.SOCIAL?.Facebook],
-        [Instagram, 'Instagram', business?.SOCIAL?.Instagram],
+    // Load all images on page
+    const [imageData, setImageData] = useState([]);
+    const [width, setWidth] = useState(window.innerWidth);
+    const { data: currImages } = useQuery(imagesByLabelQuery, { variables: { label: IMAGE_USE.Mission } });
+
+    // Auto-updates width. Used to determine what size image to fetch
+    useEffect(() => {
+        const onResize = window.addEventListener('resize', () => setWidth(window.innerWidth))
+        return () => {
+            window.removeEventListener('resize', onResize)
+        }
+    })
+
+    useEffect(() => {
+        // Table data must be extensible, and needs position
+        setImageData(currImages?.imagesByLabel?.map((image, index) => ({
+            ...image,
+            src: `${SERVER_URL}/${getImageSrc(image, width)}`,
+            pos: index
+        })));
+    }, [currImages])
+
+    const getImage = useCallback((pos) => {
+        return imageData?.length > pos ? imageData[pos] : null
+    }, [imageData])
+
+    // Slides in order
+    const slides = [
+        {
+            id: 'about-the-team',
+            title: { text: 'About the Team', position: 'center' },
+            background: { background: '#d7deef' },
+            body: [
+                {
+                    content: [
+                        { title: { text: 'Leader/Developer - Matt Halloran', variant: 'h5' } },
+                        { title: { text: `Matt is a 23-year-old with a life-long passion for contemplating the future. He is very detail-oriented, and spends a lot of time (arguably too much) examining our best chances for surviving the Great Filter. These thoughts led him to start Vrooli, in hopes that the platform will accelerate humanity's rate of progress - while preventing inequality from getting out of control.`, variant: 'h5' } },
+                    ]
+                },
+                {
+                    sm: 6,
+                    content: [
+                        { list: { variant: 'h5', items: [
+                            { text: 'Bachelors in Computer Science, 3.85 GPA' }, 
+                            { text: 'Plutus Pioneers 1st Cohort graduate'},
+                            { text: 'Futurist🔭 , libertarian🗽,  vegan🌱' }
+                        ]}}
+                    ]
+                },
+                {
+                    sm: 6,
+                    content: [{ image: { src: MattSketch, alt: 'Illustrated drawing of the founder of Vrooli - Matt Halloran' } }]
+                },
+                {
+                    content: [{ buttons: [
+                        { text: 'Other Projects', position: 'center', color: 'secondary', link: 'https://github.com/MattHalloran' },
+                        { text: 'Contact/Support', position: 'center', color: 'secondary', link: 'https://matthalloran.info/' }
+                    ]}]
+                },
+                {
+                    content: [{ title: { text: 'Other Teammates - Possibly YOU!', variant: 'h5' } },]
+                },
+                {
+                    content: [{ title: { text: `Vrooli has a bright future ahead, but we need all hands on deck! If you are interested in being an open-source contributor or team member, don't hesitate to reach out!`, variant: 'h5' } }]
+                },
+            ]
+        },
     ]
 
     return (
-        <div id='page'>
-            <InformationalBreadcrumbs textColor={theme.palette.secondary.dark} />
-            <br/>
-            <Grid container spacing={2}>
-                <Grid item md={12} lg={8}>
-                    <div className={classes.header}>
-                        <Typography variant="h3" component="h1">Our Story</Typography>
-                    </div>
-                    <p>For 2000 Urras years, Far Out Rides has been striving to Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-                    <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
-                    <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur and contact us if you would like more information, or to speak with one of our experts at <a href={business?.PHONE?.Link}>{business?.PHONE?.Label}</a>.</p>
-                    <p>Happy exploring,</p>
-                    <h2 style={{ fontFamily: `'Lato', sans-serif;` }}>The Squanch Brothers</h2>
-                </Grid>
-                <Grid item md={12} lg={4}>
-                    <div className={classes.header}>
-                        <Typography variant="h4" component="h2">Check out our socials</Typography>
-                    </div>
-                    {socials.map(s => (
-                        <a href={s[2]} target="_blank" rel="noopener noreferrer">
-                            <img className={classes.social} alt={s[1]} src={s[0]} />
-                        </a>
-                    ))}
-                </Grid>
-            </Grid>
+        <div className={classes.root}>
+            {slides.map((data, index) => <Slide key={`slide-${index}`} width={width} data={data} />)}
         </div >
     );
 }
 
 AboutPage.propTypes = {
+    
 }
 
 export { AboutPage };

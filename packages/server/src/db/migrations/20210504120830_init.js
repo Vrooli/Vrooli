@@ -1,4 +1,4 @@
-import { THEME, ACCOUNT_STATUS, IMAGE_USE, TASK_STATUS } from '@local/shared';
+import { THEME, ACCOUNT_STATUS, TASK_STATUS } from '@local/shared';
 import { TABLES } from '../tables';
 
 export async function up (knex) {
@@ -18,10 +18,7 @@ export async function up (knex) {
     await knex.schema.createTable(TABLES.Customer, (table) => {
         table.comment('A user of the system');
         table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v4()'));
-        table.string('firstName', 128).notNullable();
-        table.string('lastName', 128).notNullable();
-        table.specificType('fullName', `text GENERATED ALWAYS AS ("firstName" || ' ' || "lastName") stored`);
-        table.string('pronouns', 128).defaultTo('they/them').notNullable();
+        table.string('username', 128).notNullable().unique();
         table.string('theme').defaultTo(THEME.Light).notNullable();
         table.string('password', 256);
         table.integer('loginAttempts').defaultTo(0).notNullable();
@@ -31,7 +28,6 @@ export async function up (knex) {
         table.timestamp('lastResetPasswordReqestAttempt');
         table.string('confirmationCode', 256).unique();
         table.timestamp('confirmationCodeDate');
-        table.boolean('emailVerified').defaultTo(false).notNullable();
         table.enu('status', Object.values(ACCOUNT_STATUS)).defaultTo(ACCOUNT_STATUS.Unlocked).notNullable();
         table.timestamps(true, true);
     });
@@ -53,6 +49,7 @@ export async function up (knex) {
         table.uuid('id').primary().defaultTo(knex.raw('uuid_generate_v4()'));
         table.string('emailAddress', 128).notNullable().unique();
         table.boolean('receivesDeliveryUpdates').defaultTo(true).notNullable();
+        table.boolean('verified').defaultTo(false).notNullable();
         table.uuid('customerId').references('id').inTable(TABLES.Customer).notNullable().onUpdate('CASCADE').onDelete('CASCADE');
     });
     await knex.schema.createTable(TABLES.Image, (table) => {
@@ -60,7 +57,7 @@ export async function up (knex) {
         table.string('hash', 128).notNullable().unique();
         table.string('alt', 256);
         table.string('description', 1024);
-        table.enu('usedFor', Object.values(IMAGE_USE));
+        table.string('usedFor');
         table.timestamps(true, true);
     });
     await knex.schema.createTable(TABLES.ImageFile, (table) => {

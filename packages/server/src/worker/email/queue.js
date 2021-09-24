@@ -18,12 +18,12 @@ export function sendMail(to=[], subject='', text='', html='') {
     });
 }
 
-export function customerNotifyAdmin(name) {
+export function customerNotifyAdmin(username) {
     emailQueue.add({
         to: [process.env.SITE_EMAIL_USERNAME],
-        subject: `Account created for ${name}`,
-        text: `${name} has created an account with ${BUSINESS_NAME.Long}. Website accounts can be viewed at ${WEBSITE}/admin/customers`,
-        html: `<p>${name} has created an account with ${BUSINESS_NAME.Long}. Website accounts can be viewed at <a href=\"${WEBSITE}/admin/customers\">${WEBSITE}/admin/customers</a></p>`
+        subject: `Account created for ${username}`,
+        text: `${username} has created an account with ${BUSINESS_NAME.Long}. Website accounts can be viewed at ${WEBSITE}/admin/customers`,
+        html: `<p>${username} has created an account with ${BUSINESS_NAME.Long}. Website accounts can be viewed at <a href=\"${WEBSITE}/admin/customers\">${WEBSITE}/admin/customers</a></p>`
     });
 }
 
@@ -36,12 +36,30 @@ export function sendResetPasswordLink(email, customer_id, code) {
     });
 }
 
-export function joinWaitlistConfirmation(email) {
+export function confirmJoinWaitlist(email, confirmationCode) {
+    emailQueue.add({
+        to: [email],
+        subject: `Confirm your spot on the ${BUSINESS_NAME.Short} waitlist!`,
+        text: `Please click this link (${WEBSITE}/join-us/${confirmationCode}) to confirm your spot on the ${BUSINESS_NAME.Short} waitlist.`,
+        html: `<p>Please click this link (<a href=\"${WEBSITE}/join-us/${confirmationCode}\">${WEBSITE}/join-us/${confirmationCode}</a>) to confirm your spot on the waitlist.</p>`
+    });
+}
+
+export function joinedWaitlist(email) {
     emailQueue.add({
         to: [email],
         subject: `You're on the waitlist for ${BUSINESS_NAME.Short}!`,
-        text: `Congratulations! You're on the waitlist for Vrooli. We'll let you know when the site is ready.`,
-        html: `<p>Congratulations!</p><p>You're on the waitlist for Vrooli.<p>We'll let you know when the site is ready.<p>`
+        text: `Congratulations! You're on the waitlist for Vrooli. We'll let you know when the site is ready :)`,
+        html: `<p>Congratulations!</p><p>You're on the waitlist for Vrooli.</p><p>We'll let you know when the site is ready :)<p>`
+    });
+}
+
+export function joinWaitlistNotifyAdmin(username) {
+    emailQueue.add({
+        to: [process.env.SITE_EMAIL_USERNAME],
+        subject: `${username} joined the ${BUSINESS_NAME.Short} waitlist!`,
+        text: `${username} has joined the ${BUSINESS_NAME.Short} waitlist! It's catching steam :)`,
+        html: `<p>${username} has joined the ${BUSINESS_NAME.Short} waitlist!</p><p>It's catching steam :)<p>`
     });
 }
 

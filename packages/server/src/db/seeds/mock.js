@@ -6,9 +6,9 @@ import { db } from '../db';
 
 // Create a user, with emails, and roles
 async function createUser({ userData, emailsData, roleIds }) {
-    let customer = await db(TABLES.Customer).select('id').where({ firstName: userData.firstName, lastName: userData.lastName }).first();
+    let customer = await db(TABLES.Customer).select('id').where({ username: userData.username }).first();
     if (!customer) {
-        console.info(`👩🏼‍💻 Creating account for ${userData.firstName}`);
+        console.info(`👩🏼‍💻 Creating account for ${userData.username}`);
         // Insert account
         const customerId = (await db(TABLES.Customer).insert([{ ...userData }]).returning('id'))[0];
         // Insert emails
@@ -34,15 +34,13 @@ export async function seed() {
     // Create user with owner role
     await createUser({
         userData: {
-            firstName: 'Elon',
-            lastName: 'Tusk🦏',
+            username: 'Elon Tusk🦏',
             password: bcrypt.hashSync('Elon', HASHING_ROUNDS),
-            emailVerified: true,
             status: ACCOUNT_STATUS.Unlocked,
         },
         emailsData: [
-            { emailAddress: 'notarealemail@afakesite.com', receivesDeliveryUpdates: false },
-            { emailAddress: 'backupemailaddress@afakesite.com', receivesDeliveryUpdates: false }
+            { emailAddress: 'notarealemail@afakesite.com', receivesDeliveryUpdates: false, verified: true },
+            { emailAddress: 'backupemailaddress@afakesite.com', receivesDeliveryUpdates: false, verified: false }
         ],
         roleIds: [ownerRoleId]
     });
@@ -50,27 +48,23 @@ export async function seed() {
     // Create a few customers
     await createUser({
         userData: {
-            firstName: 'John',
-            lastName: 'Cena',
+            username: 'JohnCena87',
             password: bcrypt.hashSync('John', HASHING_ROUNDS),
-            emailVerified: true,
             status: ACCOUNT_STATUS.Unlocked,
         },
         emailsData: [
-            { emailAddress: 'itsjohncena@afakesite.com', receivesDeliveryUpdates: false }
+            { emailAddress: 'itsjohncena@afakesite.com', receivesDeliveryUpdates: false, verified: true }
         ],
         roleIds: [customerRoleId]
     });
     await createUser({
         userData: {
-            firstName: 'Spongebob',
-            lastName: 'Customerpants',
+            username: 'Spongebob Customerpants',
             password: bcrypt.hashSync('Spongebob', HASHING_ROUNDS),
-            emailVerified: true,
             status: ACCOUNT_STATUS.Unlocked,
         },
         emailsData: [
-            { emailAddress: 'spongebobmeboy@afakesite.com', receivesDeliveryUpdates: false }
+            { emailAddress: 'spongebobmeboy@afakesite.com', receivesDeliveryUpdates: false, verified: true }
         ],
         roleIds: [customerRoleId]
     });

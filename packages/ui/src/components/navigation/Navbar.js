@@ -44,8 +44,8 @@ const useStyles = makeStyles((theme) => ({
     navName: {
         position: 'relative',
         cursor: 'pointer',
-        fontSize: '3em',
-        fontFamily: `'Lato', sans-serif;`,
+        fontSize: '3.5em',
+        fontFamily: `SakBunderan`,
         color: theme.palette.primary.contrastText,
     },
     // [theme.breakpoints.down(500)]: {

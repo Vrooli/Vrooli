@@ -13,7 +13,7 @@ import { CssBaseline, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from '@material-ui/core/styles';
 import { makeStyles } from '@material-ui/styles';
 import StyledEngineProvider from '@material-ui/core/StyledEngineProvider';
-import { useHistory } from 'react-router';
+import { useHistory, useLocation } from 'react-router';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { DndProvider } from 'react-dnd';
 import { useMutation, useQuery } from '@apollo/client';
@@ -37,6 +37,10 @@ const useStyles = makeStyles(() => ({
                     paddingRight: 'max(1em, calc(15% - 75px))',
                 }
             },
+            '@font-face': {
+                fontFamily: 'SakBunderan',
+                src: `local('SakBunderan'), url('./fonts/SakBunderan.ttf') format('ttf')`,
+            }
         },
         contentWrap: {
             minHeight: '100vh',
@@ -59,6 +63,7 @@ const keyMap = {
 
 export function App() {
     const classes = useStyles();
+    const { pathname, hash } = useLocation();
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState(null);
@@ -70,6 +75,24 @@ export function App() {
     const [login] = useMutation(loginMutation);
     let history = useHistory();
 
+    // If anchor tag in url, scroll to element
+    useEffect(() => {
+        // if not a hash link, scroll to top
+        if (hash === '') {
+          window.scrollTo(0, 0);
+        }
+        // else scroll to id
+        else {
+          setTimeout(() => {
+            const id = hash.replace('#', '');
+            const element = document.getElementById(id);
+            if (element) {
+              element.scrollIntoView();
+            }
+          }, 0);
+        }
+      }, [pathname]); // do this on route change
+
     useEffect(() => () => {
         clearTimeout(timerRef.current);
         setLoading(false);
@@ -80,12 +103,12 @@ export function App() {
         setBusiness(businessData.readAssets[0] ? JSON.parse(businessData.readAssets[0]) : {});
     }, [businessData])
 
-    useEffect(() => {
-        // Determine theme
-        if (session?.theme) setTheme(themes[session?.theme])
-        else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
-        else setTheme(themes.light);
-    }, [session])
+    // useEffect(() => {
+    //     // Determine theme
+    //     if (session?.theme) setTheme(themes[session?.theme])
+    //     else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
+    //     else setTheme(themes.light);
+    // }, [session])
 
     const handlers = {
         OPEN_MENU: () => PubSub.publish(PUBS.BurgerMenuOpen, true),

@@ -10,4 +10,5 @@ export * from './requestPasswordChange';
 export * from './resetPasswordMutation';
 export * from './signUp';
 export * from './updateImages';
+export * from './verifyWaitlist';
 export * from './writeAssets';
