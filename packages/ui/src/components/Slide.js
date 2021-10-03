@@ -107,8 +107,18 @@ function Slide({
         if (!data.background) return null;
         if (data.background.image) {
             return {
+                // position: 'fixed',
+                // top: '0',
+                // left: '0',
+                width: '100%',
+                height: '100%',
                 background: `url(${data.background.image}) no-repeat center center ${data.background.fixed ? 'fixed' : ''}`,
                 backgroundSize: 'cover',
+                backgroundSize: '100% 100%',
+                WebkitBackgroundSize: 'cover',
+                MozBackgroundSize: 'cover',
+                OBackgroundSize: 'cover',
+                backgroundAttachment: 'scroll !important',
             }
         }
         return data.background;
@@ -206,7 +216,7 @@ function Slide({
     }
 
     return (
-        <div id={data?.id}
+        <div id={data?.id} key={data?.id}
             className={classes.slideRoot}
             style={{ ...backgroundStyle }}>
             <div className={classes.slidePad}>

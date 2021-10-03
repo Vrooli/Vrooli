@@ -23,6 +23,11 @@ import SakBunderan from './assets/fonts/SakBunderan.woff';
 
 const useStyles = makeStyles(() => ({
         "@global": {
+            html: {
+                // For cover images on iOS
+                height: '100vh', /* set viewport constraint */
+                minHeight: '100%', /* enforce height */
+            },
             body: {
                 backgroundColor: 'black',
             },
