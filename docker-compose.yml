@@ -50,7 +50,7 @@ services:
             DB_PASSWORD: "${DB_PASSWORD}"
             DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
             CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
-            PRISMA_INTROSPECT: "${PRISMA_INTROSPECT}"
+            PRISMA_PULL: "${PRISMA_PULL}"
             ADMIN_EMAIL: "${ADMIN_EMAIL}"
             ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
             SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"

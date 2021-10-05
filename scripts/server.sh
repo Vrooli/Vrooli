@@ -14,9 +14,9 @@ if [ "${CREATE_MOCK_DATA}" = true ]; then
     echo 'Populating database with mock data'
     knex seed:run --knexfile ./src/db/knexfile.js --specific mock.js --esm
 fi
-if [ "${PRISMA_INTROSPECT}" = true ]; then
+if [ "${PRISMA_PULL}" = true ]; then
     echo 'Generating schema.prisma file from database'
-    prisma introspect --schema src/prisma/schema.prisma && prisma generate --schema src/prisma/schema.prisma
+    prisma db pull --schema src/prisma/schema.prisma
 fi
 echo 'Generating Prisma schema'
 prisma generate --schema src/prisma/schema.prisma

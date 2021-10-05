@@ -1,6 +1,6 @@
 import pkg from 'lodash';
 const { merge } = pkg;
-import { makeExecutableSchema } from 'apollo-server-express';
+import { makeExecutableSchema } from '@graphql-tools/schema';
 import * as Root from './root';
 import * as Customer from './customer';
 import * as Email from './email';
