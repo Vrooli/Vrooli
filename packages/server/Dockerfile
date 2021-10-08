@@ -1,4 +1,4 @@
-FROM node:14.17-alpine
+FROM node:16-stretch
 EXPOSE 5000
 
 # Set variables
