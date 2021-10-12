@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
 import { CODE, COOKIE } from '@local/shared';
-import { TABLES } from './db';
 import { CustomError } from './error';
 import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
@@ -11,7 +10,7 @@ const SESSION_MILLI = 30*86400*1000;
 // Return array of customer roles (ex: ['admin', 'customer'])
 async function findCustomerRoles(customerId) {
     // Query customer's roles
-    const user = await prisma[TABLES.Customer].findUnique({ 
+    const user = await prisma.customer.findUnique({ 
         where: { id: customerId },
         select: { roles: { select: { role: { select: { title: true } } } } }
     });

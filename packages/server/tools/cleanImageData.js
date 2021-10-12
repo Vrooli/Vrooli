@@ -1,6 +1,5 @@
 // 1) Delete image files no longer associated with any image rows in the database
 // 2) Delete image rows in the database no longer associated with any image files
-import { TABLES } from "../src/db";
 import fs from 'fs';
 import { deleteFile } from "../src/utils";
 import pkg from '@prisma/client';
@@ -18,7 +17,7 @@ if (!fs.existsSync(PATH)){
 // Find all image files
 const files = fs.readdirSync(PATH).map(f => `${FOLDER}/${f}`);
 // Find all image files referenced in database
-const imageData = await prisma[TABLES.Image].findMany({ 
+const imageData = await prisma.image.findMany({ 
     select: { 
         hash: true,
         files: { select: { src: true } }
@@ -42,7 +41,7 @@ for (const file of files) {
 for (const file of dbFiles) {
     if (!files.some(f => f === file)) {
         console.info(`Deleting image data for ${file}`);
-        await prisma[TABLES.Image].deleteMany({ where: { files: { some: { src: file }}}})
+        await prisma.image.deleteMany({ where: { files: { some: { src: file }}}})
     }
 }
 

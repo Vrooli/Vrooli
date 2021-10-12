@@ -1,17 +1,16 @@
 import { gql } from 'apollo-server-express';
-import { TABLES } from '../db';
-import { CODE, TASK_STATUS } from '@local/shared';
+import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { PrismaSelect } from '@paljs/plugins';
-
-const _model = TABLES.Task;
+import pkg from '@prisma/client';
+const { TaskStatus } = pkg;
 
 export const typeDef = gql`
     enum TaskStatus {
-        Unknown
-        Failed
-        Active
-        Completed
+        UNKNOWN
+        FAILED
+        ACTIVE
+        INACTIVE
+        COMPLETED
     }
 
     type Task {
@@ -30,12 +29,12 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
-    TaskStatus: TASK_STATUS,
+    TaskStatus: TaskStatus,
     Query: {
-        tasks: async (_, args, context) => {
+        tasks: async (_parent, args, context, _info) => {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            return await context.prisma[_model].findMany({
+            return await context.prisma.task.findMany({
                 where: { status: args.status }
             });
         }

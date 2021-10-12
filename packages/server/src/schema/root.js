@@ -49,12 +49,12 @@ export const resolvers = {
         }
     }),
     Query: {
-        readAssets: async (_, args) => {
+        readAssets: async (_parent, args, _context, _info) => {
             return await readFiles(args.files);
         },
     },
     Mutation: {
-        writeAssets: async (_, args) => {
+        writeAssets: async (_parent, args, _context, _info) => {
             const data = await saveFiles(args.files);
             // Any failed writes will return null
             return !data.some(d => d === null)

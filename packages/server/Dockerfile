@@ -1,4 +1,4 @@
-FROM node:16-stretch
+FROM node:16-alpine
 EXPOSE 5000
 
 # Set variables
@@ -14,7 +14,7 @@ RUN mkdir -p ${PROJECT_DIR}/assets/images ${PROJECT_DIR}/assets/public ${PROJECT
     chown -R node:node ${PROJECT_DIR}
 
 # Install global packages (must be done as the root user)
-RUN yarn global add knex@0.95.5 nodemon prisma
+RUN yarn global add nodemon prisma
 
 # Switch to a user with less permissions
 USER node
@@ -36,3 +36,7 @@ COPY --chown=node:node ${server}/src ${server}/tools ${server}/
 COPY --chown=node:node scripts/server.sh scripts/wait-for.sh ${scripts}/
 
 USER root
+
+# Update and install unix packages
+RUN apk update
+RUN apk add netcat-openbsd

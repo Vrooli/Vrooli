@@ -1,4 +1,4 @@
-FROM node:14.17-alpine
+FROM node:16-alpine
 EXPOSE 3000
 
 # Set variables

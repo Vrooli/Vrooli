@@ -21,7 +21,7 @@ import {
     Update as UpdateIcon
 } from '@material-ui/icons';
 import _ from 'lodash';
-import { ACCOUNT_STATUS } from '@local/shared';
+import { AccountStatus } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { deleteCustomerMutation, updateCustomerMutation } from 'graphql/mutation';
 import { PUBS, PubSub } from 'utils';
@@ -59,10 +59,10 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 // Associates account states with a dynamic action button
 // curr_account_value: [curr_account_label, toggled_account_label, toggled_account_value, toggle_icon]
 const statusToggle = {
-    [ACCOUNT_STATUS.Deleted]: ['Deleted', 'Undelete', ACCOUNT_STATUS.Unlocked, (<AddCircleIcon />)],
-    [ACCOUNT_STATUS.Unlocked]: ['Unlocked', 'Lock', ACCOUNT_STATUS.HardLock, (<LockIcon />)],
-    [ACCOUNT_STATUS.SoftLock]: ['Soft Locked (password timeout)', 'Unlock', ACCOUNT_STATUS.Unlocked, (<LockOpenIcon />)],
-    [ACCOUNT_STATUS.HardLock]: ['Hard Locked', 'Unlock', ACCOUNT_STATUS.Unlocked, (<LockOpenIcon />)]
+    [AccountStatus.DELETED]: ['Deleted', 'Undelete', AccountStatus.UNLOCKED, (<AddCircleIcon />)],
+    [AccountStatus.UNLOCKED]: ['Unlocked', 'Lock', AccountStatus.HARD_LOCKED, (<LockIcon />)],
+    [AccountStatus.SOFT_LOCKED]: ['Soft Locked (password timeout)', 'Unlock', AccountStatus.UNLOCKED, (<LockOpenIcon />)],
+    [AccountStatus.HARD_LOCKED]: ['Hard Locked', 'Unlock', AccountStatus.UNLOCKED, (<LockOpenIcon />)]
 }
 
 function CustomerDialog({

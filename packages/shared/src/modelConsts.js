@@ -1,8 +1,8 @@
-export const ACCOUNT_STATUS = {
-    Deleted: 'Deleted',
-    Unlocked: 'Unlocked',
-    SoftLock: 'SoftLock',
-    HardLock: 'HardLock'
+export const AccountStatus = {
+    DELETED: 'DELETED',
+    UNLOCKED: 'UNLOCKED',
+    SOFT_LOCKED: 'SOFT_LOCKED',
+    HARD_LOCKED: 'HARD_LOCKED'
 }
 export const IMAGE_EXTENSION = {
     Bmp: '.bmp',
@@ -26,16 +26,10 @@ export const IMAGE_SIZE = {
     XXL: 4096,
 }
 export const IMAGE_USE = {
-    Hero: 'Hero',
-    Home: 'Home',
-    Mission: 'Mission',
-    About: 'About'
-}
-export const TASK_STATUS = {
-    Unknown: 'Unknown',
-    Failed: 'Failed',
-    Active: 'Active',
-    Completed: 'Completed',
+    HERO: 'HERO',
+    HOME: 'HOME',
+    MISSION: 'MISSION',
+    ABOUT: 'ABOUT'
 }
 export const THEME = {
     Light: 'light',
