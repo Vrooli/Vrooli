@@ -20,7 +20,7 @@ import {
     Restore as RestoreIcon,
     Update as UpdateIcon
 } from '@material-ui/icons';
-import _ from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { AccountStatus } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { deleteCustomerMutation, updateCustomerMutation } from 'graphql/mutation';
@@ -121,7 +121,7 @@ function CustomerDialog({
         })
     }, [currCustomer])
 
-    let changes_made = !_.isEqual(customer, currCustomer);
+    let changes_made = !isEqual(customer, currCustomer);
     let options = (
         <Grid className={classes.optionsContainer} container spacing={2}>
             <Grid item xs={12} sm={6} md={3}>

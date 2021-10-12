@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import isFunction from 'lodash/isFunction';
 import { PUBS, PubSub } from "utils";
 
 export function mutationWrapper({ 
@@ -19,14 +19,14 @@ export function mutationWrapper({
         if (successCondition(response)) {
             if (successMessage || successData) PubSub.publish(PUBS.Snack, { message: successMessage(response), ...successData });
             if (spinnerDelay) PubSub.publish(PUBS.Loading, false);
-            if (_.isFunction(onSuccess)) onSuccess(response)
+            if (isFunction(onSuccess)) onSuccess(response)
         } else {
             if (errorMessage || errorData) {
                 PubSub.publish(PUBS.Snack, { message: errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
             }
             else if (showDefaultErrorSnack) PubSub.publish(PUBS.Snack, { message: 'Unknown error occurred.', severity: 'error', data: response });
             if (spinnerDelay) PubSub.publish(PUBS.Loading, false);
-            if (_.isFunction(onError)) onError(response);
+            if (isFunction(onError)) onError(response);
         }
     }).catch((response) => {
         if (spinnerDelay) PubSub.publish(PUBS.Loading, false);
@@ -39,6 +39,6 @@ export function mutationWrapper({
             const messageToShow = response.code === 'INTERNAL_SERVER_ERROR' ? 'Unknown error occurred.' : response.message ?? 'Unknown error occurred.';
             PubSub.publish(PUBS.Snack, { message: messageToShow, severity: 'error', data: response });
         }
-        if (_.isFunction(onError)) onError(response);
+        if (isFunction(onError)) onError(response);
     })
 }

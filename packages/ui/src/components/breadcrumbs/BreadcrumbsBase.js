@@ -6,7 +6,7 @@ import {
 } from '@material-ui/core';
 import { useHistory } from 'react-router-dom';
 import { makeStyles } from '@material-ui/styles';
-import _ from 'lodash';
+import merge from 'lodash/merge';
 
 const useStyles = makeStyles(() => ({
     root: {
@@ -32,7 +32,7 @@ function BreadcrumbsBase({
     const classes = useStyles();
     const history = useHistory();
     // Add user styling to default root style
-    let rootStyle = _.merge(classes.root, style ?? {});
+    let rootStyle = merge(classes.root, style ?? {});
     // Match separator color to link color, if not specified
     if (textColor && !rootStyle.color) rootStyle.color = textColor;
     return (
