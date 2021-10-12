@@ -2,7 +2,8 @@ import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { FormControl, InputLabel, Select, MenuItem, Chip } from '@material-ui/core';
 import { makeStyles, useTheme } from '@material-ui/styles';
-import _ from 'lodash';
+import isArray from 'lodash/isArray';
+import isEqual from 'lodash/isEqual';
 
 const useStyles = makeStyles((theme) => ({
     fullWidth: {
@@ -33,12 +34,12 @@ function Selector({
     // Formats selected into label/value object array.
     // options - Formatted options (array of label/value pairs)
     const formatSelected = useCallback((options) => {
-        const select_arr = _.isArray(selected) ? selected : [selected];
+        const select_arr = isArray(selected) ? selected : [selected];
         if (!Array.isArray(options)) return select_arr;
         let formatted_select = [];
         for (const curr_select of select_arr) {
             for (const curr_option of options) {
-                if (_.isEqual(curr_option.value, curr_select)) {
+                if (isEqual(curr_option.value, curr_select)) {
                     formatted_select.push({
                         label: curr_option.label,
                         value: curr_select

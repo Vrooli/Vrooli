@@ -1,5 +1,4 @@
-import pkg from 'lodash';
-const { merge } = pkg;
+import merge from 'lodash/merge';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import * as Root from './root';
 import * as Customer from './customer';

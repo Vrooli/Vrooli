@@ -4,7 +4,7 @@
 // 0. largest size if none requested
 // 1. exact size match
 // 2. smallest size greater than requested
-import _ from 'lodash';
+import isNumber from 'lodash/isNumber';
 
 // 3. largest size smaller than requested
 export function getImageSrc(image, size) {
@@ -13,7 +13,7 @@ export function getImageSrc(image, size) {
     // Create copy of image files, to prevent any problems with sorting
     const files = [...image.files];
     // Return largest size if size not specified
-    if (!_.isNumber(size)) return files.sort((a, b) => b.width - a.width)[0].src;
+    if (!isNumber(size)) return files.sort((a, b) => b.width - a.width)[0].src;
     // Determine sizes >= requested
     const largerSizes = files.filter(f => f.width >= size);
     // If any images match, return the smallest one

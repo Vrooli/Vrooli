@@ -2,7 +2,6 @@ import { gql } from 'apollo-server-express';
 import { GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
-import _ from 'lodash';
 
 export const typeDef = gql`
     scalar Date

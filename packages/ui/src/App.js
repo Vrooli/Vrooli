@@ -46,6 +46,7 @@ const useStyles = makeStyles(() => ({
             '@font-face': {
                 fontFamily: 'SakBunderan',
                 src: `local('SakBunderan'), url(${SakBunderan}) format('truetype')`,
+                fontDisplay: 'swap',
             }
         },
         contentWrap: {
