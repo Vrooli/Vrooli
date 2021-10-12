@@ -1,5 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -7,20 +7,8 @@ datasource db {
   url      = env("DB_URL")
 }
 
-model knex_migrations {
-  id             Int       @id @default(autoincrement())
-  name           String?   @db.VarChar(255)
-  batch          Int?
-  migration_time DateTime? @db.Timestamptz(6)
-}
-
-model knex_migrations_lock {
-  index     Int  @id @default(autoincrement())
-  is_locked Int?
-}
-
 model customer {
-  id                             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                             String           @id @default(uuid()) @db.Uuid
   username                       String           @unique @db.VarChar(128)
   theme                          String           @default("light") @db.VarChar(255)
   password                       String?          @db.VarChar(256)
@@ -31,7 +19,7 @@ model customer {
   confirmationCodeDate           DateTime?        @db.Timestamptz(6)
   resetPasswordCode              String?          @unique @db.VarChar(256)
   lastResetPasswordReqestAttempt DateTime?        @db.Timestamptz(6)
-  status                         String           @default("Unlocked")
+  status                         AccountStatus    @default(UNLOCKED)
   created_at                     DateTime         @default(now()) @db.Timestamptz(6)
   updated_at                     DateTime         @default(now()) @db.Timestamptz(6)
   roles                          customer_roles[]
@@ -40,7 +28,7 @@ model customer {
 }
 
 model customer_roles {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String   @id @default(uuid()) @db.Uuid
   customerId String   @db.Uuid
   roleId     String   @db.Uuid
   customer   customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -50,7 +38,7 @@ model customer_roles {
 }
 
 model email {
-  id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id                      String    @id @default(uuid()) @db.Uuid
   emailAddress            String    @unique @db.VarChar(128)
   receivesDeliveryUpdates Boolean   @default(true)
   verified           Boolean   @default(false)
@@ -59,7 +47,7 @@ model email {
 }
 
 model feedback {
-  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
   text       String    @db.VarChar(4096)
   customerId String?   @db.Uuid
   created_at DateTime  @default(now()) @db.Timestamptz(6)
@@ -97,20 +85,42 @@ model image_labels {
 }
 
 model queue_task {
-  id          Int      @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   taskId      Int
-  name        String   @db.VarChar(256)
-  status      String   @default("Active")
-  description String?  @db.VarChar(1024)
-  result      String?  @db.VarChar(8192)
+  name        String     @db.VarChar(256)
+  status      TaskStatus @default(ACTIVE)
+  description String?    @db.VarChar(1024)
+  result      String?    @db.VarChar(8192)
   resultCode  Int?
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  created_at  DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime   @default(now()) @db.Timestamptz(6)
 }
 
 model role {
-  id             String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id             String           @id @default(uuid()) @db.Uuid
   title          String           @unique @db.VarChar(128)
   description    String?          @db.VarChar(2048)
   customer_roles customer_roles[]
+}
+
+enum TaskStatus {
+    UNKNOWN
+    FAILED
+    ACTIVE
+    INACTIVE
+    COMPLETED
+}
+
+enum AccountStatus {
+    DELETED
+    UNLOCKED
+    SOFT_LOCKED
+    HARD_LOCKED
+}
+
+enum ImageUse {
+    HERO
+    HOME
+    MISSION
+    ABOUT
 }

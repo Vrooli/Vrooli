@@ -1,11 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { TABLES } from '../db';
 import { CODE, IMAGE_SIZE } from '@local/shared';
 import { CustomError } from '../error';
 import { deleteImage, saveImage } from '../utils';
 import { PrismaSelect } from '@paljs/plugins';
-
-const _model = TABLES.Image;
 
 export const typeDef = gql`
     enum ImageSize {
@@ -74,9 +71,9 @@ export const typeDef = gql`
 export const resolvers = {
     ImageSize: IMAGE_SIZE,
     Query: {
-        imagesByLabel: async (_, args, context, info) => {
+        imagesByLabel: async (_parent, args, context, info) => {
             // Get all images with label
-            let images = await context.prisma[_model].findMany({
+            let images = await context.prisma.image.findMany({
                 where: { labels: { some: { label: args.label } } },
                 select: { hash: true, labels: { select: { label: true, index: true } } }
             })
@@ -86,14 +83,14 @@ export const resolvers = {
                 const bIndex = b.labels.find(l => l.label === args.label);
                 return aIndex > bIndex;
             })
-            return await context.prisma[_model].findMany({ 
+            return await context.prisma.image.findMany({ 
                 where: { hash: { in: images.map(i => i.hash) } },
                 ...(new PrismaSelect(info).value)
             });
         }
     },
     Mutation: {
-        addImages: async (_, args, context) => {
+        addImages: async (_parent, args, context, _info) => {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
             // Check for valid arguments
@@ -112,7 +109,7 @@ export const resolvers = {
             }
             return results;
         },
-        updateImages: async (_, args, context) => {
+        updateImages: async (_parent, args, context, _info) => {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
             // Loop through update data passed in
@@ -120,13 +117,13 @@ export const resolvers = {
                 const curr = args.data[i];
                 if (args.label) {
                     // Update position in label
-                    await context.prisma[TABLES.ImageLabels].update({
+                    await context.prisma.image_labels.update({
                         where: { image_labels_hash_label_unique: { hash: curr.hash, label: args.label } },
                         data: { index: i }
                     })
                 }
                 // Update alt and description
-                await context.prisma[_model].update({
+                await context.prisma.image.update({
                     where: { hash: curr.hash },
                     data: { 
                         alt: curr.alt,
@@ -141,7 +138,7 @@ export const resolvers = {
             }
             return true;
         },
-        deleteImages: async (_, args, context) => {
+        deleteImages: async (_parent, args, context, _info) => {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
             let count = 0;
@@ -150,16 +147,16 @@ export const resolvers = {
             }
             return count;
         },
-        deleteImagesByLabel: async (_, args, context) => {
+        deleteImagesByLabel: async (_parent, args, context, _info) => {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            const imagesToDelete = await context.prisma[TABLES.Image].findMany({
+            const imagesToDelete = await context.prisma.image.findMany({
                 where: { every: { label: { in: args.labels } } },
                 select: {
                     hash: true
                 }
             });
-            await context.prisma[TABLES.ImageLabels].deleteMany({
+            await context.prisma.image_labels.deleteMany({
                 where: { label: { in: args.labels }}
             });
             let count = 0;

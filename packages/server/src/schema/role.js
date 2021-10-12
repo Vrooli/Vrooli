@@ -1,10 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { TABLES } from '../db';
 import { PrismaSelect } from '@paljs/plugins';
-
-const _model = TABLES.Role;
 
 export const typeDef = gql`
     input RoleInput {
@@ -39,31 +36,31 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        roles: async (_, _args, context, info) => {
+        roles: async (_parent, _args, context, info) => {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            return await context.prisma[_model].findMany((new PrismaSelect(info).value));
+            return await context.prisma.role.findMany((new PrismaSelect(info).value));
         }
     },
     Mutation: {
-        addRole: async (_, args, context, info) => {
+        addRole: async (_parent, args, context, info) => {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            return await context.prisma[_model].create((new PrismaSelect(info).value), { data: { ...args.input } })
+            return await context.prisma.role.create((new PrismaSelect(info).value), { data: { ...args.input } })
         },
-        updateRole: async (_, args, context, info) => {
+        updateRole: async (_parent, args, context, info) => {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            return await context.prisma[_model].update({
+            return await context.prisma.role.update({
                 where: { id: args.input.id || undefined },
                 data: { ...args.input },
                 ...(new PrismaSelect(info).value)
             })
         },
-        deleteRoles: async (_, args, context) => {
+        deleteRoles: async (_parent, args, context, _info) => {
             // Must be admin
             if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            return await context.prisma[_model].deleteMany({ where: { id: { in: args.ids } } });
+            return await context.prisma.role.deleteMany({ where: { id: { in: args.ids } } });
         }
     }
 }

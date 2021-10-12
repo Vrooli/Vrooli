@@ -9,14 +9,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "setup-prisma": "yarn prisma introspect && yarn prisma generate",
     "start-development": "nodemon --experimental-modules --experimental-specifier-resolution=node ./src/index.js",
     "start-production": "node --experimental-modules --experimental-specifier-resolution=node ./src/index.js",
-    "migrate-create": "knex migrate:make --knexfile ./src/db/knexfile.js --esm",
-    "seed-make": "knex seed:make --knexfile ./src/db/knexfile.js --esm",
-    "seed-run": "knex seed:run --knexfile ./src/db/knexfile.js --specific init.js --esm",
-    "migrate-latest": "knex migrate:latest --env development --knexfile ./src/db/knexfile.js --esm",
-    "migrate-rollback": "knex migrate:rollback --knexfile ./src/db/knexfile.js --esm",
     "clean": "node --experimental-modules --experimental-specifier-resolution=node ./tools/cleanImageData.js"
   },
   "author": "",
@@ -39,7 +33,6 @@
     "graphql-upload": "^12.0.0",
     "imghash": "^0.0.9",
     "jsonwebtoken": "^8.5.1",
-    "knex": "0.95.11",
     "lodash": "^4.17.21",
     "nodemailer": "^6.6.5",
     "pg": "^8.7.1",

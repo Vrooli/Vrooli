@@ -1,5 +1,5 @@
 import * as yup from 'yup';
-import { ACCOUNT_STATUS } from './modelConsts';
+import { AccountStatus } from './modelConsts';
 
 export const MIN_USERNAME_LENGTH = 3;
 export const MAX_USERNAME_LENGTH = 25;
@@ -44,7 +44,7 @@ export const customerSchema = yup.object().shape({
     id: yup.string().max(256).optional(),
     username: yup.string().max(128).required(),
     emails: yup.array().of(emailSchema).required(),
-    status: yup.mixed().oneOf(Object.values(ACCOUNT_STATUS)).optional(),
+    status: yup.mixed().oneOf(Object.values(AccountStatus)).optional(),
 });
 
 

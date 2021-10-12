@@ -12,7 +12,7 @@ import { Routes } from 'Routes';
 import { CssBaseline, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from '@material-ui/core/styles';
 import { makeStyles } from '@material-ui/styles';
-import { StyledEngineProvider } from '@material-ui/core';
+import StyledEngineProvider from '@material-ui/core/StyledEngineProvider';
 import { useHistory, useLocation } from 'react-router';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { DndProvider } from 'react-dnd';

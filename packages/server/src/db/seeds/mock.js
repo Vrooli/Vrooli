@@ -1,32 +1,32 @@
-import { ACCOUNT_STATUS } from '@local/shared';
-import { TABLES } from '../tables';
 import bcrypt from 'bcrypt';
-import { HASHING_ROUNDS } from '../../consts';
-import { db } from '../db';
+import pkg from '@prisma/client';
+const { PrismaClient, AccountStatus } = pkg;
+const prisma = new PrismaClient();
+const HASHING_ROUNDS = 8;
 
 // Create a user, with emails, and roles
 async function createUser({ userData, emailsData, roleIds }) {
-    let customer = await db(TABLES.Customer).select('id').where({ username: userData.username }).first();
+    let customer = await prisma.customer.findFirst({ username: userData.username });
     if (!customer) {
         console.info(`👩🏼‍💻 Creating account for ${userData.username}`);
         // Insert account
-        const customerId = (await db(TABLES.Customer).insert([{ ...userData }]).returning('id'))[0];
+        const customer = await prisma.customer.create({ data: { ...userData } });
         // Insert emails
         for (const email of emailsData) {
-            await db(TABLES.Email).insert([{ ...email, customerId }]);
+            await prisma.email.create({ data: { ...email, customerId: customer.id }})
         }
         // Insert roles
         for (const roleId of roleIds) {
-            await db(TABLES.CustomerRoles).insert([{ roleId, customerId }]);
+            await prisma.phone.create({ data: { ...phone, customerId: customer.id }})
         }
     }
 }
 
-export async function seed() {
+async function main() {
     console.info('🎭 Creating mock data...');
 
     // Find existing roles
-    const roles = (await db(TABLES.Role).select('id', 'title'));
+    const roles = await prisma.role.findMany({ select: { id: true, title: true } });
     const customerRoleId = roles.filter(r => r.title === 'Customer')[0].id;
     const ownerRoleId = roles.filter(r => r.title === 'Owner')[0].id;
     // const adminRoleId = roles.filter(r => r.title === 'Admin')[0].id;
@@ -36,7 +36,7 @@ export async function seed() {
         userData: {
             username: 'Elon Tusk🦏',
             password: bcrypt.hashSync('Elon', HASHING_ROUNDS),
-            status: ACCOUNT_STATUS.Unlocked,
+            status: AccountStatus.UNLOCKED,
         },
         emailsData: [
             { emailAddress: 'notarealemail@afakesite.com', receivesDeliveryUpdates: false, verified: true },
@@ -50,7 +50,7 @@ export async function seed() {
         userData: {
             username: 'JohnCena87',
             password: bcrypt.hashSync('John', HASHING_ROUNDS),
-            status: ACCOUNT_STATUS.Unlocked,
+            status: AccountStatus.UNLOCKED,
         },
         emailsData: [
             { emailAddress: 'itsjohncena@afakesite.com', receivesDeliveryUpdates: false, verified: true }
@@ -61,7 +61,7 @@ export async function seed() {
         userData: {
             username: 'Spongebob Customerpants',
             password: bcrypt.hashSync('Spongebob', HASHING_ROUNDS),
-            status: ACCOUNT_STATUS.Unlocked,
+            status: AccountStatus.UNLOCKED,
         },
         emailsData: [
             { emailAddress: 'spongebobmeboy@afakesite.com', receivesDeliveryUpdates: false, verified: true }
@@ -71,3 +71,10 @@ export async function seed() {
 
     console.info(`✅ Database mock complete.`);
 }
+
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+}).finally(async () => {
+    await prisma.$disconnect();
+})

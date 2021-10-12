@@ -4,7 +4,6 @@ import { IMAGE_SIZE, IMAGE_EXTENSION } from '@local/shared';
 import probe from 'probe-image-size';
 import sharp from 'sharp';
 import imghash from 'imghash';
-import { TABLES } from '../db';
 import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
 
@@ -146,19 +145,19 @@ export async function saveImage({ file, alt, description, labels, errorOnDuplica
         // Determine image hash
         const hash = await imghash.hash(image_buffer);
         // Check if hash already exists (image previously uploaded)
-        const previously_uploaded = await prisma[TABLES.Image].findUnique({ where: { hash } });
+        const previously_uploaded = await prisma.image.findUnique({ where: { hash } });
         if (previously_uploaded && errorOnDuplicate) throw Error('File has already been uploaded');
         // Download the original image, and store metadata in database
         const full_size_filename = `${folder}/${name}-XXL${extCheck}`;
         await sharp(image_buffer).toFile(`${ASSET_DIR}/${full_size_filename}`);
         const imageData = { hash, alt, description };
-        await prisma[TABLES.Image].upsert({
+        await prisma.image.upsert({
             where: { hash },
             create: imageData,
             update: imageData
         })
-        await prisma[TABLES.ImageFile].deleteMany({ where: { hash } });
-        await prisma[TABLES.ImageFile].create({
+        await prisma.image_file.deleteMany({ where: { hash } });
+        await prisma.image_file.create({
             data: {
                 hash,
                 src: full_size_filename,
@@ -167,9 +166,9 @@ export async function saveImage({ file, alt, description, labels, errorOnDuplica
             }
         })
         if (Array.isArray(labels)) {
-            await prisma[TABLES.ImageLabels].deleteMany({ where: { hash } });
+            await prisma.image_labels.deleteMany({ where: { hash } });
             for (let i = 0; i < labels.length; i++) {
-                await prisma[TABLES.ImageLabels].create({
+                await prisma.image_labels.create({
                     data: {
                         hash,
                         label: labels[i],
@@ -189,7 +188,7 @@ export async function saveImage({ file, alt, description, labels, errorOnDuplica
             const { width, height } = await sharp(image_buffer)
                 .resize({ [sizing_dimension]: value })
                 .toFile(`${ASSET_DIR}/${resize_filename}`);
-            await prisma[TABLES.ImageFile].create({
+            await prisma.image_file.create({
                 data: {
                     hash,
                     src: resize_filename,
@@ -231,13 +230,13 @@ export async function deleteFile(file) {
 // Deletes an image and all resizes, using its hash
 export async function deleteImage(hash) {
     // Find all files associated with image
-    const imageData = await prisma[TABLES.Image].findUnique({
+    const imageData = await prisma.image.findUnique({
         where: { hash },
         select: { files: { select: { src: true } } }
     });
     if (!imageData) return false;
     // Delete database information for image
-    await prisma[TABLES.Image].delete({ where: { hash } });
+    await prisma.image.delete({ where: { hash } });
     // Delete image files
     let success = true;
     if (Array.isArray(imageData.files)) {

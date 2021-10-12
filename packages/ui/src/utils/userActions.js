@@ -1,7 +1,7 @@
 import React from 'react';
 import {
-    ConnectWithoutContact as ConnectWithoutContactIcon,
     ExitToApp as ExitToAppIcon,
+    Flag as FlagIcon,
     Home as HomeIcon,
     Info as InfoIcon,
     Person as PersonIcon,
@@ -27,7 +27,7 @@ import {
 export function getUserActions({ session, userRoles, exclude = [] }) {
     let actions = [
         ['Home', 'home', LINKS.Home, null, HomeIcon, 0],
-        ['Mission', 'mission', LINKS.Mission, null, ConnectWithoutContactIcon, 0],
+        ['Mission', 'mission', LINKS.Mission, null, FlagIcon, 0],
         ['About Us', 'about', LINKS.About, null, InfoIcon, 0]
     ];
 
