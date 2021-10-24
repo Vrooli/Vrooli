@@ -14,7 +14,7 @@ RUN mkdir -p ${PROJECT_DIR}/assets/images ${PROJECT_DIR}/assets/public ${PROJECT
     chown -R node:node ${PROJECT_DIR}
 
 # Install global packages (must be done as the root user)
-RUN yarn global add nodemon prisma
+RUN yarn global add typescript ts-node nodemon prisma
 
 # Switch to a user with less permissions
 USER node
@@ -24,15 +24,15 @@ WORKDIR ${PROJECT_DIR}
 
 # Copy packages over first. This helps with caching
 COPY --chown=node:node package.json package.json
-COPY --chown=node:node ${shared}/package.json ${shared}/package.json
-COPY --chown=node:node ${server}/package.json ${server}/package.json
+COPY --chown=node:node ${shared}/package.json ${shared}/tsconfig.json ${shared}/
+COPY --chown=node:node ${server}/package.json ${server}/tsconfig.json ${server}/nodemon.json ${server}/
 
 # Install packages
 RUN yarn install
 
 # Copy rest of repo over
-COPY --chown=node:node ${shared}/index.js ${shared}/src ${shared}/
-COPY --chown=node:node ${server}/src ${server}/tools ${server}/
+COPY --chown=node:node ${shared}/src ${shared}/
+COPY --chown=node:node ${server}/src ${server}/
 COPY --chown=node:node scripts/server.sh scripts/wait-for.sh ${scripts}/
 
 USER root

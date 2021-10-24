@@ -44,7 +44,7 @@ services:
             JWT_SECRET: "${JWT_SECRET}"
             PROJECT_DIR: "${PROJECT_DIR}"
             REDIS_CONN: "redis:6379"
-            DB_CONN: "db:5432" 
+            DB_CONN: "db:5432"
             DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
             CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
             DB_PULL: "${DB_PULL}"

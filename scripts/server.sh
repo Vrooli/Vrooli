@@ -18,21 +18,18 @@ if [[ -n "${NEW_MIGRATION_STRING// /}" ]]; then
     echo 'Creating new migration file from schema.prisma'
     prisma migrate dev --${NEW_MIGRATION_STRING} --schema src/prisma/schema.prisma
 fi
-if [ "${NODE_ENV}" = "production" ]; then
+# If production and database migrations exist, migrate to latest
+if [ "${NODE_ENV}" = "production" ] && [ "$(ls -A src/db/migrations)" ]; then
     echo 'Environment is set to production, so migrating to latest database'
     prisma migrate deploy --schema src/prisma/schema.prisma
-fi
-echo 'Ensuring database is populated with minimal data'
-node src/db/seeds/init.js --esm
-if [ "${CREATE_MOCK_DATA}" = true ]; then
-    echo 'Populating database with mock data'
-    node src/db/seeds/mock.js --esm
 fi
 echo 'Generating Prisma schema'
 prisma generate --schema src/prisma/schema.prisma
 
-# Clean any unused files
-yarn clean
+echo 'Converting shared directory to javascript'
+cd ${PROJECT_DIR}/packages/shared
+yarn build
 
+echo 'Starting server'
 cd ${PROJECT_DIR}/packages/server
 yarn start-${NODE_ENV}
