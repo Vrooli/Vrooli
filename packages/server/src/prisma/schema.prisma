@@ -7,6 +7,7 @@ datasource db {
   url      = env("DB_URL")
 }
 
+// A user of the system
 model customer {
   id                             String           @id @default(uuid()) @db.Uuid
   username                       String           @unique @db.VarChar(128)
@@ -27,6 +28,7 @@ model customer {
   feedback                       feedback[]
 }
 
+// Joining table to apply roles to customers
 model customer_roles {
   id         String   @id @default(uuid()) @db.Uuid
   customerId String   @db.Uuid
@@ -37,6 +39,7 @@ model customer_roles {
   @@unique([customerId, roleId], name: "customer_roles_customerid_roleid_unique")
 }
 
+// Email data
 model email {
   id                      String    @id @default(uuid()) @db.Uuid
   emailAddress            String    @unique @db.VarChar(128)
@@ -46,6 +49,7 @@ model email {
   customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }
 
+// User feedback
 model feedback {
   id         String    @id @default(uuid()) @db.Uuid
   text       String    @db.VarChar(4096)
@@ -55,6 +59,7 @@ model feedback {
   customer   customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }
 
+// Image metadata. Actual image is stored elsewhere
 model image {
   hash            String         @unique @db.VarChar(128)
   alt             String?        @db.VarChar(256)
@@ -66,6 +71,7 @@ model image {
   labels          image_labels[]
 }
 
+// Image file names
 model image_file {
   hash   String @db.VarChar(128)
   src    String @unique @db.VarChar(256)
@@ -74,6 +80,7 @@ model image_file {
   image  image  @relation(fields: [hash], references: [hash], onDelete: Cascade)
 }
 
+// Joining table to allow images to be tagged into groups'
 model image_labels {
   id    Int    @id @default(autoincrement())
   hash  String @db.VarChar(128)
@@ -84,6 +91,7 @@ model image_labels {
   @@unique([hash, label], name: "image_labels_hash_label_unique")
 }
 
+// Task Queue information
 model queue_task {
   id          Int        @id @default(autoincrement())
   taskId      Int
@@ -96,6 +104,7 @@ model queue_task {
   updated_at  DateTime   @default(now()) @db.Timestamptz(6)
 }
 
+// A user role. Each user can have multiple roles
 model role {
   id             String           @id @default(uuid()) @db.Uuid
   title          String           @unique @db.VarChar(128)

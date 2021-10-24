@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "target": "es6",
+    "module": "esnext",
     "baseUrl": "./src",
     "lib": [
       "dom",
@@ -14,14 +15,22 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "noImplicitAny": false,
+    "noImplicitThis": true,
+    "strictNullChecks": true
   },
   "include": [
-    "src"
+    "src",
+    "../shared/src/models.ts",
+    "fonts.d.ts",
+    "types.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
   ]
 }

@@ -1,0 +1,217 @@
+"""
+Direct the client to resolve this field locally, either from the cache or local resolvers.
+"""
+directive @client(
+  """
+  When true, the client will never use the cache for this value. See
+  https://www.apollographql.com/docs/react/essentials/local-state/#forcing-resolvers-with-clientalways-true
+  """
+  always: Boolean
+) on FIELD | FRAGMENT_DEFINITION | INLINE_FRAGMENT
+
+"""
+Export this locally resolved field as a variable to be used in the remainder of this query. See
+https://www.apollographql.com/docs/react/essentials/local-state/#using-client-fields-as-variables
+"""
+directive @export(
+  """The variable name to export this field as."""
+  as: String!
+) on FIELD
+
+"""
+Specify a custom store key for this result. See
+https://www.apollographql.com/docs/react/advanced/caching/#the-connection-directive
+"""
+directive @connection(
+  """Specify the store key."""
+  key: String!
+
+  """
+  An array of query argument names to include in the generated custom store key.
+  """
+  filter: [String!]
+) on FIELD
+
+"""Custom description for the date scalar"""
+scalar Date
+
+"""The `Upload` scalar type represents a file upload."""
+scalar Upload
+
+type Count {
+  count: Int
+}
+
+type Response {
+  code: Int
+  message: String!
+}
+
+type Query {
+  readAssets(files: [String!]!): [String]!
+  customers: [Customer!]!
+  profile: Customer!
+  emails: [Email!]!
+  feedbacks: [Feedback!]!
+  imagesByLabel(label: String!): [Image!]!
+  roles: [Role!]!
+  tasks(ids: [ID!], status: TaskStatus): [Task!]!
+}
+
+type Mutation {
+  writeAssets(files: [Upload!]!): Boolean
+  login(email: String, password: String, verificationCode: String): Customer!
+  logout: Boolean
+  signUp(username: String!, pronouns: String, email: String!, theme: String!, marketingEmails: Boolean!, password: String!): Customer!
+  addCustomer(input: CustomerInput!): Customer!
+  updateCustomer(input: CustomerInput!, currentPassword: String!, newPassword: String): Customer!
+  deleteCustomer(id: ID!, password: String): Boolean
+  joinWaitlist(username: String!, email: String!): Boolean
+  verifyWaitlist(confirmationCode: String!): Boolean
+  requestPasswordChange(email: String!): Boolean
+  resetPassword(id: ID!, code: String!, newPassword: String!): Customer!
+  changeCustomerStatus(id: ID!, status: AccountStatus!): Boolean
+  addCustomerRole(id: ID!, roleId: ID!): Customer!
+  removeCustomerRole(id: ID!, roleId: ID!): Count!
+  addEmail(input: EmailInput!): Email!
+  updateEmail(input: EmailInput!): Email!
+  deleteEmails(ids: [ID!]!): Count!
+  addFeedback(input: FeedbackInput!): Feedback!
+  deleteFeedbacks(ids: [ID!]!): Count!
+  addImages(files: [Upload!]!, alts: [String], descriptions: [String], labels: [String!]): [AddImageResponse!]!
+  updateImages(data: [ImageUpdate!]!, deleting: [String!], label: String): Boolean!
+  deleteImages(hashes: [String!]!): Count!
+  deleteImagesByLabel(labels: [String!]!): Count!
+  addRole(input: RoleInput!): Role!
+  updateRole(input: RoleInput!): Role!
+  deleteRoles(ids: [ID!]!): Count!
+}
+
+enum AccountStatus {
+  DELETED
+  UNLOCKED
+  SOFT_LOCKED
+  HARD_LOCKED
+}
+
+input CustomerInput {
+  id: ID
+  username: String
+  pronouns: String
+  emails: [EmailInput!]
+  theme: String
+  status: AccountStatus
+}
+
+type Customer {
+  id: ID!
+  username: String!
+  pronouns: String!
+  emails: [Email!]!
+  theme: String!
+  emailVerified: Boolean!
+  status: AccountStatus!
+  roles: [CustomerRole!]!
+  feedback: [Feedback!]!
+}
+
+input EmailInput {
+  id: ID
+  emailAddress: String!
+  receivesDeliveryUpdates: Boolean
+  customerId: ID
+}
+
+type Email {
+  id: ID!
+  emailAddress: String!
+  receivesDeliveryUpdates: Boolean!
+  verified: Boolean!
+  customer: Customer
+}
+
+input FeedbackInput {
+  id: ID
+  text: String!
+  customerId: ID
+}
+
+type Feedback {
+  id: ID!
+  text: String!
+  customer: Customer
+}
+
+enum ImageSize {
+  XXS
+  XS
+  S
+  M
+  ML
+  L
+  XL
+  XXL
+}
+
+input ImageUpdate {
+  hash: String!
+  alt: String
+  description: String
+}
+
+type AddImageResponse {
+  success: Boolean!
+  src: String
+  hash: String
+}
+
+type ImageFile {
+  hash: String!
+  src: String!
+  width: Int!
+  height: Int!
+}
+
+type Image {
+  hash: String!
+  alt: String
+  description: String
+  files: [ImageFile!]
+}
+
+input RoleInput {
+  id: ID
+  title: String!
+  description: String
+  customerIds: [ID!]
+}
+
+type CustomerRole {
+  customer: Customer!
+  role: Role!
+}
+
+type Role {
+  id: ID!
+  title: String!
+  description: String
+  customers: [Customer!]!
+}
+
+enum TaskStatus {
+  UNKNOWN
+  FAILED
+  ACTIVE
+  INACTIVE
+  COMPLETED
+}
+
+type Task {
+  id: ID!
+  taskId: Int!
+  name: String!
+  status: TaskStatus!
+  description: String
+  result: String
+  resultCode: Int
+}
