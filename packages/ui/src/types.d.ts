@@ -15,3 +15,9 @@ export interface CommonProps {
 
 // Rename auto-generated query objects
 export type Customer = customers_customers;
+
+// Enable Nami integration
+declare global {
+    interface Window { cardano: any; }
+}
+window.cardano = window.cardano || {};

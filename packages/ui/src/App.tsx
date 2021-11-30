@@ -124,7 +124,7 @@ export function App() {
     useEffect(() => {
         // Determine theme
         if (session?.theme) setTheme(themes[session?.theme])
-        else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
+        //else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
         else setTheme(themes.light);
         setRoles(session?.roles ? session.roles.map(r => r.role) : null);
     }, [session])
