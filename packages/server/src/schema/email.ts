@@ -19,10 +19,6 @@ export const typeDef = gql`
         customer: Customer
     }
 
-    extend type Query {
-        emails: [Email!]!
-    }
-
     extend type Mutation {
         addEmail(input: EmailInput!): Email!
         updateEmail(input: EmailInput!): Email!
@@ -31,24 +27,16 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
-    Query: {
-        emails: async (_parent: undefined, _args: any, context: any, info: any) => {
-            // Must be admin
-            if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            return await context.prisma.email.findMany((new PrismaSelect(info).value));
-        }
-    },
     Mutation: {
         addEmail: async (_parent: undefined, args: any, context: any, info: any) => {
-            // Must be admin, or adding to your own
-            if(!context.req.isAdmin || (context.req.customerId !== args.input.customerId)) return new CustomError(CODE.Unauthorized);
+            // Must be adding to your own
+            if(context.req.customerId !== args.input.customerId) return new CustomError(CODE.Unauthorized);
             return await context.prisma.email.create((new PrismaSelect(info).value), { data: { ...args.input } });
         },
         updateEmail: async (_parent: undefined, args: any, context: any, info: any) => {
-            // Must be admin, or updating your own
-            if(!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
+            // Must be updating your own
             const curr = await context.prisma.email.findUnique({ where: { id: args.input.id } });
-            if (context.req.customerId !== curr.custmoerId) return new CustomError(CODE.Unauthorized);
+            if (context.req.customerId !== curr.customerId) return new CustomError(CODE.Unauthorized);
             return await context.prisma.email.update({
                 where: { id: args.input.id || undefined },
                 data: { ...args.input },
@@ -56,12 +44,12 @@ export const resolvers = {
             })
         },
         deleteEmails: async (_parent: undefined, args: any, context: any, _info: any) => {
-            // Must be admin, or deleting your own
+            // Must deleting your own
             // TODO must keep at least one email per customer
             const specified = await context.prisma.email.findMany({ where: { id: { in: args.ids } } });
             if (!specified) return new CustomError(CODE.ErrorUnknown);
             const customerIds = [...new Set(specified.map((s: any) => s.customerId))];
-            if (!context.req.isAdmin && (customerIds.length > 1 || context.req.customerId !== customerIds[0])) return new CustomError(CODE.Unauthorized);
+            if (customerIds.length > 1 || context.req.customerId !== customerIds[0]) return new CustomError(CODE.Unauthorized);
             return await context.prisma.email.deleteMany({ where: { id: { in: args.ids } } });
         }
     }

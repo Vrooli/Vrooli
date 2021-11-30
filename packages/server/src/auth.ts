@@ -8,7 +8,7 @@ const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 const SESSION_MILLI = 30*86400*1000;
 
-// Return array of customer roles (ex: ['admin', 'customer'])
+// Return array of customer roles (ex: ['customer'])
 const findCustomerRoles = async(customerId: string): Promise<string[]> => {
     // Query customer's roles
     const user = await prisma.customer.findUnique({ 
@@ -42,7 +42,6 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         req.customerId = payload.customerId;
         req.roles = payload.roles;
         req.isCustomer = payload.isCustomer;
-        req.isAdmin = payload.isAdmin;
         next();
     })
 }
@@ -55,8 +54,7 @@ export async function generateToken(res: Response, customerId: any) {
         iss: `https://${process.env.SITE_NAME}/`,
         customerId: customerId,
         roles: customerRoles,
-        isCustomer: customerRoles.includes('customer' || 'admin'),
-        isAdmin: customerRoles.includes('admin'),
+        isCustomer: customerRoles.includes('customer'),
         exp: Date.now() + SESSION_MILLI,
     }
     if (!process.env.JWT_SECRET) {
@@ -71,14 +69,8 @@ export async function generateToken(res: Response, customerId: any) {
     });
 }
 
-// Middleware that restricts access to customers (or admins)
+// Middleware that restricts access to customers
 export async function requireCustomer(req: any, _: any, next: any) {
     if (!req.isCustomer) return new CustomError(CODE.Unauthorized);
-    next();
-}
-
-// Middle ware that restricts access to admins
-export async function requireAdmin(req: any, _: any, next: any) {
-    if (!req.isAdmin) return new CustomError(CODE.Unauthorized);
     next();
 }

@@ -23,7 +23,7 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }))
 
-export const HomePage = () => {
+export const LandingPage = () => {
     const classes = useStyles();
     // Load all images on page
     const [imageData, setImageData] = useState([]);

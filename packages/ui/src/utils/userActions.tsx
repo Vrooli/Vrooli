@@ -5,9 +5,7 @@ import {
     Info as InfoIcon,
     Person as PersonIcon,
     PersonAdd as PersonAddIcon,
-    Settings as SettingsIcon,
 } from '@material-ui/icons';
-import { ROLES } from '@local/shared';
 import { LINKS } from 'utils';
 import { initializeApollo } from 'graphql/utils/initialize';
 import { logoutMutation } from 'graphql/mutation';
@@ -48,11 +46,6 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
     if (!userRoles) {
         actions.push(['Join Waitlist', 'waitlist', LINKS.Waitlist, null, PersonAddIcon, 0]);
     } else {
-        // If an owner admin is logged in, display owner links
-        const haveArray = Array.isArray(userRoles) ? userRoles : [userRoles];
-        if (userRoles && haveArray.some(r => [ROLES.Owner, ROLES.Admin].includes(r?.title))) {
-            actions.push(['Manage Site', 'admin', LINKS.Admin, null, SettingsIcon, 0]);
-        }
         actions.push(['Profile', 'profile', LINKS.Profile, null, PersonIcon, 0],
             ['Log out', 'logout', LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, ExitToAppIcon, 0]);
     }

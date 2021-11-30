@@ -69,3 +69,11 @@ export function joinWaitlistNotifyAdmin(username: string) {
         html: `<p>${username} has joined the ${BUSINESS_NAME.Short} waitlist!</p><p>It's catching steam :)<p>`
     });
 }
+
+export function feedbackNotifyAdmin(text: string, from: string | null | undefined) {
+    emailQueue.add({
+        to: [process.env.SITE_EMAIL_USERNAME],
+        subject: `Received Vrooli Feedback!`,
+        text: `Feedback from ${from ?? 'anonymous'}: ${text}`,
+    });
+}

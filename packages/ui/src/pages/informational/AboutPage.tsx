@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { makeStyles } from '@material-ui/styles';
-import { pageStyles } from './styles';
+import { pageStyles } from '../styles';
 import { combineStyles } from 'utils';
 import { CommonProps } from 'types';
 import MattSketch from 'assets/img/thought-sketch-edited-3.png';

@@ -25,7 +25,6 @@ model customer {
   updated_at                     DateTime         @default(now()) @db.Timestamptz(6)
   roles                          customer_roles[]
   emails                         email[]
-  feedback                       feedback[]
 }
 
 // Joining table to apply roles to customers
@@ -47,61 +46,6 @@ model email {
   verified           Boolean   @default(false)
   customerId              String?   @db.Uuid
   customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
-}
-
-// User feedback
-model feedback {
-  id         String    @id @default(uuid()) @db.Uuid
-  text       String    @db.VarChar(4096)
-  customerId String?   @db.Uuid
-  created_at DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at DateTime  @default(now()) @db.Timestamptz(6)
-  customer   customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
-}
-
-// Image metadata. Actual image is stored elsewhere
-model image {
-  hash            String         @unique @db.VarChar(128)
-  alt             String?        @db.VarChar(256)
-  description     String?        @db.VarChar(1024)
-  usedFor         String?
-  created_at      DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime       @default(now()) @db.Timestamptz(6)
-  files           image_file[]
-  labels          image_labels[]
-}
-
-// Image file names
-model image_file {
-  hash   String @db.VarChar(128)
-  src    String @unique @db.VarChar(256)
-  width  Int
-  height Int
-  image  image  @relation(fields: [hash], references: [hash], onDelete: Cascade)
-}
-
-// Joining table to allow images to be tagged into groups'
-model image_labels {
-  id    Int    @id @default(autoincrement())
-  hash  String @db.VarChar(128)
-  label String @db.VarChar(255)
-  index Int
-  image image  @relation(fields: [hash], references: [hash], onDelete: Cascade)
-
-  @@unique([hash, label], name: "image_labels_hash_label_unique")
-}
-
-// Task Queue information
-model queue_task {
-  id          Int        @id @default(autoincrement())
-  taskId      Int
-  name        String     @db.VarChar(256)
-  status      TaskStatus @default(ACTIVE)
-  description String?    @db.VarChar(1024)
-  result      String?    @db.VarChar(8192)
-  resultCode  Int?
-  created_at  DateTime   @default(now()) @db.Timestamptz(6)
-  updated_at  DateTime   @default(now()) @db.Timestamptz(6)
 }
 
 // A user role. Each user can have multiple roles

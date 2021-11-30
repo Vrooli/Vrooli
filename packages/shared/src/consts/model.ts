@@ -49,7 +49,5 @@ export type THEME = ValueOf<typeof THEME>;
 
 export const ROLES = {
     Customer: "Customer",
-    Owner: "Owner",
-    Admin: "Admin",
 }
 export type ROLES = ValueOf<typeof ROLES>;

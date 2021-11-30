@@ -50,8 +50,6 @@ services:
             DB_PULL: "${DB_PULL}"
             DB_PUSH: "${DB_PUSH}"
             NEW_MIGRATION_STRING: "${NEW_MIGRATION_STRING}"
-            ADMIN_EMAIL: "${ADMIN_EMAIL}"
-            ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
             SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
             SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
             SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"

@@ -29,7 +29,6 @@ export async function mock(prisma: PrismaType) {
     const roles = await prisma.role.findMany({ select: { id: true, title: true } });
     const customerRoleId = roles.filter((r: any) => r.title === 'Customer')[0].id;
     const ownerRoleId = roles.filter((r: any) => r.title === 'Owner')[0].id;
-    // const adminRoleId = roles.filter(r => r.title === 'Admin')[0].id;
 
     // Create user with owner role
     await createUser({

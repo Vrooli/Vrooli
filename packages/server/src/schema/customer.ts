@@ -45,7 +45,6 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        customers: [Customer!]!
         profile: Customer!
     }
 
@@ -64,7 +63,6 @@ export const typeDef = gql`
             marketingEmails: Boolean!
             password: String!
         ): Customer!
-        addCustomer(input: CustomerInput!): Customer!
         updateCustomer(
             input: CustomerInput!
             currentPassword: String!
@@ -89,32 +87,12 @@ export const typeDef = gql`
             code: String!
             newPassword: String!
         ): Customer!
-        changeCustomerStatus(
-            id: ID!
-            status: AccountStatus!
-        ): Boolean
-        addCustomerRole(
-            id: ID!
-            roleId: ID!
-        ): Customer!
-        removeCustomerRole(
-            id: ID!
-            roleId: ID!
-        ): Count!
     }
 `
 
 export const resolvers = {
     AccountStatus: AccountStatus,
     Query: {
-        customers: async (_parent: undefined, _args: any, context: any, info: any) => {
-            // Must be admin
-            if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            return await context.prisma.customer.findMany({
-                orderBy: { username: 'asc', },
-                ...(new PrismaSelect(info).value)
-            });
-        },
         profile: async (_parent: undefined, _args: any, context: any, info: any) => {
             // Can only query your own profile
             const customerId = context.req.customerId;
@@ -238,30 +216,9 @@ export const resolvers = {
             // Return user data
             return await context.prisma.customer.findUnique({ where: { id: customer.id }, ...prismaInfo });
         },
-        addCustomer: async (_parent: undefined, args: any, context: any, info: any) => {
-            // Must be admin to add a customer directly
-            if(!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            const prismaInfo = new PrismaSelect(info).value
-            // Find customer role to give to new user
-            const customerRole = await context.prisma.role.findUnique({ where: { title: 'Customer' } });
-            if (!customerRole) return new CustomError(CODE.ErrorUnknown);
-            const customer = await upsertCustomer({
-                prisma: context.prisma,
-                info,
-                data: {
-                    username: args.input.username,
-                    theme: 'light',
-                    status: AccountStatus.UNLOCKED,
-                    emails: args.input.emails,
-                    roles: [customerRole]
-                }
-            });
-            // Return user data
-            return await context.prisma.customer.findUnique({ where: { id: customer.id }, ...prismaInfo });
-        },
         updateCustomer: async (_parent: undefined, args: any, context: any, info: any) => {
-            // Must be admin, or updating your own
-            if(!context.req.isAdmin && (context.req.customerId !== args.input.id)) return new CustomError(CODE.Unauthorized);
+            // Must be updating your own
+            if(context.req.customerId !== args.input.id) return new CustomError(CODE.Unauthorized);
             // Check for correct password
             let customer = await context.prisma.customer.findUnique({ 
                 where: { id: args.input.id },
@@ -279,8 +236,8 @@ export const resolvers = {
             return user;
         },
         deleteCustomer: async (_parent: undefined, args: any, context: any, _info: any) => {
-            // Must be admin, or deleting your own
-            if(!context.req.isAdmin && (context.req.customerId !== args.input.id)) return new CustomError(CODE.Unauthorized);
+            // Must be deleting your own
+            if(context.req.customerId !== args.input.id) return new CustomError(CODE.Unauthorized);
             // Check for correct password
             let customer = await context.prisma.customer.findUnique({ 
                 where: { id: args.id },
@@ -290,14 +247,8 @@ export const resolvers = {
                 }
             });
             if (!customer) return new CustomError(CODE.ErrorUnknown);
-            // If admin, make sure you are not deleting yourself
-            if (context.req.isAdmin) {
-                if (customer.id === context.req.customerId) return new CustomError(CODE.CannotDeleteYourself);
-            }
-            // If not admin, make sure correct password is entered
-            else if (!context.req.isAdmin) {
-                if(!bcrypt.compareSync(args.password, customer.password)) return new CustomError(CODE.BadCredentials);
-            }
+            // Make sure correct password is entered
+            if(!bcrypt.compareSync(args.password, customer.password)) return new CustomError(CODE.BadCredentials);
             // Delete account
             await context.prisma.customer.delete({ where: { id: customer.id } });
             return true;
@@ -409,32 +360,6 @@ export const resolvers = {
             // Return customer data
             const prismaInfo = new PrismaSelect(info).value
             return await context.prisma.customer.findUnique({ where: { id: customer.id }, ...prismaInfo });
-        },
-        changeCustomerStatus: async (_parent: undefined, args: any, context: any, _info: any) => {
-            // Must be admin
-            if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            await context.prisma.customer.update({
-                where: { id: args.id },
-                data: { status: args.status }
-            })
-            return true;
-        },
-        addCustomerRole: async (_parent: undefined, args: any, context: any, info: any) => {
-            // Must be admin
-            if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            await context.prisma.customer_roles.create({ data: { 
-                customerId: args.id,
-                roleId: args.roleId
-            } })
-            return await context.prisma.customer.findUnique({ where: { id: args.id }, ...(new PrismaSelect(info).value) });
-        },
-        removeCustomerRole: async (_parent: undefined, args: any, context: any, _info: any) => {
-            // Must be admin
-            if (!context.req.isAdmin) return new CustomError(CODE.Unauthorized);
-            return await context.prisma.customer_roles.delete({ where: { 
-                customerId: args.id,
-                roleId: args.roleId
-            } })
         },
     }
 }

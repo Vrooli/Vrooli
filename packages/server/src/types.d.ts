@@ -9,7 +9,6 @@ declare global {
             customerId: string | null | undefined;
             roles: string[] | undefined;
             isCustomer: boolean | undefined;
-            isAdmin: boolean | undefined;
         }
     }
 }

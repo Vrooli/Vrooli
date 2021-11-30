@@ -47,7 +47,6 @@ const main = async () => {
 
     // Set static folders
     app.use(process.env.REACT_APP_SERVER_ROUTE || '', express.static(`${process.env.PROJECT_DIR}/assets/public`));
-    app.use(`${process.env.REACT_APP_SERVER_ROUTE}/private`, auth.requireAdmin, express.static(`${process.env.PROJECT_DIR}/assets/private`));
     app.use(`${process.env.REACT_APP_SERVER_ROUTE}/images`, express.static(`${process.env.PROJECT_DIR}/assets/images`));
 
     // Set up image uploading

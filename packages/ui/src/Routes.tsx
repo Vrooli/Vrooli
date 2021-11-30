@@ -17,12 +17,8 @@ import { CommonProps } from 'types';
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
     AboutPage,
-    AdminContactPage,
-    AdminCustomerPage,
-    AdminImagePage,
-    AdminMainPage,
     FormPage,
-    HomePage,
+    LandingPage,
     MissionPage,
     NotFoundPage,
     Page,
@@ -51,7 +47,7 @@ const Routes = (props: CommonProps) => {
                     changefreq="monthly"
                     render={() => (
                         <Page title={title('Home')} {...props}>
-                            <HomePage />
+                            <LandingPage />
                         </Page>
                     )}
                 />
@@ -181,36 +177,6 @@ const Routes = (props: CommonProps) => {
                     )}
                 />
                 {/* END CUSTOMER PAGES */}
-                {/* START ADMIN PAGES */}
-                <Route
-                    exact
-                    path={LINKS.Admin}
-                    render={() => (
-                        <Page title={title('Manage Site')} {...props} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
-                            <AdminMainPage />
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={LINKS.AdminContactInfo}
-                    render={() => (
-                        <Page title={"Edit Contact Info"} {...props} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
-                            <AdminContactPage business={props.business} />
-                        </Page>
-                    )}
-                />
-                <Route exact path={LINKS.AdminCustomers} render={() => (
-                    <Page title={"Customer Page"} {...props} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
-                        <AdminCustomerPage />
-                    </Page>
-                )} />
-                <Route exact path={LINKS.AdminImages} render={() => (
-                    <Page title={"Edit Image Lists"} {...props} restrictedToRoles={[ROLES.Owner, ROLES.Admin]}>
-                        <AdminImagePage />
-                    </Page>
-                )} />
-                {/* END ADMIN PAGES */}
                 {/* 404 page */}
                 <Route
                     render={() => (
