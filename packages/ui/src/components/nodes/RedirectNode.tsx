@@ -1,0 +1,1 @@
+export const RedirectNode = () => { return ( <div></div> ) }

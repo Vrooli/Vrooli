@@ -52,8 +52,6 @@ type Query {
   customers: [Customer!]!
   profile: Customer!
   emails: [Email!]!
-  feedbacks: [Feedback!]!
-  imagesByLabel(label: String!): [Image!]!
   roles: [Role!]!
   tasks(ids: [ID!], status: TaskStatus): [Task!]!
 }
@@ -63,7 +61,6 @@ type Mutation {
   login(email: String, password: String, verificationCode: String): Customer!
   logout: Boolean
   signUp(username: String!, pronouns: String, email: String!, theme: String!, marketingEmails: Boolean!, password: String!): Customer!
-  addCustomer(input: CustomerInput!): Customer!
   updateCustomer(input: CustomerInput!, currentPassword: String!, newPassword: String): Customer!
   deleteCustomer(id: ID!, password: String): Boolean
   joinWaitlist(username: String!, email: String!): Boolean
@@ -71,17 +68,11 @@ type Mutation {
   requestPasswordChange(email: String!): Boolean
   resetPassword(id: ID!, code: String!, newPassword: String!): Customer!
   changeCustomerStatus(id: ID!, status: AccountStatus!): Boolean
-  addCustomerRole(id: ID!, roleId: ID!): Customer!
   removeCustomerRole(id: ID!, roleId: ID!): Count!
   addEmail(input: EmailInput!): Email!
   updateEmail(input: EmailInput!): Email!
   deleteEmails(ids: [ID!]!): Count!
   addFeedback(input: FeedbackInput!): Feedback!
-  deleteFeedbacks(ids: [ID!]!): Count!
-  addImages(files: [Upload!]!, alts: [String], descriptions: [String], labels: [String!]): [AddImageResponse!]!
-  updateImages(data: [ImageUpdate!]!, deleting: [String!], label: String): Boolean!
-  deleteImages(hashes: [String!]!): Count!
-  deleteImagesByLabel(labels: [String!]!): Count!
   addRole(input: RoleInput!): Role!
   updateRole(input: RoleInput!): Role!
   deleteRoles(ids: [ID!]!): Count!
@@ -112,7 +103,6 @@ type Customer {
   emailVerified: Boolean!
   status: AccountStatus!
   roles: [CustomerRole!]!
-  feedback: [Feedback!]!
 }
 
 input EmailInput {
@@ -134,49 +124,6 @@ input FeedbackInput {
   id: ID
   text: String!
   customerId: ID
-}
-
-type Feedback {
-  id: ID!
-  text: String!
-  customer: Customer
-}
-
-enum ImageSize {
-  XXS
-  XS
-  S
-  M
-  ML
-  L
-  XL
-  XXL
-}
-
-input ImageUpdate {
-  hash: String!
-  alt: String
-  description: String
-}
-
-type AddImageResponse {
-  success: Boolean!
-  src: String
-  hash: String
-}
-
-type ImageFile {
-  hash: String!
-  src: String!
-  width: Int!
-  height: Int!
-}
-
-type Image {
-  hash: String!
-  alt: String
-  description: String
-  files: [ImageFile!]
 }
 
 input RoleInput {

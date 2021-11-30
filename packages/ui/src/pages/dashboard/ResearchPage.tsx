@@ -1,0 +1,1 @@
+export const ResearchPage = () => { return ( <div></div> ) }

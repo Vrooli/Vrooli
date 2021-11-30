@@ -7,6 +7,7 @@ export * from './Hero/Hero';
 export * from './inputs';
 export * from './lists';
 export * from './navigation';
+export * from './nodes';
 export * from './PopupMenu';
 export * from './ScrollToTop';
 export * from './Slide';

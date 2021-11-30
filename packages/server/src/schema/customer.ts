@@ -41,7 +41,6 @@ export const typeDef = gql`
         emailVerified: Boolean!
         status: AccountStatus!
         roles: [CustomerRole!]!
-        feedback: [Feedback!]!
     }
 
     extend type Query {

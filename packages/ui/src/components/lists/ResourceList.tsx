@@ -1,0 +1,1 @@
+export const ResourceList = () => { return ( <div></div> ) }

@@ -51,7 +51,7 @@ export const WaitlistForm = ({
                 mutation: joinWaitlist,
                 data: { variables: values },
                 successCondition: (response) => response.data.joinWaitlist,
-                onSuccess: toHome,
+                onSuccess: toLanding,
                 successMessage: () => 'Request sent. Please check email.',
             })
         },

@@ -1,0 +1,1 @@
+export const DecisionNode = () => { return ( <div></div> ) }

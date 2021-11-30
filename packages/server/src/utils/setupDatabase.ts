@@ -1,9 +1,7 @@
 
 // Sets up database on server initialization. For this project, this includes:  
-// 1. Cleaning any user-uploaded images that no longer exist in the database  
-// 2. Seeding database with required data
-// 3. Seeding database with mock data
-import { cleanImageData } from "./cleanImageData.js";
+// 1. Seeding database with required data
+// 2. Seeding database with mock data
 import pkg from '@prisma/client';
 import { init } from '../db/seeds/init.js';
 import { mock } from '../db/seeds/mock.js';
@@ -21,9 +19,7 @@ const executeSeed = async (func: (prisma: PrismaType) => any) => {
 }
 
 export const setupDatabase = async () => {
-    // 1. Clean old images
-    await cleanImageData();
-    // 2. Seed database
+    // Seed database
     await executeSeed(init);
     if (process.env.CREATE_MOCK_DATA) {
         await executeSeed(mock);

@@ -1,0 +1,1 @@
+export const StartNode = () => { return ( <div></div> ) }

@@ -17,7 +17,6 @@ services:
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
             VIRTUAL_PATH: "/"
             VIRTUAL_PORT: "${UI_PORT}"
-            VIRTUAL_PATH: "/"
             LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
             LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
         ports:
@@ -58,7 +57,6 @@ services:
             UI_PORT: "${UI_PORT}"
             REACT_APP_SERVER_PORT: "${SERVER_PORT}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
-            VIRTUAL_PATH: "/v1"
             VIRTUAL_PORT: "${SERVER_PORT}"
             VIRTUAL_PATH: "${SERVER_ROUTE}"
             LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
