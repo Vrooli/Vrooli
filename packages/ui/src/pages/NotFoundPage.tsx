@@ -24,7 +24,7 @@ export const NotFoundPage = () => {
                 <h1>Page Not Found</h1>
                 <h3>Looks like you've followed a broken link or entered a URL that doesn't exist on this site</h3>
                 <br />
-                <Link to={LINKS.Home}>
+                <Link to={LINKS.Landing}>
                     <Button>Go to Home</Button>
                 </Link>
             </div>

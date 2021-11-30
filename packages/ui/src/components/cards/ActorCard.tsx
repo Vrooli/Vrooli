@@ -1,0 +1,1 @@
+export const ActorCard = () => { return ( <div></div> ) }

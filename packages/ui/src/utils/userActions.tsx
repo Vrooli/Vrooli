@@ -1,10 +1,13 @@
 import {
-    ExitToApp as ExitToAppIcon,
-    Flag as FlagIcon,
+    Apps as ProjectsIcon,
+    ExitToApp as LogOutIcon,
+    Flag as MissionIcon,
     Home as HomeIcon,
-    Info as InfoIcon,
-    Person as PersonIcon,
-    PersonAdd as PersonAddIcon,
+    Info as AboutIcon,
+    PersonAdd as LogInIcon,
+    PlayCircle as DevelopIcon,
+    School as LearnIcon,
+    Science as ResearchIcon,
 } from '@material-ui/icons';
 import { LINKS } from 'utils';
 import { initializeApollo } from 'graphql/utils/initialize';
@@ -36,18 +39,25 @@ interface GetUserActionsProps {
     exclude?: string[] | undefined;
 }
 export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps): Action[] {
-    let actions: ActionArray[] = [
-        ['Home', 'home', LINKS.Home, null, HomeIcon, 0],
-        ['Mission', 'mission', LINKS.Mission, null, FlagIcon, 0],
-        ['About Us', 'about', LINKS.About, null, InfoIcon, 0]
-    ];
+    let actions: ActionArray[] = [];
 
     // If someone is not logged in, display sign up/log in links
     if (!userRoles) {
-        actions.push(['Join Waitlist', 'waitlist', LINKS.Waitlist, null, PersonAddIcon, 0]);
+        actions.push(
+            ['Home', 'home', LINKS.Landing, null, HomeIcon, 0],
+            ['Mission', 'mission', LINKS.Mission, null, MissionIcon, 0],
+            ['About Us', 'about', LINKS.About, null, AboutIcon, 0],
+            ['Log In', 'waitlist', LINKS.LogIn, null, LogInIcon, 0],
+            );
     } else {
-        actions.push(['Profile', 'profile', LINKS.Profile, null, PersonIcon, 0],
-            ['Log out', 'logout', LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, ExitToAppIcon, 0]);
+        actions.push(
+            ['Home', 'home', LINKS.Home, null, HomeIcon, 0],
+            ['Projects', 'projects', LINKS.Projects, null, ProjectsIcon, 0],
+            ['Learn', 'learn', LINKS.Learn, null, LearnIcon, 0],
+            ['Research', 'research', LINKS.Research, null, ResearchIcon, 0],
+            ['Develop', 'develop', LINKS.Develop, null, DevelopIcon, 0],
+            ['Log out', 'logout', LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, LogOutIcon, 0]
+            );
     }
 
     return actions.map(a => createAction(a)).filter(a => !exclude.includes(a.value));

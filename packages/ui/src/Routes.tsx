@@ -41,7 +41,7 @@ const Routes = (props: CommonProps) => {
                 />
                 <Route
                     exact
-                    path={LINKS.Home}
+                    path={LINKS.Landing}
                     sitemapIndex={true}
                     priority={1.0}
                     changefreq="monthly"

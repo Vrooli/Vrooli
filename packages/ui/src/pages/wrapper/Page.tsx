@@ -15,7 +15,7 @@ interface Props {
 export const Page = ({
     title = '',
     sessionChecked,
-    redirect = LINKS.Home,
+    redirect = LINKS.Landing,
     userRoles,
     restrictedToRoles = [],
     children

@@ -89,13 +89,13 @@ export const Navbar = ({
 
     const updateWindowDimensions = () => setShowHamburger(window.innerWidth <= SHOW_HAMBURGER_AT);
 
-    const toHome = useCallback(() => history.push(LINKS.Home), [history]);
+    const toLanding = useCallback(() => history.push(LINKS.Landing), [history]);
 
     return (
         <HideOnScroll>
             <AppBar>
                 <Toolbar className={classes.root}>
-                    <div className={classes.navLogoContainer} onClick={toHome}>
+                    <div className={classes.navLogoContainer} onClick={toLanding}>
                         <div className={classes.navLogoDiv}>
                             <img src={Logo} alt={`${business?.BUSINESS_NAME?.Short} Logo`} className={classes.navLogo} />
                         </div>

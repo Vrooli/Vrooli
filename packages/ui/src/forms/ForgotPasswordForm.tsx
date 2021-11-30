@@ -34,7 +34,7 @@ export const ForgotPasswordForm = () => {
                 mutation: requestPasswordChange,
                 data: { variables: values },
                 successCondition: (response) => response.data.requestPasswordChange,
-                onSuccess: () => history.push(LINKS.Home),
+                onSuccess: () => history.push(LINKS.Landing),
                 successMessage: () => 'Request sent. Please check email.',
             })
         },

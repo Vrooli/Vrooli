@@ -3,7 +3,7 @@ import { BreadcrumbsBase } from './BreadcrumbsBase';
 import { BreadcrumbsBaseProps } from './types';
 
 const paths = [
-    ['Home', LINKS.Home],
+    ['Home', LINKS.Landing],
     ['Mission', LINKS.Mission],
     ['About Us', LINKS.About]
 ].map(row => ({ text: row[0], link: row[1] }))

@@ -26,7 +26,7 @@ export const WaitlistForm = ({
     const [joinWaitlist, { loading }] = useMutation(joinWaitlistMutation);
     const [verifyWaitlist] = useMutation(verifyWaitlistMutation);
 
-    const toHome = useCallback(() => history.push(LINKS.Home), [history]);
+    const toLanding = useCallback(() => history.push(LINKS.Landing), [history]);
 
     useEffect(() => {
         if (urlParams.code) {
@@ -34,11 +34,11 @@ export const WaitlistForm = ({
                 mutation: verifyWaitlist,
                 data: { variables: { confirmationCode: urlParams.code } },
                 successCondition: (response) => response.data.verifyWaitlist,
-                onSuccess: toHome,
+                onSuccess: toLanding,
                 successMessage: () => 'Email verified. See you soon!',
             })
         }
-    }, [toHome, urlParams, verifyWaitlist])
+    }, [toLanding, urlParams, verifyWaitlist])
 
     const formik = useFormik({
         initialValues: {
