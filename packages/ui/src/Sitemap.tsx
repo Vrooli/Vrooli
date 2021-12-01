@@ -11,8 +11,4 @@ declare module 'react-router-dom' {
 }
 
 // Generate Sitemap
-export function Sitemap(props: any) {
-	return (
-		<DynamicSitemap routes={Routes} prettify={true} {...props}/>
-	);
-}
+export const Sitemap = (props: any) => <DynamicSitemap routes={Routes} prettify={true} {...props}/>

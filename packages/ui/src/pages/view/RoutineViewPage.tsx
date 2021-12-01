@@ -1,0 +1,1 @@
+export const RoutineViewPage = () => { return ( <div></div> ) }

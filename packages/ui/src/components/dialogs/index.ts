@@ -1,4 +1,4 @@
 export * from './AlertDialog';
-export * from './EditImageDialog';
+export * from './ComponentWrapperDialog';
 export * from './ListDialog';
 export * from './transitions';

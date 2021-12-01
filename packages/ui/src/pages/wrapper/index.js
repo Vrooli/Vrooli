@@ -1,3 +1,3 @@
 export * from './FormPage';
 export * from './Page';
-export * from './RunRoutine';
+export * from './RunRoutinePage';

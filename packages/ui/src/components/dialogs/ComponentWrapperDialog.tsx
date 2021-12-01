@@ -1,3 +1,6 @@
+// Wraps Organization, Actor, Project, or Routine page in a dialog.
+// Used if components were navigated to, rather than directly loaded via url
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { makeStyles } from '@material-ui/styles';
 import {
@@ -72,7 +75,7 @@ interface Props {
     onClose: () => any;
 }
 
-export const CustomerDialog = ({
+export const ActorDialog = ({
     customer,
     open = true,
     onClose,

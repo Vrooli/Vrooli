@@ -23,13 +23,16 @@ export const LINKS = {
     Learn: '/learn', // Learn dashboard
     LogIn: '/login', // Page with log in form
     Mission: '/mission', // More details about the project's overall vision
-    Portal: '/portal', // Main page for logged-in customers. Shows created and liked routines, displayed either as a knowledge graph or classical file structure
+    Orchestration: '/orchestration', // View or update routine orchestration
+    Organization: '/organization', // View or update specific organization
     PrivacyPolicy: '/privacy-policy', // Privacy policy
-    Profile: '/profile', // View and update profile and settings
+    Profile: '/profile', // View or update profile and settings (or view another actor's profile)
+    Project: '/project', // View or update specific project
     Projects: '/projects', // View your created and saved projects
     Register: '/register', // Page with register form
     Research: '/research', // Research dashboard
     Roadmap: '/mission#roadmap', // Start of roadmap slide
+    Routine: '/routine', // View or update specific routine
     Run: '/run', // Displays a UI corresponding to the current subroutine
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
     Search: '/search', // Search routines and users
