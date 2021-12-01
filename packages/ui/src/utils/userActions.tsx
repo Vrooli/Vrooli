@@ -4,7 +4,6 @@ import {
     Flag as MissionIcon,
     Home as HomeIcon,
     Info as AboutIcon,
-    PersonAdd as LogInIcon,
     PlayCircle as DevelopIcon,
     School as LearnIcon,
     Science as ResearchIcon,
@@ -24,7 +23,7 @@ import {
 import { UserRoles } from 'types';
 
 export type ActionArray = [string, any, string, (() => any) | null, any, number];
-interface Action {
+export interface Action {
     label: string;
     value: any;
     link: string;
@@ -41,13 +40,12 @@ interface GetUserActionsProps {
 export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps): Action[] {
     let actions: ActionArray[] = [];
 
-    // If someone is not logged in, display sign up/log in links
     if (!userRoles) {
         actions.push(
             ['Home', 'home', LINKS.Landing, null, HomeIcon, 0],
             ['Mission', 'mission', LINKS.Mission, null, MissionIcon, 0],
             ['About Us', 'about', LINKS.About, null, AboutIcon, 0],
-            ['Log In', 'waitlist', LINKS.LogIn, null, LogInIcon, 0],
+            ['Start', 'waitlist', LINKS.LogIn, null, DevelopIcon, 0],
             );
     } else {
         actions.push(

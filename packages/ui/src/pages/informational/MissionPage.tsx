@@ -1,32 +1,20 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Slide } from 'components';
-import { useQuery } from '@apollo/client';
-import { imagesByLabelQuery } from 'graphql/query';
-import { ImageUse, SERVER_URL } from '@local/shared';
-import { getImageSrc, LINKS } from 'utils';
+import { LINKS } from 'utils';
 import { makeStyles } from '@material-ui/styles';
 import Thinking from 'assets/img/thinking.png';
 import Target from 'assets/img/target.png';
-import Mission from 'assets/img/mission-2.png';
-import { Theme } from '@material-ui/core';
+import Mission from 'assets/img/rocket.png';
 
-const useStyles = makeStyles((theme: Theme) => ({
+const useStyles = makeStyles(() => ({
     root: {
-        paddingTop: 'calc(10vh - 10px)',
-    },
-    [theme.breakpoints.down(600)]: {
-        root: {
-            paddingTop: 'calc(14vh - 10px)',
-        }
+        paddingTop: '10vh',
     },
 }))
 
 export const MissionPage = () => {
     const classes = useStyles();
-    // Load all images on page
-    const [imageData, setImageData] = useState([]);
     const [width, setWidth] = useState(window.innerWidth);
-    const { data: currImages } = useQuery(imagesByLabelQuery, { variables: { label: ImageUse.MISSION } });
 
     // Auto-updates width. Used to determine what size image to fetch
     useEffect(() => {
@@ -36,15 +24,6 @@ export const MissionPage = () => {
             window.removeEventListener('resize', onResize)
         }
     })
-
-    useEffect(() => {
-        // Table data must be extensible, and needs position
-        setImageData(currImages?.imagesByLabel);
-    }, [currImages])
-
-    const getImage = useCallback((pos: number, size?: number): string | null => {
-        return imageData?.length > pos ? `${SERVER_URL}/${getImageSrc(imageData[pos], size ?? width)}` : null;
-    }, [imageData, width])
 
     // Slides in order
     const slides = [
@@ -96,7 +75,7 @@ export const MissionPage = () => {
         {
             id: 'welcome-to-vrooli',
             title: { text: 'Welcome to Vrooli', position: 'center', style: 'pop' },
-            background: { image: getImage(0), alt: 'Abstract network image - By Vectoreezy' },
+            background: { background: '#06125f' },
             body: [
                 {
                     content: [

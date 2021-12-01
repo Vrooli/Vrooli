@@ -2,11 +2,12 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { actionsToMenu, getUserActions } from 'utils';
-import { Container, Theme } from '@material-ui/core';
+import { Action, actionsToMenu, getUserActions } from 'utils';
+import { Button, Container, Theme } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { useHistory } from 'react-router-dom';
 import { CommonProps } from 'types';
+import { useMemo } from 'react';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -20,6 +21,15 @@ const useStyles = makeStyles((theme: Theme) => ({
         background: 'transparent',
         color: theme.palette.primary.contrastText,
         textTransform: 'none',
+        fontSize: '1.5em',
+        '&:hover': {
+            color: theme.palette.secondary.light,
+        },
+    },
+    button: {
+        fontSize: '1.5em',
+        marginLeft: '20px',
+        borderRadius: '10px',
     },
     menuItem: {
         color: theme.palette.primary.contrastText,
@@ -40,11 +50,20 @@ export const NavList = ({
     const classes = useStyles();
     const history = useHistory();
 
-    const nav_actions = getUserActions({ userRoles, exclude: ['home'] });
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ userRoles, exclude: ['home'] }), [userRoles]);
+    const log_in_action: Action | undefined = nav_actions.find((action: Action) => action.label === 'Log In')
+    const log_in_button = useMemo(() => log_in_action ? (
+        <Button 
+            className={classes.button} 
+            onClick={() => history.push(log_in_action.link)}
+            >
+                {log_in_action.label}
+        </Button>
+    ) : null, [log_in_action, classes.button, history])
 
     return (
         <Container className={classes.root}>
-            <PopupMenu 
+            <PopupMenu
                 text="Contact"
                 variant="text"
                 size="large"
@@ -53,10 +72,11 @@ export const NavList = ({
                 <ContactInfo className={classes.contact} business={business} />
             </PopupMenu>
             {actionsToMenu({
-                actions: nav_actions,
+                actions: nav_actions.filter((a: Action) => a.label !== 'Log In'),
                 history,
                 classes: { root: classes.navItem },
             })}
+            {log_in_button}
         </Container>
     );
 }

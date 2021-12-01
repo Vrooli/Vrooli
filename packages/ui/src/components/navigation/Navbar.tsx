@@ -12,7 +12,8 @@ const SHOW_HAMBURGER_AT = 1000;
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
-        background: theme.palette.primary.main,
+        background: theme.palette.primary.dark,
+        height: '10vh',
     },
     toRight: {
         marginLeft: 'auto',
@@ -35,8 +36,8 @@ const useStyles = makeStyles((theme: Theme) => ({
         marginLeft: 'max(-5px, -5vw)',
         minWidth: '50px',
         minHeight: '50px',
-        width: '12vh',
-        height: '12vh',
+        width: '6vh',
+        height: '6vh',
     },
     navName: {
         position: 'relative',
@@ -93,8 +94,8 @@ export const Navbar = ({
 
     return (
         <HideOnScroll>
-            <AppBar>
-                <Toolbar className={classes.root}>
+            <AppBar className={classes.root}>
+                <Toolbar>
                     <div className={classes.navLogoContainer} onClick={toLanding}>
                         <div className={classes.navLogoDiv}>
                             <img src={Logo} alt={`${business?.BUSINESS_NAME?.Short} Logo`} className={classes.navLogo} />

@@ -257,7 +257,7 @@ const Routes = (props: CommonProps) => {
                 sitemapIndex={true}
                 priority={0.8}
                 render={() => (
-                    <Page title={title('Log In')} {...props}>
+                    <Page title={title('Join Us')} {...props}>
                         <FormPage title="Join Waitlist" maxWidth="700px">
                             <WaitlistForm {...props} />
                         </FormPage>

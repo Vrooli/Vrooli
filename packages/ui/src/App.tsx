@@ -49,7 +49,7 @@ const useStyles = makeStyles(() => ({
             fontFamily: 'Lato',
             src: `local('Lato'), url(${SakBunderan}) format('truetype')`,
             fontDisplay: 'swap',
-        }
+        },
     },
     contentWrap: {
         minHeight: '100vh',

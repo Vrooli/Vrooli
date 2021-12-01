@@ -1,4 +1,3 @@
-export * from './addImages';
 export * from './deleteCustomerMutation';
 export * from './joinWaitlist';
 export * from './updateCustomer';

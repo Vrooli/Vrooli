@@ -14,6 +14,9 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
     icon: {
         color: theme.palette.primary.contrastText,
+        '&:hover': {
+            color: theme.palette.secondary.light,
+        },
     },
     [theme.breakpoints.up(1000)]: {
         root: {

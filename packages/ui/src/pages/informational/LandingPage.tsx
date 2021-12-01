@@ -1,35 +1,24 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Slide } from 'components';
-import { useQuery } from '@apollo/client';
-import { imagesByLabelQuery } from 'graphql/query';
-import { ImageUse, SERVER_URL } from '@local/shared';
-import { getImageSrc, LINKS } from 'utils';
+import { LINKS } from 'utils';
 import { makeStyles } from '@material-ui/styles';
-import { Box, Theme } from '@material-ui/core';
+import { Box } from '@material-ui/core';
 import Relax from 'assets/img/relax.png';
 import BlankRoutine from 'assets/img/blank-routine-1.png';
 import MonkeyCoin from 'assets/img/monkey-coin-page.png';
 import Community from 'assets/img/community.svg';
 import Blockchain from 'assets/img/blockchain.png';
+import World from 'assets/img/world.png';
 
-const useStyles = makeStyles((theme: Theme) => ({
+const useStyles = makeStyles(() => ({
     root: {
-        paddingTop: 'calc(7vh - 10px)',
-    },
-    [theme.breakpoints.down(600)]: {
-        root: {
-            paddingTop: 'calc(14vh - 10px)',
-        }
+        paddingTop: '10vh',
     },
 }))
 
 export const LandingPage = () => {
     const classes = useStyles();
-    // Load all images on page
-    const [imageData, setImageData] = useState([]);
     const [width, setWidth] = useState(window.innerWidth);
-    const { data: currImages } = useQuery(imagesByLabelQuery, { variables: { label: ImageUse.HOME } });
-
     // Auto-updates width. Used to determine what size image to fetch
     useEffect(() => {
         const onResize = () => setWidth(window.innerWidth);
@@ -38,19 +27,6 @@ export const LandingPage = () => {
             window.removeEventListener('resize', onResize)
         }
     })
-
-    useEffect(() => {
-        // Table data must be extensible, and needs position
-        setImageData(currImages?.imagesByLabel?.map((image, index) => ({
-            ...image,
-            src: `${SERVER_URL}/${getImageSrc(image, width)}`,
-            pos: index
-        })));
-    }, [currImages, width])
-
-    const getImage = useCallback((pos): any => {
-        return imageData?.length > pos ? imageData[pos] : null
-    }, [imageData])
 
     // Slides in orderbackground: rgb(8,24,79);
     const slides = [
@@ -136,7 +112,7 @@ export const LandingPage = () => {
         {
             id: 'fund-your-idea',
             title: { text: 'Build With the Community', color: 'white' },
-            background: { image: getImage(0)?.src ?? '' },
+            background: { background: '#06125f' },
             body: [
                 {
                     sm: 6,
@@ -172,7 +148,7 @@ export const LandingPage = () => {
         {
             id: 'join-the-movement',
             title: { text: 'Join the Movement', style: 'pop' },
-            background: { image: getImage(1)?.src, fixed: true },
+            background: { image: World, fixed: true },
             body: [
                 {
                     content: [{ title: { text: `Be one of the first users when the project launches in Q1 2022. Let's change the world together!💙`, color: 'white', textAlign: 'center' } }]
