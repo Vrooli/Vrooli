@@ -15,6 +15,7 @@ export const THEME = {
 export type THEME = ValueOf<typeof THEME>;
 
 export const ROLES = {
-    Customer: "Customer",
+    Guest: 'Guest',
+    Customer: 'Customer',
 }
 export type ROLES = ValueOf<typeof ROLES>;

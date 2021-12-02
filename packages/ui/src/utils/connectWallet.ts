@@ -1,4 +1,5 @@
 // Handles wallet integration
+/* eslint-disable @typescript-eslint/no-redeclare */
 import { ValueOf } from '@local/shared';
 
 export const WALLET_TYPES = {

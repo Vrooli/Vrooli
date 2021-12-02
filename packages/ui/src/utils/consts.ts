@@ -36,6 +36,7 @@ export const LINKS = {
     Run: '/run', // Displays a UI corresponding to the current subroutine
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
     Search: '/search', // Search routines and users
+    Start: '/start', // Provides options for entering application
     Terms: '/terms-and-conditions', // Terms and conditions
     Waitlist: '/join-us' // Form to join waitlist
 }

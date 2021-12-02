@@ -7,7 +7,7 @@ import {
     Snack
 } from 'components';
 import PubSub from 'pubsub-js';
-import { PUBS, themes } from 'utils';
+import { LINKS, PUBS, themes } from 'utils';
 import { Routes } from 'Routes';
 import { CssBaseline, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from '@material-ui/core/styles';
@@ -24,6 +24,7 @@ import { readAssets, readAssetsVariables } from 'graphql/generated/readAssets';
 import { login } from 'graphql/generated/login';
 import hotkeys from 'hotkeys-js';
 import { useLocation } from 'react-router';
+import { ROLES } from '@local/shared';
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -36,8 +37,8 @@ const useStyles = makeStyles(() => ({
         '#page': {
             minWidth: '100%',
             minHeight: '100%',
-            padding: '1em',
-            paddingTop: 'calc(14vh + 20px)'
+            padding: '0.5em',
+            paddingTop: '10vh'
         },
         '@media (min-width:500px)': {
             '#page': {
@@ -126,7 +127,7 @@ export function App() {
         if (session?.theme) setTheme(themes[session?.theme])
         //else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
         else setTheme(themes.light);
-        setRoles(session?.roles ? session.roles.map(r => r.role) : null);
+        setRoles(session?.roles ?? null);
     }, [session])
 
     const checkLogin = useCallback((session?: any) => {
@@ -134,13 +135,22 @@ export function App() {
             setSession(session);
             return;
         }
+        // If navigated directly to application, set guest session
+        if (pathname.length > 1 && 
+            !['/#', LINKS.About, LINKS.Mission, LINKS.PrivacyPolicy, 
+            LINKS.Terms, LINKS.LogIn, LINKS.Register, LINKS.Register, 
+            LINKS.Waitlist, LINKS.Start].some(sub => pathname.startsWith(sub))) {
+            setSession({roles:[ROLES.Guest]});
+        }
+        // Check if previous log in exists
         login().then((response) => {
             setSession(response?.data?.login);
         }).catch((response) => {
             if (process.env.NODE_ENV === 'development') console.error('Error: cannot login', response);
-            setSession({})
+            // If not logged in as guest and failed to log in as user, set empty object
+            if (session === null) setSession({})
         })
-    }, [login])
+    }, [login, pathname])
 
     useEffect(() => {
         checkLogin();

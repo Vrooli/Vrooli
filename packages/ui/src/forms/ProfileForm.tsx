@@ -31,7 +31,7 @@ const useStyles = makeStyles(combineStyles(formStyles, componentStyles));
 export const ProfileForm = () => {
     const classes = useStyles()
     const [editing, setEditing] = useState(false);
-    const { data: profile } = useQuery<profile>(profileQuery);
+    const { data: profile } = useQuery<any>(profileQuery);
     const [updateCustomer, { loading }] = useMutation<updateCustomer>(updateCustomerMutation);
 
     const formik = useFormik({

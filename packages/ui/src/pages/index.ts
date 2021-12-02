@@ -6,4 +6,5 @@ export * from './NotFoundPage';
 export * from './ProjectsPage';
 export * from './RoutineOrchestratorPage';
 export * from './SettingsPage';
+export * from './StartPage';
 export * from './styles';

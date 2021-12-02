@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ContactInfo } from 'components';
-import { actionsToList, getUserActions, PUBS } from 'utils';
+import { actionsToList, ACTION_TAGS, getUserActions, PUBS } from 'utils';
 import PubSub from 'pubsub-js';
 import {
     Close as CloseIcon,
@@ -74,7 +74,7 @@ export const Hamburger = ({
         setContactOpen(!contactOpen);
     };
 
-    const nav_actions = getUserActions({ userRoles, exclude: ['home'] });
+    const nav_actions = getUserActions({ userRoles, exclude: [ACTION_TAGS.Landing] });
 
     return (
         <>

@@ -1,6 +1,7 @@
 import React from "react";
+import { makeStyles } from '@material-ui/styles';
 
-const useStyles = (theme) => ({
+const useStyles = makeStyles((theme) => ({
     videoResponsive: {
         overflow: 'hidden',
         paddingBottom: '56.25%',
@@ -14,7 +15,7 @@ const useStyles = (theme) => ({
             position: 'absolute',
         }
     }
-})
+}));
 
 interface Props {
     className?: string;

@@ -2,7 +2,6 @@ export * from './arrayTools';
 export * from './combineStyles';
 export * from './consts';
 export * from './formatData';
-export * from './imageTools';
 export * from './makeID';
 export * from './objectTools';
 export * from './theme';

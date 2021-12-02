@@ -2,7 +2,7 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { Action, actionsToMenu, getUserActions } from 'utils';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils';
 import { Button, Container, Theme } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { useHistory } from 'react-router-dom';
@@ -50,7 +50,7 @@ export const NavList = ({
     const classes = useStyles();
     const history = useHistory();
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ userRoles, exclude: ['home'] }), [userRoles]);
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ userRoles, exclude: [ACTION_TAGS.Landing] }), [userRoles]);
     const log_in_action: Action | undefined = nav_actions.find((action: Action) => action.label === 'Log In')
     const log_in_button = useMemo(() => log_in_action ? (
         <Button 
