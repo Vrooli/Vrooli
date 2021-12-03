@@ -60,16 +60,14 @@ export const SignUpForm = ({
                     onSessionUpdate(response.data.signUp);
                     PubSub.publish(PUBS.AlertDialog, {
                         message: `Welcome to ${business?.BUSINESS_NAME?.Short}. Please verify your email within 48 hours.`,
-                        firstButtonText: 'OK',
-                        firstButtonClicked: () => history.push(LINKS.Profile),
+                        buttons: [ { text: 'OK', onClick: () => history.push(LINKS.Profile) } ]
                     });
                 },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.EmailInUse.code)) {
                         PubSub.publish(PUBS.AlertDialog, {
                             message: `${response.message}. Press OK if you would like to be redirected to the forgot password form.`,
-                            firstButtonText: 'OK',
-                            firstButtonClicked: () => history.push(LINKS.ForgotPassword),
+                            buttons: [ { text: 'OK', onClick: () => history.push(LINKS.ForgotPassword) } ]
                         });
                     }
                 }

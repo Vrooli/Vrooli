@@ -119,9 +119,10 @@ export const ActorDialog = ({
     const confirmDelete = useCallback(() => {
         PubSub.publish(PUBS.AlertDialog, {
             message: `Are you sure you want to delete the account for ${currCustomer?.firstName} ${currCustomer?.lastName}?`,
-            firstButtonText: 'Yes',
-            firstButtonClicked: deleteCustomer,
-            secondButtonText: 'No',
+            buttons: [
+                { text: 'Yes', onClick: deleteCustomer },
+                { text: 'No' },
+            ]
         });
     }, [currCustomer, deleteCustomer])
 

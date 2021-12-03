@@ -10,22 +10,21 @@ import {
 import { PUBS } from 'utils';
 import PubSub from 'pubsub-js';
 
+interface StateButton {
+    text: string;
+    onClick: (() => void) | null;
+}
+
 interface State {
     title?: string | null;
     message?: string | null;
-    firstButtonText?: string;
-    firstButtonClicked?: (() => void) | null;
-    secondButtonText?: string | null;
-    secondButtonClicked?: (() => void) | null;
+    buttons: StateButton[];
 }
 
 const default_state: State = {
     title: null,
     message: null,
-    firstButtonText: 'Ok',
-    firstButtonClicked: null,
-    secondButtonText: null,
-    secondButtonClicked: null,
+    buttons: [{text: 'Ok', onClick: null}],
 };
 
 const AlertDialog = () => {
@@ -41,9 +40,6 @@ const AlertDialog = () => {
         if (action) action();
         setState(default_state);
     }, []);
-
-    const clickFirst = useCallback(() => handleClick(state.firstButtonClicked), [handleClick, state.firstButtonClicked]);
-    const clickSecond = useCallback(() => handleClick(state.secondButtonClicked), [handleClick, state.secondButtonClicked]);
 
     const resetState = useCallback(() => setState(default_state), []);
 
@@ -61,14 +57,13 @@ const AlertDialog = () => {
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
-                <Button onClick={clickFirst} color="secondary">
-                    {state.firstButtonText}
-                </Button>
-                {state.secondButtonText ? (
-                    <Button onClick={clickSecond} color="secondary">
-                        {state.secondButtonText}
-                    </Button>
-                ) : null}
+                {state?.buttons && state.buttons.length > 0 ? (
+                    state.buttons.map((b:StateButton) => (
+                        <Button onClick={() => handleClick(b.onClick)} color="secondary">
+                            {b.text}
+                        </Button>
+                    ))
+                ): null}
             </DialogActions>
         </Dialog>
     );

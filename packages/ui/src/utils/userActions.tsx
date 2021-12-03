@@ -67,9 +67,12 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
             ['Start', ACTION_TAGS.Start, LINKS.Start, null, DevelopIcon, 0],
         );
     } else {
+        actions.push(['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]);
+        // Projects only displayed if logged in
+        if (userRoles.includes(ROLES.Customer)) {
+            actions.push(['Projects', ACTION_TAGS.Projects, LINKS.Projects, null, ProjectsIcon, 0]);
+        }
         actions.push(
-            ['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0],
-            ['Projects', ACTION_TAGS.Projects, LINKS.Projects, null, ProjectsIcon, 0],
             ['Learn', ACTION_TAGS.Learn, LINKS.Learn, null, LearnIcon, 0],
             ['Research', ACTION_TAGS.Research, LINKS.Research, null, ResearchIcon, 0],
             ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
