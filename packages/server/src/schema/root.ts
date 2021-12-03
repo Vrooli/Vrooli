@@ -2,6 +2,7 @@ import { gql } from 'apollo-server-express';
 import { GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
+import ogs from 'open-graph-scraper';
 
 export const typeDef = gql`
     scalar Date
@@ -17,11 +18,21 @@ export const typeDef = gql`
         code: Int
         message: String!
     }
+
+    # Return type for Open Graph queries
+    type OpenGraphResponse {
+        site: String
+        title: String
+        description: String
+        imageUrl: String
+    }
+
     # Base query. Must contain something,
     # which can be as simple as '_empty: String'
     type Query {
         # _empty: String
         readAssets(files: [String!]!): [String]!
+        readOpenGraph(url: String!): OpenGraphResponse!
     }
     # Base mutation. Must contain something,
     # which can be as simple as '_empty: String'
@@ -48,12 +59,27 @@ export const resolvers = {
         }
     }),
     Query: {
-        readAssets: async (_parent: undefined, args: any, _context: any, _info: any) => {
+        readAssets: async (_parent: undefined, args: any) => {
             return await readFiles(args.files);
         },
+        readOpenGraph: async (_parent: undefined, args: any) => {
+            return await ogs({ url: args.url })
+                .then((data: any) => {
+                    const { result } = data;
+                    return {
+                        site: result?.ogSiteName,
+                        title: result?.ogTitle,
+                        description: result?.ogDescription,
+                        imageUrl: result?.ogImage?.url,
+                    };
+                }).catch(err => {
+                    console.error('Caught error fetching Open Graph url', err);
+                    return {};
+                }).finally(() => {return {}})
+        }
     },
     Mutation: {
-        writeAssets: async (_parent: undefined, args: any, _context: any, _info: any) => {
+        writeAssets: async (_parent: undefined, args: any) => {
             const data = await saveFiles(args.files);
             // Any failed writes will return null
             return !data.some(d => d === null)

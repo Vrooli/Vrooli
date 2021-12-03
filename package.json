@@ -4,7 +4,5 @@
         "packages/*"
     ],
     "author": "Vrooli",
-    "license": "GPL-3.0",
-    "devDependencies": {},
-    "dependencies": {}
+    "license": "GPL-3.0"
 }

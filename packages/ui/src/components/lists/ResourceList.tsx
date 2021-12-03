@@ -1,6 +1,5 @@
 import { makeStyles } from '@material-ui/styles';
-import { Theme } from '@material-ui/core';
-import { useMemo } from 'react';
+import { Theme, Typography } from '@material-ui/core';
 import { ResourceCard } from 'components';
 
 //TODO Temp data for designing card
@@ -9,48 +8,51 @@ const cardData = [
     {
         title: 'Chill Beats',
         description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris',
-        link: 'https://www.youtube.com/c/LofiGirl'
+        url: 'https://www.youtube.com/c/LofiGirl'
     },
     {
         title: 'Code repo',
-        link: 'https://github.com/MattHalloran/Vrooli'
+        url: 'https://github.com/MattHalloran/Vrooli'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
     },
     {
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        url: 'http://ogp.me/'
     }
 ]
 
 const useStyles = makeStyles((theme: Theme) => ({
+    title: {
+        textAlign: 'center',
+    },
     hs: {
         border: `2px dashed ${theme.palette.text.primary}`,
         borderRadius: '10px',
@@ -100,21 +102,20 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 export const ResourceList = ({
-
+    title = 'Resources'
 }) => {
     const classes = useStyles();
 
-    const cards: any = useMemo(() => {
-        cardData.map((c: any) => <ResourceCard resource={c} />)
-    }, [])
-
     return (
-        <ul className={`${classes.hs} full ${classes.noScrollbar}`}>
-            {cardData.map((c: any) => (
-                <li className={classes.item}>
-                    <ResourceCard resource={c} />
-                </li>
-            ))}
-        </ul>
+        <div>
+            <Typography variant="h3" className={classes.title}>{title}</Typography>
+            <ul className={`${classes.hs}`}>
+                {cardData.map((c: any) => (
+                    <li className={classes.item}>
+                        <ResourceCard resource={c} />
+                    </li>
+                ))}
+            </ul>
+        </div>
     )
 }

@@ -51,15 +51,16 @@ export const NavList = ({
     const history = useHistory();
 
     const nav_actions = useMemo<Action[]>(() => getUserActions({ userRoles, exclude: [ACTION_TAGS.Landing] }), [userRoles]);
-    const log_in_action: Action | undefined = nav_actions.find((action: Action) => action.label === 'Log In')
-    const log_in_button = useMemo(() => log_in_action ? (
+    // Display button for entering main application
+    const enter_action: Action | undefined = nav_actions.find((action: Action) => action.value === ACTION_TAGS.Start || action.value === ACTION_TAGS.LogIn)
+    const enter_button = useMemo(() => enter_action ? (
         <Button 
             className={classes.button} 
-            onClick={() => history.push(log_in_action.link)}
+            onClick={() => history.push(enter_action.link)}
             >
-                {log_in_action.label}
+                {enter_action.label}
         </Button>
-    ) : null, [log_in_action, classes.button, history])
+    ) : null, [enter_action, classes.button, history])
 
     return (
         <Container className={classes.root}>
@@ -72,11 +73,11 @@ export const NavList = ({
                 <ContactInfo className={classes.contact} business={business} />
             </PopupMenu>
             {actionsToMenu({
-                actions: nav_actions.filter((a: Action) => a.label !== 'Log In'),
+                actions: nav_actions.filter((a: Action) => a.value !== ACTION_TAGS.Start && a.value !== ACTION_TAGS.LogIn),
                 history,
                 classes: { root: classes.navItem },
             })}
-            {log_in_button}
+            {enter_button}
         </Container>
     );
 }
