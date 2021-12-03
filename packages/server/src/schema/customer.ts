@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import bcrypt from 'bcrypt';
 import { CODE, COOKIE, joinWaitlistSchema, logInSchema, passwordSchema, signUpSchema, requestPasswordChangeSchema } from '@local/shared';
 import { CustomError, validateArgs } from '../error';
-import { generateToken } from '../auth';
+import { generateToken } from '../auth/auth';
 import { confirmJoinWaitlist, customerNotifyAdmin, joinedWaitlist, joinWaitlistNotifyAdmin, sendResetPasswordLink, sendVerificationLink } from '../worker/email/queue';
 import { PrismaSelect } from '@paljs/plugins';
 import { customerFromEmail, upsertCustomer } from '../db/models/customer';

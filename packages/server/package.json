@@ -15,6 +15,7 @@
         "prisma-generate": "prisma generate --schema src/prisma/schema.prisma"
     },
     "dependencies": {
+        "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
         "@local/shared": "0.0.1",
         "@paljs/plugins": "^4.0.8",
