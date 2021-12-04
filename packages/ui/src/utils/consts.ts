@@ -13,6 +13,16 @@ export const PUBS = {
 }
 export type PUBS = ValueOf<typeof PUBS>;
 
+export const FORMS = {
+    ForgotPassword: 'forgot-password',
+    LogIn: 'login',
+    Profile: 'profile',
+    ResetPassword: 'reset-password',
+    SignUp: 'signup',
+    Waitlist: 'waitlist'
+}
+export type FORMS = ValueOf<typeof FORMS>;
+
 export const LINKS = {
     About: '/about', // Overview of project, the vision, and the team
     Benefits: '/#understand-your-workflow', // Start of slides overviewing benefits of using Vrooli

@@ -1,18 +1,30 @@
+// Provides 3 options for entering the main application:
+// 1. Wallet authentication - Quickest and safest method, but requires Nami extension
+// 2. Email authentication - Requires email and password. Pretty safe if using password manager, 
+// but wallet must be connected before performing any blockchain-related activities
+// 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
+// be able to utilize the full functionality of the service
 import { useHistory } from 'react-router-dom';
 import {
     Button,
-    Container,
+    Dialog,
     Grid,
     Typography,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { Theme } from '@material-ui/core';
-import { LINKS, PUBS } from 'utils';
-import React, { useCallback, useState } from 'react';
+import { FORMS, LINKS, PUBS } from 'utils';
+import { useCallback, useMemo, useState } from 'react';
 import { connectWallet } from 'utils/connectWallet';
 import { CommonProps } from 'types';
 import { ROLES } from '@local/shared';
 import { HelpButton } from 'components';
+import {
+    LogInForm,
+    ForgotPasswordForm,
+    SignUpForm,
+    ResetPasswordForm,
+} from 'forms';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -36,24 +48,43 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
-const LOGIN_METHODS = {
-    Wallet: 'wallet',
-    Email: 'email',
-}
-
 export const StartPage = ({
     onSessionUpdate
 }: Pick<CommonProps, 'onSessionUpdate'>) => {
     const classes = useStyles();
     const history = useHistory();
-    const [loginMethod, setLoginMethod] = useState<string | null>(null);
+    // Handles email authentication popup
+    const [emailPopupOpen, setEmailPopupOpen] = useState(false);
+    const [popupForm, setPopupForm] = useState<FORMS>(FORMS.LogIn);
+    const handleFormChange = useCallback((type: FORMS = FORMS.LogIn) => type !== popupForm && setPopupForm(type), [popupForm]);
+    const Form = useMemo(() => {
+        switch (popupForm) {
+            case FORMS.ForgotPassword:
+                return ForgotPasswordForm
+            case FORMS.LogIn:
+                return LogInForm
+            case FORMS.ResetPassword:
+                return ResetPasswordForm
+            case FORMS.SignUp:
+                return SignUpForm
+            default:
+                return LogInForm
+        }
+    }, [popupForm])
 
+    // Opens link to install wallet extension
     const downloadExtension = useCallback(() => {
         const extensionLink = `https://chrome.google.com/webstore/detail/nami-wallet/lpfcbjknijpeeillifnkikgncikgfhdo`;
         window.open(extensionLink, '_blank', 'noopener,noreferrer');
     }, [])
 
-    const toEmailLogin = useCallback(() => setLoginMethod(LOGIN_METHODS.Email), [])
+
+    const toEmailLogIn = useCallback(() => {
+        setPopupForm(FORMS.LogIn);
+        setEmailPopupOpen(true);
+    }, [])
+
+    const closeEmailPopup = useCallback(() => setEmailPopupOpen(false), [])
 
     const walletLogin = useCallback(async () => {
         console.log('[] useeffect', window.cardano);
@@ -70,11 +101,11 @@ export const StartPage = ({
                 buttons: [
                     { text: 'Try Again', onClick: walletLogin },
                     { text: 'Install Nami', onClick: downloadExtension },
-                    { text: 'Email Login', onClick: toEmailLogin },
+                    { text: 'Email Login', onClick: toEmailLogIn },
                 ]
             });
         }
-    }, [downloadExtension, history, toEmailLogin])
+    }, [downloadExtension, history, onSessionUpdate, toEmailLogIn])
 
     const guestLogin = useCallback(() => {
         // Set user role as guest
@@ -101,7 +132,7 @@ export const StartPage = ({
                     <Button
                         className={classes.option}
                         fullWidth
-                        onClick={toEmailLogin}
+                        onClick={toEmailLogIn}
                     >Email</Button>
                 </Grid>
                 <Grid item xs={12}>
@@ -112,6 +143,9 @@ export const StartPage = ({
                     >Enter As Guest</Button>
                 </Grid>
             </Grid>
+            <Dialog open={emailPopupOpen} onClose={closeEmailPopup}>
+                <Form onSessionUpdate={onSessionUpdate} onFormChange={handleFormChange} />
+            </Dialog>
         </div>
     );
 }

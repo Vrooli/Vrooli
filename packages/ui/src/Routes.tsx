@@ -6,9 +6,7 @@ import { LINKS } from 'utils';
 import { Sitemap } from 'Sitemap';
 import {
     ForgotPasswordForm,
-    LogInForm,
     ResetPasswordForm,
-    SignUpForm,
     WaitlistForm
 } from 'forms';
 import { ScrollToTop } from 'components';
@@ -252,19 +250,6 @@ const Routes = (props: CommonProps) => {
                 />
                 <Route
                     exact
-                    path={LINKS.Register}
-                    sitemapIndex={true}
-                    priority={0.9}
-                    render={() => (
-                        <Page title={title('Sign Up')} {...props}>
-                            <FormPage title="Sign Up" maxWidth="700px">
-                                <SignUpForm {...props} />
-                            </FormPage>
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
                     path={`${LINKS.Waitlist}/:code?`}
                     sitemapIndex={true}
                     priority={0.8}
@@ -272,19 +257,6 @@ const Routes = (props: CommonProps) => {
                         <Page title={title('Join Us')} {...props}>
                             <FormPage title="Join Waitlist" maxWidth="700px">
                                 <WaitlistForm {...props} />
-                            </FormPage>
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={`${LINKS.LogIn}/:code?`}
-                    sitemapIndex={true}
-                    priority={0.8}
-                    render={() => (
-                        <Page title={title('Log In')} {...props}>
-                            <FormPage title="Log In" maxWidth="700px">
-                                <LogInForm {...props} />
                             </FormPage>
                         </Page>
                     )}

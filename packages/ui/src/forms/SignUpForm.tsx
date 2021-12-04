@@ -13,14 +13,13 @@ import {
     useTheme
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
-import { combineStyles, LINKS, PUBS } from 'utils';
+import { combineStyles, FORMS, LINKS, PUBS } from 'utils';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useHistory } from 'react-router-dom';
 import { formStyles } from './styles';
-import { CommonProps } from 'types';
 import { signUp } from 'graphql/generated/signUp';
-import { useCallback } from 'react';
+import { FormProps } from 'forms';
 
 const componentStyles = () => ({
     phoneInput: {
@@ -32,8 +31,9 @@ const useStyles = makeStyles(combineStyles(formStyles, componentStyles));
 
 export const SignUpForm = ({
     business,
-    onSessionUpdate
-}: Pick<CommonProps, 'business' | 'onSessionUpdate'>) => {
+    onSessionUpdate,
+    onFormChange = () => {},
+}: FormProps) => {
     const classes = useStyles();
     const theme = useTheme();
     const history = useHistory();
@@ -67,7 +67,7 @@ export const SignUpForm = ({
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.EmailInUse.code)) {
                         PubSub.publish(PUBS.AlertDialog, {
                             message: `${response.message}. Press OK if you would like to be redirected to the forgot password form.`,
-                            buttons: [ { text: 'OK', onClick: () => history.push(LINKS.ForgotPassword) } ]
+                            buttons: [ { text: 'OK', onClick: () => onFormChange(FORMS.ForgotPassword) } ]
                         });
                     }
                 }
@@ -75,8 +75,8 @@ export const SignUpForm = ({
         },
     });
 
-    const toLogIn = useCallback(() => history.push(LINKS.LogIn), [history]);
-    const toForgotPassword = useCallback(() => history.push(LINKS.ForgotPassword), [history]);
+    const toLogIn = () => onFormChange(FORMS.LogIn);
+    const toForgotPassword = () => onFormChange(FORMS.ForgotPassword);
 
     return (
         <form className={classes.form} onSubmit={formik.handleSubmit}>
