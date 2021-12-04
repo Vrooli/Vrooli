@@ -14,6 +14,7 @@ import {
 import { makeStyles } from '@material-ui/styles';
 import { Theme } from '@material-ui/core';
 import { FORMS, LINKS, PUBS } from 'utils';
+import { useMutation } from '@apollo/client';
 import { useCallback, useMemo, useState } from 'react';
 import { connectWallet } from 'utils/connectWallet';
 import { CommonProps } from 'types';
@@ -25,6 +26,7 @@ import {
     SignUpForm,
     ResetPasswordForm,
 } from 'forms';
+import { addWalletMutation, verifyWalletMutation } from 'graphql/mutation';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -72,6 +74,9 @@ export const StartPage = ({
         }
     }, [popupForm])
 
+    const [addWallet] = useMutation<any>(addWalletMutation);
+    const [verifyWallet] = useMutation<any>(verifyWalletMutation);
+
     // Opens link to install wallet extension
     const downloadExtension = useCallback(() => {
         const extensionLink = `https://chrome.google.com/webstore/detail/nami-wallet/lpfcbjknijpeeillifnkikgncikgfhdo`;
@@ -98,6 +103,7 @@ export const StartPage = ({
         // Step 1. Requires user confirmation first time
         const success = await connectWallet();
         if (success) {
+            console.log('REWARD ADDRESS', window.cardano.getRewardAddress());
             // Set customer role
             onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
             // Redirect to main dashboard

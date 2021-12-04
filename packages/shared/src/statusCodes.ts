@@ -66,5 +66,13 @@ export const CODE = {
     MustResetPassword: {
         code: 'MUST_RESET_PASSWORD',
         message: 'Before signing in, please follow the link sent to your email to change your password.'
-    }
+    },
+    NotYourWallet: {
+        code: 'WALLET_ASSIGNED_TO_ANOTHER_ACCOUNT',
+        message: 'Wallet has already been verified by another account. If you believe this is a mistake, please contact us.'
+    },
+    NonceExpired: {
+        code: 'NONE_EXPIRED',
+        message: 'Nonce has expired. Please restart the sign in process (and complete it quicker this time :)'
+    },
 }

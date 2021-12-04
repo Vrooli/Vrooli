@@ -34,7 +34,7 @@ export const typeDef = gql`
 
     type Customer {
         id: ID!
-        username: String!
+        username: String
         pronouns: String!
         emails: [Email!]!
         theme: String!
