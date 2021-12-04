@@ -12,6 +12,7 @@ import React, { useCallback, useState } from 'react';
 import { connectWallet } from 'utils/connectWallet';
 import { CommonProps } from 'types';
 import { ROLES } from '@local/shared';
+import { HelpButton } from 'components';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -20,8 +21,11 @@ const useStyles = makeStyles((theme: Theme) => ({
         border: '2px solid brown',
         minHeight: '100vh', //Fullscreen
     },
-    prompt: {
+    horizontal: {
         textAlign: 'center',
+    },
+    prompt: {
+        display: 'inline-block',
     },
     buttonContainer: {
         maxWidth: '500px',
@@ -49,21 +53,14 @@ export const StartPage = ({
         window.open(extensionLink, '_blank', 'noopener,noreferrer');
     }, [])
 
-    const connectToWallet = useCallback(async () => {
-        console.log('[] useeffect', window.cardano);
-        const success = await connectWallet();
-        if (success) {
-            history.push(LINKS.Home);
-        }
-    }, [history])
-
     const toEmailLogin = useCallback(() => setLoginMethod(LOGIN_METHODS.Email), [])
 
     const walletLogin = useCallback(async () => {
         console.log('[] useeffect', window.cardano);
         const success = await connectWallet();
-        console.log('boop', success)
         if (success) {
+            // Set customer role
+            onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
             // Redirect to main dashboard
             history.push(LINKS.Home);
         } else {
@@ -86,35 +83,12 @@ export const StartPage = ({
         history.push(LINKS.Home)
     }, [history, onSessionUpdate]);
 
-    let form;
-    // Display login instructions and links for wallet login
-    if (loginMethod === 'wallet') {
-        form = <React.Fragment>
-            <Grid item xs={12} sm={6}>
-                <Button
-                    fullWidth
-                    color="secondary"
-                    onClick={downloadExtension}
-                >
-                    Download extension
-                </Button>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-                <Button
-                    fullWidth
-                    type="submit"
-                    color="secondary"
-                    onClick={connectToWallet}
-                >
-                    Connect wallet
-                </Button>
-            </Grid>
-        </React.Fragment>
-    }
-
     return (
         <div className={classes.root}>
-            <Typography variant="h6" className={classes.prompt}>Please select your login method</Typography>
+            <div className={classes.horizontal}>
+            <Typography className={classes.prompt} variant="h6">Please select your login method</Typography>
+            <HelpButton title={'boop'}/>
+            </div>
             <Grid className={classes.buttonContainer} container spacing={2}>
                 <Grid item xs={12}>
                     <Button

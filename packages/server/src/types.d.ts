@@ -5,10 +5,10 @@ import { Request } from 'express';
 declare global {
     namespace Express {
         interface Request {
-            validToken: boolean | undefined;
-            customerId: string | null | undefined;
-            roles: string[] | undefined;
-            isCustomer: boolean | undefined;
+            validToken?: boolean;
+            customerId?: string;
+            roles?: string[];
+            isCustomer?: boolean;
         }
     }
 }

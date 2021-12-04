@@ -70,7 +70,7 @@ export function joinWaitlistNotifyAdmin(username: string) {
     });
 }
 
-export function feedbackNotifyAdmin(text: string, from: string | null | undefined) {
+export function feedbackNotifyAdmin(text: string, from?: string) {
     emailQueue.add({
         to: [process.env.SITE_EMAIL_USERNAME],
         subject: `Received Vrooli Feedback!`,
