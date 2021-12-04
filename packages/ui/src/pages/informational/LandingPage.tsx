@@ -83,7 +83,7 @@ export const LandingPage = () => {
                     content: [{ title: { text: `This hierarchy simplifies the process of building routines, and allows you to inspect each part of your workflow in as much abstraction as you'd like!`, textAlign: 'center', color: 'white' } }]
                 },
                 {
-                    buttons: [{ text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }]
+                    buttons: [{ text: 'Enter Vrooli', position: 'center', color: 'secondary', link: LINKS.Start }]
                 }
             ],
         },
@@ -158,7 +158,7 @@ export const LandingPage = () => {
                 },
                 {
                     buttons: [
-                        { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist },
+                        { text: 'Log In', position: 'center', color: 'secondary', link: LINKS.Start },
                         { text: 'View Proposal', position: 'center', color: 'secondary', link: 'https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088' },
                         { text: 'Roadmap', position: 'center', color: 'secondary', link: LINKS.Roadmap }
                     ]

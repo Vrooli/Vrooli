@@ -19,7 +19,6 @@ export const FORMS = {
     Profile: 'profile',
     ResetPassword: 'reset-password',
     SignUp: 'signup',
-    Waitlist: 'waitlist'
 }
 export type FORMS = ValueOf<typeof FORMS>;
 
@@ -31,7 +30,6 @@ export const LINKS = {
     Home: '/app', // Main dashboard for logged in users
     Landing: '/', // Default page when not logged in. Similar to the about page, but more project details and less vision
     Learn: '/learn', // Learn dashboard
-    LogIn: '/login', // Page with log in form
     Mission: '/mission', // More details about the project's overall vision
     Orchestration: '/orchestration', // View or update routine orchestration
     Organization: '/organization', // View or update specific organization
@@ -39,7 +37,6 @@ export const LINKS = {
     Profile: '/profile', // View or update profile and settings (or view another actor's profile)
     Project: '/project', // View or update specific project
     Projects: '/projects', // View your created and saved projects
-    Register: '/register', // Page with register form
     Research: '/research', // Research dashboard
     Roadmap: '/mission#roadmap', // Start of roadmap slide
     Routine: '/routine', // View or update specific routine
@@ -47,7 +44,7 @@ export const LINKS = {
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
     Search: '/search', // Search routines and users
     Start: '/start', // Provides options for entering application
+    Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
     Terms: '/terms-and-conditions', // Terms and conditions
-    Waitlist: '/join-us' // Form to join waitlist
 }
 export type LINKS = ValueOf<typeof LINKS>;

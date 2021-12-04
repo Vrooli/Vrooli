@@ -84,9 +84,3 @@ export const resetPasswordSchema = yup.object().shape({
     newPassword: passwordSchema.required(),
     confirmNewPassword: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match')
 })
-
-// Schema for joining the waitlist
-export const joinWaitlistSchema = yup.object().shape({
-    username: usernameSchema.required(),
-    email: yup.string().email().required(),
-})

@@ -6,8 +6,7 @@ import { LINKS } from 'utils';
 import { Sitemap } from 'Sitemap';
 import {
     ForgotPasswordForm,
-    ResetPasswordForm,
-    WaitlistForm
+    ResetPasswordForm
 } from 'forms';
 import { ScrollToTop } from 'components';
 import { CommonProps } from 'types';
@@ -33,6 +32,7 @@ const {
     RoutineViewPage,
     RunRoutinePage,
     StartPage,
+    StatsPage,
     TermsPage,
 } = lazily(() => import('./pages'));
 
@@ -250,19 +250,6 @@ const Routes = (props: CommonProps) => {
                 />
                 <Route
                     exact
-                    path={`${LINKS.Waitlist}/:code?`}
-                    sitemapIndex={true}
-                    priority={0.8}
-                    render={() => (
-                        <Page title={title('Join Us')} {...props}>
-                            <FormPage title="Join Waitlist" maxWidth="700px">
-                                <WaitlistForm {...props} />
-                            </FormPage>
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
                     path={`${LINKS.ForgotPassword}/:code?`}
                     sitemapIndex={true}
                     priority={0.1}
@@ -288,6 +275,17 @@ const Routes = (props: CommonProps) => {
                     )}
                 />
                 {/* ========= END AUTHENTICATION ROUTES ========= */}
+
+                <Route
+                    exact
+                    path={LINKS.Stats}
+                    sitemapIndex={false}
+                    render={() => (
+                        <Page title={title('Stats📊')} {...props}>
+                            <StatsPage />
+                        </Page>
+                    )}
+                />
 
                 <Route
                     render={() => (

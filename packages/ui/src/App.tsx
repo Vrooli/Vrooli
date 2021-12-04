@@ -138,8 +138,7 @@ export function App() {
         // If navigated directly to application, set guest session
         if (pathname.length > 1 && 
             !['/#', LINKS.About, LINKS.Mission, LINKS.PrivacyPolicy, 
-            LINKS.Terms, LINKS.LogIn, LINKS.Register, LINKS.Register, 
-            LINKS.Waitlist, LINKS.Start].some(sub => pathname.startsWith(sub))) {
+            LINKS.Terms, LINKS.Start].some(sub => pathname.startsWith(sub))) {
             setSession({roles:[ROLES.Guest]});
         }
         // Check if previous log in exists

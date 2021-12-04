@@ -86,8 +86,16 @@ export const StartPage = ({
 
     const closeEmailPopup = useCallback(() => setEmailPopupOpen(false), [])
 
+    // Performs handshake to establish trust between site backend and user's wallet.
+    // 1. Whitelist website on wallet
+    // 2. Send public address to backend
+    // 3. Store public address and nonce in database
+    // 4. Sign human-readable message (which includes nonce) using wallet
+    // 5. Send signed message to backend for verification
+    // 6. Receive JWT and user session
     const walletLogin = useCallback(async () => {
         console.log('[] useeffect', window.cardano);
+        // Step 1. Requires user confirmation first time
         const success = await connectWallet();
         if (success) {
             // Set customer role

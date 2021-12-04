@@ -1,5 +1,4 @@
 export * from './deleteCustomerMutation';
-export * from './joinWaitlist';
 export * from './updateCustomer';
 export * from './login';
 export * from './logout';
@@ -7,5 +6,4 @@ export * from './requestPasswordChange';
 export * from './resetPasswordMutation';
 export * from './signUp';
 export * from './updateImages';
-export * from './verifyWaitlist';
 export * from './writeAssets';

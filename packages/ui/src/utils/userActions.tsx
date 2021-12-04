@@ -79,7 +79,7 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
         );
         // If user is entered main application, but not logged in
         if (!userRoles?.includes(ROLES.Customer)) {
-            actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.LogIn, null, RegisterIcon, 0]);
+            actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
         } else {
             actions.push(['Log Out', ACTION_TAGS.LogOut, LINKS.Landing, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, LogOutIcon, 0]);
         }

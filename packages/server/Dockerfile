@@ -40,6 +40,3 @@ USER root
 # Update and install unix packages
 RUN apk update
 RUN apk add netcat-openbsd
-
-# # Install Rust (used by library that verifies signed messages during authentication)
-# RUN bash <(curl -sf -L https://static.rust-lang.org/rustup.sh) -y
