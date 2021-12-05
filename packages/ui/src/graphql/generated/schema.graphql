@@ -63,8 +63,6 @@ type Mutation {
   signUp(username: String!, pronouns: String, email: String!, theme: String!, marketingEmails: Boolean!, password: String!): Customer!
   updateCustomer(input: CustomerInput!, currentPassword: String!, newPassword: String): Customer!
   deleteCustomer(id: ID!, password: String): Boolean
-  joinWaitlist(username: String!, email: String!): Boolean
-  verifyWaitlist(confirmationCode: String!): Boolean
   requestPasswordChange(email: String!): Boolean
   resetPassword(id: ID!, code: String!, newPassword: String!): Customer!
   changeCustomerStatus(id: ID!, status: AccountStatus!): Boolean

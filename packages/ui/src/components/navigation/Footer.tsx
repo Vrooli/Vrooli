@@ -64,8 +64,8 @@ export const Footer = ({
                         <ListItem button component="a" onClick={() => history.push(LINKS.About)} >
                             <ListItemText primary="About Us" />
                         </ListItem>
-                        <ListItem button component="a" onClick={() => history.push(LINKS.Waitlist)} >
-                            <ListItemText primary="Join Waitlist" />
+                        <ListItem button component="a" onClick={() => history.push(LINKS.Stats)} >
+                            <ListItemText primary="View Stats" />
                         </ListItem>
                     </List>
                 </Grid>

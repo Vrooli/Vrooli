@@ -1,6 +1,6 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import * as auth from './auth';
+import * as auth from './auth/auth';
 import cors from "cors";
 import { ApolloServer } from 'apollo-server-express';
 import { depthLimit } from './depthLimit';

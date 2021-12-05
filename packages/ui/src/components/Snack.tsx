@@ -15,10 +15,10 @@ export const SnackSeverity = {
 export type SnackSeverity = ValueOf<typeof SnackSeverity>;
 
 class SnackState {
-    message?: string | null =  null;
+    message?: string;
     severity?: SnackSeverity = SnackSeverity.Default;
     data?: any = null; // anything you'd like to print in development mode
-    buttonText?: string | null = null;
+    buttonText?: string;
     buttonClicked?: (event?: any) => any = () => {};
     autoHideDuration?: number = 5000;
     anchorOrigin: SnackbarProps['anchorOrigin'] = {
@@ -67,7 +67,7 @@ function Snack() {
         if (severity === SnackSeverity.Warning) return classes.warning;
         return classes.default;
     }
-    let open = state.message !== null;
+    let open = Boolean(state.message);
 
     const resetState = () => setState(new SnackState());
 

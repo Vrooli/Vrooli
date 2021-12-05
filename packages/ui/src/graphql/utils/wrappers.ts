@@ -28,7 +28,7 @@ interface Props {
     // Callback triggered on error
     onError?: (response?: any) => any;
     // Milliseconds before showing a spinner. If undefined or null, spinner disabled
-    spinnerDelay?: number | null | undefined;
+    spinnerDelay?: number | null;
 }
 
 export const mutationWrapper = ({ 

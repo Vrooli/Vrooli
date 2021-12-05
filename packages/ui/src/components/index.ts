@@ -7,6 +7,7 @@ export * from './inputs';
 export * from './lists';
 export * from './navigation';
 export * from './nodes';
+export * from './HelpButton';
 export * from './PopupMenu';
 export * from './ScrollToTop';
 export * from './Slide';

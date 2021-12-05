@@ -10,16 +10,18 @@ import {
     Typography
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
-import { LINKS } from 'utils';
+import { FORMS, LINKS } from 'utils';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useHistory } from 'react-router-dom';
 import { formStyles } from './styles';
 import { requestPasswordChange } from 'graphql/generated/requestPasswordChange';
-import { useCallback } from 'react';
+import { FormProps } from 'forms';
 
 const useStyles = makeStyles(formStyles);
 
-export const ForgotPasswordForm = () => {
+export const ForgotPasswordForm = ({
+    onFormChange = () => {}
+}: FormProps) => {
     const classes = useStyles();
     const history = useHistory();
     const [requestPasswordChange, {loading}] = useMutation<requestPasswordChange>(requestPasswordChangeMutation);
@@ -40,8 +42,8 @@ export const ForgotPasswordForm = () => {
         },
     });
 
-    const toRegister = useCallback(() => history.push(LINKS.Register), [history]);
-    const toLogIn = useCallback(() => history.push(LINKS.LogIn), [history]);
+    const toSignUp = () => onFormChange(FORMS.SignUp);
+    const toLogIn = () => onFormChange(FORMS.LogIn);
 
     return (
         <form className={classes.form} onSubmit={formik.handleSubmit}>
@@ -79,7 +81,7 @@ export const ForgotPasswordForm = () => {
                     </Link>
                 </Grid>
                 <Grid item xs={6}>
-                    <Link onClick={toRegister}>
+                    <Link onClick={toSignUp}>
                         <Typography className={`${classes.clickSize} ${classes.linkRight}`}>
                             Don't have an account? Sign up
                         </Typography>

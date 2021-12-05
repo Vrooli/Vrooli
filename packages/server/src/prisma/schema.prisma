@@ -10,7 +10,7 @@ datasource db {
 // A user of the system
 model customer {
   id                             String           @id @default(uuid()) @db.Uuid
-  username                       String           @unique @db.VarChar(128)
+  username                       String?          @unique @db.VarChar(128)
   theme                          String           @default("light") @db.VarChar(255)
   password                       String?          @db.VarChar(256)
   loginAttempts                  Int              @default(0)
@@ -25,6 +25,7 @@ model customer {
   updated_at                     DateTime         @default(now()) @db.Timestamptz(6)
   roles                          customer_roles[]
   emails                         email[]
+  wallets                        wallet[]
 }
 
 // Joining table to apply roles to customers
@@ -43,7 +44,7 @@ model email {
   id                      String    @id @default(uuid()) @db.Uuid
   emailAddress            String    @unique @db.VarChar(128)
   receivesDeliveryUpdates Boolean   @default(true)
-  verified           Boolean   @default(false)
+  verified                Boolean   @default(false)
   customerId              String?   @db.Uuid
   customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }
@@ -54,6 +55,18 @@ model role {
   title          String           @unique @db.VarChar(128)
   description    String?          @db.VarChar(2048)
   customer_roles customer_roles[]
+}
+
+// Wallet data
+model wallet {
+    id                String    @id @default(uuid()) @db.Uuid
+    publicAddress     String    @unique @db.VarChar(128)
+    nonce             String?   @db.VarChar(8092)
+    nonceCreationTime DateTime? @db.Timestamptz(6)
+    verified          Boolean   @default(false)
+    lastVerifiedTime  DateTime? @db.Timestamptz(6)
+    customerId        String?   @db.Uuid
+    customer          customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }
 
 enum TaskStatus {

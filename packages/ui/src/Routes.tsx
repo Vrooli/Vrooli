@@ -6,10 +6,7 @@ import { LINKS } from 'utils';
 import { Sitemap } from 'Sitemap';
 import {
     ForgotPasswordForm,
-    LogInForm,
-    ResetPasswordForm,
-    SignUpForm,
-    WaitlistForm
+    ResetPasswordForm
 } from 'forms';
 import { ScrollToTop } from 'components';
 import { CommonProps } from 'types';
@@ -35,6 +32,7 @@ const {
     RoutineViewPage,
     RunRoutinePage,
     StartPage,
+    StatsPage,
     TermsPage,
 } = lazily(() => import('./pages'));
 
@@ -252,45 +250,6 @@ const Routes = (props: CommonProps) => {
                 />
                 <Route
                     exact
-                    path={LINKS.Register}
-                    sitemapIndex={true}
-                    priority={0.9}
-                    render={() => (
-                        <Page title={title('Sign Up')} {...props}>
-                            <FormPage title="Sign Up" maxWidth="700px">
-                                <SignUpForm {...props} />
-                            </FormPage>
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={`${LINKS.Waitlist}/:code?`}
-                    sitemapIndex={true}
-                    priority={0.8}
-                    render={() => (
-                        <Page title={title('Join Us')} {...props}>
-                            <FormPage title="Join Waitlist" maxWidth="700px">
-                                <WaitlistForm {...props} />
-                            </FormPage>
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={`${LINKS.LogIn}/:code?`}
-                    sitemapIndex={true}
-                    priority={0.8}
-                    render={() => (
-                        <Page title={title('Log In')} {...props}>
-                            <FormPage title="Log In" maxWidth="700px">
-                                <LogInForm {...props} />
-                            </FormPage>
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
                     path={`${LINKS.ForgotPassword}/:code?`}
                     sitemapIndex={true}
                     priority={0.1}
@@ -316,6 +275,17 @@ const Routes = (props: CommonProps) => {
                     )}
                 />
                 {/* ========= END AUTHENTICATION ROUTES ========= */}
+
+                <Route
+                    exact
+                    path={LINKS.Stats}
+                    sitemapIndex={false}
+                    render={() => (
+                        <Page title={title('Stats📊')} {...props}>
+                            <StatsPage />
+                        </Page>
+                    )}
+                />
 
                 <Route
                     render={() => (

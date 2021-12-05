@@ -20,15 +20,15 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 export interface ListItemData {
-    label: string | null;
-    value: string | null;
+    label?: string;
+    value?: string;
 }
 
 interface Props {
     open?: boolean;
-    onClose: (value?: string | null) => void;
+    onClose: (value?: string) => void;
     title?: string;
-    data: ListItemData[] | null;
+    data?: ListItemData[];
 }
 
 const ListDialog = ({

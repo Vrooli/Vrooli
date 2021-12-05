@@ -12,24 +12,22 @@ import PubSub from 'pubsub-js';
 
 interface StateButton {
     text: string;
-    onClick: (() => void) | null;
+    onClick?: (() => void);
 }
 
 interface State {
-    title?: string | null;
-    message?: string | null;
+    title?: string;
+    message?: string;
     buttons: StateButton[];
 }
 
 const default_state: State = {
-    title: null,
-    message: null,
-    buttons: [{text: 'Ok', onClick: null}],
+    buttons: [{ text: 'Ok' }],
 };
 
 const AlertDialog = () => {
     const [state, setState] = useState<State>(default_state)
-    let open = state.title !== null || state.message !== null;
+    let open = Boolean(state.title) || Boolean(state.message);
 
     useEffect(() => {
         let dialogSub = PubSub.subscribe(PUBS.AlertDialog, (_, o) => setState({...default_state, ...o}));

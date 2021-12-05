@@ -12,15 +12,15 @@ import { LINKS } from 'utils';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useParams } from 'react-router-dom';
 import { formStyles } from './styles';
-import { CommonProps } from 'types';
 import { useHistory } from 'react-router';
 import { resetPassword } from 'graphql/generated/resetPassword';
+import { FormProps } from 'forms';
 
 const useStyles = makeStyles(formStyles);
 
 export const ResetPasswordForm = ({
     onSessionUpdate
-}: Pick<CommonProps, 'onSessionUpdate'>) => {
+}: FormProps) => {
     const classes = useStyles();
     const history = useHistory();
     const urlParams = useParams<{id?: string; code?: string}>();

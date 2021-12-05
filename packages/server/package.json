@@ -9,12 +9,14 @@
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "build": "yarn tsc",
+        "build": "yarn tsc && yarn post-build",
+        "post-build": "wasmPath=\"auth/message_signing/rust/pkg\" && cp src/$wasmPath/*.wasm dist/$wasmPath/ 2>/dev/null && cp src/$wasmPath/*.json dist/$wasmPath/ 2>/dev/null && [ -f dist/$wasmPath/emurgo_message_signing.cjs ] && mv dist/$wasmPath/emurgo_message_signing.cjs dist/$wasmPath/emurgo_message_signing.js",
         "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "start-production": "yarn build && node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate --schema src/prisma/schema.prisma"
     },
     "dependencies": {
+        "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
         "@local/shared": "0.0.1",
         "@paljs/plugins": "^4.0.8",

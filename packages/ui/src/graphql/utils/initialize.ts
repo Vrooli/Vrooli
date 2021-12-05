@@ -4,14 +4,15 @@ import {
     ApolloClient,
     ApolloLink,
     InMemoryCache,
+    NormalizedCacheObject,
 } from '@apollo/client';
 import { onError } from '@apollo/client/link/error'
 import { createUploadLink } from 'apollo-upload-client';
 import { removeTypename } from './removeTypename';
 
-let apolloClient;
+let apolloClient: ApolloClient<NormalizedCacheObject>;
 
-function createApolloClient() {
+const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     // Define link for error handling
     const errorLink = onError(({ graphQLErrors, networkError }) => {
         // Only developers should see these error messages
@@ -48,14 +49,14 @@ function createApolloClient() {
     })
 }
 
-export function initializeApollo() {
+export const initializeApollo = (): ApolloClient<NormalizedCacheObject> => {
     const _apolloClient = apolloClient ?? createApolloClient();
     if (!apolloClient) apolloClient = _apolloClient;
 
     return _apolloClient;
 }
 
-export function useApollo() {
+export const useApollo = (): ApolloClient<NormalizedCacheObject> => {
     const store = useMemo(() => initializeApollo(), []);
     return store;
 }

@@ -1,17 +1,30 @@
+// Provides 3 options for entering the main application:
+// 1. Wallet authentication - Quickest and safest method, but requires Nami extension
+// 2. Email authentication - Requires email and password. Pretty safe if using password manager, 
+// but wallet must be connected before performing any blockchain-related activities
+// 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
+// be able to utilize the full functionality of the service
 import { useHistory } from 'react-router-dom';
 import {
     Button,
-    Container,
+    Dialog,
     Grid,
     Typography,
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { Theme } from '@material-ui/core';
-import { LINKS, PUBS } from 'utils';
-import React, { useCallback, useState } from 'react';
-import { connectWallet } from 'utils/connectWallet';
+import { FORMS, LINKS, PUBS } from 'utils';
+import { useCallback, useMemo, useState } from 'react';
+import { hasWalletExtension, validateWallet } from 'utils/walletIntegration';
 import { CommonProps } from 'types';
 import { ROLES } from '@local/shared';
+import { HelpButton } from 'components';
+import {
+    LogInForm,
+    ForgotPasswordForm,
+    SignUpForm,
+    ResetPasswordForm,
+} from 'forms';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -20,8 +33,11 @@ const useStyles = makeStyles((theme: Theme) => ({
         border: '2px solid brown',
         minHeight: '100vh', //Fullscreen
     },
-    prompt: {
+    horizontal: {
         textAlign: 'center',
+    },
+    prompt: {
+        display: 'inline-block',
     },
     buttonContainer: {
         maxWidth: '500px',
@@ -32,52 +48,74 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
-const LOGIN_METHODS = {
-    Wallet: 'wallet',
-    Email: 'email',
-}
-
 export const StartPage = ({
     onSessionUpdate
 }: Pick<CommonProps, 'onSessionUpdate'>) => {
     const classes = useStyles();
     const history = useHistory();
-    const [loginMethod, setLoginMethod] = useState<string | null>(null);
+    // Handles email authentication popup
+    const [emailPopupOpen, setEmailPopupOpen] = useState(false);
+    const [popupForm, setPopupForm] = useState<FORMS>(FORMS.LogIn);
+    const handleFormChange = useCallback((type: FORMS = FORMS.LogIn) => type !== popupForm && setPopupForm(type), [popupForm]);
+    const Form = useMemo(() => {
+        switch (popupForm) {
+            case FORMS.ForgotPassword:
+                return ForgotPasswordForm
+            case FORMS.LogIn:
+                return LogInForm
+            case FORMS.ResetPassword:
+                return ResetPasswordForm
+            case FORMS.SignUp:
+                return SignUpForm
+            default:
+                return LogInForm
+        }
+    }, [popupForm])
 
+    // Opens link to install wallet extension
     const downloadExtension = useCallback(() => {
         const extensionLink = `https://chrome.google.com/webstore/detail/nami-wallet/lpfcbjknijpeeillifnkikgncikgfhdo`;
         window.open(extensionLink, '_blank', 'noopener,noreferrer');
     }, [])
 
-    const connectToWallet = useCallback(async () => {
-        console.log('[] useeffect', window.cardano);
-        const success = await connectWallet();
-        if (success) {
-            history.push(LINKS.Home);
-        }
-    }, [history])
 
-    const toEmailLogin = useCallback(() => setLoginMethod(LOGIN_METHODS.Email), [])
+    const toEmailLogIn = useCallback(() => {
+        setPopupForm(FORMS.LogIn);
+        setEmailPopupOpen(true);
+    }, [])
 
+    const closeEmailPopup = useCallback(() => setEmailPopupOpen(false), [])
+
+    // Performs handshake to establish trust between site backend and user's wallet.
+    // 1. Whitelist website on wallet
+    // 2. Send public address to backend
+    // 3. Store public address and nonce in database
+    // 4. Sign human-readable message (which includes nonce) using wallet
+    // 5. Send signed message to backend for verification
+    // 6. Receive JWT and user session
     const walletLogin = useCallback(async () => {
-        console.log('[] useeffect', window.cardano);
-        const success = await connectWallet();
-        console.log('boop', success)
-        if (success) {
-            // Redirect to main dashboard
-            history.push(LINKS.Home);
-        } else {
-            // Alert that login failed. Provide options to try again, download extension, or login via email
+        // Check if wallet extension installed
+        if (!hasWalletExtension()) {
             PubSub.publish(PUBS.AlertDialog, {
-                message: 'Wallet log in failed. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
+                message: 'Wallet not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
                     { text: 'Try Again', onClick: walletLogin },
                     { text: 'Install Nami', onClick: downloadExtension },
-                    { text: 'Email Login', onClick: toEmailLogin },
+                    { text: 'Email Login', onClick: toEmailLogIn },
                 ]
             });
+            return;
         }
-    }, [downloadExtension, history, toEmailLogin])
+        // Validate wallet
+        const success = await validateWallet();
+        if (success) {
+            PubSub.publish(PUBS.Snack, { message: 'Wallet verified.' })
+            // Set customer role
+            onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
+            // Redirect to main dashboard
+            history.push(LINKS.Home);
+        }
+    }, [downloadExtension, history, onSessionUpdate, toEmailLogIn])
 
     const guestLogin = useCallback(() => {
         // Set user role as guest
@@ -86,35 +124,12 @@ export const StartPage = ({
         history.push(LINKS.Home)
     }, [history, onSessionUpdate]);
 
-    let form;
-    // Display login instructions and links for wallet login
-    if (loginMethod === 'wallet') {
-        form = <React.Fragment>
-            <Grid item xs={12} sm={6}>
-                <Button
-                    fullWidth
-                    color="secondary"
-                    onClick={downloadExtension}
-                >
-                    Download extension
-                </Button>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-                <Button
-                    fullWidth
-                    type="submit"
-                    color="secondary"
-                    onClick={connectToWallet}
-                >
-                    Connect wallet
-                </Button>
-            </Grid>
-        </React.Fragment>
-    }
-
     return (
         <div className={classes.root}>
-            <Typography variant="h6" className={classes.prompt}>Please select your login method</Typography>
+            <div className={classes.horizontal}>
+                <Typography className={classes.prompt} variant="h6">Please select your login method</Typography>
+                <HelpButton title={'boop'} />
+            </div>
             <Grid className={classes.buttonContainer} container spacing={2}>
                 <Grid item xs={12}>
                     <Button
@@ -127,7 +142,7 @@ export const StartPage = ({
                     <Button
                         className={classes.option}
                         fullWidth
-                        onClick={toEmailLogin}
+                        onClick={toEmailLogIn}
                     >Email</Button>
                 </Grid>
                 <Grid item xs={12}>
@@ -138,6 +153,9 @@ export const StartPage = ({
                     >Enter As Guest</Button>
                 </Grid>
             </Grid>
+            <Dialog open={emailPopupOpen} onClose={closeEmailPopup}>
+                <Form onSessionUpdate={onSessionUpdate} onFormChange={handleFormChange} />
+            </Dialog>
         </div>
     );
 }

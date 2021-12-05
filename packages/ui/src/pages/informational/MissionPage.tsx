@@ -68,7 +68,7 @@ export const MissionPage = () => {
                     ]
                 },
                 {
-                    buttons: [{ text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist }]
+                    buttons: [{ text: 'Get Started', position: 'center', color: 'secondary', link: LINKS.Start }]
                 }
             ]
         },
@@ -153,7 +153,7 @@ export const MissionPage = () => {
                 },
                 {
                     buttons: [
-                        { text: 'Join Waitlist', position: 'center', color: 'secondary', link: LINKS.Waitlist },
+                        { text: 'Start Now', position: 'center', color: 'secondary', link: LINKS.Start },
                         { text: 'View Proposal', position: 'center', color: 'secondary', link: 'https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088' },
                         { text: 'About the Team', position: 'center', color: 'secondary', link: LINKS.About },
                     ]
