@@ -1,7 +1,6 @@
 import { gql } from 'apollo-server-express';
-import { CODE, COOKIE } from '@local/shared';
+import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { PrismaSelect } from '@paljs/plugins';
 import { generateNonce, verifySignedMessage } from '../auth/walletAuth';
 import { generateToken } from '../auth/auth.js';
 
@@ -16,11 +15,11 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        addWallet(
+        initValidateWallet(
             publicAddress: String!
             nonceDescription: String
         ): String!
-        verifyWallet(
+        completeValidateWallet(
             publicAddress: String!
             signedMessage: String!
         ): Boolean!
@@ -32,14 +31,17 @@ export const resolvers = {
     Mutation: {
         // Start handshake for establishing trust between backend and user wallet
         // Returns nonce
-        addWallet: async (_parent: undefined, args: any, context: any, info: any) => {
+        initValidateWallet: async (_parent: undefined, args: any, context: any, info: any) => {
             let userData;
+            console.log('a')
             // If not signed in, create new user row
             if (!context.req.customerId) {
-                userData = await context.prisma.customer.create();
+                console.log('b')
+                userData = await context.prisma.customer.create({ data: {} });
             }
             // Otherwise, find user data using id in session token 
             else {
+                console.log('c')
                 userData = await context.prisma.customer.findUnique({ where: { id: context.req.customerId } });
             }
             if (!userData) return new CustomError(CODE.ErrorUnknown);
@@ -53,8 +55,10 @@ export const resolvers = {
                     customerId: true,
                 }
             });
+            console.log('d. wllaet:', walletData)
             // If wallet data didn't exist, create
             if (!walletData) {
+                console.log('e')
                 walletData = await context.prisma.wallet.create({
                     data: { publicAddress: args.publicAddress },
                     select: {
@@ -66,10 +70,8 @@ export const resolvers = {
             }
 
             // If wallet is either: (1) unverified; or (2) already verified with user, update wallet with nonce and user id
-            if (walletData.customerId === userData.id) {
-                const nonce = generateNonce(args.nonceDescription);
-                console.log('GENERATED NONCE');
-                console.log(nonce);
+            if (!walletData.verified || walletData.customerId === userData.id) {
+                const nonce = await generateNonce(args.nonceDescription);
                 await context.prisma.wallet.update({
                     where: { id: walletData.id },
                     data: { 
@@ -82,11 +84,12 @@ export const resolvers = {
             }
             // If wallet is verified by another account
             else {
+                console.log('e. userData:', userData)
                 throw new CustomError(CODE.NotYourWallet);
             }
         },
         // Verify that signed message from user wallet has been signed by the correct public address
-        verifyWallet: async (_parent: undefined, args: any, context: any, info: any) => {
+        completeValidateWallet: async (_parent: undefined, args: any, context: any, info: any) => {
             // Find wallet with public address
             const walletData = await context.prisma.wallet.findUnique({ 
                 where: { publicAddress: args.publicAddress },

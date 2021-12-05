@@ -14,9 +14,8 @@ import {
 import { makeStyles } from '@material-ui/styles';
 import { Theme } from '@material-ui/core';
 import { FORMS, LINKS, PUBS } from 'utils';
-import { useMutation } from '@apollo/client';
 import { useCallback, useMemo, useState } from 'react';
-import { connectWallet } from 'utils/connectWallet';
+import { hasWalletExtension, validateWallet } from 'utils/walletIntegration';
 import { CommonProps } from 'types';
 import { ROLES } from '@local/shared';
 import { HelpButton } from 'components';
@@ -26,7 +25,6 @@ import {
     SignUpForm,
     ResetPasswordForm,
 } from 'forms';
-import { addWalletMutation, verifyWalletMutation } from 'graphql/mutation';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -74,9 +72,6 @@ export const StartPage = ({
         }
     }, [popupForm])
 
-    const [addWallet] = useMutation<any>(addWalletMutation);
-    const [verifyWallet] = useMutation<any>(verifyWalletMutation);
-
     // Opens link to install wallet extension
     const downloadExtension = useCallback(() => {
         const extensionLink = `https://chrome.google.com/webstore/detail/nami-wallet/lpfcbjknijpeeillifnkikgncikgfhdo`;
@@ -99,13 +94,10 @@ export const StartPage = ({
     // 5. Send signed message to backend for verification
     // 6. Receive JWT and user session
     const walletLogin = useCallback(async () => {
-        console.log('[] useeffect', window.cardano);
-        // Connect to wallet
-        const connectSucces = await connectWallet();
-        if (!connectSucces) {
-            // Alert that login failed. Provide options to try again, download extension, or login via email
+        // Check if wallet extension installed
+        if (!hasWalletExtension()) {
             PubSub.publish(PUBS.AlertDialog, {
-                message: 'Wallet log in failed. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
+                message: 'Wallet not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
                     { text: 'Try Again', onClick: walletLogin },
                     { text: 'Install Nami', onClick: downloadExtension },
@@ -114,45 +106,16 @@ export const StartPage = ({
             });
             return;
         }
-        const address = await window.cardano.getRewardAddress();
-        console.log('REWARD ADDRESS', address);
-        // Initiate handshake with backend
-        const payloadPromise = addWallet({ variables: { publicAddress: address } });
-        // Sign payload received from backend
-        const signedDataPromise = payloadPromise.then(response => {
-            console.log('ADD WALLET SUCCESS', response);
-            const payload = response;
-            console.log('signing data...', payload);
-            window.cardano.signData(address, payload);
-        })
-        // Send signed payload to backend
-        const verifyPromise = signedDataPromise.then(response => {
-            console.log('got signed payload', response);
-            const signedData = response;
-            verifyWallet({
-                variables: {
-                    publicAddress: address,
-                    signedMessage: signedData
-                }
-            })
-        });
-        // Check if backend accepted handshake
-        verifyPromise.then((success: any) => {
-            console.log('got verify promise', success)
-            if (!Boolean(success)) {
-                PubSub.publish(PUBS.AlertDialog, {
-                    message: `Failed to verify wallet.`,
-                    buttons: [{ text: 'OK' }]
-                });
-            } else {
-                PubSub.publish(PUBS.Snack, { message: 'Wallet verified.' })
-                // Set customer role
-                onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
-                // Redirect to main dashboard
-                history.push(LINKS.Home);
-            }
-        })
-    }, [addWallet, downloadExtension, history, onSessionUpdate, toEmailLogIn, verifyWallet])
+        // Validate wallet
+        const success = await validateWallet();
+        if (Boolean(success)) {
+            PubSub.publish(PUBS.Snack, { message: 'Wallet verified.' })
+            // Set customer role
+            onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
+            // Redirect to main dashboard
+            history.push(LINKS.Home);
+        }
+    }, [downloadExtension, history, onSessionUpdate, toEmailLogIn])
 
     const guestLogin = useCallback(() => {
         // Set user role as guest

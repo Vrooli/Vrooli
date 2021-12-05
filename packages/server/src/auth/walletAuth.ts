@@ -1,6 +1,7 @@
 import * as Serialization from '@emurgo/cardano-serialization-lib-nodejs';
 import { TextEncoder } from 'util';
 import * as MessageSigning from './message_signing/rust/pkg/emurgo_message_signing';
+import { randomBytes } from 'crypto';
 
 // Generate signable nonce, which includes human-readable description
 // Returns hex string
@@ -10,21 +11,19 @@ export const generateNonce = async (
 ) => {
     if (length <= 0 || length > 2048) throw new Error('Length must be bewteen 1 and 2048');
     // Generate nonce (payload)
-    require('crypto').randomBytes(length, function (_err: any, buffer: any) {
-        const payload = buffer.toString('hex');
-        // Create headers
-        let protectedHeaders = MessageSigning.HeaderMap.new();
-        const protectedSerialized = MessageSigning.ProtectedHeaderMap.new(protectedHeaders);
-        const unprotected = MessageSigning.HeaderMap.new();
-        const headers = MessageSigning.Headers.new(protectedSerialized, unprotected);
-        // Combine headers and payload into a COSESign1Builder
-        let builder = MessageSigning.COSESign1Builder.new(headers, payload, false);
-        // Add description to builder
-        builder.set_external_aad(new TextEncoder().encode(description));
-        // Return builder as hex string
-        const builder_bytes = builder.make_data_to_sign().to_bytes();
-        return Buffer.from(builder_bytes).toString('hex');
-    });
+    const payload = randomBytes(length);
+    // Create headers
+    let protectedHeaders = MessageSigning.HeaderMap.new();
+    const protectedSerialized = MessageSigning.ProtectedHeaderMap.new(protectedHeaders);
+    const unprotected = MessageSigning.HeaderMap.new();
+    const headers = MessageSigning.Headers.new(protectedSerialized, unprotected);
+    // Combine headers and payload into a COSESign1Builder
+    let builder = MessageSigning.COSESign1Builder.new(headers, payload, false);
+    // Add description to builder
+    builder.set_external_aad(new TextEncoder().encode(description));
+    // Return builder as hex string
+    const builder_bytes = builder.make_data_to_sign().to_bytes();
+    return Buffer.from(builder_bytes).toString('hex');
 }
 
 /**
@@ -66,6 +65,11 @@ export const verifySignedMessage = (address: string, payload: string, coseSign1H
 };
 
 const verifyPayload = (payload: string, payloadCose: Uint8Array) => {
+    console.log('in verifypayload');
+    console.log('payload:', payload);
+    console.log('payloadcose', payloadCose);
+    console.log('bufferedpayloadcose:', Buffer.from(payloadCose));
+    console.log('bufferedpayloadhex:', Buffer.from(payload, 'hex'));
     return Buffer.from(payloadCose).compare(Buffer.from(payload, 'hex'));
 };
 

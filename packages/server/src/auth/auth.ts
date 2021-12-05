@@ -2,7 +2,6 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { CODE, COOKIE } from '@local/shared';
 import { CustomError } from '../error';
-import * as MS from './message_signing/rust/pkg/emurgo_message_signing';
 import pkg from '@prisma/client';
 const { PrismaClient } = pkg;
 
