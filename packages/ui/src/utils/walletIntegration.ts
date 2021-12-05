@@ -29,6 +29,7 @@ const signPayload = async (publicAddress: string, payload: string): Promise<any>
 
 // Validate payload with backend
 export const validateWallet = async (): Promise<any> => {
+    let success = false;
     try {
         // Connect to wallet extension
         const walletConnected = connectWallet();
@@ -37,11 +38,9 @@ export const validateWallet = async (): Promise<any> => {
         const address = await window.cardano.getRewardAddress();
         // Request payload from backend
         const payload = await initValidateWallet(address);
-        console.log('GOT PAYLOAD', payload);
         if (!payload) return false;
         // Sign payload with wallet
         const signedPayload = await signPayload(address, payload);
-        console.log('SIGNED PAYLOAD', signedPayload);
         if (!signedPayload) return false;
         // Send signed payload to backend for verification
         const client = initializeApollo();
@@ -49,8 +48,7 @@ export const validateWallet = async (): Promise<any> => {
             mutation: completeValidateWalletMutation,
             variables: { publicAddress: address, signedMessage: signedPayload }
         }).then(response => {
-            console.log('complete WALLET validation RESPONSEEEE', response);
-            return response;
+            success = response.data.completeValidateWallet;
         })
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
@@ -58,5 +56,7 @@ export const validateWallet = async (): Promise<any> => {
             message: error.message ?? 'Unknown error occurred',
             buttons: [{ text: 'OK' }]
         });
+    } finally {
+        return success;
     }
 }

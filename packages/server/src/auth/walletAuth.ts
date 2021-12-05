@@ -17,8 +17,8 @@ export const generateNonce = async (
     const protectedSerialized = MessageSigning.ProtectedHeaderMap.new(protectedHeaders);
     const unprotected = MessageSigning.HeaderMap.new();
     const headers = MessageSigning.Headers.new(protectedSerialized, unprotected);
-    // Combine headers and payload into a COSESign1Builder
-    let builder = MessageSigning.COSESign1Builder.new(headers, payload, false);
+    // Combine headers and payload into a COSESignBuilder (COSESign1Builder also works. not sure difference)
+    let builder = MessageSigning.COSESignBuilder.new(headers, payload, false);
     // Add description to builder
     builder.set_external_aad(new TextEncoder().encode(description));
     // Return builder as hex string
@@ -65,12 +65,7 @@ export const verifySignedMessage = (address: string, payload: string, coseSign1H
 };
 
 const verifyPayload = (payload: string, payloadCose: Uint8Array) => {
-    console.log('in verifypayload');
-    console.log('payload:', payload);
-    console.log('payloadcose', payloadCose);
-    console.log('bufferedpayloadcose:', Buffer.from(payloadCose));
-    console.log('bufferedpayloadhex:', Buffer.from(payload, 'hex'));
-    return Buffer.from(payloadCose).compare(Buffer.from(payload, 'hex'));
+    return Buffer.from(payloadCose).compare(Buffer.from(payload, 'hex')) === 0;
 };
 
 const verifyAddress = (address: string, addressCose: Serialization.Address, publicKeyCose: Serialization.PublicKey) => {

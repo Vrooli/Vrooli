@@ -64,6 +64,7 @@ model wallet {
     nonce             String?   @db.VarChar(8092)
     nonceCreationTime DateTime? @db.Timestamptz(6)
     verified          Boolean   @default(false)
+    lastVerifiedTime  DateTime? @db.Timestamptz(6)
     customerId        String?   @db.Uuid
     customer          customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }

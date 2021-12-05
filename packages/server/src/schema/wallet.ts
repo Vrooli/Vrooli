@@ -33,15 +33,12 @@ export const resolvers = {
         // Returns nonce
         initValidateWallet: async (_parent: undefined, args: any, context: any, info: any) => {
             let userData;
-            console.log('a')
             // If not signed in, create new user row
             if (!context.req.customerId) {
-                console.log('b')
                 userData = await context.prisma.customer.create({ data: {} });
             }
             // Otherwise, find user data using id in session token 
             else {
-                console.log('c')
                 userData = await context.prisma.customer.findUnique({ where: { id: context.req.customerId } });
             }
             if (!userData) return new CustomError(CODE.ErrorUnknown);
@@ -55,10 +52,8 @@ export const resolvers = {
                     customerId: true,
                 }
             });
-            console.log('d. wllaet:', walletData)
             // If wallet data didn't exist, create
             if (!walletData) {
-                console.log('e')
                 walletData = await context.prisma.wallet.create({
                     data: { publicAddress: args.publicAddress },
                     select: {
@@ -84,7 +79,6 @@ export const resolvers = {
             }
             // If wallet is verified by another account
             else {
-                console.log('e. userData:', userData)
                 throw new CustomError(CODE.NotYourWallet);
             }
         },
@@ -115,6 +109,7 @@ export const resolvers = {
                 where: { id: walletData.id },
                 data: { 
                     verified: true,
+                    lastVerifiedTime: new Date().toISOString(),
                     nonce: null, 
                     nonceCreationTime: null,
                 }

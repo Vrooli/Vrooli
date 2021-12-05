@@ -108,7 +108,7 @@ export const StartPage = ({
         }
         // Validate wallet
         const success = await validateWallet();
-        if (Boolean(success)) {
+        if (success) {
             PubSub.publish(PUBS.Snack, { message: 'Wallet verified.' })
             // Set customer role
             onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
