@@ -5,9 +5,11 @@ import { gql } from 'graphql-tag';
 export const addWalletMutation = gql`
     mutation addWallet(
         $publicAddress: String!
+        $nonceDescription: String
     ) {
     addWallet(
         publicAddress: $publicAddress
+        nonceDescription: $nonceDescription
     )
 }
 `

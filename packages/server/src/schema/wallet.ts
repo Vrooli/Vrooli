@@ -16,11 +16,13 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        addWallet(publicAddress: String!): String!
+        addWallet(
+            publicAddress: String!
+            nonceDescription: String
+        ): String!
         verifyWallet(
             publicAddress: String!
-            signedMessage: String! 
-            nonceWrapperText: String! 
+            signedMessage: String!
         ): Boolean!
         removeWallets(ids: [ID!]!): Count!
     }
@@ -29,7 +31,7 @@ export const typeDef = gql`
 export const resolvers = {
     Mutation: {
         // Start handshake for establishing trust between backend and user wallet
-        // Returns human-readable message, which includes nonce
+        // Returns nonce
         addWallet: async (_parent: undefined, args: any, context: any, info: any) => {
             let userData;
             // If not signed in, create new user row
@@ -65,7 +67,9 @@ export const resolvers = {
 
             // If wallet is either: (1) unverified; or (2) already verified with user, update wallet with nonce and user id
             if (walletData.customerId === userData.id) {
-                const nonce = generateNonce();
+                const nonce = generateNonce(args.nonceDescription);
+                console.log('GENERATED NONCE');
+                console.log(nonce);
                 await context.prisma.wallet.update({
                     where: { id: walletData.id },
                     data: { 
@@ -99,12 +103,8 @@ export const resolvers = {
             if (!walletData.customerId) return new CustomError(CODE.ErrorUnknown);
             if (!walletData.nonce || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) return new CustomError(CODE.NonceExpired)
 
-            // Concatenate wrapperText with nonce (since user signs human-readable message
-            // that looks something like "Please verify this nonce: fufhduafhdasf", rather than the nonce itself).
-            // Could store this entire message as the nonce, but then localization would be more difficult
-            const nonceWithMessage = `${args.nonceWrapperText}${walletData.nonce}`;
             // Verify that message was signed by wallet address
-            const walletVerified = verifySignedMessage(args.publicAddress, nonceWithMessage, args.signedMessage);
+            const walletVerified = verifySignedMessage(args.publicAddress, walletData.nonce, args.signedMessage);
             if (!walletVerified) return false;
 
             // Update wallet and remove nonce data

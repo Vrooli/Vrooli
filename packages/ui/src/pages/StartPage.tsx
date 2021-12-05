@@ -100,15 +100,9 @@ export const StartPage = ({
     // 6. Receive JWT and user session
     const walletLogin = useCallback(async () => {
         console.log('[] useeffect', window.cardano);
-        // Step 1. Requires user confirmation first time
-        const success = await connectWallet();
-        if (success) {
-            console.log('REWARD ADDRESS', window.cardano.getRewardAddress());
-            // Set customer role
-            onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
-            // Redirect to main dashboard
-            history.push(LINKS.Home);
-        } else {
+        // Connect to wallet
+        const connectSucces = await connectWallet();
+        if (!connectSucces) {
             // Alert that login failed. Provide options to try again, download extension, or login via email
             PubSub.publish(PUBS.AlertDialog, {
                 message: 'Wallet log in failed. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
@@ -118,8 +112,47 @@ export const StartPage = ({
                     { text: 'Email Login', onClick: toEmailLogIn },
                 ]
             });
+            return;
         }
-    }, [downloadExtension, history, onSessionUpdate, toEmailLogIn])
+        const address = await window.cardano.getRewardAddress();
+        console.log('REWARD ADDRESS', address);
+        // Initiate handshake with backend
+        const payloadPromise = addWallet({ variables: { publicAddress: address } });
+        // Sign payload received from backend
+        const signedDataPromise = payloadPromise.then(response => {
+            console.log('ADD WALLET SUCCESS', response);
+            const payload = response;
+            console.log('signing data...', payload);
+            window.cardano.signData(address, payload);
+        })
+        // Send signed payload to backend
+        const verifyPromise = signedDataPromise.then(response => {
+            console.log('got signed payload', response);
+            const signedData = response;
+            verifyWallet({
+                variables: {
+                    publicAddress: address,
+                    signedMessage: signedData
+                }
+            })
+        });
+        // Check if backend accepted handshake
+        verifyPromise.then((success: any) => {
+            console.log('got verify promise', success)
+            if (!Boolean(success)) {
+                PubSub.publish(PUBS.AlertDialog, {
+                    message: `Failed to verify wallet.`,
+                    buttons: [{ text: 'OK' }]
+                });
+            } else {
+                PubSub.publish(PUBS.Snack, { message: 'Wallet verified.' })
+                // Set customer role
+                onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
+                // Redirect to main dashboard
+                history.push(LINKS.Home);
+            }
+        })
+    }, [addWallet, downloadExtension, history, onSessionUpdate, toEmailLogIn, verifyWallet])
 
     const guestLogin = useCallback(() => {
         // Set user role as guest
@@ -131,8 +164,8 @@ export const StartPage = ({
     return (
         <div className={classes.root}>
             <div className={classes.horizontal}>
-            <Typography className={classes.prompt} variant="h6">Please select your login method</Typography>
-            <HelpButton title={'boop'}/>
+                <Typography className={classes.prompt} variant="h6">Please select your login method</Typography>
+                <HelpButton title={'boop'} />
             </div>
             <Grid className={classes.buttonContainer} container spacing={2}>
                 <Grid item xs={12}>

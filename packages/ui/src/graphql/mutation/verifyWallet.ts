@@ -5,12 +5,10 @@ export const verifyWalletMutation = gql`
     mutation verifyWallet(
         $publicAddress: String!
         $signedMessage: String!
-        $nonceWrapperText: String!
     ) {
     verifyWallet(
         publicAddress: $publicAddress
         signedMessage: $signedMessage
-        nonceWrapperText: $nonceWrapperText
     )
 }
 `

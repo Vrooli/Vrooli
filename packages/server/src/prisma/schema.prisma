@@ -61,7 +61,7 @@ model role {
 model wallet {
     id                String    @id @default(uuid()) @db.Uuid
     publicAddress     String    @unique @db.VarChar(128)
-    nonce             String    @db.VarChar(256)
+    nonce             String    @db.VarChar(8092)
     nonceCreationTime DateTime? @db.Timestamptz(6)
     verified          Boolean   @default(false)
     customerId        String?   @db.Uuid

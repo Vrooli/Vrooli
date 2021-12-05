@@ -1,10 +1,29 @@
 import * as Serialization from '@emurgo/cardano-serialization-lib-nodejs';
+import { TextEncoder } from 'util';
 import * as MessageSigning from './message_signing/rust/pkg/emurgo_message_signing';
 
-export const generateNonce = (length: number = 64) => {
+// Generate signable nonce, which includes human-readable description
+// Returns hex string
+export const generateNonce = async (
+    description: string = 'Please sign this message so we can verify your wallet.',
+    length: number = 64,
+) => {
     if (length <= 0 || length > 2048) throw new Error('Length must be bewteen 1 and 2048');
-    require('crypto').randomBytes(48, function(_err: any, buffer: any) {
-        return buffer.toString('hex');
+    // Generate nonce (payload)
+    require('crypto').randomBytes(length, function (_err: any, buffer: any) {
+        const payload = buffer.toString('hex');
+        // Create headers
+        let protectedHeaders = MessageSigning.HeaderMap.new();
+        const protectedSerialized = MessageSigning.ProtectedHeaderMap.new(protectedHeaders);
+        const unprotected = MessageSigning.HeaderMap.new();
+        const headers = MessageSigning.Headers.new(protectedSerialized, unprotected);
+        // Combine headers and payload into a COSESign1Builder
+        let builder = MessageSigning.COSESign1Builder.new(headers, payload, false);
+        // Add description to builder
+        builder.set_external_aad(new TextEncoder().encode(description));
+        // Return builder as hex string
+        const builder_bytes = builder.make_data_to_sign().to_bytes();
+        return Buffer.from(builder_bytes).toString('hex');
     });
 }
 
