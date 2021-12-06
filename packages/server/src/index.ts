@@ -38,7 +38,11 @@ const main = async () => {
         `http://${process.env.REACT_APP_SITE_NAME}`,
         `http://www.${process.env.REACT_APP_SITE_NAME}`,
         `https://${process.env.REACT_APP_SITE_NAME}`,
-        `https://www.${process.env.REACT_APP_SITE_NAME}`
+        `https://www.${process.env.REACT_APP_SITE_NAME}`,
+        `http://app.${process.env.REACT_APP_SITE_NAME}`,
+        `http://www.app.${process.env.REACT_APP_SITE_NAME}`,
+        `https://${process.env.REACT_APP_SITE_NAME}`,
+        `https://www.app.${process.env.REACT_APP_SITE_NAME}`
     ]
     app.use(cors({
         credentials: true,
