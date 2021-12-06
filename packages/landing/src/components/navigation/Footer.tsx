@@ -1,4 +1,4 @@
-import { APP_LINKS, LANDING_LINKS } from '@local/shared';
+import { APP_LINKS, LANDING_LINKS, WEBSITE } from '@local/shared';
 import { makeStyles } from '@material-ui/styles';
 import { SvgIconTypeMap, useTheme } from '@material-ui/core';
 import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Grid, Tooltip, Theme } from '@material-ui/core';
@@ -11,6 +11,7 @@ import { CopyrightBreadcrumbs } from 'components';
 import { useHistory } from 'react-router';
 import { EMAIL, SOCIALS } from '@local/shared';
 import { OverridableComponent } from '@material-ui/core/OverridableComponent';
+import { openLink } from 'utils';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -59,10 +60,10 @@ export const Footer = () => {
                         <ListItem component="h3" >
                             <ListItemText className={classes.upper} primary="Resources" />
                         </ListItem>
-                        <ListItemButton component="a" onClick={() => history.push(LANDING_LINKS.About)} >
+                        <ListItemButton component="a" onClick={() => openLink(history, LANDING_LINKS.About)} >
                             <ListItemText primary="About Us" />
                         </ListItemButton>
-                        <ListItemButton component="a" onClick={() => history.push(APP_LINKS.Stats)} >
+                        <ListItemButton component="a" onClick={() => openLink(history, `app.${WEBSITE}${APP_LINKS.Stats}`)} >
                             <ListItemText primary="View Stats" />
                         </ListItemButton>
                     </List>
@@ -74,7 +75,7 @@ export const Footer = () => {
                         </ListItem>
                         {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
                             <Tooltip key={key} title={tooltip} placement="left">
-                                <ListItemButton aria-label={label} onClick={() => history.push(src)}>
+                                <ListItemButton aria-label={label} onClick={() => window.open(src, '_blank', 'noopener,noreferrer')}>
                                     <ListItemIcon>
                                         <Icon className={classes.icon} ></Icon>
                                     </ListItemIcon>

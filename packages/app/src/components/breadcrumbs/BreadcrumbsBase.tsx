@@ -2,11 +2,12 @@ import {
     Breadcrumbs, 
     Link 
 } from '@material-ui/core';
-import { useHistory } from 'react-router-dom';
 import { makeStyles } from '@material-ui/styles';
 import merge from 'lodash/merge';
 import { BreadcrumbsBaseProps } from './types';
 import { useMemo } from 'react';
+import { useHistory } from 'react-router-dom';
+import { openLink } from 'utils';
 
 const useStyles = makeStyles(() => ({
     root: {
@@ -41,7 +42,7 @@ const BreadcrumbsBase = ({
             <Link 
                 key={p.text}
                 color={textColor}
-                onClick={() => history.push(p.link)}
+                onClick={() => openLink(history, p.link)}
             >
                 {window.location.pathname === p.link ? <b>{p.text}</b> : p.text}
             </Link>

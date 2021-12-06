@@ -8,6 +8,7 @@ import {
 import { useHistory } from 'react-router';
 import { YoutubeEmbed } from 'components';
 import { makeStyles } from '@material-ui/styles';
+import { openLink } from 'utils';
 
 const useStyles = makeStyles((theme: Theme) => ({
     slideRoot: {
@@ -141,7 +142,7 @@ export const Slide = ({
             type="submit"
             size="large"
             color={button.color ?? 'secondary'}
-            onClick={() => button.link.includes('http') ? window.open(button.link, '_blank', 'noopener,noreferrer') : history.push(button.link)}
+            onClick={() => openLink(history, button.link)}
         >
             {button.text}
         </Button>

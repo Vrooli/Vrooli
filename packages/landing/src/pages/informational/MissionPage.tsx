@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Slide } from 'components';
-import { APP_LINKS, LANDING_LINKS } from '@local/shared';
+import { APP_LINKS, LANDING_LINKS, WEBSITE } from '@local/shared';
 import { makeStyles } from '@material-ui/styles';
 import Thinking from 'assets/img/thinking.png';
 import Target from 'assets/img/target.png';
@@ -68,7 +68,7 @@ export const MissionPage = () => {
                     ]
                 },
                 {
-                    buttons: [{ text: 'Get Started', position: 'center', color: 'secondary', link: APP_LINKS.Start }]
+                    buttons: [{ text: 'Get Started', position: 'center', color: 'secondary', link: `app.${WEBSITE}${APP_LINKS.Start}` }]
                 }
             ]
         },
@@ -153,7 +153,7 @@ export const MissionPage = () => {
                 },
                 {
                     buttons: [
-                        { text: 'Start Now', position: 'center', color: 'secondary', link: APP_LINKS.Start },
+                        { text: 'Start Now', position: 'center', color: 'secondary', link: `app.${WEBSITE}${APP_LINKS.Start}` },
                         { text: 'View Proposal', position: 'center', color: 'secondary', link: 'https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088' },
                         { text: 'About the Team', position: 'center', color: 'secondary', link: LANDING_LINKS.About },
                     ]

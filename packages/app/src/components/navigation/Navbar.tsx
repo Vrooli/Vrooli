@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Logo from 'assets/img/Logo.png';
-import { BUSINESS_NAME, LANDING_LINKS } from '@local/shared';
+import { BUSINESS_NAME, APP_LINKS, WEBSITE } from '@local/shared';
 import { AppBar, Toolbar, Typography, Slide, useScrollTrigger, Theme } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { Hamburger } from './Hamburger';
@@ -88,7 +88,7 @@ export const Navbar = ({
 
     const updateWindowDimensions = () => setShowHamburger(window.innerWidth <= SHOW_HAMBURGER_AT);
 
-    const toHome = useCallback(() => history.push(LANDING_LINKS.Home), [history]);
+    const toHome = useCallback(() => history.push(APP_LINKS.Home), [history]);
 
     return (
         <HideOnScroll>

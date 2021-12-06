@@ -22,6 +22,7 @@ import {
 } from '@material-ui/core';
 import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
+import { openLink } from 'utils';
 
 export const ACTION_TAGS = {
     Home: 'home',
@@ -95,7 +96,7 @@ export const actionsToList = ({ actions, history, classes = { listItem: '', list
             key={value}
             classes={{ root: classes.listItem }}
             onClick={() => {
-                history.push(link);
+                openLink(history, link);
                 if (onClick) onClick();
                 if (onAnyClick) onAnyClick();
             }}>
@@ -123,7 +124,7 @@ export const actionsToMenu = ({ actions, history, classes = { root: '' } }: Acti
             variant="text"
             size="large"
             classes={classes}
-            onClick={() => { history.push(link); if (onClick) onClick() }}
+            onClick={() => { openLink(history, link); if (onClick) onClick() }}
         >
             {label}
         </Button>
@@ -143,7 +144,7 @@ export const actionsToBottomNav = ({ actions, history, classes = { root: '' } }:
             classes={classes}
             label={label}
             value={value}
-            onClick={() => { history.push(link); if (onClick) onClick() }}
+            onClick={() => { openLink(history, link); if (onClick) onClick() }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>} />
     ))
 }
@@ -156,7 +157,7 @@ interface ActionToIconButtonProps {
 }
 export const actionToIconButton = ({ action, history, classes = { root: '' } }: ActionToIconButtonProps) => {
     const { value, link, Icon, numNotifications } = action;
-    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => history.push(link)}>
+    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(history, link)}>
         <Badge badgeContent={numNotifications} color="error">
             <Icon />
         </Badge>

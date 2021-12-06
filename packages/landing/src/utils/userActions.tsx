@@ -5,7 +5,7 @@ import {
     Info as AboutIcon,
     PlayCircle as DevelopIcon,
 } from '@material-ui/icons';
-import { APP_LINKS, LANDING_LINKS } from '@local/shared';
+import { APP_LINKS, LANDING_LINKS, WEBSITE } from '@local/shared';
 import {
     Badge,
     BottomNavigationAction,
@@ -16,6 +16,7 @@ import {
     ListItemText,
 } from '@material-ui/core';
 import { ValueOf } from '@local/shared';
+import { openLink } from 'utils';
 
 export const ACTION_TAGS = {
     Home: 'home',
@@ -44,7 +45,7 @@ export function getUserActions({ exclude = [] }: GetUserActionsProps): Action[] 
         ['Home', ACTION_TAGS.Home, LANDING_LINKS.Home, null, HomeIcon, 0],
         ['Mission', ACTION_TAGS.Mission, LANDING_LINKS.Mission, null, MissionIcon, 0],
         ['About Us', ACTION_TAGS.About, LANDING_LINKS.About, null, AboutIcon, 0],
-        ['Start', ACTION_TAGS.Start, APP_LINKS.Start, null, DevelopIcon, 0],
+        ['Start', ACTION_TAGS.Start, `app.${WEBSITE}${APP_LINKS.Start}`, null, DevelopIcon, 0],
     ];
 
     return actions.map(a => createAction(a)).filter(a => !exclude.includes(a.value));
@@ -73,7 +74,7 @@ export const actionsToList = ({ actions, history, classes = { listItem: '', list
             key={value}
             classes={{ root: classes.listItem }}
             onClick={() => {
-                history.push(link);
+                openLink(history, link);
                 if (onClick) onClick();
                 if (onAnyClick) onAnyClick();
             }}>
@@ -101,7 +102,7 @@ export const actionsToMenu = ({ actions, history, classes = { root: '' } }: Acti
             variant="text"
             size="large"
             classes={classes}
-            onClick={() => { history.push(link); if (onClick) onClick() }}
+            onClick={() => { openLink(history, link); if (onClick) onClick() }}
         >
             {label}
         </Button>
@@ -121,7 +122,7 @@ export const actionsToBottomNav = ({ actions, history, classes = { root: '' } }:
             classes={classes}
             label={label}
             value={value}
-            onClick={() => { history.push(link); if (onClick) onClick() }}
+            onClick={() => { openLink(history, link); if (onClick) onClick() }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>} />
     ))
 }
@@ -134,7 +135,7 @@ interface ActionToIconButtonProps {
 }
 export const actionToIconButton = ({ action, history, classes = { root: '' } }: ActionToIconButtonProps) => {
     const { value, link, Icon, numNotifications } = action;
-    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => history.push(link)}>
+    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(history, link)}>
         <Badge badgeContent={numNotifications} color="error">
             <Icon />
         </Badge>

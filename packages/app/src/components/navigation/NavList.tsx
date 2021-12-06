@@ -2,7 +2,7 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
 import { Button, Container, Theme } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { useHistory } from 'react-router-dom';
@@ -55,7 +55,7 @@ export const NavList = ({
     const enter_button = useMemo(() => enter_action ? (
         <Button 
             className={classes.button} 
-            onClick={() => history.push(enter_action.link)}
+            onClick={() => openLink(history, enter_action.link)}
             >
                 {enter_action.label}
         </Button>
