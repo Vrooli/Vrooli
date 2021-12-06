@@ -18,7 +18,7 @@ const useStyles = makeStyles((theme: Theme) => ({
 export const PrivacyPolicyPage = () => {
     const classes = useStyles();
     const theme = useTheme();
-    const privacyData = require('../../assets/policy/policy.md');
+    const privacyData = require('../../assets/policy/privacy.md');
     const [privacy, setPrivacy] = useState<string | null>(null);
 
     useEffect(() => {

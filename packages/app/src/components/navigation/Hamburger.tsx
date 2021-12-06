@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ContactInfo } from 'components';
-import { actionsToList, ACTION_TAGS, getUserActions, PUBS } from 'utils';
+import { actionsToList, getUserActions, PUBS } from 'utils';
 import PubSub from 'pubsub-js';
 import {
     Close as CloseIcon,
