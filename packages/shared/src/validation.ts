@@ -17,12 +17,12 @@ export const passwordSchema = yup.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASS
 export const emailSchema = yup.object().shape({
     emailAddress: yup.string().max(128).required(),
     receivesDeliveryUpdates: yup.bool().default(true).optional(),
-    customerId: yup.string().optional(),
+    userId: yup.string().optional(),
 });
 
 export const feedbackSchema = yup.object().shape({
     text: yup.string().max(4096).required(),
-    customerId: yup.string().required(),
+    userId: yup.string().required(),
 });
 
 export const imageSchema = yup.object().shape({
@@ -37,10 +37,10 @@ export const imageSchema = yup.object().shape({
 export const roleSchema = yup.object().shape({
     title: yup.string().max(128).required(),
     description: yup.string().max(2048).optional(),
-    customerIds: yup.array().of(yup.string().required()).optional(),
+    userIds: yup.array().of(yup.string().required()).optional(),
 });
 
-export const customerSchema = yup.object().shape({
+export const userSchema = yup.object().shape({
     id: yup.string().max(256).optional(),
     username: yup.string().max(128).required(),
     emails: yup.array().of(emailSchema).required(),
@@ -57,12 +57,12 @@ export const signUpSchema = yup.object().shape({
     passwordConfirmation: yup.string().oneOf([yup.ref('password'), null], 'Passwords must match')
 });
 
-// Schema for updating a customer profile
+// Schema for updating a user profile
 export const profileSchema = yup.object().shape({
     username: usernameSchema.required(),
     email: yup.string().email().required(),
     theme: yup.string().max(128).required(),
-    // Don't apply validation to current password. If you change password requirements, customers would be unable to change their password
+    // Don't apply validation to current password. If you change password requirements, users would be unable to change their password
     currentPassword: yup.string().max(128).required(),
     newPassword: passwordSchema.optional(),
     newPasswordConfirmation: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match')

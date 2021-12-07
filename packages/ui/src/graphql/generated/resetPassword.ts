@@ -16,12 +16,12 @@ export interface resetPassword_resetPassword_roles_role {
 }
 
 export interface resetPassword_resetPassword_roles {
-  __typename: "CustomerRole";
+  __typename: "UserRole";
   role: resetPassword_resetPassword_roles_role;
 }
 
 export interface resetPassword_resetPassword {
-  __typename: "Customer";
+  __typename: "User";
   id: string;
   status: AccountStatus;
   theme: string;

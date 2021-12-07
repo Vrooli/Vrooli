@@ -6,24 +6,24 @@
 import { AccountStatus } from "./globalTypes";
 
 // ====================================================
-// GraphQL fragment: customerSessionFields
+// GraphQL fragment: userSessionFields
 // ====================================================
 
-export interface customerSessionFields_roles_role {
+export interface userSessionFields_roles_role {
   __typename: "Role";
   title: string;
   description?: string | null;
 }
 
-export interface customerSessionFields_roles {
-  __typename: "CustomerRole";
-  role: customerSessionFields_roles_role;
+export interface userSessionFields_roles {
+  __typename: "UserRole";
+  role: userSessionFields_roles_role;
 }
 
-export interface customerSessionFields {
-  __typename: "Customer";
+export interface userSessionFields {
+  __typename: "User";
   id: string;
   status: AccountStatus;
   theme: string;
-  roles: customerSessionFields_roles[];
+  roles: userSessionFields_roles[];
 }

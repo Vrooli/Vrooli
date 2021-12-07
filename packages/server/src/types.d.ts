@@ -6,9 +6,9 @@ declare global {
     namespace Express {
         interface Request {
             validToken?: boolean;
-            customerId?: string;
+            userId?: string;
             roles?: string[];
-            isCustomer?: boolean;
+            isLoggedIn?: boolean;
         }
     }
 }

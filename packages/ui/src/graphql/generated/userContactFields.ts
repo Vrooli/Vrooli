@@ -4,19 +4,19 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL fragment: customerContactFields
+// GraphQL fragment: userContactFields
 // ====================================================
 
-export interface customerContactFields_emails {
+export interface userContactFields_emails {
   __typename: "Email";
   id: string;
   emailAddress: string;
   receivesDeliveryUpdates: boolean;
 }
 
-export interface customerContactFields {
-  __typename: "Customer";
+export interface userContactFields {
+  __typename: "User";
   id: string;
   username: string;
-  emails: customerContactFields_emails[];
+  emails: userContactFields_emails[];
 }

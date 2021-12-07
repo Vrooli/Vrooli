@@ -25,14 +25,14 @@ import {
 import isEqual from 'lodash/isEqual';
 import { AccountStatus } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { deleteCustomerMutation, updateCustomerMutation } from 'graphql/mutation';
+import { deleteUserMutation, updateUserMutation } from 'graphql/mutation';
 import { PUBS } from 'utils';
 import PubSub from 'pubsub-js';
 import { useMutation } from '@apollo/client';
 import { UpTransition } from 'components';
-import { updateCustomer } from 'graphql/generated/updateCustomer';
-import { deleteCustomer } from 'graphql/generated/deleteCustomer';
-import { Customer } from 'types';
+import { updateUser } from 'graphql/generated/updateUser';
+import { deleteUser } from 'graphql/generated/deleteUser';
+import { User } from 'types';
 
 const useStyles = makeStyles((theme: Theme) => ({
     appBar: {
@@ -70,71 +70,71 @@ const statusToggle = {
 }
 
 interface Props {
-    customer: Customer | null;
+    user: User | null;
     open?: boolean;
     onClose: () => any;
 }
 
 export const ActorDialog = ({
-    customer,
+    user,
     open = true,
     onClose,
 }: Props) => {
     const classes = useStyles();
-    // Stores the modified customer data before updating
-    const [currCustomer, setCurrCustomer] = useState<Customer | null>(customer);
-    const [updateCustomerMut] = useMutation<updateCustomer>(updateCustomerMutation);
-    const [deleteCustomerMut] = useMutation<deleteCustomer>(deleteCustomerMutation);
+    // Stores the modified user data before updating
+    const [currUser, setCurrUser] = useState<User | null>(user);
+    const [updateUserMut] = useMutation<updateUser>(updateUserMutation);
+    const [deleteUserMut] = useMutation<deleteUser>(deleteUserMutation);
 
     useEffect(() => {
-        setCurrCustomer(customer);
-    }, [customer])
+        setCurrUser(user);
+    }, [user])
 
-    const revert = () => setCurrCustomer(customer);
+    const revert = () => setCurrUser(user);
 
     const statusToggleData = useMemo(() => {
-        if (!currCustomer?.status || !(currCustomer?.status in statusToggle)) return ['', '', null, null];
-        return statusToggle[currCustomer.status];
-    }, [currCustomer])
+        if (!currUser?.status || !(currUser?.status in statusToggle)) return ['', '', null, null];
+        return statusToggle[currUser.status];
+    }, [currUser])
 
     // Locks/unlocks/undeletes a user
     const toggleLock = useCallback(() => {
         mutationWrapper({
-            mutation: updateCustomerMut,
-            data: { variables: { id: currCustomer?.id, status: statusToggleData[2] } },
-            successMessage: () => 'Customer updated.',
-            errorMessage: () => 'Failed to update customer.'
+            mutation: updateUserMut,
+            data: { variables: { id: currUser?.id, status: statusToggleData[2] } },
+            successMessage: () => 'User updated.',
+            errorMessage: () => 'Failed to update user.'
         })
-    }, [currCustomer?.id, statusToggleData, updateCustomerMut])
+    }, [currUser?.id, statusToggleData, updateUserMut])
 
-    const deleteCustomer = useCallback(() => {
+    const deleteUser = useCallback(() => {
         mutationWrapper({
-            mutation: deleteCustomerMut,
-            data: { variables: { id: currCustomer?.id }},
-            successMessage: () => 'Customer deleted.',
+            mutation: deleteUserMut,
+            data: { variables: { id: currUser?.id }},
+            successMessage: () => 'User deleted.',
             onSuccess: onClose,
         })
-    }, [currCustomer?.id, deleteCustomerMut, onClose])
+    }, [currUser?.id, deleteUserMut, onClose])
     
     const confirmDelete = useCallback(() => {
         PubSub.publish(PUBS.AlertDialog, {
-            message: `Are you sure you want to delete the account for ${currCustomer?.firstName} ${currCustomer?.lastName}?`,
+            message: `Are you sure you want to delete the account for ${currUser?.firstName} ${currUser?.lastName}?`,
             buttons: [
-                { text: 'Yes', onClick: deleteCustomer },
+                { text: 'Yes', onClick: deleteUser },
                 { text: 'No' },
             ]
         });
-    }, [currCustomer, deleteCustomer])
+    }, [currUser, deleteUser])
 
-    const updateCustomer = useCallback(() => {
+    const updateUser = useCallback(() => {
         mutationWrapper({
-            mutation: updateCustomerMut,
-            data: { variables: { ...currCustomer }},
-            successMessage: () => 'Customer updated.',
+            mutation: updateUserMut,
+            data: { variables: { ...currUser }},
+            successMessage: () => 'User updated.',
         })
-    }, [currCustomer, updateCustomerMut])
+    }, [currUser, updateUserMut])
 
-    let changes_made = !isEqual(customer, currCustomer);
+    let changes_made = !isEqual(user, currUser);
     let options = (
         <Grid className={classes.optionsContainer} container spacing={2}>
             <Grid item xs={12} sm={6} md={3}>
@@ -148,7 +148,7 @@ export const ActorDialog = ({
             <Grid item xs={12} sm={6} md={3}>
                 <Button
                     fullWidth
-                    disabled={!customer?.id}
+                    disabled={!user?.id}
                     startIcon={statusToggleData[3]}
                     onClick={toggleLock}
                 >{statusToggleData[1]}</Button>
@@ -156,7 +156,7 @@ export const ActorDialog = ({
             <Grid item xs={12} sm={6} md={3}>
                 <Button
                     fullWidth
-                    disabled={!customer?.id}
+                    disabled={!user?.id}
                     startIcon={<DeleteIcon />}
                     onClick={confirmDelete}
                 >Delete</Button>
@@ -166,7 +166,7 @@ export const ActorDialog = ({
                     fullWidth
                     disabled={!changes_made}
                     startIcon={<UpdateIcon />}
-                    onClick={updateCustomer}
+                    onClick={updateUser}
                 >Update</Button>
             </Grid>
         </Grid>
@@ -182,10 +182,10 @@ export const ActorDialog = ({
                     <Grid container spacing={0}>
                         <Grid className={classes.title} item xs={12}>
                             <Typography variant="h5">
-                                {`${customer?.firstName} ${customer?.lastName}`}
+                                {`${user?.firstName} ${user?.lastName}`}
                             </Typography>
                             <Typography variant="h6">
-                                {customer?.business?.name}
+                                {user?.business?.name}
                             </Typography>
                         </Grid>
                     </Grid>

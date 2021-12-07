@@ -1,8 +1,8 @@
 import { gql } from 'graphql-tag';
-import { customerSessionFields } from 'graphql/fragment';
+import { userSessionFields } from 'graphql/fragment';
 
 export const resetPasswordMutation = gql`
-    ${customerSessionFields}
+    ${userSessionFields}
     mutation resetPassword(
         $id: ID!
         $code: String!
@@ -13,7 +13,7 @@ export const resetPasswordMutation = gql`
         code: $code
         newPassword: $newPassword
     ) {
-        ...customerSessionFields
+        ...userSessionFields
     }
 }
 `

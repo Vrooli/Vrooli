@@ -16,12 +16,12 @@ export interface signUp_signUp_roles_role {
 }
 
 export interface signUp_signUp_roles {
-  __typename: "CustomerRole";
+  __typename: "UserRole";
   role: signUp_signUp_roles_role;
 }
 
 export interface signUp_signUp {
-  __typename: "Customer";
+  __typename: "User";
   id: string;
   status: AccountStatus;
   theme: string;

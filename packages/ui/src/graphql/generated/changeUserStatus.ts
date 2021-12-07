@@ -6,14 +6,14 @@
 import { AccountStatus } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: changeCustomerStatus
+// GraphQL mutation operation: changeUserStatus
 // ====================================================
 
-export interface changeCustomerStatus {
-  changeCustomerStatus: boolean | null;
+export interface changeUserStatus {
+  changeUserStatus: boolean | null;
 }
 
-export interface changeCustomerStatusVariables {
+export interface changeUserStatusVariables {
   id: string;
   status: AccountStatus;
 }

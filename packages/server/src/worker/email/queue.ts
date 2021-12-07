@@ -15,21 +15,21 @@ export function sendMail(to=[], subject='', text='', html='') {
     });
 }
 
-export function sendResetPasswordLink(email: string, customer_id: string | number, code: string) {
+export function sendResetPasswordLink(email: string, userId: string | number, code: string) {
     emailQueue.add({
         to: [email],
         subject: `${BUSINESS_NAME} Password Reset`,
-        text: `A password reset was requested for your account with ${BUSINESS_NAME}. If you sent this request, you may change your password through this link (${APP_URL}/password-reset/${customer_id}/${code}) to continue. If you did not send this request, please ignore this email.`,
-        html: `<p>A password reset was requested for your account with ${BUSINESS_NAME}.</p><p>If you sent this request, you may change your password through this link (<a href=\"${APP_URL}/password-reset/${customer_id}/${code}\">${APP_URL}/password-reset/${customer_id}/${code}</a>) to continue.<p>If you did not send this request, please ignore this email.<p>`
+        text: `A password reset was requested for your account with ${BUSINESS_NAME}. If you sent this request, you may change your password through this link (${APP_URL}/password-reset/${userId}/${code}) to continue. If you did not send this request, please ignore this email.`,
+        html: `<p>A password reset was requested for your account with ${BUSINESS_NAME}.</p><p>If you sent this request, you may change your password through this link (<a href=\"${APP_URL}/password-reset/${userId}/${code}\">${APP_URL}/password-reset/${userId}/${code}</a>) to continue.<p>If you did not send this request, please ignore this email.<p>`
     });
 }
 
-export function sendVerificationLink(email: string, customer_id: string | number) {
+export function sendVerificationLink(email: string, userId: string | number) {
     emailQueue.add({
         to: [email],
         subject: `Verify ${BUSINESS_NAME} Account`,
-        text: `Welcome to ${BUSINESS_NAME}! Please login through this link (${APP_URL}/login/${customer_id}) to verify your account. If you did not create an account with us, please ignore this link.`,
-        html: `<p>Welcome to ${BUSINESS_NAME}!</p><p>Please login through this link (<a href=\"${APP_URL}/login/${customer_id}\">${APP_URL}/login/${customer_id}</a>) to verify your account.</p><p>If you did not create an account with us, please ignore this message.</p>`
+        text: `Welcome to ${BUSINESS_NAME}! Please login through this link (${APP_URL}/login/${userId}) to verify your account. If you did not create an account with us, please ignore this link.`,
+        html: `<p>Welcome to ${BUSINESS_NAME}!</p><p>Please login through this link (<a href=\"${APP_URL}/login/${userId}\">${APP_URL}/login/${userId}</a>) to verify your account.</p><p>If you did not create an account with us, please ignore this message.</p>`
     });
 }
 

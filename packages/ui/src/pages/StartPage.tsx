@@ -111,8 +111,8 @@ export const StartPage = ({
         const success = await validateWallet();
         if (success) {
             PubSub.publish(PUBS.Snack, { message: 'Wallet verified.' })
-            // Set customer role
-            onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
+            // Set actor role
+            onSessionUpdate({ roles: [{ role: ROLES.Actor }] })
             // Redirect to main dashboard
             history.push(APP_LINKS.Home);
         }

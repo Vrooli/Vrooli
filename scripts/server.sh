@@ -16,7 +16,7 @@ if [ "${DB_PUSH}" = true ]; then
 fi
 if [[ -n "${NEW_MIGRATION_STRING// /}" ]]; then
     echo 'Creating new migration file from schema.prisma'
-    prisma migrate dev --${NEW_MIGRATION_STRING} --schema src/prisma/schema.prisma
+    prisma migrate dev --name ${NEW_MIGRATION_STRING} --schema src/prisma/schema.prisma
 fi
 # If production and database migrations exist, migrate to latest
 if [ "${NODE_ENV}" = "production" ] && [ "$(ls -A src/db/migrations)" ]; then

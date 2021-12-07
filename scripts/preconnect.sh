@@ -2,7 +2,7 @@
 # Updates index.html file to best match the current environment
 
 # Replace PRECONNECT variable in index.html
-Preconnect="http://localhost:5000"
+Preconnect="http://localhost:5329"
 if [ "${REACT_APP_SERVER_LOCATION}" = "dns" ]; then
     Preconnect="https://app.${REACT_APP_SITE_NAME}"
 fi

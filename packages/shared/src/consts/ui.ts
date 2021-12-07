@@ -5,7 +5,7 @@ export const APP_LINKS = {
     ForgotPassword: '/forgot-password', // Page for sending password reset request emails
     Home: '/', // Main dashboard for logged in users
     Learn: '/learn', // Learn dashboard
-    Orchestration: '/orchestration', // View or update routine orchestration
+    Orchestrate: '/orchestrate', // View or update routine orchestration
     Organization: '/organization', // View or update specific organization
     Profile: '/profile', // View or update profile and settings (or view another actor's profile)
     Project: '/project', // View or update specific project

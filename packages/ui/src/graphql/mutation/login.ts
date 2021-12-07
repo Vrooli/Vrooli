@@ -1,8 +1,8 @@
 import { gql } from 'graphql-tag';
-import { customerSessionFields } from 'graphql/fragment';
+import { userSessionFields } from 'graphql/fragment';
 
 export const loginMutation = gql`
-    ${customerSessionFields}
+    ${userSessionFields}
     mutation login(
         $email: String
         $password: String
@@ -11,7 +11,7 @@ export const loginMutation = gql`
         email: $email
         password: $password
     ) {
-        ...customerSessionFields
+        ...userSessionFields
     }
 }
 `

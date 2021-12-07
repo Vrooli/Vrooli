@@ -14,7 +14,7 @@ export enum AccountStatus {
   UNLOCKED = "UNLOCKED",
 }
 
-export interface CustomerInput {
+export interface UserInput {
   id?: string | null;
   username?: string | null;
   pronouns?: string | null;
@@ -27,7 +27,7 @@ export interface EmailInput {
   id?: string | null;
   emailAddress: string;
   receivesDeliveryUpdates?: boolean | null;
-  customerId?: string | null;
+  userId?: string | null;
 }
 
 export interface ImageUpdate {

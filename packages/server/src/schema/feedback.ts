@@ -5,7 +5,7 @@ export const typeDef = gql`
     input FeedbackInput {
         id: ID
         text: String!
-        customerId: ID
+        userId: ID
     }
 
     extend type Mutation {
@@ -17,8 +17,8 @@ export const resolvers = {
     Mutation: {
         addFeedback: async (_parent: undefined, args: any, context: any, info: any) => {
             let from;
-            if (args.input.customerId) {
-                from = await context.prisma.customer.findUnique({ where: { id: args.input.customerId } });
+            if (args.input.userId) {
+                from = await context.prisma.user.findUnique({ where: { id: args.input.userId } });
             }
             feedbackNotifyAdmin(args.input.text, from?.username);
             return true;

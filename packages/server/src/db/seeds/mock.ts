@@ -1,23 +1,24 @@
 import bcrypt from 'bcrypt';
 import pkg from '@prisma/client';
 import { PrismaType } from '../../types';
+import { ROLES } from '@local/shared';
 const { AccountStatus } = pkg;
 const HASHING_ROUNDS = 8;
 
 // Create a user with emails and roles
 async function createUser({ prisma, userData, emailsData, roleIds }: any) {
-    let customer = await prisma.customer.findFirst({ where: { username: userData.username } });
-    if (!customer) {
+    let user = await prisma.user.findFirst({ where: { username: userData.username } });
+    if (!user) {
         console.info(`👩🏼‍💻 Creating account for ${userData.username}`);
         // Insert account
-        const customer = await prisma.customer.create({ data: { ...userData } });
+        const user = await prisma.user.create({ data: { ...userData } });
         // Insert emails
         for (const email of emailsData) {
-            await prisma.email.create({ data: { ...email, customerId: customer.id }})
+            await prisma.email.create({ data: { ...email, userId: user.id }})
         }
         // Insert roles
         for (const roleId of roleIds) {
-            await prisma.customer_roles.create({ data: { roleId, customerId: customer.id }})
+            await prisma.user_roles.create({ data: { roleId, userId: user.id }})
         }
     }
 }
@@ -27,8 +28,7 @@ export async function mock(prisma: PrismaType) {
 
     // Find existing roles
     const roles = await prisma.role.findMany({ select: { id: true, title: true } });
-    const customerRoleId = roles.filter((r: any) => r.title === 'Customer')[0].id;
-    const ownerRoleId = roles.filter((r: any) => r.title === 'Owner')[0].id;
+    const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
 
     // Create user with owner role
     await createUser({
@@ -42,10 +42,10 @@ export async function mock(prisma: PrismaType) {
             { emailAddress: 'notarealemail@afakesite.com', receivesDeliveryUpdates: false, verified: true },
             { emailAddress: 'backupemailaddress@afakesite.com', receivesDeliveryUpdates: false, verified: false }
         ],
-        roleIds: [ownerRoleId]
+        roleIds: [actorRoleId]
     });
 
-    // Create a few customers
+    // Create a few users
     await createUser({
         prisma,
         userData: {
@@ -56,19 +56,19 @@ export async function mock(prisma: PrismaType) {
         emailsData: [
             { emailAddress: 'itsjohncena@afakesite.com', receivesDeliveryUpdates: false, verified: true }
         ],
-        roleIds: [customerRoleId]
+        roleIds: [actorRoleId]
     });
     await createUser({
         prisma,
         userData: {
-            username: 'Spongebob Customerpants',
+            username: 'Spongebob Userpants',
             password: bcrypt.hashSync('Spongebob', HASHING_ROUNDS),
             status: AccountStatus.UNLOCKED,
         },
         emailsData: [
             { emailAddress: 'spongebobmeboy@afakesite.com', receivesDeliveryUpdates: false, verified: true }
         ],
-        roleIds: [customerRoleId]
+        roleIds: [actorRoleId]
     });
 
     console.info(`✅ Database mock complete.`);

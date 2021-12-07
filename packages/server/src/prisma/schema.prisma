@@ -8,7 +8,7 @@ datasource db {
 }
 
 // A user of the system
-model customer {
+model user {
   id                             String           @id @default(uuid()) @db.Uuid
   username                       String?          @unique @db.VarChar(128)
   theme                          String           @default("light") @db.VarChar(255)
@@ -23,20 +23,24 @@ model customer {
   status                         AccountStatus    @default(UNLOCKED)
   created_at                     DateTime         @default(now()) @db.Timestamptz(6)
   updated_at                     DateTime         @default(now()) @db.Timestamptz(6)
-  roles                          customer_roles[]
+  roles                          user_roles[]
   emails                         email[]
   wallets                        wallet[]
+  resources                      resource[] // Resources associated with user profile
+  projects                       project_users[] // Projects the user can control
+  starredProjects                project_stars[]
+  starredOrganizations           organization_stars[]
 }
 
-// Joining table to apply roles to customers
-model customer_roles {
+// Joining table to apply roles to user
+model user_roles {
   id         String   @id @default(uuid()) @db.Uuid
-  customerId String   @db.Uuid
+  userId     String   @db.Uuid
   roleId     String   @db.Uuid
-  customer   customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user       user @relation(fields: [userId], references: [id], onDelete: Cascade)
   role       role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  @@unique([customerId, roleId], name: "customer_roles_customerid_roleid_unique")
+  @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
 }
 
 // Email data
@@ -45,8 +49,83 @@ model email {
   emailAddress            String    @unique @db.VarChar(128)
   receivesDeliveryUpdates Boolean   @default(true)
   verified                Boolean   @default(false)
-  customerId              String?   @db.Uuid
-  customer                customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId                  String?   @db.Uuid
+  user                    user? @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// DAO information
+model organization {
+    id                 String @id @default(uuid()) @db.Uuid
+    name               String @unique @db.VarChar(128)
+    description        String @db.VarChar(1024)
+    resources          resource[]
+    wallets            wallet[]
+    projects           project_organization[]
+    starredBy          organization_stars[]
+}
+
+// Many to many relationship between organizations and users who starred them
+model organization_stars {
+    id                      String       @id @default(uuid()) @db.Uuid
+    organizationId          String       @db.Uuid
+    userId                  String       @db.Uuid
+    organization            organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user                    user         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+
+// A project is "owned" by organizations and/or users,
+// and it can be "starred" by many users
+model project {
+    id                 String       @id @default(uuid()) @db.Uuid
+    name               String        @unique @db.VarChar(128)
+    description        String        @db.VarChar(1024)
+    resources          resource[]
+    wallets            wallet[]
+    users              project_users[]
+    organizations      project_organization[]
+    starredBy          project_stars[]
+}
+
+// Many-to-many relationship between projects and organizations
+model project_organization {
+    id                 String @id @default(uuid()) @db.Uuid
+    projectId          String @db.Uuid
+    organizationId     String @db.Uuid
+    project            project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    organization       organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// Many to many relationship between projects and users
+model project_users {
+    id                 String @id @default(uuid()) @db.Uuid
+    projectId          String @db.Uuid
+    userId             String @db.Uuid
+    project            project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    user               user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Many to many relationship between projects and users who starred them
+model project_stars {
+    id                 String @id @default(uuid()) @db.Uuid
+    projectId          String @db.Uuid
+    userId             String @db.Uuid
+    project            project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    user               user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model resource {
+    id                 String @id @default(uuid()) @db.Uuid
+    name               String @unique @db.VarChar(128)
+    description        String @db.VarChar(1024)
+    link               String @db.VarChar(256) // URL or Vrooli ID (e.g. vrooli:org:12345, vrooli:rou:54321)
+    displayUrl         String @db.VarChar(256) // URL for display image. Taken from OpenGraph data if not
+    userId             String @db.Uuid
+    user               user @relation(fields: [userId], references: [id], onDelete: Cascade)
+    organizationId     String? @db.Uuid
+    organization       organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    projectId          String? @db.Uuid
+    project            project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 // A user role. Each user can have multiple roles
@@ -54,7 +133,7 @@ model role {
   id             String           @id @default(uuid()) @db.Uuid
   title          String           @unique @db.VarChar(128)
   description    String?          @db.VarChar(2048)
-  customer_roles customer_roles[]
+  user_roles     user_roles[]
 }
 
 // Wallet data
@@ -65,8 +144,12 @@ model wallet {
     nonceCreationTime DateTime? @db.Timestamptz(6)
     verified          Boolean   @default(false)
     lastVerifiedTime  DateTime? @db.Timestamptz(6)
-    customerId        String?   @db.Uuid
-    customer          customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+    userId            String?   @db.Uuid
+    user              user? @relation(fields: [userId], references: [id], onDelete: Cascade)
+    organizationId    String?   @db.Uuid
+    organization      organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    projectId         String?   @db.Uuid
+    project           project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 enum TaskStatus {

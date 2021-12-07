@@ -3,33 +3,33 @@ import { onlyPrimitives } from "../../utils/objectTools";
 import { CustomError } from "../../error";
 import { CODE } from '@local/shared';
 
-// Validates email address, and returns customer data
-export async function customerFromEmail(email: string, prisma: any) {
+// Validates email address, and returns user data
+export async function userFromEmail(email: string, prisma: any) {
     if (!email) throw new CustomError(CODE.BadCredentials);
     // Validate email address
     const emailRow = await prisma.email.findUnique({ where: { emailAddress: email } });
     if (!emailRow) throw new CustomError(CODE.BadCredentials);
-    // Find customer
-    let customer = await prisma.customer.findUnique({ where: { id: emailRow.customerId } });
-    if (!customer) throw new CustomError(CODE.ErrorUnknown);
-    return customer;
+    // Find user
+    let user = await prisma.user.findUnique({ where: { id: emailRow.userId } });
+    if (!user) throw new CustomError(CODE.ErrorUnknown);
+    return user;
 }
 
-// Upsert a customer, with emails and roles
-export async function upsertCustomer({ prisma, info, data }: any) {
+// Upsert a user, with emails and roles
+export async function upsertUser({ prisma, info, data }: any) {
     // Remove relationship data, as they are handled on a 
     // case-by-case basis
     let cleanedData = onlyPrimitives(data);
-    // Upsert customer
-    let customer;
+    // Upsert user
+    let user;
     if (!data.id) {
         // Check for valid username
         //TODO
         // Make sure username isn't in use
-        if (await prisma.customer.findUnique({ where: { username: data.username }})) throw new CustomError(CODE.UsernameInUse);
-        customer = await prisma.customer.create({ data: cleanedData })
+        if (await prisma.user.findUnique({ where: { username: data.username }})) throw new CustomError(CODE.UsernameInUse);
+        user = await prisma.user.create({ data: cleanedData })
     } else {
-        customer = await prisma.customer.update({ 
+        user = await prisma.user.update({ 
             where: { id: data.id },
             data: cleanedData
         })
@@ -39,7 +39,7 @@ export async function upsertCustomer({ prisma, info, data }: any) {
         const emailExists = await prisma.email.findUnique({ where: { emailAddress: email.emailAddress } });
         if (emailExists && emailExists.id !== email.id) throw new CustomError(CODE.EmailInUse);
         if (!email.id) {
-            await prisma.email.create({ data: { ...email, id: undefined, customerId: customer.id } })
+            await prisma.email.create({ data: { ...email, id: undefined, user: user.id } })
         } else {
             await prisma.email.update({
                 where: { id: email.id },
@@ -50,16 +50,16 @@ export async function upsertCustomer({ prisma, info, data }: any) {
     // Upsert roles
     for (const role of (data.roles ?? [])) {
         if (!role.id) continue;
-        const roleData = { customerId: customer.id, roleId: role.id };
-        await prisma.customer_roles.upsert({
-            where: { customer_roles_customerid_roleid_unique: roleData },
+        const roleData = { userId: user.id, roleId: role.id };
+        await prisma.user_roles.upsert({
+            where: { user_roles_userid_roleid_unique: roleData },
             create: roleData,
             update: roleData
         })
     }
     if (info) {
         const prismaInfo = new PrismaSelect(info).value;
-        return await prisma.customer.findUnique({ where: { id: customer.id }, ...prismaInfo });
+        return await prisma.user.findUnique({ where: { id: user.id }, ...prismaInfo });
     }
     return true;
 }

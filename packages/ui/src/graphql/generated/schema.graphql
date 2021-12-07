@@ -49,8 +49,8 @@ type Response {
 
 type Query {
   readAssets(files: [String!]!): [String]!
-  customers: [Customer!]!
-  profile: Customer!
+  users: [User!]!
+  profile: User!
   emails: [Email!]!
   roles: [Role!]!
   tasks(ids: [ID!], status: TaskStatus): [Task!]!
@@ -58,15 +58,15 @@ type Query {
 
 type Mutation {
   writeAssets(files: [Upload!]!): Boolean
-  login(email: String, password: String, verificationCode: String): Customer!
+  login(email: String, password: String, verificationCode: String): User!
   logout: Boolean
-  signUp(username: String!, pronouns: String, email: String!, theme: String!, marketingEmails: Boolean!, password: String!): Customer!
-  updateCustomer(input: CustomerInput!, currentPassword: String!, newPassword: String): Customer!
-  deleteCustomer(id: ID!, password: String): Boolean
+  signUp(username: String!, pronouns: String, email: String!, theme: String!, marketingEmails: Boolean!, password: String!): User!
+  updateUser(input: UserInput!, currentPassword: String!, newPassword: String): User!
+  deleteUser(id: ID!, password: String): Boolean
   requestPasswordChange(email: String!): Boolean
-  resetPassword(id: ID!, code: String!, newPassword: String!): Customer!
-  changeCustomerStatus(id: ID!, status: AccountStatus!): Boolean
-  removeCustomerRole(id: ID!, roleId: ID!): Count!
+  resetPassword(id: ID!, code: String!, newPassword: String!): User!
+  changeUserStatus(id: ID!, status: AccountStatus!): Boolean
+  removeUserRole(id: ID!, roleId: ID!): Count!
   addEmail(input: EmailInput!): Email!
   updateEmail(input: EmailInput!): Email!
   deleteEmails(ids: [ID!]!): Count!
@@ -83,7 +83,7 @@ enum AccountStatus {
   HARD_LOCKED
 }
 
-input CustomerInput {
+input UserInput {
   id: ID
   username: String
   pronouns: String
@@ -92,7 +92,7 @@ input CustomerInput {
   status: AccountStatus
 }
 
-type Customer {
+type User {
   id: ID!
   username: String!
   pronouns: String!
@@ -100,14 +100,14 @@ type Customer {
   theme: String!
   emailVerified: Boolean!
   status: AccountStatus!
-  roles: [CustomerRole!]!
+  roles: [UserRole!]!
 }
 
 input EmailInput {
   id: ID
   emailAddress: String!
   receivesDeliveryUpdates: Boolean
-  customerId: ID
+  userId: ID
 }
 
 type Email {
@@ -115,24 +115,24 @@ type Email {
   emailAddress: String!
   receivesDeliveryUpdates: Boolean!
   verified: Boolean!
-  customer: Customer
+  user: User
 }
 
 input FeedbackInput {
   id: ID
   text: String!
-  customerId: ID
+  userId: ID
 }
 
 input RoleInput {
   id: ID
   title: String!
   description: String
-  customerIds: [ID!]
+  userIds: [ID!]
 }
 
-type CustomerRole {
-  customer: Customer!
+type UserRole {
+  user: User!
   role: Role!
 }
 
@@ -140,7 +140,7 @@ type Role {
   id: ID!
   title: String!
   description: String
-  customers: [Customer!]!
+  users: [User!]!
 }
 
 enum TaskStatus {

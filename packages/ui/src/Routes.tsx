@@ -101,7 +101,7 @@ const Routes = (props: CommonProps) => {
                 {/* Pages for creating and running routine orchestrations */}
                 <Route
                     exact
-                    path={`${LINKS.Orchestration}/:id?`}
+                    path={`${LINKS.Orchestrate}/:id?`}
                     sitemapIndex={false}
                     render={() => (
                         <Page title={title('Plan Routine')} {...props} restrictedToRoles={Object.values(ROLES)}>

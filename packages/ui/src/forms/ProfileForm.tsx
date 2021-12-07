@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { profileSchema } from '@local/shared';
 import { useMutation, useQuery } from '@apollo/client';
-import { updateCustomerMutation } from 'graphql/mutation';
+import { updateUserMutation } from 'graphql/mutation';
 import { profileQuery } from 'graphql/query';
 import { useFormik } from 'formik';
 import { combineStyles, PUBS } from 'utils';
@@ -14,7 +14,7 @@ import { makeStyles } from '@material-ui/styles';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { formStyles } from './styles';
 import { profile } from 'graphql/generated/profile';
-import { updateCustomer } from 'graphql/generated/updateCustomer';
+import { updateUser } from 'graphql/generated/updateUser';
 
 const componentStyles = (theme: Theme) => ({
     buttons: {
@@ -32,7 +32,7 @@ export const ProfileForm = () => {
     const classes = useStyles()
     const [editing, setEditing] = useState(false);
     const { data: profile } = useQuery<any>(profileQuery);
-    const [updateCustomer, { loading }] = useMutation<updateCustomer>(updateCustomerMutation);
+    const [updateUser, { loading }] = useMutation<updateUser>(updateUserMutation);
 
     const formik = useFormik({
         enableReinitialize: true,
@@ -62,7 +62,7 @@ export const ProfileForm = () => {
             // Only add email ids if they previously existed
             if (profile?.profile?.emails?.length > 0) input.emails[0].id = profile.profile.emails[0].id;
             mutationWrapper({
-                mutation: updateCustomer,
+                mutation: updateUser,
                 data: { variables: {
                     input: input,
                     currentPassword: values.currentPassword,

@@ -54,7 +54,7 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
     // Home action always available
     let actions: ActionArray[] = [['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]];
     // Projets action is only for logged-in users (since it uses personal data)
-    if (userRoles?.includes(ROLES.Customer)) {
+    if (userRoles?.includes(ROLES.Actor)) {
         actions.push(['Projects', ACTION_TAGS.Projects, LINKS.Projects, null, ProjectsIcon, 0]);
     }
     // Available for all users
@@ -64,7 +64,7 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
         ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
     );
     // Log in/out
-    if (!userRoles?.includes(ROLES.Customer)) {
+    if (!userRoles?.includes(ROLES.Actor)) {
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
     } else {
         actions.push(['Log Out', ACTION_TAGS.LogOut, LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, LogOutIcon, 0]);

@@ -1,9 +1,9 @@
 import { gql } from 'graphql-tag';
 import { emailFields } from './emailFields';
 
-export const customerContactFields = gql`
+export const userContactFields = gql`
     ${emailFields}
-    fragment customerContactFields on Customer {
+    fragment userContactFields on User {
         id
         username
         emails {

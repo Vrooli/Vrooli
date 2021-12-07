@@ -11,7 +11,8 @@ export const typeDef = gql`
         id: ID!
         publicAddress: String!
         verified: Boolean!
-        customer: Customer
+        user: User
+        organization: Organization
     }
 
     extend type Mutation {
@@ -23,7 +24,7 @@ export const typeDef = gql`
             publicAddress: String!
             signedMessage: String!
         ): Boolean!
-        removeWallets(ids: [ID!]!): Count!
+        removeWallet(id: ID!): Boolean!
     }
 `
 
@@ -34,12 +35,12 @@ export const resolvers = {
         initValidateWallet: async (_parent: undefined, args: any, context: any, info: any) => {
             let userData;
             // If not signed in, create new user row
-            if (!context.req.customerId) {
-                userData = await context.prisma.customer.create({ data: {} });
+            if (!context.req.userId) {
+                userData = await context.prisma.user.create({ data: {} });
             }
             // Otherwise, find user data using id in session token 
             else {
-                userData = await context.prisma.customer.findUnique({ where: { id: context.req.customerId } });
+                userData = await context.prisma.user.findUnique({ where: { id: context.req.userId } });
             }
             if (!userData) return new CustomError(CODE.ErrorUnknown);
 
@@ -49,7 +50,7 @@ export const resolvers = {
                 select: {
                     id: true,
                     verified: true,
-                    customerId: true,
+                    userId: true,
                 }
             });
             // If wallet data didn't exist, create
@@ -59,20 +60,20 @@ export const resolvers = {
                     select: {
                         id: true,
                         verified: true,
-                        customerId: true,
+                        userId: true,
                     }
                 })
             }
 
             // If wallet is either: (1) unverified; or (2) already verified with user, update wallet with nonce and user id
-            if (!walletData.verified || walletData.customerId === userData.id) {
+            if (!walletData.verified || walletData.userId === userData.id) {
                 const nonce = await generateNonce(args.nonceDescription);
                 await context.prisma.wallet.update({
                     where: { id: walletData.id },
                     data: { 
                         nonce: nonce, 
                         nonceCreationTime: new Date().toISOString(),
-                        customerId: userData.id
+                        userId: userData.id
                     }
                 })
                 return nonce;
@@ -91,13 +92,13 @@ export const resolvers = {
                     id: true,
                     nonce: true,
                     nonceCreationTime: true,
-                    customerId: true,
+                    userId: true,
                 }
             });
 
             // Verify wallet data
             if (!walletData) return new CustomError(CODE.InvalidArgs);
-            if (!walletData.customerId) return new CustomError(CODE.ErrorUnknown);
+            if (!walletData.userId) return new CustomError(CODE.ErrorUnknown);
             if (!walletData.nonce || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) return new CustomError(CODE.NonceExpired)
 
             // Verify that message was signed by wallet address
@@ -115,16 +116,16 @@ export const resolvers = {
                 }
             })
             // Add session token to return payload
-            await generateToken(context.res, walletData.customerId);
+            await generateToken(context.res, walletData.userId);
             return true;
         },
-        removeWallets: async (_parent: undefined, args: any, context: any, _info: any) => {
+        removeWallet: async (_parent: undefined, args: any, context: any, _info: any) => {
             // Must deleting your own
-            // TODO must keep at least one wallet per customer
+            // TODO must keep at least one wallet per user
             const specified = await context.prisma.email.findMany({ where: { id: { in: args.ids } } });
             if (!specified) return new CustomError(CODE.ErrorUnknown);
-            const customerIds = [...new Set(specified.map((s: any) => s.customerId))];
-            if (customerIds.length > 1 || context.req.customerId !== customerIds[0]) return new CustomError(CODE.Unauthorized);
+            const userIds = [...new Set(specified.map((s: any) => s.userId))];
+            if (userIds.length > 1 || context.req.userId !== userIds[0]) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented); //TODO
         }
     }

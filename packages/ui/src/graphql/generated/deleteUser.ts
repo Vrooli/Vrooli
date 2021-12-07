@@ -4,13 +4,13 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL mutation operation: deleteCustomer
+// GraphQL mutation operation: deleteUser
 // ====================================================
 
-export interface deleteCustomer {
-  deleteCustomer: boolean | null;
+export interface deleteUser {
+  deleteUser: boolean | null;
 }
 
-export interface deleteCustomerVariables {
+export interface deleteUserVariables {
   id: string;
 }

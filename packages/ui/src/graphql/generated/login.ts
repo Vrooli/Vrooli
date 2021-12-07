@@ -16,12 +16,12 @@ export interface login_login_roles_role {
 }
 
 export interface login_login_roles {
-  __typename: "CustomerRole";
+  __typename: "UserRole";
   role: login_login_roles_role;
 }
 
 export interface login_login {
-  __typename: "Customer";
+  __typename: "User";
   id: string;
   status: AccountStatus;
   theme: string;

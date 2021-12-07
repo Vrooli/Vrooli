@@ -1,5 +1,5 @@
 // Define common props
-import { customers_customers } from 'graphql/generated/customers';
+import { users_users } from 'graphql/generated/users';
 
 // Top-level props that can be passed into any routed component
 export type UserRoles = string[] | null;
@@ -12,7 +12,7 @@ export interface CommonProps {
 }
 
 // Rename auto-generated query objects
-export type Customer = customers_customers;
+export type User = users_users;
 export type Resource = any; //TODO
 
 // Enable Nami integration

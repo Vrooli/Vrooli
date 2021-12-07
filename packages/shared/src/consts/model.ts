@@ -9,7 +9,7 @@ export const AccountStatus = {
 export type AccountStatus = ValueOf<typeof AccountStatus>;
 
 export const ROLES = {
+    Actor: 'Actor',
     Guest: 'Guest',
-    Customer: 'Customer',
 }
 export type ROLES = ValueOf<typeof ROLES>;
