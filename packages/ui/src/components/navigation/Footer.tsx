@@ -1,7 +1,7 @@
-import { LINKS } from 'utils';
+import { APP_LINKS, EMAIL, LANDING_LINKS, LANDING_URL, SOCIALS } from '@local/shared';
 import { makeStyles } from '@material-ui/styles';
-import { useTheme } from '@material-ui/core';
-import { List, ListItem, ListItemIcon, ListItemText, Grid, Tooltip, Theme } from '@material-ui/core';
+import { SvgIconTypeMap, useTheme } from '@material-ui/core';
+import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Grid, Tooltip, Theme } from '@material-ui/core';
 import {
     Email as EmailIcon,
     GitHub as GitHubIcon,
@@ -9,7 +9,8 @@ import {
 } from '@material-ui/icons';
 import { CopyrightBreadcrumbs } from 'components';
 import { useHistory } from 'react-router';
-import { CommonProps } from 'types';
+import { OverridableComponent } from '@material-ui/core/OverridableComponent';
+import { openLink } from 'utils';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -39,34 +40,31 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
-export const Footer = ({
-    business,
-    userRoles,
-}: Pick<CommonProps, 'business' | 'userRoles'>) => {
+export const Footer = () => {
     const classes = useStyles();
     const history = useHistory();
     const theme = useTheme();
 
-    const contactLinks = [
-        ['contact-twitter', 'Find us on Twitter', business?.SOCIAL?.Twitter, 'Twitter', TwitterIcon],
-        ['contact-email', 'Have a question or feedback? Email us!', business?.EMAIL?.Link, 'Email Us', EmailIcon],
-        ['contact-github', 'Check out the source code, or contribute :)', business?.SOCIAL?.GitHub, 'Source Code', GitHubIcon],
+    const contactLinks: Array<[string, string, string, string, OverridableComponent<SvgIconTypeMap<{}, "svg">>]> = [
+        ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
+        ['contact-email', 'Have a question or feedback? Email us!', EMAIL.Link, 'Email Us', EmailIcon],
+        ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],
     ]
 
     return (
         <div className={classes.root}>
             <Grid container justifyContent='center' spacing={1}>
                 <Grid item xs={12} sm={6}>
-                <List component="nav">
+                    <List component="nav">
                         <ListItem component="h3" >
                             <ListItemText className={classes.upper} primary="Resources" />
                         </ListItem>
-                        <ListItem button component="a" onClick={() => history.push(LINKS.About)} >
+                        <ListItemButton component="a" onClick={() => openLink(history, `${LANDING_URL}${LANDING_LINKS.About}`)} >
                             <ListItemText primary="About Us" />
-                        </ListItem>
-                        <ListItem button component="a" onClick={() => history.push(LINKS.Stats)} >
+                        </ListItemButton>
+                        <ListItemButton component="a" onClick={() => openLink(history, APP_LINKS.Stats)} >
                             <ListItemText primary="View Stats" />
-                        </ListItem>
+                        </ListItemButton>
                     </List>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -76,18 +74,18 @@ export const Footer = ({
                         </ListItem>
                         {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
                             <Tooltip key={key} title={tooltip} placement="left">
-                                <ListItem button component="a" aria-label={label} href={src}>
+                                <ListItemButton aria-label={label} onClick={() => openLink(history, src)}>
                                     <ListItemIcon>
                                         <Icon className={classes.icon} ></Icon>
                                     </ListItemIcon>
                                     <ListItemText primary={text} />
-                                </ListItem>
+                                </ListItemButton>
                             </Tooltip>
                         ))}
                     </List>
                 </Grid>
             </Grid>
-            <CopyrightBreadcrumbs className={classes.copyright} business={business} textColor={theme.palette.primary.contrastText} />
+            <CopyrightBreadcrumbs className={classes.copyright} textColor={theme.palette.primary.contrastText} />
         </div>
     );
 }

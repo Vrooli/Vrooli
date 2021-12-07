@@ -10,7 +10,7 @@ services:
         environment: 
             NODE_ENV: "${NODE_ENV}"
             PROJECT_DIR: "${PROJECT_DIR}"
-            REACT_APP_SITE_NAME: "${SITE_NAME}"
+            REACT_APP_SITE_NAME: "app.${SITE_NAME}"
             REACT_APP_SERVER_ROUTE: "${SERVER_ROUTE}"
             REACT_APP_SERVER_PORT: "${SERVER_PORT}"
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
@@ -54,7 +54,6 @@ services:
             SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"
             REACT_APP_SITE_NAME: "${SITE_NAME}"
             REACT_APP_SERVER_ROUTE: "${SERVER_ROUTE}"
-            UI_PORT: "${UI_PORT}"
             REACT_APP_SERVER_PORT: "${SERVER_PORT}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
             VIRTUAL_PORT: "${SERVER_PORT}"

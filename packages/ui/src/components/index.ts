@@ -10,7 +10,5 @@ export * from './nodes';
 export * from './HelpButton';
 export * from './PopupMenu';
 export * from './ScrollToTop';
-export * from './Slide';
 export * from './Snack';
-export * from './TabPanel';
 export * from './YoutubeEmbed';

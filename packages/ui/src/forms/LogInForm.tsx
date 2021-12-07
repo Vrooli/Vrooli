@@ -11,7 +11,8 @@ import {
     Typography
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
-import { FORMS, LINKS, PUBS } from 'utils';
+import { FORMS, PUBS } from 'utils';
+import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { formStyles } from './styles';
@@ -40,13 +41,13 @@ export const LogInForm = ({
                 mutation: login,
                 data: { variables: { ...values, verificationCode: urlParams.code } },
                 successCondition: (response) => response.data.login !== null,
-                onSuccess: (response) => { onSessionUpdate(response.data.login); history.push(LINKS.Home) },
+                onSuccess: (response) => { onSessionUpdate(response.data.login); history.push(APP_LINKS.Home) },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(PUBS.AlertDialog, {
                             message: 'Before signing in, please follow the link sent to your email to change your password.',
                             firstButtonText: 'OK',
-                            firstButtonClicked: () => history.push(LINKS.Home),
+                            firstButtonClicked: () => history.push(APP_LINKS.Home),
                         });
                     }
                 }

@@ -10,7 +10,8 @@ import {
     Typography
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
-import { FORMS, LINKS } from 'utils';
+import { APP_LINKS } from '@local/shared';
+import { FORMS } from 'utils';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useHistory } from 'react-router-dom';
 import { formStyles } from './styles';
@@ -36,7 +37,7 @@ export const ForgotPasswordForm = ({
                 mutation: requestPasswordChange,
                 data: { variables: values },
                 successCondition: (response) => response.data.requestPasswordChange,
-                onSuccess: () => history.push(LINKS.Landing),
+                onSuccess: () => history.push(APP_LINKS.Home),
                 successMessage: () => 'Request sent. Please check email.',
             })
         },

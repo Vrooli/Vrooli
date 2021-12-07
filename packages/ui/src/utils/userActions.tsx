@@ -2,15 +2,13 @@
 import {
     Apps as ProjectsIcon,
     ExitToApp as LogOutIcon,
-    Flag as MissionIcon,
     Home as HomeIcon,
-    Info as AboutIcon,
     PersonAdd as RegisterIcon,
     PlayCircle as DevelopIcon,
     School as LearnIcon,
     Science as ResearchIcon,
 } from '@material-ui/icons';
-import { LINKS } from 'utils';
+import { APP_LINKS as LINKS } from '@local/shared';
 import { initializeApollo } from 'graphql/utils/initialize';
 import { logoutMutation } from 'graphql/mutation';
 import {
@@ -24,12 +22,9 @@ import {
 } from '@material-ui/core';
 import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
+import { openLink } from 'utils';
 
 export const ACTION_TAGS = {
-    Landing: 'landing',
-    Mission: 'mission',
-    About: 'about',
-    Start: 'start',
     Home: 'home',
     Projects: 'projects',
     Learn: 'learn',
@@ -56,33 +51,23 @@ interface GetUserActionsProps {
     exclude?: ACTION_TAGS[] | undefined;
 }
 export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps): Action[] {
-    let actions: ActionArray[] = [];
-
-    // If user has not entered main application
-    if (!userRoles) {
-        actions.push(
-            ['Home', ACTION_TAGS.Landing, LINKS.Landing, null, HomeIcon, 0],
-            ['Mission', ACTION_TAGS.Mission, LINKS.Mission, null, MissionIcon, 0],
-            ['About Us', ACTION_TAGS.About, LINKS.About, null, AboutIcon, 0],
-            ['Start', ACTION_TAGS.Start, LINKS.Start, null, DevelopIcon, 0],
-        );
+    // Home action always available
+    let actions: ActionArray[] = [['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]];
+    // Projets action is only for logged-in users (since it uses personal data)
+    if (userRoles?.includes(ROLES.Customer)) {
+        actions.push(['Projects', ACTION_TAGS.Projects, LINKS.Projects, null, ProjectsIcon, 0]);
+    }
+    // Available for all users
+    actions.push(
+        ['Learn', ACTION_TAGS.Learn, LINKS.Learn, null, LearnIcon, 0],
+        ['Research', ACTION_TAGS.Research, LINKS.Research, null, ResearchIcon, 0],
+        ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
+    );
+    // Log in/out
+    if (!userRoles?.includes(ROLES.Customer)) {
+        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
     } else {
-        actions.push(['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]);
-        // Projects only displayed if logged in
-        if (userRoles.includes(ROLES.Customer)) {
-            actions.push(['Projects', ACTION_TAGS.Projects, LINKS.Projects, null, ProjectsIcon, 0]);
-        }
-        actions.push(
-            ['Learn', ACTION_TAGS.Learn, LINKS.Learn, null, LearnIcon, 0],
-            ['Research', ACTION_TAGS.Research, LINKS.Research, null, ResearchIcon, 0],
-            ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
-        );
-        // If user is entered main application, but not logged in
-        if (!userRoles?.includes(ROLES.Customer)) {
-            actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
-        } else {
-            actions.push(['Log Out', ACTION_TAGS.LogOut, LINKS.Landing, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, LogOutIcon, 0]);
-        }
+        actions.push(['Log Out', ACTION_TAGS.LogOut, LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, LogOutIcon, 0]);
     }
 
     return actions.map(a => createAction(a)).filter(a => !exclude.includes(a.value));
@@ -111,7 +96,7 @@ export const actionsToList = ({ actions, history, classes = { listItem: '', list
             key={value}
             classes={{ root: classes.listItem }}
             onClick={() => {
-                history.push(link);
+                openLink(history, link);
                 if (onClick) onClick();
                 if (onAnyClick) onAnyClick();
             }}>
@@ -139,7 +124,7 @@ export const actionsToMenu = ({ actions, history, classes = { root: '' } }: Acti
             variant="text"
             size="large"
             classes={classes}
-            onClick={() => { history.push(link); if (onClick) onClick() }}
+            onClick={() => { openLink(history, link); if (onClick) onClick() }}
         >
             {label}
         </Button>
@@ -159,7 +144,7 @@ export const actionsToBottomNav = ({ actions, history, classes = { root: '' } }:
             classes={classes}
             label={label}
             value={value}
-            onClick={() => { history.push(link); if (onClick) onClick() }}
+            onClick={() => { openLink(history, link); if (onClick) onClick() }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>} />
     ))
 }
@@ -172,7 +157,7 @@ interface ActionToIconButtonProps {
 }
 export const actionToIconButton = ({ action, history, classes = { root: '' } }: ActionToIconButtonProps) => {
     const { value, link, Icon, numNotifications } = action;
-    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => history.push(link)}>
+    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(history, link)}>
         <Badge badgeContent={numNotifications} color="error">
             <Icon />
         </Badge>

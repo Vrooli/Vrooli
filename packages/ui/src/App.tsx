@@ -7,7 +7,7 @@ import {
     Snack
 } from 'components';
 import PubSub from 'pubsub-js';
-import { LINKS, PUBS, themes } from 'utils';
+import { PUBS, themes } from 'utils';
 import { Routes } from 'Routes';
 import { CssBaseline, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from '@material-ui/core/styles';
@@ -15,12 +15,10 @@ import { makeStyles } from '@material-ui/styles';
 import StyledEngineProvider from '@material-ui/core/StyledEngineProvider';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { DndProvider } from 'react-dnd';
-import { useMutation, useQuery } from '@apollo/client';
-import { readAssetsQuery } from 'graphql/query/readAssets';
+import { useMutation } from '@apollo/client';
 import { loginMutation } from 'graphql/mutation';
-import SakBunderan from './assets/fonts/SakBunderan.woff';
-import { Business, UserRoles } from 'types';
-import { readAssets, readAssetsVariables } from 'graphql/generated/readAssets';
+import SakBunderan from './assets/font/SakBunderan.woff';
+import { UserRoles } from 'types';
 import { login } from 'graphql/generated/login';
 import hotkeys from 'hotkeys-js';
 import { useLocation } from 'react-router';
@@ -74,8 +72,6 @@ export function App() {
     const [roles, setRoles] = useState<UserRoles>(null);
     const [loading, setLoading] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [business, setBusiness] = useState<Business>(null)
-    const { data: businessData } = useQuery<readAssets, readAssetsVariables>(readAssetsQuery, { variables: { files: ['hours.md', 'business.json'] } });
     const [login] = useMutation<login>(loginMutation);
 
     // If anchor tag in url, scroll to element
@@ -115,14 +111,6 @@ export function App() {
     }, []);
 
     useEffect(() => {
-        if (businessData === undefined) return;
-        let data = businessData.readAssets[1] ? JSON.parse(businessData.readAssets[1]) : {};
-        let hoursRaw = businessData.readAssets[0];
-        data.hours = hoursRaw;
-        setBusiness(data);
-    }, [businessData])
-
-    useEffect(() => {
         // Determine theme
         if (session?.theme) setTheme(themes[session?.theme])
         //else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
@@ -135,21 +123,15 @@ export function App() {
             setSession(session);
             return;
         }
-        // If navigated directly to application, set guest session
-        if (pathname.length > 1 && 
-            !['/#', LINKS.About, LINKS.Mission, LINKS.PrivacyPolicy, 
-            LINKS.Terms, LINKS.Start].some(sub => pathname.startsWith(sub))) {
-            setSession({roles:[ROLES.Guest]});
-        }
         // Check if previous log in exists
         login().then((response) => {
             setSession(response?.data?.login);
         }).catch((response) => {
             if (process.env.NODE_ENV === 'development') console.error('Error: cannot login', response);
             // If not logged in as guest and failed to log in as user, set empty object
-            if (session === null) setSession({})
+            if (session === null) setSession({roles:[ROLES.Guest]})
         })
-    }, [login, pathname])
+    }, [login])
 
     useEffect(() => {
         checkLogin();
@@ -162,11 +144,9 @@ export function App() {
                 setLoading(Boolean(data));
             }
         });
-        let businessSub = PubSub.subscribe(PUBS.Business, (_, data) => setBusiness(data));
         let themeSub = PubSub.subscribe(PUBS.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
         return (() => {
             PubSub.unsubscribe(loadingSub);
-            PubSub.unsubscribe(businessSub);
             PubSub.unsubscribe(themeSub);
         })
     }, [checkLogin])
@@ -185,10 +165,7 @@ export function App() {
                             }}
                         >
                             <div id="content-wrap" className={classes.contentWrap}>
-                                <Navbar
-                                    business={business}
-                                    userRoles={roles}
-                                />
+                                <Navbar userRoles={roles} />
                                 {loading ?
                                     <div className={classes.spinner}>
                                         <CircularProgress size={100} />
@@ -199,12 +176,11 @@ export function App() {
                                 <Routes
                                     sessionChecked={session !== null && session !== undefined}
                                     onSessionUpdate={checkLogin}
-                                    business={business}
                                     userRoles={roles}
                                 />
                             </div>
                             <BottomNav userRoles={roles} />
-                            <Footer userRoles={roles} business={business} />
+                            <Footer />
                         </main>
                     </div>
                 </DndProvider>

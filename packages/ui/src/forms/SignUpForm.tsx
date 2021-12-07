@@ -1,6 +1,6 @@
 import { signUpMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { CODE, signUpSchema } from '@local/shared';
+import { BUSINESS_NAME, CODE, signUpSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -13,7 +13,8 @@ import {
     useTheme
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
-import { combineStyles, FORMS, LINKS, PUBS } from 'utils';
+import { combineStyles, FORMS, PUBS } from 'utils';
+import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useHistory } from 'react-router-dom';
@@ -30,7 +31,6 @@ const componentStyles = () => ({
 const useStyles = makeStyles(combineStyles(formStyles, componentStyles));
 
 export const SignUpForm = ({
-    business,
     onSessionUpdate,
     onFormChange = () => {},
 }: FormProps) => {
@@ -59,8 +59,8 @@ export const SignUpForm = ({
                 onSuccess: (response) => {
                     onSessionUpdate(response.data.signUp);
                     PubSub.publish(PUBS.AlertDialog, {
-                        message: `Welcome to ${business?.BUSINESS_NAME?.Short}. Please verify your email within 48 hours.`,
-                        buttons: [ { text: 'OK', onClick: () => history.push(LINKS.Profile) } ]
+                        message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
+                        buttons: [ { text: 'OK', onClick: () => history.push(APP_LINKS.Profile) } ]
                     });
                 },
                 onError: (response) => {

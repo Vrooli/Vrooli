@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { LINKS } from 'utils';
+import { APP_LINKS } from '@local/shared';
 import { useLocation, Redirect } from 'react-router-dom';
 import { UserRoles } from 'types';
 
@@ -15,7 +15,7 @@ interface Props {
 export const Page = ({
     title = '',
     sessionChecked,
-    redirect = LINKS.Landing,
+    redirect = APP_LINKS.Home,
     userRoles,
     restrictedToRoles = [],
     children

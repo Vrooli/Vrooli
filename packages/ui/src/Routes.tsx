@@ -1,8 +1,8 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
 import { Switch, Route } from 'react-router-dom';
-import { ROLES } from '@local/shared';
-import { LINKS } from 'utils';
+import { BUSINESS_NAME, ROLES } from '@local/shared';
+import { APP_LINKS as LINKS } from '@local/shared';
 import { Sitemap } from 'Sitemap';
 import {
     ForgotPasswordForm,
@@ -13,17 +13,13 @@ import { CommonProps } from 'types';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
-    AboutPage,
     ActorViewPage,
     DevelopPage,
     FormPage,
     HomePage,
-    LandingPage,
     LearnPage,
-    MissionPage,
     NotFoundPage,
     Page,
-    PrivacyPolicyPage,
     OrganizationViewPage,
     ProjectsPage,
     ProjectViewPage,
@@ -33,12 +29,11 @@ const {
     RunRoutinePage,
     StartPage,
     StatsPage,
-    TermsPage,
 } = lazily(() => import('./pages'));
 
 const Routes = (props: CommonProps) => {
 
-    const title = useCallback((page: string) => `${page} | ${props.business?.BUSINESS_NAME?.Short}`, [props.business?.BUSINESS_NAME?.Short]);
+    const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
 
     return (
         <Suspense fallback={<div>Loading...</div>}>
@@ -48,68 +43,6 @@ const Routes = (props: CommonProps) => {
                     path="/sitemap"
                     component={Sitemap}
                 />
-
-                {/* ========= START INFORMATIONAL ROUTES ========= */}
-                {/* Informational pages to describe Vrooli to potential customers */}
-                <Route
-                    exact
-                    path={LINKS.Landing}
-                    sitemapIndex={true}
-                    priority={1.0}
-                    changefreq="monthly"
-                    render={() => (
-                        <Page title={title('Home')} {...props}>
-                            <LandingPage />
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={LINKS.Mission}
-                    sitemapIndex={true}
-                    priority={1.0}
-                    changefreq="monthly"
-                    render={() => (
-                        <Page title={title('Mission')} {...props}>
-                            <MissionPage />
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={LINKS.About}
-                    sitemapIndex={true}
-                    priority={0.7}
-                    render={() => (
-                        <Page title={title('About')} {...props}>
-                            <AboutPage {...props} />
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={LINKS.PrivacyPolicy}
-                    sitemapIndex={true}
-                    priority={0.1}
-                    render={() => (
-                        <Page title={title('Privacy Policy')} {...props}>
-                            <PrivacyPolicyPage business={props.business} />
-                        </Page>
-                    )}
-                />
-                <Route
-                    exact
-                    path={LINKS.Terms}
-                    sitemapIndex={true}
-                    priority={0.1}
-                    render={() => (
-                        <Page title={title('Terms & Conditions')} {...props}>
-                            <TermsPage business={props.business} />
-                        </Page>
-                    )}
-                />
-                {/* ========= END INFORMATIONAL ROUTES ========= */}
-
                 {/* ========= START DASHBOARD ROUTES ========= */}
                 {/* Customizable pages available to logged in users */}
                 <Route

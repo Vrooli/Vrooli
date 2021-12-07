@@ -51,7 +51,7 @@ export async function generateToken(res: Response, customerId: any) {
     const customerRoles = await findCustomerRoles(customerId);
     const tokenContents = {
         iat: Date.now(),
-        iss: `https://${process.env.SITE_NAME}/`,
+        iss: `https://app.${process.env.SITE_NAME}/`,
         customerId: customerId,
         roles: customerRoles,
         isCustomer: customerRoles.includes('customer'),

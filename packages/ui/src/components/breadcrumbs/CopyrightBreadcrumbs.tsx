@@ -1,19 +1,14 @@
-import { BreadcrumbsBase } from 'components';
-import { LINKS } from 'utils';
+import { BreadcrumbsBase } from './BreadcrumbsBase';
+import { BUSINESS_NAME, LANDING_LINKS, LANDING_URL } from '@local/shared';
 import { BreadcrumbsBaseProps } from './types';
 
-interface Props extends BreadcrumbsBaseProps  {
-    business: { BUSINESS_NAME: { Long: string; Short: string; } };
-}
-
 export const CopyrightBreadcrumbs = ({ 
-    business, 
     ...props 
-}: Omit<Props, 'paths' | 'ariaLabel' | 'style'>) => {
+}: Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel' | 'style'>) => {
     const paths = [
-        [`© ${new Date().getFullYear()} ${business?.BUSINESS_NAME?.Long ?? business?.BUSINESS_NAME?.Short ?? 'Home'}`, LINKS.Home],
-        ['Privacy', LINKS.PrivacyPolicy],
-        ['Terms', LINKS.Terms]
+        [`© ${new Date().getFullYear()} ${BUSINESS_NAME}`, `${LANDING_URL}${LANDING_LINKS.Home}`],
+        ['Privacy', `${LANDING_URL}${LANDING_LINKS.PrivacyPolicy}`],
+        ['Terms', `${LANDING_URL}${LANDING_LINKS.Terms}`]
     ].map(row => ({ text: row[0], link: row[1] }))
     return BreadcrumbsBase({
         paths: paths,

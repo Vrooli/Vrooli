@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
-import { combineStyles, LINKS } from 'utils';
+import { combineStyles } from 'utils';
+import { APP_LINKS } from '@local/shared';
 import { pageStyles } from './styles';
 
 const componentStyles = () => ({
@@ -24,7 +25,7 @@ export const NotFoundPage = () => {
                 <h1>Page Not Found</h1>
                 <h3>Looks like you've followed a broken link or entered a URL that doesn't exist on this site</h3>
                 <br />
-                <Link to={LINKS.Landing}>
+                <Link to={APP_LINKS.Home}>
                     <Button>Go to Home</Button>
                 </Link>
             </div>

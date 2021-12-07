@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ContactInfo } from 'components';
-import { actionsToList, ACTION_TAGS, getUserActions, PUBS } from 'utils';
+import { actionsToList, getUserActions, PUBS } from 'utils';
 import PubSub from 'pubsub-js';
 import {
     Close as CloseIcon,
@@ -51,9 +51,8 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 export const Hamburger = ({
-    business,
     userRoles,
-}: Pick<CommonProps, 'business' | 'userRoles'>) => {
+}: Pick<CommonProps, 'userRoles'>) => {
     const classes = useStyles();
     const history = useHistory();
     const theme = useTheme();
@@ -74,7 +73,7 @@ export const Hamburger = ({
         setContactOpen(!contactOpen);
     };
 
-    const nav_actions = getUserActions({ userRoles, exclude: [ACTION_TAGS.Landing] });
+    const nav_actions = getUserActions({ userRoles });
 
     return (
         <>
@@ -93,7 +92,7 @@ export const Hamburger = ({
                         {contactOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                     </ListItem>
                     <Collapse className={classes.menuItem} in={contactOpen} timeout="auto" unmountOnExit>
-                        <ContactInfo business={business} />
+                        <ContactInfo />
                     </Collapse>
                     {actionsToList({
                         actions: nav_actions,
@@ -102,7 +101,7 @@ export const Hamburger = ({
                         onAnyClick: closeMenu,
                     })}
                 </List>
-                <CopyrightBreadcrumbs className={classes.copyright} business={business} textColor={theme.palette.primary.contrastText} />
+                <CopyrightBreadcrumbs className={classes.copyright} textColor={theme.palette.primary.contrastText} />
             </SwipeableDrawer>
         </>
     );

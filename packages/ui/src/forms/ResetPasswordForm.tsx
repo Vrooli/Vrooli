@@ -8,7 +8,7 @@ import {
     TextField
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
-import { LINKS } from 'utils';
+import { APP_LINKS } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useParams } from 'react-router-dom';
 import { formStyles } from './styles';
@@ -36,7 +36,7 @@ export const ResetPasswordForm = ({
             mutationWrapper({
                 mutation: resetPassword,
                 data: { variables: { id: urlParams.id, code: urlParams.code, newPassword: values.newPassword } },
-                onSuccess: (response) => { onSessionUpdate(response.data.resetPassword); history.push(LINKS.Home) },
+                onSuccess: (response) => { onSessionUpdate(response.data.resetPassword); history.push(APP_LINKS.Home) },
                 successMessage: () => 'Password reset.',
             })
         },

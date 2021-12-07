@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Logo from 'assets/img/Logo.png';
-import { LINKS } from 'utils';
+import { BUSINESS_NAME, APP_LINKS } from '@local/shared';
 import { AppBar, Toolbar, Typography, Slide, useScrollTrigger, Theme } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { Hamburger } from './Hamburger';
@@ -69,15 +69,13 @@ const HideOnScroll = ({
 }
 
 export const Navbar = ({
-    business,
     userRoles
-}: Pick<CommonProps, 'business' | 'userRoles'>) => {
+}: Pick<CommonProps, 'userRoles'>) => {
     const classes = useStyles();
     const history = useHistory();
     const [show_hamburger, setShowHamburger] = useState(false);
 
     let child_props = { 
-        business: business,
         userRoles: userRoles,
     }
 
@@ -90,17 +88,17 @@ export const Navbar = ({
 
     const updateWindowDimensions = () => setShowHamburger(window.innerWidth <= SHOW_HAMBURGER_AT);
 
-    const toLanding = useCallback(() => history.push(LINKS.Landing), [history]);
+    const toHome = useCallback(() => history.push(APP_LINKS.Home), [history]);
 
     return (
         <HideOnScroll>
             <AppBar className={classes.root}>
                 <Toolbar>
-                    <div className={classes.navLogoContainer} onClick={toLanding}>
+                    <div className={classes.navLogoContainer} onClick={toHome}>
                         <div className={classes.navLogoDiv}>
-                            <img src={Logo} alt={`${business?.BUSINESS_NAME?.Short} Logo`} className={classes.navLogo} />
+                            <img src={Logo} alt={`${BUSINESS_NAME} Logo`} className={classes.navLogo} />
                         </div>
-                        <Typography className={classes.navName} variant="h6" noWrap>{business?.BUSINESS_NAME?.Short}</Typography>
+                        <Typography className={classes.navName} variant="h6" noWrap>{BUSINESS_NAME}</Typography>
                     </div>
                     <div className={classes.toRight}>
                         {show_hamburger ? <Hamburger {...child_props} /> : <NavList {...child_props} />}

@@ -1,5 +1,4 @@
 export * from './dashboard';
-export * from './informational';
 export * from './view';
 export * from './wrapper';
 export * from './NotFoundPage';

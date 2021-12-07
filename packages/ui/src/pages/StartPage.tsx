@@ -13,7 +13,8 @@ import {
 } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { Theme } from '@material-ui/core';
-import { FORMS, LINKS, PUBS } from 'utils';
+import { FORMS, PUBS } from 'utils';
+import { APP_LINKS } from '@local/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/walletIntegration';
 import { CommonProps } from 'types';
@@ -113,7 +114,7 @@ export const StartPage = ({
             // Set customer role
             onSessionUpdate({ roles: [{ role: ROLES.Customer }] })
             // Redirect to main dashboard
-            history.push(LINKS.Home);
+            history.push(APP_LINKS.Home);
         }
     }, [downloadExtension, history, onSessionUpdate, toEmailLogIn])
 
@@ -121,7 +122,7 @@ export const StartPage = ({
         // Set user role as guest
         onSessionUpdate({ roles: [{ role: ROLES.Guest }] })
         // Redirect to home dashboard
-        history.push(LINKS.Home)
+        history.push(APP_LINKS.Home)
     }, [history, onSessionUpdate]);
 
     return (

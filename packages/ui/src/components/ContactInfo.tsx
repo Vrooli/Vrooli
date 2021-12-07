@@ -1,3 +1,4 @@
+import { EMAIL, SOCIALS } from '@local/shared';
 import {  
     BottomNavigation, 
     BottomNavigationAction, 
@@ -11,7 +12,6 @@ import {
     Twitter as TwitterIcon,
 } from "@material-ui/icons";
 import { makeStyles } from '@material-ui/styles';
-import { Business } from 'types';
 
 const useStyles = makeStyles((theme: Theme) => ({
     tableHead: {
@@ -40,26 +40,24 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 interface Props {
-    business: Business;
     className?: string;
 }
 
 export const ContactInfo = ({
-    business,
     className,
     ...props
 }: Props) => {
     const classes = useStyles();
 
     const openLink = (e, link) => {
-        window.location = link;
+        window.open(link, '_blank', 'noopener,noreferrer');
         e.preventDefault();
     }
 
     const contactInfo = [
-        ['Find us on Twitter', 'Twitter', business?.SOCIAL?.Twitter, TwitterIcon],
-        ['Email Us', 'Email', business?.EMAIL?.Link, EmailIcon],
-        ['Source code', 'Code', business?.SOCIAL?.GitHub, GitHubIcon],
+        ['Find us on Twitter', 'Twitter', SOCIALS.Twitter, TwitterIcon],
+        ['Email Us', 'Email', EMAIL.Link, EmailIcon],
+        ['Source code', 'Code', SOCIALS.GitHub, GitHubIcon],
     ]
 
     return (

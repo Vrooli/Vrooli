@@ -2,7 +2,7 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions } from 'utils';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
 import { Button, Container, Theme } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { useHistory } from 'react-router-dom';
@@ -44,19 +44,18 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 export const NavList = ({
-    business,
     userRoles
-}: Pick<CommonProps, 'business' | 'userRoles'>) => {
+}: Pick<CommonProps, 'userRoles'>) => {
     const classes = useStyles();
     const history = useHistory();
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ userRoles, exclude: [ACTION_TAGS.Landing] }), [userRoles]);
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ userRoles }), [userRoles]);
     // Display button for entering main application
-    const enter_action: Action | undefined = nav_actions.find((action: Action) => action.value === ACTION_TAGS.Start || action.value === ACTION_TAGS.LogIn)
+    const enter_action: Action | undefined = nav_actions.find((action: Action) => action.value === ACTION_TAGS.LogIn)
     const enter_button = useMemo(() => enter_action ? (
         <Button 
             className={classes.button} 
-            onClick={() => history.push(enter_action.link)}
+            onClick={() => openLink(history, enter_action.link)}
             >
                 {enter_action.label}
         </Button>
@@ -70,10 +69,10 @@ export const NavList = ({
                 size="large"
                 className={classes.navItem}
             >
-                <ContactInfo className={classes.contact} business={business} />
+                <ContactInfo className={classes.contact} />
             </PopupMenu>
             {actionsToMenu({
-                actions: nav_actions.filter((a: Action) => a.value !== ACTION_TAGS.Start && a.value !== ACTION_TAGS.LogIn),
+                actions: nav_actions.filter((a: Action) => a.value !== ACTION_TAGS.LogIn),
                 history,
                 classes: { root: classes.navItem },
             })}
