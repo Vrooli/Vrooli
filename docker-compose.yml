@@ -25,12 +25,12 @@ services:
             - proxy
             - app
         volumes:
-            - ./packages/app:${PROJECT_DIR}/packages/app:z
+            - ./packages/ui:${PROJECT_DIR}/packages/ui:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
         depends_on: 
                 - redis
                 - db
-        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/app.sh"
+        command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/ui.sh"
     server:
         build:
             context: .
