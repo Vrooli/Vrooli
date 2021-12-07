@@ -21,6 +21,17 @@ const initValidateWallet = async (publicAddress: string): Promise<any> => {
     return result.data.initValidateWallet;
 }
 
+// Completes handshake to verify wallet with backend
+// Returns boolean
+const completeValidateWallet = async (publicAddress: string, signedMessage: string): Promise<any> => {
+    const client = initializeApollo();
+    const result = await client.mutate({
+        mutation: completeValidateWalletMutation,
+        variables: { publicAddress, signedMessage }
+    });
+    return result.data.completeValidateWallet;
+}
+
 // Signs payload received from initValidateWallet
 const signPayload = async (publicAddress: string, payload: string): Promise<any> => {
     if (!hasWalletExtension()) return null;
@@ -43,13 +54,7 @@ export const validateWallet = async (): Promise<any> => {
         const signedPayload = await signPayload(address, payload);
         if (!signedPayload) return false;
         // Send signed payload to backend for verification
-        const client = initializeApollo();
-        client.mutate({
-            mutation: completeValidateWalletMutation,
-            variables: { publicAddress: address, signedMessage: signedPayload }
-        }).then(response => {
-            success = response.data.completeValidateWallet;
-        })
+        success = await completeValidateWallet(address, signedPayload);
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
         PubSub.publish(PUBS.AlertDialog, {

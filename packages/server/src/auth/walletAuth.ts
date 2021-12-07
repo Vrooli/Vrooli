@@ -1,29 +1,41 @@
 import * as Serialization from '@emurgo/cardano-serialization-lib-nodejs';
-import { TextEncoder } from 'util';
 import * as MessageSigning from './message_signing/rust/pkg/emurgo_message_signing';
 import { randomBytes } from 'crypto';
+
+// Generate a random string of the specified length, consisting of the specified characters
+function randomString(
+    length: number = 64,
+    chars: string = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+): string {
+    // Check for valid parameters
+    if (length <= 0 || length > 2048) throw new Error('Length must be bewteen 1 and 2048.');
+    const charsLength = chars.length;
+    if (charsLength < 10 || chars.length > 256) throw new Error('Chars must be bewteen 10 and 256.');
+    // Generate random bytes
+    const bytes = randomBytes(length);
+    // Create result array
+    let result = new Array(length);
+    // Fill result array with bytes, modified to consist of the specified characters
+    let cursor = 0;
+    for (let i = 0; i < length; i++) {
+        cursor += bytes[i];
+        result[i] = chars[cursor % charsLength];
+    }
+    // Return result as string
+    return result.join('');
+}
 
 // Generate signable nonce, which includes human-readable description
 // Returns hex string
 export const generateNonce = async (
-    description: string = 'Please sign this message so we can verify your wallet.',
+    description: string = 'Please sign this message so we can verify your wallet:',
     length: number = 64,
 ) => {
     if (length <= 0 || length > 2048) throw new Error('Length must be bewteen 1 and 2048');
     // Generate nonce (payload)
-    const payload = randomBytes(length);
-    // Create headers
-    let protectedHeaders = MessageSigning.HeaderMap.new();
-    const protectedSerialized = MessageSigning.ProtectedHeaderMap.new(protectedHeaders);
-    const unprotected = MessageSigning.HeaderMap.new();
-    const headers = MessageSigning.Headers.new(protectedSerialized, unprotected);
-    // Combine headers and payload into a COSESignBuilder (COSESign1Builder also works. not sure difference)
-    let builder = MessageSigning.COSESignBuilder.new(headers, payload, false);
-    // Add description to builder
-    builder.set_external_aad(new TextEncoder().encode(description));
-    // Return builder as hex string
-    const builder_bytes = builder.make_data_to_sign().to_bytes();
-    return Buffer.from(builder_bytes).toString('hex');
+    const payload = randomString(length);
+    // Return description + nonce
+    return Buffer.from(`${description} ${payload}`).toString('hex');
 }
 
 /**
