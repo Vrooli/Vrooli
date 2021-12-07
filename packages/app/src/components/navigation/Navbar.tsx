@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Logo from 'assets/img/Logo.png';
-import { BUSINESS_NAME, APP_LINKS, WEBSITE } from '@local/shared';
+import { BUSINESS_NAME, APP_LINKS } from '@local/shared';
 import { AppBar, Toolbar, Typography, Slide, useScrollTrigger, Theme } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import { Hamburger } from './Hamburger';

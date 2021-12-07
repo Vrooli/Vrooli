@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import { CODE, COOKIE, logInSchema, passwordSchema, signUpSchema, requestPasswordChangeSchema } from '@local/shared';
 import { CustomError, validateArgs } from '../error';
 import { generateToken } from '../auth/auth';
-import { customerNotifyAdmin, sendResetPasswordLink, sendVerificationLink } from '../worker/email/queue';
+import { sendResetPasswordLink, sendVerificationLink } from '../worker/email/queue';
 import { PrismaSelect } from '@paljs/plugins';
 import { customerFromEmail, upsertCustomer } from '../db/models/customer';
 import pkg from '@prisma/client';
@@ -203,8 +203,6 @@ export const resolvers = {
             await generateToken(context.res, customer.id);
             // Send verification email
             sendVerificationLink(args.email, customer.id);
-            // Send email to business owner
-            customerNotifyAdmin(args.username);
             // Return user data
             return await context.prisma.customer.findUnique({ where: { id: customer.id }, ...prismaInfo });
         },

@@ -1,18 +1,20 @@
 {
-  "name": "@local/shared",
-  "version": "0.0.1",
-  "description": "",
-  "main": "dist/index.js",
-  "typings": "src/types.d.ts",
-  "type": "module",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "yarn tsc"
-  },
-  "dependencies": {
-    "yup": "^0.32.9"
-  },
-  "devDependencies": {
-    "@types/node": "^16.11.4"
-  }
+    "name": "@local/shared",
+    "author": "Vrooli",
+    "license": "GPL-3.0",
+    "version": "0.0.1",
+    "description": "",
+    "main": "dist/index.js",
+    "typings": "src/types.d.ts",
+    "type": "module",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build": "yarn tsc"
+    },
+    "dependencies": {
+        "yup": "^0.32.9"
+    },
+    "devDependencies": {
+        "@types/node": "^16.11.4"
+    }
 }

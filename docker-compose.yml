@@ -1,44 +1,12 @@
 version: "3.9"
 services:
-    # landing:
-    #     build:
-    #         context: .
-    #         dockerfile: ./packages/landing/Dockerfile
-    #         args:
-    #             PROJECT_DIR: "${PROJECT_DIR}"
-    #     container_name: landing
-    #     environment: 
-    #         NODE_ENV: "${NODE_ENV}"
-    #         PROJECT_DIR: "${PROJECT_DIR}"
-    #         REACT_APP_SITE_NAME: "${SITE_NAME}"
-    #         REACT_APP_SERVER_ROUTE: "${SERVER_ROUTE}"
-    #         REACT_APP_SERVER_PORT: "${SERVER_PORT}"
-    #         REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
-    #         VIRTUAL_HOST: "${VIRTUAL_HOST}"
-    #         VIRTUAL_PATH: "/"
-    #         VIRTUAL_PORT: "${LANDING_PORT}"
-    #         LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
-    #         LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
-    #     ports:
-    #         - "${LANDING_PORT}:${LANDING_PORT}"
-    #     networks:
-    #         - proxy
-    #         - app
-    #     volumes:
-    #         - ./packages/landing:${PROJECT_DIR}/packages/landing:z
-    #         - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-    #     depends_on: 
-    #             - redis
-    #             - db
-    #             - app
-    #     command: /bin/sh -c "chmod +x ./scripts/* && ./scripts/landing.sh"
-    app:
+    ui:
         build:
             context: .
-            dockerfile: ./packages/app/Dockerfile
+            dockerfile: ./packages/ui/Dockerfile
             args:
                 PROJECT_DIR: "${PROJECT_DIR}"
-        container_name: app
+        container_name: ui
         environment: 
             NODE_ENV: "${NODE_ENV}"
             PROJECT_DIR: "${PROJECT_DIR}"
@@ -48,11 +16,11 @@ services:
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
             VIRTUAL_PATH: "/"
-            VIRTUAL_PORT: "${APP_PORT}"
+            VIRTUAL_PORT: "${UI_PORT}"
             LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
             LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
         ports:
-            - "${APP_PORT}:${APP_PORT}"
+            - "${UI_PORT}:${UI_PORT}"
         networks:
             - proxy
             - app

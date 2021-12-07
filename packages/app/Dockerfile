@@ -3,7 +3,7 @@ EXPOSE 3000
 
 # Set variables
 ARG PROJECT_DIR
-ENV main=packages/app
+ENV main=packages/ui
 ENV shared=packages/shared
 ENV scripts=${PROJECT_DIR}/scripts
 
@@ -32,6 +32,6 @@ RUN yarn install
 # Copy rest of repo over
 COPY --chown=node:node ${shared}/src ${shared}/
 COPY --chown=node:node ${main}/src ${main}/public ${main}/
-COPY --chown=node:node scripts/app.sh scripts/wait-for.sh scripts/preconnect.sh ${scripts}/
+COPY --chown=node:node scripts/ui.sh scripts/wait-for.sh scripts/preconnect.sh ${scripts}/
 
 USER root

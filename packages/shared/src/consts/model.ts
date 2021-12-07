@@ -8,12 +8,6 @@ export const AccountStatus = {
 }
 export type AccountStatus = ValueOf<typeof AccountStatus>;
 
-export const THEME = {
-    Light: 'light',
-    Dark: 'dark'
-}
-export type THEME = ValueOf<typeof THEME>;
-
 export const ROLES = {
     Guest: 'Guest',
     Customer: 'Customer',

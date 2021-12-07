@@ -11,4 +11,5 @@ export const SOCIALS = {
     GitHub: 'https://github.com/MattHalloran/Vrooli',
     Twitter: 'https://twitter.com/VrooliOfficial'
 }
-export const WEBSITE = 'https://vrooli.com';
+export const LANDING_URL = 'https://vrooli.com';
+export const APP_URL = 'https://app.vrooli.com';
