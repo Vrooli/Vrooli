@@ -50,44 +50,22 @@ const cardData = [
 ]
 
 const useStyles = makeStyles((theme: Theme) => ({
-    title: {
-        textAlign: 'center',
-    },
-    hs: {
+    root: {
         border: `2px dashed ${theme.palette.text.primary}`,
         borderRadius: '10px',
+        padding: '0',
+    },
+    title: {
+        textAlign: 'center',
+        background: theme.palette.primary.light,
+        color: theme.palette.primary.contrastText,
+    },
+    hs: {
         display: 'flex',
         padding: '0',
         overflowX: 'scroll',
-        // height: 'max(50px, 20vh)',
-        // display: 'grid',
-        // gridGap: 'calc(var(--gutter) / 2)',
-        // gridTemplateColumns: '10px',
-        // gridTemplateRows: 'minmax(150px, 1fr)',
-        // gridAutoFlow: 'column',
-        // gridAutoColumns: 'calc(50% - var(--gutter) * 2)',
-        // overflowX: 'scroll',
-        // scrollSnapType: 'x proximity',
-        // paddingBottom: 'calc(.75 * var(--gutter))',
-        // marginBottom: 'calc(-.25 * var(--gutter))',
-        // '&::before': {
-        //     content: '',
-        //     width: '10px',
-        // },
-        // '&::after': {
-        //     content: '',
-        //     width: '10px',
-        // },
     },
     item: {
-        // scrollSnapAlign: 'center',
-        // padding: 'calc(var(--gutter) / 2 * 1.5)',
-        // display: 'flex',
-        // flexDirection: 'column',
-        // justifyContent: 'center',
-        // alignItems: 'center',
-        // background: '#fff',
-        // borderRadius: '8px',
         display: 'inline',
         margin: '5px',
     },
@@ -107,8 +85,8 @@ export const ResourceList = ({
     const classes = useStyles();
 
     return (
-        <div>
-            <Typography variant="h3" className={classes.title}>{title}</Typography>
+        <div className={classes.root}>
+            <Typography component="h2" variant="h4" className={classes.title}>{title}</Typography>
             <ul className={`${classes.hs}`}>
                 {cardData.map((c: any) => (
                     <li className={classes.item}>

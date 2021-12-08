@@ -21,9 +21,16 @@ const useStyles = makeStyles((theme: Theme) => ({
         background: theme.palette.primary.light,
         borderLeft: `1px solid ${theme.palette.text.primary}`,
     },
-    menuItem: {
+    highlight: {
+        transition: 'ease-in-out 0.2s',
         color: theme.palette.primary.contrastText,
+        '&:hover': {
+            color: theme.palette.secondary.light,
+        },
+    },
+    menuItem: {
         borderBottom: `1px solid ${theme.palette.primary.dark}`,
+        color: theme.palette.primary.contrastText,
     },
     close: {
         color: theme.palette.primary.contrastText,
@@ -31,9 +38,6 @@ const useStyles = makeStyles((theme: Theme) => ({
         borderBottom: `1px solid ${theme.palette.primary.dark}`,
         justifyContent: 'end',
         direction: 'rtl',
-    },
-    menuIcon: {
-        color: theme.palette.primary.contrastText,
     },
     facebook: {
         fill: '#ffffff', //'#43609C', // UCLA blue
@@ -87,17 +91,17 @@ export const Hamburger = ({
                 <List>
                     {/* Collapsible contact information */}
                     <ListItem className={classes.menuItem} button onClick={handleContactClick}>
-                        <ListItemIcon><ContactSupportIcon className={classes.menuIcon} /></ListItemIcon>
+                        <ListItemIcon><ContactSupportIcon className={classes.highlight} /></ListItemIcon>
                         <ListItemText primary="Contact Us" />
                         {contactOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                     </ListItem>
-                    <Collapse className={classes.menuItem} in={contactOpen} timeout="auto" unmountOnExit>
+                    <Collapse className={classes.highlight} in={contactOpen} timeout="auto" unmountOnExit>
                         <ContactInfo />
                     </Collapse>
                     {actionsToList({
                         actions: nav_actions,
                         history,
-                        classes: { listItem: classes.menuItem, listItemIcon: classes.menuIcon },
+                        classes: { listItem: `${classes.menuItem} ${classes.highlight}`, listItemIcon: classes.highlight },
                         onAnyClick: closeMenu,
                     })}
                 </List>

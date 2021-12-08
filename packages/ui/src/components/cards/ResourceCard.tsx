@@ -11,17 +11,18 @@ import {
 } from '@material-ui/core';
 import { Launch as LaunchIcon } from '@material-ui/icons';
 import { makeStyles } from '@material-ui/styles';
-import { combineStyles } from 'utils';
+import { combineStyles, openLink } from 'utils';
 import { NoImageWithTextIcon } from 'assets/img';
 import { cardStyles } from './styles';
 import { useEffect, useMemo } from 'react';
 import { Resource } from 'types';
 import { readOpenGraphQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
+import { useHistory } from 'react-router-dom';
 
 const componentStyles = (theme: Theme) => ({
     root: {
-        width: 'max(50px, 20vh)',
+        width: 'max(50px, 15vh)',
         // display: 'inline-table',
         border: '2px solid green',
         height: '100%',
@@ -50,9 +51,11 @@ export const ResourceCard = ({
     resource
 }: Props) => {
     const classes = useStyles();
+    const history = useHistory();
     const [getOpenGraphData, { data: queryResult }] = useLazyQuery<any, any>(readOpenGraphQuery);
     const data = useMemo(() => queryResult?.readOpenGraph, [queryResult]);
     const title = useMemo(() => resource?.title ?? data?.title, [resource, data]);
+    const url = useMemo(() => resource?.url ?? data?.url, [resource, data]);
 
     useEffect(() => {
         if (resource.url) {
@@ -77,27 +80,20 @@ export const ResourceCard = ({
 
     return (
         <Tooltip placement="top" title={resource?.description ?? data?.description}>
-            <Card className={`${classes.root} ${classes.cardRoot}`}>
+            <Card className={`${classes.root} ${classes.cardRoot}`} onClick={() => openLink(history, url)}>
                 <CardActionArea>
                     {display}
                     <CardContent className={`${classes.content} ${classes.topMargin}`}>
                         <Typography
                             className={classes.multiLineEllipsis}
                             gutterBottom
-                            variant="h6"
+                            variant="body1"
                             component="h3"
                         >
-                            {resource?.title ?? data?.title}
+                            {title}
                         </Typography>
                     </CardContent>
                 </CardActionArea>
-                <CardActions>
-                    <Tooltip title="View" placement="bottom">
-                        <IconButton onClick={() => { }}>
-                            <LaunchIcon className={classes.icon} />
-                        </IconButton>
-                    </Tooltip>
-                </CardActions>
             </Card>
         </Tooltip>
     )
