@@ -40,11 +40,11 @@ model node {
   dataRoutineList   node_routine_list? @relation(fields: [dataRoutineListId], references: [id], onDelete: Cascade)
   dataRedirect      node_redirect?     @relation(fields: [dataRedirectId], references: [id], onDelete: Cascade)
   dataStart         node_start?        @relation(fields: [dataStartId], references: [id], onDelete: Cascade)
-  previous          node?              @relation("Previous", fields: [previousId], references: [id], onDelete: SetNull)
-  next              node?              @relation("Next", fields: [nextId], references: [id], onDelete: SetNull)
+  previous          node?              @relation("node_previous", fields: [previousId], references: [id], onDelete: SetNull)
+  next              node?              @relation("node_next", fields: [nextId], references: [id], onDelete: SetNull)
   routine           routine            @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  Previous          node[]             @relation("Previous")
-  Next              node[]             @relation("Next")
+  Previous          node[]             @relation("node_previous")
+  Next              node[]             @relation("node_next")
 }
 
 // Data for combine nodes (in addition to fields defined by node table) TODO complete
@@ -168,8 +168,8 @@ model project {
   users         project_users[]
   organizations project_organizations[]
   starredBy     project_stars[]
-  parent        project_forks?          @relation("parent")
-  forks         project_forks[]         @relation("fork")
+  parent        project_forks?          @relation("project_parent")
+  forks         project_forks[]         @relation("project_fork")
 }
 
 // One to many relationship between a project and projects forked from it
@@ -177,8 +177,8 @@ model project_forks {
   id       String  @id @default(uuid()) @db.Uuid
   parentId String  @db.Uuid@unique
   forkId   String  @db.Uuid
-  parent   project @relation("parent", fields: [parentId], references: [id])
-  fork     project @relation("fork", fields: [forkId], references: [id], onDelete: Cascade)
+  parent   project @relation("project_parent", fields: [parentId], references: [id])
+  fork     project @relation("project_fork", fields: [forkId], references: [id], onDelete: Cascade)
 
   @@unique([parentId, forkId], name: "project_forks_parentid_forkid_unique")
 }
@@ -270,8 +270,8 @@ model routine {
   users               routine_users[] // Users who can edit main routine
   organizations       routine_organizations[] // Organizations who can edit main routine
   starredBy           routine_stars[] // Users who starred the routine
-  parent              routine_forks?                 @relation("parent")
-  forks               routine_forks[]                @relation("fork")
+  parent              routine_forks?                 @relation("routine_parent")
+  forks               routine_forks[]                @relation("routine_fork")
   nodeLists           node_routine_list_routines[] // Routine list nodes the routine is a part of
 }
 
@@ -280,8 +280,8 @@ model routine_forks {
   id       String  @id @default(uuid()) @db.Uuid
   parentId String  @db.Uuid@unique
   forkId   String  @db.Uuid
-  parent   routine @relation("parent", fields: [parentId], references: [id])
-  fork     routine @relation("fork", fields: [forkId], references: [id], onDelete: Cascade)
+  parent   routine @relation("routine_parent", fields: [parentId], references: [id])
+  fork     routine @relation("routine_fork", fields: [forkId], references: [id], onDelete: Cascade)
 
   @@unique([parentId, forkId], name: "routine_forks_parentid_forkid_unique")
 }
