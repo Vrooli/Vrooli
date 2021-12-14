@@ -53,7 +53,7 @@
         "test": "react-scripts test",
         "eject": "react-scripts eject",
         "analyze": "source-map-explorer build/static/js/*",
-        "download-schema": "apollo client:download-schema --endpoint=http://localhost:5329/api/v1 src/graphql/generated/schema.graphql",
+        "download-schema": "rm -f src/graphql/generated/schema.graphql && apollo client:download-schema --endpoint=http://localhost:5329/api/v1 src/graphql/generated/schema.graphql",
         "gen-graphql-types": "apollo client:codegen --target typescript --localSchemaFile src/graphql/generated/schema.graphql --outputFlat --includes \"src/graphql/**/*.ts\" --excludes \"src/graphql/generated\" src/graphql/generated"
     },
     "browserslist": {

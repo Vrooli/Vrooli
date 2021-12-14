@@ -75,4 +75,8 @@ export const CODE = {
         code: 'NONE_EXPIRED',
         message: 'Nonce has expired. Please restart the sign in process (and complete it quicker this time :)'
     },
+    SessionExpired: {
+        code: 'SESSION_EXPIRED',
+        message: 'Session has expired. Please log back in'
+    }
 }

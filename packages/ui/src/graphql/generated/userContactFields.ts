@@ -17,6 +17,6 @@ export interface userContactFields_emails {
 export interface userContactFields {
   __typename: "User";
   id: string;
-  username: string;
+  username: string | null;
   emails: userContactFields_emails[];
 }

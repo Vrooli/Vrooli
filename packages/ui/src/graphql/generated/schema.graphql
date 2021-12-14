@@ -47,13 +47,17 @@ type Response {
   message: String!
 }
 
+type OpenGraphResponse {
+  site: String
+  title: String
+  description: String
+  imageUrl: String
+}
+
 type Query {
   readAssets(files: [String!]!): [String]!
-  users: [User!]!
+  readOpenGraph(url: String!): OpenGraphResponse!
   profile: User!
-  emails: [Email!]!
-  roles: [Role!]!
-  tasks(ids: [ID!], status: TaskStatus): [Task!]!
 }
 
 type Mutation {
@@ -65,15 +69,25 @@ type Mutation {
   deleteUser(id: ID!, password: String): Boolean
   requestPasswordChange(email: String!): Boolean
   resetPassword(id: ID!, code: String!, newPassword: String!): User!
-  changeUserStatus(id: ID!, status: AccountStatus!): Boolean
-  removeUserRole(id: ID!, roleId: ID!): Count!
   addEmail(input: EmailInput!): Email!
   updateEmail(input: EmailInput!): Email!
   deleteEmails(ids: [ID!]!): Count!
-  addFeedback(input: FeedbackInput!): Feedback!
-  addRole(input: RoleInput!): Role!
-  updateRole(input: RoleInput!): Role!
-  deleteRoles(ids: [ID!]!): Count!
+  addFeedback(input: FeedbackInput!): Boolean!
+  addOrganization(input: OrganizationInput!): Organization!
+  updateOrganization(input: OrganizationInput!): Organization!
+  deleteOrganization(id: ID!): Boolean!
+  addResource(input: ResourceInput!): Resource!
+  updateResource(input: ResourceInput!): Resource!
+  deleteResources(ids: [ID!]!): Count!
+  addRoutine(input: RoutineInput!): Routine!
+  updateRoutine(input: RoutineInput!): Routine!
+  deleteRoutine(id: ID!): Boolean!
+  addProject(input: ProjectInput!): Project!
+  updateProject(input: ProjectInput!): Project!
+  deleteProject(id: ID!): Boolean!
+  initValidateWallet(publicAddress: String!, nonceDescription: String): String!
+  completeValidateWallet(publicAddress: String!, signedMessage: String!): Boolean!
+  removeWallet(id: ID!): Boolean!
 }
 
 enum AccountStatus {
@@ -94,7 +108,7 @@ input UserInput {
 
 type User {
   id: ID!
-  username: String!
+  username: String
   pronouns: String!
   emails: [Email!]!
   theme: String!
@@ -124,11 +138,68 @@ input FeedbackInput {
   userId: ID
 }
 
-input RoleInput {
+input OrganizationInput {
   id: ID
-  title: String!
+  name: String!
   description: String
-  userIds: [ID!]
+  resources: [ResourceInput!]
+}
+
+type Organization {
+  id: ID!
+  name: String!
+  description: String
+  resources: [Resource!]
+  projects: [Project!]
+  wallets: [Wallet!]
+  starredBy: [User!]
+  routines: [Routine!]
+}
+
+input ResourceInput {
+  id: ID
+  name: String!
+  description: String
+  link: String!
+  displayUrl: String
+  userId: ID
+  organizationId: ID
+}
+
+type Resource {
+  id: ID!
+  name: String!
+  description: String
+  link: String!
+  displayUrl: String
+}
+
+input RoutineInput {
+  id: ID
+}
+
+type Routine {
+  id: ID!
+}
+
+input ProjectInput {
+  id: ID
+  name: String!
+  description: String
+  organizations: [OrganizationInput!]
+  users: [UserInput!]
+  resources: [ResourceInput!]
+}
+
+type Project {
+  id: ID!
+  name: String!
+  description: String
+  resources: [Resource!]
+  wallets: [Wallet!]
+  users: [User!]
+  organizations: [Organization!]
+  starredBy: [User!]
 }
 
 type UserRole {
@@ -143,20 +214,10 @@ type Role {
   users: [User!]!
 }
 
-enum TaskStatus {
-  UNKNOWN
-  FAILED
-  ACTIVE
-  INACTIVE
-  COMPLETED
-}
-
-type Task {
+type Wallet {
   id: ID!
-  taskId: Int!
-  name: String!
-  status: TaskStatus!
-  description: String
-  result: String
-  resultCode: Int
+  publicAddress: String!
+  verified: Boolean!
+  user: User
+  organization: Organization
 }

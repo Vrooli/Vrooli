@@ -12,7 +12,7 @@ import { AccountStatus } from "./globalTypes";
 export interface userSessionFields_roles_role {
   __typename: "Role";
   title: string;
-  description?: string | null;
+  description: string | null;
 }
 
 export interface userSessionFields_roles {

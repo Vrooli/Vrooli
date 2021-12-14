@@ -14,15 +14,6 @@ export enum AccountStatus {
   UNLOCKED = "UNLOCKED",
 }
 
-export interface UserInput {
-  id?: string | null;
-  username?: string | null;
-  pronouns?: string | null;
-  emails?: EmailInput[] | null;
-  theme?: string | null;
-  status?: AccountStatus | null;
-}
-
 export interface EmailInput {
   id?: string | null;
   emailAddress: string;
@@ -30,10 +21,13 @@ export interface EmailInput {
   userId?: string | null;
 }
 
-export interface ImageUpdate {
-  hash: string;
-  alt?: string | null;
-  description?: string | null;
+export interface UserInput {
+  id?: string | null;
+  username?: string | null;
+  pronouns?: string | null;
+  emails?: EmailInput[] | null;
+  theme?: string | null;
+  status?: AccountStatus | null;
 }
 
 //==============================================================

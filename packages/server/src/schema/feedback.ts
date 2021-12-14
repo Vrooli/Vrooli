@@ -15,7 +15,7 @@ export const typeDef = gql`
 
 export const resolvers = {
     Mutation: {
-        addFeedback: async (_parent: undefined, args: any, context: any, info: any) => {
+        addFeedback: async (_parent: undefined, args: any, context: any, _info: any) => {
             let from;
             if (args.input.userId) {
                 from = await context.prisma.user.findUnique({ where: { id: args.input.userId } });
