@@ -16,7 +16,10 @@ export const typeDef = gql`
         name: String!
         description: String
         resources: [Resource!]
+        projects: [Project!]
         wallets: [Wallet!]
+        starredBy: [User!]
+        routines: [Routine!]
     }
 
     extend type Mutation {

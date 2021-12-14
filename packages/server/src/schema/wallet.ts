@@ -35,13 +35,9 @@ export const resolvers = {
         initValidateWallet: async (_parent: undefined, args: any, context: any, info: any) => {
             let userData;
             // If not signed in, create new user row
-            if (!context.req.userId) {
-                userData = await context.prisma.user.create({ data: {} });
-            }
+            if (!context.req.userId) userData = await context.prisma.user.create({ data: {} });
             // Otherwise, find user data using id in session token 
-            else {
-                userData = await context.prisma.user.findUnique({ where: { id: context.req.userId } });
-            }
+            else userData = await context.prisma.user.findUnique({ where: { id: context.req.userId } });
             if (!userData) return new CustomError(CODE.ErrorUnknown);
 
             // Find existing wallet data in database

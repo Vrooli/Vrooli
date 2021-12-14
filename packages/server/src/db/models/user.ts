@@ -2,6 +2,23 @@ import { PrismaSelect } from "@paljs/plugins";
 import { onlyPrimitives } from "../../utils/objectTools";
 import { CustomError } from "../../error";
 import { CODE } from '@local/shared';
+import { BaseModel } from "./base";
+
+// export class UserModel extends BaseModel<any> {
+//     create(data: any): Promise<any> {
+//         throw new Error("Method not implemented.");
+//     }
+//     update(id: string, data: any): Promise<any> {
+//         throw new Error("Method not implemented.");
+//     }
+//     delete(id: string): Promise<void> {
+//         throw new Error("Method not implemented.");
+//     }
+//     deleteMany(ids: string[]): Promise<number> {
+//         throw new Error("Method not implemented.");
+//     }
+    
+// }
 
 // Validates email address, and returns user data
 export async function userFromEmail(email: string, prisma: any) {

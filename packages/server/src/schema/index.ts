@@ -8,13 +8,14 @@ import * as Organization from './organization';
 import * as Project from './project';
 import * as Resource from './resource';
 import * as Role from './role';
+import * as Routine from './routine';
 import * as Wallet from './wallet';
 
 const models = [Root, User, 
                 Email, Feedback, Organization, Resource,
-                Project, Role, Wallet]
+                Routine, Project, Role, Wallet]
 
 export const schema = makeExecutableSchema({
     typeDefs: models.map(m => m.typeDef),
-    resolvers: merge(models.map(m => m.resolvers))
+    resolvers: merge(models.map(m => m.resolvers)),
 })
