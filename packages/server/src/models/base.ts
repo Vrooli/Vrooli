@@ -2,7 +2,7 @@
 // (e.g. create, update, delete)
 import { CODE } from '@local/shared';
 import { PrismaSelect } from '@paljs/plugins';
-import { CustomError } from 'error';
+import { CustomError } from '../error';
 
 export abstract class BaseModel<Input, Model> {
     prisma: any;

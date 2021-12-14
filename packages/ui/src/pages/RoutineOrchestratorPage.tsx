@@ -127,6 +127,8 @@ const data: ORCHESTRATION_DATA = {
             previous: '4',
             next: null,
             data: {
+                title: 'asdfas',
+                description: 'afda',
                 wasSuccessful: true,
             }
         },
@@ -172,6 +174,8 @@ const data: ORCHESTRATION_DATA = {
             previous: '7',
             next: null,
             data: {
+                title: 'asdf',
+                description: 'asdf',
                 wasSuccessful: false,
             }
         },

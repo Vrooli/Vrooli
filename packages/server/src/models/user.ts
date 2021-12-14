@@ -5,7 +5,7 @@ import { CODE } from '@local/shared';
 import { BaseModel } from "./base";
 import bcrypt from 'bcrypt';
 import pkg from '@prisma/client';
-import { sendResetPasswordLink, sendVerificationLink } from "worker/email/queue";
+import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
