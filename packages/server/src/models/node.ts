@@ -14,28 +14,70 @@ export class NodeModel extends BaseModel<any, any> {
         super(prisma, 'node');
     }
 
-    async createCombineNode(data: any) {
+    /**
+     * Helps create a combine node
+     * @param data 
+     */
+    private async createCombineHelper(data: any): Promise<{ dataCombineId: string }> {
+        const row = await this.prisma.nodeCombine.create({ data });
+        return { dataCombineId: row.id };
     }
 
-    async createDecisionNode(data: any) {
+    /**
+     * Helps create a decision node
+     * @param data 
+     */
+    private async createDecisionHelper(data: any): Promise<{ dataDecisionId: string }> {
+        const row = await this.prisma.nodeDecision.create({ data });
+        return { dataDecisionId: row.id };
     }
 
-    async createEndNode(data: any) {
+    /**
+     * Helps create a end node
+     * @param data 
+     */
+    private async createEndHelper(data: any): Promise<{ dataEndId: string }> {
+        const row = await this.prisma.nodeEnd.create({ data });
+        return { dataEndId: row.id };
     }
 
-    async createLoopNode(data: any) {
+    /**
+     * Helps create a loop node
+     * @param data 
+     */
+    private async createLoopHelper(data: any): Promise<{ dataLoopId: string }> {
+        const row = await this.prisma.nodeLoop.create({ data });
+        return { dataLoopId: row.id };
     }
 
-    async createRoutineListNode(data: any) {
+    /**
+     * Helps create a routine list node
+     * @param data 
+     */
+    private async createRoutineListHelper(data: any): Promise<{ dataRoutineListId: string }> {
+        const row = await this.prisma.nodeRoutineList.create({ data });
+        return { dataRoutineListId: row.id };
     }
 
-    async createRedirectNode(data: any) {
+    /**
+     * Helps create a redirect node
+     * @param data 
+     */
+    private async createRedirectHelper(data: any): Promise<{ dataRedirectId: string }> {
+        const row = await this.prisma.nodeRedirect.create({ data });
+        return { dataRedirectId: row.id };
     }
 
-    async createStartNode(data: any) {
+    /**
+     * Helps create a start node
+     * @param data 
+     */
+    private async createStartHelper(data: any): Promise<{ dataStartId: string }> {
+        const row = await this.prisma.nodeStart.create({ data });
+        return { dataStartId: row.id };
     }
 
-    async createNode(data: any, info: any) {
+    async create(data: any, info: any) {
         // Check if routine ID was provided
         if (!data.routineId) throw new CustomError(CODE.InvalidArgs, 'Routine ID not specified')
         // Check if routine has reached max nodes
@@ -48,13 +90,13 @@ export class NodeModel extends BaseModel<any, any> {
         let cleanedData = onlyPrimitives(data);
         // Map node type to helper function
         const typeHelperMapper: any = {
-            [NodeType.COMBINE]: this.createCombineNode,
-            [NodeType.DECISION]: this.createDecisionNode,
-            [NodeType.END]: this.createEndNode,
-            [NodeType.LOOP]: this.createLoopNode,
-            [NodeType.ROUTINE_LIST]: this.createRoutineListNode,
-            [NodeType.REDIRECT]: this.createRedirectNode,
-            [NodeType.START]: this.createStartNode,
+            [NodeType.COMBINE]: this.createCombineHelper,
+            [NodeType.DECISION]: this.createDecisionHelper,
+            [NodeType.END]: this.createEndHelper,
+            [NodeType.LOOP]: this.createLoopHelper,
+            [NodeType.ROUTINE_LIST]: this.createRoutineListHelper,
+            [NodeType.REDIRECT]: this.createRedirectHelper,
+            [NodeType.START]: this.createStartHelper,
         }
         const typeHelper = typeHelperMapper[data.type];
         // Create type-specific data
@@ -67,6 +109,5 @@ export class NodeModel extends BaseModel<any, any> {
             },
             ...(new PrismaSelect(info).value)
         });
-
     }
 }

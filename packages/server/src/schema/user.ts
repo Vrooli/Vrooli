@@ -41,7 +41,7 @@ export const typeDef = gql`
     extend type Mutation {
         login(
             email: String
-            password: String,
+            password: String
             verificationCode: String
         ): User!
         logout: Boolean

@@ -20,7 +20,7 @@ model email {
 // One item in a routine orchestration
 model node {
   id                String              @id @default(uuid()) @db.Uuid
-  title             String              @db.VarChar(128) @default("Name Me")
+  title             String              @default("Name Me") @db.VarChar(128)
   description       String?             @db.VarChar(128)
   type              NodeType
   dataCombineId     String?             @db.Uuid
@@ -155,13 +155,13 @@ model organization {
 
 // Many-to-many relationship between organizations and resources
 model organization_resources {
-  id             String       @id @default(uuid()) @db.Uuid
-  organizationId String       @db.Uuid
-  resourceId     String       @db.Uuid
-  organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  resource       resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  id         String       @id @default(uuid()) @db.Uuid
+  forId       String       @db.Uuid
+  resourceId String       @db.Uuid
+  organization         organization @relation(fields: [forId], references: [id], onDelete: Cascade)
+  resource   resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
-  @@unique([organizationId, resourceId], name: "organization_resources_organizationid_resourceid_unique")
+  @@unique([forId, resourceId], name: "organization_resources_forid_resourceid_unique")
 }
 
 // Many to many relationship between organizations and users who starred them
@@ -228,12 +228,12 @@ model project_users {
 // Many-to-many relationship between projects and resources
 model project_resources {
   id         String   @id @default(uuid()) @db.Uuid
-  projectId  String   @db.Uuid
+  forId       String   @db.Uuid
   resourceId String   @db.Uuid
-  project    project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project         project  @relation(fields: [forId], references: [id], onDelete: Cascade)
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
-  @@unique([projectId, resourceId], name: "project_resources_projectid_resourceid_unique")
+  @@unique([forId, resourceId], name: "project_resources_forid_resourceid_unique")
 }
 
 // Many to many relationship between projects and users who starred them
@@ -357,34 +357,34 @@ model routine_organizations {
 // Many-to-many relationship between routines and contextual resources
 model routine_resources_contextual {
   id         String   @id @default(uuid()) @db.Uuid
-  routineId  String   @db.Uuid
+  forId       String   @db.Uuid
   resourceId String   @db.Uuid
-  routine    routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  routine         routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
-  @@unique([routineId, resourceId], name: "routine_resources_contextual_routineid_resourceid_unique")
-}
-
-// Many-to-many relationship between routines and external resources
-model routine_resources_external {
-  id         String   @id @default(uuid()) @db.Uuid
-  routineId  String   @db.Uuid
-  resourceId String   @db.Uuid
-  routine    routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-  @@unique([routineId, resourceId], name: "routine_resources_external_routineid_resourceid_unique")
+  @@unique([forId, resourceId], name: "routine_resources_contextual_forid_resourceid_unique")
 }
 
 // Many-to-many relationship between routines and donation resources
 model routine_resources_donation {
   id         String   @id @default(uuid()) @db.Uuid
-  routineId  String   @db.Uuid
+  forId       String   @db.Uuid
   resourceId String   @db.Uuid
-  routine    routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  routine         routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
-  @@unique([routineId, resourceId], name: "routine_resources_donation_routineid_resourceid_unique")
+  @@unique([forId, resourceId], name: "routine_resources_donation_forid_resourceid_unique")
+}
+
+// Many-to-many relationship between routines and external resources
+model routine_resources_external {
+  id         String   @id @default(uuid()) @db.Uuid
+  forId       String   @db.Uuid
+  resourceId String   @db.Uuid
+  routine         routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
+  resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([forId, resourceId], name: "routine_resources_external_forid_resourceid_unique")
 }
 
 // Many to many relationship between routines and users who starred them
@@ -481,12 +481,12 @@ model user {
 // Many-to-many relationship between user and resources
 model user_resources {
   id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @db.Uuid
+  forId       String   @db.Uuid
   resourceId String   @db.Uuid
-  user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         user     @relation(fields: [forId], references: [id], onDelete: Cascade)
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, resourceId], name: "user_resources_userid_resourceid_unique")
+  @@unique([forId, resourceId], name: "user_resources_forid_resourceid_unique")
 }
 
 // Joining table to apply roles to user
@@ -541,4 +541,13 @@ enum NodeType {
   ROUTINE_LIST
   REDIRECT
   START
+}
+
+enum ResourceFor {
+  ORGANIZATION
+  PROJECT
+  ROUTINE_CONTEXTUAL
+  ROUTINE_EXTERNAL
+  ROUTINE_DONATION
+  USER
 }

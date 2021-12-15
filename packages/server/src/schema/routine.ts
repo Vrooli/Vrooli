@@ -27,9 +27,13 @@ export const resolvers = {
             return new CustomError(CODE.NotImplemented);
         },
         updateRoutine: async (_parent: undefined, args: any, context: any, info: any) => {
+            // Must be logged in
+            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         },
         deleteRoutine: async (_parent: undefined, args: any, context: any, _info: any) => {
+            // Must be logged in
+            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         }
     }

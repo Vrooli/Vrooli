@@ -2,6 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { PrismaSelect } from '@paljs/plugins';
+import { NodeModel } from '../models';
 import pkg from '@prisma/client';
 const { NodeType } = pkg;
 
@@ -16,13 +17,21 @@ export const typeDef = gql`
         START
     }
 
+    union NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList | NodeRedirect | NodeStart
+
     input NodeInput {
         id: ID
         routineId: ID
         title: String
         description: String
         type: NodeType
-        data: NodeCombineInput | NodeDecisionInput | NodeEndInput | NodeLoopInput | NodeRoutineListInput | NodeRedirectInput | NodeStartInput
+        combineData: NodeCombineInput
+        decisionData: NodeDecisionInput
+        endData: NodeEndInput
+        loopData: NodeLoopInput
+        routineListData: NodeRoutineListInput
+        redirectData: NodeRedirectInput
+        startData: NodeStartInput
     }
 
     type Node {
@@ -31,7 +40,7 @@ export const typeDef = gql`
         title: String!
         description: String
         type: NodeType!
-        data: NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList | NodeRedirect | NodeStart
+        data: NodeData
         routine: Routine!
     }
 
@@ -173,13 +182,17 @@ export const resolvers = {
         addNode: async (_parent: undefined, args: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
-
-            return new CustomError(CODE.NotImplemented);
+            // Add node
+            return await new NodeModel(context.prisma).create(args.input, info);
         },
         updateNode: async (_parent: undefined, args: any, context: any, info: any) => {
+            // Must be logged in
+            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         },
         deleteNode: async (_parent: undefined, args: any, context: any, _info: any) => {
+            // Must be logged in
+            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         }
     }
