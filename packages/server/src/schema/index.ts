@@ -4,6 +4,7 @@ import * as Root from './root';
 import * as User from './user';
 import * as Email from './email';
 import * as Feedback from './feedback';
+import * as Node from './node';
 import * as Organization from './organization';
 import * as Project from './project';
 import * as Resource from './resource';
@@ -12,7 +13,7 @@ import * as Routine from './routine';
 import * as Wallet from './wallet';
 
 const models = [Root, User, 
-                Email, Feedback, Organization, Resource,
+                Email, Feedback, Node, Organization, Resource,
                 Routine, Project, Role, Wallet]
 
 export const schema = makeExecutableSchema({

@@ -78,5 +78,9 @@ export const CODE = {
     SessionExpired: {
         code: 'SESSION_EXPIRED',
         message: 'Session has expired. Please log back in'
-    }
+    },
+    MaxNodesReached: {
+        code: 'MAX_NODES_REACHED',
+        message: 'Maximum number of nodes reached for routine. This limit has been set to an extreme value. If you believe this is a mistake, please contact us.'
+    },
 }

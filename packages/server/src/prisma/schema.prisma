@@ -19,38 +19,54 @@ model email {
 
 // One item in a routine orchestration
 model node {
-  id                String             @id @default(uuid()) @db.Uuid
-  title             String             @db.VarChar(128)
-  description       String?            @db.VarChar(128)
+  id                String              @id @default(uuid()) @db.Uuid
+  title             String              @db.VarChar(128) @default("Name Me")
+  description       String?             @db.VarChar(128)
   type              NodeType
-  dataCombineId     String?            @db.Uuid
-  dataDecisionId    String?            @db.Uuid
-  dataEndId         String?            @db.Uuid
-  dataLoopId        String?            @db.Uuid
-  dataRoutineListId String?            @db.Uuid
-  dataRedirectId    String?            @db.Uuid
-  dataStartId       String?            @db.Uuid
-  previousId        String?            @db.Uuid
-  nextId            String?            @db.Uuid
-  routineId         String             @db.Uuid
-  dataCombine       node_combine?      @relation(fields: [dataCombineId], references: [id], onDelete: Cascade)
-  dataDecision      node_decision?     @relation(fields: [dataDecisionId], references: [id], onDelete: Cascade)
-  dataEnd           node_end?          @relation(fields: [dataEndId], references: [id], onDelete: Cascade)
-  dataLoop          node_loop?         @relation(fields: [dataLoopId], references: [id], onDelete: Cascade)
-  dataRoutineList   node_routine_list? @relation(fields: [dataRoutineListId], references: [id], onDelete: Cascade)
-  dataRedirect      node_redirect?     @relation(fields: [dataRedirectId], references: [id], onDelete: Cascade)
-  dataStart         node_start?        @relation(fields: [dataStartId], references: [id], onDelete: Cascade)
-  previous          node?              @relation("node_previous", fields: [previousId], references: [id], onDelete: SetNull)
-  next              node?              @relation("node_next", fields: [nextId], references: [id], onDelete: SetNull)
-  routine           routine            @relation(fields: [routineId], references: [id], onDelete: Cascade)
-  Previous          node[]             @relation("node_previous")
-  Next              node[]             @relation("node_next")
+  dataCombineId     String?             @db.Uuid
+  dataDecisionId    String?             @db.Uuid
+  dataEndId         String?             @db.Uuid
+  dataLoopId        String?             @db.Uuid
+  dataRoutineListId String?             @db.Uuid
+  dataRedirectId    String?             @db.Uuid
+  dataStartId       String?             @db.Uuid
+  previousId        String?             @db.Uuid
+  nextId            String?             @db.Uuid
+  routineId         String              @db.Uuid
+  dataCombine       node_combine?       @relation(fields: [dataCombineId], references: [id], onDelete: Cascade)
+  dataDecision      node_decision?      @relation(fields: [dataDecisionId], references: [id], onDelete: Cascade)
+  dataEnd           node_end?           @relation(fields: [dataEndId], references: [id], onDelete: Cascade)
+  dataLoop          node_loop?          @relation(fields: [dataLoopId], references: [id], onDelete: Cascade)
+  dataRoutineList   node_routine_list?  @relation(fields: [dataRoutineListId], references: [id], onDelete: Cascade)
+  dataRedirect      node_redirect?      @relation(fields: [dataRedirectId], references: [id], onDelete: Cascade)
+  dataStart         node_start?         @relation(fields: [dataStartId], references: [id], onDelete: Cascade)
+  previous          node?               @relation("node_previous", fields: [previousId], references: [id], onDelete: SetNull)
+  next              node?               @relation("node_next", fields: [nextId], references: [id], onDelete: SetNull)
+  routine           routine             @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  Previous          node[]              @relation("node_previous")
+  Next              node[]              @relation("node_next")
+  To                node_combine[]      @relation("node_combine_to")
+  From              node_combine_from[]
 }
 
 // Data for combine nodes (in addition to fields defined by node table) TODO complete
 model node_combine {
-  id   String @id @default(uuid()) @db.Uuid
+  id   String              @id @default(uuid()) @db.Uuid
+  toId String?             @db.Uuid
+  to   node?               @relation("node_combine_to", fields: [toId], references: [id], onDelete: SetNull)
+  from node_combine_from[]
   node node[]
+}
+
+// One to many relationship between a combine node and nodes it is combining
+model node_combine_from {
+  id        String       @id @default(uuid()) @db.Uuid
+  combineId String       @unique @db.Uuid
+  fromId    String       @db.Uuid
+  combine   node_combine @relation(fields: [combineId], references: [id])
+  from      node         @relation(fields: [fromId], references: [id], onDelete: Cascade)
+
+  @@unique([combineId, fromId], name: "node_combine_from_combineid_fromid_unique")
 }
 
 // Data for decision nodes (in addition to fields defined by node table)
@@ -91,14 +107,14 @@ model node_loop {
 
 // Data for routine list nodes (in addition to fields defined by node table) TODO complete
 model node_routine_list {
-  id        String                       @id @default(uuid()) @db.Uuid
-  isOrdered Boolean                      @default(false)
-  routines  node_routine_list_routines[]
+  id        String                   @id @default(uuid()) @db.Uuid
+  isOrdered Boolean                  @default(false)
+  routines  node_routine_list_item[]
   node      node[]
 }
 
 // Many-to-many relationship between routine lists and routines
-model node_routine_list_routines {
+model node_routine_list_item {
   id          String            @id @default(uuid()) @db.Uuid
   title       String?           @db.VarChar(128) // Optional title to override routine title
   description String?           @db.VarChar(1024) // Optional description to override routine description
@@ -108,7 +124,7 @@ model node_routine_list_routines {
   list        node_routine_list @relation(fields: [listId], references: [id], onDelete: Cascade)
   routine     routine           @relation(fields: [routineId], references: [id], onDelete: Cascade)
 
-  @@unique([listId, routineId], name: "node_routine_list_routines_listid_routineid_unique")
+  @@unique([listId, routineId], name: "node_routine_list_item_listid_routineid_unique")
 }
 
 // Data for redirect nodes (in addition to fields defined by node table) TODO complete
@@ -117,7 +133,7 @@ model node_redirect {
   node node[]
 }
 
-// Data for start nodes (in addition to fields defined by node table) TODO complete
+// Data for start nodes (in addition to fields defined by node table)
 model node_start {
   id   String @id @default(uuid()) @db.Uuid
   node node[]
@@ -128,6 +144,8 @@ model organization {
   id                    String                   @id @default(uuid()) @db.Uuid
   name                  String                   @db.VarChar(128)
   description           String                   @db.VarChar(1024)
+  created_at            DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                 @default(now()) @db.Timestamptz(6)
   resources             organization_resources[]
   wallets               wallet[]
   projects              project_organizations[]
@@ -163,6 +181,8 @@ model project {
   id            String                  @id @default(uuid()) @db.Uuid
   name          String                  @db.VarChar(128)
   description   String                  @db.VarChar(1024)
+  created_at    DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime                @default(now()) @db.Timestamptz(6)
   resources     project_resources[]
   wallets       wallet[]
   users         project_users[]
@@ -246,6 +266,8 @@ model role {
   id          String       @id @default(uuid()) @db.Uuid
   title       String       @unique @db.VarChar(128)
   description String?      @db.VarChar(2048)
+  created_at  DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime     @default(now()) @db.Timestamptz(6)
   user_roles  user_roles[]
 }
 
@@ -260,6 +282,8 @@ model routine {
   instructions        String                         @db.VarChar(8192) // Plaintext or markdown instructions
   externalLink        String                         @db.VarChar(256) // URL to external resource
   isAutomatable       Boolean                        @default(false) // Indicates if the routine can be run automatically, if all conditions are met
+  created_at          DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime                       @default(now()) @db.Timestamptz(6)
   inputs              routine_input[]
   outputs             routine_output[]
   nodes               node[] // Defines an orchestration (i.e. routine is made up of subroutines)
@@ -272,7 +296,7 @@ model routine {
   starredBy           routine_stars[] // Users who starred the routine
   parent              routine_forks?                 @relation("routine_parent")
   forks               routine_forks[]                @relation("routine_fork")
-  nodeLists           node_routine_list_routines[] // Routine list nodes the routine is a part of
+  nodeLists           node_routine_list_item[] // Routine list nodes the routine is a part of
 }
 
 // One to many relationship between a routine and routines forked from it
@@ -397,6 +421,8 @@ model standard {
   max            String?          @db.VarChar(1024) // Maximum value
   pattern        String?          @db.VarChar(1024) // Regular expression pattern
   enum           String?          @db.VarChar(1024) // Enumerated values
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
   tags           standard_tags[] // Categorical tags set by creators or community-voted
   // TODO add relationships to routines that use this standard
   routine_input  routine_input[]
@@ -488,6 +514,8 @@ model wallet {
   organization      organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   projectId         String?       @db.Uuid
   project           project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime      @default(now()) @db.Timestamptz(6)
 }
 
 enum TaskStatus {

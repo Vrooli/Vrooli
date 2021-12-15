@@ -19,14 +19,22 @@ export abstract class BaseModel<Input, Model> {
     }
 
     // Create a new model
-    abstract create(data: Input): Promise<Model>;
+    async create(data: any, info: any): Promise<any> {
+        throw new Error("Method not implemented.");
+    }
     
     // Update an existing model
-    abstract update(id: string, data: Input): Promise<Model>;
+    async update(id: string, data: Input): Promise<Model> {
+        return await this.prisma.user.update({ where: { id }, data })
+    }
     
     // Delete a model
-    abstract delete(id: string): Promise<void>;
+    async delete(id: string): Promise<void> {
+        await this.prisma.user.delete({ where: { id } });
+    }
 
     // Delete multiple models
-    abstract deleteMany(ids: string[]): Promise<number>;
+    async deleteMany(ids: string[]): Promise<number> {
+        throw new Error("Method not implemented.");
+    }
 }

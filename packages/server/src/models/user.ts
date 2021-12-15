@@ -20,22 +20,6 @@ export class UserModel extends BaseModel<any, any> {
         super(prisma, 'user');
     }
 
-    async create(data: any): Promise<any> {
-        throw new Error("Method not implemented.");
-    }
-
-    async update(id: string, data: any): Promise<any> {
-        return await this.prisma.user.update({ where: { id }, data })
-    }
-
-    async delete(id: string): Promise<void> {
-        await this.prisma.user.delete({ where: { id: id } });
-    }
-
-    async deleteMany(ids: string[]): Promise<number> {
-        throw new Error("Method not implemented.");
-    }
-
     async fromEmail(email: string) {
         if (!email) throw new CustomError(CODE.BadCredentials);
         // Validate email address

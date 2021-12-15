@@ -20,18 +20,12 @@ export const emailSchema = yup.object().shape({
     userId: yup.string().optional(),
 });
 
+/**
+ * Schema for submitting site feedback
+ */
 export const feedbackSchema = yup.object().shape({
     text: yup.string().max(4096).required(),
-    userId: yup.string().required(),
-});
-
-export const imageSchema = yup.object().shape({
-    files: yup.array().of(yup.object().shape({
-        src: yup.string().required(),
-        alt: yup.string().max(256).optional(),
-        description: yup.string().max(1024).optional(),
-        labels: yup.array().of(yup.string().max(128).required()).required(),
-    })).required(),
+    userId: yup.string().optional(),
 });
 
 export const roleSchema = yup.object().shape({
@@ -68,18 +62,26 @@ export const profileSchema = yup.object().shape({
     newPasswordConfirmation: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match')
 });
 
-// Schema for logging in
+/**
+ * Schema for traditional email/password login.
+ * NOTE: Does not include verification code, since it is optional and
+ * the schema is reused for the login form.
+ */
 export const logInSchema = yup.object().shape({
     email: yup.string().email().required(),
     password: yup.string().max(128).required()
 })
 
-// Schema for sending a password reset request
+/**
+ * Schema for sending a password reset request
+ */
 export const requestPasswordChangeSchema = yup.object().shape({
     email: yup.string().email().required()
 })
 
-// Schema for resetting password
+/**
+ * Schema for resetting your password
+ */
 export const resetPasswordSchema = yup.object().shape({
     newPassword: passwordSchema.required(),
     confirmNewPassword: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match')
