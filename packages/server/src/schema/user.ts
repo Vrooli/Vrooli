@@ -70,6 +70,7 @@ export const typeDef = gql`
             code: String!
             newPassword: String!
         ): User!
+        reportUser(id: ID!): Boolean!
     }
 `
 
@@ -211,5 +212,15 @@ export const resolvers = {
             // Return user data
             return await new UserModel(context.prisma).findById(user.id, info)
         },
+        /**
+         * Reports a user. After enough reports, it will be deleted.
+         * Related objects will not be deleted.
+         * @returns True if report was successfully recorded
+         */
+         reportUser: async (_parent: undefined, args: any, context: any, _info: any) => {
+            // Must be logged in
+            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            throw new CustomError(CODE.NotImplemented);
+        }
     }
 }

@@ -24,14 +24,32 @@ export const typeDef = gql`
         starredBy: [User!]
     }
 
+    extend type Query {
+        project(id: ID!): Project
+        projects(first: Int, skip: Int): [Project!]!
+        projectsCount: Int!
+    }
+
     extend type Mutation {
         addProject(input: ProjectInput!): Project!
         updateProject(input: ProjectInput!): Project!
         deleteProject(id: ID!): Boolean!
+        reportProject(id: ID!): Boolean!
     }
 `
 
 export const resolvers = {
+    Query: {
+        project: async (_parent: undefined, args: any, context: any, info: any) => {
+            return new CustomError(CODE.NotImplemented);
+        },
+        projects: async (_parent: undefined, args: any, context: any, info: any) => {
+            return new CustomError(CODE.NotImplemented);
+        },
+        projectsCount: async (_parent: undefined, args: any, context: any, info: any) => {
+            return new CustomError(CODE.NotImplemented);
+        },
+    },
     Mutation: {
         addProject: async (_parent: undefined, args: any, context: any, info: any) => {
             // Must be logged in
@@ -47,6 +65,16 @@ export const resolvers = {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
+        },
+        /**
+         * Reports a project. After enough reports, it will be deleted.
+         * Related objects will not be deleted.
+         * @returns True if report was successfully recorded
+         */
+         reportProject: async (_parent: undefined, args: any, context: any, _info: any) => {
+            // Must be logged in
+            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            throw new CustomError(CODE.NotImplemented);
         }
     }
 }

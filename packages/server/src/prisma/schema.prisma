@@ -155,11 +155,11 @@ model organization {
 
 // Many-to-many relationship between organizations and resources
 model organization_resources {
-  id         String       @id @default(uuid()) @db.Uuid
-  forId       String       @db.Uuid
-  resourceId String       @db.Uuid
-  organization         organization @relation(fields: [forId], references: [id], onDelete: Cascade)
-  resource   resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  id           String       @id @default(uuid()) @db.Uuid
+  forId        String       @db.Uuid
+  resourceId   String       @db.Uuid
+  organization organization @relation(fields: [forId], references: [id], onDelete: Cascade)
+  resource     resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([forId, resourceId], name: "organization_resources_forid_resourceid_unique")
 }
@@ -228,9 +228,9 @@ model project_users {
 // Many-to-many relationship between projects and resources
 model project_resources {
   id         String   @id @default(uuid()) @db.Uuid
-  forId       String   @db.Uuid
+  forId      String   @db.Uuid
   resourceId String   @db.Uuid
-  project         project  @relation(fields: [forId], references: [id], onDelete: Cascade)
+  project    project  @relation(fields: [forId], references: [id], onDelete: Cascade)
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([forId, resourceId], name: "project_resources_forid_resourceid_unique")
@@ -315,6 +315,7 @@ model routine_input {
   id          String   @id @default(uuid()) @db.Uuid
   name        String?  @db.VarChar(128) // Optional name to override standard's name
   description String?  @db.VarChar(1024) // Optional description to override standard's description
+  isRequired  Boolean  @default(true) // Indicates if the input is required to run the routine
   routineId   String   @db.Uuid
   standardId  String   @db.Uuid
   routine     routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -326,6 +327,7 @@ model routine_output {
   id          String   @id @default(uuid()) @db.Uuid
   name        String?  @db.VarChar(128) // Optional name to override standard's name
   description String?  @db.VarChar(1024) // Optional description to override standard's description
+  isRequired  Boolean  @default(true) // Indicates if the output is required to run the routine
   routineId   String   @db.Uuid
   standardId  String   @db.Uuid
   routine     routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -357,9 +359,9 @@ model routine_organizations {
 // Many-to-many relationship between routines and contextual resources
 model routine_resources_contextual {
   id         String   @id @default(uuid()) @db.Uuid
-  forId       String   @db.Uuid
+  forId      String   @db.Uuid
   resourceId String   @db.Uuid
-  routine         routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
+  routine    routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([forId, resourceId], name: "routine_resources_contextual_forid_resourceid_unique")
@@ -368,9 +370,9 @@ model routine_resources_contextual {
 // Many-to-many relationship between routines and donation resources
 model routine_resources_donation {
   id         String   @id @default(uuid()) @db.Uuid
-  forId       String   @db.Uuid
+  forId      String   @db.Uuid
   resourceId String   @db.Uuid
-  routine         routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
+  routine    routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([forId, resourceId], name: "routine_resources_donation_forid_resourceid_unique")
@@ -379,9 +381,9 @@ model routine_resources_donation {
 // Many-to-many relationship between routines and external resources
 model routine_resources_external {
   id         String   @id @default(uuid()) @db.Uuid
-  forId       String   @db.Uuid
+  forId      String   @db.Uuid
   resourceId String   @db.Uuid
-  routine         routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
+  routine    routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([forId, resourceId], name: "routine_resources_external_forid_resourceid_unique")
@@ -413,14 +415,11 @@ model routine_users {
 model standard {
   id             String           @id @default(uuid()) @db.Uuid
   name           String           @default("") @db.VarChar(128)
-  description    String           @default("") @db.VarChar(1024)
-  type           String           @db.VarChar(32) // Type of data (e.g. "string", "number", "boolean", "object", "array", "file", "url")
-  isRequired     Boolean          @default(false) // Indicates if the data is required
+  description    String?           @default("") @db.VarChar(1024)
+  type           StandardType
+  schema         String           @db.VarChar(1024) // JSON object describing the shape of the data
   default        String?          @db.VarChar(1024) // Default value
-  min            String?          @db.VarChar(1024) // Minimum value
-  max            String?          @db.VarChar(1024) // Maximum value
-  pattern        String?          @db.VarChar(1024) // Regular expression pattern
-  enum           String?          @db.VarChar(1024) // Enumerated values
+  isFile         Boolean          @default(false) // Indicates if the data is a file. If this is the case, then the schema is interpreted as file metadata
   created_at     DateTime         @default(now()) @db.Timestamptz(6)
   updated_at     DateTime         @default(now()) @db.Timestamptz(6)
   tags           standard_tags[] // Categorical tags set by creators or community-voted
@@ -481,9 +480,9 @@ model user {
 // Many-to-many relationship between user and resources
 model user_resources {
   id         String   @id @default(uuid()) @db.Uuid
-  forId       String   @db.Uuid
+  forId      String   @db.Uuid
   resourceId String   @db.Uuid
-  user         user     @relation(fields: [forId], references: [id], onDelete: Cascade)
+  user       user     @relation(fields: [forId], references: [id], onDelete: Cascade)
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([forId, resourceId], name: "user_resources_forid_resourceid_unique")
@@ -518,14 +517,6 @@ model wallet {
   updated_at        DateTime      @default(now()) @db.Timestamptz(6)
 }
 
-enum TaskStatus {
-  UNKNOWN
-  FAILED
-  ACTIVE
-  INACTIVE
-  COMPLETED
-}
-
 enum AccountStatus {
   DELETED
   UNLOCKED
@@ -543,11 +534,12 @@ enum NodeType {
   START
 }
 
-enum ResourceFor {
-  ORGANIZATION
-  PROJECT
-  ROUTINE_CONTEXTUAL
-  ROUTINE_EXTERNAL
-  ROUTINE_DONATION
-  USER
+enum StandardType {
+  STRING
+  NUMBER
+  BOOLEAN
+  OBJECT
+  ARRAY
+  FILE
+  URL
 }

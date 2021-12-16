@@ -4,7 +4,11 @@ import { CODE } from '@local/shared';
 import { PrismaSelect } from '@paljs/plugins';
 import { CustomError } from '../error';
 
-export abstract class BaseModel<Input, Model> {
+interface InputInterface {
+    id?: string;
+}
+
+export abstract class BaseModel<Input extends InputInterface, Model> {
     prisma: any;
     model: string;
 
@@ -24,17 +28,18 @@ export abstract class BaseModel<Input, Model> {
     }
     
     // Update an existing model
-    async update(id: string, data: Input): Promise<Model> {
-        return await this.prisma.user.update({ where: { id }, data })
+    async update(data: Input, info: any): Promise<Model> {
+        if (!Boolean(data.id)) throw new CustomError(CODE.InvalidArgs);
+        return await this.prisma[this.model].update({ where: { id: data.id }, data, ...(new PrismaSelect(info).value) })
     }
     
     // Delete a model
     async delete(id: string): Promise<void> {
-        await this.prisma.user.delete({ where: { id } });
+        await this.prisma[this.model].delete({ where: { id } });
     }
 
     // Delete multiple models
     async deleteMany(ids: string[]): Promise<number> {
-        throw new Error("Method not implemented.");
+        return await this.prisma[this.model].deleteMany({ whereIn: { id: ids } });
     }
 }

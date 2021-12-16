@@ -1,7 +1,14 @@
 import { PrismaSelect } from "@paljs/plugins";
 import { BaseModel } from "./base";
-import pkg from '@prisma/client';
-const { ResourceFor } = pkg;
+
+export const applyMap = {
+    ORGANIZATION: 'organizationResources',
+    PROJECT: 'projectResources',
+    ROUTINE_CONTEXTUAL: 'routineResourcesContextual',
+    ROUTINE_DONATION: 'routineResourcesDonation',
+    ROUTINE_EXTERNAL: 'routineResourcesExternal',
+    USER: 'userResources'
+}
 
 export class ResourceModel extends BaseModel<any, any> {
     
@@ -31,19 +38,32 @@ export class ResourceModel extends BaseModel<any, any> {
      * @param resource 
      * @returns
      */
-    async applyToObject(resource: any, createdFor: typeof ResourceFor, forId: string) {
+    async applyToObject(resource: any, createdFor: keyof typeof applyMap, forId: string) {
         // Maps routine apply types to the correct prisma join tables
         const applyMap = {
-            [ResourceFor.ORGANIZATION]: 'organizationResources',
-            [ResourceFor.PROJECT]: 'projectResources',
-            [ResourceFor.ROUTINE_CONTEXTUAL]: 'routineResourcesContextual',
-            [ResourceFor.ROUTINE_DONATION]: 'routineResourcesDonation',
-            [ResourceFor.ROUTINE_EXTERNAL]: 'routineResourcesExternal',
-            [ResourceFor.USER]: 'userResources'
+            ORGANIZATION: 'organizationResources',
+            PROJECT: 'projectResources',
+            ROUTINE_CONTEXTUAL: 'routineResourcesContextual',
+            ROUTINE_DONATION: 'routineResourcesDonation',
+            ROUTINE_EXTERNAL: 'routineResourcesExternal',
+            USER: 'userResources'
         }
         return await this.prisma[applyMap[createdFor]].create({ data: {
             forId,
             resourceId: resource.id
         }})
+    }
+    
+    async update(data: any, info: any): Promise<any> {
+        // Filter out for and forId, since they are not part of the resource object
+        const { createdFor, forId, ...resourceData } = data;
+        // Check if resource needs to be associated with another object instead
+        //TODO
+        // Update base object and return query
+        return await this.prisma.resource.update({
+            where: { id: data.id },
+            data: resourceData,
+            ...(new PrismaSelect(info).value)
+        });
     }
 }
