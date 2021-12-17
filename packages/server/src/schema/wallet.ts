@@ -3,6 +3,8 @@ import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { generateNonce, verifySignedMessage } from '../auth/walletAuth';
 import { generateToken } from '../auth/auth.js';
+import { IWrap } from 'types';
+import { CompleteValidateWalletInput, DeleteOneInput, InitValidateWalletInput } from './types';
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -36,13 +38,13 @@ export const resolvers = {
     Mutation: {
         // Start handshake for establishing trust between backend and user wallet
         // Returns nonce
-        initValidateWallet: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        initValidateWallet: async (_parent: undefined, { input }: IWrap<InitValidateWalletInput>, context: any, info: any): Promise<string> => {
             let userData;
             // If not signed in, create new user row
             if (!context.req.userId) userData = await context.prisma.user.create({ data: {} });
             // Otherwise, find user data using id in session token 
             else userData = await context.prisma.user.findUnique({ where: { id: context.req.userId } });
-            if (!userData) return new CustomError(CODE.ErrorUnknown);
+            if (!userData) throw new CustomError(CODE.ErrorUnknown);
 
             // Find existing wallet data in database
             let walletData = await context.prisma.wallet.findUnique({
@@ -67,7 +69,7 @@ export const resolvers = {
 
             // If wallet is either: (1) unverified; or (2) already verified with user, update wallet with nonce and user id
             if (!walletData.verified || walletData.userId === userData.id) {
-                const nonce = await generateNonce(input.nonceDescription);
+                const nonce = await generateNonce(input.nonceDescription as string | undefined);
                 await context.prisma.wallet.update({
                     where: { id: walletData.id },
                     data: { 
@@ -84,7 +86,7 @@ export const resolvers = {
             }
         },
         // Verify that signed message from user wallet has been signed by the correct public address
-        completeValidateWallet: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        completeValidateWallet: async (_parent: undefined, { input }: IWrap<CompleteValidateWalletInput>, context: any, info: any): Promise<boolean> => {
             // Find wallet with public address
             const walletData = await context.prisma.wallet.findUnique({ 
                 where: { publicAddress: input.publicAddress },
@@ -97,9 +99,9 @@ export const resolvers = {
             });
 
             // Verify wallet data
-            if (!walletData) return new CustomError(CODE.InvalidArgs);
-            if (!walletData.userId) return new CustomError(CODE.ErrorUnknown);
-            if (!walletData.nonce || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) return new CustomError(CODE.NonceExpired)
+            if (!walletData) throw new CustomError(CODE.InvalidArgs);
+            if (!walletData.userId) throw new CustomError(CODE.ErrorUnknown);
+            if (!walletData.nonce || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
 
             // Verify that message was signed by wallet address
             const walletVerified = verifySignedMessage(input.publicAddress, walletData.nonce, input.signedMessage);
@@ -119,14 +121,12 @@ export const resolvers = {
             await generateToken(context.res, walletData.userId);
             return true;
         },
-        removeWallet: async (_parent: undefined, { input }: any, context: any, _info: any) => {
-            // Must deleting your own
+        removeWallet: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: any, _info: any): Promise<boolean> => {
+            // TODO Must deleting your own
             // TODO must keep at least one wallet per user
-            const specified = await context.prisma.email.findMany({ where: { id: { in: input.ids } } });
-            if (!specified) return new CustomError(CODE.ErrorUnknown);
-            const userIds = [...new Set(specified.map((s: any) => s.userId))];
-            if (userIds.length > 1 || context.req.userId !== userIds[0]) return new CustomError(CODE.Unauthorized);
-            return new CustomError(CODE.NotImplemented); //TODO
+            // Must be logged in
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            throw new CustomError(CODE.NotImplemented);
         }
     }
 }

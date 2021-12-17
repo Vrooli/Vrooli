@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { AccountStatus } from "./globalTypes";
+import { LogInInput, AccountStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: logIn
@@ -33,6 +33,5 @@ export interface logIn {
 }
 
 export interface logInVariables {
-  email?: string | null;
-  password?: string | null;
+  input: LogInInput;
 }

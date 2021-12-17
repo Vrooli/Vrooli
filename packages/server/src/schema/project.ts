@@ -2,6 +2,8 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { PrismaSelect } from '@paljs/plugins';
+import { IWrap } from 'types';
+import { DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectsQueryInput, ReportInput } from './types';
 
 export const typeDef = gql`
     input ProjectInput {
@@ -45,40 +47,40 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        project: async (_parent: undefined, { input }: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: any, info: any): Promise<Project> => {
+            throw new CustomError(CODE.NotImplemented);
         },
-        projects: async (_parent: undefined, { input }: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        projects: async (_parent: undefined, { input }: IWrap<ProjectsQueryInput>, context: any, info: any): Promise<Project[]> => {
+            throw new CustomError(CODE.NotImplemented);
         },
-        projectsCount: async (_parent: undefined, _args: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        projectsCount: async (_parent: undefined, _args: undefined, context: any, info: any): Promise<number> => {
+            throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addProject: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        addProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, context: any, info: any): Promise<Project> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
-            return new CustomError(CODE.NotImplemented);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            throw new CustomError(CODE.NotImplemented);
         },
-        updateProject: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        updateProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, context: any, info: any): Promise<Project> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
-            return new CustomError(CODE.NotImplemented);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            throw new CustomError(CODE.NotImplemented);
         },
-        deleteProject: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+        deleteProject: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: any, _info: any): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
-            return new CustomError(CODE.NotImplemented);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            throw new CustomError(CODE.NotImplemented);
         },
         /**
          * Reports a project. After enough reports, it will be deleted.
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportProject: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+         reportProject: async (_parent: undefined, { input }: IWrap<ReportInput>, context: any, _info: any): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
         }
     }

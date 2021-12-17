@@ -4,11 +4,12 @@ import pkg from '@prisma/client';
 import { PrismaSelect } from "@paljs/plugins";
 import { CustomError } from "../error";
 import { CODE } from "@local/shared";
+import { Node, NodeInput } from "schema/types";
 const { NodeType } = pkg;
 
 const MAX_NODES_IN_ROUTINE = 100;
 
-export class NodeModel extends BaseModel<any, any> {
+export class NodeModel extends BaseModel<NodeInput, Node> {
     
     constructor(prisma: any) {
         super(prisma, 'node');
@@ -77,9 +78,10 @@ export class NodeModel extends BaseModel<any, any> {
         return { dataStartId: row.id };
     }
 
-    async create(data: any, info: any) {
+    async create(data: NodeInput, info: any) {
         // Check if routine ID was provided
         if (!data.routineId) throw new CustomError(CODE.InvalidArgs, 'Routine ID not specified')
+        if (!data.type) throw new CustomError(CODE.InvalidArgs, 'Node type not specified')
         // Check if routine has reached max nodes
         const nodeCount = await this.prisma.routine.findUnique({
             where: { id: data.routineId },
@@ -88,19 +90,19 @@ export class NodeModel extends BaseModel<any, any> {
         if (nodeCount._count.nodes >= MAX_NODES_IN_ROUTINE) throw new CustomError(CODE.MaxNodesReached);
         // Remove relationship data, as they are handled on a case-by-case basis
         let cleanedData = onlyPrimitives(data);
-        // Map node type to helper function
-        const typeHelperMapper: any = {
-            [NodeType.COMBINE]: this.createCombineHelper,
-            [NodeType.DECISION]: this.createDecisionHelper,
-            [NodeType.END]: this.createEndHelper,
-            [NodeType.LOOP]: this.createLoopHelper,
-            [NodeType.ROUTINE_LIST]: this.createRoutineListHelper,
-            [NodeType.REDIRECT]: this.createRedirectHelper,
-            [NodeType.START]: this.createStartHelper,
+        // Map node type to helper function and correct data field
+        const typeMapper: any = {
+            [NodeType.COMBINE]: [this.createCombineHelper, 'combineData'],
+            [NodeType.DECISION]: [this.createDecisionHelper, 'decisionData'],
+            [NodeType.END]: [this.createEndHelper, 'endData'],
+            [NodeType.LOOP]: [this.createLoopHelper, 'loopData'],
+            [NodeType.ROUTINE_LIST]: [this.createRoutineListHelper, 'routineListData'],
+            [NodeType.REDIRECT]: [this.createRedirectHelper, 'redirectData'],
+            [NodeType.START]: [this.createStartHelper, 'startData'],
         }
-        const typeHelper = typeHelperMapper[data.type];
+        const mapResult: [any, keyof NodeInput] = typeMapper[data.type];
         // Create type-specific data
-        const typeData = await typeHelper(data.data);
+        const typeData = await mapResult[0](data[mapResult[1]]);
         // Create base node object
         return await this.prisma.node.create({ 
             data: {

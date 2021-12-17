@@ -2,12 +2,18 @@
 // (e.g. create, update, delete)
 import { CODE } from '@local/shared';
 import { PrismaSelect } from '@paljs/plugins';
+import { InputMaybe, Scalars } from 'schema/types';
 import { CustomError } from '../error';
 
 interface InputInterface {
-    id?: string;
+    id?: InputMaybe<Scalars['ID']>;
 }
 
+/**
+ * Abstract class for providing base functionality to model objects
+ * The first generic parameter is the type of the model's GraphQL input
+ * The second generic parameter is the type of the model's GraphQL type
+ */
 export abstract class BaseModel<Input extends InputInterface, Model> {
     prisma: any;
     model: string;
@@ -23,7 +29,7 @@ export abstract class BaseModel<Input extends InputInterface, Model> {
     }
 
     // Create a new model
-    async create(data: any, info: any): Promise<any> {
+    async create(data: Input, info: any): Promise<any> {
         throw new Error("Method not implemented.");
     }
     

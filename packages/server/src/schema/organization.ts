@@ -2,6 +2,8 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { PrismaSelect } from '@paljs/plugins';
+import { IWrap } from 'types';
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationInput, OrganizationsQueryInput } from './types';
 
 export const typeDef = gql`
     input OrganizationInput {
@@ -43,40 +45,40 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        organization: async (_parent: undefined, { input }: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: any, info: any): Promise<Organization> => {
+            throw new CustomError(CODE.NotImplemented);
         },
-        organizations: async (_parent: undefined, { input }: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        organizations: async (_parent: undefined, { input }: IWrap<OrganizationsQueryInput>, context: any, info: any): Promise<Organization[]> => {
+            throw new CustomError(CODE.NotImplemented);
         },
-        organizationsCount: async (_parent: undefined, _args: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        organizationsCount: async (_parent: undefined, _args: undefined, context: any, info: any): Promise<number> => {
+            throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addOrganization: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        addOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, context: any, info: any): Promise<Organization> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
-            return new CustomError(CODE.NotImplemented);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            throw new CustomError(CODE.NotImplemented);
         },
-        updateOrganization: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        updateOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, context: any, info: any): Promise<Organization> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
-            return new CustomError(CODE.NotImplemented);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            throw new CustomError(CODE.NotImplemented);
         },
-        deleteOrganization: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+        deleteOrganization: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: any, _info: any): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
-            return new CustomError(CODE.NotImplemented);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            throw new CustomError(CODE.NotImplemented);
         },
         /**
          * Reports an organization. After enough reports, it will be deleted.
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportOrganization: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+         reportOrganization: async (_parent: undefined, { input }: any, context: any, _info: any): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
         }
     }

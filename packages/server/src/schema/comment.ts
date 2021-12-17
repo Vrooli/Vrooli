@@ -2,6 +2,8 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { PrismaSelect } from '@paljs/plugins';
+import { Comment, CommentInput, DeleteOneInput, ReportInput, VoteInput } from './types';
+import { IWrap } from 'types';
 
 export const typeDef = gql`
     input CommentInput {
@@ -40,26 +42,26 @@ export const typeDef = gql`
 
 export const resolvers = {
     Mutation: {
-        addComment: async (_parent: undefined, { input }: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        addComment: async (_parent: undefined, { input }: IWrap<CommentInput>, context: any, info: any): Promise<Comment> => {
+            throw new CustomError(CODE.NotImplemented);
         },
-        updateComment: async (_parent: undefined, { input }: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        updateComment: async (_parent: undefined, { input }: IWrap<CommentInput>, context: any, info: any): Promise<Comment> => {
+            throw new CustomError(CODE.NotImplemented);
         },
-        deleteComment: async (_parent: undefined, { input }: any, context: any, _info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        deleteComment: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: any, _info: any): Promise<boolean> => {
+            throw new CustomError(CODE.NotImplemented);
         },
         /**
          * Reports a comment. After enough reports, the comment will be deleted.
          * @returns True if report was successfully recorded
          */
-         reportComment: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+         reportComment: async (_parent: undefined, { input }: IWrap<ReportInput>, context: any, _info: any): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
         },
-        voteComment: async (_parent: undefined, { input }: any, context: any, _info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        voteComment: async (_parent: undefined, { input }: IWrap<VoteInput>, context: any, _info: any): Promise<boolean> => {
+            throw new CustomError(CODE.NotImplemented);
         }
     }
 }

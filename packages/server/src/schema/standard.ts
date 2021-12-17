@@ -4,6 +4,8 @@ import { CustomError } from '../error';
 import { PrismaSelect } from '@paljs/plugins';
 import { StandardModel } from '../models';
 import pkg from '@prisma/client';
+import { IWrap } from 'types';
+import { DeleteManyInput, FindByIdInput, ReportInput, Standard, StandardInput, StandardsQueryInput } from './types';
 const { StandardType } = pkg;
 
 export const typeDef = gql`
@@ -51,8 +53,8 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        addStandard(input: ResourceInput!): Resource!
-        updateStandard(input: ResourceInput!): Resource!
+        addStandard(input: StandardInput!): Standard!
+        updateStandard(input: StandardInput!): Standard!
         deleteStandards(input: DeleteManyInput!): Count!
         reportStandard(input: ReportInput!): Boolean!
     }
@@ -61,14 +63,14 @@ export const typeDef = gql`
 export const resolvers = {
     StandardType: StandardType,
     Query: {
-        standard: async (_parent: undefined, { input }: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: any, info: any): Promise<Standard> => {
+            throw new CustomError(CODE.NotImplemented);
         },
-        standards: async (_parent: undefined, { input }: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        standards: async (_parent: undefined, { input }: IWrap<StandardsQueryInput>, context: any, info: any): Promise<Standard[]> => {
+            throw new CustomError(CODE.NotImplemented);
         },
-        standardsCount: async (_parent: undefined, _args: any, context: any, info: any) => {
-            return new CustomError(CODE.NotImplemented);
+        standardsCount: async (_parent: undefined, _args: undefined, context: any, info: any): Promise<number> => {
+            throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
@@ -76,9 +78,9 @@ export const resolvers = {
          * Add a new standard
          * @returns Standard object if successful
          */
-        addStandard: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        addStandard: async (_parent: undefined, { input }: IWrap<StandardInput>, context: any, info: any): Promise<Standard> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // Create object
             return await new StandardModel(context.prisma).create(input, info)
         },
@@ -86,9 +88,9 @@ export const resolvers = {
          * Update standards you've created
          * @returns 
          */
-        updateStandard: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        updateStandard: async (_parent: undefined, { input }: IWrap<StandardInput>, context: any, info: any): Promise<Standard> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // Update object
             return await new StandardModel(context.prisma).update(input, info);
         },
@@ -96,9 +98,9 @@ export const resolvers = {
          * Delete standards you've created. Other standards must go through a reporting system
          * @returns 
          */
-        deleteStandards: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+        deleteStandards: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, context: any, _info: any): Promise<number> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // Delete objects
             return await new StandardModel(context.prisma).deleteMany(input.ids);
         },
@@ -107,9 +109,9 @@ export const resolvers = {
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportStandard: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+         reportStandard: async (_parent: undefined, { input }: IWrap<ReportInput>, context: any, _info: any): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
         }
     }

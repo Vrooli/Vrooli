@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { CompleteValidateWalletInput } from "./globalTypes";
+
 // ====================================================
 // GraphQL mutation operation: completeValidateWallet
 // ====================================================
@@ -12,6 +14,5 @@ export interface completeValidateWallet {
 }
 
 export interface completeValidateWalletVariables {
-  publicAddress: string;
-  signedMessage: string;
+  input: CompleteValidateWalletInput;
 }

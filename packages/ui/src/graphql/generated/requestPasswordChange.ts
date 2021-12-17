@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { RequestPasswordChangeInput } from "./globalTypes";
+
 // ====================================================
 // GraphQL mutation operation: requestPasswordChange
 // ====================================================
@@ -12,5 +14,5 @@ export interface requestPasswordChange {
 }
 
 export interface requestPasswordChangeVariables {
-  email: string;
+  input: RequestPasswordChangeInput;
 }

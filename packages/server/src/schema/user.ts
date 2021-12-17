@@ -4,6 +4,8 @@ import { CustomError, validateArgs } from '../error';
 import { generateToken } from '../auth/auth';
 import { UserModel } from '../models/user';
 import pkg from '@prisma/client';
+import { DeleteUserInput, LogInInput, ReportInput, RequestPasswordChangeInput, ResetPasswordInput, SignUpInput, UpdateUserInput, User } from './types';
+import { IWrap } from 'types';
 const { AccountStatus } = pkg;
 
 export const typeDef = gql`
@@ -57,7 +59,7 @@ export const typeDef = gql`
 
     input DeleteUserInput {
         id: ID!
-        password: String
+        password: String!
     }
 
     input RequestPasswordChangeInput {
@@ -90,59 +92,60 @@ export const typeDef = gql`
 export const resolvers = {
     AccountStatus: AccountStatus,
     Query: {
-        profile: async (_parent: undefined, _args: any, context: any, info: any) => {
+        profile: async (_parent: undefined, _args: undefined, context: any, info: any): Promise<User> => {
             return await new UserModel(context.prisma).findById(context.req.userId, info);
         }
     },
     Mutation: {
-        logIn: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        logIn: async (_parent: undefined, { input }: IWrap<LogInInput>, context: any, info: any): Promise<User> => {
             const userModel = new UserModel(context.prisma);
-            // If username and password are not provided, attempt to log in using session cookie
-            if (!Boolean(input.username) && !Boolean(input.password)) {
+            // If email and password are not provided, attempt to log in using session cookie
+            if (!Boolean(input.email) && !Boolean(input.password)) {
                 // If session is expired
                 if (!Array.isArray(context.req.roles) || context.req.roles.length === 0) {
                     context.res.clearCookie(COOKIE.Session);
-                    return new CustomError(CODE.SessionExpired);
+                    throw new CustomError(CODE.SessionExpired);
                 }
                 let userData = await userModel.findById(context.req.userId, info);
                 if (userData) return userData;
                 // If user data failed to fetch, clear session and return error
                 context.res.clearCookie(COOKIE.Session);
-                return new CustomError(CODE.ErrorUnknown);
+                throw new CustomError(CODE.ErrorUnknown);
             }
             // Validate arguments with schema
             const validateError = await validateArgs(logInSchema, input);
-            if (validateError) return validateError;
+            if (validateError) throw validateError;
             // Get user
-            let user = await new UserModel(context.prisma).fromEmail(input.email);
+            let user = await new UserModel(context.prisma).fromEmail(input.email as string);
             // Check for password in database, if doesn't exist, send a password reset link
             if (!Boolean(user.password)) {
                 await new UserModel(context.prisma).setupPasswordReset(user);
-                return new CustomError(CODE.MustResetPassword);
+                throw new CustomError(CODE.MustResetPassword);
             }
             // Validate verification code, if supplied
             if (Boolean(input.verificationCode)) {
-                user = await new UserModel(context.prisma).validateVerificationCode(user, input.verificationCode);
+                user = await new UserModel(context.prisma).validateVerificationCode(user, input.verificationCode as string);
             }
-            user = await userModel.logIn(input.password, user, info);
+            user = await userModel.logIn(input.password as string, user, info);
             if (Boolean(user)) {
                 // Set session token
                 await generateToken(context.res, user.id);
                 return user;
             } else {
-                return new CustomError(CODE.BadCredentials);
+                throw new CustomError(CODE.BadCredentials);
             }
         },
-        logOut: async (_parent: undefined, _args: any, context: any, _info: any) => {
+        logOut: async (_parent: undefined, _args: undefined, context: any, _info: any): Promise<boolean> => {
             context.res.clearCookie(COOKIE.Session);
+            return true;
         },
-        signUp: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        signUp: async (_parent: undefined, { input }: IWrap<SignUpInput>, context: any, info: any): Promise<User> => {
             // Validate input format
             const validateError = await validateArgs(signUpSchema, input);
-            if (validateError) return validateError;
+            if (validateError) throw validateError;
             // Find user role to give to new user
             const actorRole = await context.prisma.role.findUnique({ where: { title: ROLES.Actor } });
-            if (!actorRole) return new CustomError(CODE.ErrorUnknown);
+            if (!actorRole) throw new CustomError(CODE.ErrorUnknown);
             // Create user object
             const user = await new UserModel(context.prisma).upsertUser({
                 username: input.username,
@@ -159,41 +162,41 @@ export const resolvers = {
             // Return user data
             return await new UserModel(context.prisma).findById(user.id, info)
         },
-        updateUser: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        updateUser: async (_parent: undefined, { input }: IWrap<UpdateUserInput>, context: any, info: any): Promise<User> => {
             // Must be updating your own
-            if (context.req.userId !== input.id) return new CustomError(CODE.Unauthorized);
+            if (context.req.userId !== input.data.id) throw new CustomError(CODE.Unauthorized);
             // Check for correct password
-            let user = await context.prisma.user.findUnique({ where: { id: input.id } });
-            if (!user) return new CustomError(CODE.InvalidArgs);
-            if (!UserModel.validatePassword(input.currentPassword, user)) return new CustomError(CODE.BadCredentials);
+            let user = await context.prisma.user.findUnique({ where: { id: input.data.id } });
+            if (!user) throw new CustomError(CODE.InvalidArgs);
+            if (!UserModel.validatePassword(input.currentPassword, user)) throw new CustomError(CODE.BadCredentials);
             // Update user
             return await new UserModel(context.prisma).upsertUser(input.data, info);
         },
-        deleteUser: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+        deleteUser: async (_parent: undefined, { input }: IWrap<DeleteUserInput>, context: any, _info: any): Promise<boolean> => {
             // Must be deleting your own
-            if (context.req.userId !== input.id) return new CustomError(CODE.Unauthorized);
+            if (context.req.userId !== input.id) throw new CustomError(CODE.Unauthorized);
             // Check for correct password
             let user = await context.prisma.user.findUnique({ where: { id: input.id } });
-            if (!user) return new CustomError(CODE.InvalidArgs);
-            if (!UserModel.validatePassword(input.password, user)) return new CustomError(CODE.BadCredentials);
+            if (!user) throw new CustomError(CODE.InvalidArgs);
+            if (!UserModel.validatePassword(input.password, user)) throw new CustomError(CODE.BadCredentials);
             // Delete user
             await new UserModel(context.prisma).delete(user.id);
             return true;
         },
-        requestPasswordChange: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+        requestPasswordChange: async (_parent: undefined, { input }: IWrap<RequestPasswordChangeInput>, context: any, _info: any): Promise<boolean> => {
             // Validate input format
             const validateError = await validateArgs(requestPasswordChangeSchema, input);
-            if (validateError) return validateError;
+            if (validateError) throw validateError;
             // Find user in database
             const user = await new UserModel(context.prisma).fromEmail(input.email);
             // Generate and send password reset code
             await new UserModel(context.prisma).setupPasswordReset(user);
             return true;
         },
-        resetPassword: async (_parent: undefined, { input }: any, context: any, info: any) => {
+        resetPassword: async (_parent: undefined, { input }: IWrap<ResetPasswordInput>, context: any, info: any): Promise<User> => {
             // Validate input format
             const validateError = await validateArgs(passwordSchema, input.newPassword);
-            if (validateError) return validateError;
+            if (validateError) throw validateError;
             // Find user in database
             let user = await context.prisma.user.findUnique({
                 where: { id: input.id },
@@ -205,13 +208,13 @@ export const resolvers = {
                     emails: { select: { emailAddress: true } }
                 }
             });
-            if (!user) return new CustomError(CODE.ErrorUnknown);
+            if (!user) throw new CustomError(CODE.ErrorUnknown);
             // If code is invalid
             if (!UserModel.validateCode(input.code, user.resetPasswordCode, user.lastResetPasswordReqestAttempt)) {
                 // Generate and send new code
                 await new UserModel(context.prisma).setupPasswordReset(user);
                 // Return error
-                return new CustomError(CODE.InvalidResetCode);
+                throw new CustomError(CODE.InvalidResetCode);
             }
             // Remove request data from user, and set new password
             await context.prisma.user.update({
@@ -230,9 +233,9 @@ export const resolvers = {
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportUser: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+         reportUser: async (_parent: undefined, { input }: IWrap<ReportInput>, context: any, _info: any): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
         },
         /**
@@ -240,9 +243,9 @@ export const resolvers = {
          * In the future, an import function will be added.
          * @returns JSON of all user data
          */
-        exportData: async (_parent: undefined, _args: any, context: any, _info: any) => {
+        exportData: async (_parent: undefined, _args: undefined, context: any, _info: any): Promise<string> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
         }
     }

@@ -6,6 +6,7 @@ import { BaseModel } from "./base";
 import bcrypt from 'bcrypt';
 import pkg from '@prisma/client';
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
+import { User, UserInput } from "schema/types";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -14,7 +15,7 @@ const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 3;
 const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 10;
 const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000;
 
-export class UserModel extends BaseModel<any, any> {
+export class UserModel extends BaseModel<UserInput, User> {
 
     constructor(prisma: any) {
         super(prisma, 'user');

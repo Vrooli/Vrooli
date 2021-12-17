@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { AccountStatus } from "./globalTypes";
+import { ResetPasswordInput, AccountStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: resetPassword
@@ -33,7 +33,5 @@ export interface resetPassword {
 }
 
 export interface resetPasswordVariables {
-  id: string;
-  code: string;
-  newPassword: string;
+  input: ResetPasswordInput;
 }

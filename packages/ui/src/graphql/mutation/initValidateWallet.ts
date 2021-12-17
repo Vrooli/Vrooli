@@ -2,13 +2,7 @@
 import { gql } from 'graphql-tag';
 
 export const initValidateWalletMutation = gql`
-    mutation initValidateWallet(
-        $publicAddress: String!
-        $nonceDescription: String
-    ) {
-    initValidateWallet(
-        publicAddress: $publicAddress
-        nonceDescription: $nonceDescription
-    )
+    mutation initValidateWallet($input: InitValidateWalletInput!) {
+    initValidateWallet(input: $input)
 }
 `

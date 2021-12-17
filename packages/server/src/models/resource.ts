@@ -1,4 +1,5 @@
 import { PrismaSelect } from "@paljs/plugins";
+import { Resource, ResourceInput } from "schema/types";
 import { BaseModel } from "./base";
 
 export const applyMap = {
@@ -10,7 +11,7 @@ export const applyMap = {
     USER: 'userResources'
 }
 
-export class ResourceModel extends BaseModel<any, any> {
+export class ResourceModel extends BaseModel<ResourceInput, Resource> {
     
     constructor(prisma: any) {
         super(prisma, 'resource');
@@ -22,7 +23,7 @@ export class ResourceModel extends BaseModel<any, any> {
      * @param info 
      * @returns 
      */
-    async create(data: any, info: any) {
+    async create(data: ResourceInput, info: any) {
         // Filter out for and forId, since they are not part of the resource object
         const { createdFor, forId, ...resourceData } = data;
         // Create base object
@@ -54,7 +55,7 @@ export class ResourceModel extends BaseModel<any, any> {
         }})
     }
     
-    async update(data: any, info: any): Promise<any> {
+    async update(data: ResourceInput, info: any): Promise<any> {
         // Filter out for and forId, since they are not part of the resource object
         const { createdFor, forId, ...resourceData } = data;
         // Check if resource needs to be associated with another object instead
