@@ -14,29 +14,42 @@ export const typeDef = gql`
         id: ID!
     }
 
+    input TagsQueryInput {
+        first: Int
+        skip: Int
+    }
+
+    input TagVoteInput {
+        id: ID!
+        isUpvote: Boolean!
+        objectType: String!
+        objectId: ID!
+    }
+
     extend type Query {
-        tag(id: ID!): Tag
-        tags(first: Int, skip: Int): [Tag!]!
+        tag(input: FindByIdInput!): Tag
+        tags(input: TagsQueryInput!): [Tag!]!
         tagsCount: Int!
     }
 
     extend type Mutation {
         addTag(input: ResourceInput!): Resource!
         updateTag(input: ResourceInput!): Resource!
-        deleteTags(ids: [ID!]!): Count!
-        reportTag(id: ID!): Boolean!
+        deleteTags(input: DeleteManyInput!): Count!
+        reportTag(input: ReportInput!): Boolean!
+        voteTag(input: TagVoteInput!): Boolean!
     }
 `
 
 export const resolvers = {
     Query: {
-        tag: async (_parent: undefined, args: any, context: any, info: any) => {
+        tag: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        tags: async (_parent: undefined, args: any, context: any, info: any) => {
+        tags: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        tagsCount: async (_parent: undefined, args: any, context: any, info: any) => {
+        tagsCount: async (_parent: undefined, _args: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
     },
@@ -45,41 +58,44 @@ export const resolvers = {
          * Add a new tag. Must be unique.
          * @returns Tag object if successful
          */
-        addTag: async (_parent: undefined, args: any, context: any, info: any) => {
+        addTag: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Create object
-            return await new TagModel(context.prisma).create(args.input, info)
+            return await new TagModel(context.prisma).create(input, info)
         },
         /**
          * Update tags you've created
          * @returns 
          */
-        updateTag: async (_parent: undefined, args: any, context: any, info: any) => {
+        updateTag: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Update object
-            return await new TagModel(context.prisma).update(args.input, info);
+            return await new TagModel(context.prisma).update(input, info);
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system
          * @returns 
          */
-        deleteTags: async (_parent: undefined, args: any, context: any, _info: any) => {
+        deleteTags: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Delete objects
-            return await new TagModel(context.prisma).deleteMany(args.ids);
+            return await new TagModel(context.prisma).deleteMany(input.ids);
         },
         /**
          * Reports a tag. After enough reports, the tag will be deleted.
          * Objects associated with the tag will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportTag: async (_parent: undefined, args: any, context: any, _info: any) => {
+         reportTag: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
+        },
+        voteTag: async (_parent: undefined, { input }: any, context: any, _info: any) => {
+            return new CustomError(CODE.NotImplemented);
         }
     }
 }

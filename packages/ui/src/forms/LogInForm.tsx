@@ -1,5 +1,5 @@
 import { useHistory, useParams } from 'react-router-dom';
-import { loginMutation } from 'graphql/mutation';
+import { logInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { CODE, logInSchema } from '@local/shared';
 import { useFormik } from 'formik';
@@ -16,7 +16,7 @@ import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { formStyles } from './styles';
-import { login } from 'graphql/generated/login';
+import { logIn } from 'graphql/generated/logIn';
 import { FormProps } from 'forms';
 
 const useStyles = makeStyles(formStyles);
@@ -28,7 +28,7 @@ export const LogInForm = ({
     const classes = useStyles();
     const history = useHistory();
     const urlParams = useParams<{code?: string}>();
-    const [login, { loading }] = useMutation<login>(loginMutation);
+    const [logIn, { loading }] = useMutation<logIn>(logInMutation);
 
     const formik = useFormik({
         initialValues: {
@@ -38,10 +38,10 @@ export const LogInForm = ({
         validationSchema: logInSchema,
         onSubmit: (values) => {
             mutationWrapper({
-                mutation: login,
+                mutation: logIn,
                 data: { variables: { ...values, verificationCode: urlParams.code } },
-                successCondition: (response) => response.data.login !== null,
-                onSuccess: (response) => { onSessionUpdate(response.data.login); history.push(APP_LINKS.Home) },
+                successCondition: (response) => response.data.logIn !== null,
+                onSuccess: (response) => { onSessionUpdate(response.data.logIn); history.push(APP_LINKS.Home) },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(PUBS.AlertDialog, {

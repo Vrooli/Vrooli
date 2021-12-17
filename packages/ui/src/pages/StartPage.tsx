@@ -129,7 +129,7 @@ export const StartPage = ({
     return (
         <div className={classes.root}>
             <div className={classes.horizontal}>
-                <Typography className={classes.prompt} variant="h6">Please select your login method</Typography>
+                <Typography className={classes.prompt} variant="h6">Please select your log in method</Typography>
                 <HelpButton title={'boop'} />
             </div>
             <Grid className={classes.buttonContainer} container spacing={2}>

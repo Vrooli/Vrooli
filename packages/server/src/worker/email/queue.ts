@@ -28,8 +28,8 @@ export function sendVerificationLink(email: string, userId: string | number, cod
     emailQueue.add({
         to: [email],
         subject: `Verify ${BUSINESS_NAME} Account`,
-        text: `Welcome to ${BUSINESS_NAME}! Please login through this link (${APP_URL}/login/${userId}/${code}) to verify your account. If you did not create an account with us, please ignore this link.`,
-        html: `<p>Welcome to ${BUSINESS_NAME}!</p><p>Please login through this link (<a href=\"${APP_URL}/login/${userId}/${code}\">${APP_URL}/login/${userId}/${code}</a>) to verify your account.</p><p>If you did not create an account with us, please ignore this message.</p>`
+        text: `Welcome to ${BUSINESS_NAME}! Please log in through this link (${APP_URL}/logIn/${userId}/${code}) to verify your account. If you did not create an account with us, please ignore this link.`,
+        html: `<p>Welcome to ${BUSINESS_NAME}!</p><p>Please log in through this link (<a href=\"${APP_URL}/logIn/${userId}/${code}\">${APP_URL}/logIn/${userId}/${code}</a>) to verify your account.</p><p>If you did not create an account with us, please ignore this message.</p>`
     });
 }
 

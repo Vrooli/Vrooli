@@ -10,7 +10,7 @@ import {
 } from '@material-ui/icons';
 import { APP_LINKS as LINKS } from '@local/shared';
 import { initializeApollo } from 'graphql/utils/initialize';
-import { logoutMutation } from 'graphql/mutation';
+import { logOutMutation } from 'graphql/mutation';
 import {
     Badge,
     BottomNavigationAction,
@@ -30,8 +30,8 @@ export const ACTION_TAGS = {
     Learn: 'learn',
     Research: 'research',
     Develop: 'develop',
-    LogIn: 'login',
-    LogOut: 'logout',
+    LogIn: 'logIn',
+    LogOut: 'logOut',
 }
 export type ACTION_TAGS = ValueOf<typeof ACTION_TAGS>;
 
@@ -67,7 +67,7 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
     if (!userRoles?.includes(ROLES.Actor)) {
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
     } else {
-        actions.push(['Log Out', ACTION_TAGS.LogOut, LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logoutMutation }) }, LogOutIcon, 0]);
+        actions.push(['Log Out', ACTION_TAGS.LogOut, LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logOutMutation }) }, LogOutIcon, 0]);
     }
 
     return actions.map(a => createAction(a)).filter(a => !exclude.includes(a.value));

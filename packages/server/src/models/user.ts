@@ -135,14 +135,14 @@ export class UserModel extends BaseModel<any, any> {
      * @returns Updated user object, or null if logIn failed
      */
     async logIn(password: string, user: any, info: any): Promise<any> {
-        // First, check if the login fail counter should be reset
+        // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HARD_LOCKED, AccountStatus.DELETED];
         // If account is not deleted or hard-locked, and lockout duration has passed
         if (!unable_to_reset.includes(user.status) && Date.now() - new Date(user.lastLoginAttempt).getTime() > SOFT_LOCKOUT_DURATION) {
-            console.log('returning with reset login');
+            console.log('returning with reset log in');
             return await this.prisma.user.update({
                 where: { id: user.id },
-                data: { loginAttempts: 0 }
+                data: { logInAttempts: 0 }
             });
         }
         // If password is valid
@@ -150,7 +150,7 @@ export class UserModel extends BaseModel<any, any> {
             return await this.prisma.user.update({
                 where: { id: user.id },
                 data: {
-                    loginAttempts: 0,
+                    logInAttempts: 0,
                     lastLoginAttempt: new Date().toISOString(),
                     resetPasswordCode: null,
                     lastResetPasswordReqestAttempt: null
@@ -160,15 +160,15 @@ export class UserModel extends BaseModel<any, any> {
         }
         // If password is invalid
         let new_status: any = AccountStatus.UNLOCKED;
-        let login_attempts = user.loginAttempts++;
-        if (login_attempts > LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
+        let log_in_attempts = user.logInAttempts++;
+        if (log_in_attempts > LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
             new_status = AccountStatus.HARD_LOCKED;
-        } else if (login_attempts > LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT) {
+        } else if (log_in_attempts > LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT) {
             new_status = AccountStatus.SOFT_LOCKED;
         }
         await this.prisma.user.update({
             where: { id: user.id },
-            data: { status: new_status, loginAttempts: login_attempts, lastLoginAttempt: new Date().toISOString() }
+            data: { status: new_status, logInAttempts: log_in_attempts, lastLoginAttempt: new Date().toISOString() }
         })
         return null;
     }

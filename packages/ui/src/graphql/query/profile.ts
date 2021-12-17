@@ -9,7 +9,8 @@ export const profileQuery = gql`
             emails {
                 id
                 emailAddress
-                receivesDeliveryUpdates
+                receivesAccountUpdates
+                receivesBusinessUpdates
             }
         }
     }

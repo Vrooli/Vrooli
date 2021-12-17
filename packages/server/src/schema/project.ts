@@ -24,44 +24,49 @@ export const typeDef = gql`
         starredBy: [User!]
     }
 
+    input ProjectsQueryInput {
+        first: Int
+        skip: Int
+    }
+
     extend type Query {
-        project(id: ID!): Project
-        projects(first: Int, skip: Int): [Project!]!
+        project(input: FindByIdInput!): Project
+        projects(input: ProjectsQueryInput!): [Project!]!
         projectsCount: Int!
     }
 
     extend type Mutation {
         addProject(input: ProjectInput!): Project!
         updateProject(input: ProjectInput!): Project!
-        deleteProject(id: ID!): Boolean!
-        reportProject(id: ID!): Boolean!
+        deleteProject(input: DeleteOneInput!): Boolean!
+        reportProject(input: ReportInput!): Boolean!
     }
 `
 
 export const resolvers = {
     Query: {
-        project: async (_parent: undefined, args: any, context: any, info: any) => {
+        project: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        projects: async (_parent: undefined, args: any, context: any, info: any) => {
+        projects: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        projectsCount: async (_parent: undefined, args: any, context: any, info: any) => {
+        projectsCount: async (_parent: undefined, _args: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addProject: async (_parent: undefined, args: any, context: any, info: any) => {
+        addProject: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         },
-        updateProject: async (_parent: undefined, args: any, context: any, info: any) => {
+        updateProject: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         },
-        deleteProject: async (_parent: undefined, args: any, context: any, _info: any) => {
+        deleteProject: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
@@ -71,7 +76,7 @@ export const resolvers = {
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportProject: async (_parent: undefined, args: any, context: any, _info: any) => {
+         reportProject: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);

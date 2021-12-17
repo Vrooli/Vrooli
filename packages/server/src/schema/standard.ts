@@ -25,7 +25,7 @@ export const typeDef = gql`
         schema: String
         default: String
         isFile: Boolean
-        tags: [Tag!]
+        tags: [TagInput!]
     }
 
     type Standard {
@@ -39,30 +39,35 @@ export const typeDef = gql`
         tags: [Tag!]!
     }
 
+    input StandardsQueryInput {
+        first: Int
+        skip: Int
+    }
+
     extend type Query {
-        standard(id: ID!): Standard
-        standards(first: Int, skip: Int): [Standard!]!
+        standard(input: FindByIdInput!): Standard
+        standards(input: StandardsQueryInput!): [Standard!]!
         standardsCount: Int!
     }
 
     extend type Mutation {
         addStandard(input: ResourceInput!): Resource!
         updateStandard(input: ResourceInput!): Resource!
-        deleteStandards(ids: [ID!]!): Count!
-        reportStandard(id: ID!): Boolean!
+        deleteStandards(input: DeleteManyInput!): Count!
+        reportStandard(input: ReportInput!): Boolean!
     }
 `
 
 export const resolvers = {
     StandardType: StandardType,
     Query: {
-        standard: async (_parent: undefined, args: any, context: any, info: any) => {
+        standard: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        standards: async (_parent: undefined, args: any, context: any, info: any) => {
+        standards: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        standardsCount: async (_parent: undefined, args: any, context: any, info: any) => {
+        standardsCount: async (_parent: undefined, _args: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
     },
@@ -71,38 +76,38 @@ export const resolvers = {
          * Add a new standard
          * @returns Standard object if successful
          */
-        addStandard: async (_parent: undefined, args: any, context: any, info: any) => {
+        addStandard: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Create object
-            return await new StandardModel(context.prisma).create(args.input, info)
+            return await new StandardModel(context.prisma).create(input, info)
         },
         /**
          * Update standards you've created
          * @returns 
          */
-        updateStandard: async (_parent: undefined, args: any, context: any, info: any) => {
+        updateStandard: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Update object
-            return await new StandardModel(context.prisma).update(args.input, info);
+            return await new StandardModel(context.prisma).update(input, info);
         },
         /**
          * Delete standards you've created. Other standards must go through a reporting system
          * @returns 
          */
-        deleteStandards: async (_parent: undefined, args: any, context: any, _info: any) => {
+        deleteStandards: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Delete objects
-            return await new StandardModel(context.prisma).deleteMany(args.ids);
+            return await new StandardModel(context.prisma).deleteMany(input.ids);
         },
         /**
          * Reports a standard. After enough reports, it will be deleted.
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportStandard: async (_parent: undefined, args: any, context: any, _info: any) => {
+         reportStandard: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);

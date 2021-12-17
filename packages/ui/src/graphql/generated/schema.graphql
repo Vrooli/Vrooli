@@ -62,8 +62,8 @@ type Query {
 
 type Mutation {
   writeAssets(files: [Upload!]!): Boolean
-  login(email: String, password: String, verificationCode: String): User!
-  logout: Boolean
+  logIn(email: String, password: String, verificationCode: String): User!
+  logOut: Boolean
   signUp(username: String!, pronouns: String, email: String!, theme: String!, marketingEmails: Boolean!, password: String!): User!
   updateUser(input: UserInput!, currentPassword: String!, newPassword: String): User!
   deleteUser(id: ID!, password: String): Boolean

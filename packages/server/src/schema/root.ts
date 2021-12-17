@@ -4,6 +4,7 @@ import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 import ogs from 'open-graph-scraper';
 
+// Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
     scalar Date
     scalar Upload
@@ -39,6 +40,27 @@ export const typeDef = gql`
     type Mutation {
         # _empty: String
         writeAssets(files: [Upload!]!): Boolean
+    }
+
+    # Input for finding object by id
+    input FindByIdInput {
+        id: ID!
+    }
+
+    # Input for deleting one object
+    input DeleteOneInput {
+        id: ID!
+    }
+
+    # Input for deleting multiple objects
+    input DeleteManyInput {
+        ids: [ID!]!
+    }
+
+    # Input for reporting an object
+    input ReportInput {
+        id: ID!
+        reason: String
     }
 `
 

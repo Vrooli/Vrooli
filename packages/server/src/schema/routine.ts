@@ -37,44 +37,49 @@ export const typeDef = gql`
         id: ID!
     }
 
+    input RoutinesQueryInput {
+        first: Int
+        skip: Int
+    }
+
     extend type Query {
-        routine(id: ID!): Routine
-        routines(first: Int, skip: Int): [Routine!]!
+        routine(input: FindByIdInput!): Routine
+        routines(input: RoutinesQueryInput!): [Routine!]!
         routinesCount: Int!
     }
 
     extend type Mutation {
         addRoutine(input: RoutineInput!): Routine!
         updateRoutine(input: RoutineInput!): Routine!
-        deleteRoutine(id: ID!): Boolean!
-        reportRoutine(id: ID!): Boolean!
+        deleteRoutine(input: DeleteOneInput!): Boolean!
+        reportRoutine(input: ReportInput!): Boolean!
     }
 `
 
 export const resolvers = {
     Query: {
-        routine: async (_parent: undefined, args: any, context: any, info: any) => {
+        routine: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        routines: async (_parent: undefined, args: any, context: any, info: any) => {
+        routines: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        routinesCount: async (_parent: undefined, args: any, context: any, info: any) => {
+        routinesCount: async (_parent: undefined, _args: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addRoutine: async (_parent: undefined, args: any, context: any, info: any) => {
+        addRoutine: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         },
-        updateRoutine: async (_parent: undefined, args: any, context: any, info: any) => {
+        updateRoutine: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         },
-        deleteRoutine: async (_parent: undefined, args: any, context: any, _info: any) => {
+        deleteRoutine: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
@@ -84,7 +89,7 @@ export const resolvers = {
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportRoutine: async (_parent: undefined, args: any, context: any, _info: any) => {
+         reportRoutine: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);

@@ -22,44 +22,49 @@ export const typeDef = gql`
         routines: [Routine!]
     }
 
+    input OrganizationsQueryInput {
+        first: Int
+        skip: Int
+    }
+
     extend type Query {
-        organization(id: ID!): Organization
-        organizations(first: Int, skip: Int): [Organization!]!
-        organizationsCount: Int!
+        organization(input: FindByIdInput!): Organization
+        organizations(input: OrganizationsQueryInput!): [Organization!]!
+        organizationsCount: Count!
     }
 
     extend type Mutation {
         addOrganization(input: OrganizationInput!): Organization!
         updateOrganization(input: OrganizationInput!): Organization!
-        deleteOrganization(id: ID!): Boolean!
-        reportOrganization(id: ID!): Boolean!
+        deleteOrganization(input: DeleteOneInput): Boolean!
+        reportOrganization(input: ReportInput!): Boolean!
     }
 `
 
 export const resolvers = {
     Query: {
-        organization: async (_parent: undefined, args: any, context: any, info: any) => {
+        organization: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        organizations: async (_parent: undefined, args: any, context: any, info: any) => {
+        organizations: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        organizationsCount: async (_parent: undefined, args: any, context: any, info: any) => {
+        organizationsCount: async (_parent: undefined, _args: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addOrganization: async (_parent: undefined, args: any, context: any, info: any) => {
+        addOrganization: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         },
-        updateOrganization: async (_parent: undefined, args: any, context: any, info: any) => {
+        updateOrganization: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         },
-        deleteOrganization: async (_parent: undefined, args: any, context: any, _info: any) => {
+        deleteOrganization: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
@@ -69,7 +74,7 @@ export const resolvers = {
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportOrganization: async (_parent: undefined, args: any, context: any, _info: any) => {
+         reportOrganization: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);

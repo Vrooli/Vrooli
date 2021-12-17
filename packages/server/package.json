@@ -2,7 +2,7 @@
     "name": "server",
     "author": "Vrooli",
     "license": "GPL-3.0",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "description": "",
     "main": "dist/index.js",
     "type": "module",
@@ -20,7 +20,7 @@
     "dependencies": {
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
-        "@local/shared": "0.0.1",
+        "@local/shared": "^1.0.0",
         "@paljs/plugins": "^4.0.8",
         "@prisma/client": "^3.2.0",
         "apollo-server-express": "^3.3.0",

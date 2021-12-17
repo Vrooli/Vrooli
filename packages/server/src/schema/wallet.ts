@@ -15,16 +15,20 @@ export const typeDef = gql`
         organization: Organization
     }
 
+    input InitValidateWalletInput {
+        publicAddress: String!
+        nonceDescription: String
+    }
+
+    input CompleteValidateWalletInput {
+        publicAddress: String!
+        signedMessage: String!
+    }
+
     extend type Mutation {
-        initValidateWallet(
-            publicAddress: String!
-            nonceDescription: String
-        ): String!
-        completeValidateWallet(
-            publicAddress: String!
-            signedMessage: String!
-        ): Boolean!
-        removeWallet(id: ID!): Boolean!
+        initValidateWallet(input: InitValidateWalletInput!): String!
+        completeValidateWallet(input: CompleteValidateWalletInput!): Boolean!
+        removeWallet(input: DeleteOneInput!): Boolean!
     }
 `
 
@@ -32,7 +36,7 @@ export const resolvers = {
     Mutation: {
         // Start handshake for establishing trust between backend and user wallet
         // Returns nonce
-        initValidateWallet: async (_parent: undefined, args: any, context: any, info: any) => {
+        initValidateWallet: async (_parent: undefined, { input }: any, context: any, info: any) => {
             let userData;
             // If not signed in, create new user row
             if (!context.req.userId) userData = await context.prisma.user.create({ data: {} });
@@ -42,7 +46,7 @@ export const resolvers = {
 
             // Find existing wallet data in database
             let walletData = await context.prisma.wallet.findUnique({
-                where: { publicAddress: args.publicAddress },
+                where: { publicAddress: input.publicAddress },
                 select: {
                     id: true,
                     verified: true,
@@ -52,7 +56,7 @@ export const resolvers = {
             // If wallet data didn't exist, create
             if (!walletData) {
                 walletData = await context.prisma.wallet.create({
-                    data: { publicAddress: args.publicAddress },
+                    data: { publicAddress: input.publicAddress },
                     select: {
                         id: true,
                         verified: true,
@@ -63,7 +67,7 @@ export const resolvers = {
 
             // If wallet is either: (1) unverified; or (2) already verified with user, update wallet with nonce and user id
             if (!walletData.verified || walletData.userId === userData.id) {
-                const nonce = await generateNonce(args.nonceDescription);
+                const nonce = await generateNonce(input.nonceDescription);
                 await context.prisma.wallet.update({
                     where: { id: walletData.id },
                     data: { 
@@ -80,10 +84,10 @@ export const resolvers = {
             }
         },
         // Verify that signed message from user wallet has been signed by the correct public address
-        completeValidateWallet: async (_parent: undefined, args: any, context: any, info: any) => {
+        completeValidateWallet: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Find wallet with public address
             const walletData = await context.prisma.wallet.findUnique({ 
-                where: { publicAddress: args.publicAddress },
+                where: { publicAddress: input.publicAddress },
                 select: {
                     id: true,
                     nonce: true,
@@ -98,7 +102,7 @@ export const resolvers = {
             if (!walletData.nonce || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) return new CustomError(CODE.NonceExpired)
 
             // Verify that message was signed by wallet address
-            const walletVerified = verifySignedMessage(args.publicAddress, walletData.nonce, args.signedMessage);
+            const walletVerified = verifySignedMessage(input.publicAddress, walletData.nonce, input.signedMessage);
             if (!walletVerified) return false;
 
             // Update wallet and remove nonce data
@@ -115,10 +119,10 @@ export const resolvers = {
             await generateToken(context.res, walletData.userId);
             return true;
         },
-        removeWallet: async (_parent: undefined, args: any, context: any, _info: any) => {
+        removeWallet: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must deleting your own
             // TODO must keep at least one wallet per user
-            const specified = await context.prisma.email.findMany({ where: { id: { in: args.ids } } });
+            const specified = await context.prisma.email.findMany({ where: { id: { in: input.ids } } });
             if (!specified) return new CustomError(CODE.ErrorUnknown);
             const userIds = [...new Set(specified.map((s: any) => s.userId))];
             if (userIds.length > 1 || context.req.userId !== userIds[0]) return new CustomError(CODE.Unauthorized);

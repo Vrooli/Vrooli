@@ -39,8 +39,8 @@ export async function mock(prisma: PrismaType) {
             status: AccountStatus.UNLOCKED,
         },
         emailsData: [
-            { emailAddress: 'notarealemail@afakesite.com', receivesDeliveryUpdates: false, verified: true },
-            { emailAddress: 'backupemailaddress@afakesite.com', receivesDeliveryUpdates: false, verified: false }
+            { emailAddress: 'notarealemail@afakesite.com', verified: true },
+            { emailAddress: 'backupemailaddress@afakesite.com', verified: false }
         ],
         roleIds: [actorRoleId]
     });
@@ -54,7 +54,7 @@ export async function mock(prisma: PrismaType) {
             status: AccountStatus.UNLOCKED,
         },
         emailsData: [
-            { emailAddress: 'itsjohncena@afakesite.com', receivesDeliveryUpdates: false, verified: true }
+            { emailAddress: 'itsjohncena@afakesite.com', verified: true }
         ],
         roleIds: [actorRoleId]
     });
@@ -66,7 +66,7 @@ export async function mock(prisma: PrismaType) {
             status: AccountStatus.UNLOCKED,
         },
         emailsData: [
-            { emailAddress: 'spongebobmeboy@afakesite.com', receivesDeliveryUpdates: false, verified: true }
+            { emailAddress: 'spongebobmeboy@afakesite.com', verified: true }
         ],
         roleIds: [actorRoleId]
     });

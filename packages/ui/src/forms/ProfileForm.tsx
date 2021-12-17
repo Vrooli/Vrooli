@@ -40,7 +40,8 @@ export const ProfileForm = () => {
             username: profile?.profile?.username ?? '',
             email: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].emailAddress : '',
             theme: profile?.profile?.theme ?? 'light',
-            marketingEmails: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].receivesDeliveryUpdates : false,
+            accountEmails: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].receivesAccountUpdates : false,
+            businessEmails: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].receivesBusinessUpdates : false,
             currentPassword: '',
             newPassword: '',
             newPasswordConfirmation: ''
@@ -54,7 +55,8 @@ export const ProfileForm = () => {
                     {
                         id: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].id : '',
                         emailAddress: values.email,
-                        receivesDeliveryUpdates: values.marketingEmails
+                        receivesAccountEmails: values.accountEmails,
+                        receivesBusinessEmails: values.businessEmails,
                     }
                 ],
                 theme: values.theme,
@@ -127,15 +129,30 @@ export const ProfileForm = () => {
                                 <FormHelperText>{formik.touched.theme && formik.errors.theme}</FormHelperText>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={6}>
                             <FormControlLabel
                                 control={
                                     <Checkbox
-                                        id="marketingEmails"
-                                        name="marketingEmails"
-                                        value="marketingEmails"
+                                        id="accountEmails"
+                                        name="accountEmails"
+                                        value="accountEmails"
                                         color="secondary"
-                                        checked={formik.values.marketingEmails}
+                                        checked={formik.values.accountEmails}
+                                        onChange={formik.handleChange}
+                                    />
+                                }
+                                label="I want to receive account updates via email."
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        id="businessEmails"
+                                        name="businessEmails"
+                                        value="businessEmails"
+                                        color="secondary"
+                                        checked={formik.values.businessEmails}
                                         onChange={formik.handleChange}
                                     />
                                 }

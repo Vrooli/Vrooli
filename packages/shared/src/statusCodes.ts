@@ -37,7 +37,7 @@ export const CODE = {
     },
     SoftLockout: {
         code: 'SOFT_LOCKOUT',
-        message: 'Error: Too many login attempts. Try again in 15 minutes'
+        message: 'Error: Too many log in attempts. Try again in 15 minutes'
     },
     HardLockout: {
         code: 'HARD_LOCKOUT',

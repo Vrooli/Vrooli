@@ -4,6 +4,7 @@ export const emailFields = gql`
     fragment emailFields on Email {
         id
         emailAddress
-        receivesDeliveryUpdates
+        receivesAccountUpdates
+        receivesBusinessUpdates
     }
 `

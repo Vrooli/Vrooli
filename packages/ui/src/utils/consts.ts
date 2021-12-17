@@ -14,9 +14,9 @@ export type PUBS = ValueOf<typeof PUBS>;
 
 export const FORMS = {
     ForgotPassword: 'forgot-password',
-    LogIn: 'login',
+    LogIn: 'logIn',
     Profile: 'profile',
     ResetPassword: 'reset-password',
-    SignUp: 'signup',
+    SignUp: 'signUp',
 }
 export type FORMS = ValueOf<typeof FORMS>;

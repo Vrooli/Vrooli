@@ -16,7 +16,8 @@ export const passwordSchema = yup.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASS
 
 export const emailSchema = yup.object().shape({
     emailAddress: yup.string().max(128).required(),
-    receivesDeliveryUpdates: yup.bool().default(true).optional(),
+    receivesAccountUpdates: yup.bool().default(true).optional(),
+    receivesBusinessUpdates: yup.bool().default(true).optional(),
     userId: yup.string().optional(),
 });
 
@@ -63,9 +64,9 @@ export const profileSchema = yup.object().shape({
 });
 
 /**
- * Schema for traditional email/password login.
+ * Schema for traditional email/password log in.
  * NOTE: Does not include verification code, since it is optional and
- * the schema is reused for the login form.
+ * the schema is reused for the log in form.
  */
 export const logInSchema = yup.object().shape({
     email: yup.string().email().required(),

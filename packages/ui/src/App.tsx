@@ -16,10 +16,10 @@ import StyledEngineProvider from '@material-ui/core/StyledEngineProvider';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { DndProvider } from 'react-dnd';
 import { useMutation } from '@apollo/client';
-import { loginMutation } from 'graphql/mutation';
+import { logInMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { UserRoles } from 'types';
-import { login } from 'graphql/generated/login';
+import { logIn } from 'graphql/generated/logIn';
 import hotkeys from 'hotkeys-js';
 import { useLocation } from 'react-router';
 import { ROLES } from '@local/shared';
@@ -72,7 +72,7 @@ export function App() {
     const [roles, setRoles] = useState<UserRoles>(null);
     const [loading, setLoading] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [login] = useMutation<login>(loginMutation);
+    const [logIn] = useMutation<logIn>(logInMutation);
 
     // If anchor tag in url, scroll to element
     useEffect(() => {
@@ -124,14 +124,14 @@ export function App() {
             return;
         }
         // Check if previous log in exists
-        login().then((response) => {
-            setSession(response?.data?.login);
+        logIn().then((response) => {
+            setSession(response?.data?.logIn);
         }).catch((response) => {
-            if (process.env.NODE_ENV === 'development') console.error('Error: cannot login', response);
+            if (process.env.NODE_ENV === 'development') console.error('Error: cannot log in', response);
             // If not logged in as guest and failed to log in as user, set empty object
             if (session === null) setSession({roles:[ROLES.Guest]})
         })
-    }, [login])
+    }, [logIn])
 
     useEffect(() => {
         checkLogin();

@@ -167,7 +167,7 @@ export const typeDef = gql`
     extend type Mutation {
         addNode(input: NodeInput!): Node!
         updateNode(input: NodeInput!): Node!
-        deleteNode(id: ID!): Boolean!
+        deleteNode(input: DeleteOneInput!): Boolean!
     }
 `
 
@@ -179,18 +179,18 @@ export const resolvers = {
          * Note that the order of a routine (i.e. previous, next) cannot be updated with this mutation. 
          * @returns Updated node
          */
-        addNode: async (_parent: undefined, args: any, context: any, info: any) => {
+        addNode: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Add node
-            return await new NodeModel(context.prisma).create(args.input, info);
+            return await new NodeModel(context.prisma).create(input, info);
         },
-        updateNode: async (_parent: undefined, args: any, context: any, info: any) => {
+        updateNode: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);
         },
-        deleteNode: async (_parent: undefined, args: any, context: any, _info: any) => {
+        deleteNode: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             return new CustomError(CODE.NotImplemented);

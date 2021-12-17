@@ -32,57 +32,62 @@ export const typeDef = gql`
         displayUrl: String
     }
 
+    input ResourcesQueryInput {
+        first: Int
+        skip: Int
+    }
+
     extend type Query {
-        resource(id: ID!): Resource
-        resources(first: Int, skip: Int): [Resource!]!
+        resource(input: FindByIdInput!): Resource
+        resources(input: ResourcesQueryInput!): [Resource!]!
         resourcesCount: Int!
     }
 
     extend type Mutation {
         addResource(input: ResourceInput!): Resource!
         updateResource(input: ResourceInput!): Resource!
-        deleteResources(ids: [ID!]!): Count!
-        reportResource(id: ID!): Boolean!
+        deleteResources(input: DeleteManyInput!): Count!
+        reportResource(input: ReportInput!): Boolean!
     }
 `
 
 export const resolvers = {
     Query: {
-        resource: async (_parent: undefined, args: any, context: any, info: any) => {
+        resource: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        resources: async (_parent: undefined, args: any, context: any, info: any) => {
+        resources: async (_parent: undefined, { input }: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
-        resourcesCount: async (_parent: undefined, args: any, context: any, info: any) => {
+        resourcesCount: async (_parent: undefined, _args: any, context: any, info: any) => {
             return new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addResource: async (_parent: undefined, args: any, context: any, info: any) => {
+        addResource: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Create resource object
-            return await new ResourceModel(context.prisma).create(args.input, info)
+            return await new ResourceModel(context.prisma).create(input, info)
         },
-        updateResource: async (_parent: undefined, args: any, context: any, info: any) => {
+        updateResource: async (_parent: undefined, { input }: any, context: any, info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Update resource object
-            return await new ResourceModel(context.prisma).update(args.input, info);
+            return await new ResourceModel(context.prisma).update(input, info);
         },
-        deleteResources: async (_parent: undefined, args: any, context: any, _info: any) => {
+        deleteResources: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             // Delete resource objects
-            return await new ResourceModel(context.prisma).deleteMany(args.ids);
+            return await new ResourceModel(context.prisma).deleteMany(input.ids);
         },
         /**
          * Reports a resource. After enough reports, it will be deleted.
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportResource: async (_parent: undefined, args: any, context: any, _info: any) => {
+         reportResource: async (_parent: undefined, { input }: any, context: any, _info: any) => {
             // Must be logged in
             if (!context.req.isLoggedIn) return new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
