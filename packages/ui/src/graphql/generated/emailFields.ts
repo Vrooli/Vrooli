@@ -11,5 +11,6 @@ export interface emailFields {
   __typename: "Email";
   id: string;
   emailAddress: string;
-  receivesDeliveryUpdates: boolean;
+  receivesAccountUpdates: boolean;
+  receivesBusinessUpdates: boolean;
 }

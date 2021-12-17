@@ -17,7 +17,8 @@ export enum AccountStatus {
 export interface EmailInput {
   id?: string | null;
   emailAddress: string;
-  receivesDeliveryUpdates?: boolean | null;
+  receivesAccountUpdates?: boolean | null;
+  receivesBusinessUpdates?: boolean | null;
   userId?: string | null;
 }
 

@@ -57,37 +57,485 @@ type OpenGraphResponse {
 type Query {
   readAssets(files: [String!]!): [String]!
   readOpenGraph(url: String!): OpenGraphResponse!
+  organization(input: FindByIdInput!): Organization
+  organizations(input: OrganizationsQueryInput!): [Organization!]!
+  organizationsCount: Count!
+  project(input: FindByIdInput!): Project
+  projects(input: ProjectsQueryInput!): [Project!]!
+  projectsCount: Int!
+  resource(input: FindByIdInput!): Resource
+  resources(input: ResourcesQueryInput!): [Resource!]!
+  resourcesCount: Int!
+  routine(input: FindByIdInput!): Routine
+  routines(input: RoutinesQueryInput!): [Routine!]!
+  routinesCount: Int!
+  standard(input: FindByIdInput!): Standard
+  standards(input: StandardsQueryInput!): [Standard!]!
+  standardsCount: Int!
+  tag(input: FindByIdInput!): Tag
+  tags(input: TagsQueryInput!): [Tag!]!
+  tagsCount: Int!
   profile: User!
 }
 
 type Mutation {
   writeAssets(files: [Upload!]!): Boolean
-  logIn(email: String, password: String, verificationCode: String): User!
-  logOut: Boolean
-  signUp(username: String!, pronouns: String, email: String!, theme: String!, marketingEmails: Boolean!, password: String!): User!
-  updateUser(input: UserInput!, currentPassword: String!, newPassword: String): User!
-  deleteUser(id: ID!, password: String): Boolean
-  requestPasswordChange(email: String!): Boolean
-  resetPassword(id: ID!, code: String!, newPassword: String!): User!
+  addComment(input: CommentInput!): Email!
+  updateComment(input: CommentInput!): Email!
+  deleteComment(input: DeleteOneInput!): Boolean!
+  reportComment(input: ReportInput!): Boolean!
+  voteComment(input: VoteInput!): Boolean!
   addEmail(input: EmailInput!): Email!
   updateEmail(input: EmailInput!): Email!
-  deleteEmails(ids: [ID!]!): Count!
+  deleteEmails(input: DeleteManyInput!): Count!
   addFeedback(input: FeedbackInput!): Boolean!
+  addNode(input: NodeInput!): Node!
+  updateNode(input: NodeInput!): Node!
+  deleteNode(input: DeleteOneInput!): Boolean!
   addOrganization(input: OrganizationInput!): Organization!
   updateOrganization(input: OrganizationInput!): Organization!
-  deleteOrganization(id: ID!): Boolean!
-  addResource(input: ResourceInput!): Resource!
-  updateResource(input: ResourceInput!): Resource!
-  deleteResources(ids: [ID!]!): Count!
-  addRoutine(input: RoutineInput!): Routine!
-  updateRoutine(input: RoutineInput!): Routine!
-  deleteRoutine(id: ID!): Boolean!
+  deleteOrganization(input: DeleteOneInput): Boolean!
+  reportOrganization(input: ReportInput!): Boolean!
   addProject(input: ProjectInput!): Project!
   updateProject(input: ProjectInput!): Project!
-  deleteProject(id: ID!): Boolean!
-  initValidateWallet(publicAddress: String!, nonceDescription: String): String!
-  completeValidateWallet(publicAddress: String!, signedMessage: String!): Boolean!
-  removeWallet(id: ID!): Boolean!
+  deleteProject(input: DeleteOneInput!): Boolean!
+  reportProject(input: ReportInput!): Boolean!
+  addResource(input: ResourceInput!): Resource!
+  updateResource(input: ResourceInput!): Resource!
+  deleteResources(input: DeleteManyInput!): Count!
+  reportResource(input: ReportInput!): Boolean!
+  addRoutine(input: RoutineInput!): Routine!
+  updateRoutine(input: RoutineInput!): Routine!
+  deleteRoutine(input: DeleteOneInput!): Boolean!
+  reportRoutine(input: ReportInput!): Boolean!
+  addStandard(input: ResourceInput!): Resource!
+  updateStandard(input: ResourceInput!): Resource!
+  deleteStandards(input: DeleteManyInput!): Count!
+  reportStandard(input: ReportInput!): Boolean!
+  addTag(input: ResourceInput!): Resource!
+  updateTag(input: ResourceInput!): Resource!
+  deleteTags(input: DeleteManyInput!): Count!
+  reportTag(input: ReportInput!): Boolean!
+  voteTag(input: TagVoteInput!): Boolean!
+  logIn(input: LogInInput!): User!
+  logOut: Boolean
+  signUp(input: SignUpInput!): User!
+  updateUser(input: UpdateUserInput!): User!
+  deleteUser(input: DeleteUserInput!): Boolean
+  requestPasswordChange(input: RequestPasswordChangeInput!): Boolean
+  resetPassword(input: ResetPasswordInput!): User!
+  reportUser(input: ReportInput!): Boolean!
+  exportData: String!
+  initValidateWallet(input: InitValidateWalletInput!): String!
+  completeValidateWallet(input: CompleteValidateWalletInput!): Boolean!
+  removeWallet(input: DeleteOneInput!): Boolean!
+}
+
+input FindByIdInput {
+  id: ID!
+}
+
+input DeleteOneInput {
+  id: ID!
+}
+
+input DeleteManyInput {
+  ids: [ID!]!
+}
+
+input ReportInput {
+  id: ID!
+  reason: String
+}
+
+input CommentInput {
+  id: ID
+  text: String
+  objectType: String
+  objectId: ID
+}
+
+type Comment {
+  id: ID!
+  text: String
+  createdAt: Date!
+  updatedAt: Date!
+  userId: ID
+  user: User
+  organizationId: ID
+  organization: Organization
+  stars: Int
+  vote: Int
+}
+
+input VoteInput {
+  id: ID!
+  isUpvote: Boolean!
+}
+
+input EmailInput {
+  id: ID
+  emailAddress: String!
+  receivesAccountUpdates: Boolean
+  receivesBusinessUpdates: Boolean
+  userId: ID
+}
+
+type Email {
+  id: ID!
+  emailAddress: String!
+  receivesAccountUpdates: Boolean!
+  receivesBusinessUpdates: Boolean!
+  verified: Boolean!
+  user: User
+}
+
+input FeedbackInput {
+  text: String!
+  userId: ID
+}
+
+enum NodeType {
+  COMBINE
+  DECISION
+  END
+  LOOP
+  ROUTINE_LIST
+  REDIRECT
+  START
+}
+
+union NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList | NodeRedirect | NodeStart
+
+input NodeInput {
+  id: ID
+  routineId: ID
+  title: String
+  description: String
+  type: NodeType
+  combineData: NodeCombineInput
+  decisionData: NodeDecisionInput
+  endData: NodeEndInput
+  loopData: NodeLoopInput
+  routineListData: NodeRoutineListInput
+  redirectData: NodeRedirectInput
+  startData: NodeStartInput
+}
+
+type Node {
+  id: ID!
+  routineId: ID!
+  title: String!
+  description: String
+  type: NodeType!
+  data: NodeData
+  routine: Routine!
+}
+
+input NodeCombineInput {
+  id: ID
+  from: [NodeCombineFromInput!]!
+  to: NodeInput
+}
+
+type NodeCombine {
+  id: ID!
+  from: [NodeCombineFrom!]!
+  to: Node
+}
+
+input NodeCombineFromInput {
+  id: ID
+  combineId: ID
+  fromId: ID
+}
+
+type NodeCombineFrom {
+  id: ID!
+  combineId: ID!
+  fromId: ID!
+  combine: NodeCombine
+  from: Node
+}
+
+input NodeDecisionInput {
+  id: ID
+  decisions: [NodeDecisionItemInput!]!
+}
+
+type NodeDecision {
+  id: ID!
+  decisions: [NodeDecisionItem!]!
+}
+
+input NodeDecisionItemInput {
+  id: ID
+  title: String
+  when: [NodeDecisionItemCaseInput]
+}
+
+type NodeDecisionItem {
+  id: ID!
+  title: String!
+  when: [NodeDecisionItemCase]!
+}
+
+input NodeDecisionItemCaseInput {
+  id: ID
+  condition: String
+}
+
+type NodeDecisionItemCase {
+  id: ID!
+  condition: String!
+}
+
+input NodeEndInput {
+  id: ID
+}
+
+type NodeEnd {
+  id: ID!
+}
+
+input NodeLoopInput {
+  id: ID
+}
+
+type NodeLoop {
+  id: ID!
+}
+
+input NodeRoutineListInput {
+  id: ID
+  isOrdered: Boolean
+  routines: [NodeRoutineListItemInput!]!
+}
+
+type NodeRoutineList {
+  id: ID!
+  isOrdered: Boolean!
+  routines: [NodeRoutineListItem!]!
+}
+
+input NodeRoutineListItemInput {
+  id: ID
+  title: String
+  description: String
+  isOptional: Boolean
+  listId: ID
+  routineId: ID
+}
+
+type NodeRoutineListItem {
+  id: ID!
+  title: String!
+  description: String
+  isOptional: Boolean!
+  list: NodeRoutineList
+  routine: Routine
+}
+
+input NodeRedirectInput {
+  id: ID
+}
+
+type NodeRedirect {
+  id: ID!
+}
+
+input NodeStartInput {
+  id: ID
+}
+
+type NodeStart {
+  id: ID!
+}
+
+input OrganizationInput {
+  id: ID
+  name: String!
+  description: String
+  resources: [ResourceInput!]
+}
+
+type Organization {
+  id: ID!
+  name: String!
+  description: String
+  resources: [Resource!]
+  projects: [Project!]
+  wallets: [Wallet!]
+  starredBy: [User!]
+  routines: [Routine!]
+}
+
+input OrganizationsQueryInput {
+  first: Int
+  skip: Int
+}
+
+input ProjectInput {
+  id: ID
+  name: String!
+  description: String
+  organizations: [OrganizationInput!]
+  users: [UserInput!]
+  resources: [ResourceInput!]
+}
+
+type Project {
+  id: ID!
+  name: String!
+  description: String
+  resources: [Resource!]
+  wallets: [Wallet!]
+  users: [User!]
+  organizations: [Organization!]
+  starredBy: [User!]
+}
+
+input ProjectsQueryInput {
+  first: Int
+  skip: Int
+}
+
+enum ResourceFor {
+  ORGANIZATION
+  PROJECT
+  ROUTINE_CONTEXTUAL
+  ROUTINE_EXTERNAL
+  ROUTINE_DONATION
+  USER
+}
+
+input ResourceInput {
+  id: ID
+  name: String!
+  description: String
+  link: String!
+  displayUrl: String
+  createdFor: ResourceFor!
+  forId: ID!
+}
+
+type Resource {
+  id: ID!
+  name: String!
+  description: String
+  link: String!
+  displayUrl: String
+}
+
+input ResourcesQueryInput {
+  first: Int
+  skip: Int
+}
+
+type UserRole {
+  user: User!
+  role: Role!
+}
+
+type Role {
+  id: ID!
+  title: String!
+  description: String
+  users: [User!]!
+}
+
+input RoutineInput {
+  id: ID
+  version: String
+  title: String
+  description: String
+  instructions: String
+  externalLink: String
+  isAutomatable: Boolean
+  inputs: [RoutineInputItemInput!]
+  outputs: [RoutineOutputItemInput!]
+}
+
+type Routine {
+  id: ID!
+}
+
+input RoutineInputItemInput {
+  id: ID
+}
+
+type RoutineInputItem {
+  id: ID!
+}
+
+input RoutineOutputItemInput {
+  id: ID
+}
+
+type RoutineOutputItem {
+  id: ID!
+}
+
+input RoutinesQueryInput {
+  first: Int
+  skip: Int
+}
+
+enum StandardType {
+  STRING
+  NUMBER
+  BOOLEAN
+  OBJECT
+  ARRAY
+  FILE
+  URL
+}
+
+input StandardInput {
+  id: ID
+  name: String
+  description: String
+  type: StandardType
+  schema: String
+  default: String
+  isFile: Boolean
+  tags: [TagInput!]
+}
+
+type Standard {
+  id: ID!
+  name: String!
+  description: String
+  type: StandardType!
+  schema: String!
+  default: String
+  isFile: Boolean!
+  tags: [Tag!]!
+}
+
+input StandardsQueryInput {
+  first: Int
+  skip: Int
+}
+
+input TagInput {
+  id: ID
+}
+
+type Tag {
+  id: ID!
+}
+
+input TagsQueryInput {
+  first: Int
+  skip: Int
+}
+
+input TagVoteInput {
+  id: ID!
+  isUpvote: Boolean!
+  objectType: String!
+  objectId: ID!
 }
 
 enum AccountStatus {
@@ -117,101 +565,40 @@ type User {
   roles: [UserRole!]!
 }
 
-input EmailInput {
-  id: ID
-  emailAddress: String!
-  receivesDeliveryUpdates: Boolean
-  userId: ID
+input LogInInput {
+  email: String
+  password: String
+  verificationCode: String
 }
 
-type Email {
+input SignUpInput {
+  username: String!
+  pronouns: String
+  email: String!
+  theme: String!
+  marketingEmails: Boolean!
+  password: String!
+}
+
+input UpdateUserInput {
+  data: UserInput!
+  currentPassword: String!
+  newPassword: String
+}
+
+input DeleteUserInput {
   id: ID!
-  emailAddress: String!
-  receivesDeliveryUpdates: Boolean!
-  verified: Boolean!
-  user: User
+  password: String
 }
 
-input FeedbackInput {
-  id: ID
-  text: String!
-  userId: ID
+input RequestPasswordChangeInput {
+  email: String!
 }
 
-input OrganizationInput {
-  id: ID
-  name: String!
-  description: String
-  resources: [ResourceInput!]
-}
-
-type Organization {
+input ResetPasswordInput {
   id: ID!
-  name: String!
-  description: String
-  resources: [Resource!]
-  projects: [Project!]
-  wallets: [Wallet!]
-  starredBy: [User!]
-  routines: [Routine!]
-}
-
-input ResourceInput {
-  id: ID
-  name: String!
-  description: String
-  link: String!
-  displayUrl: String
-  userId: ID
-  organizationId: ID
-}
-
-type Resource {
-  id: ID!
-  name: String!
-  description: String
-  link: String!
-  displayUrl: String
-}
-
-input RoutineInput {
-  id: ID
-}
-
-type Routine {
-  id: ID!
-}
-
-input ProjectInput {
-  id: ID
-  name: String!
-  description: String
-  organizations: [OrganizationInput!]
-  users: [UserInput!]
-  resources: [ResourceInput!]
-}
-
-type Project {
-  id: ID!
-  name: String!
-  description: String
-  resources: [Resource!]
-  wallets: [Wallet!]
-  users: [User!]
-  organizations: [Organization!]
-  starredBy: [User!]
-}
-
-type UserRole {
-  user: User!
-  role: Role!
-}
-
-type Role {
-  id: ID!
-  title: String!
-  description: String
-  users: [User!]!
+  code: String!
+  newPassword: String!
 }
 
 type Wallet {
@@ -220,4 +607,14 @@ type Wallet {
   verified: Boolean!
   user: User
   organization: Organization
+}
+
+input InitValidateWalletInput {
+  publicAddress: String!
+  nonceDescription: String
+}
+
+input CompleteValidateWalletInput {
+  publicAddress: String!
+  signedMessage: String!
 }

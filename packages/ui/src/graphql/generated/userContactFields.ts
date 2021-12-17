@@ -11,7 +11,8 @@ export interface userContactFields_emails {
   __typename: "Email";
   id: string;
   emailAddress: string;
-  receivesDeliveryUpdates: boolean;
+  receivesAccountUpdates: boolean;
+  receivesBusinessUpdates: boolean;
 }
 
 export interface userContactFields {

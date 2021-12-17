@@ -20,6 +20,11 @@ export class UserModel extends BaseModel<any, any> {
         super(prisma, 'user');
     }
 
+    /**
+     * Find a user by email address
+     * @param email The user's email address
+     * @returns A user object without relationships
+     */
     async fromEmail(email: string) {
         if (!email) throw new CustomError(CODE.BadCredentials);
         // Validate email address

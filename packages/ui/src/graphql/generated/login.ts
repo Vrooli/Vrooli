@@ -6,33 +6,33 @@
 import { AccountStatus } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: login
+// GraphQL mutation operation: logIn
 // ====================================================
 
-export interface login_login_roles_role {
+export interface logIn_logIn_roles_role {
   __typename: "Role";
   title: string;
   description: string | null;
 }
 
-export interface login_login_roles {
+export interface logIn_logIn_roles {
   __typename: "UserRole";
-  role: login_login_roles_role;
+  role: logIn_logIn_roles_role;
 }
 
-export interface login_login {
+export interface logIn_logIn {
   __typename: "User";
   id: string;
   status: AccountStatus;
   theme: string;
-  roles: login_login_roles[];
+  roles: logIn_logIn_roles[];
 }
 
-export interface login {
-  login: login_login;
+export interface logIn {
+  logIn: logIn_logIn;
 }
 
-export interface loginVariables {
+export interface logInVariables {
   email?: string | null;
   password?: string | null;
 }
