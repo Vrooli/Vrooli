@@ -3,8 +3,10 @@ import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { PrismaSelect } from '@paljs/plugins';
 import { TagModel } from '../models';
-import { IWrap } from 'types';
-import { DeleteManyInput, FindByIdInput, ReportInput, Tag, TagInput, TagsQueryInput, TagVoteInput } from './types';
+import { IWrap } from '../types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Tag, TagInput, TagsQueryInput, TagVoteInput } from './types';
+import { Context } from '../context';
+import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
 
@@ -45,13 +47,13 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: any, info: any): Promise<Tag> => {
+        tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Tag | null> => {
+            return await TagModel(prisma).findById(input, info);
+        },
+        tags: async (_parent: undefined, { input }: IWrap<TagsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Tag[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
-        tags: async (_parent: undefined, { input }: IWrap<TagsQueryInput>, context: any, info: any): Promise<Tag[]> => {
-            throw new CustomError(CODE.NotImplemented);
-        },
-        tagsCount: async (_parent: undefined, _args: undefined, context: any, info: any): Promise<number> => {
+        tagsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
             throw new CustomError(CODE.NotImplemented);
         },
     },
@@ -60,43 +62,43 @@ export const resolvers = {
          * Add a new tag. Must be unique.
          * @returns Tag object if successful
          */
-        addTag: async (_parent: undefined, { input }: IWrap<TagInput>, context: any, info: any): Promise<Tag> => {
+        addTag: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Tag> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            return await new TagModel(context.prisma).create(input, info)
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO add more restrictions
+            return await TagModel(prisma).create(input, info)
         },
         /**
          * Update tags you've created
          * @returns 
          */
-        updateTag: async (_parent: undefined, { input }: IWrap<TagInput>, context: any, info: any): Promise<Tag> => {
+        updateTag: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Tag> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Update object
-            return await new TagModel(context.prisma).update(input, info);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO add more restrictions
+            return await TagModel(prisma).update(input, info);
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system
          * @returns 
          */
-        deleteTags: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, context: any, _info: any): Promise<number> => {
+        deleteTags: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Delete objects
-            return await new TagModel(context.prisma).deleteMany(input.ids);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO add more restrictions
+            return await TagModel(prisma).deleteMany(input);
         },
         /**
          * Reports a tag. After enough reports, the tag will be deleted.
          * Objects associated with the tag will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportTag: async (_parent: undefined, { input }: IWrap<ReportInput>, context: any, _info: any): Promise<boolean> => {
+         reportTag: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await TagModel(prisma).report(input);
         },
-        voteTag: async (_parent: undefined, { input }: IWrap<TagVoteInput>, context: any, _info: any): Promise<boolean> => {
+        voteTag: async (_parent: undefined, { input }: IWrap<TagVoteInput>, context: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
             throw new CustomError(CODE.NotImplemented);
         }
     }

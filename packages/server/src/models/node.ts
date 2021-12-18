@@ -1,89 +1,55 @@
-import { BaseModel } from "./base";
-import { onlyPrimitives } from "../utils/objectTools";
+import { Node, NodeInput } from "schema/types";
+import { deleter, findByIder, MODEL_TYPES, updater } from "./base";
 import pkg from '@prisma/client';
 import { PrismaSelect } from "@paljs/plugins";
 import { CustomError } from "../error";
 import { CODE } from "@local/shared";
-import { Node, NodeInput } from "schema/types";
+import { onlyPrimitives } from "../utils";
 const { NodeType } = pkg;
 
 const MAX_NODES_IN_ROUTINE = 100;
 
-export class NodeModel extends BaseModel<NodeInput, Node> {
-    
-    constructor(prisma: any) {
-        super(prisma, 'node');
-    }
 
-    /**
-     * Helps create a combine node
-     * @param data 
-     */
-    private async createCombineHelper(data: any): Promise<{ dataCombineId: string }> {
-        const row = await this.prisma.nodeCombine.create({ data });
+/**
+ * Custom compositional component for creating nodes
+ * @param state 
+ * @returns 
+ */
+ const creater = (state: any) => ({
+    async createCombineHelper(data: any): Promise<{ dataCombineId: string }> {
+        const row = await state.prisma.nodeCombine.create({ data });
         return { dataCombineId: row.id };
-    }
-
-    /**
-     * Helps create a decision node
-     * @param data 
-     */
-    private async createDecisionHelper(data: any): Promise<{ dataDecisionId: string }> {
-        const row = await this.prisma.nodeDecision.create({ data });
+    },
+    async createDecisionHelper(data: any): Promise<{ dataDecisionId: string }> {
+        const row = await state.prisma.nodeDecision.create({ data });
         return { dataDecisionId: row.id };
-    }
-
-    /**
-     * Helps create a end node
-     * @param data 
-     */
-    private async createEndHelper(data: any): Promise<{ dataEndId: string }> {
-        const row = await this.prisma.nodeEnd.create({ data });
+    },
+    async createEndHelper(data: any): Promise<{ dataEndId: string }> {
+        const row = await state.prisma.nodeEnd.create({ data });
         return { dataEndId: row.id };
-    }
-
-    /**
-     * Helps create a loop node
-     * @param data 
-     */
-    private async createLoopHelper(data: any): Promise<{ dataLoopId: string }> {
-        const row = await this.prisma.nodeLoop.create({ data });
+    },
+    async createLoopHelper(data: any): Promise<{ dataLoopId: string }> {
+        const row = await state.prisma.nodeLoop.create({ data });
         return { dataLoopId: row.id };
-    }
-
-    /**
-     * Helps create a routine list node
-     * @param data 
-     */
-    private async createRoutineListHelper(data: any): Promise<{ dataRoutineListId: string }> {
-        const row = await this.prisma.nodeRoutineList.create({ data });
+    },
+    async createRoutineListHelper(data: any): Promise<{ dataRoutineListId: string }> {
+        const row = await state.prisma.nodeRoutineList.create({ data });
         return { dataRoutineListId: row.id };
-    }
-
-    /**
-     * Helps create a redirect node
-     * @param data 
-     */
-    private async createRedirectHelper(data: any): Promise<{ dataRedirectId: string }> {
-        const row = await this.prisma.nodeRedirect.create({ data });
+    },
+    async createRedirectHelper(data: any): Promise<{ dataRedirectId: string }> {
+        const row = await state.prisma.nodeRedirect.create({ data });
         return { dataRedirectId: row.id };
-    }
-
-    /**
-     * Helps create a start node
-     * @param data 
-     */
-    private async createStartHelper(data: any): Promise<{ dataStartId: string }> {
-        const row = await this.prisma.nodeStart.create({ data });
+    },
+    async createStartHelper(data: any): Promise<{ dataStartId: string }> {
+        const row = await state.prisma.nodeStart.create({ data });
         return { dataStartId: row.id };
-    }
-
-    async create(data: NodeInput, info: any) {
+    },
+    async create(data: NodeInput, info: any): Promise<Node> {
         // Check if routine ID was provided
         if (!data.routineId) throw new CustomError(CODE.InvalidArgs, 'Routine ID not specified')
         if (!data.type) throw new CustomError(CODE.InvalidArgs, 'Node type not specified')
         // Check if routine has reached max nodes
-        const nodeCount = await this.prisma.routine.findUnique({
+        const nodeCount = await state.prisma.routine.findUnique({
             where: { id: data.routineId },
             include: { _count: { select: { nodes: true } } }
         });
@@ -104,12 +70,27 @@ export class NodeModel extends BaseModel<NodeInput, Node> {
         // Create type-specific data
         const typeData = await mapResult[0](data[mapResult[1]]);
         // Create base node object
-        return await this.prisma.node.create({ 
+        return await state.prisma.node.create({ 
             data: {
                 ...cleanedData,
                 ...typeData
             },
             ...(new PrismaSelect(info).value)
         });
+    }
+})
+
+export function NodeModel(prisma: any) {
+    let obj = {
+        prisma,
+        model: MODEL_TYPES.Node
+    }
+    
+    return {
+        ...obj,
+        ...findByIder<Node>(obj),
+        ...creater(obj),
+        ...updater<NodeInput, Node>(obj),
+        ...deleter(obj)
     }
 }

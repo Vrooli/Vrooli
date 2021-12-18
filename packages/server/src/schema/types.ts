@@ -73,6 +73,7 @@ export type Email = {
   id: Scalars['ID'];
   receivesAccountUpdates: Scalars['Boolean'];
   receivesBusinessUpdates: Scalars['Boolean'];
+  userId: Scalars['ID'];
   user?: Maybe<User>;
   verified: Scalars['Boolean'];
 };

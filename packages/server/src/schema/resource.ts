@@ -1,10 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { PrismaSelect } from '@paljs/plugins';
 import { ResourceModel } from '../models';
 import { IWrap } from 'types';
-import { DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceInput, ResourcesQueryInput } from './types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceInput, ResourcesQueryInput } from './types';
+import { Context } from '../context';
+import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     enum ResourceFor {
@@ -55,44 +56,41 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: any, info: any): Promise<Resource> => {
+        resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Resource | null> => {
+            return await ResourceModel(prisma).findById(input, info);
+        },
+        resources: async (_parent: undefined, { input }: IWrap<ResourcesQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Resource[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
-        resources: async (_parent: undefined, { input }: IWrap<ResourcesQueryInput>, context: any, info: any): Promise<Resource[]> => {
-            throw new CustomError(CODE.NotImplemented);
-        },
-        resourcesCount: async (_parent: undefined, _args: undefined, context: any, info: any): Promise<number> => {
+        resourcesCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
             throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, context: any, info: any): Promise<Resource> => {
+        addResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Resource> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Create resource object
-            return await new ResourceModel(context.prisma).create(input, info)
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await ResourceModel(prisma).create(input, info)
         },
-        updateResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, context: any, info: any): Promise<Resource> => {
+        updateResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Resource> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Update resource object
-            return await new ResourceModel(context.prisma).update(input, info);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await ResourceModel(prisma).update(input, info);
         },
-        deleteResources: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, context: any, _info: any): Promise<number> => {
+        deleteResources: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Delete resource objects
-            return await new ResourceModel(context.prisma).deleteMany(input.ids);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await ResourceModel(prisma).deleteMany(input);
         },
         /**
          * Reports a resource. After enough reports, it will be deleted.
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportResource: async (_parent: undefined, { input }: IWrap<ReportInput>, context: any, _info: any): Promise<boolean> => {
+         reportResource: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: any): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await ResourceModel(prisma).report(input);
         }
     }
 }

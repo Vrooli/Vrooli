@@ -1,11 +1,12 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { PrismaSelect } from '@paljs/plugins';
 import { NodeModel } from '../models';
-import pkg from '@prisma/client';
 import { IWrap } from 'types';
 import { DeleteOneInput, Node, NodeInput } from './types';
+import { Context } from '../context';
+import pkg from '@prisma/client';
+import { GraphQLResolveInfo } from 'graphql';
 const { NodeType } = pkg;
 
 export const typeDef = gql`
@@ -181,21 +182,20 @@ export const resolvers = {
          * Note that the order of a routine (i.e. previous, next) cannot be updated with this mutation. 
          * @returns Updated node
          */
-        addNode: async (_parent: undefined, { input }: IWrap<NodeInput>, context: any, info: any): Promise<Node> => {
+        addNode: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Node> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Add node
-            return await new NodeModel(context.prisma).create(input, info);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await NodeModel(prisma).create(input, info);
         },
-        updateNode: async (_parent: undefined, { input }: IWrap<NodeInput>, context: any, info: any): Promise<Node> => {
+        updateNode: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Node> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await NodeModel(prisma).update(input, info);
         },
-        deleteNode: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: any, _info: any): Promise<boolean> => {
+        deleteNode: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await NodeModel(prisma).delete(input);
         }
     }
 }

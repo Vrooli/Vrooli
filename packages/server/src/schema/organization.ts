@@ -1,9 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { PrismaSelect } from '@paljs/plugins';
 import { IWrap } from 'types';
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationInput, OrganizationsQueryInput } from './types';
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationInput, OrganizationsQueryInput, ReportInput } from './types';
+import { Context } from '../context';
+import { OrganizationModel } from '../models';
+import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     input OrganizationInput {
@@ -45,41 +47,44 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: any, info: any): Promise<Organization> => {
+        organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Organization | null> => {
+            return await OrganizationModel(prisma).findById(input, info);
+        },
+        organizations: async (_parent: undefined, { input }: IWrap<OrganizationsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Organization[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
-        organizations: async (_parent: undefined, { input }: IWrap<OrganizationsQueryInput>, context: any, info: any): Promise<Organization[]> => {
-            throw new CustomError(CODE.NotImplemented);
-        },
-        organizationsCount: async (_parent: undefined, _args: undefined, context: any, info: any): Promise<number> => {
+        organizationsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
             throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, context: any, info: any): Promise<Organization> => {
+        addOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Organization> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO add extra restrictions
+            return await OrganizationModel(prisma).create(input, info);
         },
-        updateOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, context: any, info: any): Promise<Organization> => {
+        updateOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Organization> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO must be updating your own
+            return await OrganizationModel(prisma).update(input, info);
         },
-        deleteOrganization: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: any, _info: any): Promise<boolean> => {
+        deleteOrganization: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO must be deleting your own
+            return await OrganizationModel(prisma).delete(input);
         },
         /**
          * Reports an organization. After enough reports, it will be deleted.
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportOrganization: async (_parent: undefined, { input }: any, context: any, _info: any): Promise<boolean> => {
+         reportOrganization: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await OrganizationModel(prisma).report(input);
         }
     }
 }

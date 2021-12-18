@@ -1,11 +1,17 @@
 import { Routine, RoutineInput } from "schema/types";
-import { BaseModel } from "./base";
+import { creater, deleter, MODEL_TYPES, reporter, updater } from "./base";
 
-export class RoutineModel extends BaseModel<RoutineInput, Routine> {
-    
-    constructor(prisma: any) {
-        super(prisma, 'routine');
+export function RoutineModel(prisma: any) {
+    let obj = {
+        prisma,
+        model: MODEL_TYPES.Routine
     }
 
-    
+    return {
+        ...obj,
+        ...creater<RoutineInput, Routine>(obj),
+        ...updater<RoutineInput, Routine>(obj),
+        ...deleter(obj),
+        ...reporter(obj)
+    }
 }

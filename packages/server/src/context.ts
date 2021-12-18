@@ -8,10 +8,10 @@ interface ContextProps {
     req: Request;
     res: Response;
 }
-interface ContextResponse extends ContextProps {
+export interface Context extends ContextProps {
     prisma: PrismaType;
 }
-export const context = ({ req, res }: ContextProps): ContextResponse => ({
+export const context = ({ req, res }: ContextProps): Context => ({
     prisma,
     req,
     res

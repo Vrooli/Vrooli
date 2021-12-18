@@ -1,9 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { PrismaSelect } from '@paljs/plugins';
 import { IWrap } from 'types';
 import { DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectsQueryInput, ReportInput } from './types';
+import { Context } from '../context';
+import { ProjectModel } from '../models';
+import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     input ProjectInput {
@@ -47,41 +49,44 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: any, info: any): Promise<Project> => {
+        project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Project | null> => {
+            return await ProjectModel(prisma).findById(input, info);
+        },
+        projects: async (_parent: undefined, { input }: IWrap<ProjectsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Project[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
-        projects: async (_parent: undefined, { input }: IWrap<ProjectsQueryInput>, context: any, info: any): Promise<Project[]> => {
-            throw new CustomError(CODE.NotImplemented);
-        },
-        projectsCount: async (_parent: undefined, _args: undefined, context: any, info: any): Promise<number> => {
+        projectsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
             throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, context: any, info: any): Promise<Project> => {
+        addProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Project> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO add extra restrictions
+            return await ProjectModel(prisma).create(input, info);
         },
-        updateProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, context: any, info: any): Promise<Project> => {
+        updateProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Project> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO add extra restrictions
+            return await ProjectModel(prisma).update(input, info);
         },
-        deleteProject: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: any, _info: any): Promise<boolean> => {
+        deleteProject: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO add extra restrictions
+            return await ProjectModel(prisma).delete(input);
         },
         /**
          * Reports a project. After enough reports, it will be deleted.
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportProject: async (_parent: undefined, { input }: IWrap<ReportInput>, context: any, _info: any): Promise<boolean> => {
+         reportProject: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            return await ProjectModel(prisma).report(input);
         }
     }
 }

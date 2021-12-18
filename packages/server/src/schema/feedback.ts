@@ -4,6 +4,8 @@ import { IWrap } from 'types';
 import { validateArgs } from '../error';
 import { feedbackNotifyAdmin } from '../worker/email/queue';
 import { FeedbackInput } from './types';
+import { Context } from '../context';
+import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     input FeedbackInput {
@@ -18,14 +20,14 @@ export const typeDef = gql`
 
 export const resolvers = {
     Mutation: {
-        addFeedback: async (_parent: undefined, { input }: IWrap<FeedbackInput>, context: any, _info: any): Promise<Boolean> => {
+        addFeedback: async (_parent: undefined, { input }: IWrap<FeedbackInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<Boolean> => {
             // Validate arguments with schema
             const validateError = await validateArgs(feedbackSchema, input);
             if (validateError) throw validateError;
             // Find user who sent feedback, if any
-            let from = input.userId ? await context.prisma.user({ id: input.userId }) : null;
+            let from = input.userId ? await prisma.user.findUnique({ where: { id: input.userId } }) : null;
             // Send feedback to admin
-            feedbackNotifyAdmin(input.text, from?.username);
+            feedbackNotifyAdmin(input.text, from?.username ?? 'anonymous');
             return true;
         },
     }
