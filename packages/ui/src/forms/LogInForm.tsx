@@ -39,7 +39,7 @@ export const LogInForm = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation: logIn,
-                data: { variables: { ...values, verificationCode: urlParams.code } },
+                input: { ...values, verificationCode: urlParams.code },
                 successCondition: (response) => response.data.logIn !== null,
                 onSuccess: (response) => { onSessionUpdate(response.data.logIn); history.push(APP_LINKS.Home) },
                 onError: (response) => {

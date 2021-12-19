@@ -3,6 +3,8 @@ import { GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 import ogs from 'open-graph-scraper';
+import { IWrap } from 'types';
+import { OpenGraphResponse } from './types';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -28,18 +30,30 @@ export const typeDef = gql`
         imageUrl: String
     }
 
+    input ReadAssetsInput {
+        files: [String!]!
+    }
+
+    input ReadOpenGraphInput {
+        url: String!
+    }
+
+    input WriteAssetsInput {
+        files: [Upload!]!
+    }
+
     # Base query. Must contain something,
     # which can be as simple as '_empty: String'
     type Query {
         # _empty: String
-        readAssets(files: [String!]!): [String]!
-        readOpenGraph(url: String!): OpenGraphResponse!
+        readAssets(input: ReadAssetsInput!): [String]!
+        readOpenGraph(input: ReadOpenGraphInput!): OpenGraphResponse!
     }
     # Base mutation. Must contain something,
     # which can be as simple as '_empty: String'
     type Mutation {
         # _empty: String
-        writeAssets(files: [Upload!]!): Boolean
+        writeAssets(input: WriteAssetsInput!): Boolean
     }
 
     # Input for finding object by id
@@ -81,11 +95,11 @@ export const resolvers = {
         }
     }),
     Query: {
-        readAssets: async (_parent: undefined, args: any) => {
-            return await readFiles(args.files);
+        readAssets: async (_parent: undefined, { input }: any): Promise<Array<String | null>> => {
+            return await readFiles(input.files);
         },
-        readOpenGraph: async (_parent: undefined, args: any) => {
-            return await ogs({ url: args.url })
+        readOpenGraph: async (_parent: undefined, { input }: any): Promise<OpenGraphResponse> => {
+            return await ogs({ url: input.url })
                 .then((data: any) => {
                     const { result } = data;
                     return {
@@ -101,8 +115,8 @@ export const resolvers = {
         }
     },
     Mutation: {
-        writeAssets: async (_parent: undefined, args: any) => {
-            const data = await saveFiles(args.files);
+        writeAssets: async (_parent: undefined, { input }: any): Promise<boolean> => {
+            const data = await saveFiles(input.files);
             // Any failed writes will return null
             return !data.some(d => d === null)
         },

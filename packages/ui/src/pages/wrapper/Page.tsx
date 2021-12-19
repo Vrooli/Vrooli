@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { APP_LINKS } from '@local/shared';
 import { useLocation, Redirect } from 'react-router-dom';
 import { UserRoles } from 'types';
+import { PUBS } from 'utils';
 
 interface Props {
     title?: string;
@@ -21,6 +22,7 @@ export const Page = ({
     children
 }: Props) => {
     const location = useLocation();
+    console.log('sessio checked', sessionChecked, userRoles);
 
     useEffect(() => {
         document.title = title;
@@ -29,9 +31,12 @@ export const Page = ({
     // If this page has restricted access
     if (restrictedToRoles.length > 0) {
         if (Array.isArray(userRoles)) {
-            if (userRoles.some(r => restrictedToRoles.includes(r))) return children;
+            if (userRoles.some(r => restrictedToRoles.includes(r.role.title))) return children;
         }
-        if (sessionChecked && location.pathname !== redirect) return <Redirect to={redirect} />
+        if (sessionChecked && location.pathname !== redirect) { 
+            PubSub.publish(PUBS.Snack, { message: 'Page restricted. Please sign in', severity: 'error' });
+            return <Redirect to={redirect} />
+        }
         return null;
     }
 

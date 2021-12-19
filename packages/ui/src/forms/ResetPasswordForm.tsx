@@ -35,7 +35,7 @@ export const ResetPasswordForm = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation: resetPassword,
-                data: { variables: { id: urlParams.id, code: urlParams.code, newPassword: values.newPassword } },
+                input: { id: urlParams.id, code: urlParams.code, newPassword: values.newPassword },
                 onSuccess: (response) => { onSessionUpdate(response.data.resetPassword); history.push(APP_LINKS.Home) },
                 successMessage: () => 'Password reset.',
             })

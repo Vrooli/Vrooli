@@ -1,6 +1,7 @@
 import { makeStyles } from '@material-ui/styles';
 import { Theme, Typography } from '@material-ui/core';
 import { NODE_TYPES, ORCHESTRATION_DATA } from '@local/shared';
+import { ZoomI } from 'components';
 
 //TEMP
 const data: ORCHESTRATION_DATA = {
@@ -191,11 +192,23 @@ const useStyles = makeStyles((theme: Theme) => ({
 
 export const RoutineOrchestratorPage = () => {
     const classes = useStyles();
-    
+    console.log('GOT HERE')
 
     return (
         <div id="page" className={classes.root}>
+            asdf
             <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            asdffffff
+            {/* <ZoomI width={1000} height={1000}/> */}
+            ytryutrtetyeuyt
         </div>
     )
 };

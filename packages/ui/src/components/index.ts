@@ -13,3 +13,4 @@ export * from './PopupMenu';
 export * from './ScrollToTop';
 export * from './Snack';
 export * from './YoutubeEmbed';
+export * from './Zoom';

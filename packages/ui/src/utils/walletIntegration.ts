@@ -16,7 +16,7 @@ const initValidateWallet = async (publicAddress: string): Promise<any> => {
     const client = initializeApollo();
     const result = await client.mutate({
         mutation: initValidateWalletMutation,
-        variables: { publicAddress }
+        variables: { input: { publicAddress } }
     });
     return result.data.initValidateWallet;
 }
@@ -27,7 +27,7 @@ const completeValidateWallet = async (publicAddress: string, signedMessage: stri
     const client = initializeApollo();
     const result = await client.mutate({
         mutation: completeValidateWalletMutation,
-        variables: { publicAddress, signedMessage }
+        variables: { input: { publicAddress, signedMessage } }
     });
     return result.data.completeValidateWallet;
 }
@@ -43,7 +43,7 @@ export const validateWallet = async (): Promise<any> => {
     let success = false;
     try {
         // Connect to wallet extension
-        const walletConnected = connectWallet();
+        const walletConnected = await connectWallet();
         if (!walletConnected) return false;
         // Find wallet address
         const address = await window.cardano.getRewardAddress();

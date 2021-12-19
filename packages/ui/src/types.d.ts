@@ -2,8 +2,12 @@
 import { users_users } from 'graphql/generated/users';
 
 // Top-level props that can be passed into any routed component
-export type UserRoles = string[] | null;
+export type UserRoles = { role: { title: string }}[] | null;
 export type SessionChecked = boolean;
+export type Session = {
+    roles?: UserRoles;
+    theme?: string;
+}
 export type OnSessionUpdate = any;
 export interface CommonProps {
     userRoles: UserRoles;

@@ -10,7 +10,7 @@ interface Props {
     // useMutation function
     mutation: (options?: MutationFunctionOptions<any, OperationVariables, DefaultContext, ApolloCache<any>> | undefined) => Promise<any>;
     // data to pass into useMutation function
-    data: Object;
+    input: Object;
     // Callback to determine if mutation was a success, using mutation's return data
     successCondition?: (response?: any) => boolean;
     // Message displayed on success
@@ -33,7 +33,7 @@ interface Props {
 
 export const mutationWrapper = ({ 
     mutation,
-    data,
+    input,
     successCondition = () => true,
     successMessage,
     successData,
@@ -45,7 +45,7 @@ export const mutationWrapper = ({
     spinnerDelay = 1000,
 }: Props) => {
     if (spinnerDelay) PubSub.publish(PUBS.Loading, spinnerDelay);
-    mutation(data).then((response) => {
+    mutation(input).then((response) => {
         if (successCondition(response)) {
             if (successMessage || successData) PubSub.publish(PUBS.Snack, { message: successMessage && successMessage(response), ...successData });
             if (spinnerDelay) PubSub.publish(PUBS.Loading, false);

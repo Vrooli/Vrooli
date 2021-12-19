@@ -51,11 +51,11 @@ export const SignUpForm = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation: signUp,
-                data: { variables: { 
+                input: {
                     ...values, 
                     marketingEmails: Boolean(values.marketingEmails),
                     theme: theme.palette.mode ?? 'light',
-                } },
+                },
                 onSuccess: (response) => {
                     onSessionUpdate(response.data.signUp);
                     PubSub.publish(PUBS.AlertDialog, {

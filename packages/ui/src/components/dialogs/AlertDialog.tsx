@@ -56,8 +56,8 @@ const AlertDialog = () => {
             </DialogContent>
             <DialogActions>
                 {state?.buttons && state.buttons.length > 0 ? (
-                    state.buttons.map((b:StateButton) => (
-                        <Button onClick={() => handleClick(b.onClick)} color="secondary">
+                    state.buttons.map((b:StateButton, index) => (
+                        <Button key={`alert-button-${index}`} onClick={() => handleClick(b.onClick)} color="secondary">
                             {b.text}
                         </Button>
                     ))

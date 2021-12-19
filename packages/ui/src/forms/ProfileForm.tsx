@@ -65,11 +65,11 @@ export const ProfileForm = () => {
             if (profile?.profile?.emails?.length > 0) input.emails[0].id = profile.profile.emails[0].id;
             mutationWrapper({
                 mutation: updateUser,
-                data: { variables: {
-                    input: input,
+                input: {
+                    data: input,
                     currentPassword: values.currentPassword,
                     newPassword: values.newPassword
-                } },
+                },
                 successMessage: () => 'Profile updated.',
             })
         },

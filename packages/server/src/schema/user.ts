@@ -79,7 +79,7 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        logIn(input: LogInInput!): User!
+        logIn(input: LogInInput): User!
         logOut: Boolean
         signUp(input: SignUpInput!): User!
         updateUser(input: UpdateUserInput!): User!
@@ -100,9 +100,9 @@ export const resolvers = {
         }
     },
     Mutation: {
-        logIn: async (_parent: undefined, { input }: IWrap<LogInInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<User> => {
+        logIn: async (_parent: undefined, { input }: IWrap<LogInInput | null>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<User> => {
             // If email and password are not provided, attempt to log in using session cookie
-            if (!Boolean(input.email) && !Boolean(input.password)) {
+            if (!Boolean(input?.email) && !Boolean(input?.password)) {
                 // If session is expired
                 if (!Array.isArray(req.roles) || req.roles.length === 0) {
                     res.clearCookie(COOKIE.Session);
@@ -118,7 +118,7 @@ export const resolvers = {
             const validateError = await validateArgs(logInSchema, input);
             if (validateError) throw validateError;
             // Get user
-            let user = await UserModel(prisma).findByEmail(input.email as string);
+            let user = await UserModel(prisma).findByEmail(input?.email as string);
             // Check for password in database, if doesn't exist, send a password reset link
             // TODO fix this. Can't have password in type, but need password returned
             // if (!Boolean(user.password)) {
@@ -126,10 +126,10 @@ export const resolvers = {
             //     throw new CustomError(CODE.MustResetPassword);
             // }
             // Validate verification code, if supplied
-            if (Boolean(input.verificationCode)) {
-                user = await UserModel(prisma).validateVerificationCode(user, input.verificationCode as string);
+            if (Boolean(input?.verificationCode)) {
+                user = await UserModel(prisma).validateVerificationCode(user, input?.verificationCode as string);
             }
-            user = await UserModel(prisma).logIn(input.password as string, user, info);
+            user = await UserModel(prisma).logIn(input?.password as string, user, info);
             if (Boolean(user)) {
                 // Set session token
                 await generateToken(res, user.id);

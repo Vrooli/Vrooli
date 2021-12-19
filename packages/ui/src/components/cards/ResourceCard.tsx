@@ -1,15 +1,12 @@
 import {
     Card,
     CardActionArea,
-    CardActions,
     CardContent,
     CardMedia,
-    IconButton,
     Theme,
     Tooltip,
     Typography
 } from '@material-ui/core';
-import { Launch as LaunchIcon } from '@material-ui/icons';
 import { makeStyles } from '@material-ui/styles';
 import { combineStyles, openLink } from 'utils';
 import { NoImageWithTextIcon } from 'assets/img';
@@ -59,7 +56,7 @@ export const ResourceCard = ({
 
     useEffect(() => {
         if (resource.url) {
-            getOpenGraphData({ variables: { url: resource.url } })
+            getOpenGraphData({ variables: { input: { url: resource.url } } })
         }
     }, [getOpenGraphData, resource])
 

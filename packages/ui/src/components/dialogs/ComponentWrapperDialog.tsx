@@ -101,7 +101,7 @@ export const ActorDialog = ({
     const toggleLock = useCallback(() => {
         mutationWrapper({
             mutation: updateUserMut,
-            data: { variables: { id: currUser?.id, status: statusToggleData[2] } },
+            input: { id: currUser?.id, status: statusToggleData[2] },
             successMessage: () => 'User updated.',
             errorMessage: () => 'Failed to update user.'
         })
@@ -110,7 +110,7 @@ export const ActorDialog = ({
     const deleteUser = useCallback(() => {
         mutationWrapper({
             mutation: deleteUserMut,
-            data: { variables: { id: currUser?.id }},
+            input: { id: currUser?.id },
             successMessage: () => 'User deleted.',
             onSuccess: onClose,
         })
@@ -129,7 +129,7 @@ export const ActorDialog = ({
     const updateUser = useCallback(() => {
         mutationWrapper({
             mutation: updateUserMut,
-            data: { variables: { ...currUser }},
+            input: { ...currUser },
             successMessage: () => 'User updated.',
         })
     }, [currUser, updateUserMut])

@@ -18,11 +18,10 @@ import { DndProvider } from 'react-dnd';
 import { useMutation } from '@apollo/client';
 import { logInMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
-import { UserRoles } from 'types';
+import { Session, UserRoles } from 'types';
 import { logIn } from 'graphql/generated/logIn';
 import hotkeys from 'hotkeys-js';
 import { useLocation } from 'react-router';
-import { ROLES } from '@local/shared';
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -67,7 +66,7 @@ export function App() {
     const { pathname, hash } = useLocation();
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
-    const [session, setSession] = useState<any>(null);
+    const [session, setSession] = useState<Session | null>(null);
     const [theme, setTheme] = useState(themes.light);
     const [roles, setRoles] = useState<UserRoles>(null);
     const [loading, setLoading] = useState(false);
@@ -125,11 +124,11 @@ export function App() {
         }
         // Check if previous log in exists
         logIn().then((response) => {
-            setSession(response?.data?.logIn);
+            setSession(response?.data?.logIn as Session);
         }).catch((response) => {
             if (process.env.NODE_ENV === 'development') console.error('Error: cannot log in', response);
             // If not logged in as guest and failed to log in as user, set empty object
-            if (session === null) setSession({roles:[ROLES.Guest]})
+            if (!session) setSession({})
         })
     }, [logIn])
 
@@ -174,7 +173,7 @@ export function App() {
                                 <AlertDialog />
                                 <Snack />
                                 <Routes
-                                    sessionChecked={session !== null && session !== undefined}
+                                    sessionChecked={Boolean(session)}
                                     onSessionUpdate={checkLogin}
                                     userRoles={roles}
                                 />

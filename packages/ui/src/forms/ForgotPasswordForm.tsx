@@ -35,7 +35,7 @@ export const ForgotPasswordForm = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation: requestPasswordChange,
-                data: { variables: values },
+                input: { values },
                 successCondition: (response) => response.data.requestPasswordChange,
                 onSuccess: () => history.push(APP_LINKS.Home),
                 successMessage: () => 'Request sent. Please check email.',

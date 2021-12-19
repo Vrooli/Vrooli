@@ -73,8 +73,8 @@ export type Email = {
   id: Scalars['ID'];
   receivesAccountUpdates: Scalars['Boolean'];
   receivesBusinessUpdates: Scalars['Boolean'];
-  userId: Scalars['ID'];
   user?: Maybe<User>;
+  userId: Scalars['ID'];
   verified: Scalars['Boolean'];
 };
 
@@ -116,8 +116,8 @@ export type Mutation = {
   addProject: Project;
   addResource: Resource;
   addRoutine: Routine;
-  addStandard: Resource;
-  addTag: Resource;
+  addStandard: Standard;
+  addTag: Tag;
   completeValidateWallet: Scalars['Boolean'];
   deleteComment: Scalars['Boolean'];
   deleteEmails: Count;
@@ -152,8 +152,8 @@ export type Mutation = {
   updateProject: Project;
   updateResource: Resource;
   updateRoutine: Routine;
-  updateStandard: Resource;
-  updateTag: Resource;
+  updateStandard: Standard;
+  updateTag: Tag;
   updateUser: User;
   voteComment: Scalars['Boolean'];
   voteTag: Scalars['Boolean'];
@@ -202,12 +202,12 @@ export type MutationAddRoutineArgs = {
 
 
 export type MutationAddStandardArgs = {
-  input: ResourceInput;
+  input: StandardInput;
 };
 
 
 export type MutationAddTagArgs = {
-  input: ResourceInput;
+  input: TagInput;
 };
 
 
@@ -272,7 +272,7 @@ export type MutationInitValidateWalletArgs = {
 
 
 export type MutationLogInArgs = {
-  input: LogInInput;
+  input?: InputMaybe<LogInInput>;
 };
 
 
@@ -372,12 +372,12 @@ export type MutationUpdateRoutineArgs = {
 
 
 export type MutationUpdateStandardArgs = {
-  input: ResourceInput;
+  input: StandardInput;
 };
 
 
 export type MutationUpdateTagArgs = {
-  input: ResourceInput;
+  input: TagInput;
 };
 
 

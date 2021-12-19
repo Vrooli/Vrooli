@@ -3419,6 +3419,18 @@
   resolved "https://registry.yarnpkg.com/@ungap/promise-all-settled/-/promise-all-settled-1.1.2.tgz#aa58042711d6e3275dd37dc597e5d31e8c290a44"
   integrity sha512-sL/cEvJWAnClXw0wHk85/2L0G6Sj8UB0Ctc1TEMbKSsmpRosqhwj9gWgFRZSrBr2f9tiXISwNhCPmlfqUqyb9Q==
 
+"@use-gesture/core@10.2.4":
+  version "10.2.4"
+  resolved "https://registry.yarnpkg.com/@use-gesture/core/-/core-10.2.4.tgz#139370223174b0589bd4b4f8ac7c0beb6ba64ba2"
+  integrity sha512-fk1LjCBj43BKb8NE05qkdtPOR0ngA7PwgvEqfFap/h+s7QHi+JTv4/mtDQ4wI9zzem+Ry5EKrHS/cVdBehI4wA==
+
+"@use-gesture/react@^10.0.0-beta.22":
+  version "10.2.4"
+  resolved "https://registry.yarnpkg.com/@use-gesture/react/-/react-10.2.4.tgz#b333e91b00670785ee32e8f4f1530ac6b8894bbc"
+  integrity sha512-CbqyRj+qNbRBOGmS8OWtaOa29fxEr7bKTYHvPuMQ1wsgQDh2/DqQxbp7cFxAg6WZ8oZjppDj/EkWnw22WpIIWQ==
+  dependencies:
+    "@use-gesture/core" "10.2.4"
+
 "@visx/axis@^2.4.0":
   version "2.4.0"
   resolved "https://registry.yarnpkg.com/@visx/axis/-/axis-2.4.0.tgz#0785a872e1a2706ece2f3e9e350736b04039359e"
@@ -3433,6 +3445,14 @@
     classnames "^2.3.1"
     prop-types "^15.6.0"
 
+"@visx/clip-path@^2.1.0":
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/@visx/clip-path/-/clip-path-2.1.0.tgz#5730ebda167493a56d033c454453900ed0b4904b"
+  integrity sha512-g8OC8M4H+AunfT2taKyy++X7muMrhlqITNDan25gVopGuHxydiDYatu4qdZIGbYjAoiI0KHEB07/HV8iePcTdQ==
+  dependencies:
+    "@types/react" "*"
+    prop-types "^15.5.10"
+
 "@visx/curve@2.1.0":
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/@visx/curve/-/curve-2.1.0.tgz#f614bfe3db66df7db7382db7a75ced1506b94602"
@@ -3440,6 +3460,14 @@
   dependencies:
     "@types/d3-shape" "^1.3.1"
     d3-shape "^1.0.6"
+
+"@visx/event@2.1.2", "@visx/event@^2.1.2":
+  version "2.1.2"
+  resolved "https://registry.yarnpkg.com/@visx/event/-/event-2.1.2.tgz#f714e705b8702e6bac2c11c4ae667535460e50c1"
+  integrity sha512-x3gAQ9DB4zDA6qqGpzlpGacGuOtmzFi/m5Zq7BJ0OJ7PjNfkIazCsznc9epCT/g9IIhwhs+UN/Ijww4YnFHqHw==
+  dependencies:
+    "@types/react" "*"
+    "@visx/point" "2.1.0"
 
 "@visx/group@2.1.0", "@visx/group@^2.1.0":
   version "2.1.0"
@@ -3504,6 +3532,16 @@
     lodash "^4.17.21"
     prop-types "^15.7.2"
     reduce-css-calc "^1.3.0"
+
+"@visx/zoom@^2.2.2":
+  version "2.2.2"
+  resolved "https://registry.yarnpkg.com/@visx/zoom/-/zoom-2.2.2.tgz#6306cb291a4bea7f39a41b19147673bd5cb394bd"
+  integrity sha512-Dpg3KHp2nsKBF4gIHEUUa1gYb6Php5r4B/x1VxHFQO+yVY8bqd3RWo6jdvfP/XHNowrEwM6hLhBVm7U/igPhVw==
+  dependencies:
+    "@types/react" "*"
+    "@use-gesture/react" "^10.0.0-beta.22"
+    "@visx/event" "2.1.2"
+    prop-types "^15.6.2"
 
 "@webassemblyjs/ast@1.9.0":
   version "1.9.0"
@@ -6501,10 +6539,22 @@ d3-color@1:
   resolved "https://registry.yarnpkg.com/d3-color/-/d3-color-2.0.0.tgz#8d625cab42ed9b8f601a1760a389f7ea9189d62e"
   integrity sha512-SPXi0TSKPD4g9tw0NMZFnR95XVgUZiBH+uUTqQuDu1OsE2zomHU7ho0FISciaPvosimixwHFl3WHLGabv6dDgQ==
 
+"d3-color@1 - 3":
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/d3-color/-/d3-color-3.0.1.tgz#03316e595955d1fcd39d9f3610ad41bb90194d0a"
+  integrity sha512-6/SlHkDOBLyQSJ1j1Ghs82OIUXpKWlR0hCsw0XrLSQhuUPuCSmLQ1QPH98vpnQxMUQM2/gfAkUEWsupVpd9JGw==
+
 "d3-format@1 - 2":
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/d3-format/-/d3-format-2.0.0.tgz#a10bcc0f986c372b729ba447382413aabf5b0767"
   integrity sha512-Ab3S6XuE/Q+flY96HXT0jOXcM4EAClYFnRGY5zsjRGNy6qCYrQsMffs7cV5Q9xejb35zxW5hf/guKw34kvIKsA==
+
+"d3-interpolate@1 - 3":
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/d3-interpolate/-/d3-interpolate-3.0.1.tgz#3c47aa5b32c5b3dfb56ef3fd4342078a632b400d"
+  integrity sha512-3bYs1rOD33uo8aqJfKP3JWPAibgw8Zm2+L9vBKEHJ2Rg+viTR7o5Mmv5mZcieN+FRYaAOWX5SJATX6k1PWz72g==
+  dependencies:
+    d3-color "1 - 3"
 
 "d3-interpolate@1.2.0 - 2":
   version "2.0.1"
@@ -6529,6 +6579,14 @@ d3-random@^2.2.2:
   version "2.2.2"
   resolved "https://registry.yarnpkg.com/d3-random/-/d3-random-2.2.2.tgz#5eebd209ef4e45a2b362b019c1fb21c2c98cbb6e"
   integrity sha512-0D9P8TRj6qDAtHhRQn6EfdOtHMfsUWanl3yb/84C4DqpZ+VsgfI5iTVRNRbELCfNvRfpMr8OrqqUTQ6ANGCijw==
+
+d3-scale-chromatic@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/d3-scale-chromatic/-/d3-scale-chromatic-3.0.0.tgz#15b4ceb8ca2bb0dcb6d1a641ee03d59c3b62376a"
+  integrity sha512-Lx9thtxAKrO2Pq6OO2Ua474opeziKr279P/TKZsMAhYyNDD3EnCffdbgeSYN5O7m2ByQsxtuP2CSDczNUIZ22g==
+  dependencies:
+    d3-color "1 - 3"
+    d3-interpolate "1 - 3"
 
 d3-scale@^3.3.0:
   version "3.3.0"
