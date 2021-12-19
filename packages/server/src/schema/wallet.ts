@@ -3,8 +3,9 @@ import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { generateNonce, verifySignedMessage } from '../auth/walletAuth';
 import { generateToken } from '../auth/auth.js';
-import { IWrap } from 'types';
+import { IWrap } from '../types';
 import { CompleteValidateWalletInput, DeleteOneInput, InitValidateWalletInput } from './types';
+import { GraphQLResolveInfo } from 'graphql';
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -38,16 +39,16 @@ export const resolvers = {
     Mutation: {
         // Start handshake for establishing trust between backend and user wallet
         // Returns nonce
-        initValidateWallet: async (_parent: undefined, { input }: IWrap<InitValidateWalletInput>, context: any, info: any): Promise<string> => {
+        initValidateWallet: async (_parent: undefined, { input }: IWrap<InitValidateWalletInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<string> => {
             let userData;
             // If not signed in, create new user row
-            if (!context.req.userId) userData = await context.prisma.user.create({ data: {} });
+            if (!req.userId) userData = await prisma.user.create({ data: {} });
             // Otherwise, find user data using id in session token 
-            else userData = await context.prisma.user.findUnique({ where: { id: context.req.userId } });
+            else userData = await prisma.user.findUnique({ where: { id: req.userId } });
             if (!userData) throw new CustomError(CODE.ErrorUnknown);
 
             // Find existing wallet data in database
-            let walletData = await context.prisma.wallet.findUnique({
+            let walletData = await prisma.wallet.findUnique({
                 where: { publicAddress: input.publicAddress },
                 select: {
                     id: true,
@@ -57,7 +58,7 @@ export const resolvers = {
             });
             // If wallet data didn't exist, create
             if (!walletData) {
-                walletData = await context.prisma.wallet.create({
+                walletData = await prisma.wallet.create({
                     data: { publicAddress: input.publicAddress },
                     select: {
                         id: true,
@@ -70,7 +71,7 @@ export const resolvers = {
             // If wallet is either: (1) unverified; or (2) already verified with user, update wallet with nonce and user id
             if (!walletData.verified || walletData.userId === userData.id) {
                 const nonce = await generateNonce(input.nonceDescription as string | undefined);
-                await context.prisma.wallet.update({
+                await prisma.wallet.update({
                     where: { id: walletData.id },
                     data: { 
                         nonce: nonce, 
@@ -86,9 +87,9 @@ export const resolvers = {
             }
         },
         // Verify that signed message from user wallet has been signed by the correct public address
-        completeValidateWallet: async (_parent: undefined, { input }: IWrap<CompleteValidateWalletInput>, context: any, info: any): Promise<boolean> => {
+        completeValidateWallet: async (_parent: undefined, { input }: IWrap<CompleteValidateWalletInput>, { prisma, res }: any, _info: GraphQLResolveInfo): Promise<boolean> => {
             // Find wallet with public address
-            const walletData = await context.prisma.wallet.findUnique({ 
+            const walletData = await prisma.wallet.findUnique({ 
                 where: { publicAddress: input.publicAddress },
                 select: {
                     id: true,
@@ -108,7 +109,7 @@ export const resolvers = {
             if (!walletVerified) return false;
 
             // Update wallet and remove nonce data
-            await context.prisma.wallet.update({
+            await prisma.wallet.update({
                 where: { id: walletData.id },
                 data: { 
                     verified: true,
@@ -118,14 +119,14 @@ export const resolvers = {
                 }
             })
             // Add session token to return payload
-            await generateToken(context.res, walletData.userId);
+            await generateToken(res, walletData.userId);
             return true;
         },
-        removeWallet: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: any, _info: any): Promise<boolean> => {
+        removeWallet: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: any, _info: GraphQLResolveInfo): Promise<boolean> => {
             // TODO Must deleting your own
             // TODO must keep at least one wallet per user
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
         }
     }

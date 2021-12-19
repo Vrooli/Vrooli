@@ -3,6 +3,7 @@ export * from './cards';
 export * from './ContactInfo';
 export * from './dialogs';
 export * from './Dropzone';
+export * from './graphs';
 export * from './inputs';
 export * from './lists';
 export * from './navigation';
