@@ -34,7 +34,7 @@ export const Page = ({
             if (userRoles.some(r => restrictedToRoles.includes(r.role.title))) return children;
         }
         if (sessionChecked && location.pathname !== redirect) { 
-            PubSub.publish(PUBS.Snack, { message: 'Page restricted. Please sign in', severity: 'error' });
+            PubSub.publish(PUBS.Snack, { message: 'Page restricted. Please log in', severity: 'error' });
             return <Redirect to={redirect} />
         }
         return null;

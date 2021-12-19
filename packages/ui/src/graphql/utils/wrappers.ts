@@ -10,7 +10,7 @@ interface Props {
     // useMutation function
     mutation: (options?: MutationFunctionOptions<any, OperationVariables, DefaultContext, ApolloCache<any>> | undefined) => Promise<any>;
     // data to pass into useMutation function
-    input: Object;
+    input?: Object;
     // Callback to determine if mutation was a success, using mutation's return data
     successCondition?: (response?: any) => boolean;
     // Message displayed on success

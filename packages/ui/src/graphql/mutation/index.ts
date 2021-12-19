@@ -1,5 +1,6 @@
 export * from './initValidateWallet';
 export * from './deleteUser';
+export * from './enterAsGuest';
 export * from './updateUser';
 export * from './logIn';
 export * from './logOut';

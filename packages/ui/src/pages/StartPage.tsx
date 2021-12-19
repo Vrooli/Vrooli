@@ -26,6 +26,9 @@ import {
     SignUpForm,
     ResetPasswordForm,
 } from 'forms';
+import { enterAsGuestMutation } from 'graphql/mutation';
+import { useMutation } from '@apollo/client';
+import { mutationWrapper } from 'graphql/utils/wrappers';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -54,6 +57,7 @@ export const StartPage = ({
 }: Pick<CommonProps, 'onSessionUpdate'>) => {
     const classes = useStyles();
     const history = useHistory();
+    const [enterAsGuest] = useMutation<any>(enterAsGuestMutation);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<FORMS>(FORMS.LogIn);
@@ -113,18 +117,21 @@ export const StartPage = ({
         if (success) {
             PubSub.publish(PUBS.Snack, { message: 'Wallet verified.' })
             // Set actor role
-            onSessionUpdate({ roles: [{ role: ROLES.Actor }] })
+            onSessionUpdate({ roles: [{ role: { title: ROLES.Actor } }] })
             // Redirect to main dashboard
             history.push(APP_LINKS.Home);
         }
     }, [downloadExtension, history, onSessionUpdate, toEmailLogIn])
 
     const guestLogin = useCallback(() => {
-        // Set user role as guest
-        onSessionUpdate({ roles: [{ role: ROLES.Guest }] })
-        // Redirect to home dashboard
-        history.push(APP_LINKS.Home)
-    }, [history, onSessionUpdate]);
+        mutationWrapper({
+            mutation: enterAsGuest,
+            onSuccess: () => {
+                onSessionUpdate({ roles: [{ role: { title: ROLES.Guest } }] });
+                history.push(APP_LINKS.Home);
+            },
+        })
+    }, [enterAsGuest, history, onSessionUpdate]);
 
     return (
         <div className={classes.root}>

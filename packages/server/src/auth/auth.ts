@@ -46,16 +46,67 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
     })
 }
 
-// Generates a JSON Web Token (JWT)
-export async function generateToken(res: Response, userId: any) {
+interface BasicToken {
+    iat: number;
+    iss: string;
+    exp: number;
+}
+interface SessionToken extends BasicToken {
+    userId?: string;
+    roles?: string[];
+    isLoggedIn: boolean;
+}
+
+/**
+ * Generates the minimum data required for a session token
+ */
+const basicToken = (): BasicToken => ({
+    iat: Date.now(),
+    iss: `https://app.${process.env.SITE_NAME}/`,
+    exp: Date.now() + SESSION_MILLI,
+
+})
+
+/**
+ * Generates a JSON Web Token (JWT) for user authentication.
+ * The token is added to the "res" object as a cookie.
+ * @param res 
+ * @param userId 
+ * @returns 
+ */
+export async function generateUserToken(res: Response, userId: any): Promise<undefined> {
     const userRoles = await findUserRoles(userId);
-    const tokenContents = {
-        iat: Date.now(),
-        iss: `https://app.${process.env.SITE_NAME}/`,
+    const tokenContents: SessionToken = {
+        ...basicToken(),
         userId: userId,
         roles: userRoles,
         isLoggedIn: userRoles.includes(ROLES.Actor),
-        exp: Date.now() + SESSION_MILLI,
+    }
+    if (!process.env.JWT_SECRET) {
+        console.error('❗️ JWT_SECRET not set! Please check .env file');
+        return;
+    }
+    const token = jwt.sign(tokenContents, process.env.JWT_SECRET);
+    res.cookie(COOKIE.Session, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: SESSION_MILLI
+    });
+}
+
+/**
+ * Generates a JSON Web Token (JWT) for guest authentication.
+ * The token is added to the "res" object as a cookie.
+ * @param res 
+ * @param userId 
+ * @returns 
+ */
+ export async function generateGuestToken(res: Response): Promise<undefined> {
+    const tokenContents: SessionToken = {
+        ...basicToken(),
+        userId: undefined,
+        roles: undefined,
+        isLoggedIn: false,
     }
     if (!process.env.JWT_SECRET) {
         console.error('❗️ JWT_SECRET not set! Please check .env file');
