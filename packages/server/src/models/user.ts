@@ -37,24 +37,28 @@ export type UserAllPrimitives = UserQueryablePrimitives & {
 export type UserFullModel = UserAllPrimitives &
     Pick<User, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports'> &
 {
-    roles: { role: Role[] },
-    resources: { resource: Resource[] },
-    projects: { project: Project[] },
-    starredComments: { starred: Comment[] },
-    starredProjects: { starred: Project[] },
-    starredOrganizations: { starred: Organization[] },
-    starredResources: { starred: Resource[] },
-    starredRoutines: { starred: Routine[] },
-    starredStandards: { starred: Standard[] },
-    starredTags: { starred: Tag[] },
-    starredUsers: { starred: User[] },
-    votedComments: { voted: Comment[] },
-    votedByTag: { tag: Tag[] },
+    roles: { role: Role[] }[],
+    resources: { resource: Resource[] }[],
+    projects: { project: Project[] }[],
+    starredComments: { starred: Comment[] }[],
+    starredProjects: { starred: Project[] }[],
+    starredOrganizations: { starred: Organization[] }[],
+    starredResources: { starred: Resource[] }[],
+    starredRoutines: { starred: Routine[] }[],
+    starredStandards: { starred: Standard[] }[],
+    starredTags: { starred: Tag[] }[],
+    starredUsers: { starred: User[] }[],
+    votedComments: { voted: Comment[] }[],
+    votedByTag: { tag: Tag[] }[],
 };
 
 //======================================================================================================================
 /* #endregion Type Definitions */
 //======================================================================================================================
+
+//==============================================================
+/* #region Custom Components */
+//==============================================================
 
 /**
  * Component for formatting between graphql and prisma types
@@ -344,6 +348,14 @@ const upserter = ({ prisma, format }: BaseState<User>) => ({
     }
 })
 
+//==============================================================
+/* #endregion Custom Components */
+//==============================================================
+
+//==============================================================
+/* #region Model */
+//==============================================================
+
 export function UserModel(prisma?: PrismaType) {
     let obj: BaseState<User> = {
         prisma,
@@ -362,3 +374,7 @@ export function UserModel(prisma?: PrismaType) {
         ...validater(obj),
     }
 }
+
+//==============================================================
+/* #endregion Model */
+//==============================================================

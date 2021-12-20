@@ -33,6 +33,13 @@ export const typeDef = gql`
         description: String
         link: String!
         displayUrl: String
+        organization_resources: [Organization!]!
+        project_resources: [Project!]!
+        routine_resources_contextual: [Routine!]!
+        routine_resources_external: [Routine!]!
+        routine_resources_donation: [Routine!]!
+        user_resources: [User!]!
+        starredBy: [User!]!
     }
 
     input ResourcesQueryInput {

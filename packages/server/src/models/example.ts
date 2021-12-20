@@ -62,7 +62,8 @@ export type ExampleAllPrimitives = ExampleQueryablePrimitives & { secretField: s
 // while children2 is linked directly to the parent.
 // This means that children1 must change the shape of its relationship field,
 // while children2 can be picked from the auto-generated GraphQL type
-export type ExampleFullModel = ExampleAllPrimitives & Pick<Example, 'children2'> &
+export type ExampleFullModel = ExampleAllPrimitives & 
+Pick<Example, 'children2'> &
 { 
     children1: { child: Array<Child> },
 };
@@ -71,6 +72,10 @@ export type ExampleFullModel = ExampleAllPrimitives & Pick<Example, 'children2'>
 /* #endregion Type Definitions */
 //======================================================================================================================
 
+//==============================================================
+/* #region Custom Components */
+//==============================================================
+
 // Second, define the converter component.
 // This converts between the model as it is stored in the database, and how it is represented in the GraphQL schema.
 // Typically this is a flattening of join tables, but it could be anything.
@@ -78,6 +83,14 @@ const formatter = (): FormatConverter<Example, any> => ({
     toDB: (obj: any): any => ({ ...obj }),
     toGraphQL: (obj: any): any => ({ ...obj })
 })
+
+//==============================================================
+/* #endregion Custom Components */
+//==============================================================
+
+//==============================================================
+/* #region Model */
+//==============================================================
 
 // Last, we define the model component.
 export function ExampleModel(prisma: any) {
@@ -98,3 +111,7 @@ export function ExampleModel(prisma: any) {
         ...reporter()
     }
 }
+
+//==============================================================
+/* #endregion Model */
+//==============================================================

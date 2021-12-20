@@ -2,13 +2,10 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { CODE, COOKIE, ROLES } from '@local/shared';
 import { CustomError } from '../error';
-import pkg from '@prisma/client';
 import { Session, Role } from 'schema/types';
 import { RecursivePartial } from '../types';
-import { RoleFields } from 'models';
-const { PrismaClient } = pkg;
+import { RoleQueryablePrimitives } from '../models';
 
-const prisma = new PrismaClient();
 const SESSION_MILLI = 30*86400*1000;
 
 // Verifies if a user is authenticated, using an http cookie
@@ -46,7 +43,7 @@ interface BasicToken {
 }
 interface SessionToken extends BasicToken {
     userId?: string;
-    roles: RecursivePartial<RoleFields>[];
+    roles: RecursivePartial<RoleQueryablePrimitives>[];
     isLoggedIn: boolean;
 }
 
@@ -71,7 +68,7 @@ export async function generateSessionToken(res: Response, session: RecursivePart
     const tokenContents: SessionToken = {
         ...basicToken(),
         userId: session.id || undefined,
-        roles: session.roles as RoleFields[] || [],
+        roles: session.roles as RoleQueryablePrimitives[] || [],
         isLoggedIn: Array.isArray(session.roles) ? session.roles.some(r => r?.title === ROLES.Actor) : false,
     }
     if (!process.env.JWT_SECRET) {

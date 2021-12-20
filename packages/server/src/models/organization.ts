@@ -1,14 +1,35 @@
-import { Organization, OrganizationInput } from "schema/types";
+import { Organization, OrganizationInput, Project, Resource, Routine, Tag, User } from "schema/types";
 import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
 //======================================================================================================================
 
+// // Type 1. RelationshipList
+// export type OrganizationRelationshipList = 'comments' | 'resources' | 'wallets' | 'projects' | 'starredBy' | 
+//     'routines' | 'tags' | 'reports';
+// // Type 2. QueryablePrimitives
+// export type OrganizationQueryablePrimitives = Omit<Organization, OrganizationRelationshipList>;
+// // Type 3. AllPrimitives
+// export type OrganizationAllPrimitives = OrganizationQueryablePrimitives;
+// // type 4. FullModel
+// export type OrganizationFullModel = OrganizationAllPrimitives &
+// Pick<Organization, 'comments' | 'wallets' | 'reports'> &
+// {
+//     resources: { resource: Resource[] }[],
+//     projects: { project: Project[] }[],
+//     starredBy: { user: User[] }[],
+//     routines: { routine: Routine[] }[],
+//     tags: { tag: Tag[] }[],
+// };
+
 //======================================================================================================================
 /* #endregion Type Definitions */
 //======================================================================================================================
 
+//==============================================================
+/* #region Custom Components */
+//==============================================================
 
 /**
  * Component for formatting between graphql and prisma types
@@ -17,6 +38,14 @@ import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, 
     toDB: (obj: any): any => ({ ...obj}),
     toGraphQL: (obj: any): any => ({ ...obj })
 })
+
+//==============================================================
+/* #endregion Custom Components */
+//==============================================================
+
+//==============================================================
+/* #region Model */
+//==============================================================
 
 export function OrganizationModel(prisma: any) {
     let obj: BaseState<Organization> = {
@@ -35,3 +64,7 @@ export function OrganizationModel(prisma: any) {
         ...reporter()
     }
 }
+
+//==============================================================
+/* #endregion Model */
+//==============================================================

@@ -24,6 +24,15 @@ export const typeDef = gql`
         user: User
         organizationId: ID
         organization: Organization
+        projectId: ID
+        project: Project
+        resourceId: ID
+        resource: Resource
+        routineId: ID
+        routine: Routine
+        standardId: ID
+        standard: Standard
+        reports: [Report!]!
         stars: Int
         vote: Int
     }

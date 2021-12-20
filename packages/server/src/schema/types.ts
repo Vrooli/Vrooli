@@ -29,6 +29,15 @@ export type Comment = {
   id: Scalars['ID'];
   organization?: Maybe<Organization>;
   organizationId?: Maybe<Scalars['ID']>;
+  project?: Maybe<Project>;
+  projectId?: Maybe<Scalars['ID']>;
+  reports: Array<Report>;
+  resource?: Maybe<Resource>;
+  resourceId?: Maybe<Scalars['ID']>;
+  routine?: Maybe<Routine>;
+  routineId?: Maybe<Scalars['ID']>;
+  standard?: Maybe<Standard>;
+  standardId?: Maybe<Scalars['ID']>;
   stars?: Maybe<Scalars['Int']>;
   text?: Maybe<Scalars['String']>;
   updatedAt: Scalars['Date'];
@@ -805,12 +814,31 @@ export type Role = {
 
 export type Routine = {
   __typename?: 'Routine';
+  contextualResources: Array<Resource>;
+  created_at: Scalars['Date'];
+  description?: Maybe<Scalars['String']>;
+  donationResources: Array<Resource>;
+  externalResources: Array<Resource>;
+  forks: Array<Routine>;
   id: Scalars['ID'];
+  inputs: Array<RoutineInputItem>;
+  instructions?: Maybe<Scalars['String']>;
+  isAutomatable?: Maybe<Scalars['Boolean']>;
+  nodeLists: Array<NodeRoutineList>;
+  organizations: Array<Organization>;
+  outputs: Array<RoutineOutputItem>;
+  parent?: Maybe<Routine>;
+  reports: Array<Report>;
+  starredBy: Array<User>;
+  tags: Array<Tag>;
+  title?: Maybe<Scalars['String']>;
+  updated_at: Scalars['Date'];
+  users: Array<User>;
+  version?: Maybe<Scalars['String']>;
 };
 
 export type RoutineInput = {
   description?: InputMaybe<Scalars['String']>;
-  externalLink?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
   inputs?: InputMaybe<Array<RoutineInputItemInput>>;
   instructions?: InputMaybe<Scalars['String']>;
@@ -823,19 +851,27 @@ export type RoutineInput = {
 export type RoutineInputItem = {
   __typename?: 'RoutineInputItem';
   id: Scalars['ID'];
+  routine: Routine;
+  standard: Standard;
 };
 
 export type RoutineInputItemInput = {
   id?: InputMaybe<Scalars['ID']>;
+  routineId: Scalars['ID'];
+  standardId?: InputMaybe<Scalars['ID']>;
 };
 
 export type RoutineOutputItem = {
   __typename?: 'RoutineOutputItem';
   id: Scalars['ID'];
+  routine: Routine;
+  standard: Standard;
 };
 
 export type RoutineOutputItemInput = {
   id?: InputMaybe<Scalars['ID']>;
+  routineId: Scalars['ID'];
+  standardId?: InputMaybe<Scalars['ID']>;
 };
 
 export type RoutinesQueryInput = {
@@ -852,12 +888,17 @@ export type Session = {
 
 export type Standard = {
   __typename?: 'Standard';
+  comments: Array<Comment>;
   default?: Maybe<Scalars['String']>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isFile: Scalars['Boolean'];
   name: Scalars['String'];
+  reports: Array<Report>;
+  routineInputs: Array<Routine>;
+  routineOutputs: Array<Routine>;
   schema: Scalars['String'];
+  starredBy: Array<User>;
   tags: Array<Tag>;
   type: StandardType;
 };

@@ -7,6 +7,11 @@ import { PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
 
+
+//======================================================================================================================
+/* #region Type Definitions */
+//======================================================================================================================
+
 // Required fields to update any object
 interface UpdateInterface {
     id?: Scalars['ID'] | InputMaybe<string>;
@@ -29,42 +34,6 @@ export type FormatConverter<GraphQLModel, DBModel> = {
  */
 export type JoinMap = { [key: string]: string };
 
-/**
- * Helper function for adding join tables between 
- * many-to-many relationship parents and children
- */
-export const addJoinTables = (obj: any, map: JoinMap): any => {
-    //return Array.isArray(data) ? data.map(d => ({ [tableName]: d })) : [];
-    // Create result object
-    let result: any = {};
-    // Iterate over join map
-    for (const [key, value] of Object.entries(map)) {
-        if (obj[key]) result[key] = ({ [value]: obj[key] })
-    }
-    return {
-        ...obj,
-        ...result
-    }
-}
-
-/**
- * Helper function for removing join tables between
- * many-to-many relationship parents and children
- */
-export const removeJoinTables = (obj: any, map: JoinMap): any => {
-    //return Array.isArray(data) ? data.map(d => d ? d[tableName] : null) : [];
-    // Create result object
-    let result: any = {};
-    // Iterate over join map
-    for (const [key, value] of Object.entries(map)) {
-        if (obj[key] && obj[key][value]) result[key] = obj[key][value];
-    }
-    return {
-        ...obj,
-        ...result
-    }
-}
-
 type BaseType = PrismaModels['comment']; // It doesn't matter what PrismaType is used here, it's just to help TypeScript handle Prisma operations
 export interface BaseState<GraphQLModel> {
     prisma?: PrismaType;
@@ -80,6 +49,7 @@ export const MODEL_TYPES = {
     Organization: 'organization',
     Project: 'project',
     Resource: 'resource',
+    Role: 'role',
     Routine: 'routine',
     Standard: 'standard',
     Tag: 'tag',
@@ -94,6 +64,7 @@ type Models<T> = {
     [MODEL_TYPES.Organization]: Prisma.organizationDelegate<T>;
     [MODEL_TYPES.Project]: Prisma.projectDelegate<T>;
     [MODEL_TYPES.Resource]: Prisma.resourceDelegate<T>;
+    [MODEL_TYPES.Role]: Prisma.roleDelegate<T>;
     [MODEL_TYPES.Routine]: Prisma.routineDelegate<T>;
     [MODEL_TYPES.Standard]: Prisma.standardDelegate<T>;
     [MODEL_TYPES.Tag]: Prisma.tagDelegate<T>;
@@ -102,6 +73,48 @@ type Models<T> = {
 export type PrismaModels = Models<Prisma.RejectOnNotFound | Prisma.RejectPerOperation | undefined>
 
 type InfoType = GraphQLResolveInfo | { select: any } | null;
+
+//======================================================================================================================
+/* #endregion Type Definitions */
+//======================================================================================================================
+
+/**
+ * Helper function for adding join tables between 
+ * many-to-many relationship parents and children
+ * @param obj - GraphQL-shaped object
+ * @param map - Mapping of many-to-many relationship names to join table names
+ */
+ export const addJoinTables = (obj: any, map: JoinMap): any => {
+    // Create result object
+    let result: any = {};
+    // Iterate over join map
+    for (const [key, value] of Object.entries(map)) {
+        if (obj[key]) result[key] = ({ [value]: obj[key] })
+    }
+    return {
+        ...obj,
+        ...result
+    }
+}
+
+/**
+ * Helper function for removing join tables between
+ * many-to-many relationship parents and children
+ * @param obj - DB-shaped object
+ * @param map - Mapping of many-to-many relationship names to join table names
+ */
+export const removeJoinTables = (obj: any, map: JoinMap): any => {
+    // Create result object
+    let result: any = {};
+    // Iterate over join map
+    for (const [key, value] of Object.entries(map)) {
+        if (obj[key] && obj[key][value]) result[key] = obj[key][value];
+    }
+    return {
+        ...obj,
+        ...result
+    }
+}
 
 /**
  * Helper function for creating a Prisma select object

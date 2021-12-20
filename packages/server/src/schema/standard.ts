@@ -40,6 +40,11 @@ export const typeDef = gql`
         default: String
         isFile: Boolean!
         tags: [Tag!]!
+        routineInputs: [Routine!]!
+        routineOutputs: [Routine!]!
+        starredBy: [User!]!
+        reports: [Report!]!
+        comments: [Comment!]!
     }
 
     input StandardsQueryInput {

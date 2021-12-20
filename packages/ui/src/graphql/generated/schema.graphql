@@ -450,7 +450,6 @@ input RoutineInput {
   title: String
   description: String
   instructions: String
-  externalLink: String
   isAutomatable: Boolean
   inputs: [RoutineInputItemInput!]
   outputs: [RoutineOutputItemInput!]

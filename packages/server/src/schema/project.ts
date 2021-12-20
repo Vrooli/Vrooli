@@ -26,6 +26,9 @@ export const typeDef = gql`
         users: [User!]
         organizations: [Organization!]
         starredBy: [User!]
+        parent: Project
+        forks: [Project!]!
+        tags: [Tag!]!
     }
 
     input ProjectsQueryInput {

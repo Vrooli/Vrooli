@@ -1,15 +1,38 @@
 import { PrismaSelect } from "@paljs/plugins";
-import { Resource, ResourceInput } from "schema/types";
+import { Organization, Project, Resource, ResourceInput, Routine, User } from "schema/types";
 import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
 //======================================================================================================================
 
+// // Type 1. RelationshipList
+// export type ResourceRelationshipList = 'organization_resources' | 'project_resources' | 'routine_resources_contextual' | 
+// 'routine_resources_external' | 'routine_resources_donation' | 'user_resources' | 'starredBy' | 'reports' | 'comments';
+// // Type 2. QueryablePrimitives
+// export type ResourceQueryablePrimitives = Omit<Resource, ResourceRelationshipList>;
+// // Type 3. AllPrimitives
+// export type ResourceAllPrimitives = ResourceQueryablePrimitives;
+// // type 4. FullModel
+// export type ResourceFullModel = ResourceAllPrimitives &
+// Pick<Resource, 'reports' | 'comments'> &
+// {
+//     organization_resources: { organization: Organization[] },
+//     project_resources: { project: Project[] },
+//     routine_resources_contextual: { routine: Routine[] },
+//     routine_resources_external: { routine: Routine[] },
+//     routine_resources_donation: { routine: Routine[] },
+//     user_resources: { user: User[] },
+//     starredBy: { user: User[] }[],
+// };
+
 //======================================================================================================================
 /* #endregion Type Definitions */
 //======================================================================================================================
 
+//==============================================================
+/* #region Custom Components */
+//==============================================================
 
 // Maps routine apply types to the correct prisma join tables
 const applyMap = {
@@ -80,6 +103,13 @@ const updater = (state: any) => ({
     }
 })
 
+//==============================================================
+/* #endregion Custom Components */
+//==============================================================
+
+//==============================================================
+/* #region Model */
+//==============================================================
 
 export function ResourceModel(prisma: any) {
     let obj: BaseState<Resource> = {
@@ -98,3 +128,7 @@ export function ResourceModel(prisma: any) {
         ...reporter()
     }
 }
+
+//==============================================================
+/* #endregion Model */
+//==============================================================

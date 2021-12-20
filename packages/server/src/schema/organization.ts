@@ -19,11 +19,15 @@ export const typeDef = gql`
         id: ID!
         name: String!
         description: String
-        resources: [Resource!]
-        projects: [Project!]
-        wallets: [Wallet!]
-        starredBy: [User!]
-        routines: [Routine!]
+        comments: [Comment!]!
+        resources: [Resource!]!
+        wallets: [Wallet!]!
+        projects: [Project!]!
+        wallets: [Wallet!]!
+        starredBy: [User!]!
+        routines: [Routine!]!
+        tags: [Tag!]!
+        reports: [Report!]!
     }
 
     input OrganizationsQueryInput {

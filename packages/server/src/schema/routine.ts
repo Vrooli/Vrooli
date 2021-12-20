@@ -14,31 +14,58 @@ export const typeDef = gql`
         title: String
         description: String
         instructions: String
-        externalLink: String
         isAutomatable: Boolean
         inputs: [RoutineInputItemInput!]
         outputs: [RoutineOutputItemInput!]
-
     }
 
     type Routine {
         id: ID!
+        version: String
+        title: String
+        description: String
+        instructions: String
+        isAutomatable: Boolean
+        created_at: Date!
+        updated_at: Date!
+        inputs: [RoutineInputItem!]!
+        outputs: [RoutineOutputItem!]!
+        nodes: [Node!]!
+        contextualResources: [Resource!]!
+        externalResources: [Resource!]!
+        donationResources: [Resource!]!
+        tags: [Tag!]!
+        users: [User!]!
+        organizations: [Organization!]!
+        starredBy: [User!]!
+        parent: Routine
+        forks: [Routine!]!
+        nodeLists: [NodeRoutineList!]!
+        reports: [Report!]!
     }
 
     input RoutineInputItemInput {
         id: ID
+        routineId: ID!
+        standardId: ID
     }
 
     type RoutineInputItem {
         id: ID!
+        routine: Routine!
+        standard: Standard!
     }
 
     input RoutineOutputItemInput {
         id: ID
+        routineId: ID!
+        standardId: ID
     }
 
     type RoutineOutputItem {
         id: ID!
+        routine: Routine!
+        standard: Standard!
     }
 
     input RoutinesQueryInput {
