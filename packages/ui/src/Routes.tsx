@@ -43,7 +43,7 @@ const Routes = (props: CommonProps) => {
                     path="/sitemap"
                     component={Sitemap}
                 />
-                {/* ========= START DASHBOARD ROUTES ========= */}
+                {/* ========= #region Dashboard Routes ========= */}
                 {/* Customizable pages available to logged in users */}
                 <Route
                     exact
@@ -95,9 +95,9 @@ const Routes = (props: CommonProps) => {
                         </Page>
                     )}
                 />
-                {/* ========= END DASHBOARD ROUTES ========= */}
+                {/* ========= #endregion Dashboard Routes ========= */}
 
-                {/* ========= START ORCHESTRATION ROUTES ========= */}
+                {/* ========= #region Orchestration Routes ========= */}
                 {/* Pages for creating and running routine orchestrations */}
                 <Route
                     exact
@@ -119,9 +119,9 @@ const Routes = (props: CommonProps) => {
                         </Page>
                     )}
                 />
-                {/* ========= END ORCHESTRATION ROUTES ========= */}
+                {/* ========= #endregion Orchestration Routes ========= */}
 
-                {/* ========= START VIEWS ROUTES ========= */}
+                {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (organizations, actors, projects, routines, resources, data) */}
                 <Route
                     exact
@@ -167,9 +167,10 @@ const Routes = (props: CommonProps) => {
                         </Page>
                     )}
                 />
-                {/* ========= END VIEWS ROUTES ========= */}
 
-                {/* ========= START AUTHENTICATION ROUTES ========= */}
+                {/* =========  #endregion ========= */}
+
+                {/* ========= #region Authentication Routes ========= */}
                 <Route
                     exact
                     path={LINKS.Start}
@@ -207,7 +208,8 @@ const Routes = (props: CommonProps) => {
                         </Page>
                     )}
                 />
-                {/* ========= END AUTHENTICATION ROUTES ========= */}
+
+                {/* =========  #endregion ========= */}
 
                 <Route
                     exact

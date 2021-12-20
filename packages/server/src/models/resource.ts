@@ -2,6 +2,15 @@ import { PrismaSelect } from "@paljs/plugins";
 import { Resource, ResourceInput } from "schema/types";
 import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter } from "./base";
 
+//======================================================================================================================
+/* #region Type Definitions */
+//======================================================================================================================
+
+//======================================================================================================================
+/* #endregion Type Definitions */
+//======================================================================================================================
+
+
 // Maps routine apply types to the correct prisma join tables
 const applyMap = {
     ORGANIZATION: 'organizationResources',

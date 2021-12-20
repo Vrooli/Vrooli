@@ -1,6 +1,15 @@
 import { Organization, OrganizationInput } from "schema/types";
 import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
 
+//======================================================================================================================
+/* #region Type Definitions */
+//======================================================================================================================
+
+//======================================================================================================================
+/* #endregion Type Definitions */
+//======================================================================================================================
+
+
 /**
  * Component for formatting between graphql and prisma types
  */

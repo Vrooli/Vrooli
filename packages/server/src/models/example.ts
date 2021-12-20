@@ -37,7 +37,7 @@ type Example = {
 };
 
 //======================================================================================================================
-// START Type definitions
+/* #region Type Definitions */
 //======================================================================================================================
 
 // First, define any extra TypeScript types that are needed for the model.
@@ -68,7 +68,7 @@ export type ExampleFullModel = ExampleAllPrimitives & Pick<Example, 'children2'>
 };
 
 //======================================================================================================================
-// END Type definitions
+/* #endregion Type Definitions */
 //======================================================================================================================
 
 // Second, define the converter component.
