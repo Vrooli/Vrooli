@@ -3,35 +3,35 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { SignUpInput, AccountStatus } from "./globalTypes";
+import { EmailLogInInput, AccountStatus } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: signUp
+// GraphQL mutation operation: logIn
 // ====================================================
 
-export interface signUp_signUp_roles_role {
+export interface logIn_logIn_roles_role {
   __typename: "Role";
   title: string;
   description: string | null;
 }
 
-export interface signUp_signUp_roles {
+export interface logIn_logIn_roles {
   __typename: "UserRole";
-  role: signUp_signUp_roles_role;
+  role: logIn_logIn_roles_role;
 }
 
-export interface signUp_signUp {
+export interface logIn_logIn {
   __typename: "User";
   id: string;
   status: AccountStatus;
   theme: string;
-  roles: signUp_signUp_roles[];
+  roles: logIn_logIn_roles[];
 }
 
-export interface signUp {
-  signUp: signUp_signUp;
+export interface emailLogIn {
+  logIn: logIn_logIn;
 }
 
-export interface signUpVariables {
-  input: SignUpInput;
+export interface logInVariables {
+  input: EmailLogInInput;
 }

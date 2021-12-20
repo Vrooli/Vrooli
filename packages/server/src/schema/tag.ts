@@ -3,7 +3,7 @@ import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { PrismaSelect } from '@paljs/plugins';
 import { TagModel } from '../models';
-import { IWrap } from '../types';
+import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteManyInput, FindByIdInput, ReportInput, Tag, TagInput, TagsQueryInput, TagVoteInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -47,10 +47,10 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Tag | null> => {
+        tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag> | null> => {
             return await TagModel(prisma).findById(input, info);
         },
-        tags: async (_parent: undefined, { input }: IWrap<TagsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Tag[]> => {
+        tags: async (_parent: undefined, { input }: IWrap<TagsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
         tagsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
@@ -62,7 +62,7 @@ export const resolvers = {
          * Add a new tag. Must be unique.
          * @returns Tag object if successful
          */
-        addTag: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Tag> => {
+        addTag: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add more restrictions
@@ -72,7 +72,7 @@ export const resolvers = {
          * Update tags you've created
          * @returns 
          */
-        updateTag: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Tag> => {
+        updateTag: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add more restrictions

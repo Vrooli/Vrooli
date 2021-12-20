@@ -44,7 +44,7 @@ export const userSchema = yup.object().shape({
 
 
 // Schema for creating a new account
-export const signUpSchema = yup.object().shape({
+export const emailSignUpSchema = yup.object().shape({
     username: usernameSchema.required(),
     email: yup.string().email().required(),
     marketingEmails: yup.boolean().required(),
@@ -68,7 +68,7 @@ export const profileSchema = yup.object().shape({
  * NOTE: Does not include verification code, since it is optional and
  * the schema is reused for the log in form.
  */
-export const logInSchema = yup.object().shape({
+export const emailLogInSchema = yup.object().shape({
     email: yup.string().email().required(),
     password: yup.string().max(128).required()
 })
@@ -76,14 +76,14 @@ export const logInSchema = yup.object().shape({
 /**
  * Schema for sending a password reset request
  */
-export const requestPasswordChangeSchema = yup.object().shape({
+export const emailRequestPasswordChangeSchema = yup.object().shape({
     email: yup.string().email().required()
 })
 
 /**
  * Schema for resetting your password
  */
-export const resetPasswordSchema = yup.object().shape({
+export const emailResetPasswordSchema = yup.object().shape({
     newPassword: passwordSchema.required(),
     confirmNewPassword: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match')
 })

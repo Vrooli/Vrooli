@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { IWrap } from 'types';
+import { IWrap, RecursivePartial } from 'types';
 import { Count, DeleteManyInput, Email, EmailInput } from './types';
 import { Context } from '../context';
 import { EmailModel } from '../models';
@@ -38,7 +38,7 @@ export const resolvers = {
         /**
          * Associate a new email address to your account.
          */
-        addEmail: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Email> => {
+        addEmail: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             // Must be adding to your own
             if(req.userId !== input.userId) throw new CustomError(CODE.Unauthorized);
             return await EmailModel(prisma).create(input, info);
@@ -46,7 +46,7 @@ export const resolvers = {
         /**
          * Update an existing email address that is associated with your account.
          */
-        updateEmail: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Email> => {
+        updateEmail: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             // Find the email object in the database
             const curr = await EmailModel(prisma).findById({ id: input.id as string }, { select: { userId: true }});
             // Validate that the email belongs to the user

@@ -1,12 +1,13 @@
-import { User, UserInput } from "schema/types";
-import { deleter, findByIder, MODEL_TYPES, reporter, selectHelper } from "./base";
-import { PrismaSelect } from "@paljs/plugins";
+import { Session, User, Role, Comment, Email, Wallet, Resource, Project, Organization, Routine, Standard, Tag } from "schema/types";
+import { addJoinTables, BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, selectHelper } from "./base";
 import { onlyPrimitives } from "../utils/objectTools";
 import { CustomError } from "../error";
 import { CODE } from '@local/shared';
 import bcrypt from 'bcrypt';
 import pkg from '@prisma/client';
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
+import { GraphQLResolveInfo } from "graphql";
+import { PrismaType, RecursivePartial } from "../types";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -15,12 +16,87 @@ const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 3;
 const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 10;
 const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000;
 
+//======================================================================================================================
+// START Type definitions
+//======================================================================================================================
+
+// Type 1. RelationshipList
+export type UserRelationshipList = 'comments' | 'roles' | 'emails' | 'wallets' | 'resources' |
+    'projects' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
+    'starredResources' | 'starredStandards' | 'starredTags' | 'starredUsers' |
+    'sentReports' | 'reports' | 'votedComments' | 'votedByTag';
+// Type 2. QueryablePrimitives
+export type UserQueryablePrimitives = Omit<User, UserRelationshipList>;
+// Type 3. AllPrimitives
+export type UserAllPrimitives = UserQueryablePrimitives & {
+    password: string,
+    logInAttempts: number,
+    lastLoginAttempt: Date,
+};
+// type 4. FullModel
+export type UserFullModel = UserAllPrimitives &
+    Pick<User, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports'> &
+{
+    roles: { role: Role[] },
+    resources: { resource: Resource[] },
+    projects: { project: Project[] },
+    starredComments: { starred: Comment[] },
+    starredProjects: { starred: Project[] },
+    starredOrganizations: { starred: Organization[] },
+    starredResources: { starred: Resource[] },
+    starredRoutines: { starred: Routine[] },
+    starredStandards: { starred: Standard[] },
+    starredTags: { starred: Tag[] },
+    starredUsers: { starred: User[] },
+    votedComments: { voted: Comment[] },
+    votedByTag: { tag: Tag[] },
+};
+
+//======================================================================================================================
+// END Type definitions
+//======================================================================================================================
+
+/**
+ * Component for formatting between graphql and prisma types
+ */
+const formatter = (): FormatConverter<User, UserFullModel> => {
+    const joinMapper = {
+        roles: 'role',
+        resources: 'resource',
+        projects: 'project',
+        starredComments: 'starred',
+        starredProjects: 'starred',
+        starredOrganizations: 'starred',
+        starredResources: 'starred',
+        starredRoutines: 'starred',
+        starredStandards: 'starred',
+        starredTags: 'starred',
+        starredUsers: 'starred',
+        votedComments: 'voted',
+        votedByTag: 'tag',
+    };
+    return {
+        toDB: (obj: RecursivePartial<User>): RecursivePartial<UserFullModel> => addJoinTables(obj, joinMapper),
+        toGraphQL: (obj: RecursivePartial<UserFullModel>): RecursivePartial<User> => removeJoinTables(obj, joinMapper)
+    }
+}
+
 /**
  * Custom component for email/password validation
  * @param state 
  * @returns 
  */
 const validater = (state: any) => ({
+    /**
+     * Creates session object from user
+     */
+    toSession(user: RecursivePartial<User>): RecursivePartial<Session> {
+        return {
+            id: user.id ?? '',
+            theme: user.theme ?? 'light',
+            roles: user.roles ?? []
+        }
+    },
     /**
      * Generates a URL-safe code for account confirmations and password resets
      * @returns Hashed and salted code, with invalid characters removed
@@ -71,9 +147,9 @@ const validater = (state: any) => ({
      * @param password Plaintext password
      * @param user User object
      * @param info Prisma query info
-     * @returns Updated user object, or null if logIn failed
+     * @returns Session data
      */
-    async logIn(password: string, user: any, info: any): Promise<any> {
+    async logIn(password: string, user: any): Promise<Session | null> {
         // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HARD_LOCKED, AccountStatus.DELETED];
         // If account is not deleted or hard-locked, and lockout duration has passed
@@ -81,7 +157,11 @@ const validater = (state: any) => ({
             console.log('returning with reset log in');
             return await state.prisma.user.update({
                 where: { id: user.id },
-                data: { logInAttempts: 0 }
+                data: { logInAttempts: 0 },
+                select: {
+                    theme: true,
+                    roles: { select: { role: { select: { title: true } } } }
+                }
             });
         }
         // If password is valid
@@ -94,7 +174,11 @@ const validater = (state: any) => ({
                     resetPasswordCode: null,
                     lastResetPasswordReqestAttempt: null
                 },
-                ...(new PrismaSelect(info).value)
+                select: {
+                    id: true,
+                    theme: true,
+                    roles: { select: { role: { select: { title: true } } } }
+                }
             })
         }
         // If password is invalid
@@ -191,7 +275,7 @@ const findByEmailer = (state: any) => ({
      * @param email The user's email address
      * @returns A user object without relationships
      */
-    async findByEmail(email: string): Promise<User> {
+    async findByEmail(email: string): Promise<UserAllPrimitives> {
         if (!email) throw new CustomError(CODE.BadCredentials);
         // Validate email address
         const emailRow = await state.prisma.email.findUnique({ where: { emailAddress: email } });
@@ -208,8 +292,10 @@ const findByEmailer = (state: any) => ({
  * @param state 
  * @returns 
  */
-const upserter = (state: any) => ({
-    async upsertUser(data: any, info: any): Promise<User> {
+const upserter = ({ prisma, format }: BaseState<User>) => ({
+    async upsertUser(data: any, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<User>> {
+        // Check arguments
+        if (!prisma) throw new CustomError(CODE.ErrorUnknown);
         // Remove relationship data, as they are handled on a case-by-case basis
         let cleanedData = onlyPrimitives(data);
         // Upsert user
@@ -218,22 +304,22 @@ const upserter = (state: any) => ({
             // Check for valid username
             //TODO
             // Make sure username isn't in use
-            if (await state.prisma.user.findUnique({ where: { username: data.username } })) throw new CustomError(CODE.UsernameInUse);
-            user = await state.prisma.user.create({ data: cleanedData })
+            if (await prisma.user.findUnique({ where: { username: data.username } })) throw new CustomError(CODE.UsernameInUse);
+            user = await prisma.user.create({ data: cleanedData })
         } else {
-            user = await state.prisma.user.update({
+            user = await prisma.user.update({
                 where: { id: data.id },
                 data: cleanedData
             })
         }
         // Upsert emails
         for (const email of (data.emails ?? [])) {
-            const emailExists = await state.prisma.email.findUnique({ where: { emailAddress: email.emailAddress } });
+            const emailExists = await prisma.email.findUnique({ where: { emailAddress: email.emailAddress } });
             if (emailExists && emailExists.id !== email.id) throw new CustomError(CODE.EmailInUse);
             if (!email.id) {
-                await state.prisma.email.create({ data: { ...email, id: undefined, user: user.id } })
+                await prisma.email.create({ data: { ...email, id: undefined, user: user.id } })
             } else {
-                await state.prisma.email.update({
+                await prisma.email.update({
                     where: { id: email.id },
                     data: email
                 })
@@ -243,7 +329,7 @@ const upserter = (state: any) => ({
         for (const role of (data.roles ?? [])) {
             if (!role.id) continue;
             const roleData = { userId: user.id, roleId: role.id };
-            await state.prisma.user_roles.upsert({
+            await prisma.user_roles.upsert({
                 where: { user_roles_userid_roleid_unique: roleData },
                 create: roleData,
                 update: roleData
@@ -251,23 +337,28 @@ const upserter = (state: any) => ({
         }
         // Create selector
         const select = selectHelper(info);
-        return await state.prisma.user.findUnique({ where: { id: user.id }, ...select });
+        // Query database
+        user = await prisma.user.findUnique({ where: { id: user.id }, ...select }) as RecursivePartial<UserFullModel>;
+        // Return formatted user
+        return format.toGraphQL(user);
     }
 })
 
-export function UserModel(prisma: any) {
-    let obj = {
+export function UserModel(prisma?: PrismaType) {
+    let obj: BaseState<User> = {
         prisma,
-        model: MODEL_TYPES.User
+        model: MODEL_TYPES.User,
+        format: formatter(),
     }
 
     return {
         ...obj,
         ...findByIder<User>(obj),
         ...findByEmailer(obj),
+        ...formatter(),
         ...upserter(obj),
         ...deleter(obj),
-        ...reporter(obj),
+        ...reporter(),
         ...validater(obj),
     }
 }

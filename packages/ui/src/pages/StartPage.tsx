@@ -26,7 +26,7 @@ import {
     SignUpForm,
     ResetPasswordForm,
 } from 'forms';
-import { enterAsGuestMutation } from 'graphql/mutation';
+import { guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 
@@ -57,7 +57,7 @@ export const StartPage = ({
 }: Pick<CommonProps, 'onSessionUpdate'>) => {
     const classes = useStyles();
     const history = useHistory();
-    const [enterAsGuest] = useMutation<any>(enterAsGuestMutation);
+    const [guestLogIn] = useMutation<any>(guestLogInMutation);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<FORMS>(FORMS.LogIn);
@@ -123,15 +123,15 @@ export const StartPage = ({
         }
     }, [downloadExtension, history, onSessionUpdate, toEmailLogIn])
 
-    const guestLogin = useCallback(() => {
+    const requestGuestToken = useCallback(() => {
         mutationWrapper({
-            mutation: enterAsGuest,
+            mutation: guestLogIn,
             onSuccess: () => {
                 onSessionUpdate({ roles: [{ role: { title: ROLES.Guest } }] });
                 history.push(APP_LINKS.Home);
             },
         })
-    }, [enterAsGuest, history, onSessionUpdate]);
+    }, [guestLogIn, history, onSessionUpdate]);
 
     return (
         <div className={classes.root}>
@@ -158,7 +158,7 @@ export const StartPage = ({
                     <Button
                         className={classes.option}
                         fullWidth
-                        onClick={guestLogin}
+                        onClick={requestGuestToken}
                     >Enter As Guest</Button>
                 </Grid>
             </Grid>

@@ -8,6 +8,7 @@ import * as Feedback from './feedback';
 import * as Node from './node';
 import * as Organization from './organization';
 import * as Project from './project';
+import * as Report from './report';
 import * as Resource from './resource';
 import * as Role from './role';
 import * as Routine from './routine';
@@ -17,7 +18,7 @@ import * as User from './user';
 
 const models = [
     Root, Auth, Comment, Email, Feedback, Node,
-    Organization, Project, Resource, Role,
+    Organization, Project, Report, Resource, Role,
     Routine, Standard, Tag, User
 ]
 

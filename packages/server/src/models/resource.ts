@@ -1,6 +1,6 @@
 import { PrismaSelect } from "@paljs/plugins";
 import { Resource, ResourceInput } from "schema/types";
-import { deleter, findByIder, MODEL_TYPES, reporter } from "./base";
+import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter } from "./base";
 
 // Maps routine apply types to the correct prisma join tables
 const applyMap = {
@@ -11,6 +11,14 @@ const applyMap = {
     ROUTINE_EXTERNAL: 'routineResourcesExternal',
     USER: 'userResources'
 }
+
+/**
+ * Component for formatting between graphql and prisma types
+ */
+ const formatter = (): FormatConverter<any, any>  => ({
+    toDB: (obj: any): any => ({ ...obj}),
+    toGraphQL: (obj: any): any => ({ ...obj })
+})
 
 /**
  * Custom compositional component for creating resources
@@ -65,17 +73,19 @@ const updater = (state: any) => ({
 
 
 export function ResourceModel(prisma: any) {
-    let obj = {
+    let obj: BaseState<Resource> = {
         prisma,
-        model: MODEL_TYPES.Resource
+        model: MODEL_TYPES.Resource,
+        format: formatter(),
     }
 
     return {
         ...obj,
         ...findByIder<Resource>(obj),
+        ...formatter(),
         ...creater(obj),
         ...updater(obj),
         ...deleter(obj),
-        ...reporter(obj)
+        ...reporter()
     }
 }

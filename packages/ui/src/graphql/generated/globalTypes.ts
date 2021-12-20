@@ -14,7 +14,7 @@ export enum AccountStatus {
   UNLOCKED = "UNLOCKED",
 }
 
-export interface CompleteValidateWalletInput {
+export interface WalletCompleteInput {
   publicAddress: string;
   signedMessage: string;
 }
@@ -32,18 +32,18 @@ export interface EmailInput {
   userId?: string | null;
 }
 
-export interface InitValidateWalletInput {
+export interface WalletInitInput {
   publicAddress: string;
   nonceDescription?: string | null;
 }
 
-export interface LogInInput {
+export interface EmailLogInInput {
   email?: string | null;
   password?: string | null;
   verificationCode?: string | null;
 }
 
-export interface RequestPasswordChangeInput {
+export interface EmailRequestPasswordChangeInput {
   email: string;
 }
 
@@ -53,7 +53,7 @@ export interface ResetPasswordInput {
   newPassword: string;
 }
 
-export interface SignUpInput {
+export interface EmailSignUpInput {
   username: string;
   pronouns?: string | null;
   email: string;

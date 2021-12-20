@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
-import { IWrap } from '../types';
+import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteManyInput, FindByIdInput, ReportInput, Standard, StandardInput, StandardsQueryInput } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
@@ -64,10 +64,10 @@ export const typeDef = gql`
 export const resolvers = {
     StandardType: StandardType,
     Query: {
-        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Standard | null> => {
+        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
             return await StandardModel(prisma).findById(input, info);
         },
-        standards: async (_parent: undefined, { input }: IWrap<StandardsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Standard[]> => {
+        standards: async (_parent: undefined, { input }: IWrap<StandardsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
         standardsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
@@ -79,7 +79,7 @@ export const resolvers = {
          * Add a new standard
          * @returns Standard object if successful
          */
-        addStandard: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Standard> => {
+        addStandard: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add more restrictions
@@ -89,7 +89,7 @@ export const resolvers = {
          * Update standards you've created
          * @returns 
          */
-        updateStandard: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Standard> => {
+        updateStandard: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await StandardModel(prisma).update(input, info);

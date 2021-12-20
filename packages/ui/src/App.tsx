@@ -16,10 +16,9 @@ import StyledEngineProvider from '@material-ui/core/StyledEngineProvider';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { DndProvider } from 'react-dnd';
 import { useMutation } from '@apollo/client';
-import { logInMutation } from 'graphql/mutation';
+import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session, UserRoles } from 'types';
-import { logIn } from 'graphql/generated/logIn';
 import hotkeys from 'hotkeys-js';
 import { useLocation } from 'react-router';
 
@@ -71,7 +70,7 @@ export function App() {
     const [roles, setRoles] = useState<UserRoles>(null);
     const [loading, setLoading] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [logIn] = useMutation<logIn>(logInMutation);
+    const [validateSession] = useMutation<any>(validateSessionMutation);
 
     // If anchor tag in url, scroll to element
     useEffect(() => {
@@ -117,23 +116,23 @@ export function App() {
         setRoles(session?.roles ?? null);
     }, [session])
 
-    const checkLogin = useCallback((session?: any) => {
+    const checkSession = useCallback((session?: any) => {
         if (session) {
             setSession(session);
             return;
         }
         // Check if previous log in exists
-        logIn().then((response) => {
-            setSession(response?.data?.logIn as Session);
+        validateSession().then((response) => {
+            setSession(response?.data?.validateSession as Session);
         }).catch((response) => {
-            if (process.env.NODE_ENV === 'development') console.error('Error: cannot log in', response);
+            if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
             // If not logged in as guest and failed to log in as user, set empty object
             if (!session) setSession({})
         })
-    }, [logIn])
+    }, [validateSession])
 
     useEffect(() => {
-        checkLogin();
+        checkSession();
         // Handle loading spinner, which can have a delay
         let loadingSub = PubSub.subscribe(PUBS.Loading, (_, data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -148,7 +147,7 @@ export function App() {
             PubSub.unsubscribe(loadingSub);
             PubSub.unsubscribe(themeSub);
         })
-    }, [checkLogin])
+    }, [checkSession])
 
     return (
         <StyledEngineProvider injectFirst>
@@ -174,7 +173,7 @@ export function App() {
                                 <Snack />
                                 <Routes
                                     sessionChecked={Boolean(session)}
-                                    onSessionUpdate={checkLogin}
+                                    onSessionUpdate={checkSession}
                                     userRoles={roles}
                                 />
                             </div>

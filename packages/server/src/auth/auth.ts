@@ -3,20 +3,13 @@ import { Request, Response, NextFunction } from 'express';
 import { CODE, COOKIE, ROLES } from '@local/shared';
 import { CustomError } from '../error';
 import pkg from '@prisma/client';
+import { Session, Role } from 'schema/types';
+import { RecursivePartial } from '../types';
+import { RoleFields } from 'models';
 const { PrismaClient } = pkg;
 
 const prisma = new PrismaClient();
 const SESSION_MILLI = 30*86400*1000;
-
-// Return array of user roles (ex: ['actor'])
-const findUserRoles = async(userId: string): Promise<string[]> => {
-    // Query user's roles
-    const user = await prisma.user.findUnique({ 
-        where: { id: userId },
-        select: { roles: { select: { role: { select: { title: true } } } } }
-    });
-    return user?.roles?.map((r: any) => r.role.title.toLowerCase()) || [];
-}
 
 // Verifies if a user is authenticated, using an http cookie
 export async function authenticate(req: Request, _: Response, next: NextFunction) {
@@ -53,7 +46,7 @@ interface BasicToken {
 }
 interface SessionToken extends BasicToken {
     userId?: string;
-    roles?: string[];
+    roles: RecursivePartial<RoleFields>[];
     isLoggedIn: boolean;
 }
 
@@ -74,39 +67,12 @@ const basicToken = (): BasicToken => ({
  * @param userId 
  * @returns 
  */
-export async function generateUserToken(res: Response, userId: any): Promise<undefined> {
-    const userRoles = await findUserRoles(userId);
+export async function generateSessionToken(res: Response, session: RecursivePartial<Session>): Promise<undefined> {
     const tokenContents: SessionToken = {
         ...basicToken(),
-        userId: userId,
-        roles: userRoles,
-        isLoggedIn: userRoles.includes(ROLES.Actor),
-    }
-    if (!process.env.JWT_SECRET) {
-        console.error('❗️ JWT_SECRET not set! Please check .env file');
-        return;
-    }
-    const token = jwt.sign(tokenContents, process.env.JWT_SECRET);
-    res.cookie(COOKIE.Session, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: SESSION_MILLI
-    });
-}
-
-/**
- * Generates a JSON Web Token (JWT) for guest authentication.
- * The token is added to the "res" object as a cookie.
- * @param res 
- * @param userId 
- * @returns 
- */
- export async function generateGuestToken(res: Response): Promise<undefined> {
-    const tokenContents: SessionToken = {
-        ...basicToken(),
-        userId: undefined,
-        roles: undefined,
-        isLoggedIn: false,
+        userId: session.id || undefined,
+        roles: session.roles as RoleFields[] || [],
+        isLoggedIn: Array.isArray(session.roles) ? session.roles.some(r => r?.title === ROLES.Actor) : false,
     }
     if (!process.env.JWT_SECRET) {
         console.error('❗️ JWT_SECRET not set! Please check .env file');

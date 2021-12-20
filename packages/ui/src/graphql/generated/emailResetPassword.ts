@@ -9,29 +9,29 @@ import { ResetPasswordInput, AccountStatus } from "./globalTypes";
 // GraphQL mutation operation: resetPassword
 // ====================================================
 
-export interface resetPassword_resetPassword_roles_role {
+export interface emailResetPassword_resetPassword_roles_role {
   __typename: "Role";
   title: string;
   description: string | null;
 }
 
-export interface resetPassword_resetPassword_roles {
+export interface emailResetPassword_resetPassword_roles {
   __typename: "UserRole";
-  role: resetPassword_resetPassword_roles_role;
+  role: emailResetPassword_resetPassword_roles_role;
 }
 
-export interface resetPassword_resetPassword {
+export interface emailResetPassword_resetPassword {
   __typename: "User";
   id: string;
   status: AccountStatus;
   theme: string;
-  roles: resetPassword_resetPassword_roles[];
+  roles: emailResetPassword_resetPassword_roles[];
 }
 
-export interface resetPassword {
-  resetPassword: resetPassword_resetPassword;
+export interface emailResetPassword {
+  resetPassword: emailResetPassword_resetPassword;
 }
 
-export interface resetPasswordVariables {
+export interface emailResetPasswordVariables {
   input: ResetPasswordInput;
 }

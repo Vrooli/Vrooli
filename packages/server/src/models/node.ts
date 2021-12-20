@@ -1,5 +1,5 @@
 import { Node, NodeInput } from "schema/types";
-import { deleter, findByIder, MODEL_TYPES, updater } from "./base";
+import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, updater } from "./base";
 import pkg from '@prisma/client';
 import { PrismaSelect } from "@paljs/plugins";
 import { CustomError } from "../error";
@@ -8,6 +8,14 @@ import { onlyPrimitives } from "../utils";
 const { NodeType } = pkg;
 
 const MAX_NODES_IN_ROUTINE = 100;
+
+/**
+ * Component for formatting between graphql and prisma types
+ */
+ const formatter = (): FormatConverter<any, any>  => ({
+    toDB: (obj: any): any => ({ ...obj}),
+    toGraphQL: (obj: any): any => ({ ...obj })
+})
 
 
 /**
@@ -81,14 +89,16 @@ const MAX_NODES_IN_ROUTINE = 100;
 })
 
 export function NodeModel(prisma: any) {
-    let obj = {
+    let obj: BaseState<Node> = {
         prisma,
-        model: MODEL_TYPES.Node
+        model: MODEL_TYPES.Node,
+        format: formatter(),
     }
     
     return {
         ...obj,
         ...findByIder<Node>(obj),
+        ...formatter(),
         ...creater(obj),
         ...updater<NodeInput, Node>(obj),
         ...deleter(obj)

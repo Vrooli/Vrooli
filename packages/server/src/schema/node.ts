@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { NodeModel } from '../models';
-import { IWrap } from 'types';
+import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, Node, NodeInput } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
@@ -187,7 +187,7 @@ export const resolvers = {
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await NodeModel(prisma).create(input, info);
         },
-        updateNode: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Node> => {
+        updateNode: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await NodeModel(prisma).update(input, info);

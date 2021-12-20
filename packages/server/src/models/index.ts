@@ -5,6 +5,7 @@ export * from './node';
 export * from './organization';
 export * from './project';
 export * from './resource';
+export * from './role';
 export * from './routine';
 export * from './standard';
 export * from './tag';

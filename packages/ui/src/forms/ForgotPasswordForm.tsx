@@ -1,6 +1,6 @@
-import { requestPasswordChangeMutation } from 'graphql/mutation';
+import { emailRequestPasswordChangeMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { requestPasswordChangeSchema } from '@local/shared';
+import { emailRequestPasswordChangeSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -15,7 +15,7 @@ import { FORMS } from 'utils';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useHistory } from 'react-router-dom';
 import { formStyles } from './styles';
-import { requestPasswordChange } from 'graphql/generated/requestPasswordChange';
+import { emailRequestPasswordChange } from 'graphql/generated/emailRequestPasswordChange';
 import { FormProps } from 'forms';
 
 const useStyles = makeStyles(formStyles);
@@ -25,18 +25,18 @@ export const ForgotPasswordForm = ({
 }: FormProps) => {
     const classes = useStyles();
     const history = useHistory();
-    const [requestPasswordChange, {loading}] = useMutation<requestPasswordChange>(requestPasswordChangeMutation);
+    const [emailRequestPasswordChange, {loading}] = useMutation<emailRequestPasswordChange>(emailRequestPasswordChangeMutation);
 
     const formik = useFormik({
         initialValues: {
             email: ''
         },
-        validationSchema: requestPasswordChangeSchema,
+        validationSchema: emailRequestPasswordChangeSchema,
         onSubmit: (values) => {
             mutationWrapper({
-                mutation: requestPasswordChange,
+                mutation: emailRequestPasswordChange,
                 input: { values },
-                successCondition: (response) => response.data.requestPasswordChange,
+                successCondition: (response) => response.data.emailRequestPasswordChange,
                 onSuccess: () => history.push(APP_LINKS.Home),
                 successMessage: () => 'Request sent. Please check email.',
             })

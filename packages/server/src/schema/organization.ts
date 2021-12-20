@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { IWrap } from 'types';
+import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, FindByIdInput, Organization, OrganizationInput, OrganizationsQueryInput, ReportInput } from './types';
 import { Context } from '../context';
 import { OrganizationModel } from '../models';
@@ -47,10 +47,10 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Organization | null> => {
+        organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
             return await OrganizationModel(prisma).findById(input, info);
         },
-        organizations: async (_parent: undefined, { input }: IWrap<OrganizationsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Organization[]> => {
+        organizations: async (_parent: undefined, { input }: IWrap<OrganizationsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
         organizationsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
@@ -58,13 +58,13 @@ export const resolvers = {
         },
     },
     Mutation: {
-        addOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Organization> => {
+        addOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions
             return await OrganizationModel(prisma).create(input, info);
         },
-        updateOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Organization> => {
+        updateOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO must be updating your own

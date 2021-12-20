@@ -1,6 +1,6 @@
-import { resetPasswordMutation } from 'graphql/mutation';
+import { emailResetPasswordMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { resetPasswordSchema } from '@local/shared';
+import { emailResetPasswordSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -13,7 +13,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useParams } from 'react-router-dom';
 import { formStyles } from './styles';
 import { useHistory } from 'react-router';
-import { resetPassword } from 'graphql/generated/resetPassword';
+import { emailResetPassword } from 'graphql/generated/emailResetPassword';
 import { FormProps } from 'forms';
 
 const useStyles = makeStyles(formStyles);
@@ -24,19 +24,19 @@ export const ResetPasswordForm = ({
     const classes = useStyles();
     const history = useHistory();
     const urlParams = useParams<{id?: string; code?: string}>();
-    const [resetPassword, {loading}] = useMutation<resetPassword>(resetPasswordMutation);
+    const [emailResetPassword, {loading}] = useMutation<emailResetPassword>(emailResetPasswordMutation);
 
     const formik = useFormik({
         initialValues: {
             newPassword: '',
             confirmNewPassword: '',
         },
-        validationSchema: resetPasswordSchema,
+        validationSchema: emailResetPasswordSchema,
         onSubmit: (values) => {
             mutationWrapper({
-                mutation: resetPassword,
+                mutation: emailResetPassword,
                 input: { id: urlParams.id, code: urlParams.code, newPassword: values.newPassword },
-                onSuccess: (response) => { onSessionUpdate(response.data.resetPassword); history.push(APP_LINKS.Home) },
+                onSuccess: (response) => { onSessionUpdate(response.data.emailResetPassword); history.push(APP_LINKS.Home) },
                 successMessage: () => 'Password reset.',
             })
         },

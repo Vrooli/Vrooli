@@ -117,17 +117,17 @@ type Mutation {
   deleteTags(input: DeleteManyInput!): Count!
   reportTag(input: ReportInput!): Boolean!
   voteTag(input: TagVoteInput!): Boolean!
-  logIn(input: LogInInput!): User!
+  emailLogIn(input: EmailLogInInput!): User!
   logOut: Boolean
-  signUp(input: SignUpInput!): User!
+  emailSignUp(input: EmailSignUpInput!): User!
   updateUser(input: UpdateUserInput!): User!
   deleteUser(input: DeleteUserInput!): Boolean
-  requestPasswordChange(input: RequestPasswordChangeInput!): Boolean
-  resetPassword(input: ResetPasswordInput!): User!
+  emailRequestPasswordChange(input: EmailRequestPasswordChangeInput!): Boolean
+  emailResetPassword(input: EmailResetPasswordInput!): User!
   reportUser(input: ReportInput!): Boolean!
   exportData: String!
-  initValidateWallet(input: InitValidateWalletInput!): String!
-  completeValidateWallet(input: CompleteValidateWalletInput!): Boolean!
+  walletInit(input: WalletInitInput!): String!
+  walletComplete(input: WalletCompleteInput!): Boolean!
   removeWallet(input: DeleteOneInput!): Boolean!
 }
 
@@ -565,13 +565,13 @@ type User {
   roles: [UserRole!]!
 }
 
-input LogInInput {
+input EmailLogInInput {
   email: String
   password: String
   verificationCode: String
 }
 
-input SignUpInput {
+input EmailSignUpInput {
   username: String!
   pronouns: String
   email: String!
@@ -591,11 +591,11 @@ input DeleteUserInput {
   password: String
 }
 
-input RequestPasswordChangeInput {
+input EmailRequestPasswordChangeInput {
   email: String!
 }
 
-input ResetPasswordInput {
+input EmailResetPasswordInput {
   id: ID!
   code: String!
   newPassword: String!
@@ -609,12 +609,12 @@ type Wallet {
   organization: Organization
 }
 
-input InitValidateWalletInput {
+input WalletInitInput {
   publicAddress: String!
   nonceDescription: String
 }
 
-input CompleteValidateWalletInput {
+input WalletCompleteInput {
   publicAddress: String!
   signedMessage: String!
 }

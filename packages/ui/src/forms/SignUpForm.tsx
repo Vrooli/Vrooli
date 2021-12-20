@@ -1,6 +1,6 @@
-import { signUpMutation } from 'graphql/mutation';
+import { emailSignUpMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { BUSINESS_NAME, CODE, signUpSchema } from '@local/shared';
+import { BUSINESS_NAME, CODE, emailSignUpSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -19,7 +19,7 @@ import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useHistory } from 'react-router-dom';
 import { formStyles } from './styles';
-import { signUp } from 'graphql/generated/signUp';
+import { emailSignUp } from 'graphql/generated/emailSignUp';
 import { FormProps } from 'forms';
 
 const componentStyles = () => ({
@@ -37,7 +37,7 @@ export const SignUpForm = ({
     const classes = useStyles();
     const theme = useTheme();
     const history = useHistory();
-    const [signUp, { loading }] = useMutation<signUp>(signUpMutation);
+    const [emailSignUp, { loading }] = useMutation<emailSignUp>(emailSignUpMutation);
 
     const formik = useFormik({
         initialValues: {
@@ -47,17 +47,17 @@ export const SignUpForm = ({
             password: '',
             confirmPassword: ''
         },
-        validationSchema: signUpSchema,
+        validationSchema: emailSignUpSchema,
         onSubmit: (values) => {
             mutationWrapper({
-                mutation: signUp,
+                mutation: emailSignUp,
                 input: {
                     ...values, 
                     marketingEmails: Boolean(values.marketingEmails),
                     theme: theme.palette.mode ?? 'light',
                 },
                 onSuccess: (response) => {
-                    onSessionUpdate(response.data.signUp);
+                    onSessionUpdate(response.data.emailSignUp);
                     PubSub.publish(PUBS.AlertDialog, {
                         message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
                         buttons: [ { text: 'OK', onClick: () => history.push(APP_LINKS.Profile) } ]

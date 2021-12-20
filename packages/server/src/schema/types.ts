@@ -44,11 +44,6 @@ export type CommentInput = {
   text?: InputMaybe<Scalars['String']>;
 };
 
-export type CompleteValidateWalletInput = {
-  publicAddress: Scalars['String'];
-  signedMessage: Scalars['String'];
-};
-
 export type Count = {
   __typename?: 'Count';
   count?: Maybe<Scalars['Int']>;
@@ -86,6 +81,31 @@ export type EmailInput = {
   userId?: InputMaybe<Scalars['ID']>;
 };
 
+export type EmailLogInInput = {
+  email?: InputMaybe<Scalars['String']>;
+  password?: InputMaybe<Scalars['String']>;
+  verificationCode?: InputMaybe<Scalars['String']>;
+};
+
+export type EmailRequestPasswordChangeInput = {
+  email: Scalars['String'];
+};
+
+export type EmailResetPasswordInput = {
+  code: Scalars['String'];
+  id: Scalars['ID'];
+  newPassword: Scalars['String'];
+};
+
+export type EmailSignUpInput = {
+  email: Scalars['String'];
+  marketingEmails: Scalars['Boolean'];
+  password: Scalars['String'];
+  pronouns?: InputMaybe<Scalars['String']>;
+  theme: Scalars['String'];
+  username: Scalars['String'];
+};
+
 export type FeedbackInput = {
   text: Scalars['String'];
   userId?: InputMaybe<Scalars['ID']>;
@@ -93,17 +113,6 @@ export type FeedbackInput = {
 
 export type FindByIdInput = {
   id: Scalars['ID'];
-};
-
-export type InitValidateWalletInput = {
-  nonceDescription?: InputMaybe<Scalars['String']>;
-  publicAddress: Scalars['String'];
-};
-
-export type LogInInput = {
-  email?: InputMaybe<Scalars['String']>;
-  password?: InputMaybe<Scalars['String']>;
-  verificationCode?: InputMaybe<Scalars['String']>;
 };
 
 export type Mutation = {
@@ -118,7 +127,6 @@ export type Mutation = {
   addRoutine: Routine;
   addStandard: Standard;
   addTag: Tag;
-  completeValidateWallet: Scalars['Boolean'];
   deleteComment: Scalars['Boolean'];
   deleteEmails: Count;
   deleteNode: Scalars['Boolean'];
@@ -129,11 +137,13 @@ export type Mutation = {
   deleteStandards: Count;
   deleteTags: Count;
   deleteUser?: Maybe<Scalars['Boolean']>;
+  emailLogIn: Session;
+  emailRequestPasswordChange: Scalars['Boolean'];
+  emailResetPassword: Session;
+  emailSignUp: Session;
   exportData: Scalars['String'];
-  initValidateWallet: Scalars['String'];
-  logIn: User;
-  logOut?: Maybe<Scalars['Boolean']>;
-  removeWallet: Scalars['Boolean'];
+  guestLogIn: Session;
+  logOut: Scalars['Boolean'];
   reportComment: Scalars['Boolean'];
   reportOrganization: Scalars['Boolean'];
   reportProject: Scalars['Boolean'];
@@ -142,9 +152,6 @@ export type Mutation = {
   reportStandard: Scalars['Boolean'];
   reportTag: Scalars['Boolean'];
   reportUser: Scalars['Boolean'];
-  requestPasswordChange?: Maybe<Scalars['Boolean']>;
-  resetPassword: User;
-  signUp: User;
   updateComment: Email;
   updateEmail: Email;
   updateNode: Node;
@@ -155,8 +162,12 @@ export type Mutation = {
   updateStandard: Standard;
   updateTag: Tag;
   updateUser: User;
+  validateSession: Scalars['Boolean'];
   voteComment: Scalars['Boolean'];
   voteTag: Scalars['Boolean'];
+  walletComplete: Session;
+  walletInit: Wallet;
+  walletRemove: Scalars['Boolean'];
   writeAssets?: Maybe<Scalars['Boolean']>;
 };
 
@@ -211,11 +222,6 @@ export type MutationAddTagArgs = {
 };
 
 
-export type MutationCompleteValidateWalletArgs = {
-  input: CompleteValidateWalletInput;
-};
-
-
 export type MutationDeleteCommentArgs = {
   input: DeleteOneInput;
 };
@@ -266,18 +272,23 @@ export type MutationDeleteUserArgs = {
 };
 
 
-export type MutationInitValidateWalletArgs = {
-  input: InitValidateWalletInput;
+export type MutationEmailLogInArgs = {
+  input: EmailLogInInput;
 };
 
 
-export type MutationLogInArgs = {
-  input?: InputMaybe<LogInInput>;
+export type MutationEmailRequestPasswordChangeArgs = {
+  input: EmailRequestPasswordChangeInput;
 };
 
 
-export type MutationRemoveWalletArgs = {
-  input: DeleteOneInput;
+export type MutationEmailResetPasswordArgs = {
+  input: EmailResetPasswordInput;
+};
+
+
+export type MutationEmailSignUpArgs = {
+  input: EmailSignUpInput;
 };
 
 
@@ -318,21 +329,6 @@ export type MutationReportTagArgs = {
 
 export type MutationReportUserArgs = {
   input: ReportInput;
-};
-
-
-export type MutationRequestPasswordChangeArgs = {
-  input: RequestPasswordChangeInput;
-};
-
-
-export type MutationResetPasswordArgs = {
-  input: ResetPasswordInput;
-};
-
-
-export type MutationSignUpArgs = {
-  input: SignUpInput;
 };
 
 
@@ -396,8 +392,23 @@ export type MutationVoteTagArgs = {
 };
 
 
+export type MutationWalletCompleteArgs = {
+  input: WalletCompleteInput;
+};
+
+
+export type MutationWalletInitArgs = {
+  input: WalletInitInput;
+};
+
+
+export type MutationWalletRemoveArgs = {
+  input: DeleteOneInput;
+};
+
+
 export type MutationWriteAssetsArgs = {
-  files: Array<Scalars['Upload']>;
+  input: WriteAssetsInput;
 };
 
 export type Node = {
@@ -674,12 +685,12 @@ export type QueryProjectsArgs = {
 
 
 export type QueryReadAssetsArgs = {
-  files: Array<Scalars['String']>;
+  input: ReadAssetsInput;
 };
 
 
 export type QueryReadOpenGraphArgs = {
-  url: Scalars['String'];
+  input: ReadOpenGraphInput;
 };
 
 
@@ -722,19 +733,27 @@ export type QueryTagsArgs = {
   input: TagsQueryInput;
 };
 
+export type ReadAssetsInput = {
+  files: Array<Scalars['String']>;
+};
+
+export type ReadOpenGraphInput = {
+  url: Scalars['String'];
+};
+
+export type Report = {
+  __typename?: 'Report';
+  created_at: Scalars['Date'];
+  details?: Maybe<Scalars['String']>;
+  from: User;
+  fromId: Scalars['ID'];
+  id: Scalars['ID'];
+  reason: Scalars['String'];
+};
+
 export type ReportInput = {
   id: Scalars['ID'];
   reason?: InputMaybe<Scalars['String']>;
-};
-
-export type RequestPasswordChangeInput = {
-  email: Scalars['String'];
-};
-
-export type ResetPasswordInput = {
-  code: Scalars['String'];
-  id: Scalars['ID'];
-  newPassword: Scalars['String'];
 };
 
 export type Resource = {
@@ -824,13 +843,11 @@ export type RoutinesQueryInput = {
   skip?: InputMaybe<Scalars['Int']>;
 };
 
-export type SignUpInput = {
-  email: Scalars['String'];
-  marketingEmails: Scalars['Boolean'];
-  password: Scalars['String'];
-  pronouns?: InputMaybe<Scalars['String']>;
+export type Session = {
+  __typename?: 'Session';
+  id?: Maybe<Scalars['ID']>;
+  roles: Array<Role>;
   theme: Scalars['String'];
-  username: Scalars['String'];
 };
 
 export type Standard = {
@@ -900,14 +917,30 @@ export type UpdateUserInput = {
 
 export type User = {
   __typename?: 'User';
+  comments: Array<Comment>;
   emailVerified: Scalars['Boolean'];
   emails: Array<Email>;
   id: Scalars['ID'];
+  projects: Array<Project>;
   pronouns: Scalars['String'];
-  roles: Array<UserRole>;
+  reports: Array<Report>;
+  resources: Array<Resource>;
+  roles: Array<Role>;
+  sentReports: Array<Report>;
+  starredComments: Array<Comment>;
+  starredOrganizations: Array<Organization>;
+  starredProjects: Array<Project>;
+  starredResources: Array<Resource>;
+  starredRoutines: Array<Routine>;
+  starredStandards: Array<Standard>;
+  starredTags: Array<Tag>;
+  starredUsers: Array<User>;
   status: AccountStatus;
   theme: Scalars['String'];
   username?: Maybe<Scalars['String']>;
+  votedByTag: Array<Tag>;
+  votedComments: Array<Comment>;
+  wallets: Array<Wallet>;
 };
 
 export type UserInput = {
@@ -937,4 +970,18 @@ export type Wallet = {
   publicAddress: Scalars['String'];
   user?: Maybe<User>;
   verified: Scalars['Boolean'];
+};
+
+export type WalletCompleteInput = {
+  publicAddress: Scalars['String'];
+  signedMessage: Scalars['String'];
+};
+
+export type WalletInitInput = {
+  nonceDescription?: InputMaybe<Scalars['String']>;
+  publicAddress: Scalars['String'];
+};
+
+export type WriteAssetsInput = {
+  files: Array<Scalars['Upload']>;
 };

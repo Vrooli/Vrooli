@@ -1,10 +1,10 @@
 import { gql } from 'graphql-tag';
 import { userSessionFields } from 'graphql/fragment';
 
-export const signUpMutation = gql`
+export const emailSignUpMutation = gql`
     ${userSessionFields}
-    mutation signUp($input: SignUpInput!) {
-    signUp(input: $input) {
+    mutation emailSignUp($input: EmailSignUpInput!) {
+    emailSignUp(input: $input) {
         ...userSessionFields
     }
 }

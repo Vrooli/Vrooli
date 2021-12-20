@@ -3,7 +3,7 @@ import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { UserModel } from '../models';
 import { DeleteUserInput, ReportInput, UpdateUserInput, User } from './types';
-import { IWrap } from '../types';
+import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -22,11 +22,27 @@ export const typeDef = gql`
         id: ID!
         username: String
         pronouns: String!
-        emails: [Email!]!
         theme: String!
         emailVerified: Boolean!
         status: AccountStatus!
-        roles: [UserRole!]!
+        comments: [Comment!]!
+        roles: [Role!]!
+        emails: [Email!]!
+        wallets: [Wallet!]!
+        resources: [Resource!]!
+        projects: [Project!]!
+        starredComments: [Comment!]!
+        starredProjects: [Project!]!
+        starredOrganizations: [Organization!]!
+        starredResources: [Resource!]!
+        starredRoutines: [Routine!]!
+        starredStandards: [Standard!]!
+        starredTags: [Tag!]!
+        starredUsers: [User!]!
+        sentReports: [Report!]!
+        reports: [Report!]!
+        votedComments: [Comment!]!
+        votedByTag: [Tag!]!
     }
 
     input UpdateUserInput {
@@ -54,13 +70,13 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<User | null> => {
+        profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
             // TODO add restrictions to what data can be queried
             return await UserModel(prisma).findById({ id: req.userId ?? '' }, info);
         }
     },
     Mutation: {
-        updateUser: async (_parent: undefined, { input }: IWrap<UpdateUserInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<User> => {
+        updateUser: async (_parent: undefined, { input }: IWrap<UpdateUserInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User>> => {
             // Must be updating your own
             if (req.userId !== input.data.id) throw new CustomError(CODE.Unauthorized);
             // Check for correct password

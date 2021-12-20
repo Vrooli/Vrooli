@@ -3,12 +3,12 @@
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
 import { gql } from 'apollo-server-express';
-import { CODE, COOKIE, logInSchema, passwordSchema, requestPasswordChangeSchema, ROLES, signUpSchema } from '@local/shared';
+import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES } from '@local/shared';
 import { CustomError, validateArgs } from '../error';
 import { generateNonce, verifySignedMessage } from '../auth/walletAuth';
-import { generateGuestToken, generateUserToken } from '../auth/auth.js';
-import { IWrap } from '../types';
-import { CompleteValidateWalletInput, DeleteOneInput, InitValidateWalletInput, LogInInput, RequestPasswordChangeInput, ResetPasswordInput, SignUpInput, User } from './types';
+import { generateSessionToken } from '../auth/auth.js';
+import { IWrap, RecursivePartial } from '../types';
+import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, User, WalletInitInput, Session, Role } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
 import { UserModel } from '../models';
@@ -25,23 +25,13 @@ export const typeDef = gql`
         HARD_LOCKED
     }
 
-    input InitValidateWalletInput {
-        publicAddress: String!
-        nonceDescription: String
-    }
-
-    input CompleteValidateWalletInput {
-        publicAddress: String!
-        signedMessage: String!
-    }
-
-    input LogInInput {
+    input EmailLogInInput {
         email: String
         password: String
         verificationCode: String
     }
 
-    input SignUpInput {
+    input EmailSignUpInput {
         username: String!
         pronouns: String
         email: String!
@@ -50,14 +40,30 @@ export const typeDef = gql`
         password: String!
     }
 
-    input RequestPasswordChangeInput {
+    input EmailRequestPasswordChangeInput {
         email: String!
     }
 
-    input ResetPasswordInput {
+    input EmailResetPasswordInput {
         id: ID!
         code: String!
         newPassword: String!
+    }
+
+    input WalletInitInput {
+        publicAddress: String!
+        nonceDescription: String
+    }
+
+    input WalletCompleteInput {
+        publicAddress: String!
+        signedMessage: String!
+    }
+
+    type Session {
+        id: ID
+        roles: [Role!]!
+        theme: String!
     }
 
     type Wallet {
@@ -69,65 +75,157 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        completeValidateWallet(input: CompleteValidateWalletInput!): Boolean!
-        initValidateWallet(input: InitValidateWalletInput!): String!
-        enterAsGuest: Boolean!
-        logIn(input: LogInInput): User!
-        logOut: Boolean
-        removeWallet(input: DeleteOneInput!): Boolean!
-        requestPasswordChange(input: RequestPasswordChangeInput!): Boolean
-        resetPassword(input: ResetPasswordInput!): User!
-        signUp(input: SignUpInput!): User!
+        emailLogIn(input: EmailLogInInput!): Session!
+        emailSignUp(input: EmailSignUpInput!): Session!
+        emailRequestPasswordChange(input: EmailRequestPasswordChangeInput!): Boolean!
+        emailResetPassword(input: EmailResetPasswordInput!): Session!
+        guestLogIn: Session!
+        logOut: Boolean!
+        validateSession: Boolean!
+        walletInit(input: WalletInitInput!): Wallet!
+        walletComplete(input: WalletCompleteInput!): Session!
+        walletRemove(input: DeleteOneInput!): Boolean!
     }
 `
 
 export const resolvers = {
     AccountStatus: AccountStatus,
     Mutation: {
-        // Verify that signed message from user wallet has been signed by the correct public address
-        completeValidateWallet: async (_parent: undefined, { input }: IWrap<CompleteValidateWalletInput>, { prisma, res }: any, _info: GraphQLResolveInfo): Promise<boolean> => {
-            // Find wallet with public address
-            const walletData = await prisma.wallet.findUnique({
-                where: { publicAddress: input.publicAddress },
-                select: {
-                    id: true,
-                    nonce: true,
-                    nonceCreationTime: true,
-                    userId: true,
-                }
+        emailLogIn: async (_parent: undefined, { input }: IWrap<EmailLogInInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Session> => {
+            // Validate arguments with schema
+            const validateError = await validateArgs(emailLogInSchema, input);
+            if (validateError) throw validateError;
+            // Get user
+            let user = await UserModel(prisma).findByEmail(input?.email as string);
+            // Check for password in database, if doesn't exist, send a password reset link
+            if (!Boolean(user.password)) {
+                await UserModel(prisma).setupPasswordReset(user);
+                throw new CustomError(CODE.MustResetPassword);
+            }
+            // Validate verification code, if supplied
+            if (Boolean(input?.verificationCode)) {
+                user = await UserModel(prisma).validateVerificationCode(user, input?.verificationCode as string);
+            }
+            const session = await UserModel(prisma).logIn(input?.password as string, user);
+            if (session) {
+                // Set session token
+                await generateSessionToken(res, session);
+                return session;
+            } else {
+                throw new CustomError(CODE.BadCredentials);
+            }
+        },
+        emailSignUp: async (_parent: undefined, { input }: IWrap<EmailSignUpInput>, { prisma, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
+            // Validate input format
+            const validateError = await validateArgs(emailSignUpSchema, input);
+            if (validateError) throw validateError;
+            // Find user role to give to new user
+            const actorRole = await prisma.role.findUnique({ where: { title: ROLES.Actor } });
+            if (!actorRole) throw new CustomError(CODE.ErrorUnknown);
+            // Create user object
+            const user = await UserModel(prisma).upsertUser({
+                username: input.username,
+                password: UserModel(prisma).hashPassword(input.password),
+                theme: input.theme,
+                status: AccountStatus.UNLOCKED,
+                emails: [{ emailAddress: input.email }],
+                roles: [actorRole]
             });
-
-            // Verify wallet data
-            if (!walletData) throw new CustomError(CODE.InvalidArgs);
-            if (!walletData.userId) throw new CustomError(CODE.ErrorUnknown);
-            if (!walletData.nonce || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
-
-            // Verify that message was signed by wallet address
-            const walletVerified = verifySignedMessage(input.publicAddress, walletData.nonce, input.signedMessage);
-            if (!walletVerified) return false;
-
-            // Update wallet and remove nonce data
-            await prisma.wallet.update({
-                where: { id: walletData.id },
+            // Create session from user object
+            const session = UserModel(prisma).toSession(user);
+            // Set up session token
+            await generateSessionToken(res, session);
+            // Send verification email
+            await UserModel(prisma).setupVerificationCode(user);
+            // Return user data
+            return session;
+        },
+        emailRequestPasswordChange: async (_parent: undefined, { input }: IWrap<EmailRequestPasswordChangeInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
+            // Validate input format
+            const validateError = await validateArgs(emailRequestPasswordChangeSchema, input);
+            if (validateError) throw validateError;
+            // Find user in database
+            const user = await UserModel(prisma).findByEmail(input.email);
+            // Generate and send password reset code
+            return await UserModel(prisma).setupPasswordReset(user);
+        },
+        emailResetPassword: async (_parent: undefined, { input }: IWrap<EmailResetPasswordInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
+            // Validate input format
+            const validateError = await validateArgs(passwordSchema, input.newPassword);
+            if (validateError) throw validateError;
+            // Find user in database
+            const user = await UserModel(prisma).findById(
+                { id: input.id },
+                { select: {
+                    id: true,
+                    status: true,
+                    theme: true,
+                    resetPasswordCode: true,
+                    lastResetPasswordReqestAttempt: true,
+                    emails: { select: { emailAddress: true } },
+                    roles: { select: { role: { select: { title: true } } } } 
+                }}
+            );
+            if (!user) throw new CustomError(CODE.ErrorUnknown);
+            // // If code is invalid TODO fix this
+            // if (!UserModel(prisma).validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
+            //     // Generate and send new code
+            //     await UserModel(prisma).setupPasswordReset(user);
+            //     // Return error
+            //     throw new CustomError(CODE.InvalidResetCode);
+            // }
+            // Remove request data from user, and set new password
+            await prisma.user.update({
+                where: { id: user.id },
                 data: {
-                    verified: true,
-                    lastVerifiedTime: new Date().toISOString(),
-                    nonce: null,
-                    nonceCreationTime: null,
+                    resetPasswordCode: null,
+                    lastResetPasswordReqestAttempt: null,
+                    password: UserModel(prisma).hashPassword(input.newPassword)
                 }
             })
-            // Add session token to return payload
-            await generateUserToken(res, walletData.userId);
+            // Return session
+            return {
+                id: user.id,
+                theme: user.theme as string,
+                roles: user.roles as Role[],
+            }
+        },
+        guestLogIn: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
+            // Create session
+            const session: RecursivePartial<Session> = {
+                roles: [{ title: ROLES.Guest }],
+                theme: 'light',
+            }
+            // Set up session token
+            await generateSessionToken(res, session);
+            return session;
+        },
+        logOut: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
+            res.clearCookie(COOKIE.Session);
             return true;
         },
-        enterAsGuest: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
-            // Set up session token
-            await generateGuestToken(res);
-            return true;
+        validateSession: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Session> => {
+            // If session is expired
+            if (!Array.isArray(req.roles) || req.roles.length === 0) {
+                res.clearCookie(COOKIE.Session);
+                throw new CustomError(CODE.SessionExpired);
+            }
+            const userData = await UserModel(prisma).findById(
+                { id: req.userId ?? '' },
+                { select: { id: true, status: true, theme: true, roles: { select: { role: { select: { title: true } } } } } }
+            );
+            if (userData) return {
+                id: userData.id,
+                theme: userData.theme as string,
+                roles: userData.roles as Role[],
+            }
+            // If user data failed to fetch, clear session and return error
+            res.clearCookie(COOKIE.Session);
+            throw new CustomError(CODE.ErrorUnknown);
         },
         // Start handshake for establishing trust between backend and user wallet
         // Returns nonce
-        initValidateWallet: async (_parent: undefined, { input }: IWrap<InitValidateWalletInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<string> => {
+        walletInit: async (_parent: undefined, { input }: IWrap<WalletInitInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<string> => {
             let userData;
             // If not signed in, create new user row
             if (!req.userId) userData = await prisma.user.create({ data: {} });
@@ -174,121 +272,58 @@ export const resolvers = {
                 throw new CustomError(CODE.NotYourWallet);
             }
         },
-        logIn: async (_parent: undefined, { input }: IWrap<LogInInput | null>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<User> => {
-            // If email and password are not provided, attempt to log in using session cookie
-            if (!Boolean(input?.email) && !Boolean(input?.password)) {
-                // If session is expired
-                if (!Array.isArray(req.roles) || req.roles.length === 0) {
-                    res.clearCookie(COOKIE.Session);
-                    throw new CustomError(CODE.SessionExpired);
+        // Verify that signed message from user wallet has been signed by the correct public address
+        walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, res }: any, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
+            // Find wallet with public address
+            const walletData = await prisma.wallet.findUnique({
+                where: { publicAddress: input.publicAddress },
+                select: {
+                    id: true,
+                    nonce: true,
+                    nonceCreationTime: true,
+                    userId: true,
                 }
-                const userData = await UserModel(prisma).findById({ id: req.userId ?? '' }, info);
-                if (userData) return userData;
-                // If user data failed to fetch, clear session and return error
-                res.clearCookie(COOKIE.Session);
-                throw new CustomError(CODE.ErrorUnknown);
+            });
+
+            // Verify wallet data
+            if (!walletData) throw new CustomError(CODE.InvalidArgs);
+            if (!walletData.userId) throw new CustomError(CODE.ErrorUnknown);
+            if (!walletData.nonce || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
+
+            // Verify that message was signed by wallet address
+            const walletVerified = verifySignedMessage(input.publicAddress, walletData.nonce, input.signedMessage);
+            if (!walletVerified) return {
+                id: walletData.userId,
+                roles: [{ title: ROLES.Guest }],
+                theme: 'light',
+            };
+
+            // Update wallet and remove nonce data
+            await prisma.wallet.update({
+                where: { id: walletData.id },
+                data: {
+                    verified: true,
+                    lastVerifiedTime: new Date().toISOString(),
+                    nonce: null,
+                    nonceCreationTime: null,
+                }
+            })
+            // Create session token
+            const session = {
+                id: walletData.userId,
+                roles: [{ title: ROLES.Guest }],
+                theme: 'light',
             }
-            // Validate arguments with schema
-            const validateError = await validateArgs(logInSchema, input);
-            if (validateError) throw validateError;
-            // Get user
-            let user = await UserModel(prisma).findByEmail(input?.email as string);
-            // Check for password in database, if doesn't exist, send a password reset link
-            // TODO fix this. Can't have password in type, but need password returned
-            // if (!Boolean(user.password)) {
-            //     await UserModel(prisma).setupPasswordReset(user);
-            //     throw new CustomError(CODE.MustResetPassword);
-            // }
-            // Validate verification code, if supplied
-            if (Boolean(input?.verificationCode)) {
-                user = await UserModel(prisma).validateVerificationCode(user, input?.verificationCode as string);
-            }
-            user = await UserModel(prisma).logIn(input?.password as string, user, info);
-            if (Boolean(user)) {
-                // Set session token
-                await generateUserToken(res, user.id);
-                return user;
-            } else {
-                throw new CustomError(CODE.BadCredentials);
-            }
+            // Add session token to return payload
+            await generateSessionToken(res, session);
+            return session;
         },
-        logOut: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
-            res.clearCookie(COOKIE.Session);
-            return true;
-        },
-        removeWallet: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: any, _info: GraphQLResolveInfo): Promise<boolean> => {
+        walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: any, _info: GraphQLResolveInfo): Promise<boolean> => {
             // TODO Must deleting your own
             // TODO must keep at least one wallet per user
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
-        },
-        requestPasswordChange: async (_parent: undefined, { input }: IWrap<RequestPasswordChangeInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
-            // Validate input format
-            const validateError = await validateArgs(requestPasswordChangeSchema, input);
-            if (validateError) throw validateError;
-            // Find user in database
-            const user = await UserModel(prisma).findByEmail(input.email);
-            // Generate and send password reset code
-            return await UserModel(prisma).setupPasswordReset(user);
-        },
-        resetPassword: async (_parent: undefined, { input }: IWrap<ResetPasswordInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<User> => {
-            // Validate input format
-            const validateError = await validateArgs(passwordSchema, input.newPassword);
-            if (validateError) throw validateError;
-            // Find user in database
-            let user = await prisma.user.findUnique({
-                where: { id: input.id },
-                select: {
-                    id: true,
-                    status: true,
-                    resetPasswordCode: true,
-                    lastResetPasswordReqestAttempt: true,
-                    emails: { select: { emailAddress: true } }
-                }
-            });
-            if (!user) throw new CustomError(CODE.ErrorUnknown);
-            // If code is invalid
-            if (!UserModel(prisma).validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
-                // Generate and send new code
-                await UserModel(prisma).setupPasswordReset(user);
-                // Return error
-                throw new CustomError(CODE.InvalidResetCode);
-            }
-            // Remove request data from user, and set new password
-            await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    resetPasswordCode: null,
-                    lastResetPasswordReqestAttempt: null,
-                    password: UserModel(prisma).hashPassword(input.newPassword)
-                }
-            })
-            // Return user data
-            return await UserModel(prisma).findById({ id: user.id }, info) as User;
-        },
-        signUp: async (_parent: undefined, { input }: IWrap<SignUpInput>, { prisma, res }: Context, info: GraphQLResolveInfo): Promise<User> => {
-            // Validate input format
-            const validateError = await validateArgs(signUpSchema, input);
-            if (validateError) throw validateError;
-            // Find user role to give to new user
-            const actorRole = await prisma.role.findUnique({ where: { title: ROLES.Actor } });
-            if (!actorRole) throw new CustomError(CODE.ErrorUnknown);
-            // Create user object
-            const user = await UserModel(prisma).upsertUser({
-                username: input.username,
-                password: UserModel(prisma).hashPassword(input.password),
-                theme: input.theme,
-                status: AccountStatus.UNLOCKED,
-                emails: [{ emailAddress: input.email }],
-                roles: [actorRole]
-            }, info);
-            // Set up session token
-            await generateUserToken(res, user.id);
-            // Send verification email
-            await UserModel(prisma).setupVerificationCode(user);
-            // Return user data
-            return await UserModel(prisma).findById({ id: user.id }, info) as User;
         },
     }
 }

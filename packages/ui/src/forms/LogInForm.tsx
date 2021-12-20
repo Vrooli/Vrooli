@@ -1,7 +1,7 @@
 import { useHistory, useParams } from 'react-router-dom';
-import { logInMutation } from 'graphql/mutation';
+import { emailLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { CODE, logInSchema } from '@local/shared';
+import { CODE, emailLogInSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -16,7 +16,7 @@ import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { formStyles } from './styles';
-import { logIn } from 'graphql/generated/logIn';
+import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { FormProps } from 'forms';
 
 const useStyles = makeStyles(formStyles);
@@ -28,20 +28,20 @@ export const LogInForm = ({
     const classes = useStyles();
     const history = useHistory();
     const urlParams = useParams<{code?: string}>();
-    const [logIn, { loading }] = useMutation<logIn>(logInMutation);
+    const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
 
     const formik = useFormik({
         initialValues: {
             email: '',
             password: ''
         },
-        validationSchema: logInSchema,
+        validationSchema: emailLogInSchema,
         onSubmit: (values) => {
             mutationWrapper({
-                mutation: logIn,
+                mutation: emailLogIn,
                 input: { ...values, verificationCode: urlParams.code },
-                successCondition: (response) => response.data.logIn !== null,
-                onSuccess: (response) => { onSessionUpdate(response.data.logIn); history.push(APP_LINKS.Home) },
+                successCondition: (response) => response.data.emailLogIn !== null,
+                onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); history.push(APP_LINKS.Home) },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(PUBS.AlertDialog, {

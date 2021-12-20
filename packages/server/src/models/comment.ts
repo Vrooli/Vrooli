@@ -1,18 +1,36 @@
 import { Comment, CommentInput } from "schema/types";
-import { creater, deleter, findByIder, MODEL_TYPES, reporter, updater } from "./base";
+import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
+
+//======================================================================================================================
+// START Type definitions
+//======================================================================================================================
+
+//======================================================================================================================
+// END Type definitions
+//======================================================================================================================
+
+/**
+ * Component for formatting between graphql and prisma types
+ */
+ const formatter = (): FormatConverter<any, any>  => ({
+    toDB: (obj: any): any => ({ ...obj}),
+    toGraphQL: (obj: any): any => ({ ...obj })
+})
 
 export function CommentModel(prisma: any) {
-    let obj = {
+    let obj: BaseState<Comment> = {
         prisma,
-        model: MODEL_TYPES.Comment
+        model: MODEL_TYPES.Comment,
+        format: formatter(),
     }
 
     return {
         ...obj,
         ...findByIder<Comment>(obj),
+        ...formatter(),
         ...creater<CommentInput, Comment>(obj),
         ...updater<CommentInput, Comment>(obj),
         ...deleter(obj),
-        ...reporter(obj)
+        ...reporter()
     }
 }

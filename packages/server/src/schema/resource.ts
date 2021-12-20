@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { ResourceModel } from '../models';
-import { IWrap } from 'types';
+import { IWrap, RecursivePartial } from 'types';
 import { Count, DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceInput, ResourcesQueryInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -56,10 +56,10 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Resource | null> => {
+        resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
             return await ResourceModel(prisma).findById(input, info);
         },
-        resources: async (_parent: undefined, { input }: IWrap<ResourcesQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Resource[]> => {
+        resources: async (_parent: undefined, { input }: IWrap<ResourcesQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
         resourcesCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
@@ -67,12 +67,12 @@ export const resolvers = {
         },
     },
     Mutation: {
-        addResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Resource> => {
+        addResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await ResourceModel(prisma).create(input, info)
         },
-        updateResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Resource> => {
+        updateResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await ResourceModel(prisma).update(input, info);

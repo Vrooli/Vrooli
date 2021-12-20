@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { IWrap } from 'types';
+import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectsQueryInput, ReportInput } from './types';
 import { Context } from '../context';
 import { ProjectModel } from '../models';
@@ -49,10 +49,10 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Project | null> => {
+        project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
             return await ProjectModel(prisma).findById(input, info);
         },
-        projects: async (_parent: undefined, { input }: IWrap<ProjectsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Project[]> => {
+        projects: async (_parent: undefined, { input }: IWrap<ProjectsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
         projectsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
@@ -60,13 +60,13 @@ export const resolvers = {
         },
     },
     Mutation: {
-        addProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Project> => {
+        addProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions
             return await ProjectModel(prisma).create(input, info);
         },
-        updateProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Project> => {
+        updateProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions

@@ -1,18 +1,28 @@
 import { Tag, TagInput } from "schema/types";
-import { creater, deleter, findByIder, MODEL_TYPES, reporter, updater } from "./base";
+import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
+
+/**
+ * Component for formatting between graphql and prisma types
+ */
+ const formatter = (): FormatConverter<any, any>  => ({
+    toDB: (obj: any): any => ({ ...obj}),
+    toGraphQL: (obj: any): any => ({ ...obj })
+})
 
 export function TagModel(prisma: any) {
-    let obj = {
+    let obj: BaseState<Tag> = {
         prisma,
-        model: MODEL_TYPES.Tag
+        model: MODEL_TYPES.Tag,
+        format: formatter(),
     }
 
     return {
         ...obj,
         ...findByIder<Tag>(obj),
         ...creater<TagInput, Tag>(obj),
+        ...formatter(),
         ...updater<TagInput, Tag>(obj),
         ...deleter(obj),
-        ...reporter(obj)
+        ...reporter()
     }
 }

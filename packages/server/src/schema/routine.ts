@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { IWrap } from '../types';
+import { IWrap, RecursivePartial } from '../types';
 import { DeleteOneInput, FindByIdInput, ReportInput, Routine, RoutineInput, RoutinesQueryInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -62,10 +62,10 @@ export const typeDef = gql`
 
 export const resolvers = {
     Query: {
-        routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<Routine> => {
+        routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             throw new CustomError(CODE.NotImplemented);
         },
-        routines: async (_parent: undefined, { input }: IWrap<RoutinesQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<Routine[]> => {
+        routines: async (_parent: undefined, { input }: IWrap<RoutinesQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
         routinesCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
@@ -73,12 +73,12 @@ export const resolvers = {
         },
     },
     Mutation: {
-        addRoutine: async (_parent: undefined, { input }: IWrap<RoutineInput>, context: Context, info: GraphQLResolveInfo): Promise<Routine> => {
+        addRoutine: async (_parent: undefined, { input }: IWrap<RoutineInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             // Must be logged in
             if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
         },
-        updateRoutine: async (_parent: undefined, { input }: IWrap<RoutineInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Routine> => {
+        updateRoutine: async (_parent: undefined, { input }: IWrap<RoutineInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions

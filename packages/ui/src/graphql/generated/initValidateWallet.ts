@@ -3,16 +3,16 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { InitValidateWalletInput } from "./globalTypes";
+import { WalletInitInput } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: initValidateWallet
+// GraphQL mutation operation: walletInit
 // ====================================================
 
-export interface initValidateWallet {
-  initValidateWallet: string;
+export interface walletInit {
+    walletInit: string;
 }
 
-export interface initValidateWalletVariables {
-  input: InitValidateWalletInput;
+export interface walletInitVariables {
+  input: WalletInitInput;
 }
