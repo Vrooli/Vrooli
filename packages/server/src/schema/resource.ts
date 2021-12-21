@@ -40,6 +40,8 @@ export const typeDef = gql`
         routine_resources_donation: [Routine!]!
         user_resources: [User!]!
         starredBy: [User!]!
+        reports: [Report!]!
+        comments: [Comment!]!
     }
 
     input ResourcesQueryInput {

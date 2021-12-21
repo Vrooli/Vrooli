@@ -13,29 +13,29 @@ const MAX_NODES_IN_ROUTINE = 100;
 /* #region Type Definitions */
 //======================================================================================================================
 
-// // Type 1. RelationshipList
-// export type NodeRelationshipList = 'dataCombine' | 'dataDecision' | 'dataEnd' | 'dataLoop' |
-//     'dataRoutineList' | 'dataRedirect' | 'dataStart' | 'previous' | 'next' | 'routine' | 'Previous' | 
-//     'Next' | 'To' | 'From' | 'DecisionItem';
-// // Type 2. QueryablePrimitives
-// export type NodeQueryablePrimitives = Omit<Node, NodeRelationshipList>;
-// // Type 3. AllPrimitives
-// export type NodeAllPrimitives = NodeQueryablePrimitives;
-// // type 4. FullModel
-// export type NodeFullModel = NodeAllPrimitives &
-// Pick<Node, 'previous' | 'next' | 'routine' | 'Previous' | 'Next'> &
-// {
-//     dataCombine?: { from: Node[], to: Node },
-//     dataDecision?: NodeDecisionItem[],
-//     dataEnd?: {}, //TODO
-//     dataLoop?: {}, //TODO
-//     dataRoutineList?: {}, //TODO
-//     dataRedirect?: {}, //TODO
-//     dataStart?: {}, //TODO
-//     To: {}[] //TODO
-//     From: {}[] //TODO
-//     DecisionItem?: NodeDecisionItem[]
-// };
+// Type 1. RelationshipList
+export type NodeRelationshipList = 'dataCombine' | 'dataDecision' | 'dataEnd' | 'dataLoop' |
+    'dataRoutineList' | 'dataRedirect' | 'dataStart' | 'previous' | 'next' | 'routine' | 'Previous' | 
+    'Next' | 'To' | 'From' | 'DecisionItem';
+// Type 2. QueryablePrimitives
+export type NodeQueryablePrimitives = Omit<Node, NodeRelationshipList>;
+// Type 3. AllPrimitives
+export type NodeAllPrimitives = NodeQueryablePrimitives;
+// type 4. FullModel
+export type NodeFullModel = NodeAllPrimitives &
+Pick<Node, 'previous' | 'next' | 'routine' | 'Previous' | 'Next'> &
+{
+    dataCombine?: { from: Node[], to: Node },
+    dataDecision?: NodeDecisionItem[],
+    dataEnd?: {}, //TODO
+    dataLoop?: {}, //TODO
+    dataRoutineList?: {}, //TODO
+    dataRedirect?: {}, //TODO
+    dataStart?: {}, //TODO
+    To: {}[] //TODO
+    From: {}[] //TODO
+    DecisionItem?: NodeDecisionItem[]
+};
 
 //======================================================================================================================
 /* #endregion Type Definitions */

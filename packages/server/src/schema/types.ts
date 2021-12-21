@@ -422,9 +422,16 @@ export type MutationWriteAssetsArgs = {
 
 export type Node = {
   __typename?: 'Node';
+  DecisionItem: Array<NodeDecisionItem>;
+  From: Array<Node>;
+  Next: Array<Node>;
+  Previous: Array<Node>;
+  To: Array<Node>;
   data?: Maybe<NodeData>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  next?: Maybe<Node>;
+  previous?: Maybe<Node>;
   routine: Routine;
   routineId: Scalars['ID'];
   title: Scalars['String'];
@@ -599,14 +606,17 @@ export type OpenGraphResponse = {
 
 export type Organization = {
   __typename?: 'Organization';
+  comments: Array<Comment>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   name: Scalars['String'];
-  projects?: Maybe<Array<Project>>;
-  resources?: Maybe<Array<Resource>>;
-  routines?: Maybe<Array<Routine>>;
-  starredBy?: Maybe<Array<User>>;
-  wallets?: Maybe<Array<Wallet>>;
+  projects: Array<Project>;
+  reports: Array<Report>;
+  resources: Array<Resource>;
+  routines: Array<Routine>;
+  starredBy: Array<User>;
+  tags: Array<Tag>;
+  wallets: Array<Wallet>;
 };
 
 export type OrganizationInput = {
@@ -623,12 +633,17 @@ export type OrganizationsQueryInput = {
 
 export type Project = {
   __typename?: 'Project';
+  comments: Array<Comment>;
   description?: Maybe<Scalars['String']>;
+  forks: Array<Project>;
   id: Scalars['ID'];
   name: Scalars['String'];
   organizations?: Maybe<Array<Organization>>;
+  parent?: Maybe<Project>;
+  reports: Array<Report>;
   resources?: Maybe<Array<Resource>>;
   starredBy?: Maybe<Array<User>>;
+  tags: Array<Tag>;
   users?: Maybe<Array<User>>;
   wallets?: Maybe<Array<Wallet>>;
 };
@@ -767,11 +782,20 @@ export type ReportInput = {
 
 export type Resource = {
   __typename?: 'Resource';
+  comments: Array<Comment>;
   description?: Maybe<Scalars['String']>;
   displayUrl?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   link: Scalars['String'];
   name: Scalars['String'];
+  organization_resources: Array<Organization>;
+  project_resources: Array<Project>;
+  reports: Array<Report>;
+  routine_resources_contextual: Array<Routine>;
+  routine_resources_donation: Array<Routine>;
+  routine_resources_external: Array<Routine>;
+  starredBy: Array<User>;
+  user_resources: Array<User>;
 };
 
 export enum ResourceFor {
@@ -814,6 +838,7 @@ export type Role = {
 
 export type Routine = {
   __typename?: 'Routine';
+  comments: Array<Comment>;
   contextualResources: Array<Resource>;
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
@@ -825,6 +850,7 @@ export type Routine = {
   instructions?: Maybe<Scalars['String']>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
   nodeLists: Array<NodeRoutineList>;
+  nodes: Array<Node>;
   organizations: Array<Organization>;
   outputs: Array<RoutineOutputItem>;
   parent?: Maybe<Routine>;

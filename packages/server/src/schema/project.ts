@@ -29,6 +29,8 @@ export const typeDef = gql`
         parent: Project
         forks: [Project!]!
         tags: [Tag!]!
+        reports: [Report!]!
+        comments: [Comment!]!
     }
 
     input ProjectsQueryInput {

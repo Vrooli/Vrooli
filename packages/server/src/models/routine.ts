@@ -6,28 +6,28 @@ import { addJoinTables, BaseState, creater, deleter, FormatConverter, MODEL_TYPE
 /* #region Type Definitions */
 //======================================================================================================================
 
-// // Type 1. RelationshipList
-// export type RoutineRelationshipList = 'inputs' | 'outputs' | 'nodes' | 'contextualResources' |
-//     'externalResources' | 'donationResources' | 'tags' | 'users' | 'organizations' | 'starredBy' | 
-//     'parent' | 'forks' | 'nodeLists' | 'reports' | 'comments';
-// // Type 2. QueryablePrimitives
-// export type RoutineQueryablePrimitives = Omit<Routine, RoutineRelationshipList>;
-// // Type 3. AllPrimitives
-// export type RoutineAllPrimitives = RoutineQueryablePrimitives;
-// // type 4. FullModel
-// export type RoutineFullModel = RoutineAllPrimitives &
-// Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'> &
-// {
-//     contextualResources: { resource: Resource[] }[],
-//     externalResources: { resource: Resource[] }[],
-//     donationResources: { resource: Resource[] }[],
-//     tags: { tag: Tag[] }[],
-//     users: { user: User[] }[],
-//     organizations: { organization: Organization[] }[],
-//     starredBy: { user: User[] }[],
-//     forks: { fork: Routine[] }[],
-//     nodeLists: { list: Routine[] }[],
-// };
+// Type 1. RelationshipList
+export type RoutineRelationshipList = 'inputs' | 'outputs' | 'nodes' | 'contextualResources' |
+    'externalResources' | 'donationResources' | 'tags' | 'users' | 'organizations' | 'starredBy' | 
+    'parent' | 'forks' | 'nodeLists' | 'reports' | 'comments';
+// Type 2. QueryablePrimitives
+export type RoutineQueryablePrimitives = Omit<Routine, RoutineRelationshipList>;
+// Type 3. AllPrimitives
+export type RoutineAllPrimitives = RoutineQueryablePrimitives;
+// type 4. FullModel
+export type RoutineFullModel = RoutineAllPrimitives &
+Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'> &
+{
+    contextualResources: { resource: Resource[] }[],
+    externalResources: { resource: Resource[] }[],
+    donationResources: { resource: Resource[] }[],
+    tags: { tag: Tag[] }[],
+    users: { user: User[] }[],
+    organizations: { organization: Organization[] }[],
+    starredBy: { user: User[] }[],
+    forks: { fork: Routine[] }[],
+    nodeLists: { list: Routine[] }[],
+};
 
 //======================================================================================================================
 /* #endregion Type Definitions */

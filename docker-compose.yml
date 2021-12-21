@@ -104,6 +104,8 @@ services:
     #         - 8080:8080
 
 networks:
-  name: nginx-proxy
+  proxy:
+      external:
+        name: nginx-proxy
   app:
 

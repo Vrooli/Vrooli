@@ -45,6 +45,13 @@ export const typeDef = gql`
         type: NodeType!
         data: NodeData
         routine: Routine!
+        previous: Node
+        next: Node
+        To: [Node!]!
+        From: [Node!]!
+        Previous: [Node!]!
+        Next: [Node!]!
+        DecisionItem: [NodeDecisionItem!]!
     }
 
     input NodeCombineInput {

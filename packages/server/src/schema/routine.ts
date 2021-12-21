@@ -42,6 +42,7 @@ export const typeDef = gql`
         forks: [Routine!]!
         nodeLists: [NodeRoutineList!]!
         reports: [Report!]!
+        comments: [Comment!]!
     }
 
     input RoutineInputItemInput {

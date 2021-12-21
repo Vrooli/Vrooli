@@ -21,7 +21,6 @@ export const typeDef = gql`
         description: String
         comments: [Comment!]!
         resources: [Resource!]!
-        wallets: [Wallet!]!
         projects: [Project!]!
         wallets: [Wallet!]!
         starredBy: [User!]!

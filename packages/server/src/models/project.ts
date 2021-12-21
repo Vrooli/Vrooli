@@ -5,25 +5,25 @@ import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, 
 /* #region Type Definitions */
 //======================================================================================================================
 
-// // Type 1. RelationshipList
-// export type ProjectRelationshipList = 'resources' | 'wallets' | 'users' | 'organizations' | 'starredBy' | 
-//     'parent' | 'forks' | 'reports' | 'tags' | 'comments';
-// // Type 2. QueryablePrimitives
-// export type ProjectQueryablePrimitives = Omit<Project, ProjectRelationshipList>;
-// // Type 3. AllPrimitives
-// export type ProjectAllPrimitives = ProjectQueryablePrimitives;
-// // type 4. FullModel
-// export type ProjectFullModel = ProjectAllPrimitives &
-// Pick<Project, 'wallets' | 'reports' | 'comments'> &
-// {
-//     resources: { resource: Resource[] }[],
-//     users: { user: User[] }[],
-//     organizations: { organization: Organization[] }[],
-//     starredBy: { user: User[] }[],
-//     parent: { project: Project[] }[],
-//     forks: { project: Project[] }[],
-//     tags: { tag: Tag[] }[],
-// };
+// Type 1. RelationshipList
+export type ProjectRelationshipList = 'resources' | 'wallets' | 'users' | 'organizations' | 'starredBy' | 
+    'parent' | 'forks' | 'reports' | 'tags' | 'comments';
+// Type 2. QueryablePrimitives
+export type ProjectQueryablePrimitives = Omit<Project, ProjectRelationshipList>;
+// Type 3. AllPrimitives
+export type ProjectAllPrimitives = ProjectQueryablePrimitives;
+// type 4. FullModel
+export type ProjectFullModel = ProjectAllPrimitives &
+Pick<Project, 'wallets' | 'reports' | 'comments'> &
+{
+    resources: { resource: Resource[] }[],
+    users: { user: User[] }[],
+    organizations: { organization: Organization[] }[],
+    starredBy: { user: User[] }[],
+    parent: { project: Project[] }[],
+    forks: { project: Project[] }[],
+    tags: { tag: Tag[] }[],
+};
 
 //======================================================================================================================
 /* #endregion Type Definitions */

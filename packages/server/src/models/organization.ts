@@ -5,23 +5,23 @@ import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, 
 /* #region Type Definitions */
 //======================================================================================================================
 
-// // Type 1. RelationshipList
-// export type OrganizationRelationshipList = 'comments' | 'resources' | 'wallets' | 'projects' | 'starredBy' | 
-//     'routines' | 'tags' | 'reports';
-// // Type 2. QueryablePrimitives
-// export type OrganizationQueryablePrimitives = Omit<Organization, OrganizationRelationshipList>;
-// // Type 3. AllPrimitives
-// export type OrganizationAllPrimitives = OrganizationQueryablePrimitives;
-// // type 4. FullModel
-// export type OrganizationFullModel = OrganizationAllPrimitives &
-// Pick<Organization, 'comments' | 'wallets' | 'reports'> &
-// {
-//     resources: { resource: Resource[] }[],
-//     projects: { project: Project[] }[],
-//     starredBy: { user: User[] }[],
-//     routines: { routine: Routine[] }[],
-//     tags: { tag: Tag[] }[],
-// };
+// Type 1. RelationshipList
+export type OrganizationRelationshipList = 'comments' | 'resources' | 'wallets' | 'projects' | 'starredBy' | 
+    'routines' | 'tags' | 'reports';
+// Type 2. QueryablePrimitives
+export type OrganizationQueryablePrimitives = Omit<Organization, OrganizationRelationshipList>;
+// Type 3. AllPrimitives
+export type OrganizationAllPrimitives = OrganizationQueryablePrimitives;
+// type 4. FullModel
+export type OrganizationFullModel = OrganizationAllPrimitives &
+Pick<Organization, 'comments' | 'wallets' | 'reports'> &
+{
+    resources: { resource: Resource[] }[],
+    projects: { project: Project[] }[],
+    starredBy: { user: User[] }[],
+    routines: { routine: Routine[] }[],
+    tags: { tag: Tag[] }[],
+};
 
 //======================================================================================================================
 /* #endregion Type Definitions */
