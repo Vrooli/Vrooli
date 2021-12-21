@@ -6,7 +6,7 @@ import { makeStyles } from '@material-ui/styles';
 import { Hamburger } from './Hamburger';
 import { NavList } from './NavList';
 import { CommonProps } from 'types';
-import { useHistory } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 
 const SHOW_HAMBURGER_AT = 1000;
 
@@ -72,7 +72,7 @@ export const Navbar = ({
     userRoles
 }: Pick<CommonProps, 'userRoles'>) => {
     const classes = useStyles();
-    const history = useHistory();
+    const navigate = useNavigate();
     const [show_hamburger, setShowHamburger] = useState(false);
 
     let child_props = { 
@@ -88,7 +88,7 @@ export const Navbar = ({
 
     const updateWindowDimensions = () => setShowHamburger(window.innerWidth <= SHOW_HAMBURGER_AT);
 
-    const toHome = useCallback(() => history.push(APP_LINKS.Home), [history]);
+    const toHome = useCallback(() => navigate(APP_LINKS.Home), [navigate]);
 
     return (
         <HideOnScroll>

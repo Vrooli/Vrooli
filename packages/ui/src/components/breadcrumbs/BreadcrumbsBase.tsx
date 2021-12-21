@@ -6,7 +6,7 @@ import { makeStyles } from '@material-ui/styles';
 import merge from 'lodash/merge';
 import { BreadcrumbsBaseProps } from './types';
 import { useMemo } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { openLink } from 'utils';
 
 const useStyles = makeStyles(() => ({
@@ -30,7 +30,7 @@ const BreadcrumbsBase = ({
     className
 }: BreadcrumbsBaseProps) => {
     const classes = useStyles();
-    const history = useHistory();
+    const navigate = useNavigate();
     // Add user styling to default root style
     let rootStyle = merge(classes.root, style ?? {});
     // Match separator color to link color, if not specified
@@ -42,12 +42,12 @@ const BreadcrumbsBase = ({
             <Link 
                 key={p.text}
                 color={textColor}
-                onClick={() => openLink(history, p.link)}
+                onClick={() => openLink(navigate, p.link)}
             >
                 {window.location.pathname === p.link ? <b>{p.text}</b> : p.text}
             </Link>
         ))
-    ), [history, paths, textColor])
+    ), [navigate, paths, textColor])
 
     return (
             <Breadcrumbs className={className} style={style ?? {}} classes={{root: classes.root, li: classes.li}} separator={separator} aria-label={ariaLabel}>

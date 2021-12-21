@@ -8,7 +8,7 @@ import {
 } from 'components';
 import PubSub from 'pubsub-js';
 import { PUBS, themes } from 'utils';
-import { Routes } from 'Routes';
+import { AllRoutes } from 'Routes';
 import { CssBaseline, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from '@material-ui/core/styles';
 import { makeStyles } from '@material-ui/styles';
@@ -171,7 +171,7 @@ export function App() {
                                     : null}
                                 <AlertDialog />
                                 <Snack />
-                                <Routes
+                                <AllRoutes
                                     session={session}
                                     sessionChecked={Boolean(session)}
                                     onSessionUpdate={checkSession}

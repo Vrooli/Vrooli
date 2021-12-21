@@ -15,7 +15,7 @@ import { useEffect, useMemo } from 'react';
 import { Resource } from 'types';
 import { readOpenGraphQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const componentStyles = (theme: Theme) => ({
     root: {
@@ -48,7 +48,7 @@ export const ResourceCard = ({
     resource
 }: Props) => {
     const classes = useStyles();
-    const history = useHistory();
+    const navigate = useNavigate();
     const [getOpenGraphData, { data: queryResult }] = useLazyQuery<any, any>(readOpenGraphQuery);
     const data = useMemo(() => queryResult?.readOpenGraph, [queryResult]);
     const title = useMemo(() => resource?.title ?? data?.title, [resource, data]);
@@ -77,7 +77,7 @@ export const ResourceCard = ({
 
     return (
         <Tooltip placement="top" title={resource?.description ?? data?.description}>
-            <Card className={`${classes.root} ${classes.cardRoot}`} onClick={() => openLink(history, url)}>
+            <Card className={`${classes.root} ${classes.cardRoot}`} onClick={() => openLink(navigate, url)}>
                 <CardActionArea>
                     {display}
                     <CardContent className={`${classes.content} ${classes.topMargin}`}>

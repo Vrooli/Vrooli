@@ -12,7 +12,7 @@ import { APP_LINKS } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useParams } from 'react-router-dom';
 import { formStyles } from './styles';
-import { useHistory } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { emailResetPassword } from 'graphql/generated/emailResetPassword';
 import { FormProps } from 'forms';
 
@@ -22,7 +22,7 @@ export const ResetPasswordForm = ({
     onSessionUpdate
 }: FormProps) => {
     const classes = useStyles();
-    const history = useHistory();
+    const navigate = useNavigate();
     const urlParams = useParams<{id?: string; code?: string}>();
     const [emailResetPassword, {loading}] = useMutation<emailResetPassword>(emailResetPasswordMutation);
 
@@ -36,7 +36,7 @@ export const ResetPasswordForm = ({
             mutationWrapper({
                 mutation: emailResetPassword,
                 input: { id: urlParams.id, code: urlParams.code, newPassword: values.newPassword },
-                onSuccess: (response) => { onSessionUpdate(response.data.emailResetPassword); history.push(APP_LINKS.Home) },
+                onSuccess: (response) => { onSessionUpdate(response.data.emailResetPassword); navigate(APP_LINKS.Home) },
                 successMessage: () => 'Password reset.',
             })
         },

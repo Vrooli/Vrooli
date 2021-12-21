@@ -1,4 +1,4 @@
-import { useHistory, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { emailLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { CODE, emailLogInSchema } from '@local/shared';
@@ -26,7 +26,7 @@ export const LogInForm = ({
     onFormChange = () => {}
 }: FormProps) => {
     const classes = useStyles();
-    const history = useHistory();
+    const navigate = useNavigate();
     const urlParams = useParams<{code?: string}>();
     const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
 
@@ -41,13 +41,13 @@ export const LogInForm = ({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode: urlParams.code },
                 successCondition: (response) => response.data.emailLogIn !== null,
-                onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); history.push(APP_LINKS.Home) },
+                onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); navigate(APP_LINKS.Home) },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(PUBS.AlertDialog, {
                             message: 'Before signing in, please follow the link sent to your email to change your password.',
                             firstButtonText: 'OK',
-                            firstButtonClicked: () => history.push(APP_LINKS.Home),
+                            firstButtonClicked: () => navigate(APP_LINKS.Home),
                         });
                     }
                 }

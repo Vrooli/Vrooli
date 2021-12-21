@@ -1,9 +1,9 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Switch, Route } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { BUSINESS_NAME, ROLES } from '@local/shared';
 import { APP_LINKS as LINKS } from '@local/shared';
-import { Sitemap } from 'Sitemap';
+// import { Sitemap } from 'Sitemap';
 import {
     ForgotPasswordForm,
     ResetPasswordForm
@@ -31,207 +31,190 @@ const {
     StatsPage,
 } = lazily(() => import('./pages'));
 
-const Routes = (props: CommonProps) => {
+export const AllRoutes = (props: CommonProps) => {
 
     const title = useCallback((page: string) => `${page} | ${BUSINESS_NAME}`, []);
 
     return (
         <Suspense fallback={<div>Loading...</div>}>
             <ScrollToTop />
-            <Switch>
-                <Route
+            <Routes>
+                {/* <Route
                     path="/sitemap"
-                    component={Sitemap}
-                />
+                    element={Sitemap}
+                /> */}
                 {/* ========= #region Dashboard Routes ========= */}
                 {/* Customizable pages available to logged in users */}
                 <Route
-                    exact
                     path={LINKS.Home}
-                    sitemapIndex={false}
-                    render={() => (
+                    // sitemapIndex={false}
+                    element={
                         <Page title={title('Home')} {...props}>
                             <HomePage />
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
-                    path={LINKS.Projects}
-                    sitemapIndex={false}
-                    render={() => (
+                    path={`${LINKS.Projects}/*`}
+                    // sitemapIndex={false}
+                    element={
                         <Page title={title('Projects')} {...props}>
                             <ProjectsPage session={props.session} />
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
-                    path={LINKS.Learn}
-                    sitemapIndex={false}
-                    render={() => (
+                    path={`${LINKS.Learn}/*`}
+                    // sitemapIndex={false}
+                    element={
                         <Page title={title('Learn')} {...props}>
                             <LearnPage />
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
-                    path={LINKS.Research}
-                    sitemapIndex={false}
-                    render={() => (
+                    path={`${LINKS.Research}/*`}
+                    // sitemapIndex={false}
+                    element={
                         <Page title={title('Research')} {...props}>
                             <ResearchPage />
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
-                    path={LINKS.Develop}
-                    sitemapIndex={false}
-                    render={() => (
+                    path={`${LINKS.Develop}/*`}
+                    // sitemapIndex={false}
+                    element={
                         <Page title={title('Develop')} {...props}>
                             <DevelopPage />
                         </Page>
-                    )}
+                    }
                 />
                 {/* ========= #endregion Dashboard Routes ========= */}
 
                 {/* ========= #region Orchestration Routes ========= */}
                 {/* Pages for creating and running routine orchestrations */}
                 <Route
-                    exact
                     path={`${LINKS.Orchestrate}/:id?`}
-                    sitemapIndex={false}
-                    render={() => (
+                    // sitemapIndex={false}
+                    element={
                         <Page title={title('Plan Routine')} {...props} restrictedToRoles={Object.values(ROLES)}>
                             <RoutineOrchestratorPage />
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
                     path={`${LINKS.Run}/:id?`}
-                    sitemapIndex={false}
-                    render={() => (
+                    // sitemapIndex={false}
+                    element={
                         <Page title={title('Run Routine')} {...props}>
                             <RunRoutinePage />
                         </Page>
-                    )}
+                    }
                 />
                 {/* ========= #endregion Orchestration Routes ========= */}
 
                 {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (organizations, actors, projects, routines, resources, data) */}
                 <Route
-                    exact
                     path={`${LINKS.Profile}/:id?`}
-                    sitemapIndex={true}
-                    priority={0.1}
-                    render={() => (
+                    // sitemapIndex={true}
+                    // priority={0.1}
+                    element={
                         <Page title={title('Profile')} {...props}>
                             <ActorViewPage />
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
                     path={`${LINKS.Organization}/:id?`}
-                    sitemapIndex={true}
-                    priority={0.1}
-                    render={() => (
+                    // sitemapIndex={true}
+                    // priority={0.1}
+                    element={
                         <Page title={title('Organization')} {...props}>
                             <OrganizationViewPage />
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
                     path={`${LINKS.Project}/:id?`}
-                    sitemapIndex={true}
-                    priority={0.1}
-                    render={() => (
+                    // sitemapIndex={true}
+                    // priority={0.1}
+                    element={
                         <Page title={title('Project')} {...props}>
                             <ProjectViewPage />
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
                     path={`${LINKS.Routine}/:id?`}
-                    sitemapIndex={true}
-                    priority={0.1}
-                    render={() => (
+                    // sitemapIndex={true}
+                    // priority={0.1}
+                    element={
                         <Page title={title('Routine')} {...props}>
                             <RoutineViewPage />
                         </Page>
-                    )}
+                    }
                 />
 
                 {/* =========  #endregion ========= */}
 
                 {/* ========= #region Authentication Routes ========= */}
                 <Route
-                    exact
                     path={LINKS.Start}
-                    sitemapIndex={true}
-                    priority={0.8}
-                    render={() => (
+                    // sitemapIndex={true}
+                    // priority={0.8}
+                    element={
                         <Page title={title('Start')} {...props}>
                             <StartPage {...props} />
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
                     path={`${LINKS.ForgotPassword}/:code?`}
-                    sitemapIndex={true}
-                    priority={0.1}
-                    render={() => (
+                    // sitemapIndex={true}
+                    // priority={0.1}
+                    element={
                         <Page title={title('Forgot Password')} {...props}>
                             <FormPage title="Forgot Password" maxWidth="700px">
                                 <ForgotPasswordForm />
                             </FormPage>
                         </Page>
-                    )}
+                    }
                 />
                 <Route
-                    exact
                     path={`${LINKS.ResetPassword}/:id?/:code?`}
-                    sitemapIndex={true}
-                    priority={0.1}
-                    render={() => (
+                    // sitemapIndex={true}
+                    // priority={0.1}
+                    element={
                         <Page title={title('Reset Password')} {...props}>
                             <FormPage title="Reset Password" maxWidth="700px">
                                 <ResetPasswordForm {...props} />
                             </FormPage>
                         </Page>
-                    )}
+                    }
                 />
 
                 {/* =========  #endregion ========= */}
 
                 <Route
-                    exact
                     path={LINKS.Stats}
-                    sitemapIndex={false}
-                    render={() => (
+                    // sitemapIndex={false}
+                    element={
                         <Page title={title('Stats📊')} {...props}>
                             <StatsPage />
                         </Page>
-                    )}
+                    }
                 />
 
                 <Route
-                    render={() => (
+                    element={
                         <Page title={title('404')} {...props}>
                             <NotFoundPage />
                         </Page>
-                    )}
+                    }
                 />
-            </Switch>
+            </Routes>
         </Suspense>
     );
 }
-
-export { Routes };

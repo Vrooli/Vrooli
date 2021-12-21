@@ -13,7 +13,7 @@ import { IconButton, SwipeableDrawer, List, ListItem, ListItemIcon, Collapse, Li
 import { makeStyles } from '@material-ui/styles';
 import { useTheme } from '@material-ui/core';
 import { CopyrightBreadcrumbs } from 'components';
-import { useHistory } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { CommonProps } from 'types';
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -58,7 +58,7 @@ export const Hamburger = ({
     userRoles,
 }: Pick<CommonProps, 'userRoles'>) => {
     const classes = useStyles();
-    const history = useHistory();
+    const navigate = useNavigate();
     const theme = useTheme();
     const [contactOpen, setContactOpen] = useState(true);
     const [open, setOpen] = useState(false);
@@ -100,7 +100,7 @@ export const Hamburger = ({
                     </Collapse>
                     {actionsToList({
                         actions: nav_actions,
-                        history,
+                        navigate,
                         classes: { listItem: `${classes.menuItem} ${classes.highlight}`, listItemIcon: classes.highlight },
                         onAnyClick: closeMenu,
                     })}

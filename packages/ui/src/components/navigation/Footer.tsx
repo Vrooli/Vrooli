@@ -8,7 +8,7 @@ import {
     Twitter as TwitterIcon,
 } from '@material-ui/icons';
 import { CopyrightBreadcrumbs } from 'components';
-import { useHistory } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { OverridableComponent } from '@material-ui/core/OverridableComponent';
 import { openLink } from 'utils';
 
@@ -42,7 +42,7 @@ const useStyles = makeStyles((theme: Theme) => ({
 
 export const Footer = () => {
     const classes = useStyles();
-    const history = useHistory();
+    const navigate = useNavigate();
     const theme = useTheme();
 
     const contactLinks: Array<[string, string, string, string, OverridableComponent<SvgIconTypeMap<{}, "svg">>]> = [
@@ -59,10 +59,10 @@ export const Footer = () => {
                         <ListItem component="h3" >
                             <ListItemText className={classes.upper} primary="Resources" />
                         </ListItem>
-                        <ListItemButton component="a" onClick={() => openLink(history, `${LANDING_URL}${LANDING_LINKS.About}`)} >
+                        <ListItemButton component="a" onClick={() => openLink(navigate, `${LANDING_URL}${LANDING_LINKS.About}`)} >
                             <ListItemText primary="About Us" />
                         </ListItemButton>
-                        <ListItemButton component="a" onClick={() => openLink(history, APP_LINKS.Stats)} >
+                        <ListItemButton component="a" onClick={() => openLink(navigate, APP_LINKS.Stats)} >
                             <ListItemText primary="View Stats" />
                         </ListItemButton>
                     </List>
@@ -74,7 +74,7 @@ export const Footer = () => {
                         </ListItem>
                         {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
                             <Tooltip key={key} title={tooltip} placement="left">
-                                <ListItemButton aria-label={label} onClick={() => openLink(history, src)}>
+                                <ListItemButton aria-label={label} onClick={() => openLink(navigate, src)}>
                                     <ListItemIcon>
                                         <Icon className={classes.icon} ></Icon>
                                     </ListItemIcon>

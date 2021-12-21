@@ -23,6 +23,7 @@ import {
 import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
 import { openLink } from 'utils';
+import { NavigateFunction } from 'react-router-dom';
 
 export const ACTION_TAGS = {
     Home: 'home',
@@ -88,18 +89,18 @@ export const createActions = (actions: ActionArray[]): Action[] => actions.map(a
 // Display actions as a list
 interface ActionsToListProps {
     actions: Action[];
-    history: any;
+    navigate: NavigateFunction;
     classes?: { [key: string]: string };
     showIcon?: boolean;
     onAnyClick?: () => any;
 }
-export const actionsToList = ({ actions, history, classes = { listItem: '', listItemIcon: '' }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
+export const actionsToList = ({ actions, navigate, classes = { listItem: '', listItemIcon: '' }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
     return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
         <ListItem
             key={value}
             classes={{ root: classes.listItem }}
             onClick={() => {
-                openLink(history, link);
+                openLink(navigate, link);
                 if (onClick) onClick();
                 if (onAnyClick) onAnyClick();
             }}>
@@ -117,17 +118,17 @@ export const actionsToList = ({ actions, history, classes = { listItem: '', list
 // Display actions in a horizontal menu
 interface ActionsToMenuProps {
     actions: Action[];
-    history: any;
+    navigate: NavigateFunction;
     classes?: { [key: string]: string };
 }
-export const actionsToMenu = ({ actions, history, classes = { root: '' } }: ActionsToMenuProps) => {
+export const actionsToMenu = ({ actions, navigate, classes = { root: '' } }: ActionsToMenuProps) => {
     return actions.map(({ label, value, link, onClick }) => (
         <Button
             key={value}
             variant="text"
             size="large"
             classes={classes}
-            onClick={() => { openLink(history, link); if (onClick) onClick() }}
+            onClick={() => { openLink(navigate, link); if (onClick) onClick() }}
         >
             {label}
         </Button>
@@ -137,17 +138,17 @@ export const actionsToMenu = ({ actions, history, classes = { root: '' } }: Acti
 // Display actions in a bottom navigation
 interface ActionsToBottomNavProps {
     actions: Action[];
-    history: any;
+    navigate: NavigateFunction;
     classes?: { [key: string]: string };
 }
-export const actionsToBottomNav = ({ actions, history, classes = { root: '' } }: ActionsToBottomNavProps) => {
+export const actionsToBottomNav = ({ actions, navigate, classes = { root: '' } }: ActionsToBottomNavProps) => {
     return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
         <BottomNavigationAction
             key={value}
             classes={classes}
             label={label}
             value={value}
-            onClick={() => { openLink(history, link); if (onClick) onClick() }}
+            onClick={() => { openLink(navigate, link); if (onClick) onClick() }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>} />
     ))
 }
@@ -155,12 +156,12 @@ export const actionsToBottomNav = ({ actions, history, classes = { root: '' } }:
 // Display an action as an icon button
 interface ActionToIconButtonProps {
     action: Action;
-    history: any;
+    navigate: NavigateFunction;
     classes?: { [key: string]: string };
 }
-export const actionToIconButton = ({ action, history, classes = { root: '' } }: ActionToIconButtonProps) => {
+export const actionToIconButton = ({ action, navigate, classes = { root: '' } }: ActionToIconButtonProps) => {
     const { value, link, Icon, numNotifications } = action;
-    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(history, link)}>
+    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(navigate, link)}>
         <Badge badgeContent={numNotifications} color="error">
             <Icon />
         </Badge>

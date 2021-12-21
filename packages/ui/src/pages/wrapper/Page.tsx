@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { APP_LINKS } from '@local/shared';
-import { useLocation, Redirect } from 'react-router-dom';
+import { useLocation, Navigate } from 'react-router-dom';
 import { UserRoles } from 'types';
 import { PUBS } from 'utils';
 
@@ -35,7 +35,7 @@ export const Page = ({
         }
         if (sessionChecked && location.pathname !== redirect) { 
             PubSub.publish(PUBS.Snack, { message: 'Page restricted. Please log in', severity: 'error' });
-            return <Redirect to={redirect} />
+            return <Navigate to={redirect} />
         }
         return null;
     }

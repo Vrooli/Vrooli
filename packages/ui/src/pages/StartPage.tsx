@@ -4,7 +4,7 @@
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
 // be able to utilize the full functionality of the service
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
     Button,
     Dialog,
@@ -56,7 +56,7 @@ export const StartPage = ({
     onSessionUpdate
 }: Pick<CommonProps, 'onSessionUpdate'>) => {
     const classes = useStyles();
-    const history = useHistory();
+    const navigate = useNavigate();
     const [guestLogIn] = useMutation<any>(guestLogInMutation);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
@@ -119,19 +119,19 @@ export const StartPage = ({
             // Set actor role
             onSessionUpdate(session)
             // Redirect to main dashboard
-            history.push(APP_LINKS.Home);
+            navigate(APP_LINKS.Home);
         }
-    }, [downloadExtension, history, onSessionUpdate, toEmailLogIn])
+    }, [downloadExtension, navigate, onSessionUpdate, toEmailLogIn])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({
             mutation: guestLogIn,
             onSuccess: () => {
                 onSessionUpdate({ roles: [{ role: { title: ROLES.Guest } }] });
-                history.push(APP_LINKS.Home);
+                navigate(APP_LINKS.Home);
             },
         })
-    }, [guestLogIn, history, onSessionUpdate]);
+    }, [guestLogIn, navigate, onSessionUpdate]);
 
     return (
         <div className={classes.root}>

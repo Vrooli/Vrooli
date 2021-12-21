@@ -1,4 +1,4 @@
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { makeStyles } from '@material-ui/styles';
 import { BottomNavigation, Theme } from '@material-ui/core';
 import { actionsToBottomNav, ACTION_TAGS, getUserActions } from 'utils';
@@ -29,12 +29,12 @@ export const BottomNav = ({
     userRoles,
     ...props
 }: Pick<CommonProps, 'userRoles'>) => {
-    let history = useHistory();
+    let navigate = useNavigate();
     const classes = useStyles();
 
     let actions = actionsToBottomNav({
         actions: getUserActions({ userRoles, exclude: [ACTION_TAGS.LogOut] }),
-        history,
+        navigate,
         classes: { root: classes.icon }
     });
 

@@ -13,7 +13,7 @@ import { makeStyles } from '@material-ui/styles';
 import { APP_LINKS } from '@local/shared';
 import { FORMS } from 'utils';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { formStyles } from './styles';
 import { emailRequestPasswordChange } from 'graphql/generated/emailRequestPasswordChange';
 import { FormProps } from 'forms';
@@ -24,7 +24,7 @@ export const ForgotPasswordForm = ({
     onFormChange = () => {}
 }: FormProps) => {
     const classes = useStyles();
-    const history = useHistory();
+    const navigate = useNavigate();
     const [emailRequestPasswordChange, {loading}] = useMutation<emailRequestPasswordChange>(emailRequestPasswordChangeMutation);
 
     const formik = useFormik({
@@ -37,7 +37,7 @@ export const ForgotPasswordForm = ({
                 mutation: emailRequestPasswordChange,
                 input: { values },
                 successCondition: (response) => response.data.emailRequestPasswordChange,
-                onSuccess: () => history.push(APP_LINKS.Home),
+                onSuccess: () => navigate(APP_LINKS.Home),
                 successMessage: () => 'Request sent. Please check email.',
             })
         },

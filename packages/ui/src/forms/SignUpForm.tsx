@@ -17,7 +17,7 @@ import { combineStyles, FORMS, PUBS } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { formStyles } from './styles';
 import { emailSignUp } from 'graphql/generated/emailSignUp';
 import { FormProps } from 'forms';
@@ -36,7 +36,7 @@ export const SignUpForm = ({
 }: FormProps) => {
     const classes = useStyles();
     const theme = useTheme();
-    const history = useHistory();
+    const navigate = useNavigate();
     const [emailSignUp, { loading }] = useMutation<emailSignUp>(emailSignUpMutation);
 
     const formik = useFormik({
@@ -60,7 +60,7 @@ export const SignUpForm = ({
                     onSessionUpdate(response.data.emailSignUp);
                     PubSub.publish(PUBS.AlertDialog, {
                         message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
-                        buttons: [ { text: 'OK', onClick: () => history.push(APP_LINKS.Profile) } ]
+                        buttons: [ { text: 'OK', onClick: () => navigate(APP_LINKS.Profile) } ]
                     });
                 },
                 onError: (response) => {

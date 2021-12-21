@@ -4,5 +4,8 @@
         "packages/*"
     ],
     "author": "Vrooli",
-    "license": "GPL-3.0"
+    "license": "GPL-3.0",
+    "resolutions": {
+        "babel-loader": "8.1.0"
+    }
 }
