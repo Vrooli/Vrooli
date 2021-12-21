@@ -113,6 +113,7 @@ export const resolvers = {
     Mutation: {
         upsertProject: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in
+            console.log('upsertProject', req.isLoggedIn, req.roles)
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions
             if (input.id) return await ProjectModel(prisma).create(input, info);

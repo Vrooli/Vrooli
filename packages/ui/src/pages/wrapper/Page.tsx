@@ -31,7 +31,7 @@ export const Page = ({
     // If this page has restricted access
     if (restrictedToRoles.length > 0) {
         if (Array.isArray(userRoles)) {
-            if (userRoles.some(r => restrictedToRoles.includes(r.role.title))) return children;
+            if (userRoles.some(r => restrictedToRoles.includes(r.title))) return children;
         }
         if (sessionChecked && location.pathname !== redirect) { 
             PubSub.publish(PUBS.Snack, { message: 'Page restricted. Please log in', severity: 'error' });

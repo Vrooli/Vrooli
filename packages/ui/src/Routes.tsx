@@ -61,7 +61,7 @@ const Routes = (props: CommonProps) => {
                     sitemapIndex={false}
                     render={() => (
                         <Page title={title('Projects')} {...props}>
-                            <ProjectsPage />
+                            <ProjectsPage session={props.session} />
                         </Page>
                     )}
                 />

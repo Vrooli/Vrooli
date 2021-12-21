@@ -170,7 +170,7 @@ export type Mutation = {
   updateTag: Tag;
   updateUser: User;
   upsertProject: Project;
-  validateSession: Scalars['Boolean'];
+  validateSession: Session;
   voteComment: Scalars['Boolean'];
   voteTag: Scalars['Boolean'];
   walletComplete: Session;

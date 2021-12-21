@@ -112,12 +112,12 @@ export const StartPage = ({
             return;
         }
         // Validate wallet
-        const success = await validateWallet();
-        console.log('wallet validation', success);
-        if (success) {
+        const session = await validateWallet();
+        console.log('wallet validation', session);
+        if (session) {
             PubSub.publish(PUBS.Snack, { message: 'Wallet verified.' })
             // Set actor role
-            onSessionUpdate({ roles: [{ role: { title: ROLES.Actor } }] })
+            onSessionUpdate(session)
             // Redirect to main dashboard
             history.push(APP_LINKS.Home);
         }

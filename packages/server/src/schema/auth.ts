@@ -81,7 +81,7 @@ export const typeDef = gql`
         emailResetPassword(input: EmailResetPasswordInput!): Session!
         guestLogIn: Session!
         logOut: Boolean!
-        validateSession: Boolean!
+        validateSession: Session!
         walletInit(input: WalletInitInput!): String!
         walletComplete(input: WalletCompleteInput!): Session!
         walletRemove(input: DeleteOneInput!): Boolean!
@@ -204,7 +204,7 @@ export const resolvers = {
             res.clearCookie(COOKIE.Session);
             return true;
         },
-        validateSession: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Session> => {
+        validateSession: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // If session is expired
             if (!Array.isArray(req.roles) || req.roles.length === 0) {
                 res.clearCookie(COOKIE.Session);
@@ -217,7 +217,7 @@ export const resolvers = {
             if (userData) return {
                 id: userData.id,
                 theme: userData.theme as string,
-                roles: userData.roles as Role[],
+                roles: [{ title: ROLES.Actor }],
             }
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Session);
@@ -282,6 +282,11 @@ export const resolvers = {
                     nonce: true,
                     nonceCreationTime: true,
                     userId: true,
+                    user: {
+                        select: {
+                            theme: true
+                        }
+                    }
                 }
             });
 
@@ -292,11 +297,7 @@ export const resolvers = {
 
             // Verify that message was signed by wallet address
             const walletVerified = verifySignedMessage(input.publicAddress, walletData.nonce, input.signedMessage);
-            if (!walletVerified) return {
-                id: walletData.userId,
-                roles: [{ title: ROLES.Guest }],
-                theme: 'light',
-            };
+            if (!walletVerified) throw new CustomError(CODE.Unauthorized);
 
             // Update wallet and remove nonce data
             await prisma.wallet.update({
@@ -311,8 +312,8 @@ export const resolvers = {
             // Create session token
             const session = {
                 id: walletData.userId,
-                roles: [{ title: ROLES.Guest }],
-                theme: 'light',
+                roles: [{ title: ROLES.Actor }],
+                theme: walletData.user?.theme ?? 'light',
             }
             // Add session token to return payload
             await generateSessionToken(res, session);

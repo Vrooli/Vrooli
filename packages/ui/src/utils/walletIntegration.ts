@@ -1,6 +1,7 @@
 // Handles wallet integration
 import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
 import { initializeApollo } from 'graphql/utils/initialize';
+import { Session } from 'types';
 import { PUBS } from 'utils';
 
 export const hasWalletExtension = () => Boolean(window.cardano);
@@ -21,9 +22,13 @@ const walletInit = async (publicAddress: string): Promise<any> => {
     return result.data.walletInit;
 }
 
-// Completes handshake to verify wallet with backend
-// Returns boolean
-const walletComplete = async (publicAddress: string, signedMessage: string): Promise<any> => {
+/**
+ * Completes handshake to verify wallet with backend
+ * @param publicAddress Wallet's public address
+ * @param signedMessage Message signed by wallet
+ * @returns Session object if successful, null if not
+ */
+const walletComplete = async (publicAddress: string, signedMessage: string): Promise<Session | null> => {
     const client = initializeApollo();
     const result = await client.mutate({
         mutation: walletCompleteMutation,
@@ -38,23 +43,26 @@ const signPayload = async (publicAddress: string, payload: string): Promise<any>
     return await window.cardano.signData(publicAddress, payload);
 }
 
-// Validate payload with backend
-export const validateWallet = async (): Promise<any> => {
-    let success = false;
+/**
+ * Establish trust between a user's wallet and the backend
+ * @returns Session object or null
+ */
+export const validateWallet = async (): Promise<Session | null> => {
+    let session: Session | null = null;
     try {
         // Connect to wallet extension
         const walletConnected = await connectWallet();
-        if (!walletConnected) return false;
+        if (!walletConnected) return null;
         // Find wallet address
         const address = await window.cardano.getRewardAddress();
         // Request payload from backend
         const payload = await walletInit(address);
-        if (!payload) return false;
+        if (!payload) return null;
         // Sign payload with wallet
         const signedPayload = await signPayload(address, payload);
-        if (!signedPayload) return false;
+        if (!signedPayload) return null;
         // Send signed payload to backend for verification
-        success = await walletComplete(address, signedPayload);
+        session = await walletComplete(address, signedPayload);
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
         PubSub.publish(PUBS.AlertDialog, {
@@ -62,6 +70,6 @@ export const validateWallet = async (): Promise<any> => {
             buttons: [{ text: 'OK' }]
         });
     } finally {
-        return success;
+        return session;
     }
 }

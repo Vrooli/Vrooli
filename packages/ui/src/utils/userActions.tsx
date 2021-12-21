@@ -54,7 +54,8 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
     // Home action always available
     let actions: ActionArray[] = [['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]];
     // Map user roles to string array
-    const rolesAsStrings = Array.isArray(userRoles) ? userRoles.map(r => r.role.title) : [];
+    const rolesAsStrings = Array.isArray(userRoles) ? userRoles.map(r => r.title) : [];
+    console.log('ROLESasstrings', rolesAsStrings);
     // Projets action is only for logged-in users (since it uses personal data)
     if (rolesAsStrings?.includes(ROLES.Actor)) {
         actions.push(['Projects', ACTION_TAGS.Projects, LINKS.Projects, null, ProjectsIcon, 0]);

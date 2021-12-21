@@ -9,8 +9,17 @@ import { EmailLogInInput } from "./globalTypes";
 // GraphQL mutation operation: emailLogIn
 // ====================================================
 
+export interface emailLogIn_emailLogIn_roles {
+  __typename: "Role";
+  title: string;
+  description: string | null;
+}
+
 export interface emailLogIn_emailLogIn {
   __typename: "Session";
+  id: string | null;
+  theme: string;
+  roles: emailLogIn_emailLogIn_roles[];
 }
 
 export interface emailLogIn {

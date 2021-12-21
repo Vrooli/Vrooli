@@ -8,6 +8,7 @@ import { projectsQuery } from 'graphql/query';
 import { useCallback, useMemo, useState } from 'react';
 import { NewProjectDialog, ProjectCard } from 'components';
 import { projects } from 'graphql/generated/projects';
+import { Session } from 'types';
 
 const componentStyles = () => ({
     cardFlex: {
@@ -19,9 +20,15 @@ const componentStyles = () => ({
 
 const useStyles = makeStyles(combineStyles(pageStyles, componentStyles));
 
-export const ProjectsPage = () => {
+interface Props {
+    session?: Session
+}
+
+export const ProjectsPage = ({
+    session
+}: Props) => {
     const classes = useStyles();
-    const { data: projects } = useQuery<projects, any>(projectsQuery)
+    const { data: projects } = useQuery<projects, any>(projectsQuery, { variables: { input: { userId: session?.id } } })
     // const [newProject] = useMutation<any>(asdf);
     // const [deleteProject] = useMutation<any>(asdf);
     const [newProjectOpen, setNewProjectOpen] = useState(false);
@@ -37,7 +44,7 @@ export const ProjectsPage = () => {
 
     return (
         <div id="page">
-            <NewProjectDialog open={newProjectOpen} onClose={closeNewProjectDialog} />  
+            <NewProjectDialog open={newProjectOpen} onClose={closeNewProjectDialog} />
             <div className={classes.header}>
                 <Typography variant="h3" component="h1">My Projects</Typography>
                 <Button onClick={openNewProjectDialog}>New Project</Button>

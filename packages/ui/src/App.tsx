@@ -65,7 +65,7 @@ export function App() {
     const { pathname, hash } = useLocation();
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
-    const [session, setSession] = useState<Session | null>(null);
+    const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState(themes.light);
     const [roles, setRoles] = useState<UserRoles>(null);
     const [loading, setLoading] = useState(false);
@@ -172,6 +172,7 @@ export function App() {
                                 <AlertDialog />
                                 <Snack />
                                 <Routes
+                                    session={session}
                                     sessionChecked={Boolean(session)}
                                     onSessionUpdate={checkSession}
                                     userRoles={roles}

@@ -45,7 +45,7 @@ export const mutationWrapper = ({
     spinnerDelay = 1000,
 }: Props) => {
     if (spinnerDelay) PubSub.publish(PUBS.Loading, spinnerDelay);
-    mutation(input).then((response) => {
+    mutation(input ? { variables: { input } } : undefined).then((response) => {
         if (successCondition(response)) {
             if (successMessage || successData) PubSub.publish(PUBS.Snack, { message: successMessage && successMessage(response), ...successData });
             if (spinnerDelay) PubSub.publish(PUBS.Loading, false);

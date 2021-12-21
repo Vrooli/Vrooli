@@ -14,8 +14,8 @@ export interface sessionFields_roles {
 }
 
 export interface sessionFields {
-  __typename: "User";
-  id: string;
+  __typename: "Session";
+  id: string | null;
   theme: string;
   roles: sessionFields_roles[];
 }

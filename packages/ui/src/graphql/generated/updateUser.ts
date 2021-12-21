@@ -9,17 +9,8 @@ import { UpdateUserInput } from "./globalTypes";
 // GraphQL mutation operation: updateUser
 // ====================================================
 
-export interface updateUser_updateUser_roles {
-  __typename: "Role";
-  title: string;
-  description: string | null;
-}
-
 export interface updateUser_updateUser {
   __typename: "User";
-  id: string;
-  theme: string;
-  roles: updateUser_updateUser_roles[];
 }
 
 export interface updateUser {
