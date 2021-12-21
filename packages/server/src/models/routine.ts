@@ -66,7 +66,7 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
 /* #region Model */
 //==============================================================
 
-export function RoutineModel(prisma: any) {
+export function RoutineModel(prisma?: any) {
     let obj: BaseState<Routine> = {
         prisma,
         model: MODEL_TYPES.Routine,

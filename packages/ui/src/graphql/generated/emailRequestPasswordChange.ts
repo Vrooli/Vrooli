@@ -10,7 +10,7 @@ import { EmailRequestPasswordChangeInput } from "./globalTypes";
 // ====================================================
 
 export interface emailRequestPasswordChange {
-  emailRequestPasswordChange: boolean | null;
+  emailRequestPasswordChange: boolean;
 }
 
 export interface emailRequestPasswordChangeVariables {

@@ -7,6 +7,7 @@ export * from './logOut';
 export * from './emailRequestPasswordChange';
 export * from './emailResetPassword';
 export * from './emailSignUp';
+export * from './upsertProject';
 export * from './validateSession';
 export * from './walletComplete';
 export * from './writeAssets';

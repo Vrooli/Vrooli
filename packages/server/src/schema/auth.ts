@@ -82,7 +82,7 @@ export const typeDef = gql`
         guestLogIn: Session!
         logOut: Boolean!
         validateSession: Boolean!
-        walletInit(input: WalletInitInput!): Wallet!
+        walletInit(input: WalletInitInput!): String!
         walletComplete(input: WalletCompleteInput!): Session!
         walletRemove(input: DeleteOneInput!): Boolean!
     }

@@ -3,35 +3,20 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ResetPasswordInput, AccountStatus } from "./globalTypes";
+import { EmailResetPasswordInput } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: resetPassword
+// GraphQL mutation operation: emailResetPassword
 // ====================================================
 
-export interface emailResetPassword_resetPassword_roles_role {
-  __typename: "Role";
-  title: string;
-  description: string | null;
-}
-
-export interface emailResetPassword_resetPassword_roles {
-  __typename: "UserRole";
-  role: emailResetPassword_resetPassword_roles_role;
-}
-
-export interface emailResetPassword_resetPassword {
-  __typename: "User";
-  id: string;
-  status: AccountStatus;
-  theme: string;
-  roles: emailResetPassword_resetPassword_roles[];
+export interface emailResetPassword_emailResetPassword {
+  __typename: "Session";
 }
 
 export interface emailResetPassword {
-  resetPassword: emailResetPassword_resetPassword;
+  emailResetPassword: emailResetPassword_emailResetPassword;
 }
 
 export interface emailResetPasswordVariables {
-  input: ResetPasswordInput;
+  input: EmailResetPasswordInput;
 }

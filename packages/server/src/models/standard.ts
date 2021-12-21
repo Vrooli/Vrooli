@@ -46,7 +46,7 @@ Pick<Standard, 'reports' | 'comments'> &
 /* #region Model */
 //==============================================================
 
-export function StandardModel(prisma: any) {
+export function StandardModel(prisma?: any) {
     let obj: BaseState<Standard> = {
         prisma,
         model: MODEL_TYPES.Standard,

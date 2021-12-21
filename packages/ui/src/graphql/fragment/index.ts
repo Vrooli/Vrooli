@@ -1,3 +1,3 @@
 export * from './emailFields';
-export * from './userContactFields';
-export * from './userSessionFields';
+export * from './resourceFields';
+export * from './sessionFields';

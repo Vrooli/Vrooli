@@ -1,1 +1,50 @@
-export const ProjectsPage = () => { return ( <div></div> ) }
+import { Link } from 'react-router-dom';
+import { Button, Typography } from '@material-ui/core';
+import { makeStyles } from '@material-ui/styles';
+import { combineStyles } from 'utils';
+import { pageStyles } from './styles';
+import { useMutation, useQuery } from '@apollo/client';
+import { projectsQuery } from 'graphql/query';
+import { useCallback, useMemo, useState } from 'react';
+import { NewProjectDialog, ProjectCard } from 'components';
+import { projects } from 'graphql/generated/projects';
+
+const componentStyles = () => ({
+    cardFlex: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, .5fr))',
+        gridGap: '20px',
+    },
+})
+
+const useStyles = makeStyles(combineStyles(pageStyles, componentStyles));
+
+export const ProjectsPage = () => {
+    const classes = useStyles();
+    const { data: projects } = useQuery<projects, any>(projectsQuery)
+    // const [newProject] = useMutation<any>(asdf);
+    // const [deleteProject] = useMutation<any>(asdf);
+    const [newProjectOpen, setNewProjectOpen] = useState(false);
+    const openNewProjectDialog = useCallback(() => setNewProjectOpen(true), []);
+    const closeNewProjectDialog = useCallback(() => setNewProjectOpen(false), []);
+
+    const projectCards = useMemo(() => (
+        projects?.projects?.map((c, index) =>
+            <ProjectCard
+                key={index}
+            />)
+    ), [projects])
+
+    return (
+        <div id="page">
+            <NewProjectDialog open={newProjectOpen} onClose={closeNewProjectDialog} />  
+            <div className={classes.header}>
+                <Typography variant="h3" component="h1">My Projects</Typography>
+                <Button onClick={openNewProjectDialog}>New Project</Button>
+            </div>
+            <div className={classes.cardFlex}>
+                {projectCards}
+            </div>
+        </div>
+    );
+}

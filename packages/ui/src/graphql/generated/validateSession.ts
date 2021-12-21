@@ -4,9 +4,9 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL mutation operation: logOut
+// GraphQL mutation operation: validateSession
 // ====================================================
 
-export interface logOut {
-  logOut: boolean;
+export interface validateSession {
+  validateSession: boolean;
 }

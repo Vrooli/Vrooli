@@ -14,14 +14,35 @@ export enum AccountStatus {
   UNLOCKED = "UNLOCKED",
 }
 
-export interface WalletCompleteInput {
-  publicAddress: string;
-  signedMessage: string;
+export enum ProjectSortBy {
+  AlphabeticalAsc = "AlphabeticalAsc",
+  AlphabeticalDesc = "AlphabeticalDesc",
+  CommentsAsc = "CommentsAsc",
+  CommentsDesc = "CommentsDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  ForksAsc = "ForksAsc",
+  ForksDesc = "ForksDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+  VotesAsc = "VotesAsc",
+  VotesDesc = "VotesDesc",
+}
+
+export enum ResourceFor {
+  ORGANIZATION = "ORGANIZATION",
+  PROJECT = "PROJECT",
+  ROUTINE_CONTEXTUAL = "ROUTINE_CONTEXTUAL",
+  ROUTINE_DONATION = "ROUTINE_DONATION",
+  ROUTINE_EXTERNAL = "ROUTINE_EXTERNAL",
+  USER = "USER",
 }
 
 export interface DeleteUserInput {
   id: string;
-  password?: string | null;
+  password: string;
 }
 
 export interface EmailInput {
@@ -30,11 +51,6 @@ export interface EmailInput {
   receivesAccountUpdates?: boolean | null;
   receivesBusinessUpdates?: boolean | null;
   userId?: string | null;
-}
-
-export interface WalletInitInput {
-  publicAddress: string;
-  nonceDescription?: string | null;
 }
 
 export interface EmailLogInInput {
@@ -47,7 +63,7 @@ export interface EmailRequestPasswordChangeInput {
   email: string;
 }
 
-export interface ResetPasswordInput {
+export interface EmailResetPasswordInput {
   id: string;
   code: string;
   newPassword: string;
@@ -60,6 +76,41 @@ export interface EmailSignUpInput {
   theme: string;
   marketingEmails: boolean;
   password: string;
+}
+
+export interface OrganizationInput {
+  id?: string | null;
+  name: string;
+  description?: string | null;
+  resources?: ResourceInput[] | null;
+}
+
+export interface ProjectInput {
+  id?: string | null;
+  name: string;
+  description?: string | null;
+  organizations?: OrganizationInput[] | null;
+  users?: UserInput[] | null;
+  resources?: ResourceInput[] | null;
+}
+
+export interface ProjectsQueryInput {
+  userId?: number | null;
+  ids?: string[] | null;
+  sortBy?: ProjectSortBy | null;
+  searchString?: string | null;
+  first?: number | null;
+  skip?: number | null;
+}
+
+export interface ResourceInput {
+  id?: string | null;
+  name: string;
+  description?: string | null;
+  link: string;
+  displayUrl?: string | null;
+  createdFor: ResourceFor;
+  forId: string;
 }
 
 export interface UpdateUserInput {
@@ -75,6 +126,16 @@ export interface UserInput {
   emails?: EmailInput[] | null;
   theme?: string | null;
   status?: AccountStatus | null;
+}
+
+export interface WalletCompleteInput {
+  publicAddress: string;
+  signedMessage: string;
+}
+
+export interface WalletInitInput {
+  publicAddress: string;
+  nonceDescription?: string | null;
 }
 
 //==============================================================

@@ -6,25 +6,25 @@ import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter 
 /* #region Type Definitions */
 //======================================================================================================================
 
-// // Type 1. RelationshipList
-// export type ResourceRelationshipList = 'organization_resources' | 'project_resources' | 'routine_resources_contextual' | 
-// 'routine_resources_external' | 'routine_resources_donation' | 'user_resources' | 'starredBy' | 'reports' | 'comments';
-// // Type 2. QueryablePrimitives
-// export type ResourceQueryablePrimitives = Omit<Resource, ResourceRelationshipList>;
-// // Type 3. AllPrimitives
-// export type ResourceAllPrimitives = ResourceQueryablePrimitives;
-// // type 4. FullModel
-// export type ResourceFullModel = ResourceAllPrimitives &
-// Pick<Resource, 'reports' | 'comments'> &
-// {
-//     organization_resources: { organization: Organization[] },
-//     project_resources: { project: Project[] },
-//     routine_resources_contextual: { routine: Routine[] },
-//     routine_resources_external: { routine: Routine[] },
-//     routine_resources_donation: { routine: Routine[] },
-//     user_resources: { user: User[] },
-//     starredBy: { user: User[] }[],
-// };
+// Type 1. RelationshipList
+export type ResourceRelationshipList = 'organization_resources' | 'project_resources' | 'routine_resources_contextual' | 
+'routine_resources_external' | 'routine_resources_donation' | 'user_resources' | 'starredBy' | 'reports' | 'comments';
+// Type 2. QueryablePrimitives
+export type ResourceQueryablePrimitives = Omit<Resource, ResourceRelationshipList>;
+// Type 3. AllPrimitives
+export type ResourceAllPrimitives = ResourceQueryablePrimitives;
+// type 4. FullModel
+export type ResourceFullModel = ResourceAllPrimitives &
+Pick<Resource, 'reports' | 'comments'> &
+{
+    organization_resources: { organization: Organization[] },
+    project_resources: { project: Project[] },
+    routine_resources_contextual: { routine: Routine[] },
+    routine_resources_external: { routine: Routine[] },
+    routine_resources_donation: { routine: Routine[] },
+    user_resources: { user: User[] },
+    starredBy: { user: User[] }[],
+};
 
 //======================================================================================================================
 /* #endregion Type Definitions */
@@ -111,7 +111,7 @@ const updater = (state: any) => ({
 /* #region Model */
 //==============================================================
 
-export function ResourceModel(prisma: any) {
+export function ResourceModel(prisma?: any) {
     let obj: BaseState<Resource> = {
         prisma,
         model: MODEL_TYPES.Resource,

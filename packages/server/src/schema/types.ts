@@ -131,7 +131,6 @@ export type Mutation = {
   addFeedback: Scalars['Boolean'];
   addNode: Node;
   addOrganization: Organization;
-  addProject: Project;
   addResource: Resource;
   addRoutine: Routine;
   addStandard: Standard;
@@ -165,17 +164,17 @@ export type Mutation = {
   updateEmail: Email;
   updateNode: Node;
   updateOrganization: Organization;
-  updateProject: Project;
   updateResource: Resource;
   updateRoutine: Routine;
   updateStandard: Standard;
   updateTag: Tag;
   updateUser: User;
+  upsertProject: Project;
   validateSession: Scalars['Boolean'];
   voteComment: Scalars['Boolean'];
   voteTag: Scalars['Boolean'];
   walletComplete: Session;
-  walletInit: Wallet;
+  walletInit: Scalars['String'];
   walletRemove: Scalars['Boolean'];
   writeAssets?: Maybe<Scalars['Boolean']>;
 };
@@ -203,11 +202,6 @@ export type MutationAddNodeArgs = {
 
 export type MutationAddOrganizationArgs = {
   input: OrganizationInput;
-};
-
-
-export type MutationAddProjectArgs = {
-  input: ProjectInput;
 };
 
 
@@ -361,11 +355,6 @@ export type MutationUpdateOrganizationArgs = {
 };
 
 
-export type MutationUpdateProjectArgs = {
-  input: ProjectInput;
-};
-
-
 export type MutationUpdateResourceArgs = {
   input: ResourceInput;
 };
@@ -388,6 +377,11 @@ export type MutationUpdateTagArgs = {
 
 export type MutationUpdateUserArgs = {
   input: UpdateUserInput;
+};
+
+
+export type MutationUpsertProjectArgs = {
+  input: ProjectInput;
 };
 
 
@@ -657,9 +651,30 @@ export type ProjectInput = {
   users?: InputMaybe<Array<UserInput>>;
 };
 
+export enum ProjectSortBy {
+  AlphabeticalAsc = 'AlphabeticalAsc',
+  AlphabeticalDesc = 'AlphabeticalDesc',
+  CommentsAsc = 'CommentsAsc',
+  CommentsDesc = 'CommentsDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  ForksAsc = 'ForksAsc',
+  ForksDesc = 'ForksDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc',
+  VotesAsc = 'VotesAsc',
+  VotesDesc = 'VotesDesc'
+}
+
 export type ProjectsQueryInput = {
   first?: InputMaybe<Scalars['Int']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
   skip?: InputMaybe<Scalars['Int']>;
+  sortBy?: InputMaybe<ProjectSortBy>;
+  userId?: InputMaybe<Scalars['Int']>;
 };
 
 export type Query = {

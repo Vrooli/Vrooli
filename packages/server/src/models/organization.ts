@@ -47,7 +47,7 @@ Pick<Organization, 'comments' | 'wallets' | 'reports'> &
 /* #region Model */
 //==============================================================
 
-export function OrganizationModel(prisma: any) {
+export function OrganizationModel(prisma?: any) {
     let obj: BaseState<Organization> = {
         prisma,
         model: MODEL_TYPES.Organization,

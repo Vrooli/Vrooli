@@ -79,3 +79,21 @@ export type ORCHESTRATION_DATA = {
     description?: string,
     nodes: Array<NODE_DATA>,
 }
+
+export const PROJECT_SORT_BY = {
+    AlphabeticalAsc: 'AlphabeticalAsc',
+    AlphabeticalDesc: 'AlphabeticalDesc',
+    CommentsAsc: 'CommentsAsc',
+    CommentsDesc: 'CommentsDesc',
+    ForksAsc: 'ForksAsc',
+    ForksDesc: 'ForksDesc',
+    DateCreatedAsc: 'DateCreatedAsc',
+    DateCreatedDesc: 'DateCreatedDesc',
+    DateUpdatedAsc: 'DateUpdatedAsc',
+    DateUpdatedDesc: 'DateUpdatedDesc',
+    StarsAsc: 'StarsAsc',
+    StarsDesc: 'StarsDesc',
+    VotesAsc: 'VotesAsc',
+    VotesDesc: 'VotesDesc',
+}
+export type PROJECT_SORT_BY = ValueOf<typeof PROJECT_SORT_BY>;

@@ -58,7 +58,7 @@ export type TagFullModel = TagAllPrimitives &
 /* #region Model */
 //==============================================================
 
-export function TagModel(prisma: any) {
+export function TagModel(prisma?: any) {
     let obj: BaseState<Tag> = {
         prisma,
         model: MODEL_TYPES.Tag,

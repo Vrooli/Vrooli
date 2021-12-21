@@ -87,3 +87,11 @@ export const emailResetPasswordSchema = yup.object().shape({
     newPassword: passwordSchema.required(),
     confirmNewPassword: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match')
 })
+
+/**
+ * Schema for creating a project
+ */
+ export const addProjectSchema = yup.object().shape({
+    name: yup.string().max(128).required(),
+    description: yup.string().max(2048).optional(),
+})

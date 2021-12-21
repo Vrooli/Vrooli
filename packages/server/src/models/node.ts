@@ -131,7 +131,7 @@ Pick<Node, 'previous' | 'next' | 'routine' | 'Previous' | 'Next'> &
 /* #region Model */
 //==============================================================
 
-export function NodeModel(prisma: any) {
+export function NodeModel(prisma?: any) {
     let obj: BaseState<Node> = {
         prisma,
         model: MODEL_TYPES.Node,

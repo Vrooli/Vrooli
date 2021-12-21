@@ -130,7 +130,7 @@ const formatter = (): FormatConverter<any, any> => ({
 /* #region Model */
 //==============================================================
 
-export function CommentModel(prisma: any) {
+export function CommentModel(prisma?: any) {
     let obj: BaseState<Comment> = {
         prisma,
         model: MODEL_TYPES.Comment,

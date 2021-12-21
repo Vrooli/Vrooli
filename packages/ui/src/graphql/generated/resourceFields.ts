@@ -4,9 +4,14 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL mutation operation: logOut
+// GraphQL fragment: resourceFields
 // ====================================================
 
-export interface logOut {
-  logOut: boolean;
+export interface resourceFields {
+  __typename: "Resource";
+  id: string;
+  name: string;
+  description: string | null;
+  link: string;
+  displayUrl: string | null;
 }

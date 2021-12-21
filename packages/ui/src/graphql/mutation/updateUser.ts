@@ -1,11 +1,11 @@
 import { gql } from 'graphql-tag';
-import { userSessionFields } from 'graphql/fragment';
+import { sessionFields } from 'graphql/fragment';
 
 export const updateUserMutation = gql`
-    ${userSessionFields}
+    ${sessionFields}
     mutation updateUser($input: UpdateUserInput!) {
     updateUser(input: $input) {
-        ...userSessionFields
+        ...sessionFields
     }
 }
 `
