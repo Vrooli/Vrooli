@@ -17,7 +17,7 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
-interface Props {
+export interface Props {
     title?: string;
     description?: string;
     id?: string;
