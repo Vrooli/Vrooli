@@ -1,1 +1,2 @@
-export * from './BarGraph';
+export * from './BarGraph/BarGraph';
+export * from './Zoom/Zoom';

@@ -1,2 +1,2 @@
-export * from './ResourceList';
-export * from './StatsList';
+export * from './ResourceList/ResourceList';
+export * from './StatsList/StatsList';

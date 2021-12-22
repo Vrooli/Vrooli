@@ -6,3 +6,7 @@ export interface BreadcrumbsBaseProps {
     style?: object;
     className?: string;
 }
+
+export type CopyrightBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel' | 'style'>
+
+export type PolicyBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>
