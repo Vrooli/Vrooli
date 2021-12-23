@@ -8,9 +8,6 @@ import { combineStyles } from 'utils';
 const componentStyles = (theme: Theme) => ({
     root: {
         position: 'relative',
-        height: '10vw',
-        width: '10vw',
-        lineHeight: '10vw',
         textAlign: 'center',
         margin: '10px 40px',
         color: 'white',
@@ -35,12 +32,17 @@ const componentStyles = (theme: Theme) => ({
             border: '1px solid organge',
             transform: 'rotateX(45deg) rotateZ(45deg)',
         },
+        '&:hover': {
+            filter: `brightness(120%)`,
+            transition: 'filter 0.2s',
+        },
     },
 });
 
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 export const DecisionNode = ({
+    scale = 1,
     label = 'Continue?',
     text = 'Would you like to continue?',
     labelVisible = true,
@@ -52,9 +54,12 @@ export const DecisionNode = ({
         <Typography className={classes.label} variant="h6">{label}</Typography>
     ): null, [label, labelVisible, classes.label]);
 
+    const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
+    const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
+
     return (
         <Tooltip placement={'top'} title={text}>
-            <div className={classes.root}>
+            <div className={classes.root} style={{width: nodeSize, height: nodeSize, lineHeight: nodeSize, fontSize: fontSize}}>
                 {labelObject}
             </div>
         </Tooltip>

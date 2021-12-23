@@ -39,30 +39,30 @@ export const HelpButton = ({
 
     return (
         <div className={classes.root}>
-<Tooltip placement="top" title={title}>
-            <IconButton className={classes.button}>
-                <HelpIcon onClick={openPopup} />
-                <Popover
-                    id={popup_id}
-                    open={popup_open}
-                    anchorEl={anchorEl}
-                    onClose={closePopup}
-                    classes={{
-                        paper: classes.popupPaper
-                    }}
-                    anchorOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'center',
-                    }}
-                    transformOrigin={{
-                        vertical: 'top',
-                        horizontal: 'center',
-                    }}
-                >
-                    {popup}
-                </Popover>
-            </IconButton>
-        </Tooltip>
+            <Tooltip placement="top" title={title}>
+                <IconButton className={classes.button}>
+                    <HelpIcon onClick={openPopup} />
+                    <Popover
+                        id={popup_id}
+                        open={popup_open}
+                        anchorEl={anchorEl}
+                        onClose={closePopup}
+                        classes={{
+                            paper: classes.popupPaper
+                        }}
+                        anchorOrigin={{
+                            vertical: 'bottom',
+                            horizontal: 'center',
+                        }}
+                        transformOrigin={{
+                            vertical: 'top',
+                            horizontal: 'center',
+                        }}
+                    >
+                        {popup}
+                    </Popover>
+                </IconButton>
+            </Tooltip>
         </div>
     )
 }

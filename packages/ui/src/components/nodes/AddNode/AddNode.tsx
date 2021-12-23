@@ -5,19 +5,30 @@ import { AddNodeProps } from '../types';
 import { nodeStyles } from '../styles';
 import { combineStyles } from 'utils';
 import { ListDialog } from 'components';
-import { Add as AddIcon } from '@material-ui/icons';
+import { 
+    Add as AddIcon,
+    AltRoute as DecisionIcon,
+    Done as EndIcon,
+    List as RoutineListIcon,
+    Loop as LoopIcon,
+    MergeType as CombineIcon,
+    UTurnLeft as RedirectIcon
+} from '@mui/icons-material';
 import { NODE_TYPES } from '@local/shared';
 
 const componentStyles = (theme: Theme) => ({
     root: {
         position: 'relative',
         display: 'block',
-        width: '10vw',
-        height: '10vw',
         backgroundColor: '#6daf72',
         color: 'white',
         borderRadius: '100%',
         boxShadow: '0px 0px 12px gray',
+        '&:hover': {
+            backgroundColor: '#6daf72',
+            filter: `brightness(120%)`,
+            transition: 'filter 0.2s',
+        },
     },
     icon: {
         width: '80%',
@@ -28,16 +39,16 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 const optionsMap = {
-    [NODE_TYPES.Combine]: 'Combine',
-    [NODE_TYPES.Decision]: 'Decision',
-    [NODE_TYPES.End]: 'End',
-    [NODE_TYPES.Loop]: 'Loop',
-    [NODE_TYPES.RoutineList]: 'Routine List',
-    [NODE_TYPES.Redirect]: 'Redirect',
-    [NODE_TYPES.Start]: 'Start',
+    [NODE_TYPES.Combine]: ['Combine', CombineIcon],
+    [NODE_TYPES.Decision]: ['Decision', DecisionIcon],
+    [NODE_TYPES.End]: ['End', EndIcon],
+    [NODE_TYPES.Loop]: ['Loop', LoopIcon],
+    [NODE_TYPES.RoutineList]: ['Routine List', RoutineListIcon],
+    [NODE_TYPES.Redirect]: ['Redirect', RedirectIcon],
 }
 
 export const AddNode = ({
+    scale = 1,
     options = Object.values(NODE_TYPES),
     onAdd,
 }: AddNodeProps) => {
@@ -45,7 +56,7 @@ export const AddNode = ({
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);
     const closeDialog = () => setDialogOpen(false);
-    const listOptions = useMemo(() => options.map(o => ({ label: optionsMap[o], value: o })), [options]);
+    const listOptions = useMemo(() => options.map(o => ({ label: optionsMap[o][0], value: o, icon: optionsMap[o][1] })), [options]);
     const dialog = useMemo(() => dialogOpen ? (
         <ListDialog
             title='Add Step'
@@ -54,11 +65,13 @@ export const AddNode = ({
             onClose={closeDialog} />
     ) : null, [dialogOpen, listOptions, onAdd])
 
+    const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
+
     return (
         <div>
             {dialog}
             <Tooltip placement={'top'} title='Insert step'>
-                <IconButton className={classes.root} onClick={openDialog}>
+                <IconButton className={classes.root} style={{width: nodeSize, height: nodeSize}} onClick={openDialog}>
                     <AddIcon className={classes.icon} />
                 </IconButton>
             </Tooltip>

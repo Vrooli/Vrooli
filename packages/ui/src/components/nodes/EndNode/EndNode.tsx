@@ -9,12 +9,14 @@ const componentStyles = (theme: Theme) => ({
     outerCirlce: {
         position: 'relative',
         display: 'block',
-        width: '10vw',
-        height: '10vw',
-        backgroundColor: 'lightgray',
+        backgroundColor: '#979696',
         color: 'white',
         borderRadius: '100%',
         boxShadow: '0px 0px 12px gray',
+        '&:hover': {
+            filter: `brightness(120%)`,
+            transition: 'filter 0.2s',
+        },
     },
     innerCirlce: {
         position: 'absolute',
@@ -33,6 +35,7 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 export const EndNode = ({
+    scale = 1,
     label = 'End',
     labelVisible = true,
 }: EndNodeProps) => {
@@ -42,10 +45,14 @@ export const EndNode = ({
         <Typography className={classes.label} variant="h6">{label}</Typography>
     ) : null, [label, labelVisible, classes.label]);
 
+    const outerCircleSize = useMemo(() => `${100 * scale}px`, [scale]);
+    const innerCircleSize = useMemo(() => `${100 * scale / 1.5}px`, [scale]);
+    const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
+
     return (
         <Tooltip placement={'top'} title={'Start'}>
-            <div className={classes.outerCirlce}>
-                <div className={classes.innerCirlce}>
+            <div className={classes.outerCirlce} style={{width: outerCircleSize, height: outerCircleSize, fontSize: fontSize}}>
+                <div className={classes.innerCirlce} style={{width: innerCircleSize, height: innerCircleSize}}>
                     {labelObject}
                 </div>
             </div>
