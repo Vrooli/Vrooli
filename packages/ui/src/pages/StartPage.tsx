@@ -9,10 +9,10 @@ import {
     Button,
     Dialog,
     Grid,
+    Theme,
     Typography,
-} from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
-import { Theme } from '@material-ui/core';
+} from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { FORMS, PUBS } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import { useCallback, useMemo, useState } from 'react';

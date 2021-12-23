@@ -1,8 +1,8 @@
 import { 
     Breadcrumbs, 
     Link 
-} from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+} from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import merge from 'lodash/merge';
 import { BreadcrumbsBaseProps } from '../types';
 import { useMemo } from 'react';

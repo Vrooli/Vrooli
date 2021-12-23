@@ -1,4 +1,4 @@
-// Define common props
+// Defines common props
 import { users_users } from 'graphql/generated/users';
 
 // Top-level props that can be passed into any routed component

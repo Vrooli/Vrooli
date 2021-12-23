@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { PUBS } from 'utils';
 import PubSub from 'pubsub-js';
-import { Button, Grid, Theme } from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+import { Button, Grid, Theme } from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { DropzoneProps } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({

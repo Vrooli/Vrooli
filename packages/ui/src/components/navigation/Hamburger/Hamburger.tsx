@@ -8,10 +8,19 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
     Menu as MenuIcon,
-} from '@material-ui/icons';
-import { IconButton, SwipeableDrawer, List, ListItem, ListItemIcon, Collapse, ListItemText, Theme } from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
-import { useTheme } from '@material-ui/core';
+} from '@mui/icons-material';
+import {
+    Collapse,
+    IconButton,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    SwipeableDrawer,
+    Theme,
+    useTheme
+} from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { CopyrightBreadcrumbs } from 'components';
 import { useNavigate } from 'react-router-dom';
 import { HamburgerProps } from '../types';
@@ -84,7 +93,7 @@ export const Hamburger = ({
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <MenuIcon />
             </IconButton>
-            <SwipeableDrawer classes={{ paper: classes.drawerPaper }} anchor="right" open={open} onOpen={()=>{}} onClose={closeMenu}>
+            <SwipeableDrawer classes={{ paper: classes.drawerPaper }} anchor="right" open={open} onOpen={() => { }} onClose={closeMenu}>
                 <IconButton className={classes.close} onClick={closeMenu}>
                     <CloseIcon fontSize="large" />
                 </IconButton>

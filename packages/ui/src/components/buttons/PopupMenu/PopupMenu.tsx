@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { makeStyles } from '@material-ui/styles';
-import Popover from '@material-ui/core/Popover';
-import { Button, Theme } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { Button, Popover, Theme } from '@mui/material';
 import { PopupMenuProps } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({

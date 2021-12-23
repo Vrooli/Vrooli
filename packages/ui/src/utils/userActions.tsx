@@ -7,7 +7,7 @@ import {
     PlayCircle as DevelopIcon,
     School as LearnIcon,
     Science as ResearchIcon,
-} from '@material-ui/icons';
+} from '@mui/icons-material';
 import { APP_LINKS as LINKS } from '@local/shared';
 import { initializeApollo } from 'graphql/utils/initialize';
 import { logOutMutation } from 'graphql/mutation';
@@ -19,7 +19,7 @@ import {
     ListItem,
     ListItemIcon,
     ListItemText,
-} from '@material-ui/core';
+} from '@mui/material';
 import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
 import { openLink } from 'utils';

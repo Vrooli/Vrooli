@@ -1,5 +1,5 @@
-import { makeStyles } from '@material-ui/styles';
-import { Theme, Typography } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { Theme, Typography } from '@mui/material';
 import { ResourceCard } from 'components';
 import { ResourceListProps } from '../types';
 

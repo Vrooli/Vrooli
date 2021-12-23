@@ -1,10 +1,10 @@
-import { makeStyles } from '@material-ui/styles';
-import { List, ListItem, ListItemIcon, Theme } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { List, ListItem, ListItemIcon, Theme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
     ChevronLeft as ChevronLeftIcon,
     ChevronRight as ChevronRightIcon,
-} from '@material-ui/icons';
+} from '@mui/icons-material';
 import { StatsList } from 'components';
 
 const useStyles = makeStyles((theme: Theme) => ({

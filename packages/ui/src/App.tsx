@@ -9,10 +9,9 @@ import {
 import PubSub from 'pubsub-js';
 import { PUBS, themes } from 'utils';
 import { AllRoutes } from 'Routes';
-import { CssBaseline, CircularProgress } from '@material-ui/core';
-import { ThemeProvider } from '@material-ui/core/styles';
-import { makeStyles } from '@material-ui/styles';
-import StyledEngineProvider from '@material-ui/core/StyledEngineProvider';
+import { CssBaseline, CircularProgress } from '@mui/material';
+import { StyledEngineProvider, ThemeProvider } from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { DndProvider } from 'react-dnd';
 import { useMutation } from '@apollo/client';

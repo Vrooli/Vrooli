@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { makeStyles } from '@material-ui/styles';
-import { IconButton, Popover, Theme, Tooltip } from '@material-ui/core';
-import { HelpOutline as HelpIcon } from "@material-ui/icons";
+import { makeStyles } from '@mui/styles';
+import { IconButton, Popover, Theme, Tooltip } from '@mui/material';
+import { HelpOutline as HelpIcon } from "@mui/icons-material";
 import { HelpButtonProps } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({

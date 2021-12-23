@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { IconButton, Button, Snackbar, Theme, SnackbarProps } from '@material-ui/core';
-import { Close as CloseIcon } from '@material-ui/icons';
+import { IconButton, Button, Snackbar, Theme, SnackbarProps } from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { PUBS } from 'utils';
 import PubSub from 'pubsub-js';
-import { makeStyles } from '@material-ui/styles';
+import { makeStyles } from '@mui/styles';
 import { ValueOf } from '@local/shared';
 
 export const SnackSeverity = {

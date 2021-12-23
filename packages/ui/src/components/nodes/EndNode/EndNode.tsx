@@ -1,5 +1,5 @@
-import { makeStyles } from '@material-ui/styles';
-import { Theme, Tooltip, Typography } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { Theme, Tooltip, Typography } from '@mui/material';
 import { useMemo } from 'react';
 import { EndNodeProps } from '../types';
 import { nodeStyles } from '../styles';
@@ -50,7 +50,7 @@ export const EndNode = ({
     const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
 
     return (
-        <Tooltip placement={'top'} title={'Start'}>
+        <Tooltip placement={'top'} title={'End'}>
             <div className={classes.outerCirlce} style={{width: outerCircleSize, height: outerCircleSize, fontSize: fontSize}}>
                 <div className={classes.innerCirlce} style={{width: innerCircleSize, height: innerCircleSize}}>
                     {labelObject}

@@ -1,5 +1,5 @@
-import { makeStyles } from '@material-ui/styles';
-import { IconButton, Theme, Tooltip } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { IconButton, Theme, Tooltip } from '@mui/material';
 import { useMemo, useState } from 'react';
 import { AddNodeProps } from '../types';
 import { nodeStyles } from '../styles';
@@ -12,6 +12,7 @@ import {
     List as RoutineListIcon,
     Loop as LoopIcon,
     MergeType as CombineIcon,
+    SvgIconComponent,
     UTurnLeft as RedirectIcon
 } from '@mui/icons-material';
 import { NODE_TYPES } from '@local/shared';
@@ -38,7 +39,7 @@ const componentStyles = (theme: Theme) => ({
 
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
-const optionsMap = {
+const optionsMap: {[x: string]: [string, SvgIconComponent]} = {
     [NODE_TYPES.Combine]: ['Combine', CombineIcon],
     [NODE_TYPES.Decision]: ['Decision', DecisionIcon],
     [NODE_TYPES.End]: ['End', EndIcon],
@@ -49,14 +50,18 @@ const optionsMap = {
 
 export const AddNode = ({
     scale = 1,
-    options = Object.values(NODE_TYPES),
+    options = Object.values(NODE_TYPES).filter(o => o !== NODE_TYPES.Start),
     onAdd,
 }: AddNodeProps) => {
     const classes = useStyles();
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);
     const closeDialog = () => setDialogOpen(false);
-    const listOptions = useMemo(() => options.map(o => ({ label: optionsMap[o][0], value: o, icon: optionsMap[o][1] })), [options]);
+    const listOptions = useMemo(() => options.map(o => ({ 
+        label: optionsMap[o][0],
+        value: o,
+        Icon: optionsMap[o][1]
+    })), [options]);
     const dialog = useMemo(() => dialogOpen ? (
         <ListDialog
             title='Add Step'

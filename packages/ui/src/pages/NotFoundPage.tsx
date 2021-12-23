@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Button } from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+import { Button } from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { combineStyles } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import { pageStyles } from './styles';

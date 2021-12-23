@@ -1,4 +1,4 @@
-import { Theme } from "@material-ui/core";
+import { Theme } from '@mui/material';
 
 export const combineStyles: any = (...styles: Array<Theme | {} | string>) => {
     return function CombineStyles(theme: Theme) {

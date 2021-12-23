@@ -1,5 +1,5 @@
-import { makeStyles } from '@material-ui/styles';
-import { Theme, Tooltip, Typography } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { Theme, Tooltip, Typography } from '@mui/material';
 import { useMemo } from 'react';
 import { DecisionNodeProps } from '../types';
 import { nodeStyles } from '../styles';

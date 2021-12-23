@@ -1,5 +1,5 @@
-import { Theme } from "@material-ui/core";
-import { Styles } from "@material-ui/styles";
+import { Theme } from '@mui/material';
+import { Styles } from '@mui/styles';
 
 export const formStyles: Styles<Theme, {}> = (theme: Theme) => ({
     form: {

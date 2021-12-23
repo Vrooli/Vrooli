@@ -6,8 +6,8 @@ import {
     Theme,
     Tooltip,
     Typography
-} from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+} from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { combineStyles, openLink } from 'utils';
 import { NoImageWithTextIcon } from 'assets/img';
 import { cardStyles } from '../styles';

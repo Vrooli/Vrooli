@@ -8,15 +8,15 @@ import {
     Link,
     TextField,
     Typography
-} from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+} from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { APP_LINKS } from '@local/shared';
 import { FORMS } from 'utils';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useNavigate } from 'react-router-dom';
 import { formStyles } from './styles';
 import { emailRequestPasswordChange } from 'graphql/generated/emailRequestPasswordChange';
-import { FormProps } from 'forms';
+import { FormProps } from './types';
 
 const useStyles = makeStyles(formStyles);
 

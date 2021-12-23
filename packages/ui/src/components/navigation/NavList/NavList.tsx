@@ -3,8 +3,8 @@ import {
     PopupMenu
 } from 'components';
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
-import { Button, Container, Theme } from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+import { Button, Container, Theme } from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
 import { NavListProps } from '../types';

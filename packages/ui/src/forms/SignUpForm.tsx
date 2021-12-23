@@ -11,8 +11,8 @@ import {
     TextField,
     Typography,
     useTheme
-} from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+} from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { combineStyles, FORMS, PUBS } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
@@ -20,7 +20,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useNavigate } from 'react-router-dom';
 import { formStyles } from './styles';
 import { emailSignUp } from 'graphql/generated/emailSignUp';
-import { FormProps } from 'forms';
+import { FormProps } from './types';
 
 const componentStyles = () => ({
     phoneInput: {

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { makeStyles } from '@material-ui/styles';
-import { BottomNavigation, Theme } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { BottomNavigation, Theme } from '@mui/material';
 import { actionsToBottomNav, ACTION_TAGS, getUserActions } from 'utils';
 import { CommonProps } from 'types';
 import { BottomNavProps } from '../types';

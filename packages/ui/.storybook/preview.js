@@ -1,9 +1,9 @@
 import React from 'react';
 import { addDecorator, } from '@storybook/react';
 import { themes } from 'utils';
-import { Typography } from '@material-ui/core';
+import { Typography } from '@mui/material';
 import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from '@material-ui/private-theming';
+import { ThemeProvider } from '@mui/styles';
 
 const useStyles = (theme) => ({
     item: {

@@ -1,7 +1,7 @@
-import { createTheme } from '@material-ui/core/styles';
+import { createTheme } from '@mui/material';
 
 // Define custom theme properties
-declare module '@material-ui/core/styles/createPalette' {
+declare module '@mui/material/styles/createPalette' {
     interface TypeBackground {
         textPrimary: string;
         textSecondary: string;

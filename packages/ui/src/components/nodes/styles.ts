@@ -1,5 +1,5 @@
-import { Theme } from "@material-ui/core";
-import { Styles } from "@material-ui/styles";
+import { Theme } from '@mui/material';
+import { Styles } from "@mui/styles";
 
 export const nodeStyles: Styles<Theme, {}> = (theme: Theme) => ({
     label: {
@@ -18,5 +18,8 @@ export const nodeStyles: Styles<Theme, {}> = (theme: Theme) => ({
             0.5px -0.5px 0 black,
             -0.5px 0.5px 0 black,
             0.5px 0.5px 0 black`
+    },
+    ignoreHover: {
+        pointerEvents: 'none',
     }
 });

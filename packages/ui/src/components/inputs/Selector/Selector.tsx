@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { Chip, FormControl, InputLabel, MenuItem, Select, useTheme } from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+import { Chip, FormControl, InputLabel, MenuItem, Select, useTheme } from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import isArray from 'lodash/isArray';
 import isEqual from 'lodash/isEqual';
 import { SelectorProps } from '../types';

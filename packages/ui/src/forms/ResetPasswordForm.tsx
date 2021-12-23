@@ -6,15 +6,15 @@ import {
     Button,
     Grid,
     TextField
-} from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+} from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { APP_LINKS } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useParams } from 'react-router-dom';
 import { formStyles } from './styles';
 import { useNavigate } from 'react-router-dom';
 import { emailResetPassword } from 'graphql/generated/emailResetPassword';
-import { FormProps } from 'forms';
+import { FormProps } from './types';
 
 const useStyles = makeStyles(formStyles);
 

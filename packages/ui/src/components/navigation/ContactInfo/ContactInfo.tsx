@@ -5,13 +5,13 @@ import {
     IconButton, 
     Theme, 
     Tooltip 
-} from '@material-ui/core';
+} from '@mui/material';
 import { 
     Email as EmailIcon,
     GitHub as GitHubIcon,
     Twitter as TwitterIcon,
-} from "@material-ui/icons";
-import { makeStyles } from '@material-ui/styles';
+} from '@mui/icons-material';
+import { makeStyles } from '@mui/styles';
 import { ContactInfoProps } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({

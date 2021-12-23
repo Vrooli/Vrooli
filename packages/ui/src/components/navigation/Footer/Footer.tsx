@@ -1,15 +1,24 @@
 import { APP_LINKS, EMAIL, LANDING_LINKS, LANDING_URL, SOCIALS } from '@local/shared';
-import { makeStyles } from '@material-ui/styles';
-import { SvgIconTypeMap, useTheme } from '@material-ui/core';
-import { List, ListItem, ListItemButton, ListItemIcon, ListItemText, Grid, Tooltip, Theme } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { 
+    List, 
+    ListItem, 
+    ListItemButton, 
+    ListItemIcon, 
+    ListItemText, 
+    Grid, 
+    Tooltip, 
+    Theme, 
+    useTheme 
+} from '@mui/material';
 import {
     Email as EmailIcon,
     GitHub as GitHubIcon,
     Twitter as TwitterIcon,
-} from '@material-ui/icons';
+    SvgIconComponent,
+} from '@mui/icons-material';
 import { CopyrightBreadcrumbs } from 'components';
 import { useNavigate } from 'react-router-dom';
-import { OverridableComponent } from '@material-ui/core/OverridableComponent';
 import { openLink } from 'utils';
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -45,7 +54,7 @@ export const Footer = () => {
     const navigate = useNavigate();
     const theme = useTheme();
 
-    const contactLinks: Array<[string, string, string, string, OverridableComponent<SvgIconTypeMap<{}, "svg">>]> = [
+    const contactLinks: Array<[string, string, string, string, SvgIconComponent]> = [
         ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
         ['contact-email', 'Have a question or feedback? Email us!', EMAIL.Link, 'Email Us', EmailIcon],
         ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],

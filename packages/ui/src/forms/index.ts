@@ -4,4 +4,3 @@ export * from './ProfileForm';
 export * from './ResetPasswordForm';
 export * from './SignUpForm';
 export * from './styles';
-export * from './types';

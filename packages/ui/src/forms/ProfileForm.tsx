@@ -6,11 +6,20 @@ import { profileQuery } from 'graphql/query';
 import { useFormik } from 'formik';
 import { combineStyles, PUBS } from 'utils';
 import PubSub from 'pubsub-js';
-import { Button, Container, FormHelperText, Grid, TextField, Checkbox, FormControlLabel, Theme } from '@material-ui/core';
-import FormControl from '@material-ui/core/FormControl';
-import Radio from '@material-ui/core/Radio';
-import RadioGroup from '@material-ui/core/RadioGroup';
-import { makeStyles } from '@material-ui/styles';
+import { 
+    Button, 
+    Checkbox, 
+    Container, 
+    FormControl, 
+    FormControlLabel,
+    FormHelperText, 
+    Grid, 
+    Radio,
+    RadioGroup,
+    TextField, 
+    Theme 
+} from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { formStyles } from './styles';
 import { profile } from 'graphql/generated/profile';

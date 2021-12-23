@@ -1,4 +1,4 @@
-import { makeStyles } from '@material-ui/styles';
+import { makeStyles } from '@mui/styles';
 import {
     AppBar,
     Button,
@@ -9,12 +9,12 @@ import {
     Theme,
     Toolbar,
     Typography,
-} from '@material-ui/core';
+} from '@mui/material';
 import {
     AddCircle as AddCircleIcon,
     Cancel as CancelIcon,
     Close as CloseIcon,
-} from '@material-ui/icons';
+} from '@mui/icons-material';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { upsertProjectMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';

@@ -1,5 +1,5 @@
-import { makeStyles } from '@material-ui/styles';
-import { Theme, Typography } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { Theme, Typography } from '@mui/material';
 import { NODE_TYPES, ORCHESTRATION_DATA } from '@local/shared';
 import { ZoomI } from 'components';
 

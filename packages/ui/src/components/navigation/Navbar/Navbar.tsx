@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Logo from 'assets/img/Logo.png';
 import { BUSINESS_NAME, APP_LINKS } from '@local/shared';
-import { AppBar, Toolbar, Typography, Slide, useScrollTrigger, Theme } from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+import { AppBar, Toolbar, Typography, Slide, useScrollTrigger, Theme } from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { Hamburger } from '../Hamburger/Hamburger';
 import { NavList } from '../NavList/NavList';
 import { useNavigate } from 'react-router-dom';

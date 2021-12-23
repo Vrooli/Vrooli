@@ -9,7 +9,10 @@ export interface AddNodeProps extends BaseNodeProps {
     onAdd: (type: NODE_TYPES) => void;
 }
 
-export interface CombineNodeProps extends BaseNodeProps {}
+export interface CombineNodeProps extends BaseNodeProps {
+    label?: string;
+    labelVisible?: boolean;
+}
 
 export interface DecisionNodeProps extends BaseNodeProps {
     label?: string;
@@ -27,9 +30,15 @@ export interface LoopNodeProps extends BaseNodeProps {
     labelVisible?: boolean;
 }
 
-export interface RedirectNodeProps extends BaseNodeProps {}
+export interface RedirectNodeProps extends BaseNodeProps {
+    label?: string;
+    labelVisible?: boolean;
+}
 
-export interface RoutineListNodeProps extends BaseNodeProps {}
+export interface RoutineListNodeProps extends BaseNodeProps {
+    label?: string;
+    labelVisible?: boolean;
+}
 
 export interface StartNodeProps extends BaseNodeProps {
     label?: string;

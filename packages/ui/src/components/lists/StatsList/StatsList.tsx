@@ -1,5 +1,5 @@
-import { makeStyles } from '@material-ui/styles';
-import { Theme } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { Theme } from '@mui/material';
 import { StatCard } from 'components';
 import { useMemo } from 'react';
 import { StatsListProps } from '../types';

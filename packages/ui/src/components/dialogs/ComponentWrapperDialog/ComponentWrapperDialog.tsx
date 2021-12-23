@@ -1,20 +1,19 @@
 // Wraps Organization, Actor, Project, or Routine page in a dialog.
 // Used if components were navigated to, rather than directly loaded via url
 
-import { makeStyles } from '@material-ui/styles';
+import { makeStyles } from '@mui/styles';
 import {
     AppBar,
-    Button,
     Dialog,
     Grid,
     IconButton,
     Theme,
     Toolbar,
     Typography,
-} from '@material-ui/core';
+} from '@mui/material';
 import {
     Close as CloseIcon,
-} from '@material-ui/icons';
+} from '@mui/icons-material';
 import { ComponentWrapperDialogProps } from '../types';
 import { UpTransition } from '..';
 

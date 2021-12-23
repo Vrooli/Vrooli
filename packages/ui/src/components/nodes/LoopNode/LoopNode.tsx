@@ -1,10 +1,10 @@
-import { makeStyles } from '@material-ui/styles';
-import { IconButton, Theme, Tooltip, Typography } from '@material-ui/core';
+import { makeStyles } from '@mui/styles';
+import { IconButton, Theme, Tooltip, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
 import { LoopNodeProps } from '../types';
 import { nodeStyles } from '../styles';
 import { combineStyles } from 'utils';
-import { Loop as LoopIcon } from '@material-ui/icons';
+import { Loop as LoopIcon } from '@mui/icons-material';
 
 const componentStyles = (theme: Theme) => ({
     root: {
@@ -28,9 +28,6 @@ const componentStyles = (theme: Theme) => ({
             transition: 'transform .2s ease-in-out',
         }
     },
-    ignoreHover: {
-        pointerEvents: 'none',
-    }
 });
 
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
@@ -50,7 +47,7 @@ export const LoopNode = ({
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography className={`${classes.label} ${classes.ignoreHover}`} variant="h6">{label}</Typography>
-    ) : null, [label, labelVisible, classes.label]);
+    ) : null, [labelVisible, classes.label, classes.ignoreHover, label]);
 
     const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
@@ -58,7 +55,7 @@ export const LoopNode = ({
     return (
         <div>
             {dialog}
-            <Tooltip placement={'top'} title='Insert step'>
+            <Tooltip placement={'top'} title={label}>
                 <IconButton className={classes.root} style={{width: nodeSize, height: nodeSize, fontSize: fontSize}} onClick={openDialog}>
                     <LoopIcon className={classes.icon} />
                     {labelObject}

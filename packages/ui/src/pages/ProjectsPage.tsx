@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Button, Typography } from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+import { Button, Typography } from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { combineStyles } from 'utils';
 import { pageStyles } from './styles';
 import { useMutation, useQuery } from '@apollo/client';

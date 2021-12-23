@@ -8,8 +8,8 @@ import {
     ListItemIcon,
     ListItemText,
     Theme
-} from '@material-ui/core';
-import { makeStyles } from '@material-ui/styles';
+} from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { HelpButton } from 'components';
 import { useMemo } from 'react';
 import { ListDialogProps } from '../types';
@@ -37,13 +37,12 @@ const ListDialog = ({
     const classes = useStyles();
 
     const items = useMemo(() => data?.map(({ label, value, Icon, helpData }, index) => {
+        console.log('in list dialog item', { label, value, Icon, helpData })
         const itemText = <ListItemText primary={label} />;
         const itemIcon = Icon ? (
-            <ListItemButton>
                 <ListItemIcon>
                     <Icon />
                 </ListItemIcon>
-            </ListItemButton>
         ) : null;
         const helpIcon = helpData ? (
             <IconButton edge="end">
