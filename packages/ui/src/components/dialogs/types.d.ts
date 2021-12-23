@@ -5,12 +5,13 @@ export interface AlertDialogProps extends DialogProps {};
 export interface ComponentWrapperDialogProps extends DialogProps {};
 
 export interface ListDialogItemData {
-    label?: string;
-    value?: string;
+    label: string;
+    value: string;
 }
 export interface ListDialogProps extends DialogProps {
     open?: boolean;
-    onClose: (value?: string) => void;
+    onSelect: (value: string) => void;
+    onClose: () => void;
     title?: string;
     data?: ListDialogItemData[];
 }

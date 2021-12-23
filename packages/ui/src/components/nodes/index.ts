@@ -1,3 +1,4 @@
+export * from './AddNode/AddNode';
 export * from './CombineNode/CombineNode';
 export * from './DecisionNode/DecisionNode';
 export * from './EndNode/EndNode';
