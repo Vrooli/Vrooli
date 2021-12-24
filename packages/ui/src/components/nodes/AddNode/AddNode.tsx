@@ -20,7 +20,9 @@ import { NODE_TYPES } from '@local/shared';
 const componentStyles = (theme: Theme) => ({
     root: {
         position: 'relative',
-        display: 'block',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0',
         backgroundColor: '#6daf72',
         color: 'white',
         borderRadius: '100%',

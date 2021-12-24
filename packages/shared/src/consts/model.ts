@@ -54,13 +54,16 @@ export type ROUTINE_LIST_NODE_DATA = {
     title: string,
     description: string | null,
     isOrdered: boolean,
-    routines: Array<{
-        id: string,
-        title: string,
-        description: string | null,
-        isOptional: boolean,
-    }>
+    isOptional: boolean,
+    routines: Array<ROUTINE_LIST_NODE_ITEM_DATA>
 };
+
+export type ROUTINE_LIST_NODE_ITEM_DATA = {
+    id: string,
+    title: string,
+    description: string | null,
+    isOptional: boolean,
+}
 
 export type REDIRECT_NODE_DATA = null; // Supposed to be null
 
