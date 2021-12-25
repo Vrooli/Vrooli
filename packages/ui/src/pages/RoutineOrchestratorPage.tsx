@@ -31,6 +31,7 @@ const data: ORCHESTRATION_DATA = {
                 title: 'Provide Basic Info',
                 description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
                 isOrdered: false,
+                isOptional: false,
                 routines: [
                     {
                         id: '1',
@@ -51,6 +52,7 @@ const data: ORCHESTRATION_DATA = {
                 title: 'Knowledge management',
                 description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
                 isOrdered: false,
+                isOptional: false,
                 routines: [
                     {
                         id: '2',
@@ -118,6 +120,7 @@ const data: ORCHESTRATION_DATA = {
                 title: 'todo',
                 description: null,
                 isOrdered: false,
+                isOptional: false,
                 routines: []
             },
         },

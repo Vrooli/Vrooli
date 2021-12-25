@@ -34,7 +34,7 @@ const componentStyles = (theme: Theme) => ({
         display: 'flex',
         alignItems: 'center',
         borderRadius: '12px 12px 0 0',
-        backgroundColor: theme.palette.primary.main,
+        backgroundColor: theme.palette.primary.dark,
         color: theme.palette.primary.contrastText,
         padding: '0.1em',
         textAlign: 'center',
@@ -109,7 +109,7 @@ export const RoutineListNode = ({
         <Typography className={classes.headerLabel} variant="h6">{label}</Typography>
     ) : null, [labelVisible, classes.headerLabel, label]);
 
-    const listOptionsCollapse = useMemo(() => (
+    const optionsCollapse = useMemo(() => (
         <Collapse className={classes.listOptions} in={collapseOpen}>
             <Tooltip placement={'top'} title='Must complete routines in order'>
                 <FormControlLabel
@@ -174,7 +174,7 @@ export const RoutineListNode = ({
                 {labelObject}
                 {isEditable ? <DeleteIcon /> : null}
             </Container>
-            {listOptionsCollapse}
+            {optionsCollapse}
             <Collapse in={collapseOpen}>
                 {routines}
                 {addButton}
