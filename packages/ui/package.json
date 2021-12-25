@@ -85,6 +85,7 @@
     "@storybook/node-logger": "^6.4.9",
     "@storybook/preset-create-react-app": "^3.2.0",
     "@storybook/react": "^6.4.9",
+    "@storybook/theming": "^6.4.9",
     "@types/jest": "^27.0.2",
     "@types/node": "^16.10.4",
     "@types/pubsub-js": "^1.8.3",
@@ -95,7 +96,8 @@
     "chai": "^4.3.4",
     "eslint-plugin-react": "^7.24.0",
     "mocha": "^9.1.1",
-    "source-map-explorer": "^2.5.2"
+    "source-map-explorer": "^2.5.2",
+    "storybook-dark-mode": "^1.0.8"
   },
   "eslintConfig": {
     "overrides": [
