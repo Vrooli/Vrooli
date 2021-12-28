@@ -67,17 +67,16 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
 //==============================================================
 
 export function RoutineModel(prisma?: any) {
-    let obj: BaseState<Routine> = {
+    let obj: BaseState<Routine, RoutineFullModel> = {
         prisma,
         model: MODEL_TYPES.Routine,
-        format: formatter(),
     }
 
     return {
         ...obj,
-        ...creater<RoutineInput, Routine>(obj),
+        ...creater<RoutineInput, RoutineFullModel>(obj),
         ...formatter(),
-        ...updater<RoutineInput, Routine>(obj),
+        ...updater<RoutineInput, RoutineFullModel>(obj),
         ...deleter(obj),
         ...reporter()
     }

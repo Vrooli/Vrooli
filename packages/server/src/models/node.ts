@@ -5,6 +5,7 @@ import { PrismaSelect } from "@paljs/plugins";
 import { CustomError } from "../error";
 import { CODE } from "@local/shared";
 import { onlyPrimitives } from "../utils";
+import { RecursivePartial } from "types";
 const { NodeType } = pkg;
 
 const MAX_NODES_IN_ROUTINE = 100;
@@ -48,9 +49,9 @@ Pick<Node, 'previous' | 'next' | 'routine' | 'Previous' | 'Next'> &
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<any, any>  => ({
-    toDB: (obj: any): any => ({ ...obj}),
-    toGraphQL: (obj: any): any => ({ ...obj })
+ const formatter = (): FormatConverter<Node, NodeFullModel>  => ({
+    toDB: (obj: RecursivePartial<Node>): RecursivePartial<NodeFullModel> => ({ ...obj}), //TODO
+    toGraphQL: (obj: RecursivePartial<NodeFullModel>): RecursivePartial<Node> => ({ ...obj }) //TODO
 })
 
 /**
@@ -87,7 +88,7 @@ Pick<Node, 'previous' | 'next' | 'routine' | 'Previous' | 'Next'> &
         const row = await state.prisma.nodeStart.create({ data });
         return { dataStartId: row.id };
     },
-    async create(data: NodeInput, info: any): Promise<Node> {
+    async create(data: NodeInput, info: any): Promise<NodeFullModel> {
         // Check if routine ID was provided
         if (!data.routineId) throw new CustomError(CODE.InvalidArgs, 'Routine ID not specified')
         if (!data.type) throw new CustomError(CODE.InvalidArgs, 'Node type not specified')
@@ -132,18 +133,17 @@ Pick<Node, 'previous' | 'next' | 'routine' | 'Previous' | 'Next'> &
 //==============================================================
 
 export function NodeModel(prisma?: any) {
-    let obj: BaseState<Node> = {
+    let obj: BaseState<Node, NodeFullModel> = {
         prisma,
         model: MODEL_TYPES.Node,
-        format: formatter(),
     }
     
     return {
         ...obj,
-        ...findByIder<Node>(obj),
+        ...findByIder<NodeFullModel>(obj),
         ...formatter(),
         ...creater(obj),
-        ...updater<NodeInput, Node>(obj),
+        ...updater<NodeInput, NodeFullModel>(obj),
         ...deleter(obj)
     }
 }

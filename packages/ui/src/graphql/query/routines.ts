@@ -5,7 +5,16 @@ export const routinesQuery = gql`
     ${routineFields}
     query routines($input: RoutinesQueryInput!) {
         routines(input: $input) {
-            ...routineFields
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            edges {
+                cursor
+                node {
+                    ...routineFields
+                }
+            }
         }
     }
 `

@@ -56,7 +56,10 @@ export const resolvers = {
         commentAdd: async (_parent: undefined, { input }: IWrap<CommentInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await CommentModel(prisma).create(input, info);
+            // Create object
+            const dbModel = await CommentModel(prisma).create(input, info);
+            // Format object to GraphQL type
+            return CommentModel().toGraphQL(dbModel);
         },
         commentUpdate: async (_parent: undefined, { input }: IWrap<CommentInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
             // Must be logged in
@@ -65,8 +68,10 @@ export const resolvers = {
             if (!input.id) throw new CustomError(CODE.InvalidArgs);
             const authenticated = await CommentModel(prisma).isAuthenticatedToModify(input.id, req.userId);
             if (!authenticated) throw new CustomError(CODE.Unauthorized);
-            // Update and return info
-            return await CommentModel(prisma).update(input, info);
+            // Update object
+            const dbModel = await CommentModel(prisma).update(input, info);
+            // Format to GraphQL type
+            return CommentModel().toGraphQL(dbModel);
         },
         commentDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in

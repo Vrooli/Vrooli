@@ -144,6 +144,7 @@ export type Mutation = {
   organizationDeleteOne: Success;
   organizationReport: Success;
   organizationUpdate: Organization;
+  profileUpdate: Profile;
   projectAdd: Project;
   projectDeleteOne: Success;
   projectReport: Success;
@@ -167,7 +168,6 @@ export type Mutation = {
   tagVote: Success;
   userDeleteOne: Success;
   userReport: Success;
-  userUpdate: User;
   validateSession: Session;
   walletComplete: Session;
   walletInit: Scalars['String'];
@@ -273,6 +273,11 @@ export type MutationOrganizationReportArgs = {
 
 export type MutationOrganizationUpdateArgs = {
   input: OrganizationInput;
+};
+
+
+export type MutationProfileUpdateArgs = {
+  input: ProfileUpdateInput;
 };
 
 
@@ -388,11 +393,6 @@ export type MutationUserDeleteOneArgs = {
 
 export type MutationUserReportArgs = {
   input: ReportInput;
-};
-
-
-export type MutationUserUpdateArgs = {
-  input: UserUpdateInput;
 };
 
 
@@ -618,6 +618,12 @@ export type Organization = {
   wallets: Array<Wallet>;
 };
 
+export type OrganizationEdge = {
+  __typename?: 'OrganizationEdge';
+  cursor: Scalars['String'];
+  node: Organization;
+};
+
 export type OrganizationInput = {
   description?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
@@ -625,9 +631,77 @@ export type OrganizationInput = {
   resources?: InputMaybe<Array<ResourceInput>>;
 };
 
-export type OrganizationsQueryInput = {
-  first?: InputMaybe<Scalars['Int']>;
-  skip?: InputMaybe<Scalars['Int']>;
+export type OrganizationSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<OrganizationSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['Int']>;
+};
+
+export type OrganizationSearchResult = {
+  __typename?: 'OrganizationSearchResult';
+  edges: Array<OrganizationEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum OrganizationSortBy {
+  AlphabeticalAsc = 'AlphabeticalAsc',
+  AlphabeticalDesc = 'AlphabeticalDesc',
+  CommentsAsc = 'CommentsAsc',
+  CommentsDesc = 'CommentsDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc',
+  VotesAsc = 'VotesAsc',
+  VotesDesc = 'VotesDesc'
+}
+
+export type PageInfo = {
+  __typename?: 'PageInfo';
+  endCursor?: Maybe<Scalars['String']>;
+  hasNextPage: Scalars['Boolean'];
+};
+
+export type Profile = {
+  __typename?: 'Profile';
+  comments: Array<Comment>;
+  created_at: Scalars['Date'];
+  emailVerified: Scalars['Boolean'];
+  emails: Array<Email>;
+  id: Scalars['ID'];
+  projects: Array<Project>;
+  pronouns: Scalars['String'];
+  reports: Array<Report>;
+  resources: Array<Resource>;
+  roles: Array<Role>;
+  sentReports: Array<Report>;
+  starredBy: Array<User>;
+  starredComments: Array<Comment>;
+  starredOrganizations: Array<Organization>;
+  starredProjects: Array<Project>;
+  starredResources: Array<Resource>;
+  starredRoutines: Array<Routine>;
+  starredStandards: Array<Standard>;
+  starredTags: Array<Tag>;
+  starredUsers: Array<User>;
+  status: AccountStatus;
+  theme: Scalars['String'];
+  updated_at: Scalars['Date'];
+  username?: Maybe<Scalars['String']>;
+  votedByTag: Array<Tag>;
+  votedComments: Array<Comment>;
+  wallets: Array<Wallet>;
+};
+
+export type ProfileUpdateInput = {
+  currentPassword: Scalars['String'];
+  data: UserInput;
+  newPassword?: InputMaybe<Scalars['String']>;
 };
 
 export type Project = {
@@ -649,6 +723,12 @@ export type Project = {
   wallets?: Maybe<Array<Wallet>>;
 };
 
+export type ProjectEdge = {
+  __typename?: 'ProjectEdge';
+  cursor: Scalars['String'];
+  node: Project;
+};
+
 export type ProjectInput = {
   description?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
@@ -656,6 +736,21 @@ export type ProjectInput = {
   organizations?: InputMaybe<Array<OrganizationInput>>;
   resources?: InputMaybe<Array<ResourceInput>>;
   users?: InputMaybe<Array<UserInput>>;
+};
+
+export type ProjectSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ProjectSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['Int']>;
+};
+
+export type ProjectSearchResult = {
+  __typename?: 'ProjectSearchResult';
+  edges: Array<ProjectEdge>;
+  pageInfo: PageInfo;
 };
 
 export enum ProjectSortBy {
@@ -675,38 +770,31 @@ export enum ProjectSortBy {
   VotesDesc = 'VotesDesc'
 }
 
-export type ProjectsQueryInput = {
-  first?: InputMaybe<Scalars['Int']>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  searchString?: InputMaybe<Scalars['String']>;
-  skip?: InputMaybe<Scalars['Int']>;
-  sortBy?: InputMaybe<ProjectSortBy>;
-  userId?: InputMaybe<Scalars['Int']>;
-};
-
 export type Query = {
   __typename?: 'Query';
   organization?: Maybe<Organization>;
-  organizations: Array<Organization>;
+  organizations: OrganizationSearchResult;
   organizationsCount: Count;
-  profile: User;
+  profile: Profile;
   project?: Maybe<Project>;
-  projects: Array<Project>;
+  projects: ProjectSearchResult;
   projectsCount: Count;
   readAssets: Array<Maybe<Scalars['String']>>;
   readOpenGraph: OpenGraphResponse;
   resource?: Maybe<Resource>;
-  resources: Array<Resource>;
+  resources: ResourceSearchResult;
   resourcesCount: Count;
   routine?: Maybe<Routine>;
-  routines: Array<Routine>;
+  routines: RoutineSearchResult;
   routinesCount: Count;
   standard?: Maybe<Standard>;
-  standards: Array<Standard>;
+  standards: StandardSearchResult;
   standardsCount: Count;
   tag?: Maybe<Tag>;
-  tags: Array<Tag>;
+  tags: TagSearchResult;
   tagsCount: Count;
+  user?: Maybe<User>;
+  users: UserSearchResult;
 };
 
 
@@ -716,7 +804,7 @@ export type QueryOrganizationArgs = {
 
 
 export type QueryOrganizationsArgs = {
-  input: OrganizationsQueryInput;
+  input: OrganizationSearchInput;
 };
 
 
@@ -726,7 +814,7 @@ export type QueryProjectArgs = {
 
 
 export type QueryProjectsArgs = {
-  input: ProjectsQueryInput;
+  input: ProjectSearchInput;
 };
 
 
@@ -746,7 +834,7 @@ export type QueryResourceArgs = {
 
 
 export type QueryResourcesArgs = {
-  input: ResourcesQueryInput;
+  input: ResourceSearchInput;
 };
 
 
@@ -756,7 +844,7 @@ export type QueryRoutineArgs = {
 
 
 export type QueryRoutinesArgs = {
-  input: RoutinesQueryInput;
+  input: RoutineSearchInput;
 };
 
 
@@ -766,7 +854,7 @@ export type QueryStandardArgs = {
 
 
 export type QueryStandardsArgs = {
-  input: StandardsQueryInput;
+  input: StandardSearchInput;
 };
 
 
@@ -776,7 +864,17 @@ export type QueryTagArgs = {
 
 
 export type QueryTagsArgs = {
-  input: TagsQueryInput;
+  input: TagSearchInput;
+};
+
+
+export type QueryUserArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryUsersArgs = {
+  input: UserSearchInput;
 };
 
 export type ReadAssetsInput = {
@@ -822,13 +920,19 @@ export type Resource = {
   user_resources: Array<User>;
 };
 
+export type ResourceEdge = {
+  __typename?: 'ResourceEdge';
+  cursor: Scalars['String'];
+  node: Resource;
+};
+
 export enum ResourceFor {
-  Organization = 'ORGANIZATION',
-  Project = 'PROJECT',
-  RoutineContextual = 'ROUTINE_CONTEXTUAL',
-  RoutineDonation = 'ROUTINE_DONATION',
-  RoutineExternal = 'ROUTINE_EXTERNAL',
-  User = 'USER'
+  Actor = 'Actor',
+  Organization = 'Organization',
+  Project = 'Project',
+  RoutineContextual = 'RoutineContextual',
+  RoutineDonation = 'RoutineDonation',
+  RoutineExternal = 'RoutineExternal'
 }
 
 export type ResourceInput = {
@@ -841,10 +945,33 @@ export type ResourceInput = {
   name: Scalars['String'];
 };
 
-export type ResourcesQueryInput = {
-  first?: InputMaybe<Scalars['Int']>;
-  skip?: InputMaybe<Scalars['Int']>;
+export type ResourceSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ResourceSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['Int']>;
 };
+
+export type ResourceSearchResult = {
+  __typename?: 'ResourceSearchResult';
+  edges: Array<ResourceEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ResourceSortBy {
+  AlphabeticalAsc = 'AlphabeticalAsc',
+  AlphabeticalDesc = 'AlphabeticalDesc',
+  CommentsAsc = 'CommentsAsc',
+  CommentsDesc = 'CommentsDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc'
+}
 
 export type Response = {
   __typename?: 'Response';
@@ -887,6 +1014,12 @@ export type Routine = {
   version?: Maybe<Scalars['String']>;
 };
 
+export type RoutineEdge = {
+  __typename?: 'RoutineEdge';
+  cursor: Scalars['String'];
+  node: Routine;
+};
+
 export type RoutineInput = {
   description?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
@@ -924,10 +1057,37 @@ export type RoutineOutputItemInput = {
   standardId?: InputMaybe<Scalars['ID']>;
 };
 
-export type RoutinesQueryInput = {
-  first?: InputMaybe<Scalars['Int']>;
-  skip?: InputMaybe<Scalars['Int']>;
+export type RoutineSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<RoutineSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['Int']>;
 };
+
+export type RoutineSearchResult = {
+  __typename?: 'RoutineSearchResult';
+  edges: Array<RoutineEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum RoutineSortBy {
+  AlphabeticalAsc = 'AlphabeticalAsc',
+  AlphabeticalDesc = 'AlphabeticalDesc',
+  CommentsAsc = 'CommentsAsc',
+  CommentsDesc = 'CommentsDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  ForksAsc = 'ForksAsc',
+  ForksDesc = 'ForksDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc',
+  VotesAsc = 'VotesAsc',
+  VotesDesc = 'VotesDesc'
+}
 
 export type Session = {
   __typename?: 'Session';
@@ -955,6 +1115,12 @@ export type Standard = {
   updated_at: Scalars['Date'];
 };
 
+export type StandardEdge = {
+  __typename?: 'StandardEdge';
+  cursor: Scalars['String'];
+  node: Standard;
+};
+
 export type StandardInput = {
   default?: InputMaybe<Scalars['String']>;
   description?: InputMaybe<Scalars['String']>;
@@ -966,6 +1132,36 @@ export type StandardInput = {
   type?: InputMaybe<StandardType>;
 };
 
+export type StandardSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StandardSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['Int']>;
+};
+
+export type StandardSearchResult = {
+  __typename?: 'StandardSearchResult';
+  edges: Array<StandardEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StandardSortBy {
+  AlphabeticalAsc = 'AlphabeticalAsc',
+  AlphabeticalDesc = 'AlphabeticalDesc',
+  CommentsAsc = 'CommentsAsc',
+  CommentsDesc = 'CommentsDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc',
+  VotesAsc = 'VotesAsc',
+  VotesDesc = 'VotesDesc'
+}
+
 export enum StandardType {
   Array = 'ARRAY',
   Boolean = 'BOOLEAN',
@@ -975,11 +1171,6 @@ export enum StandardType {
   String = 'STRING',
   Url = 'URL'
 }
-
-export type StandardsQueryInput = {
-  first?: InputMaybe<Scalars['Int']>;
-  skip?: InputMaybe<Scalars['Int']>;
-};
 
 export type Success = {
   __typename?: 'Success';
@@ -991,13 +1182,46 @@ export type Tag = {
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  starredBy: Array<User>;
   tag: Scalars['String'];
   updated_at: Scalars['Date'];
+};
+
+export type TagEdge = {
+  __typename?: 'TagEdge';
+  cursor: Scalars['String'];
+  node: Tag;
 };
 
 export type TagInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
+
+export type TagSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<TagSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['Int']>;
+};
+
+export type TagSearchResult = {
+  __typename?: 'TagSearchResult';
+  edges: Array<TagEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum TagSortBy {
+  AlphabeticalAsc = 'AlphabeticalAsc',
+  AlphabeticalDesc = 'AlphabeticalDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc'
+}
 
 export type TagVoteInput = {
   id: Scalars['ID'];
@@ -1006,44 +1230,29 @@ export type TagVoteInput = {
   objectType: Scalars['String'];
 };
 
-export type TagsQueryInput = {
-  first?: InputMaybe<Scalars['Int']>;
-  skip?: InputMaybe<Scalars['Int']>;
-};
-
 export type User = {
   __typename?: 'User';
   comments: Array<Comment>;
   created_at: Scalars['Date'];
-  emailVerified: Scalars['Boolean'];
-  emails: Array<Email>;
   id: Scalars['ID'];
   projects: Array<Project>;
   pronouns: Scalars['String'];
   reports: Array<Report>;
   resources: Array<Resource>;
   roles: Array<Role>;
-  sentReports: Array<Report>;
-  starredComments: Array<Comment>;
-  starredOrganizations: Array<Organization>;
-  starredProjects: Array<Project>;
-  starredResources: Array<Resource>;
-  starredRoutines: Array<Routine>;
-  starredStandards: Array<Standard>;
-  starredTags: Array<Tag>;
-  starredUsers: Array<User>;
-  status: AccountStatus;
-  theme: Scalars['String'];
-  updated_at: Scalars['Date'];
+  starredBy: Array<User>;
   username?: Maybe<Scalars['String']>;
-  votedByTag: Array<Tag>;
-  votedComments: Array<Comment>;
-  wallets: Array<Wallet>;
 };
 
 export type UserDeleteInput = {
   id: Scalars['ID'];
   password: Scalars['String'];
+};
+
+export type UserEdge = {
+  __typename?: 'UserEdge';
+  cursor: Scalars['String'];
+  node: User;
 };
 
 export type UserInput = {
@@ -1061,11 +1270,32 @@ export type UserRole = {
   user: User;
 };
 
-export type UserUpdateInput = {
-  currentPassword: Scalars['String'];
-  data: UserInput;
-  newPassword?: InputMaybe<Scalars['String']>;
+export type UserSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<UserSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
 };
+
+export type UserSearchResult = {
+  __typename?: 'UserSearchResult';
+  edges: Array<UserEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum UserSortBy {
+  AlphabeticalAsc = 'AlphabeticalAsc',
+  AlphabeticalDesc = 'AlphabeticalDesc',
+  CommentsAsc = 'CommentsAsc',
+  CommentsDesc = 'CommentsDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc'
+}
 
 export type VoteInput = {
   id: Scalars['ID'];

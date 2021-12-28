@@ -1,5 +1,5 @@
-import { Organization, Project, ProjectInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
-import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
+import { Organization, Project, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
+import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -42,9 +42,10 @@ const formatter = (): FormatConverter<any, any> => ({
 })
 
 /**
- * Component for project search filters
+ * Component for search filters
  */
-const filterer = () => ({
+const sorter = (): Sortable<ProjectSortBy> => ({
+    defaultSort: ProjectSortBy.DateUpdatedDesc,
     getSortQuery: (sortBy: string): any => {
         return {
             [ProjectSortBy.AlphabeticalAsc]: { name: 'asc' },
@@ -84,21 +85,23 @@ const filterer = () => ({
 //==============================================================
 
 export function ProjectModel(prisma?: any) {
-    let obj: BaseState<Project> = {
+    let obj: BaseState<Project, ProjectFullModel> = {
         prisma,
         model: MODEL_TYPES.Project,
-        format: formatter(),
+        formatter: formatter(),
+        sorter: sorter(),
     }
 
     return {
         ...obj,
-        ...findByIder<Project>(obj),
-        ...filterer(),
-        ...formatter(),
-        ...creater<ProjectInput, Project>(obj),
-        ...updater<ProjectInput, Project>(obj),
+        ...creater<ProjectInput, ProjectFullModel>(obj),
         ...deleter(obj),
+        ...findByIder<ProjectFullModel>(obj),
+        ...formatter(),
         ...reporter(),
+        ...searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectFullModel>(obj),
+        ...sorter(),
+        ...updater<ProjectInput, ProjectFullModel>(obj),
     }
 }
 

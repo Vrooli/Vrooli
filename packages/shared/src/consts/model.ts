@@ -83,6 +83,22 @@ export type ORCHESTRATION_DATA = {
     nodes: Array<NODE_DATA>,
 }
 
+export const ORGANIZATION_SORT_BY = {
+    AlphabeticalAsc: 'AlphabeticalAsc',
+    AlphabeticalDesc: 'AlphabeticalDesc',
+    CommentsAsc: 'CommentsAsc',
+    CommentsDesc: 'CommentsDesc',
+    DateCreatedAsc: 'DateCreatedAsc',
+    DateCreatedDesc: 'DateCreatedDesc',
+    DateUpdatedAsc: 'DateUpdatedAsc',
+    DateUpdatedDesc: 'DateUpdatedDesc',
+    StarsAsc: 'StarsAsc',
+    StarsDesc: 'StarsDesc',
+    VotesAsc: 'VotesAsc',
+    VotesDesc: 'VotesDesc',
+}
+export type ORGANIZATION_SORT_BY = ValueOf<typeof ORGANIZATION_SORT_BY>;
+
 export const PROJECT_SORT_BY = {
     AlphabeticalAsc: 'AlphabeticalAsc',
     AlphabeticalDesc: 'AlphabeticalDesc',
@@ -100,3 +116,87 @@ export const PROJECT_SORT_BY = {
     VotesDesc: 'VotesDesc',
 }
 export type PROJECT_SORT_BY = ValueOf<typeof PROJECT_SORT_BY>;
+
+export const RESOURCE_FOR = {
+    Actor: 'Actor',
+    Organization: 'Organization',
+    Project: 'Project',
+    RoutineContextual: 'RoutineContextual',
+    RoutineExternal: 'RoutineExternal',
+    RoutineDonation: 'RoutineDonation',
+}
+export type RESOURCE_FOR = ValueOf<typeof RESOURCE_FOR>;
+
+export const RESOURCE_SORT_BY = {
+    AlphabeticalAsc: 'AlphabeticalAsc',
+    AlphabeticalDesc: 'AlphabeticalDesc',
+    CommentsAsc: 'CommentsAsc',
+    CommentsDesc: 'CommentsDesc',
+    DateCreatedAsc: 'DateCreatedAsc',
+    DateCreatedDesc: 'DateCreatedDesc',
+    DateUpdatedAsc: 'DateUpdatedAsc',
+    DateUpdatedDesc: 'DateUpdatedDesc',
+    StarsAsc: 'StarsAsc',
+    StarsDesc: 'StarsDesc',
+}
+export type RESOURCE_SORT_BY = ValueOf<typeof RESOURCE_SORT_BY>;
+
+export const ROUTINE_SORT_BY = {
+    AlphabeticalAsc: 'AlphabeticalAsc',
+    AlphabeticalDesc: 'AlphabeticalDesc',
+    CommentsAsc: 'CommentsAsc',
+    CommentsDesc: 'CommentsDesc',
+    ForksAsc: 'ForksAsc',
+    ForksDesc: 'ForksDesc',
+    DateCreatedAsc: 'DateCreatedAsc',
+    DateCreatedDesc: 'DateCreatedDesc',
+    DateUpdatedAsc: 'DateUpdatedAsc',
+    DateUpdatedDesc: 'DateUpdatedDesc',
+    StarsAsc: 'StarsAsc',
+    StarsDesc: 'StarsDesc',
+    VotesAsc: 'VotesAsc',
+    VotesDesc: 'VotesDesc',
+}
+export type ROUTINE_SORT_BY = ValueOf<typeof ROUTINE_SORT_BY>;
+
+export const STANDARD_SORT_BY = {
+    AlphabeticalAsc: 'AlphabeticalAsc',
+    AlphabeticalDesc: 'AlphabeticalDesc',
+    CommentsAsc: 'CommentsAsc',
+    CommentsDesc: 'CommentsDesc',
+    DateCreatedAsc: 'DateCreatedAsc',
+    DateCreatedDesc: 'DateCreatedDesc',
+    DateUpdatedAsc: 'DateUpdatedAsc',
+    DateUpdatedDesc: 'DateUpdatedDesc',
+    StarsAsc: 'StarsAsc',
+    StarsDesc: 'StarsDesc',
+    VotesAsc: 'VotesAsc',
+    VotesDesc: 'VotesDesc',
+}
+export type STANDARD_SORT_BY = ValueOf<typeof STANDARD_SORT_BY>;
+
+export const TAG_SORT_BY = {
+    AlphabeticalAsc: 'AlphabeticalAsc',
+    AlphabeticalDesc: 'AlphabeticalDesc',
+    DateCreatedAsc: 'DateCreatedAsc',
+    DateCreatedDesc: 'DateCreatedDesc',
+    DateUpdatedAsc: 'DateUpdatedAsc',
+    DateUpdatedDesc: 'DateUpdatedDesc',
+    StarsAsc: 'StarsAsc',
+    StarsDesc: 'StarsDesc',
+}
+export type TAG_SORT_BY = ValueOf<typeof TAG_SORT_BY>;
+
+export const USER_SORT_BY = {
+    AlphabeticalAsc: 'AlphabeticalAsc',
+    AlphabeticalDesc: 'AlphabeticalDesc',
+    CommentsAsc: 'CommentsAsc',
+    CommentsDesc: 'CommentsDesc',
+    DateCreatedAsc: 'DateCreatedAsc',
+    DateCreatedDesc: 'DateCreatedDesc',
+    DateUpdatedAsc: 'DateUpdatedAsc',
+    DateUpdatedDesc: 'DateUpdatedDesc',
+    StarsAsc: 'StarsAsc',
+    StarsDesc: 'StarsDesc',
+}
+export type USER_SORT_BY = ValueOf<typeof USER_SORT_BY>;

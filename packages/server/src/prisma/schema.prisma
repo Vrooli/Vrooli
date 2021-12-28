@@ -748,6 +748,7 @@ model user {
   wallets                            wallet[]
   resources                          user_resources[] // Resources associated with user profile
   projects                           project_users[] // Projects the user can control
+  routines                           routine_users[] // Routines the user can control
   starredComments                    comment_stars[]
   starredProjects                    project_stars[]
   starredOrganizations               organization_stars[]
@@ -755,7 +756,8 @@ model user {
   starredRoutines                    routine_stars[]
   starredStandards                   standard_stars[]
   starredTags                        tag_stars[]
-  starredUsers                       routine_users[] //TODO this isnt right but I can't fix right now
+  starredUsers                       user_stars[]         @relation("user_star_starred")
+  starredBy                          user_stars[]         @relation("user_star_user")
   sentReports                        report[]             @relation("report_from")
   reports                            report[]
   votedComments                      comment_votes[]
@@ -782,6 +784,17 @@ model user_roles {
   role   role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
+}
+
+// Many to many relationship between users and users who starred them
+model user_stars {
+  id        String @id @default(uuid()) @db.Uuid
+  starredId String @db.Uuid
+  userId    String @db.Uuid
+  starred   user   @relation("user_star_starred", fields: [starredId], references: [id], onDelete: Cascade)
+  user      user   @relation("user_star_user", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([starredId, userId], name: "tag_stars_starredid_userid_unique")
 }
 
 //==============================================================

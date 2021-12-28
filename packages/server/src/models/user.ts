@@ -1,5 +1,5 @@
-import { Session, User, Role, Comment, Email, Wallet, Resource, Project, Organization, Routine, Standard, Tag, Success } from "schema/types";
-import { addJoinTables, BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, selectHelper } from "./base";
+import { Session, User, Role, Comment, Email, Wallet, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile } from "schema/types";
+import { addJoinTables, BaseState, deleter, findByIder, FormatConverter, JoinMap, MODEL_TYPES, removeJoinTables, reporter, selectHelper } from "./base";
 import { onlyPrimitives } from "../utils/objectTools";
 import { CustomError } from "../error";
 import { CODE } from '@local/shared';
@@ -28,9 +28,12 @@ export type UserRelationshipList = 'comments' | 'roles' | 'emails' | 'wallets' |
     'starredResources' | 'starredStandards' | 'starredTags' | 'starredUsers' |
     'sentReports' | 'reports' | 'votedComments' | 'votedByTag';
 // Type 2. QueryablePrimitives
+// 2.1 Profile primitives (i.e. your own account)
+export type UserProfileQueryablePrimitives = Omit<Profile, UserRelationshipList>;
+// 2.2 User primitives (i.e. other users)
 export type UserQueryablePrimitives = Omit<User, UserRelationshipList>;
 // Type 3. AllPrimitives
-export type UserAllPrimitives = UserQueryablePrimitives & {
+export type UserAllPrimitives = UserProfileQueryablePrimitives & {
     password: string,
     logInAttempts: number,
     lastLoginAttempt: Date,
@@ -39,7 +42,7 @@ export type UserAllPrimitives = UserQueryablePrimitives & {
 };
 // type 4. FullModel
 export type UserFullModel = UserAllPrimitives &
-    Pick<User, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports'> &
+    Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports'> &
 {
     roles: { role: Role[] }[],
     resources: { resource: Resource[] }[],
@@ -65,9 +68,21 @@ export type UserFullModel = UserAllPrimitives &
 //==============================================================
 
 /**
- * Component for formatting between graphql and prisma types
+ * Describes shape of component that converts between Prisma and GraphQL user object types.
  */
-const formatter = (): FormatConverter<User, UserFullModel> => {
+ export type UserFormatConverter = {
+    joinMapper?: JoinMap;
+    toDBProfile: (obj: RecursivePartial<Profile>) => RecursivePartial<UserFullModel>;
+    toDBUser: (obj: RecursivePartial<User>) => RecursivePartial<UserFullModel>;
+    toGraphQLProfile: (obj: RecursivePartial<UserFullModel>) => RecursivePartial<Profile>;
+    toGraphQLUser: (obj: RecursivePartial<UserFullModel>) => RecursivePartial<User>;
+}
+
+/**
+ * Component for formatting between graphql and prisma types
+ * Users are unique in that they have multiple GraphQL views (your own profile vs. other users)
+ */
+const formatter = (): UserFormatConverter => {
     const joinMapper = {
         roles: 'role',
         resources: 'resource',
@@ -84,8 +99,10 @@ const formatter = (): FormatConverter<User, UserFullModel> => {
         votedByTag: 'tag',
     };
     return {
-        toDB: (obj: RecursivePartial<User>): RecursivePartial<UserFullModel> => addJoinTables(obj, joinMapper),
-        toGraphQL: (obj: RecursivePartial<UserFullModel>): RecursivePartial<User> => removeJoinTables(obj, joinMapper)
+        toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<UserFullModel> => addJoinTables(obj, joinMapper),
+        toDBUser: (obj: RecursivePartial<User>): RecursivePartial<UserFullModel> => addJoinTables(obj, joinMapper),
+        toGraphQLProfile: (obj: RecursivePartial<UserFullModel>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),
+        toGraphQLUser: (obj: RecursivePartial<UserFullModel>): RecursivePartial<User> => removeJoinTables(obj, joinMapper), 
     }
 }
 
@@ -98,11 +115,11 @@ const validater = (state: any) => ({
     /**
      * Creates session object from user
      */
-    toSession(user: RecursivePartial<User>): RecursivePartial<Session> {
+    toSession(user: RecursivePartial<UserFullModel>): RecursivePartial<Session> {
         return {
             id: user.id ?? '',
             theme: user.theme ?? 'light',
-            roles: user.roles ?? []
+            roles: user.roles ? user.roles.map(r => r?.role as RecursivePartial<Role>) : []
         }
     },
     /**
@@ -300,8 +317,8 @@ const findByEmailer = (state: any) => ({
  * @param state 
  * @returns 
  */
-const upserter = ({ prisma, format }: BaseState<User>) => ({
-    async upsertUser(data: any, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<User>> {
+const upserter = ({ prisma }: BaseState<User, UserFullModel>) => ({
+    async upsertUser(data: any, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<UserFullModel> | null> {
         // Check arguments
         if (!prisma) throw new CustomError(CODE.ErrorUnknown);
         // Remove relationship data, as they are handled on a case-by-case basis
@@ -346,10 +363,7 @@ const upserter = ({ prisma, format }: BaseState<User>) => ({
         // Create selector
         const select = selectHelper(info);
         // Query database
-        user = await prisma.user.findUnique({ where: { id: user.id }, ...select }) as RecursivePartial<UserFullModel> | null;
-        if (!user) throw new CustomError(CODE.ErrorUnknown);
-        // Return formatted user
-        return format.toGraphQL(user);
+        return await prisma.user.findUnique({ where: { id: user.id }, ...select }) as RecursivePartial<UserFullModel> | null;
     }
 })
 
@@ -358,7 +372,7 @@ const upserter = ({ prisma, format }: BaseState<User>) => ({
  * @param state 
  * @returns 
  */
-const porter = ({ prisma }: BaseState<User>) => ({
+const porter = ({ prisma }: BaseState<User, UserFullModel>) => ({
     /**
      * Import JSON data to Vrooli. Useful if uploading data created offline, or if
      * you're switching from a competitor to Vrooli. :)
@@ -392,15 +406,14 @@ const porter = ({ prisma }: BaseState<User>) => ({
 //==============================================================
 
 export function UserModel(prisma?: PrismaType) {
-    let obj: BaseState<User> = {
+    let obj: BaseState<User, UserFullModel> = {
         prisma,
         model: MODEL_TYPES.User,
-        format: formatter(),
     }
 
     return {
         ...obj,
-        ...findByIder<User>(obj),
+        ...findByIder<UserFullModel>(obj),
         ...findByEmailer(obj),
         ...formatter(),
         ...upserter(obj),

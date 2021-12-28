@@ -1,9 +1,9 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE, STANDARD_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Standard, StandardInput, StandardsQueryInput, Success } from './types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Standard, StandardInput, StandardSearchInput, Success } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
@@ -18,6 +18,21 @@ export const typeDef = gql`
         ARRAY
         FILE
         URL
+    }
+
+    enum StandardSortBy {
+        AlphabeticalAsc
+        AlphabeticalDesc
+        CommentsAsc
+        CommentsDesc
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
+        StarsAsc
+        StarsDesc
+        VotesAsc
+        VotesDesc
     }
 
     input StandardInput {
@@ -49,14 +64,30 @@ export const typeDef = gql`
         comments: [Comment!]!
     }
 
-    input StandardsQueryInput {
-        first: Int
-        skip: Int
+    input StandardSearchInput {
+        userId: Int
+        ids: [ID!]
+        sortBy: StandardSortBy
+        searchString: String
+        after: String
+        take: Int
+    }
+
+    # Return type for search result
+    type StandardSearchResult {
+        pageInfo: PageInfo!
+        edges: [StandardEdge!]!
+    }
+
+    # Return type for search result edge
+    type StandardEdge {
+        cursor: String!
+        node: Standard!
     }
 
     extend type Query {
         standard(input: FindByIdInput!): Standard
-        standards(input: StandardsQueryInput!): [Standard!]!
+        standards(input: StandardSearchInput!): StandardSearchResult!
         standardsCount: Count!
     }
 
@@ -70,11 +101,15 @@ export const typeDef = gql`
 
 export const resolvers = {
     StandardType: StandardType,
+    StandardSortBy: STANDARD_SORT_BY,
     Query: {
         standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
-            return await StandardModel(prisma).findById(input, info);
+            // Query database
+            const dbModel = await StandardModel(prisma).findById(input, info);
+            // Format data
+            return dbModel ? StandardModel().toGraphQL(dbModel) : null;
         },
-        standards: async (_parent: undefined, { input }: IWrap<StandardsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>[]> => {
+        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
         standardsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
@@ -90,7 +125,10 @@ export const resolvers = {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add more restrictions
-            return await StandardModel(prisma).create(input, info)
+            // Create object
+            const dbModel = await StandardModel(prisma).create(input, info);
+            // Format object to GraphQL type
+            return StandardModel().toGraphQL(dbModel);
         },
         /**
          * Update standards you've created
@@ -99,7 +137,10 @@ export const resolvers = {
         standardUpdate: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await StandardModel(prisma).update(input, info);
+            // Update object
+            const dbModel = await StandardModel(prisma).update(input, info);
+            // Format to GraphQL type
+            return StandardModel().toGraphQL(dbModel);
         },
         /**
          * Delete standards you've created. Other standards must go through a reporting system

@@ -39,19 +39,18 @@ Pick<Email, 'user'>;
 /* #region Model */
 //==============================================================
 
-export function EmailModel(prisma: any) {
-    let obj: BaseState<Email> = {
+export function EmailModel(prisma?: any) {
+    let obj: BaseState<Email, EmailFullModel> = {
         prisma,
         model: MODEL_TYPES.Email,
-        format: formatter(),
     }
     
     return {
         ...obj,
-        ...findByIder<Email>(obj),
+        ...findByIder<EmailFullModel>(obj),
         ...formatter(),
-        ...creater<EmailInput, Email>(obj),
-        ...updater<EmailInput, Email>(obj),
+        ...creater<EmailInput, EmailFullModel>(obj),
+        ...updater<EmailInput, EmailFullModel>(obj),
         ...deleter(obj)
     }
 }

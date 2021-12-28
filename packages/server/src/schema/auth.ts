@@ -131,6 +131,7 @@ export const resolvers = {
                 emails: [{ emailAddress: input.email }],
                 roles: [actorRole]
             });
+            if (!user) throw new CustomError(CODE.ErrorUnknown);
             // Create session from user object
             const session = UserModel(prisma).toSession(user);
             // Set up session token
@@ -155,7 +156,7 @@ export const resolvers = {
             const validateError = await validateArgs(passwordSchema, input.newPassword);
             if (validateError) throw validateError;
             // Find user in database
-            const user = await UserModel(prisma).findById(
+            let user = await UserModel(prisma).findById(
                 { id: input.id },
                 { select: {
                     id: true,
@@ -185,11 +186,7 @@ export const resolvers = {
                 }
             })
             // Return session
-            return {
-                id: user.id,
-                theme: user.theme as string,
-                roles: user.roles as Role[],
-            }
+            return UserModel().toSession(user);
         },
         guestLogIn: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Create session
@@ -215,11 +212,7 @@ export const resolvers = {
                 { id: req.userId ?? '' },
                 { select: { id: true, status: true, theme: true, roles: { select: { role: { select: { title: true } } } } } }
             );
-            if (userData) return {
-                id: userData.id,
-                theme: userData.theme as string,
-                roles: [{ title: ROLES.Actor }],
-            }
+            if (userData) return UserModel().toSession(userData);
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Session);
             throw new CustomError(CODE.ErrorUnknown);

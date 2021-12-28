@@ -1,20 +1,33 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE, RESOURCE_FOR, RESOURCE_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceInput, ResourcesQueryInput, Success } from './types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceInput, ResourceSearchInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     enum ResourceFor {
-        ORGANIZATION
-        PROJECT
-        ROUTINE_CONTEXTUAL
-        ROUTINE_EXTERNAL
-        ROUTINE_DONATION
-        USER
+        Organization
+        Project
+        RoutineContextual
+        RoutineExternal
+        RoutineDonation
+        Actor
+    }
+
+    enum ResourceSortBy {
+        AlphabeticalAsc
+        AlphabeticalDesc
+        CommentsAsc
+        CommentsDesc
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
+        StarsAsc
+        StarsDesc
     }
 
     input ResourceInput {
@@ -46,14 +59,31 @@ export const typeDef = gql`
         comments: [Comment!]!
     }
 
-    input ResourcesQueryInput {
-        first: Int
-        skip: Int
+    input ResourceSearchInput {
+        forId: Int
+        forType: ResourceFor
+        ids: [ID!]
+        sortBy: ResourceSortBy
+        searchString: String
+        after: String
+        take: Int
+    }
+
+    # Return type for search result
+    type ResourceSearchResult {
+        pageInfo: PageInfo!
+        edges: [ResourceEdge!]!
+    }
+
+    # Return type for search result edge
+    type ResourceEdge {
+        cursor: String!
+        node: Resource!
     }
 
     extend type Query {
         resource(input: FindByIdInput!): Resource
-        resources(input: ResourcesQueryInput!): [Resource!]!
+        resources(input: ResourceSearchInput!): ResourceSearchResult!
         resourcesCount: Count!
     }
 
@@ -66,11 +96,20 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
+    ResourceFor: RESOURCE_FOR,
+    ResourceSortBy: RESOURCE_SORT_BY,
     Query: {
         resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
-            return await ResourceModel(prisma).findById(input, info);
+            // Query database
+            const dbModel = await ResourceModel(prisma).findById(input, info);
+            // Format data
+            return dbModel ? ResourceModel().toGraphQL(dbModel) : null;
         },
-        resources: async (_parent: undefined, { input }: IWrap<ResourcesQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>[]> => {
+        resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>[]> => {
+            // Create query for specified object
+            //const forQuery = (input.forId && input.forType) ? { user: { id: input.userId } } : undefined; TODO
+            // return search query
+            //return await ResourceModel(prisma).search({...forQuery,}, input, info);
             throw new CustomError(CODE.NotImplemented);
         },
         resourcesCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
@@ -81,12 +120,18 @@ export const resolvers = {
         resourceAdd: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await ResourceModel(prisma).create(input, info)
+            // Create object
+            const dbModel = await ResourceModel(prisma).create(input, info);
+            // Format object to GraphQL type
+            return ResourceModel().toGraphQL(dbModel);
         },
         resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await ResourceModel(prisma).update(input, info);
+            // Update object
+            const dbModel = await ResourceModel(prisma).update(input, info);
+            // Format to GraphQL type
+            return ResourceModel().toGraphQL(dbModel);
         },
         resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must be logged in

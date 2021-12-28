@@ -1,13 +1,25 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE, USER_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { UserModel } from '../models';
-import { UserDeleteInput, ReportInput, UserUpdateInput, User, Success } from './types';
+import { UserDeleteInput, ReportInput, Success, Profile, ProfileUpdateInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
+    enum UserSortBy {
+        AlphabeticalAsc
+        AlphabeticalDesc
+        CommentsAsc
+        CommentsDesc
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
+        StarsAsc
+        StarsDesc
+    }
 
     input UserInput {
         id: ID
@@ -18,7 +30,8 @@ export const typeDef = gql`
         status: AccountStatus
     }
 
-    type User {
+    # User information available for you own account
+    type Profile {
         id: ID!
         created_at: Date!
         updated_at: Date!
@@ -41,13 +54,28 @@ export const typeDef = gql`
         starredStandards: [Standard!]!
         starredTags: [Tag!]!
         starredUsers: [User!]!
+        starredBy: [User!]!
         sentReports: [Report!]!
         reports: [Report!]!
         votedComments: [Comment!]!
         votedByTag: [Tag!]!
     }
 
-    input UserUpdateInput {
+    # User information available for other accounts
+    type User {
+        id: ID!
+        created_at: Date!
+        username: String
+        pronouns: String!
+        comments: [Comment!]!
+        roles: [Role!]!
+        resources: [Resource!]!
+        projects: [Project!]!
+        starredBy: [User!]!
+        reports: [Report!]!
+    }
+
+    input ProfileUpdateInput {
         data: UserInput!
         currentPassword: String!
         newPassword: String
@@ -58,12 +86,34 @@ export const typeDef = gql`
         password: String!
     }
 
+    input UserSearchInput {
+        ids: [ID!]
+        sortBy: UserSortBy
+        searchString: String
+        after: String
+        take: Int
+    }
+
+    # Return type for search result
+    type UserSearchResult {
+        pageInfo: PageInfo!
+        edges: [UserEdge!]!
+    }
+
+    # Return type for search result edge
+    type UserEdge {
+        cursor: String!
+        node: User!
+    }
+
     extend type Query {
-        profile: User!
+        profile: Profile!
+        user(input: FindByIdInput!): User
+        users(input: UserSearchInput!): UserSearchResult!
     }
 
     extend type Mutation {
-        userUpdate(input: UserUpdateInput!): User!
+        profileUpdate(input: ProfileUpdateInput!): Profile!
         userDeleteOne(input: UserDeleteInput!): Success!
         userReport(input: ReportInput!): Success!
         exportData: String!
@@ -71,14 +121,17 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
+    UserSortBy: USER_SORT_BY,
     Query: {
-        profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
-            // TODO add restrictions to what data can be queried
-            return await UserModel(prisma).findById({ id: req.userId ?? '' }, info);
+        profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<any> | null> => {
+            // Query database
+            const dbModel = await UserModel(prisma).findById({ id: req.userId ?? '' }, info);
+            // Format data
+            return dbModel ? UserModel().toGraphQLProfile(dbModel) : null;
         }
     },
     Mutation: {
-        userUpdate: async (_parent: undefined, { input }: IWrap<UserUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
+        profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
             // Must be updating your own
             if (req.userId !== input.data.id) throw new CustomError(CODE.Unauthorized);
             // Check for correct password
@@ -86,7 +139,9 @@ export const resolvers = {
             if (!user) throw new CustomError(CODE.InvalidArgs);
             if (!UserModel(prisma).validatePassword(input.currentPassword, user)) throw new CustomError(CODE.BadCredentials);
             // Update user
-            return await UserModel(prisma).upsertUser(input.data, info);
+            let dbModel = await UserModel(prisma).upsertUser(input.data, info);
+            // Format data
+            return dbModel ? UserModel().toGraphQLProfile(dbModel) : null;
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be deleting your own

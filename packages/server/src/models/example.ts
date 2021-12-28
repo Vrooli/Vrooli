@@ -95,18 +95,17 @@ const formatter = (): FormatConverter<Example, any> => ({
 // Last, we define the model component.
 export function ExampleModel(prisma: any) {
     // The 'obj' field stores the data which can be passed to various composition functions.
-    let obj: BaseState<Example> = {
+    let obj: BaseState<Example, ExampleFullModel> = {
         prisma,
         model: MODEL_TYPES.Comment, // This would be MODEL_TYPES.Example, if it was real
-        format: formatter(),
     }
 
     // the return contains 'obj' + every composition function that applies to this model
     return {
         ...obj,
-        ...creater<ExampleInput, Example>(obj),
+        ...creater<ExampleInput, ExampleFullModel>(obj),
         ...formatter(),
-        ...updater<ExampleInput, Example>(obj),
+        ...updater<ExampleInput, ExampleFullModel>(obj),
         ...deleter(obj),
         ...reporter()
     }

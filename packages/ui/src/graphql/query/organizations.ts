@@ -5,7 +5,16 @@ export const organizationsQuery = gql`
     ${organizationFields}
     query organizations($input: OrganizationsQueryInput!) {
         organizations(input: $input) {
-            ...organizationFields
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            edges {
+                cursor
+                node {
+                    ...organizationFields
+                }
+            }
         }
     }
 `

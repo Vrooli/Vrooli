@@ -41,7 +41,10 @@ export const resolvers = {
         emailAdd: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             // Must be adding to your own
             if(req.userId !== input.userId) throw new CustomError(CODE.Unauthorized);
-            return await EmailModel(prisma).create(input, info);
+            // Create object
+            const dbModel = await EmailModel(prisma).create(input, info);
+            // Format object to GraphQL type
+            return EmailModel().toGraphQL(dbModel);
         },
         /**
          * Update an existing email address that is associated with your account.
@@ -51,8 +54,10 @@ export const resolvers = {
             const curr = await EmailModel(prisma).findById({ id: input.id as string }, { select: { userId: true }});
             // Validate that the email belongs to the user
             if (curr === null || req.userId !== curr.userId) throw new CustomError(CODE.Unauthorized);
-            // Update the email object in the database
-            return EmailModel(prisma).update(input, info);
+            // Update object
+            const dbModel = await EmailModel(prisma).update(input, info);
+            // Format to GraphQL type
+            return EmailModel().toGraphQL(dbModel);
         },
         emailDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must deleting your own

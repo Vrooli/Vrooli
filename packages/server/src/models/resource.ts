@@ -1,5 +1,7 @@
+import { RESOURCE_FOR } from "@local/shared";
 import { PrismaSelect } from "@paljs/plugins";
 import { Organization, Project, Resource, ResourceInput, Routine, User } from "schema/types";
+import { RecursivePartial } from "types";
 import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter } from "./base";
 
 //======================================================================================================================
@@ -36,22 +38,21 @@ Pick<Resource, 'reports' | 'comments'> &
 
 // Maps routine apply types to the correct prisma join tables
 const applyMap = {
-    ORGANIZATION: 'organizationResources',
-    PROJECT: 'projectResources',
-    ROUTINE_CONTEXTUAL: 'routineResourcesContextual',
-    ROUTINE_DONATION: 'routineResourcesDonation',
-    ROUTINE_EXTERNAL: 'routineResourcesExternal',
-    USER: 'userResources'
+    [RESOURCE_FOR.Actor]: 'userResources',
+    [RESOURCE_FOR.Organization]: 'organizationResources',
+    [RESOURCE_FOR.Project]: 'projectResources',
+    [RESOURCE_FOR.RoutineContextual]: 'routineResourcesContextual',
+    [RESOURCE_FOR.RoutineDonation]: 'routineResourcesDonation',
+    [RESOURCE_FOR.RoutineExternal]: 'routineResourcesExternal',
 }
 
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<any, any>  => ({
-    toDB: (obj: any): any => ({ ...obj}),
-    toGraphQL: (obj: any): any => ({ ...obj })
+ const formatter = (): FormatConverter<Resource, ResourceFullModel>  => ({
+    toDB: (obj: RecursivePartial<Resource>): RecursivePartial<ResourceFullModel> => (obj as any), //TODO
+    toGraphQL: (obj: RecursivePartial<ResourceFullModel>): RecursivePartial<Resource> => (obj as any) //TODO
 })
-
 /**
  * Custom compositional component for creating resources
  * @param state 
@@ -71,7 +72,7 @@ const creater = (state: any) => ({
             }
         })
     },
-    async create(data: ResourceInput, info: any): Promise<Resource> {
+    async create(data: ResourceInput, info: any): Promise<RecursivePartial<ResourceFullModel>> {
          // Filter out for and forId, since they are not part of the resource object
          const { createdFor, forId, ...resourceData } = data;
          // Create base object
@@ -89,7 +90,7 @@ const creater = (state: any) => ({
  * @returns 
  */
 const updater = (state: any) => ({
-    async update(data: ResourceInput, info: any): Promise<Resource> {
+    async update(data: ResourceInput, info: any): Promise<ResourceFullModel> {
         // Filter out for and forId, since they are not part of the resource object
         const { createdFor, forId, ...resourceData } = data;
         // Check if resource needs to be associated with another object instead
@@ -112,15 +113,14 @@ const updater = (state: any) => ({
 //==============================================================
 
 export function ResourceModel(prisma?: any) {
-    let obj: BaseState<Resource> = {
+    let obj: BaseState<Resource, ResourceFullModel> = {
         prisma,
         model: MODEL_TYPES.Resource,
-        format: formatter(),
     }
 
     return {
         ...obj,
-        ...findByIder<Resource>(obj),
+        ...findByIder<ResourceFullModel>(obj),
         ...formatter(),
         ...creater(obj),
         ...updater(obj),

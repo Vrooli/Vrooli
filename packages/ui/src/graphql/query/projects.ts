@@ -5,7 +5,16 @@ export const projectsQuery = gql`
     ${projectFields}
     query projects($input: ProjectsQueryInput!) {
         projects(input: $input) {
-            ...projectFields
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            edges {
+                cursor
+                node {
+                    ...projectFields
+                }
+            }
         }
     }
 `

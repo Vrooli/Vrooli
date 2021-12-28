@@ -191,15 +191,21 @@ export const resolvers = {
          * Note that the order of a routine (i.e. previous, next) cannot be updated with this mutation. 
          * @returns Updated node
          */
-        nodeAdd: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Node> => {
+        nodeAdd: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await NodeModel(prisma).create(input, info);
+            // Create object
+            const dbModel = await NodeModel(prisma).create(input, info);
+            // Format object to GraphQL type
+            return NodeModel().toGraphQL(dbModel);
         },
         nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await NodeModel(prisma).update(input, info);
+            // Update object
+            const dbModel = await NodeModel(prisma).update(input, info);
+            // Format to GraphQL type
+            return NodeModel().toGraphQL(dbModel);
         },
         nodeDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in

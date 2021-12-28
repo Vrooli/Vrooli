@@ -59,18 +59,17 @@ export type TagFullModel = TagAllPrimitives &
 //==============================================================
 
 export function TagModel(prisma?: any) {
-    let obj: BaseState<Tag> = {
+    let obj: BaseState<Tag, TagFullModel> = {
         prisma,
         model: MODEL_TYPES.Tag,
-        format: formatter(),
     }
 
     return {
         ...obj,
-        ...findByIder<Tag>(obj),
-        ...creater<TagInput, Tag>(obj),
+        ...findByIder<TagFullModel>(obj),
+        ...creater<TagInput, TagFullModel>(obj),
         ...formatter(),
-        ...updater<TagInput, Tag>(obj),
+        ...updater<TagInput, TagFullModel>(obj),
         ...deleter(obj),
         ...reporter()
     }

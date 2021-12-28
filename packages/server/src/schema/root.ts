@@ -11,6 +11,11 @@ export const typeDef = gql`
     scalar Date
     scalar Upload
 
+    # Return type for a cursor-based pagination's pageInfo response
+    type PageInfo {
+        hasNextPage: Boolean!
+        endCursor: String
+    }
     # Return type for delete mutations,
     # which return the number of affected rows
     type Count {

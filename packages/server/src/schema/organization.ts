@@ -1,13 +1,28 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE, ORGANIZATION_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteOneInput, FindByIdInput, Organization, OrganizationInput, OrganizationsQueryInput, ReportInput, Success } from './types';
+import { Count, DeleteOneInput, FindByIdInput, Organization, OrganizationInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy, ReportInput, Success } from './types';
 import { Context } from '../context';
 import { OrganizationModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
+    enum OrganizationSortBy {
+        AlphabeticalAsc
+        AlphabeticalDesc
+        CommentsAsc
+        CommentsDesc
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
+        StarsAsc
+        StarsDesc
+        VotesAsc
+        VotesDesc
+    }
+
     input OrganizationInput {
         id: ID
         name: String!
@@ -31,14 +46,30 @@ export const typeDef = gql`
         reports: [Report!]!
     }
 
-    input OrganizationsQueryInput {
-        first: Int
-        skip: Int
+    input OrganizationSearchInput {
+        userId: Int
+        ids: [ID!]
+        sortBy: OrganizationSortBy
+        searchString: String
+        after: String
+        take: Int
+    }
+
+    # Return type for search result
+    type OrganizationSearchResult {
+        pageInfo: PageInfo!
+        edges: [OrganizationEdge!]!
+    }
+
+    # Return type for search result edge
+    type OrganizationEdge {
+        cursor: String!
+        node: Organization!
     }
 
     extend type Query {
         organization(input: FindByIdInput!): Organization
-        organizations(input: OrganizationsQueryInput!): [Organization!]!
+        organizations(input: OrganizationSearchInput!): OrganizationSearchResult!
         organizationsCount: Count!
     }
 
@@ -51,12 +82,19 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
+    OrganizationSortBy: ORGANIZATION_SORT_BY,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
-            return await OrganizationModel(prisma).findById(input, info);
+            // Query database
+            const dbModel = await OrganizationModel(prisma).findById(input, info);
+            // Format data
+            return dbModel ? OrganizationModel().toGraphQL(dbModel) : null;
         },
-        organizations: async (_parent: undefined, { input }: IWrap<OrganizationsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>[]> => {
-            throw new CustomError(CODE.NotImplemented);
+        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
+            // Create query for specified user
+            const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
+            // return search query
+            return await OrganizationModel(prisma).search({...userQuery,}, input, info);
         },
         organizationsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
             throw new CustomError(CODE.NotImplemented);
@@ -67,13 +105,19 @@ export const resolvers = {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions
-            return await OrganizationModel(prisma).create(input, info);
+            // Create object
+            const dbModel = await OrganizationModel(prisma).create(input, info);
+            // Format object to GraphQL type
+            return OrganizationModel().toGraphQL(dbModel);
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO must be updating your own
-            return await OrganizationModel(prisma).update(input, info);
+            // Update object
+            const dbModel = await OrganizationModel(prisma).update(input, info);
+            // Format to GraphQL type
+            return OrganizationModel().toGraphQL(dbModel);
         },
         organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in

@@ -47,18 +47,17 @@ Pick<Standard, 'reports' | 'comments'> &
 //==============================================================
 
 export function StandardModel(prisma?: any) {
-    let obj: BaseState<Standard> = {
+    let obj: BaseState<Standard, StandardFullModel> = {
         prisma,
         model: MODEL_TYPES.Standard,
-        format: formatter(),
     }
 
     return {
         ...obj,
-        ...findByIder<Standard>(obj),
+        ...findByIder<StandardFullModel>(obj),
         ...formatter(),
-        ...creater<StandardInput, Standard>(obj),
-        ...updater<StandardInput, Standard>(obj),
+        ...creater<StandardInput, StandardFullModel>(obj),
+        ...updater<StandardInput, StandardFullModel>(obj),
         ...deleter(obj),
         ...reporter()
     }

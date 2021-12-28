@@ -5,7 +5,16 @@ export const standardsQuery = gql`
     ${standardFields}
     query standards($input: StandardsQueryInput!) {
         standards(input: $input) {
-            ...standardFields
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            edges {
+                cursor
+                node {
+                    ...standardFields
+                }
+            }
         }
     }
 `

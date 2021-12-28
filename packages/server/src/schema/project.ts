@@ -2,12 +2,10 @@ import { gql } from 'apollo-server-express';
 import { CODE, PROJECT_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectSortBy, ProjectsQueryInput, ReportInput, Success } from './types';
+import { Count, DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectSortBy, ProjectSearchInput, ReportInput, Success, ProjectSearchResult } from './types';
 import { Context } from '../context';
 import { ProjectModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
-import { idArrayQuery } from '../prisma/fragments';
-import { PrismaSelect } from '@paljs/plugins';
 
 export const typeDef = gql`
     enum ProjectSortBy {
@@ -54,18 +52,30 @@ export const typeDef = gql`
         comments: [Comment!]!
     }
 
-    input ProjectsQueryInput {
+    input ProjectSearchInput {
         userId: Int
         ids: [ID!]
         sortBy: ProjectSortBy
         searchString: String
-        first: Int
-        skip: Int
+        after: String
+        take: Int
+    }
+
+    # Return type for search result
+    type ProjectSearchResult {
+        pageInfo: PageInfo!
+        edges: [ProjectEdge!]!
+    }
+
+    # Return type for search result edge
+    type ProjectEdge {
+        cursor: String!
+        node: Project!
     }
 
     extend type Query {
         project(input: FindByIdInput!): Project
-        projects(input: ProjectsQueryInput!): [Project!]!
+        projects(input: ProjectSearchInput!): ProjectSearchResult!
         projectsCount: Count!
     }
 
@@ -81,33 +91,16 @@ export const resolvers = {
     ProjectSortBy: PROJECT_SORT_BY,
     Query: {
         project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
-            return await ProjectModel(prisma).findById(input, info);
+            // Query database
+            const dbModel = await ProjectModel(prisma).findById(input, info);
+            // Format data
+            return dbModel ? ProjectModel().toGraphQL(dbModel) : null;
         },
-        projects: async (_parent: undefined, { input }: IWrap<ProjectsQueryInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any[] | null> => {
-            // Create query for specified ids
-            let idQuery;
-            if (Array.isArray(input.ids)) idQuery = idArrayQuery(input.ids);
+        projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
             // Create query for specified user
-            let userQuery;
-            if (input.userId) userQuery = { user: { id: input.userId } };
-            // Determine sort order
-            let sortQuery = ProjectModel().getSortQuery(input.sortBy ?? ProjectSortBy.DateUpdatedDesc);
-            // Determine text search query
-            let searchQuery;
-            if (input.searchString) searchQuery = ProjectModel().getSearchStringQuery(input.searchString);
-            // return query
-            return await prisma.project.findMany({
-                where: {
-                    ...idQuery,
-                    ...userQuery,
-                    ...searchQuery
-                },
-                orderBy: sortQuery,
-                skip: input.skip ?? 0,
-                take: input.first ?? 20,
-                ...(new PrismaSelect(info).value)
-            })
-            
+            const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
+            // return search query
+            return await ProjectModel(prisma).search({...userQuery,}, input, info);
         },
         projectsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
             throw new CustomError(CODE.NotImplemented);
@@ -118,13 +111,19 @@ export const resolvers = {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions
-            return await ProjectModel(prisma).create(input, info);
+            // Create object
+            const dbModel = await ProjectModel(prisma).create(input, info);
+            // Format object to GraphQL type
+            return ProjectModel().toGraphQL(dbModel);
         },
         projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO must be updating your own
-            return await ProjectModel(prisma).update(input, info);
+            // Update object
+            const dbModel = await ProjectModel(prisma).update(input, info);
+            // Format to GraphQL type
+            return ProjectModel().toGraphQL(dbModel);
         },
         projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in

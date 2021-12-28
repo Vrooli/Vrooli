@@ -78,7 +78,7 @@ const formatter = (): FormatConverter<any, any> => ({
  * @param state 
  * @returns 
  */
- const voter = ({ prisma }: BaseState<Comment>) => ({
+ const voter = ({ prisma }: BaseState<Comment, CommentFullModel>) => ({
     /**
      * Adds a vote to the comment
      * @param input GraphQL vote input
@@ -131,21 +131,20 @@ const formatter = (): FormatConverter<any, any> => ({
 //==============================================================
 
 export function CommentModel(prisma?: any) {
-    let obj: BaseState<Comment> = {
+    let obj: BaseState<Comment, CommentFullModel> = {
         prisma,
         model: MODEL_TYPES.Comment,
-        format: formatter(),
     }
 
     return {
         ...obj,
         ...auther(obj),
-        ...findByIder<Comment>(obj),
-        ...formatter(),
-        ...creater<CommentInput, Comment>(obj),
-        ...updater<CommentInput, Comment>(obj),
+        ...creater<CommentInput, CommentFullModel>(obj),
         ...deleter(obj),
+        ...findByIder<CommentFullModel>(obj),
+        ...formatter(),
         ...reporter(),
+        ...updater<CommentInput, CommentFullModel>(obj),
         ...voter(obj),
     }
 }

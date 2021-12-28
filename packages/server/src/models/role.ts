@@ -48,15 +48,14 @@ export type RoleFullModel = RoleAllPrimitives &
 //==============================================================
 
 export function RoleModel(prisma?: PrismaType) {
-    let obj: BaseState<Role> = {
+    let obj: BaseState<Role, RoleFullModel> = {
         prisma,
         model: MODEL_TYPES.Role,
-        format: formatter(),
     }
 
     return {
         ...obj,
-        ...findByIder<Role>(obj),
+        ...findByIder<RoleFullModel>(obj),
         ...formatter(),
     }
 }

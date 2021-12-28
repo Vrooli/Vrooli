@@ -5,7 +5,16 @@ export const tagsQuery = gql`
     ${tagFields}
     query tags($input: TagsQueryInput!) {
         tags(input: $input) {
-            ...tagFields
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            edges {
+                cursor
+                node {
+                    ...tagFields
+                }
+            }
         }
     }
 `

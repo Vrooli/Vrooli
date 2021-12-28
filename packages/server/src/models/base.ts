@@ -1,7 +1,7 @@
 // Components for providing basic functionality to model objects
 import { CODE } from '@local/shared';
 import { PrismaSelect } from '@paljs/plugins';
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, InputMaybe, ReportInput, Scalars } from '../schema/types';
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, InputMaybe, ReportInput, Scalars } from '../schema/types';
 import { CustomError } from '../error';
 import { PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
@@ -22,10 +22,19 @@ interface UpdateInterface {
  * This is often used for removing the extra nesting caused by joining tables
  * (e.g. User -> UserRole -> Role becomes UserRole -> Role)
  */
-export type FormatConverter<GraphQLModel, DBModel> = {
+export type FormatConverter<GraphQLModel, FullDBModel> = {
     joinMapper?: JoinMap;
-    toDB: (obj: RecursivePartial<GraphQLModel>) => RecursivePartial<DBModel>;
-    toGraphQL: (obj: RecursivePartial<DBModel>) => RecursivePartial<GraphQLModel>;
+    toDB: (obj: RecursivePartial<GraphQLModel>) => RecursivePartial<FullDBModel>;
+    toGraphQL: (obj: RecursivePartial<FullDBModel>) => RecursivePartial<GraphQLModel>;
+}
+
+/**
+ * Describes shape of component that can be sorted in a specific order
+ */
+ export type Sortable<SortBy> = {
+    defaultSort: any;
+    getSortQuery: (sortBy: string) => any;
+    getSearchStringQuery: (searchString: string) => any;
 }
 
 /**
@@ -35,10 +44,11 @@ export type FormatConverter<GraphQLModel, DBModel> = {
 export type JoinMap = { [key: string]: string };
 
 type BaseType = PrismaModels['comment']; // It doesn't matter what PrismaType is used here, it's just to help TypeScript handle Prisma operations
-export interface BaseState<GraphQLModel> {
+export interface BaseState<GraphQLModel, FullDBModel> {
     prisma?: PrismaType;
     model: keyof PrismaModels;
-    format: FormatConverter<GraphQLModel, any>;
+    formatter?: FormatConverter<GraphQLModel, FullDBModel>;
+    sorter?: Sortable<any>
 }
 
 // Strings for accessing model functions from Prisma
@@ -74,6 +84,22 @@ export type PrismaModels = Models<Prisma.RejectOnNotFound | Prisma.RejectPerOper
 
 type InfoType = GraphQLResolveInfo | { select: any } | null;
 
+type PaginatedSearchResult = {
+    pageInfo: PageInfo;
+    edges: Array<{
+        cursor: string;
+        node: any;
+    }>;
+}
+
+type SearchInputBase<SortBy> = {
+    ids?: string[] | null;
+    searchString?: string | null;
+    sortBy?: SortBy | null;
+    after?: string | null;
+    take?: number | null;
+}
+
 //======================================================================================================================
 /* #endregion Type Definitions */
 //======================================================================================================================
@@ -84,7 +110,7 @@ type InfoType = GraphQLResolveInfo | { select: any } | null;
  * @param obj - GraphQL-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
- export const addJoinTables = (obj: any, map: JoinMap): any => {
+export const addJoinTables = (obj: any, map: JoinMap): any => {
     // Create result object
     let result: any = {};
     // Iterate over join map
@@ -134,16 +160,14 @@ export const selectHelper = (info: InfoType): any => {
  * @param state 
  * @returns 
  */
-export const findByIder = <Model>({ prisma, model, format }: BaseState<Model>) => ({
-    async findById(input: FindByIdInput, info: InfoType): Promise<RecursivePartial<Model> | null> {
+export const findByIder = <FullDBModel>({ prisma, model }: BaseState<any, FullDBModel>) => ({
+    async findById(input: FindByIdInput, info: InfoType): Promise<RecursivePartial<FullDBModel> | null> {
         // Check for valid arguments
         if (!input.id || !prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector
         const select = selectHelper(info);
         // Access database
-        const object = await (prisma[model] as BaseType).findUnique({ where: { id: input.id }, ...select }) as unknown as Partial<Model>;
-        // Format object to GraphQL type
-        return object ? format.toGraphQL(object) as RecursivePartial<Model> : null;
+        return await (prisma[model] as BaseType).findUnique({ where: { id: input.id }, ...select }) as unknown as Partial<FullDBModel> | null;
     }
 })
 
@@ -153,16 +177,14 @@ export const findByIder = <Model>({ prisma, model, format }: BaseState<Model>) =
  * @param state 
  * @returns 
  */
-export const creater = <ModelInput, Model>({ prisma, model, format }: BaseState<Model>) => ({
-    async create(input: ModelInput, info: InfoType): Promise<RecursivePartial<Model>> {
+export const creater = <ModelInput, FullDBModel>({ prisma, model }: BaseState<any, FullDBModel>) => ({
+    async create(input: ModelInput, info: InfoType): Promise<RecursivePartial<FullDBModel>> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector
         const select = selectHelper(info);
         // Access database
-        const object = await (prisma[model] as BaseType).create({ data: { ...input }, ...select }) as unknown as RecursivePartial<Model>;
-        // Format object to GraphQL type
-        return format.toGraphQL(object) as RecursivePartial<Model>;
+        return await (prisma[model] as BaseType).create({ data: { ...input }, ...select }) as unknown as RecursivePartial<FullDBModel>;
     }
 })
 
@@ -171,16 +193,14 @@ export const creater = <ModelInput, Model>({ prisma, model, format }: BaseState<
  * @param state 
  * @returns 
  */
-export const updater = <ModelInput extends UpdateInterface, Model>({ prisma, model, format }: BaseState<Model>) => ({
-    async update(input: ModelInput, info: InfoType): Promise<RecursivePartial<Model>> {
+export const updater = <ModelInput extends UpdateInterface, FullDBModel>({ prisma, model }: BaseState<any, FullDBModel>) => ({
+    async update(input: ModelInput, info: InfoType): Promise<RecursivePartial<FullDBModel>> {
         // Check for valid arguments
         if (!input.id || !prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector
         const select = selectHelper(info);
         // Access database
-        const object = await (prisma[model] as BaseType).update({ where: { id: input.id }, data: { ...input }, ...select }) as unknown as RecursivePartial<Model>;
-        // Format object to GraphQL type
-        return format.toGraphQL(object) as RecursivePartial<Model>;
+        return await (prisma[model] as BaseType).update({ where: { id: input.id }, data: { ...input }, ...select }) as unknown as RecursivePartial<FullDBModel>;
     }
 })
 
@@ -191,7 +211,7 @@ export const updater = <ModelInput extends UpdateInterface, Model>({ prisma, mod
  * @param state 
  * @returns 
  */
-export const deleter = ({ prisma, model }: BaseState<any>) => ({
+export const deleter = ({ prisma, model }: BaseState<any, any>) => ({
     // Delete a single object
     async delete(input: DeleteOneInput): Promise<boolean> {
         // Check for valid arguments
@@ -217,5 +237,80 @@ export const reporter = () => ({
     async report(input: ReportInput): Promise<boolean> {
         if (!Boolean(input.id)) throw new CustomError(CODE.InvalidArgs);
         throw new CustomError(CODE.NotImplemented);
+    }
+})
+
+/**
+ * Compositional component for models which can be searched
+ * @param state 
+ * @returns 
+ */
+export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, GraphQLModel, FullDBModel>({ prisma, model, formatter, sorter }: BaseState<GraphQLModel, FullDBModel>) => ({
+    /**
+     * Cursor-based search. Supports pagination, sorting, and filtering by string.
+     * @param where Additional where clauses to apply to the search
+     * @param input GraphQL-provided search parameters
+     * @param info Requested return information
+     * @returns 
+     */
+    async search(where: { [x: string]: any }, input: SearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+        // Check for valid arguments
+        if (!prisma || !sorter || !formatter) throw new CustomError(CODE.InvalidArgs);
+        // Create selector
+        const select = selectHelper(info);
+        // Create query for specified ids
+        const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids}}) : undefined;
+        // Determine sort order
+        const sortQuery = sorter.getSortQuery(input.sortBy ?? sorter.defaultSort);
+        // Determine text search query
+        const searchQuery = input.searchString ? sorter.getSearchStringQuery(input.searchString) : undefined;
+        // Find requested search array
+        const searchResults = await (prisma[model] as BaseType).findMany({
+            where: {
+                ...where,
+                ...idQuery,
+                ...searchQuery,
+            },
+            orderBy: sortQuery,
+            take: input.take ?? 20,
+            skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
+            cursor: input.after ? {
+                id: input.after
+            } : undefined,
+            ...select
+        });
+        // If there are results
+        if (searchResults.length > 0) {
+            // Find cursor
+            const cursor = searchResults[searchResults.length - 1].id;
+            // Query after the cursor to check if there are more results
+            const hasNextPage = await (prisma[model] as BaseType).findMany({
+                take: 1,
+                cursor: {
+                    id: cursor
+                }
+            });
+            // Return results
+            return {
+                pageInfo: {
+                    hasNextPage: hasNextPage.length > 0,
+                    endCursor: cursor,
+                },
+                edges: searchResults.map((result: any) => ({
+                    cursor: result.id,
+                    node: formatter.toGraphQL(result),
+                }))
+            }
+        }
+        // If there are no results
+        else {
+            return {
+                pageInfo: {
+                    endCursor: null,
+                    hasNextPage: false,
+                },
+                edges: []
+            }
+        }
     }
 })

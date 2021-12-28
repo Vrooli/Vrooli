@@ -1,13 +1,23 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE, TAG_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { TagModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Success, Tag, TagInput, TagsQueryInput, TagVoteInput } from './types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Success, Tag, TagInput, TagSearchInput, TagVoteInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
+    enum TagSortBy {
+        AlphabeticalAsc
+        AlphabeticalDesc
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
+        StarsAsc
+        StarsDesc
+    }
 
     input TagInput {
         id: ID
@@ -19,11 +29,7 @@ export const typeDef = gql`
         description: String
         created_at: Date!
         updated_at: Date!
-    }
-
-    input TagsQueryInput {
-        first: Int
-        skip: Int
+        starredBy: [User!]!
     }
 
     input TagVoteInput {
@@ -33,9 +39,30 @@ export const typeDef = gql`
         objectId: ID!
     }
 
+    input TagSearchInput {
+        userId: Int
+        ids: [ID!]
+        sortBy: TagSortBy
+        searchString: String
+        after: String
+        take: Int
+    }
+
+    # Return type for search result
+    type TagSearchResult {
+        pageInfo: PageInfo!
+        edges: [TagEdge!]!
+    }
+
+    # Return type for search result edge
+    type TagEdge {
+        cursor: String!
+        node: Tag!
+    }
+
     extend type Query {
         tag(input: FindByIdInput!): Tag
-        tags(input: TagsQueryInput!): [Tag!]!
+        tags(input: TagSearchInput!): TagSearchResult!
         tagsCount: Count!
     }
 
@@ -49,11 +76,15 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
+    TagSortBy: TAG_SORT_BY,
     Query: {
         tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag> | null> => {
-            return await TagModel(prisma).findById(input, info);
+            // Query database
+            const dbModel = await TagModel(prisma).findById(input, info);
+            // Format data
+            return dbModel ? TagModel().toGraphQL(dbModel) : null;
         },
-        tags: async (_parent: undefined, { input }: IWrap<TagsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>[]> => {
+        tags: async (_parent: undefined, { input }: IWrap<TagSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
         tagsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
@@ -69,7 +100,10 @@ export const resolvers = {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add more restrictions
-            return await TagModel(prisma).create(input, info)
+            // Create object
+            const dbModel = await TagModel(prisma).create(input, info);
+            // Format object to GraphQL type
+            return TagModel().toGraphQL(dbModel);
         },
         /**
          * Update tags you've created
@@ -79,7 +113,10 @@ export const resolvers = {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add more restrictions
-            return await TagModel(prisma).update(input, info);
+            // Update object
+            const dbModel = await TagModel(prisma).update(input, info);
+            // Format to GraphQL type
+            return TagModel().toGraphQL(dbModel);
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system
