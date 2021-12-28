@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationInput, OrganizationsQueryInput, ReportInput } from './types';
+import { Count, DeleteOneInput, FindByIdInput, Organization, OrganizationInput, OrganizationsQueryInput, ReportInput, Success } from './types';
 import { Context } from '../context';
 import { OrganizationModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -17,6 +17,8 @@ export const typeDef = gql`
 
     type Organization {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         name: String!
         description: String
         comments: [Comment!]!
@@ -41,10 +43,10 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        addOrganization(input: OrganizationInput!): Organization!
-        updateOrganization(input: OrganizationInput!): Organization!
-        deleteOrganization(input: DeleteOneInput): Boolean!
-        reportOrganization(input: ReportInput!): Boolean!
+        organizationAdd(input: OrganizationInput!): Organization!
+        organizationUpdate(input: OrganizationInput!): Organization!
+        organizationDeleteOne(input: DeleteOneInput): Success!
+        organizationReport(input: ReportInput!): Success!
     }
 `
 
@@ -56,38 +58,40 @@ export const resolvers = {
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
-        organizationsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
+        organizationsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
             throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
+        organizationAdd: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions
             return await OrganizationModel(prisma).create(input, info);
         },
-        updateOrganization: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
+        organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO must be updating your own
             return await OrganizationModel(prisma).update(input, info);
         },
-        deleteOrganization: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
+        organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO must be deleting your own
-            return await OrganizationModel(prisma).delete(input);
+            const success = await OrganizationModel(prisma).delete(input);
+            return { success };
         },
         /**
          * Reports an organization. After enough reports, it will be deleted.
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportOrganization: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
+        organizationReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await OrganizationModel(prisma).report(input);
+            const success = await OrganizationModel(prisma).report(input);
+            return { success };
         }
     }
 }

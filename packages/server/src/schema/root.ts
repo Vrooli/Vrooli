@@ -16,6 +16,11 @@ export const typeDef = gql`
     type Count {
         count: Int
     }
+    # Return type for mutations with a success boolean
+    # Could return just the boolean, but this makes it clear what the result means
+    type Success {
+        success: Boolean
+    }
     # Return type for error messages
     type Response {
         code: Int

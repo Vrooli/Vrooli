@@ -1,20 +1,11 @@
 import { gql } from 'graphql-tag';
-import { resourceFields } from 'graphql/fragment';
+import { projectFields } from 'graphql/fragment';
 
 export const projectsQuery = gql`
-    ${resourceFields}
-    query projects(
-        $input: [ProjectsQueryInput!]!
-    ) {
-        projects(
-            input: $input
-        ) {
-            id
-            name
-            description
-            resources {
-                ...resourceFields
-            }
+    ${projectFields}
+    query projects($input: ProjectsQueryInput!) {
+        projects(input: $input) {
+            ...projectFields
         }
     }
 `

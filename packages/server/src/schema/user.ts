@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { UserModel } from '../models';
-import { DeleteUserInput, ReportInput, UpdateUserInput, User } from './types';
+import { UserDeleteInput, ReportInput, UserUpdateInput, User, Success } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -20,6 +20,8 @@ export const typeDef = gql`
 
     type User {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         username: String
         pronouns: String!
         theme: String!
@@ -45,13 +47,13 @@ export const typeDef = gql`
         votedByTag: [Tag!]!
     }
 
-    input UpdateUserInput {
+    input UserUpdateInput {
         data: UserInput!
         currentPassword: String!
         newPassword: String
     }
 
-    input DeleteUserInput {
+    input UserDeleteInput {
         id: ID!
         password: String!
     }
@@ -61,9 +63,9 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        updateUser(input: UpdateUserInput!): User!
-        deleteUser(input: DeleteUserInput!): Boolean
-        reportUser(input: ReportInput!): Boolean!
+        userUpdate(input: UserUpdateInput!): User!
+        userDeleteOne(input: UserDeleteInput!): Success!
+        userReport(input: ReportInput!): Success!
         exportData: String!
     }
 `
@@ -76,7 +78,7 @@ export const resolvers = {
         }
     },
     Mutation: {
-        updateUser: async (_parent: undefined, { input }: IWrap<UpdateUserInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User>> => {
+        userUpdate: async (_parent: undefined, { input }: IWrap<UserUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
             // Must be updating your own
             if (req.userId !== input.data.id) throw new CustomError(CODE.Unauthorized);
             // Check for correct password
@@ -86,7 +88,7 @@ export const resolvers = {
             // Update user
             return await UserModel(prisma).upsertUser(input.data, info);
         },
-        deleteUser: async (_parent: undefined, { input }: IWrap<DeleteUserInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<boolean> => {
+        userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be deleting your own
             if (req.userId !== input.id) throw new CustomError(CODE.Unauthorized);
             // Check for correct password
@@ -94,27 +96,29 @@ export const resolvers = {
             if (!user) throw new CustomError(CODE.InvalidArgs);
             if (!UserModel(prisma).validatePassword(input.password, user)) throw new CustomError(CODE.BadCredentials);
             // Delete user
-            return await UserModel(prisma).delete(user.id);
+            const success = await UserModel(prisma).delete(user.id);
+            return { success }
         },
         /**
          * Reports a user. After enough reports, it will be deleted.
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportUser: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
+        userReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await UserModel(prisma).report(input);
+            const success = await UserModel(prisma).report(input);
+            return { success }
         },
         /**
          * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).
          * In the future, an import function will be added.
          * @returns JSON of all user data
          */
-        exportData: async (_parent: undefined, _args: undefined, context: Context, _info: GraphQLResolveInfo): Promise<string> => {
+        exportData: async (_parent: undefined, _args: undefined, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<string> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            return await UserModel(prisma).exportData(req.userId);
         }
     }
 }

@@ -8,7 +8,7 @@ import { CustomError, validateArgs } from '../error';
 import { generateNonce, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionToken } from '../auth/auth.js';
 import { IWrap, RecursivePartial } from '../types';
-import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, User, WalletInitInput, Session, Role } from './types';
+import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, User, WalletInitInput, Session, Role, Success } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
 import { UserModel } from '../models';
@@ -77,14 +77,14 @@ export const typeDef = gql`
     extend type Mutation {
         emailLogIn(input: EmailLogInInput!): Session!
         emailSignUp(input: EmailSignUpInput!): Session!
-        emailRequestPasswordChange(input: EmailRequestPasswordChangeInput!): Boolean!
+        emailRequestPasswordChange(input: EmailRequestPasswordChangeInput!): Success!
         emailResetPassword(input: EmailResetPasswordInput!): Session!
         guestLogIn: Session!
-        logOut: Boolean!
+        logOut: Success!
         validateSession: Session!
         walletInit(input: WalletInitInput!): String!
         walletComplete(input: WalletCompleteInput!): Session!
-        walletRemove(input: DeleteOneInput!): Boolean!
+        walletRemove(input: DeleteOneInput!): Success!
     }
 `
 
@@ -140,14 +140,15 @@ export const resolvers = {
             // Return user data
             return session;
         },
-        emailRequestPasswordChange: async (_parent: undefined, { input }: IWrap<EmailRequestPasswordChangeInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
+        emailRequestPasswordChange: async (_parent: undefined, { input }: IWrap<EmailRequestPasswordChangeInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Validate input format
             const validateError = await validateArgs(emailRequestPasswordChangeSchema, input);
             if (validateError) throw validateError;
             // Find user in database
             const user = await UserModel(prisma).findByEmail(input.email);
             // Generate and send password reset code
-            return await UserModel(prisma).setupPasswordReset(user);
+            const success = await UserModel(prisma).setupPasswordReset(user);
+            return { success };
         },
         emailResetPassword: async (_parent: undefined, { input }: IWrap<EmailResetPasswordInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Validate input format
@@ -200,9 +201,9 @@ export const resolvers = {
             await generateSessionToken(res, session);
             return session;
         },
-        logOut: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
+        logOut: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             res.clearCookie(COOKIE.Session);
-            return true;
+            return { success: true};
         },
         validateSession: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // If session is expired
@@ -319,7 +320,7 @@ export const resolvers = {
             await generateSessionToken(res, session);
             return session;
         },
-        walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: any, _info: GraphQLResolveInfo): Promise<boolean> => {
+        walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: any, _info: GraphQLResolveInfo): Promise<Success> => {
             // TODO Must deleting your own
             // TODO must keep at least one wallet per user
             // Must be logged in

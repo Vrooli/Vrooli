@@ -27,9 +27,9 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        addEmail(input: EmailInput!): Email!
-        updateEmail(input: EmailInput!): Email!
-        deleteEmails(input: DeleteManyInput!): Count!
+        emailAdd(input: EmailInput!): Email!
+        emailUpdate(input: EmailInput!): Email!
+        emailDeleteMany(input: DeleteManyInput!): Count!
     }
 `
 
@@ -38,7 +38,7 @@ export const resolvers = {
         /**
          * Associate a new email address to your account.
          */
-        addEmail: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
+        emailAdd: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             // Must be adding to your own
             if(req.userId !== input.userId) throw new CustomError(CODE.Unauthorized);
             return await EmailModel(prisma).create(input, info);
@@ -46,7 +46,7 @@ export const resolvers = {
         /**
          * Update an existing email address that is associated with your account.
          */
-        updateEmail: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
+        emailUpdate: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             // Find the email object in the database
             const curr = await EmailModel(prisma).findById({ id: input.id as string }, { select: { userId: true }});
             // Validate that the email belongs to the user
@@ -54,7 +54,7 @@ export const resolvers = {
             // Update the email object in the database
             return EmailModel(prisma).update(input, info);
         },
-        deleteEmails: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
+        emailDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must deleting your own
             // TODO must keep at least one email per user
             const specified = await prisma.email.findMany({ where: { id: { in: input.ids } } });

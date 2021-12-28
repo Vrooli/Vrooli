@@ -83,4 +83,8 @@ export const CODE = {
         code: 'MAX_NODES_REACHED',
         message: 'Maximum number of nodes reached for routine. This limit has been set to an extreme value. If you believe this is a mistake, please contact us.'
     },
+    ExportLimitReached: {
+        code: 'EXPORT_LIMIT_REACHED',
+        message: 'Account has exported too many times in a short period of time. Please wait at least 24 hours before trying again.'
+    }
 }

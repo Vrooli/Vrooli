@@ -64,7 +64,7 @@
     "analyze": "source-map-explorer build/static/js/*",
     "graphql-generate": "apollo client:codegen --target typescript --endpoint=http://localhost:5329/api/v1 --outputFlat --includes \"src/graphql/**/*.ts\" --excludes \"src/graphql/generated\" src/graphql/generated",
     "storybook": "start-storybook -p 6006 -s public",
-    "build-storybook": "build-storybook -s public"
+    "storybook-build": "build-storybook -s public"
   },
   "browserslist": {
     "production": [

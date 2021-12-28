@@ -1,4 +1,4 @@
-import { Session, User, Role, Comment, Email, Wallet, Resource, Project, Organization, Routine, Standard, Tag } from "schema/types";
+import { Session, User, Role, Comment, Email, Wallet, Resource, Project, Organization, Routine, Standard, Tag, Success } from "schema/types";
 import { addJoinTables, BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, selectHelper } from "./base";
 import { onlyPrimitives } from "../utils/objectTools";
 import { CustomError } from "../error";
@@ -15,6 +15,8 @@ const HASHING_ROUNDS = 8;
 const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 3;
 const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 10;
 const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000;
+const EXPORT_LIMIT = 3;
+const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -32,6 +34,8 @@ export type UserAllPrimitives = UserQueryablePrimitives & {
     password: string,
     logInAttempts: number,
     lastLoginAttempt: Date,
+    numExports: number,
+    lastExport?: Date,
 };
 // type 4. FullModel
 export type UserFullModel = UserAllPrimitives &
@@ -292,7 +296,7 @@ const findByEmailer = (state: any) => ({
 })
 
 /**
- * Custom upserter component for upserting resources
+ * Custom component for upserting resources
  * @param state 
  * @returns 
  */
@@ -342,10 +346,41 @@ const upserter = ({ prisma, format }: BaseState<User>) => ({
         // Create selector
         const select = selectHelper(info);
         // Query database
-        user = await prisma.user.findUnique({ where: { id: user.id }, ...select }) as RecursivePartial<UserFullModel>;
+        user = await prisma.user.findUnique({ where: { id: user.id }, ...select }) as RecursivePartial<UserFullModel> | null;
+        if (!user) throw new CustomError(CODE.ErrorUnknown);
         // Return formatted user
         return format.toGraphQL(user);
     }
+})
+
+/**
+ * Custom component for importing/exporting data from Vrooli
+ * @param state 
+ * @returns 
+ */
+const porter = ({ prisma }: BaseState<User>) => ({
+    /**
+     * Import JSON data to Vrooli. Useful if uploading data created offline, or if
+     * you're switching from a competitor to Vrooli. :)
+     * @param id 
+     */
+    async importData(data: string): Promise<Success> {
+        throw new CustomError(CODE.NotImplemented);
+    },
+    /**
+     * Export data to JSON. Useful if you want to use Vrooli data on your own,
+     * or switch to a competitor :(
+     * @param id 
+     */
+    async exportData(id: string): Promise<string> {
+        if (!prisma) throw new CustomError(CODE.ErrorUnknown);
+        // Find user
+        const user = await prisma.user.findUnique({ where: { id }, select: { numExports: true, lastExport: true } });
+        if (!user) throw new CustomError(CODE.ErrorUnknown);
+        // Check if export is allowed TODO export reset and whatnot
+        if (user.numExports >= EXPORT_LIMIT) throw new CustomError(CODE.ExportLimitReached);
+        throw new CustomError(CODE.NotImplemented)
+    },
 })
 
 //==============================================================
@@ -372,6 +407,7 @@ export function UserModel(prisma?: PrismaType) {
         ...deleter(obj),
         ...reporter(),
         ...validater(obj),
+        ...porter(obj),
     }
 }
 

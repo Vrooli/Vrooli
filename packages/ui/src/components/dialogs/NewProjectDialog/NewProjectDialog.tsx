@@ -16,7 +16,7 @@ import {
     Close as CloseIcon,
 } from '@mui/icons-material';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { upsertProjectMutation } from 'graphql/mutation';
+import { projectAddMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { useMutation } from '@apollo/client';
 import { UpTransition } from 'components';
@@ -60,7 +60,7 @@ export const NewProjectDialog = ({
 }: NewProjectDialogProps) => {
     const classes = useStyles();
     // Stores the modified customer data before updating
-    const [upsertProject] = useMutation<any>(upsertProjectMutation);
+    const [projectAdd] = useMutation<any>(projectAddMutation);
 
     const formik = useFormik({
         initialValues: {
@@ -70,7 +70,7 @@ export const NewProjectDialog = ({
         validationSchema: addProjectSchema,
         onSubmit: (values) => {
             mutationWrapper({
-                mutation: upsertProject,
+                mutation: projectAdd,
                 input: {
                     name: values.name,
                     description: values.description,

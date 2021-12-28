@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { profileSchema } from '@local/shared';
 import { useMutation, useQuery } from '@apollo/client';
-import { updateUserMutation } from 'graphql/mutation';
+import { userUpdateMutation } from 'graphql/mutation';
 import { profileQuery } from 'graphql/query';
 import { useFormik } from 'formik';
 import { combineStyles, PUBS } from 'utils';
@@ -23,7 +23,7 @@ import { makeStyles } from '@mui/styles';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { formStyles } from './styles';
 import { profile } from 'graphql/generated/profile';
-import { updateUser } from 'graphql/generated/updateUser';
+import { userUpdate } from 'graphql/generated/userUpdate';
 
 const componentStyles = (theme: Theme) => ({
     buttons: {
@@ -41,7 +41,7 @@ export const ProfileForm = () => {
     const classes = useStyles()
     const [editing, setEditing] = useState(false);
     const { data: profile } = useQuery<any>(profileQuery);
-    const [updateUser, { loading }] = useMutation<updateUser>(updateUserMutation);
+    const [updateUser, { loading }] = useMutation<userUpdate>(userUpdateMutation);
 
     const formik = useFormik({
         enableReinitialize: true,

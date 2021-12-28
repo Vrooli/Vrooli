@@ -7,6 +7,11 @@
 // GraphQL mutation operation: logOut
 // ====================================================
 
+export interface logOut_logOut {
+  __typename: "Success";
+  success: boolean | null;
+}
+
 export interface logOut {
-  logOut: boolean;
+  logOut: logOut_logOut;
 }

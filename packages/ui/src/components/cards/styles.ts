@@ -8,6 +8,7 @@ export const cardStyles: Styles<Theme, {}> = (theme: Theme) => ({
         borderRadius: 15,
         margin: 3,
         cursor: 'pointer',
+        maxWidth: '500px',
     },
     content: {
         padding: 8,

@@ -25,7 +25,7 @@ export enum AccountStatus {
 
 export type Comment = {
   __typename?: 'Comment';
-  createdAt: Scalars['Date'];
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
   organization?: Maybe<Organization>;
   organizationId?: Maybe<Scalars['ID']>;
@@ -40,7 +40,7 @@ export type Comment = {
   standardId?: Maybe<Scalars['ID']>;
   stars?: Maybe<Scalars['Int']>;
   text?: Maybe<Scalars['String']>;
-  updatedAt: Scalars['Date'];
+  updated_at: Scalars['Date'];
   user?: Maybe<User>;
   userId?: Maybe<Scalars['ID']>;
   vote?: Maybe<Scalars['Int']>;
@@ -64,11 +64,6 @@ export type DeleteManyInput = {
 
 export type DeleteOneInput = {
   id: Scalars['ID'];
-};
-
-export type DeleteUserInput = {
-  id: Scalars['ID'];
-  password: Scalars['String'];
 };
 
 export type Email = {
@@ -126,152 +121,93 @@ export type FindByIdInput = {
 
 export type Mutation = {
   __typename?: 'Mutation';
-  addComment: Email;
-  addEmail: Email;
-  addFeedback: Scalars['Boolean'];
-  addNode: Node;
-  addOrganization: Organization;
-  addResource: Resource;
-  addRoutine: Routine;
-  addStandard: Standard;
-  addTag: Tag;
-  deleteComment: Scalars['Boolean'];
-  deleteEmails: Count;
-  deleteNode: Scalars['Boolean'];
-  deleteOrganization: Scalars['Boolean'];
-  deleteProject: Scalars['Boolean'];
-  deleteResources: Count;
-  deleteRoutine: Scalars['Boolean'];
-  deleteStandards: Count;
-  deleteTags: Count;
-  deleteUser?: Maybe<Scalars['Boolean']>;
+  commentAdd: Comment;
+  commentDeleteOne: Success;
+  commentReport: Success;
+  commentUpdate: Comment;
+  commentVote: Success;
+  emailAdd: Email;
+  emailDeleteMany: Count;
   emailLogIn: Session;
-  emailRequestPasswordChange: Scalars['Boolean'];
+  emailRequestPasswordChange: Success;
   emailResetPassword: Session;
   emailSignUp: Session;
+  emailUpdate: Email;
   exportData: Scalars['String'];
+  feedbackAdd: Success;
   guestLogIn: Session;
-  logOut: Scalars['Boolean'];
-  reportComment: Scalars['Boolean'];
-  reportOrganization: Scalars['Boolean'];
-  reportProject: Scalars['Boolean'];
-  reportResource: Scalars['Boolean'];
-  reportRoutine: Scalars['Boolean'];
-  reportStandard: Scalars['Boolean'];
-  reportTag: Scalars['Boolean'];
-  reportUser: Scalars['Boolean'];
-  updateComment: Email;
-  updateEmail: Email;
-  updateNode: Node;
-  updateOrganization: Organization;
-  updateResource: Resource;
-  updateRoutine: Routine;
-  updateStandard: Standard;
-  updateTag: Tag;
-  updateUser: User;
-  upsertProject: Project;
+  logOut: Success;
+  nodeAdd: Node;
+  nodeDeleteOne: Success;
+  nodeUpdate: Node;
+  organizationAdd: Organization;
+  organizationDeleteOne: Success;
+  organizationReport: Success;
+  organizationUpdate: Organization;
+  projectAdd: Project;
+  projectDeleteOne: Success;
+  projectReport: Success;
+  projectUpdate: Project;
+  resourceAdd: Resource;
+  resourceDeleteMany: Count;
+  resourceReport: Success;
+  resourceUpdate: Resource;
+  routineAdd: Routine;
+  routineDeleteOne: Success;
+  routineReport: Success;
+  routineUpdate: Routine;
+  standardAdd: Standard;
+  standardDeleteMany: Count;
+  standardReport: Success;
+  standardUpdate: Standard;
+  tagAdd: Tag;
+  tagDeleteMany: Count;
+  tagReport: Success;
+  tagUpdate: Tag;
+  tagVote: Success;
+  userDeleteOne: Success;
+  userReport: Success;
+  userUpdate: User;
   validateSession: Session;
-  voteComment: Scalars['Boolean'];
-  voteTag: Scalars['Boolean'];
   walletComplete: Session;
   walletInit: Scalars['String'];
-  walletRemove: Scalars['Boolean'];
+  walletRemove: Success;
   writeAssets?: Maybe<Scalars['Boolean']>;
 };
 
 
-export type MutationAddCommentArgs = {
+export type MutationCommentAddArgs = {
   input: CommentInput;
 };
 
 
-export type MutationAddEmailArgs = {
+export type MutationCommentDeleteOneArgs = {
+  input: DeleteOneInput;
+};
+
+
+export type MutationCommentReportArgs = {
+  input: ReportInput;
+};
+
+
+export type MutationCommentUpdateArgs = {
+  input: CommentInput;
+};
+
+
+export type MutationCommentVoteArgs = {
+  input: VoteInput;
+};
+
+
+export type MutationEmailAddArgs = {
   input: EmailInput;
 };
 
 
-export type MutationAddFeedbackArgs = {
-  input: FeedbackInput;
-};
-
-
-export type MutationAddNodeArgs = {
-  input: NodeInput;
-};
-
-
-export type MutationAddOrganizationArgs = {
-  input: OrganizationInput;
-};
-
-
-export type MutationAddResourceArgs = {
-  input: ResourceInput;
-};
-
-
-export type MutationAddRoutineArgs = {
-  input: RoutineInput;
-};
-
-
-export type MutationAddStandardArgs = {
-  input: StandardInput;
-};
-
-
-export type MutationAddTagArgs = {
-  input: TagInput;
-};
-
-
-export type MutationDeleteCommentArgs = {
-  input: DeleteOneInput;
-};
-
-
-export type MutationDeleteEmailsArgs = {
+export type MutationEmailDeleteManyArgs = {
   input: DeleteManyInput;
-};
-
-
-export type MutationDeleteNodeArgs = {
-  input: DeleteOneInput;
-};
-
-
-export type MutationDeleteOrganizationArgs = {
-  input?: InputMaybe<DeleteOneInput>;
-};
-
-
-export type MutationDeleteProjectArgs = {
-  input: DeleteOneInput;
-};
-
-
-export type MutationDeleteResourcesArgs = {
-  input: DeleteManyInput;
-};
-
-
-export type MutationDeleteRoutineArgs = {
-  input: DeleteOneInput;
-};
-
-
-export type MutationDeleteStandardsArgs = {
-  input: DeleteManyInput;
-};
-
-
-export type MutationDeleteTagsArgs = {
-  input: DeleteManyInput;
-};
-
-
-export type MutationDeleteUserArgs = {
-  input: DeleteUserInput;
 };
 
 
@@ -295,103 +231,168 @@ export type MutationEmailSignUpArgs = {
 };
 
 
-export type MutationReportCommentArgs = {
-  input: ReportInput;
-};
-
-
-export type MutationReportOrganizationArgs = {
-  input: ReportInput;
-};
-
-
-export type MutationReportProjectArgs = {
-  input: ReportInput;
-};
-
-
-export type MutationReportResourceArgs = {
-  input: ReportInput;
-};
-
-
-export type MutationReportRoutineArgs = {
-  input: ReportInput;
-};
-
-
-export type MutationReportStandardArgs = {
-  input: ReportInput;
-};
-
-
-export type MutationReportTagArgs = {
-  input: ReportInput;
-};
-
-
-export type MutationReportUserArgs = {
-  input: ReportInput;
-};
-
-
-export type MutationUpdateCommentArgs = {
-  input: CommentInput;
-};
-
-
-export type MutationUpdateEmailArgs = {
+export type MutationEmailUpdateArgs = {
   input: EmailInput;
 };
 
 
-export type MutationUpdateNodeArgs = {
+export type MutationFeedbackAddArgs = {
+  input: FeedbackInput;
+};
+
+
+export type MutationNodeAddArgs = {
   input: NodeInput;
 };
 
 
-export type MutationUpdateOrganizationArgs = {
+export type MutationNodeDeleteOneArgs = {
+  input: DeleteOneInput;
+};
+
+
+export type MutationNodeUpdateArgs = {
+  input: NodeInput;
+};
+
+
+export type MutationOrganizationAddArgs = {
   input: OrganizationInput;
 };
 
 
-export type MutationUpdateResourceArgs = {
-  input: ResourceInput;
+export type MutationOrganizationDeleteOneArgs = {
+  input?: InputMaybe<DeleteOneInput>;
 };
 
 
-export type MutationUpdateRoutineArgs = {
-  input: RoutineInput;
+export type MutationOrganizationReportArgs = {
+  input: ReportInput;
 };
 
 
-export type MutationUpdateStandardArgs = {
-  input: StandardInput;
+export type MutationOrganizationUpdateArgs = {
+  input: OrganizationInput;
 };
 
 
-export type MutationUpdateTagArgs = {
-  input: TagInput;
-};
-
-
-export type MutationUpdateUserArgs = {
-  input: UpdateUserInput;
-};
-
-
-export type MutationUpsertProjectArgs = {
+export type MutationProjectAddArgs = {
   input: ProjectInput;
 };
 
 
-export type MutationVoteCommentArgs = {
-  input: VoteInput;
+export type MutationProjectDeleteOneArgs = {
+  input: DeleteOneInput;
 };
 
 
-export type MutationVoteTagArgs = {
+export type MutationProjectReportArgs = {
+  input: ReportInput;
+};
+
+
+export type MutationProjectUpdateArgs = {
+  input: ProjectInput;
+};
+
+
+export type MutationResourceAddArgs = {
+  input: ResourceInput;
+};
+
+
+export type MutationResourceDeleteManyArgs = {
+  input: DeleteManyInput;
+};
+
+
+export type MutationResourceReportArgs = {
+  input: ReportInput;
+};
+
+
+export type MutationResourceUpdateArgs = {
+  input: ResourceInput;
+};
+
+
+export type MutationRoutineAddArgs = {
+  input: RoutineInput;
+};
+
+
+export type MutationRoutineDeleteOneArgs = {
+  input: DeleteOneInput;
+};
+
+
+export type MutationRoutineReportArgs = {
+  input: ReportInput;
+};
+
+
+export type MutationRoutineUpdateArgs = {
+  input: RoutineInput;
+};
+
+
+export type MutationStandardAddArgs = {
+  input: StandardInput;
+};
+
+
+export type MutationStandardDeleteManyArgs = {
+  input: DeleteManyInput;
+};
+
+
+export type MutationStandardReportArgs = {
+  input: ReportInput;
+};
+
+
+export type MutationStandardUpdateArgs = {
+  input: StandardInput;
+};
+
+
+export type MutationTagAddArgs = {
+  input: TagInput;
+};
+
+
+export type MutationTagDeleteManyArgs = {
+  input: DeleteManyInput;
+};
+
+
+export type MutationTagReportArgs = {
+  input: ReportInput;
+};
+
+
+export type MutationTagUpdateArgs = {
+  input: TagInput;
+};
+
+
+export type MutationTagVoteArgs = {
   input: TagVoteInput;
+};
+
+
+export type MutationUserDeleteOneArgs = {
+  input: UserDeleteInput;
+};
+
+
+export type MutationUserReportArgs = {
+  input: ReportInput;
+};
+
+
+export type MutationUserUpdateArgs = {
+  input: UserUpdateInput;
 };
 
 
@@ -421,6 +422,7 @@ export type Node = {
   Next: Array<Node>;
   Previous: Array<Node>;
   To: Array<Node>;
+  created_at: Scalars['Date'];
   data?: Maybe<NodeData>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
@@ -430,6 +432,7 @@ export type Node = {
   routineId: Scalars['ID'];
   title: Scalars['String'];
   type: NodeType;
+  updated_at: Scalars['Date'];
 };
 
 export type NodeCombine = {
@@ -601,6 +604,7 @@ export type OpenGraphResponse = {
 export type Organization = {
   __typename?: 'Organization';
   comments: Array<Comment>;
+  created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   name: Scalars['String'];
@@ -610,6 +614,7 @@ export type Organization = {
   routines: Array<Routine>;
   starredBy: Array<User>;
   tags: Array<Tag>;
+  updated_at: Scalars['Date'];
   wallets: Array<Wallet>;
 };
 
@@ -628,6 +633,7 @@ export type OrganizationsQueryInput = {
 export type Project = {
   __typename?: 'Project';
   comments: Array<Comment>;
+  created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   forks: Array<Project>;
   id: Scalars['ID'];
@@ -638,6 +644,7 @@ export type Project = {
   resources?: Maybe<Array<Resource>>;
   starredBy?: Maybe<Array<User>>;
   tags: Array<Tag>;
+  updated_at: Scalars['Date'];
   users?: Maybe<Array<User>>;
   wallets?: Maybe<Array<Wallet>>;
 };
@@ -685,21 +692,21 @@ export type Query = {
   profile: User;
   project?: Maybe<Project>;
   projects: Array<Project>;
-  projectsCount: Scalars['Int'];
+  projectsCount: Count;
   readAssets: Array<Maybe<Scalars['String']>>;
   readOpenGraph: OpenGraphResponse;
   resource?: Maybe<Resource>;
   resources: Array<Resource>;
-  resourcesCount: Scalars['Int'];
+  resourcesCount: Count;
   routine?: Maybe<Routine>;
   routines: Array<Routine>;
-  routinesCount: Scalars['Int'];
+  routinesCount: Count;
   standard?: Maybe<Standard>;
   standards: Array<Standard>;
-  standardsCount: Scalars['Int'];
+  standardsCount: Count;
   tag?: Maybe<Tag>;
   tags: Array<Tag>;
-  tagsCount: Scalars['Int'];
+  tagsCount: Count;
 };
 
 
@@ -798,6 +805,7 @@ export type ReportInput = {
 export type Resource = {
   __typename?: 'Resource';
   comments: Array<Comment>;
+  created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   displayUrl?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
@@ -810,6 +818,7 @@ export type Resource = {
   routine_resources_donation: Array<Routine>;
   routine_resources_external: Array<Routine>;
   starredBy: Array<User>;
+  updated_at: Scalars['Date'];
   user_resources: Array<User>;
 };
 
@@ -930,6 +939,7 @@ export type Session = {
 export type Standard = {
   __typename?: 'Standard';
   comments: Array<Comment>;
+  created_at: Scalars['Date'];
   default?: Maybe<Scalars['String']>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
@@ -942,6 +952,7 @@ export type Standard = {
   starredBy: Array<User>;
   tags: Array<Tag>;
   type: StandardType;
+  updated_at: Scalars['Date'];
 };
 
 export type StandardInput = {
@@ -970,9 +981,18 @@ export type StandardsQueryInput = {
   skip?: InputMaybe<Scalars['Int']>;
 };
 
+export type Success = {
+  __typename?: 'Success';
+  success?: Maybe<Scalars['Boolean']>;
+};
+
 export type Tag = {
   __typename?: 'Tag';
+  created_at: Scalars['Date'];
+  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  tag: Scalars['String'];
+  updated_at: Scalars['Date'];
 };
 
 export type TagInput = {
@@ -991,15 +1011,10 @@ export type TagsQueryInput = {
   skip?: InputMaybe<Scalars['Int']>;
 };
 
-export type UpdateUserInput = {
-  currentPassword: Scalars['String'];
-  data: UserInput;
-  newPassword?: InputMaybe<Scalars['String']>;
-};
-
 export type User = {
   __typename?: 'User';
   comments: Array<Comment>;
+  created_at: Scalars['Date'];
   emailVerified: Scalars['Boolean'];
   emails: Array<Email>;
   id: Scalars['ID'];
@@ -1019,10 +1034,16 @@ export type User = {
   starredUsers: Array<User>;
   status: AccountStatus;
   theme: Scalars['String'];
+  updated_at: Scalars['Date'];
   username?: Maybe<Scalars['String']>;
   votedByTag: Array<Tag>;
   votedComments: Array<Comment>;
   wallets: Array<Wallet>;
+};
+
+export type UserDeleteInput = {
+  id: Scalars['ID'];
+  password: Scalars['String'];
 };
 
 export type UserInput = {
@@ -1038,6 +1059,12 @@ export type UserRole = {
   __typename?: 'UserRole';
   role: Role;
   user: User;
+};
+
+export type UserUpdateInput = {
+  currentPassword: Scalars['String'];
+  data: UserInput;
+  newPassword?: InputMaybe<Scalars['String']>;
 };
 
 export type VoteInput = {

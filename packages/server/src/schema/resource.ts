@@ -3,7 +3,7 @@ import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceInput, ResourcesQueryInput } from './types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceInput, ResourcesQueryInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -29,6 +29,8 @@ export const typeDef = gql`
 
     type Resource {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         name: String!
         description: String
         link: String!
@@ -52,14 +54,14 @@ export const typeDef = gql`
     extend type Query {
         resource(input: FindByIdInput!): Resource
         resources(input: ResourcesQueryInput!): [Resource!]!
-        resourcesCount: Int!
+        resourcesCount: Count!
     }
 
     extend type Mutation {
-        addResource(input: ResourceInput!): Resource!
-        updateResource(input: ResourceInput!): Resource!
-        deleteResources(input: DeleteManyInput!): Count!
-        reportResource(input: ReportInput!): Boolean!
+        resourceAdd(input: ResourceInput!): Resource!
+        resourceUpdate(input: ResourceInput!): Resource!
+        resourceDeleteMany(input: DeleteManyInput!): Count!
+        resourceReport(input: ReportInput!): Success!
     }
 `
 
@@ -71,22 +73,22 @@ export const resolvers = {
         resources: async (_parent: undefined, { input }: IWrap<ResourcesQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
-        resourcesCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
+        resourcesCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
             throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        addResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
+        resourceAdd: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await ResourceModel(prisma).create(input, info)
         },
-        updateResource: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
+        resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await ResourceModel(prisma).update(input, info);
         },
-        deleteResources: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
+        resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await ResourceModel(prisma).deleteMany(input);
@@ -96,10 +98,11 @@ export const resolvers = {
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportResource: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: any): Promise<boolean> => {
+         resourceReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: any): Promise<Success> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await ResourceModel(prisma).report(input);
+            const success = await ResourceModel(prisma).report(input);
+            return { success };
         }
     }
 }

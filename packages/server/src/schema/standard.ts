@@ -3,7 +3,7 @@ import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Standard, StandardInput, StandardsQueryInput } from './types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Standard, StandardInput, StandardsQueryInput, Success } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
@@ -33,6 +33,8 @@ export const typeDef = gql`
 
     type Standard {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
         name: String!
         description: String
         type: StandardType!
@@ -55,14 +57,14 @@ export const typeDef = gql`
     extend type Query {
         standard(input: FindByIdInput!): Standard
         standards(input: StandardsQueryInput!): [Standard!]!
-        standardsCount: Int!
+        standardsCount: Count!
     }
 
     extend type Mutation {
-        addStandard(input: StandardInput!): Standard!
-        updateStandard(input: StandardInput!): Standard!
-        deleteStandards(input: DeleteManyInput!): Count!
-        reportStandard(input: ReportInput!): Boolean!
+        standardAdd(input: StandardInput!): Standard!
+        standardUpdate(input: StandardInput!): Standard!
+        standardDeleteMany(input: DeleteManyInput!): Count!
+        standardReport(input: ReportInput!): Success!
     }
 `
 
@@ -75,7 +77,7 @@ export const resolvers = {
         standards: async (_parent: undefined, { input }: IWrap<StandardsQueryInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>[]> => {
             throw new CustomError(CODE.NotImplemented);
         },
-        standardsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<number> => {
+        standardsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
             throw new CustomError(CODE.NotImplemented);
         },
     },
@@ -84,7 +86,7 @@ export const resolvers = {
          * Add a new standard
          * @returns Standard object if successful
          */
-        addStandard: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+        standardAdd: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add more restrictions
@@ -94,7 +96,7 @@ export const resolvers = {
          * Update standards you've created
          * @returns 
          */
-        updateStandard: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+        standardUpdate: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await StandardModel(prisma).update(input, info);
@@ -103,7 +105,7 @@ export const resolvers = {
          * Delete standards you've created. Other standards must go through a reporting system
          * @returns 
          */
-        deleteStandards: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
+        standardDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add more restrictions
@@ -114,10 +116,11 @@ export const resolvers = {
          * Related objects will not be deleted.
          * @returns True if report was successfully recorded
          */
-         reportStandard: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
+         standardReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await StandardModel(prisma).report(input);
+            const success = await StandardModel(prisma).report(input);
+            return { success };
         }
     }
 }

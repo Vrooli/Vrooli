@@ -204,7 +204,7 @@ export const deleter = ({ prisma, model }: BaseState<any>) => ({
         // Check for valid arguments
         if (!input.ids || !prisma) throw new CustomError(CODE.InvalidArgs);
         // Access database
-        return await (prisma[model] as BaseType).deleteMany({ where: { id: { in: input.ids } } }) as unknown as Count;
+        return await (prisma[model] as BaseType).deleteMany({ where: { id: { in: input.ids } } });
     }
 })
 

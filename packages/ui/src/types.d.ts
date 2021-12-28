@@ -18,8 +18,18 @@ export interface CommonProps {
 }
 
 // Rename auto-generated query objects
-export type User = users_users;
+export type Comment = any; //TODO
+export type Email = any; //TODO
+export type Node = any; //TODO
+export type Organization = any; //TODO
+export type Project = any; //TODO
+export type Report = any; //TODO
 export type Resource = any; //TODO
+export type Routine = any; //TODO
+export type Standard = any; //TODO
+export type Tag = any; //TODO
+export type User = users_users;
+export type Wallet = any; //TODO
 
 // Enable Nami integration
 declare global {

@@ -1,13 +1,25 @@
-export interface ActorCardProps {}
+export interface ActorCardProps {
+    username?: string;
+    onClick?: (username: string) => void;
+}
 
-export interface OrganizationCardProps {}
+export interface OrganizationCardProps {
+    name?: string;
+    onClick?: (name: string) => void;
+}
 
-export interface ProjectCardProps {}
+export interface ProjectCardProps {
+    name?: string;
+    onClick?: (name: string) => void;
+}
 
 export interface ResourceCardProps {
     resource: Resource
 }
-export interface RoutineCardProps {}
+export interface RoutineCardProps {
+    name?: string;
+    onClick?: (name: string) => void;
+}
 
 export interface StatCardProps {
     data: any;

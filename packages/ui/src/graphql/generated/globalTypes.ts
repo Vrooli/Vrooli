@@ -14,6 +14,16 @@ export enum AccountStatus {
   UNLOCKED = "UNLOCKED",
 }
 
+export enum NodeType {
+  COMBINE = "COMBINE",
+  DECISION = "DECISION",
+  END = "END",
+  LOOP = "LOOP",
+  REDIRECT = "REDIRECT",
+  ROUTINE_LIST = "ROUTINE_LIST",
+  START = "START",
+}
+
 export enum ProjectSortBy {
   AlphabeticalAsc = "AlphabeticalAsc",
   AlphabeticalDesc = "AlphabeticalDesc",
@@ -40,9 +50,29 @@ export enum ResourceFor {
   USER = "USER",
 }
 
-export interface DeleteUserInput {
+export enum StandardType {
+  ARRAY = "ARRAY",
+  BOOLEAN = "BOOLEAN",
+  FILE = "FILE",
+  NUMBER = "NUMBER",
+  OBJECT = "OBJECT",
+  STRING = "STRING",
+  URL = "URL",
+}
+
+export interface CommentInput {
+  id?: string | null;
+  text?: string | null;
+  objectType?: string | null;
+  objectId?: string | null;
+}
+
+export interface DeleteManyInput {
+  ids: string[];
+}
+
+export interface DeleteOneInput {
   id: string;
-  password: string;
 }
 
 export interface EmailInput {
@@ -78,11 +108,99 @@ export interface EmailSignUpInput {
   password: string;
 }
 
+export interface FeedbackInput {
+  text: string;
+  userId?: string | null;
+}
+
+export interface FindByIdInput {
+  id: string;
+}
+
+export interface NodeCombineFromInput {
+  id?: string | null;
+  combineId?: string | null;
+  fromId?: string | null;
+}
+
+export interface NodeCombineInput {
+  id?: string | null;
+  from: NodeCombineFromInput[];
+  to?: NodeInput | null;
+}
+
+export interface NodeDecisionInput {
+  id?: string | null;
+  decisions: NodeDecisionItemInput[];
+}
+
+export interface NodeDecisionItemCaseInput {
+  id?: string | null;
+  condition?: string | null;
+}
+
+export interface NodeDecisionItemInput {
+  id?: string | null;
+  title?: string | null;
+  when?: (NodeDecisionItemCaseInput | null)[] | null;
+}
+
+export interface NodeEndInput {
+  id?: string | null;
+}
+
+export interface NodeInput {
+  id?: string | null;
+  routineId?: string | null;
+  title?: string | null;
+  description?: string | null;
+  type?: NodeType | null;
+  combineData?: NodeCombineInput | null;
+  decisionData?: NodeDecisionInput | null;
+  endData?: NodeEndInput | null;
+  loopData?: NodeLoopInput | null;
+  routineListData?: NodeRoutineListInput | null;
+  redirectData?: NodeRedirectInput | null;
+  startData?: NodeStartInput | null;
+}
+
+export interface NodeLoopInput {
+  id?: string | null;
+}
+
+export interface NodeRedirectInput {
+  id?: string | null;
+}
+
+export interface NodeRoutineListInput {
+  id?: string | null;
+  isOrdered?: boolean | null;
+  routines: NodeRoutineListItemInput[];
+}
+
+export interface NodeRoutineListItemInput {
+  id?: string | null;
+  title?: string | null;
+  description?: string | null;
+  isOptional?: boolean | null;
+  listId?: string | null;
+  routineId?: string | null;
+}
+
+export interface NodeStartInput {
+  id?: string | null;
+}
+
 export interface OrganizationInput {
   id?: string | null;
   name: string;
   description?: string | null;
   resources?: ResourceInput[] | null;
+}
+
+export interface OrganizationsQueryInput {
+  first?: number | null;
+  skip?: number | null;
 }
 
 export interface ProjectInput {
@@ -103,6 +221,11 @@ export interface ProjectsQueryInput {
   skip?: number | null;
 }
 
+export interface ReportInput {
+  id: string;
+  reason?: string | null;
+}
+
 export interface ResourceInput {
   id?: string | null;
   name: string;
@@ -113,10 +236,74 @@ export interface ResourceInput {
   forId: string;
 }
 
-export interface UpdateUserInput {
-  data: UserInput;
-  currentPassword: string;
-  newPassword?: string | null;
+export interface ResourcesQueryInput {
+  first?: number | null;
+  skip?: number | null;
+}
+
+export interface RoutineInput {
+  id?: string | null;
+  version?: string | null;
+  title?: string | null;
+  description?: string | null;
+  instructions?: string | null;
+  isAutomatable?: boolean | null;
+  inputs?: RoutineInputItemInput[] | null;
+  outputs?: RoutineOutputItemInput[] | null;
+}
+
+export interface RoutineInputItemInput {
+  id?: string | null;
+  routineId: string;
+  standardId?: string | null;
+}
+
+export interface RoutineOutputItemInput {
+  id?: string | null;
+  routineId: string;
+  standardId?: string | null;
+}
+
+export interface RoutinesQueryInput {
+  first?: number | null;
+  skip?: number | null;
+}
+
+export interface StandardInput {
+  id?: string | null;
+  name?: string | null;
+  description?: string | null;
+  type?: StandardType | null;
+  schema?: string | null;
+  default?: string | null;
+  isFile?: boolean | null;
+  tags?: TagInput[] | null;
+}
+
+export interface StandardsQueryInput {
+  first?: number | null;
+  skip?: number | null;
+}
+
+export interface TagInput {
+  id?: string | null;
+}
+
+export interface TagVoteInput {
+  id: string;
+  isUpvote: boolean;
+  objectType: string;
+  objectId: string;
+}
+
+export interface TagsQueryInput {
+  first?: number | null;
+  skip?: number | null;
+}
+
+export interface UserDeleteInput {
+  id: string;
+  password: string;
 }
 
 export interface UserInput {
@@ -126,6 +313,17 @@ export interface UserInput {
   emails?: EmailInput[] | null;
   theme?: string | null;
   status?: AccountStatus | null;
+}
+
+export interface UserUpdateInput {
+  data: UserInput;
+  currentPassword: string;
+  newPassword?: string | null;
+}
+
+export interface VoteInput {
+  id: string;
+  isUpvote: boolean;
 }
 
 export interface WalletCompleteInput {

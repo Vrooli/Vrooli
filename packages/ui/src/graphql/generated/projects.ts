@@ -9,21 +9,12 @@ import { ProjectsQueryInput } from "./globalTypes";
 // GraphQL query operation: projects
 // ====================================================
 
-export interface projects_projects_resources {
-  __typename: "Resource";
-  id: string;
-  name: string;
-  description: string | null;
-  link: string;
-  displayUrl: string | null;
-}
-
 export interface projects_projects {
   __typename: "Project";
   id: string;
   name: string;
   description: string | null;
-  resources: projects_projects_resources[] | null;
+  created_at: any;
 }
 
 export interface projects {
@@ -31,5 +22,5 @@ export interface projects {
 }
 
 export interface projectsVariables {
-  input: ProjectsQueryInput[];
+  input: ProjectsQueryInput;
 }
