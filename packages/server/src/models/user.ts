@@ -1,5 +1,5 @@
-import { Session, User, Role, Comment, Email, Wallet, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile } from "schema/types";
-import { addJoinTables, BaseState, deleter, findByIder, FormatConverter, JoinMap, MODEL_TYPES, removeJoinTables, reporter, selectHelper } from "./base";
+import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput } from "../schema/types";
+import { addJoinTables, BaseState, deleter, findByIder, JoinMap, MODEL_TYPES, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
 import { onlyPrimitives } from "../utils/objectTools";
 import { CustomError } from "../error";
 import { CODE } from '@local/shared';
@@ -105,6 +105,35 @@ const formatter = (): UserFormatConverter => {
         toGraphQLUser: (obj: RecursivePartial<UserFullModel>): RecursivePartial<User> => removeJoinTables(obj, joinMapper), 
     }
 }
+
+/**
+ * Component for search filters
+ */
+ const sorter = (): Sortable<UserSortBy> => ({
+    defaultSort: UserSortBy.AlphabeticalDesc,
+    getSortQuery: (sortBy: string): any => {
+        return {
+            [UserSortBy.AlphabeticalAsc]: { name: 'asc' },
+            [UserSortBy.AlphabeticalDesc]: { name: 'desc' },
+            [UserSortBy.CommentsAsc]: { comments: { count: 'asc' } },
+            [UserSortBy.CommentsDesc]: { comments: { count: 'desc' } },
+            [UserSortBy.DateCreatedAsc]: { created_at: 'asc' },
+            [UserSortBy.DateCreatedDesc]: { created_at: 'desc' },
+            [UserSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
+            [UserSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
+            [UserSortBy.StarsAsc]: { stars: { count: 'asc' } },
+            [UserSortBy.StarsDesc]: { stars: { count: 'desc' } },
+        }[sortBy]
+    },
+    getSearchStringQuery: (searchString: string): any => {
+        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
+        return ({
+            OR: [
+                { username: { ...insensitive } },
+            ]
+        })
+    }
+})
 
 /**
  * Custom component for email/password validation
@@ -413,14 +442,16 @@ export function UserModel(prisma?: PrismaType) {
 
     return {
         ...obj,
-        ...findByIder<UserFullModel>(obj),
-        ...findByEmailer(obj),
-        ...formatter(),
-        ...upserter(obj),
         ...deleter(obj),
-        ...reporter(),
-        ...validater(obj),
+        ...findByEmailer(obj),
+        ...findByIder<UserFullModel>(obj),
+        ...formatter(),
         ...porter(obj),
+        ...reporter(),
+        ...searcher<UserSortBy, UserSearchInput, User, UserFullModel>(obj),
+        ...sorter(),
+        ...upserter(obj),
+        ...validater(obj),
     }
 }
 

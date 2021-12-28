@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, USER_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { UserModel } from '../models';
-import { UserDeleteInput, ReportInput, Success, Profile, ProfileUpdateInput } from './types';
+import { UserDeleteInput, ReportInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -110,6 +110,7 @@ export const typeDef = gql`
         profile: Profile!
         user(input: FindByIdInput!): User
         users(input: UserSearchInput!): UserSearchResult!
+        usersCount: Count!
     }
 
     extend type Mutation {
@@ -128,7 +129,20 @@ export const resolvers = {
             const dbModel = await UserModel(prisma).findById({ id: req.userId ?? '' }, info);
             // Format data
             return dbModel ? UserModel().toGraphQLProfile(dbModel) : null;
-        }
+        },
+        user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<any> | null> => {
+            // Query database
+            const dbModel = await UserModel(prisma).findById({ id: input.id }, info);
+            // Format data
+            return dbModel ? UserModel().toGraphQLUser(dbModel) : null;
+        },
+        users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
+            // return search query
+            return await UserModel(prisma).search({}, input, info);
+        },
+        usersCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
+            throw new CustomError(CODE.NotImplemented);
+        },
     },
     Mutation: {
         profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {

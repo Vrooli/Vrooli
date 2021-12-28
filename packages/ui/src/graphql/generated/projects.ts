@@ -3,13 +3,19 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectsQueryInput } from "./globalTypes";
+import { ProjectSearchInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: projects
 // ====================================================
 
-export interface projects_projects {
+export interface projects_projects_pageInfo {
+  __typename: "PageInfo";
+  endCursor: string | null;
+  hasNextPage: boolean;
+}
+
+export interface projects_projects_edges_node {
   __typename: "Project";
   id: string;
   name: string;
@@ -17,10 +23,22 @@ export interface projects_projects {
   created_at: any;
 }
 
+export interface projects_projects_edges {
+  __typename: "ProjectEdge";
+  cursor: string;
+  node: projects_projects_edges_node;
+}
+
+export interface projects_projects {
+  __typename: "ProjectSearchResult";
+  pageInfo: projects_projects_pageInfo;
+  edges: projects_projects_edges[];
+}
+
 export interface projects {
-  projects: projects_projects[];
+  projects: projects_projects;
 }
 
 export interface projectsVariables {
-  input: ProjectsQueryInput;
+  input: ProjectSearchInput;
 }

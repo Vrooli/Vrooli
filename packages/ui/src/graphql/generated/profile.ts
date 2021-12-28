@@ -16,7 +16,7 @@ export interface profile_profile_emails {
 }
 
 export interface profile_profile {
-  __typename: "User";
+  __typename: "Profile";
   id: string;
   username: string | null;
   theme: string;

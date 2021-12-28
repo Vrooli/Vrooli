@@ -1,4 +1,4 @@
-import { Node, NodeDecisionItem, NodeDecisionItemInput, NodeInput } from "schema/types";
+import { Node, NodeDecisionItem, NodeInput } from "schema/types";
 import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, updater } from "./base";
 import pkg from '@prisma/client';
 import { PrismaSelect } from "@paljs/plugins";

@@ -109,8 +109,11 @@ export const resolvers = {
             // Format data
             return dbModel ? StandardModel().toGraphQL(dbModel) : null;
         },
-        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>[]> => {
-            throw new CustomError(CODE.NotImplemented);
+        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
+            // Create query for specified user
+            const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
+            // return search query
+            return await StandardModel(prisma).search({...userQuery,}, input, info);
         },
         standardsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
             throw new CustomError(CODE.NotImplemented);

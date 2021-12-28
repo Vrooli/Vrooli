@@ -1,8 +1,8 @@
 import { RESOURCE_FOR } from "@local/shared";
 import { PrismaSelect } from "@paljs/plugins";
-import { Organization, Project, Resource, ResourceInput, Routine, User } from "schema/types";
+import { Organization, Project, Resource, ResourceInput, ResourceSearchInput, ResourceSortBy, Routine, User } from "../schema/types";
 import { RecursivePartial } from "types";
-import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter } from "./base";
+import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -104,6 +104,38 @@ const updater = (state: any) => ({
     }
 })
 
+/**
+ * Component for search filters
+ */
+ const sorter = (): Sortable<ResourceSortBy> => ({
+    defaultSort: ResourceSortBy.AlphabeticalDesc,
+    getSortQuery: (sortBy: string): any => {
+        return {
+            [ResourceSortBy.AlphabeticalAsc]: { name: 'asc' },
+            [ResourceSortBy.AlphabeticalDesc]: { name: 'desc' },
+            [ResourceSortBy.CommentsAsc]: { comments: { count: 'asc' } },
+            [ResourceSortBy.CommentsDesc]: { comments: { count: 'desc' } },
+            [ResourceSortBy.DateCreatedAsc]: { created_at: 'asc' },
+            [ResourceSortBy.DateCreatedDesc]: { created_at: 'desc' },
+            [ResourceSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
+            [ResourceSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
+            [ResourceSortBy.StarsAsc]: { stars: { count: 'asc' } },
+            [ResourceSortBy.StarsDesc]: { stars: { count: 'desc' } },
+        }[sortBy]
+    },
+    getSearchStringQuery: (searchString: string): any => {
+        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
+        return ({
+            OR: [
+                { name: { ...insensitive } },
+                { description: { ...insensitive } },
+                { link: { ...insensitive } },
+                { displayUrl: { ...insensitive } },
+            ]
+        })
+    }
+})
+
 //==============================================================
 /* #endregion Custom Components */
 //==============================================================
@@ -120,12 +152,14 @@ export function ResourceModel(prisma?: any) {
 
     return {
         ...obj,
+        ...creater(obj),
+        ...deleter(obj),
         ...findByIder<ResourceFullModel>(obj),
         ...formatter(),
-        ...creater(obj),
+        ...reporter(),
+        ...searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceFullModel>(obj),
+        ...sorter(),
         ...updater(obj),
-        ...deleter(obj),
-        ...reporter()
     }
 }
 

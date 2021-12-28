@@ -127,8 +127,11 @@ export const resolvers = {
         routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             throw new CustomError(CODE.NotImplemented);
         },
-        routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>[]> => {
-            throw new CustomError(CODE.NotImplemented);
+        routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
+            // Create query for specified user
+            const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
+            // return search query
+            return await RoutineModel(prisma).search({...userQuery,}, input, info);
         },
         routinesCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
             throw new CustomError(CODE.NotImplemented);

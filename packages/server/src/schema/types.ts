@@ -795,6 +795,7 @@ export type Query = {
   tagsCount: Count;
   user?: Maybe<User>;
   users: UserSearchResult;
+  usersCount: Count;
 };
 
 
@@ -947,11 +948,12 @@ export type ResourceInput = {
 
 export type ResourceSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  forId?: InputMaybe<Scalars['Int']>;
+  forType?: InputMaybe<ResourceFor>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ResourceSortBy>;
   take?: InputMaybe<Scalars['Int']>;
-  userId?: InputMaybe<Scalars['Int']>;
 };
 
 export type ResourceSearchResult = {

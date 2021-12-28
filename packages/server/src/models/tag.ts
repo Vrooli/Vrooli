@@ -1,6 +1,6 @@
-import { Organization, Project, Routine, Standard, Tag, TagInput, User } from "schema/types";
+import { Organization, Project, Routine, Standard, Tag, TagInput, TagSearchInput, TagSortBy, User } from "../schema/types";
 import { RecursivePartial } from "types";
-import { addJoinTables, BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, updater } from "./base";
+import { addJoinTables, BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -50,6 +50,34 @@ export type TagFullModel = TagAllPrimitives &
     }
 }
 
+/**
+ * Component for search filters
+ */
+ const sorter = (): Sortable<TagSortBy> => ({
+    defaultSort: TagSortBy.AlphabeticalDesc,
+    getSortQuery: (sortBy: string): any => {
+        return {
+            [TagSortBy.AlphabeticalAsc]: { name: 'asc' },
+            [TagSortBy.AlphabeticalDesc]: { name: 'desc' },
+            [TagSortBy.DateCreatedAsc]: { created_at: 'asc' },
+            [TagSortBy.DateCreatedDesc]: { created_at: 'desc' },
+            [TagSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
+            [TagSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
+            [TagSortBy.StarsAsc]: { stars: { count: 'asc' } },
+            [TagSortBy.StarsDesc]: { stars: { count: 'desc' } },
+        }[sortBy]
+    },
+    getSearchStringQuery: (searchString: string): any => {
+        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
+        return ({
+            OR: [
+                { tag: { ...insensitive } },
+                { description: { ...insensitive } },
+            ]
+        })
+    }
+})
+
 //==============================================================
 /* #endregion Custom Components */
 //==============================================================
@@ -66,12 +94,14 @@ export function TagModel(prisma?: any) {
 
     return {
         ...obj,
-        ...findByIder<TagFullModel>(obj),
         ...creater<TagInput, TagFullModel>(obj),
-        ...formatter(),
-        ...updater<TagInput, TagFullModel>(obj),
         ...deleter(obj),
-        ...reporter()
+        ...findByIder<TagFullModel>(obj),
+        ...formatter(),
+        ...reporter(),
+        ...searcher<TagSortBy, TagSearchInput, Tag, TagFullModel>(obj),
+        ...sorter(),
+        ...updater<TagInput, TagFullModel>(obj),
     }
 }
 

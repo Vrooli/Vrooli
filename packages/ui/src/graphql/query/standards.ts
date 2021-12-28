@@ -3,7 +3,7 @@ import { standardFields } from 'graphql/fragment';
 
 export const standardsQuery = gql`
     ${standardFields}
-    query standards($input: StandardsQueryInput!) {
+    query standards($input: StandardSearchInput!) {
         standards(input: $input) {
             pageInfo {
                 endCursor

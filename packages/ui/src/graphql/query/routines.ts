@@ -3,7 +3,7 @@ import { routineFields } from 'graphql/fragment';
 
 export const routinesQuery = gql`
     ${routineFields}
-    query routines($input: RoutinesQueryInput!) {
+    query routines($input: RoutineSearchInput!) {
         routines(input: $input) {
             pageInfo {
                 endCursor

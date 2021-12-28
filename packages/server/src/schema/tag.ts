@@ -84,8 +84,11 @@ export const resolvers = {
             // Format data
             return dbModel ? TagModel().toGraphQL(dbModel) : null;
         },
-        tags: async (_parent: undefined, { input }: IWrap<TagSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>[]> => {
-            throw new CustomError(CODE.NotImplemented);
+        tags: async (_parent: undefined, { input }: IWrap<TagSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
+            // Create query for specified user
+            const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
+            // return search query
+            return await TagModel(prisma).search({...userQuery,}, input, info);
         },
         tagsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
             throw new CustomError(CODE.NotImplemented);

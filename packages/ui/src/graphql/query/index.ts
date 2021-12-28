@@ -19,3 +19,6 @@ export * from './standardsCount';
 export * from './tag';
 export * from './tags';
 export * from './tagsCount';
+export * from './user';
+export * from './users';
+export * from './usersCount';

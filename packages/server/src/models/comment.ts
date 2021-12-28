@@ -1,6 +1,4 @@
-import { CODE } from "@local/shared";
-import { CustomError } from "error";
-import { Comment, CommentInput, User, VoteInput } from "schema/types";
+import { Comment, CommentInput, VoteInput } from "schema/types";
 import { RecursivePartial } from "types";
 import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
 

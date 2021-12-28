@@ -24,6 +24,21 @@ export enum NodeType {
   START = "START",
 }
 
+export enum OrganizationSortBy {
+  AlphabeticalAsc = "AlphabeticalAsc",
+  AlphabeticalDesc = "AlphabeticalDesc",
+  CommentsAsc = "CommentsAsc",
+  CommentsDesc = "CommentsDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+  VotesAsc = "VotesAsc",
+  VotesDesc = "VotesDesc",
+}
+
 export enum ProjectSortBy {
   AlphabeticalAsc = "AlphabeticalAsc",
   AlphabeticalDesc = "AlphabeticalDesc",
@@ -42,12 +57,57 @@ export enum ProjectSortBy {
 }
 
 export enum ResourceFor {
-  ORGANIZATION = "ORGANIZATION",
-  PROJECT = "PROJECT",
-  ROUTINE_CONTEXTUAL = "ROUTINE_CONTEXTUAL",
-  ROUTINE_DONATION = "ROUTINE_DONATION",
-  ROUTINE_EXTERNAL = "ROUTINE_EXTERNAL",
-  USER = "USER",
+  Actor = "Actor",
+  Organization = "Organization",
+  Project = "Project",
+  RoutineContextual = "RoutineContextual",
+  RoutineDonation = "RoutineDonation",
+  RoutineExternal = "RoutineExternal",
+}
+
+export enum ResourceSortBy {
+  AlphabeticalAsc = "AlphabeticalAsc",
+  AlphabeticalDesc = "AlphabeticalDesc",
+  CommentsAsc = "CommentsAsc",
+  CommentsDesc = "CommentsDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+}
+
+export enum RoutineSortBy {
+  AlphabeticalAsc = "AlphabeticalAsc",
+  AlphabeticalDesc = "AlphabeticalDesc",
+  CommentsAsc = "CommentsAsc",
+  CommentsDesc = "CommentsDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  ForksAsc = "ForksAsc",
+  ForksDesc = "ForksDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+  VotesAsc = "VotesAsc",
+  VotesDesc = "VotesDesc",
+}
+
+export enum StandardSortBy {
+  AlphabeticalAsc = "AlphabeticalAsc",
+  AlphabeticalDesc = "AlphabeticalDesc",
+  CommentsAsc = "CommentsAsc",
+  CommentsDesc = "CommentsDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+  VotesAsc = "VotesAsc",
+  VotesDesc = "VotesDesc",
 }
 
 export enum StandardType {
@@ -58,6 +118,17 @@ export enum StandardType {
   OBJECT = "OBJECT",
   STRING = "STRING",
   URL = "URL",
+}
+
+export enum TagSortBy {
+  AlphabeticalAsc = "AlphabeticalAsc",
+  AlphabeticalDesc = "AlphabeticalDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
 }
 
 export interface CommentInput {
@@ -198,9 +269,19 @@ export interface OrganizationInput {
   resources?: ResourceInput[] | null;
 }
 
-export interface OrganizationsQueryInput {
-  first?: number | null;
-  skip?: number | null;
+export interface OrganizationSearchInput {
+  userId?: number | null;
+  ids?: string[] | null;
+  sortBy?: OrganizationSortBy | null;
+  searchString?: string | null;
+  after?: string | null;
+  take?: number | null;
+}
+
+export interface ProfileUpdateInput {
+  data: UserInput;
+  currentPassword: string;
+  newPassword?: string | null;
 }
 
 export interface ProjectInput {
@@ -212,13 +293,13 @@ export interface ProjectInput {
   resources?: ResourceInput[] | null;
 }
 
-export interface ProjectsQueryInput {
+export interface ProjectSearchInput {
   userId?: number | null;
   ids?: string[] | null;
   sortBy?: ProjectSortBy | null;
   searchString?: string | null;
-  first?: number | null;
-  skip?: number | null;
+  after?: string | null;
+  take?: number | null;
 }
 
 export interface ReportInput {
@@ -236,9 +317,14 @@ export interface ResourceInput {
   forId: string;
 }
 
-export interface ResourcesQueryInput {
-  first?: number | null;
-  skip?: number | null;
+export interface ResourceSearchInput {
+  forId?: number | null;
+  forType?: ResourceFor | null;
+  ids?: string[] | null;
+  sortBy?: ResourceSortBy | null;
+  searchString?: string | null;
+  after?: string | null;
+  take?: number | null;
 }
 
 export interface RoutineInput {
@@ -264,9 +350,13 @@ export interface RoutineOutputItemInput {
   standardId?: string | null;
 }
 
-export interface RoutinesQueryInput {
-  first?: number | null;
-  skip?: number | null;
+export interface RoutineSearchInput {
+  userId?: number | null;
+  ids?: string[] | null;
+  sortBy?: RoutineSortBy | null;
+  searchString?: string | null;
+  after?: string | null;
+  take?: number | null;
 }
 
 export interface StandardInput {
@@ -280,13 +370,26 @@ export interface StandardInput {
   tags?: TagInput[] | null;
 }
 
-export interface StandardsQueryInput {
-  first?: number | null;
-  skip?: number | null;
+export interface StandardSearchInput {
+  userId?: number | null;
+  ids?: string[] | null;
+  sortBy?: StandardSortBy | null;
+  searchString?: string | null;
+  after?: string | null;
+  take?: number | null;
 }
 
 export interface TagInput {
   id?: string | null;
+}
+
+export interface TagSearchInput {
+  userId?: number | null;
+  ids?: string[] | null;
+  sortBy?: TagSortBy | null;
+  searchString?: string | null;
+  after?: string | null;
+  take?: number | null;
 }
 
 export interface TagVoteInput {
@@ -294,11 +397,6 @@ export interface TagVoteInput {
   isUpvote: boolean;
   objectType: string;
   objectId: string;
-}
-
-export interface TagsQueryInput {
-  first?: number | null;
-  skip?: number | null;
 }
 
 export interface UserDeleteInput {
@@ -313,12 +411,6 @@ export interface UserInput {
   emails?: EmailInput[] | null;
   theme?: string | null;
   status?: AccountStatus | null;
-}
-
-export interface UserUpdateInput {
-  data: UserInput;
-  currentPassword: string;
-  newPassword?: string | null;
 }
 
 export interface VoteInput {
