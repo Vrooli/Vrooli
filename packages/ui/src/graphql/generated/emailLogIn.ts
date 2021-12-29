@@ -27,5 +27,5 @@ export interface emailLogIn {
 }
 
 export interface emailLogInVariables {
-  input?: EmailLogInInput | null;
+  input: EmailLogInInput;
 }

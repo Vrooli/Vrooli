@@ -1,8 +1,8 @@
 import { gql } from 'graphql-tag';
 
 export const readOpenGraphQuery = gql`
-    query readOpenGraph($url: String!) {
-        readOpenGraph(url: $url) {
+    query readOpenGraph($input: ReadOpenGraphInput!) {
+        readOpenGraph(input: $input) {
             site
             title
             description

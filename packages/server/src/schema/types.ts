@@ -119,6 +119,13 @@ export type FindByIdInput = {
   id: Scalars['ID'];
 };
 
+export enum MetricTimeFrame {
+  Daily = 'Daily',
+  Monthly = 'Monthly',
+  Weekly = 'Weekly',
+  Yearly = 'Yearly'
+}
+
 export type Mutation = {
   __typename?: 'Mutation';
   commentAdd: Comment;
@@ -618,6 +625,11 @@ export type Organization = {
   wallets: Array<Wallet>;
 };
 
+export type OrganizationCountInput = {
+  createdMetric?: InputMaybe<MetricTimeFrame>;
+  updatedMetric?: InputMaybe<MetricTimeFrame>;
+};
+
 export type OrganizationEdge = {
   __typename?: 'OrganizationEdge';
   cursor: Scalars['String'];
@@ -637,7 +649,7 @@ export type OrganizationSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<OrganizationSortBy>;
   take?: InputMaybe<Scalars['Int']>;
-  userId?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export type OrganizationSearchResult = {
@@ -723,6 +735,11 @@ export type Project = {
   wallets?: Maybe<Array<Wallet>>;
 };
 
+export type ProjectCountInput = {
+  createdMetric?: InputMaybe<MetricTimeFrame>;
+  updatedMetric?: InputMaybe<MetricTimeFrame>;
+};
+
 export type ProjectEdge = {
   __typename?: 'ProjectEdge';
   cursor: Scalars['String'];
@@ -744,7 +761,7 @@ export type ProjectSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectSortBy>;
   take?: InputMaybe<Scalars['Int']>;
-  userId?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export type ProjectSearchResult = {
@@ -809,6 +826,11 @@ export type QueryOrganizationsArgs = {
 };
 
 
+export type QueryOrganizationsCountArgs = {
+  input: OrganizationCountInput;
+};
+
+
 export type QueryProjectArgs = {
   input: FindByIdInput;
 };
@@ -816,6 +838,11 @@ export type QueryProjectArgs = {
 
 export type QueryProjectsArgs = {
   input: ProjectSearchInput;
+};
+
+
+export type QueryProjectsCountArgs = {
+  input: ProjectCountInput;
 };
 
 
@@ -839,6 +866,11 @@ export type QueryResourcesArgs = {
 };
 
 
+export type QueryResourcesCountArgs = {
+  input: ResourceCountInput;
+};
+
+
 export type QueryRoutineArgs = {
   input: FindByIdInput;
 };
@@ -846,6 +878,11 @@ export type QueryRoutineArgs = {
 
 export type QueryRoutinesArgs = {
   input: RoutineSearchInput;
+};
+
+
+export type QueryRoutinesCountArgs = {
+  input: RoutineCountInput;
 };
 
 
@@ -859,6 +896,11 @@ export type QueryStandardsArgs = {
 };
 
 
+export type QueryStandardsCountArgs = {
+  input: StandardCountInput;
+};
+
+
 export type QueryTagArgs = {
   input: FindByIdInput;
 };
@@ -869,6 +911,11 @@ export type QueryTagsArgs = {
 };
 
 
+export type QueryTagsCountArgs = {
+  input: TagCountInput;
+};
+
+
 export type QueryUserArgs = {
   input: FindByIdInput;
 };
@@ -876,6 +923,11 @@ export type QueryUserArgs = {
 
 export type QueryUsersArgs = {
   input: UserSearchInput;
+};
+
+
+export type QueryUsersCountArgs = {
+  input: UserCountInput;
 };
 
 export type ReadAssetsInput = {
@@ -909,7 +961,6 @@ export type Resource = {
   displayUrl?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   link: Scalars['String'];
-  name: Scalars['String'];
   organization_resources: Array<Organization>;
   project_resources: Array<Project>;
   reports: Array<Report>;
@@ -917,8 +968,14 @@ export type Resource = {
   routine_resources_donation: Array<Routine>;
   routine_resources_external: Array<Routine>;
   starredBy: Array<User>;
+  title: Scalars['String'];
   updated_at: Scalars['Date'];
   user_resources: Array<User>;
+};
+
+export type ResourceCountInput = {
+  createdMetric?: InputMaybe<MetricTimeFrame>;
+  updatedMetric?: InputMaybe<MetricTimeFrame>;
 };
 
 export type ResourceEdge = {
@@ -943,12 +1000,12 @@ export type ResourceInput = {
   forId: Scalars['ID'];
   id?: InputMaybe<Scalars['ID']>;
   link: Scalars['String'];
-  name: Scalars['String'];
+  title: Scalars['String'];
 };
 
 export type ResourceSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  forId?: InputMaybe<Scalars['Int']>;
+  forId?: InputMaybe<Scalars['ID']>;
   forType?: InputMaybe<ResourceFor>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -1016,6 +1073,11 @@ export type Routine = {
   version?: Maybe<Scalars['String']>;
 };
 
+export type RoutineCountInput = {
+  createdMetric?: InputMaybe<MetricTimeFrame>;
+  updatedMetric?: InputMaybe<MetricTimeFrame>;
+};
+
 export type RoutineEdge = {
   __typename?: 'RoutineEdge';
   cursor: Scalars['String'];
@@ -1065,7 +1127,7 @@ export type RoutineSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineSortBy>;
   take?: InputMaybe<Scalars['Int']>;
-  userId?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export type RoutineSearchResult = {
@@ -1117,6 +1179,11 @@ export type Standard = {
   updated_at: Scalars['Date'];
 };
 
+export type StandardCountInput = {
+  createdMetric?: InputMaybe<MetricTimeFrame>;
+  updatedMetric?: InputMaybe<MetricTimeFrame>;
+};
+
 export type StandardEdge = {
   __typename?: 'StandardEdge';
   cursor: Scalars['String'];
@@ -1140,7 +1207,7 @@ export type StandardSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardSortBy>;
   take?: InputMaybe<Scalars['Int']>;
-  userId?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export type StandardSearchResult = {
@@ -1189,6 +1256,11 @@ export type Tag = {
   updated_at: Scalars['Date'];
 };
 
+export type TagCountInput = {
+  createdMetric?: InputMaybe<MetricTimeFrame>;
+  updatedMetric?: InputMaybe<MetricTimeFrame>;
+};
+
 export type TagEdge = {
   __typename?: 'TagEdge';
   cursor: Scalars['String'];
@@ -1205,7 +1277,7 @@ export type TagSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<TagSortBy>;
   take?: InputMaybe<Scalars['Int']>;
-  userId?: InputMaybe<Scalars['Int']>;
+  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export type TagSearchResult = {
@@ -1244,6 +1316,11 @@ export type User = {
   roles: Array<Role>;
   starredBy: Array<User>;
   username?: Maybe<Scalars['String']>;
+};
+
+export type UserCountInput = {
+  createdMetric?: InputMaybe<MetricTimeFrame>;
+  updatedMetric?: InputMaybe<MetricTimeFrame>;
 };
 
 export type UserDeleteInput = {

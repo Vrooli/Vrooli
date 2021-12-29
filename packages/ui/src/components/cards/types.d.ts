@@ -1,23 +1,38 @@
+import { 
+    Organization,
+    Project,
+    Resource,
+    Routine,
+    Standard,
+    User 
+} from 'types';
+
 export interface ActorCardProps {
-    username?: string;
+    data: User;
     onClick?: (username: string) => void;
 }
 
 export interface OrganizationCardProps {
-    name?: string;
+    data: Organization;
     onClick?: (name: string) => void;
 }
 
 export interface ProjectCardProps {
-    name?: string;
+    data: Project;
     onClick?: (name: string) => void;
 }
 
 export interface ResourceCardProps {
-    resource: Resource
+    data: Resource
 }
+
 export interface RoutineCardProps {
-    name?: string;
+    data: Routine;
+    onClick?: (name: string) => void;
+}
+
+export interface StandardCardProps {
+    data: Standard;
     onClick?: (name: string) => void;
 }
 

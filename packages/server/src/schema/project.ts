@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, PROJECT_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectSortBy, ProjectSearchInput, ReportInput, Success, ProjectSearchResult } from './types';
+import { Count, DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectSortBy, ProjectSearchInput, ReportInput, Success, ProjectSearchResult, ProjectCountInput } from './types';
 import { Context } from '../context';
 import { ProjectModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -53,7 +53,7 @@ export const typeDef = gql`
     }
 
     input ProjectSearchInput {
-        userId: Int
+        userId: ID
         ids: [ID!]
         sortBy: ProjectSortBy
         searchString: String
@@ -73,10 +73,16 @@ export const typeDef = gql`
         node: Project!
     }
 
+    # Input for count
+    input ProjectCountInput {
+        createdMetric: MetricTimeFrame
+        updatedMetric: MetricTimeFrame
+    }
+
     extend type Query {
         project(input: FindByIdInput!): Project
         projects(input: ProjectSearchInput!): ProjectSearchResult!
-        projectsCount: Count!
+        projectsCount(input: ProjectCountInput!): number!
     }
 
     extend type Mutation {
@@ -102,8 +108,9 @@ export const resolvers = {
             // return search query
             return await ProjectModel(prisma).search({...userQuery,}, input, info);
         },
-        projectsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            throw new CustomError(CODE.NotImplemented);
+        projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
+            // Return count query
+            return await ProjectModel(prisma).count({}, input);
         },
     },
     Mutation: {

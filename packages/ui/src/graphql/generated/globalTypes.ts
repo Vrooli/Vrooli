@@ -131,6 +131,19 @@ export enum TagSortBy {
   StarsDesc = "StarsDesc",
 }
 
+export enum UserSortBy {
+  AlphabeticalAsc = "AlphabeticalAsc",
+  AlphabeticalDesc = "AlphabeticalDesc",
+  CommentsAsc = "CommentsAsc",
+  CommentsDesc = "CommentsDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  StarsAsc = "StarsAsc",
+  StarsDesc = "StarsDesc",
+}
+
 export interface CommentInput {
   id?: string | null;
   text?: string | null;
@@ -270,7 +283,7 @@ export interface OrganizationInput {
 }
 
 export interface OrganizationSearchInput {
-  userId?: number | null;
+  userId?: string | null;
   ids?: string[] | null;
   sortBy?: OrganizationSortBy | null;
   searchString?: string | null;
@@ -294,12 +307,20 @@ export interface ProjectInput {
 }
 
 export interface ProjectSearchInput {
-  userId?: number | null;
+  userId?: string | null;
   ids?: string[] | null;
   sortBy?: ProjectSortBy | null;
   searchString?: string | null;
   after?: string | null;
   take?: number | null;
+}
+
+export interface ReadAssetsInput {
+  files: string[];
+}
+
+export interface ReadOpenGraphInput {
+  url: string;
 }
 
 export interface ReportInput {
@@ -309,7 +330,7 @@ export interface ReportInput {
 
 export interface ResourceInput {
   id?: string | null;
-  name: string;
+  title: string;
   description?: string | null;
   link: string;
   displayUrl?: string | null;
@@ -318,7 +339,7 @@ export interface ResourceInput {
 }
 
 export interface ResourceSearchInput {
-  forId?: number | null;
+  forId?: string | null;
   forType?: ResourceFor | null;
   ids?: string[] | null;
   sortBy?: ResourceSortBy | null;
@@ -351,7 +372,7 @@ export interface RoutineOutputItemInput {
 }
 
 export interface RoutineSearchInput {
-  userId?: number | null;
+  userId?: string | null;
   ids?: string[] | null;
   sortBy?: RoutineSortBy | null;
   searchString?: string | null;
@@ -371,7 +392,7 @@ export interface StandardInput {
 }
 
 export interface StandardSearchInput {
-  userId?: number | null;
+  userId?: string | null;
   ids?: string[] | null;
   sortBy?: StandardSortBy | null;
   searchString?: string | null;
@@ -384,7 +405,7 @@ export interface TagInput {
 }
 
 export interface TagSearchInput {
-  userId?: number | null;
+  userId?: string | null;
   ids?: string[] | null;
   sortBy?: TagSortBy | null;
   searchString?: string | null;
@@ -413,6 +434,14 @@ export interface UserInput {
   status?: AccountStatus | null;
 }
 
+export interface UserSearchInput {
+  ids?: string[] | null;
+  sortBy?: UserSortBy | null;
+  searchString?: string | null;
+  after?: string | null;
+  take?: number | null;
+}
+
 export interface VoteInput {
   id: string;
   isUpvote: boolean;
@@ -426,6 +455,10 @@ export interface WalletCompleteInput {
 export interface WalletInitInput {
   publicAddress: string;
   nonceDescription?: string | null;
+}
+
+export interface WriteAssetsInput {
+  files: any[];
 }
 
 //==============================================================

@@ -3,16 +3,12 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { WriteAssetsInput } from "./globalTypes";
-
 // ====================================================
-// GraphQL mutation operation: writeAssets
+// GraphQL fragment: profileFields
 // ====================================================
 
-export interface writeAssets {
-  writeAssets: boolean | null;
-}
-
-export interface writeAssetsVariables {
-  input: WriteAssetsInput;
+export interface profileFields {
+  __typename: "Profile";
+  id: string;
+  username: string | null;
 }

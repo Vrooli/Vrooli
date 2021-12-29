@@ -1,5 +1,5 @@
-import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput } from "../schema/types";
-import { addJoinTables, BaseState, deleter, findByIder, JoinMap, MODEL_TYPES, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
+import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput } from "../schema/types";
+import { addJoinTables, BaseState, counter, deleter, findByIder, JoinMap, MODEL_TYPES, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
 import { onlyPrimitives } from "../utils/objectTools";
 import { CustomError } from "../error";
 import { CODE } from '@local/shared';
@@ -442,6 +442,7 @@ export function UserModel(prisma?: PrismaType) {
 
     return {
         ...obj,
+        ...counter<UserCountInput, User, UserFullModel>(obj),
         ...deleter(obj),
         ...findByEmailer(obj),
         ...findByIder<UserFullModel>(obj),

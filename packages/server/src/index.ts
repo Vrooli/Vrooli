@@ -35,6 +35,7 @@ const main = async () => {
     // If you want a public server, this can be set to ['*']
     let origins = [
         /^http:\/\/localhost(?::[0-9]+)?$/,
+        'https://studio.apollographql.com',
         `http://app.${process.env.REACT_APP_SITE_NAME}`,
         `http://www.app.${process.env.REACT_APP_SITE_NAME}`,
         `https://${process.env.REACT_APP_SITE_NAME}`,

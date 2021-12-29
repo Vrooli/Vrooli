@@ -1,6 +1,6 @@
-import { Organization, Resource, Routine, RoutineInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
+import { Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
 import { RecursivePartial } from "types";
-import { addJoinTables, BaseState, creater, deleter, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addJoinTables, BaseState, counter, creater, deleter, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -110,6 +110,7 @@ export function RoutineModel(prisma?: any) {
 
     return {
         ...obj,
+        ...counter<RoutineCountInput, Routine, RoutineFullModel>(obj),
         ...creater<RoutineInput, RoutineFullModel>(obj),
         ...deleter(obj),
         ...formatter(),

@@ -12,7 +12,7 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(cardStyles, componentStyles));
 
 export const ProjectCard = ({
-    name = 'Default name',
+    data,
     onClick = () => {},
 }: ProjectCardProps) => {
     const classes = useStyles();
@@ -22,7 +22,7 @@ export const ProjectCard = ({
         <CardActionArea>
             <CardContent className={`${classes.content}`}>
                 <Typography gutterBottom variant="h6" component="h3">
-                    {name}
+                    {data.name}
                 </Typography>
             </CardContent>
         </CardActionArea>

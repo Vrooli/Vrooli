@@ -1,5 +1,5 @@
-import { Organization, Project, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
-import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
+import { Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
+import { BaseState, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -94,6 +94,7 @@ export function ProjectModel(prisma?: any) {
 
     return {
         ...obj,
+        ...counter<ProjectCountInput, Project, ProjectFullModel>(obj),
         ...creater<ProjectInput, ProjectFullModel>(obj),
         ...deleter(obj),
         ...findByIder<ProjectFullModel>(obj),

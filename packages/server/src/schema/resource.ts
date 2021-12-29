@@ -3,7 +3,7 @@ import { CODE, RESOURCE_FOR, RESOURCE_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceInput, ResourceSearchInput, Success } from './types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceCountInput, ResourceInput, ResourceSearchInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -32,7 +32,7 @@ export const typeDef = gql`
 
     input ResourceInput {
         id: ID
-        name: String!
+        title: String!
         description: String
         link: String!
         displayUrl: String
@@ -44,7 +44,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        name: String!
+        title: String!
         description: String
         link: String!
         displayUrl: String
@@ -60,7 +60,7 @@ export const typeDef = gql`
     }
 
     input ResourceSearchInput {
-        forId: Int
+        forId: ID
         forType: ResourceFor
         ids: [ID!]
         sortBy: ResourceSortBy
@@ -81,10 +81,16 @@ export const typeDef = gql`
         node: Resource!
     }
 
+    # Input for count
+    input ResourceCountInput {
+        createdMetric: MetricTimeFrame
+        updatedMetric: MetricTimeFrame
+    }
+
     extend type Query {
         resource(input: FindByIdInput!): Resource
         resources(input: ResourceSearchInput!): ResourceSearchResult!
-        resourcesCount: Count!
+        resourcesCount(input: ResourceCountInput!): number!
     }
 
     extend type Mutation {
@@ -112,8 +118,9 @@ export const resolvers = {
             //return await ResourceModel(prisma).search({...forQuery,}, input, info);
             throw new CustomError(CODE.NotImplemented);
         },
-        resourcesCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            throw new CustomError(CODE.NotImplemented);
+        resourcesCount: async (_parent: undefined, { input }: IWrap<ResourceCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
+            // Return count query
+            return await ResourceModel(prisma).count({}, input);
         },
     },
     Mutation: {

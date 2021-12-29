@@ -1,5 +1,5 @@
-import { Organization, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
-import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
+import { Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
+import { BaseState, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -90,6 +90,7 @@ export function OrganizationModel(prisma?: any) {
 
     return {
         ...obj,
+        ...counter<OrganizationCountInput, Organization, OrganizationFullModel>(obj),
         ...creater<OrganizationInput, OrganizationFullModel>(obj),
         ...deleter(obj),
         ...findByIder<OrganizationFullModel>(obj),

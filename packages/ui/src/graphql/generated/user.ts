@@ -6,22 +6,19 @@
 import { FindByIdInput } from "./globalTypes";
 
 // ====================================================
-// GraphQL query operation: resource
+// GraphQL query operation: user
 // ====================================================
 
-export interface resource_resource {
-  __typename: "Resource";
+export interface user_user {
+  __typename: "User";
   id: string;
-  title: string;
-  description: string | null;
-  link: string;
-  displayUrl: string | null;
+  username: string | null;
 }
 
-export interface resource {
-  resource: resource_resource | null;
+export interface user {
+  user: user_user | null;
 }
 
-export interface resourceVariables {
+export interface userVariables {
   input: FindByIdInput;
 }

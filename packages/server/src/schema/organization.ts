@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, ORGANIZATION_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteOneInput, FindByIdInput, Organization, OrganizationInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy, ReportInput, Success } from './types';
+import { Count, DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy, ReportInput, Success } from './types';
 import { Context } from '../context';
 import { OrganizationModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -47,7 +47,7 @@ export const typeDef = gql`
     }
 
     input OrganizationSearchInput {
-        userId: Int
+        userId: ID
         ids: [ID!]
         sortBy: OrganizationSortBy
         searchString: String
@@ -67,10 +67,16 @@ export const typeDef = gql`
         node: Organization!
     }
 
+    # Input for count
+    input OrganizationCountInput {
+        createdMetric: MetricTimeFrame
+        updatedMetric: MetricTimeFrame
+    }
+
     extend type Query {
         organization(input: FindByIdInput!): Organization
         organizations(input: OrganizationSearchInput!): OrganizationSearchResult!
-        organizationsCount: Count!
+        organizationsCount(input: OrganizationCountInput!): number!
     }
 
     extend type Mutation {
@@ -93,11 +99,12 @@ export const resolvers = {
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
             // Create query for specified user
             const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
-            // return search query
+            // Return search query
             return await OrganizationModel(prisma).search({...userQuery,}, input, info);
         },
-        organizationsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            throw new CustomError(CODE.NotImplemented);
+        organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
+            // Return count query
+            return await OrganizationModel(prisma).count({}, input);
         },
     },
     Mutation: {

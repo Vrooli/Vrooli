@@ -3,7 +3,7 @@ import { CODE, STANDARD_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Standard, StandardInput, StandardSearchInput, Success } from './types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, Success } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
@@ -65,7 +65,7 @@ export const typeDef = gql`
     }
 
     input StandardSearchInput {
-        userId: Int
+        userId: ID
         ids: [ID!]
         sortBy: StandardSortBy
         searchString: String
@@ -85,10 +85,16 @@ export const typeDef = gql`
         node: Standard!
     }
 
+    # Input for count
+    input StandardCountInput {
+        createdMetric: MetricTimeFrame
+        updatedMetric: MetricTimeFrame
+    }
+
     extend type Query {
         standard(input: FindByIdInput!): Standard
         standards(input: StandardSearchInput!): StandardSearchResult!
-        standardsCount: Count!
+        standardsCount(input: StandardCountInput!): number!
     }
 
     extend type Mutation {
@@ -115,8 +121,9 @@ export const resolvers = {
             // return search query
             return await StandardModel(prisma).search({...userQuery,}, input, info);
         },
-        standardsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            throw new CustomError(CODE.NotImplemented);
+        standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
+            // Return count query
+            return await StandardModel(prisma).count({}, input);
         },
     },
     Mutation: {

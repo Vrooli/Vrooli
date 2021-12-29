@@ -1,5 +1,11 @@
 // Defines common props
-import { users_users } from 'graphql/generated/users';
+import { organization_organization } from 'graphql/generated/organization';
+import { project_project } from 'graphql/generated/project';
+import { resource_resource } from 'graphql/generated/resource';
+import { routine_routine } from 'graphql/generated/routine';
+import { standard_standard } from 'graphql/generated/standard';
+import { tag_tag } from 'graphql/generated/tag';
+import { user_user } from 'graphql/generated/user';
 
 // Top-level props that can be passed into any routed component
 export type UserRoles = { title: string, description?: string }[] | null;
@@ -21,14 +27,14 @@ export interface CommonProps {
 export type Comment = any; //TODO
 export type Email = any; //TODO
 export type Node = any; //TODO
-export type Organization = any; //TODO
-export type Project = any; //TODO
+export type Organization = organization_organization;
+export type Project = project_project;
 export type Report = any; //TODO
-export type Resource = any; //TODO
-export type Routine = any; //TODO
-export type Standard = any; //TODO
-export type Tag = any; //TODO
-export type User = users_users;
+export type Resource = resource_resource;
+export type Routine = routine_routine;
+export type Standard = standard_standard;
+export type Tag = tag_tag;
+export type User = user_user;
 export type Wallet = any; //TODO
 
 // Enable Nami integration

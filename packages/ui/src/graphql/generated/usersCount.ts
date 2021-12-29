@@ -3,16 +3,15 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { WriteAssetsInput } from "./globalTypes";
-
 // ====================================================
-// GraphQL mutation operation: writeAssets
+// GraphQL query operation: usersCount
 // ====================================================
 
-export interface writeAssets {
-  writeAssets: boolean | null;
+export interface usersCount_usersCount {
+  __typename: "Count";
+  count: number | null;
 }
 
-export interface writeAssetsVariables {
-  input: WriteAssetsInput;
+export interface usersCount {
+  usersCount: usersCount_usersCount;
 }

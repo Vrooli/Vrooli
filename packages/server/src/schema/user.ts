@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, USER_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { UserModel } from '../models';
-import { UserDeleteInput, ReportInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count } from './types';
+import { UserDeleteInput, ReportInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -106,11 +106,17 @@ export const typeDef = gql`
         node: User!
     }
 
+    # Input for count
+    input UserCountInput {
+        createdMetric: MetricTimeFrame
+        updatedMetric: MetricTimeFrame
+    }
+
     extend type Query {
         profile: Profile!
         user(input: FindByIdInput!): User
         users(input: UserSearchInput!): UserSearchResult!
-        usersCount: Count!
+        usersCount(input: UserCountInput!): number!
     }
 
     extend type Mutation {
@@ -140,8 +146,9 @@ export const resolvers = {
             // return search query
             return await UserModel(prisma).search({}, input, info);
         },
-        usersCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            throw new CustomError(CODE.NotImplemented);
+        usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
+            // Return count query
+            return await UserModel(prisma).count({}, input);
         },
     },
     Mutation: {

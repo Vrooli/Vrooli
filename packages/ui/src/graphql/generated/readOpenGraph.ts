@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { ReadOpenGraphInput } from "./globalTypes";
+
 // ====================================================
 // GraphQL query operation: readOpenGraph
 // ====================================================
@@ -20,5 +22,5 @@ export interface readOpenGraph {
 }
 
 export interface readOpenGraphVariables {
-  url: string;
+  input: ReadOpenGraphInput;
 }

@@ -200,3 +200,11 @@ export const USER_SORT_BY = {
     StarsDesc: 'StarsDesc',
 }
 export type USER_SORT_BY = ValueOf<typeof USER_SORT_BY>;
+
+export const METRIC_TIME_FRAME = {
+    Daily: 'Daily',
+    Weekly: 'Weekly',
+    Monthly: 'Monthly',
+    Yearly: 'Yearly',
+}
+export type METRIC_TIME_FRAME = ValueOf<typeof METRIC_TIME_FRAME>;

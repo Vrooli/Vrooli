@@ -12,7 +12,7 @@ import { ResourceInput } from "./globalTypes";
 export interface resourceUpdate_resourceUpdate {
   __typename: "Resource";
   id: string;
-  name: string;
+  title: string;
   description: string | null;
   link: string;
   displayUrl: string | null;

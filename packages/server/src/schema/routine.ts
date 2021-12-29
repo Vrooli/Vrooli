@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, ROUTINE_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteOneInput, FindByIdInput, ReportInput, Routine, RoutineInput, RoutineSearchInput, Success } from './types';
+import { Count, DeleteOneInput, FindByIdInput, ReportInput, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { RoutineModel } from '../models';
@@ -87,7 +87,7 @@ export const typeDef = gql`
     }
 
     input RoutineSearchInput {
-        userId: Int
+        userId: ID
         ids: [ID!]
         sortBy: RoutineSortBy
         searchString: String
@@ -107,10 +107,16 @@ export const typeDef = gql`
         node: Routine!
     }
 
+    # Input for count
+    input RoutineCountInput {
+        createdMetric: MetricTimeFrame
+        updatedMetric: MetricTimeFrame
+    }
+
     extend type Query {
         routine(input: FindByIdInput!): Routine
         routines(input: RoutineSearchInput!): RoutineSearchResult!
-        routinesCount: Count!
+        routinesCount(input: RoutineCountInput!): number!
     }
 
     extend type Mutation {
@@ -133,8 +139,9 @@ export const resolvers = {
             // return search query
             return await RoutineModel(prisma).search({...userQuery,}, input, info);
         },
-        routinesCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            throw new CustomError(CODE.NotImplemented);
+        routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
+            // Return count query
+            return await RoutineModel(prisma).count({}, input);
         },
     },
     Mutation: {

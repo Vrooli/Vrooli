@@ -12,11 +12,11 @@ import { combineStyles, openLink } from 'utils';
 import { NoImageWithTextIcon } from 'assets/img';
 import { cardStyles } from '../styles';
 import { useEffect, useMemo } from 'react';
-import { Resource } from 'types';
 import { readOpenGraphQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { useNavigate } from 'react-router-dom';
 import { ResourceCardProps } from '../types';
+import { readOpenGraph, readOpenGraphVariables } from 'graphql/generated/readOpenGraph';
 
 const componentStyles = (theme: Theme) => ({
     root: {
@@ -42,38 +42,38 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(cardStyles, componentStyles));
 
 export const ResourceCard = ({
-    resource
+    data
 }: ResourceCardProps) => {
     const classes = useStyles();
     const navigate = useNavigate();
-    const [getOpenGraphData, { data: queryResult }] = useLazyQuery<any, any>(readOpenGraphQuery);
-    const data = useMemo(() => queryResult?.readOpenGraph, [queryResult]);
-    const title = useMemo(() => resource?.title ?? data?.title, [resource, data]);
-    const url = useMemo(() => resource?.url ?? data?.url, [resource, data]);
+    const [getOpenGraphData, { data: queryResult }] = useLazyQuery<readOpenGraph, readOpenGraphVariables>(readOpenGraphQuery);
+    const queryData = useMemo(() => queryResult?.readOpenGraph, [queryResult]);
+    const title = useMemo(() => data?.title ?? queryData?.title, [data, queryData]);
+    const url = useMemo(() => data?.link ?? queryData?.site, [data, queryData]);
 
     useEffect(() => {
-        if (resource.url) {
-            getOpenGraphData({ variables: { input: { url: resource.url } } })
+        if (data.link) {
+            getOpenGraphData({ variables: { input: { url: data.link } } })
         }
-    }, [getOpenGraphData, resource])
+    }, [getOpenGraphData, data])
 
     const display = useMemo(() => {
-        if (!data) {
+        if (!data || !data.displayUrl) {
             return <NoImageWithTextIcon className={classes.displayImage} />
         }
         return (
             <CardMedia
                 component="img"
-                src={data.imageUrl}
+                src={data.displayUrl}
                 className={classes.displayImage}
-                alt={`Image from ${data.site ?? data.title}`}
-                title={data.title ?? data.site}
+                alt={`Image from ${data.link ?? data.title}`}
+                title={data.title ?? data.link}
             />
         )
     }, [classes.displayImage, data])
 
     return (
-        <Tooltip placement="top" title={resource?.description ?? data?.description}>
+        <Tooltip placement="top" title={data?.description ?? queryData?.description ?? ''}>
             <Card className={`${classes.root} ${classes.cardRoot}`} onClick={() => openLink(navigate, url)}>
                 <CardActionArea>
                     {display}

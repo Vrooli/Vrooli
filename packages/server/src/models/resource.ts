@@ -1,8 +1,8 @@
 import { RESOURCE_FOR } from "@local/shared";
 import { PrismaSelect } from "@paljs/plugins";
-import { Organization, Project, Resource, ResourceInput, ResourceSearchInput, ResourceSortBy, Routine, User } from "../schema/types";
+import { Organization, Project, Resource, ResourceCountInput, ResourceInput, ResourceSearchInput, ResourceSortBy, Routine, User } from "../schema/types";
 import { RecursivePartial } from "types";
-import { BaseState, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable } from "./base";
+import { BaseState, counter, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -111,8 +111,8 @@ const updater = (state: any) => ({
     defaultSort: ResourceSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [ResourceSortBy.AlphabeticalAsc]: { name: 'asc' },
-            [ResourceSortBy.AlphabeticalDesc]: { name: 'desc' },
+            [ResourceSortBy.AlphabeticalAsc]: { title: 'asc' },
+            [ResourceSortBy.AlphabeticalDesc]: { title: 'desc' },
             [ResourceSortBy.CommentsAsc]: { comments: { count: 'asc' } },
             [ResourceSortBy.CommentsDesc]: { comments: { count: 'desc' } },
             [ResourceSortBy.DateCreatedAsc]: { created_at: 'asc' },
@@ -127,7 +127,7 @@ const updater = (state: any) => ({
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { name: { ...insensitive } },
+                { title: { ...insensitive } },
                 { description: { ...insensitive } },
                 { link: { ...insensitive } },
                 { displayUrl: { ...insensitive } },
@@ -152,6 +152,7 @@ export function ResourceModel(prisma?: any) {
 
     return {
         ...obj,
+        ...counter<ResourceCountInput, Resource, ResourceFullModel>(obj),
         ...creater(obj),
         ...deleter(obj),
         ...findByIder<ResourceFullModel>(obj),

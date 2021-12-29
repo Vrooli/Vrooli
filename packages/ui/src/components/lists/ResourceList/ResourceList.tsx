@@ -91,7 +91,7 @@ export const ResourceList = ({
             <ul className={`${classes.hs}`}>
                 {cardData.map((c: any) => (
                     <li className={classes.item}>
-                        <ResourceCard resource={c} />
+                        <ResourceCard data={c} />
                     </li>
                 ))}
             </ul>

@@ -40,17 +40,17 @@ const useStyles = makeStyles(combineStyles(formStyles, componentStyles));
 export const ProfileForm = () => {
     const classes = useStyles()
     const [editing, setEditing] = useState(false);
-    const { data: profile } = useQuery<any>(profileQuery);
+    const { data: profile } = useQuery<profile>(profileQuery);
     const [updateUser, { loading }] = useMutation<profileUpdate>(profileUpdateMutation);
 
     const formik = useFormik({
         enableReinitialize: true,
         initialValues: {
             username: profile?.profile?.username ?? '',
-            email: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].emailAddress : '',
+            email: profile?.profile?.emails && profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].emailAddress : '',
             theme: profile?.profile?.theme ?? 'light',
-            accountEmails: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].receivesAccountUpdates : false,
-            businessEmails: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].receivesBusinessUpdates : false,
+            accountEmails: profile?.profile?.emails && profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].receivesAccountUpdates : false,
+            businessEmails: profile?.profile?.emails && profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].receivesBusinessUpdates : false,
             currentPassword: '',
             newPassword: '',
             newPasswordConfirmation: ''
@@ -58,11 +58,11 @@ export const ProfileForm = () => {
         validationSchema: profileSchema,
         onSubmit: (values) => {
             let input = ({
-                id: profile.profile.id,
+                id: profile?.profile?.id,
                 username: values.username,
                 emails: [
                     {
-                        id: profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].id : '',
+                        id: profile?.profile?.emails && profile?.profile?.emails?.length > 0 ? profile.profile.emails[0].id : '',
                         emailAddress: values.email,
                         receivesAccountEmails: values.accountEmails,
                         receivesBusinessEmails: values.businessEmails,
@@ -71,7 +71,7 @@ export const ProfileForm = () => {
                 theme: values.theme,
             });
             // Only add email ids if they previously existed
-            if (profile?.profile?.emails?.length > 0) input.emails[0].id = profile.profile.emails[0].id;
+            if (profile?.profile?.emails && profile?.profile?.emails?.length > 0) input.emails[0].id = profile.profile.emails[0].id;
             mutationWrapper({
                 mutation: updateUser,
                 input: {

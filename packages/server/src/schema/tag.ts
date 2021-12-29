@@ -3,7 +3,7 @@ import { CODE, TAG_SORT_BY } from '@local/shared';
 import { CustomError } from '../error';
 import { TagModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Success, Tag, TagInput, TagSearchInput, TagVoteInput } from './types';
+import { Count, DeleteManyInput, FindByIdInput, ReportInput, Success, Tag, TagCountInput, TagInput, TagSearchInput, TagVoteInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -40,7 +40,7 @@ export const typeDef = gql`
     }
 
     input TagSearchInput {
-        userId: Int
+        userId: ID
         ids: [ID!]
         sortBy: TagSortBy
         searchString: String
@@ -60,10 +60,16 @@ export const typeDef = gql`
         node: Tag!
     }
 
+    # Input for count
+    input TagCountInput {
+        createdMetric: MetricTimeFrame
+        updatedMetric: MetricTimeFrame
+    }
+
     extend type Query {
         tag(input: FindByIdInput!): Tag
         tags(input: TagSearchInput!): TagSearchResult!
-        tagsCount: Count!
+        tagsCount(input: TagCountInput!): number!
     }
 
     extend type Mutation {
@@ -90,8 +96,9 @@ export const resolvers = {
             // return search query
             return await TagModel(prisma).search({...userQuery,}, input, info);
         },
-        tagsCount: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            throw new CustomError(CODE.NotImplemented);
+        tagsCount: async (_parent: undefined, { input }: IWrap<TagCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
+            // Return count query
+            return await TagModel(prisma).count({}, input);
         },
     },
     Mutation: {

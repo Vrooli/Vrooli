@@ -11,6 +11,8 @@ import { ProfileUpdateInput } from "./globalTypes";
 
 export interface profileUpdate_profileUpdate {
   __typename: "Profile";
+  id: string;
+  username: string | null;
 }
 
 export interface profileUpdate {

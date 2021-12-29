@@ -3,13 +3,21 @@ import { GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 import ogs from 'open-graph-scraper';
-import { IWrap } from 'types';
 import { OpenGraphResponse } from './types';
+import { METRIC_TIME_FRAME } from '@local/shared';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
     scalar Date
     scalar Upload
+
+    # Enums for counting objects recently created or updated (for metrics)
+    enum MetricTimeFrame {
+        Daily
+        Weekly
+        Monthly
+        Yearly
+    }
 
     # Return type for a cursor-based pagination's pageInfo response
     type PageInfo {
@@ -90,6 +98,7 @@ export const typeDef = gql`
 
 export const resolvers = {
     Upload: GraphQLUpload,
+    MetricTimeFrame: METRIC_TIME_FRAME,
     Date: new GraphQLScalarType({
         name: "Date",
         description: "Custom description for the date scalar",

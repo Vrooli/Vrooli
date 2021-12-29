@@ -1,6 +1,6 @@
-import { Organization, Project, Routine, Standard, Tag, TagInput, TagSearchInput, TagSortBy, User } from "../schema/types";
+import { Organization, Project, Routine, Standard, Tag, TagCountInput, TagInput, TagSearchInput, TagSortBy, User } from "../schema/types";
 import { RecursivePartial } from "types";
-import { addJoinTables, BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addJoinTables, BaseState, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -94,6 +94,7 @@ export function TagModel(prisma?: any) {
 
     return {
         ...obj,
+        ...counter<TagCountInput, Tag, TagFullModel>(obj),
         ...creater<TagInput, TagFullModel>(obj),
         ...deleter(obj),
         ...findByIder<TagFullModel>(obj),

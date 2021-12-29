@@ -1,11 +1,7 @@
 import { gql } from 'graphql-tag';
 
 export const writeAssetsMutation = gql`
-    mutation writeAssets(
-        $files: [Upload!]!
-    ) {
-        writeAssets(
-            files: $files
-        )
+    mutation writeAssets($input: WriteAssetsInput!) {
+        writeAssets(input: $input)
     }
 `

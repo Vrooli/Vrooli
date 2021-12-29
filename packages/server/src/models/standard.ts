@@ -1,5 +1,5 @@
-import { Routine, Standard, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
-import { BaseState, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
+import { Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
+import { BaseState, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -87,6 +87,7 @@ export function StandardModel(prisma?: any) {
 
     return {
         ...obj,
+        ...counter<StandardCountInput, Standard, StandardFullModel>(obj),
         ...creater<StandardInput, StandardFullModel>(obj),
         ...deleter(obj),
         ...findByIder<StandardFullModel>(obj),

@@ -10,7 +10,7 @@
 export interface resourceFields {
   __typename: "Resource";
   id: string;
-  name: string;
+  title: string;
   description: string | null;
   link: string;
   displayUrl: string | null;

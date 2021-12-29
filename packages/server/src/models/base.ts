@@ -1,7 +1,7 @@
 // Components for providing basic functionality to model objects
 import { CODE } from '@local/shared';
 import { PrismaSelect } from '@paljs/plugins';
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, InputMaybe, ReportInput, Scalars } from '../schema/types';
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, InputMaybe, ReportInput, Scalars, MetricTimeFrame } from '../schema/types';
 import { CustomError } from '../error';
 import { PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
@@ -98,6 +98,11 @@ type SearchInputBase<SortBy> = {
     sortBy?: SortBy | null;
     after?: string | null;
     take?: number | null;
+}
+
+type CountInputBase = {
+    createdMetric?: MetricTimeFrame | null;
+    updatedMetric?: MetricTimeFrame | null;
 }
 
 //======================================================================================================================
@@ -312,5 +317,54 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
                 edges: []
             }
         }
+    }
+})
+
+/**
+ * Compositional component for models which can be counted (e.g. for metrics)
+ * @param state 
+ * @returns 
+ */
+ export const counter = <CountInput extends CountInputBase, GraphQLModel, FullDBModel>({ prisma, model }: BaseState<GraphQLModel, FullDBModel>) => ({
+    /**
+     * Converts time frame enum to milliseconds
+     * @param time Time frame to convert
+     * @returns Time frame in milliseconds
+     */
+    timeConverter: (time: MetricTimeFrame) => {
+        switch (time) {
+            case MetricTimeFrame.Daily:
+                return 86400000;
+            case MetricTimeFrame.Weekly:
+                return 604800000;
+            case MetricTimeFrame.Monthly:
+                return 2592000000;
+            case MetricTimeFrame.Yearly:
+                return 31536000000;
+            default:
+                return 86400000;
+        }
+    },
+    /**
+     * Counts the number of objects in the database, optionally filtered by a where clauses
+     * @param where Additional where clauses, in addition to the createdMetric and updatedMetric passed into input
+     * @param input Count metrics common to all models
+     * @returns The number of matching objects
+     */
+    async count(where: { [x: string]: any }, input: CountInput): Promise<number> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Create query for created metric
+        const createdQuery = input.createdMetric ? ({ created_at: { gt: new Date(Date.now() - this.timeConverter(input.createdMetric)) } }) : undefined;
+        // Create query for updated metric
+        const updatedQuery = input.updatedMetric ? ({ updated_at: { gt: new Date(Date.now() - this.timeConverter(input.updatedMetric)) } }) : undefined;
+        // Count objects that match queries
+        return await (prisma[model] as BaseType).count({
+            where: {
+                ...where,
+                ...createdQuery,
+                ...updatedQuery,
+            },
+        });
     }
 })
