@@ -148,12 +148,8 @@ build/
 #Database
 *.db
 
-#Postgres
-*data/postgres/
-*data/certbot/
-
-#Assets
-assets/images/
+#Persistent data
+data/
 
 .eslintcache
 package-lock.json

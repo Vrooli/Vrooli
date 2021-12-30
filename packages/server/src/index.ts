@@ -47,8 +47,7 @@ const main = async () => {
     }))
 
     // Set static folders
-    app.use(process.env.REACT_APP_SERVER_ROUTE || '', express.static(`${process.env.PROJECT_DIR}/assets/public`));
-    app.use(`${process.env.REACT_APP_SERVER_ROUTE}/images`, express.static(`${process.env.PROJECT_DIR}/assets/images`));
+    app.use(`${process.env.REACT_APP_SERVER_ROUTE}/images`, express.static(`${process.env.PROJECT_DIR}/data/uploads`));
 
     // Set up image uploading
     app.use(`${process.env.REACT_APP_SERVER_ROUTE}/${API_VERSION}`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }),)

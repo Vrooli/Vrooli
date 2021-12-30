@@ -68,7 +68,7 @@ services:
         volumes:
             - ./packages/server:${PROJECT_DIR}/packages/server:z
             - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-            - ./assets:${PROJECT_DIR}/assets:z
+            - ./data/uploads:${PROJECT_DIR}/data/uploads:z
             - ./packages/server/src/db/migrations:${PROJECT_DIR}/packages/server/src/db/migrations
         depends_on: 
             - redis

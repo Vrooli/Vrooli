@@ -6,8 +6,8 @@ import fs from 'fs';
 const MAX_FILE_NAME_ATTEMPTS = 100;
 // Max size of a file buffer (how large of a file are you willing to download?)
 const MAX_BUFFER_SIZE = 1000000000;
-// Location of assets directory
-const ASSET_DIR = `${process.env.PROJECT_DIR}/assets`;
+// Location of persistent storage directory
+const UPLOAD_DIR = `${process.env.PROJECT_DIR}/data/uploads`;
 
 // Replace any invalid characters from a file name
 // Args:
@@ -44,12 +44,12 @@ export async function findFileName(file: string, defaultFolder?: string): Promis
 }> {
     const { name, ext, folder } = clean(file, defaultFolder);
     // If file name is available, no need to append a number
-    if (!fs.existsSync(`${ASSET_DIR}/${folder}/${name}${ext}`)) return { name, ext, folder };
+    if (!fs.existsSync(`${UPLOAD_DIR}/${folder}/${name}${ext}`)) return { name, ext, folder };
     // If file name was not available, start appending a number until one works
     let curr = 0;
     while (curr < MAX_FILE_NAME_ATTEMPTS) {
         let currName = `${name}-${curr}${ext}`;
-        if (!fs.existsSync(`${ASSET_DIR}/${folder}/${currName}`)) return { name: `${currName}`, ext: ext, folder: folder };
+        if (!fs.existsSync(`${UPLOAD_DIR}/${folder}/${currName}`)) return { name: `${currName}`, ext: ext, folder: folder };
         curr++;
     }
     // If no valid name found after max tries, return null
@@ -73,7 +73,7 @@ export async function saveFile(stream: any, filename: string, mimetype: any, ove
             }
         }
         // Download the file
-        await stream.pipe(fs.createWriteStream(`${ASSET_DIR}/${folder}/${name}${ext}`));
+        await stream.pipe(fs.createWriteStream(`${UPLOAD_DIR}/${folder}/${name}${ext}`));
         return {
             success: true,
             filename: `${folder}/${name}${ext}`
@@ -94,7 +94,7 @@ export async function saveFile(stream: any, filename: string, mimetype: any, ove
 export async function deleteFile(file: string) {
     try {
         const { name, ext, folder } = clean(file);
-        fs.unlinkSync(`${ASSET_DIR}/${folder}/${name}${ext}`);
+        fs.unlinkSync(`${UPLOAD_DIR}/${folder}/${name}${ext}`);
         return true;
     } catch (error) {
         console.error(error);
@@ -107,7 +107,7 @@ export async function readFiles(files: string[]) {
     let data = [];
     for (const file of files) {
         const { name, ext, folder } = clean(file, 'public');
-        const path = `${process.env.PROJECT_DIR}/assets/${folder}/${name}${ext}`;
+        const path = `${process.env.PROJECT_DIR}/data/uploads/${folder}/${name}${ext}`;
         if (fs.existsSync(path)) {
             data.push(fs.readFileSync(path, 'utf8'));
         } else {

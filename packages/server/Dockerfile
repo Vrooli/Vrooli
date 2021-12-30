@@ -8,8 +8,7 @@ ENV shared=packages/shared
 ENV scripts=${PROJECT_DIR}/scripts
 
 # Create directories with correct permissions
-RUN mkdir -p ${PROJECT_DIR}/assets/images ${PROJECT_DIR}/assets/public ${PROJECT_DIR}/assets/private &&\ 
-    mkdir -p ${PROJECT_DIR}/${ui}/node_modules/.cache ${PROJECT_DIR}/${server}/node_modules/.cache ${PROJECT_DIR}/${shared}/node_modules/.cache &&\
+RUN mkdir -p ${PROJECT_DIR}/${ui}/node_modules/.cache ${PROJECT_DIR}/${server}/node_modules/.cache ${PROJECT_DIR}/${shared}/node_modules/.cache &&\
     mkdir -p ${PROJECT_DIR}/${ui}/build &&\
     chown -R node:node ${PROJECT_DIR}
 
