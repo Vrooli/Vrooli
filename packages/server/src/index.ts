@@ -52,15 +52,18 @@ const main = async () => {
     // Set up image uploading
     app.use(`${process.env.REACT_APP_SERVER_ROUTE}/${API_VERSION}`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }),)
 
-    // Set up GraphQL using Apollo
-    // Context trickery allows request and response to be included in the context
+    /**
+     * Apollo Server for GraphQL
+     */
     const apollo_options = new ApolloServer({
         introspection: process.env.NODE_ENV === 'development',
         schema: schema,
-        context: (c) => context(c),
+        context: (c) => context(c), // Allows request and response to be included in the context
         validationRules: [depthLimit(8)] // Prevents DoS attack from arbitrarily-nested query
     });
+    // Start server
     await apollo_options.start();
+    // Configure server with ExpressJS settings and path
     apollo_options.applyMiddleware({
         app,
         path: `${process.env.REACT_APP_SERVER_ROUTE}/${API_VERSION}`,
