@@ -1,6 +1,6 @@
 import { Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
-import { RecursivePartial } from "types";
-import { addJoinTables, BaseState, counter, creater, deleter, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { PrismaType, RecursivePartial } from "types";
+import { addJoinTables, counter, creater, deleter, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -102,22 +102,22 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
 /* #region Model */
 //==============================================================
 
-export function RoutineModel(prisma?: any) {
-    let obj: BaseState<Routine, RoutineFullModel> = {
-        prisma,
-        model: MODEL_TYPES.Routine,
-    }
+export function RoutineModel(prisma?: PrismaType) {
+    const model = MODEL_TYPES.Routine;
+    const format = formatter();
+    const sort = sorter();
 
     return {
-        ...obj,
-        ...counter<RoutineCountInput, Routine, RoutineFullModel>(obj),
-        ...creater<RoutineInput, RoutineFullModel>(obj),
-        ...deleter(obj),
-        ...formatter(),
+        prisma,
+        model,
+        ...format,
+        ...sort,
+        ...counter<RoutineCountInput>(model, prisma),
+        ...creater<RoutineInput, RoutineFullModel>(model, prisma),
+        ...deleter(model, prisma),
         ...reporter(),
-        ...searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineFullModel>(obj),
-        ...sorter(),
-        ...updater<RoutineInput, RoutineFullModel>(obj),
+        ...searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineFullModel>(model, format.toGraphQL, sort, prisma),
+        ...updater<RoutineInput, RoutineFullModel>(model, prisma),
     }
 }
 

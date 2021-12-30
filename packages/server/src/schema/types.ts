@@ -17,10 +17,10 @@ export type Scalars = {
 };
 
 export enum AccountStatus {
-  Deleted = 'DELETED',
-  HardLocked = 'HARD_LOCKED',
-  SoftLocked = 'SOFT_LOCKED',
-  Unlocked = 'UNLOCKED'
+  Deleted = 'Deleted',
+  HardLocked = 'HardLocked',
+  SoftLocked = 'SoftLocked',
+  Unlocked = 'Unlocked'
 }
 
 export type Comment = {
@@ -73,7 +73,7 @@ export type Email = {
   receivesAccountUpdates: Scalars['Boolean'];
   receivesBusinessUpdates: Scalars['Boolean'];
   user?: Maybe<User>;
-  userId: Scalars['ID'];
+  userId?: Maybe<Scalars['ID']>;
   verified: Scalars['Boolean'];
 };
 
@@ -105,7 +105,6 @@ export type EmailSignUpInput = {
   email: Scalars['String'];
   marketingEmails: Scalars['Boolean'];
   password: Scalars['String'];
-  pronouns?: InputMaybe<Scalars['String']>;
   theme: Scalars['String'];
   username: Scalars['String'];
 };
@@ -591,13 +590,13 @@ export type NodeStartInput = {
 };
 
 export enum NodeType {
-  Combine = 'COMBINE',
-  Decision = 'DECISION',
-  End = 'END',
-  Loop = 'LOOP',
-  Redirect = 'REDIRECT',
-  RoutineList = 'ROUTINE_LIST',
-  Start = 'START'
+  Combine = 'Combine',
+  Decision = 'Decision',
+  End = 'End',
+  Loop = 'Loop',
+  Redirect = 'Redirect',
+  RoutineList = 'RoutineList',
+  Start = 'Start'
 }
 
 export type OpenGraphResponse = {
@@ -681,13 +680,12 @@ export type PageInfo = {
 
 export type Profile = {
   __typename?: 'Profile';
+  bio?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
   created_at: Scalars['Date'];
-  emailVerified: Scalars['Boolean'];
   emails: Array<Email>;
   id: Scalars['ID'];
   projects: Array<Project>;
-  pronouns: Scalars['String'];
   reports: Array<Report>;
   resources: Array<Resource>;
   roles: Array<Role>;
@@ -791,28 +789,28 @@ export type Query = {
   __typename?: 'Query';
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
-  organizationsCount: Count;
+  organizationsCount: Scalars['Int'];
   profile: Profile;
   project?: Maybe<Project>;
   projects: ProjectSearchResult;
-  projectsCount: Count;
+  projectsCount: Scalars['Int'];
   readAssets: Array<Maybe<Scalars['String']>>;
   readOpenGraph: OpenGraphResponse;
   resource?: Maybe<Resource>;
   resources: ResourceSearchResult;
-  resourcesCount: Count;
+  resourcesCount: Scalars['Int'];
   routine?: Maybe<Routine>;
   routines: RoutineSearchResult;
-  routinesCount: Count;
+  routinesCount: Scalars['Int'];
   standard?: Maybe<Standard>;
   standards: StandardSearchResult;
-  standardsCount: Count;
+  standardsCount: Scalars['Int'];
   tag?: Maybe<Tag>;
   tags: TagSearchResult;
-  tagsCount: Count;
+  tagsCount: Scalars['Int'];
   user?: Maybe<User>;
   users: UserSearchResult;
-  usersCount: Count;
+  usersCount: Scalars['Int'];
 };
 
 
@@ -1232,13 +1230,13 @@ export enum StandardSortBy {
 }
 
 export enum StandardType {
-  Array = 'ARRAY',
-  Boolean = 'BOOLEAN',
-  File = 'FILE',
-  Number = 'NUMBER',
-  Object = 'OBJECT',
-  String = 'STRING',
-  Url = 'URL'
+  Array = 'Array',
+  Boolean = 'Boolean',
+  File = 'File',
+  Number = 'Number',
+  Object = 'Object',
+  String = 'String',
+  Url = 'Url'
 }
 
 export type Success = {
@@ -1306,11 +1304,11 @@ export type TagVoteInput = {
 
 export type User = {
   __typename?: 'User';
+  bio?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   projects: Array<Project>;
-  pronouns: Scalars['String'];
   reports: Array<Report>;
   resources: Array<Resource>;
   roles: Array<Role>;
@@ -1335,9 +1333,9 @@ export type UserEdge = {
 };
 
 export type UserInput = {
+  bio?: InputMaybe<Scalars['String']>;
   emails?: InputMaybe<Array<EmailInput>>;
   id?: InputMaybe<Scalars['ID']>;
-  pronouns?: InputMaybe<Scalars['String']>;
   status?: InputMaybe<AccountStatus>;
   theme?: InputMaybe<Scalars['String']>;
   username?: InputMaybe<Scalars['String']>;

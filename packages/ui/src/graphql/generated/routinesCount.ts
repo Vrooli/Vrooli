@@ -7,11 +7,6 @@
 // GraphQL query operation: routinesCount
 // ====================================================
 
-export interface routinesCount_routinesCount {
-  __typename: "Count";
-  count: number | null;
-}
-
 export interface routinesCount {
-  routinesCount: routinesCount_routinesCount;
+  routinesCount: number;
 }

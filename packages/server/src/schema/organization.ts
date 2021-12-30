@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE, ORGANIZATION_SORT_BY } from '@local/shared';
+import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
 import { Count, DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy, ReportInput, Success } from './types';
@@ -76,7 +76,7 @@ export const typeDef = gql`
     extend type Query {
         organization(input: FindByIdInput!): Organization
         organizations(input: OrganizationSearchInput!): OrganizationSearchResult!
-        organizationsCount(input: OrganizationCountInput!): number!
+        organizationsCount(input: OrganizationCountInput!): Int!
     }
 
     extend type Mutation {
@@ -88,7 +88,7 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
-    OrganizationSortBy: ORGANIZATION_SORT_BY,
+    OrganizationSortBy: OrganizationSortBy,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
             // Query database

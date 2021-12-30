@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE, TAG_SORT_BY } from '@local/shared';
+import { CODE, TagSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { TagModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
@@ -69,7 +69,7 @@ export const typeDef = gql`
     extend type Query {
         tag(input: FindByIdInput!): Tag
         tags(input: TagSearchInput!): TagSearchResult!
-        tagsCount(input: TagCountInput!): number!
+        tagsCount(input: TagCountInput!): Int!
     }
 
     extend type Mutation {
@@ -82,7 +82,7 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
-    TagSortBy: TAG_SORT_BY,
+    TagSortBy: TagSortBy,
     Query: {
         tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag> | null> => {
             // Query database

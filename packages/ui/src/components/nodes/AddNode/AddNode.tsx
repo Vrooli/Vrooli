@@ -15,7 +15,7 @@ import {
     SvgIconComponent,
     UTurnLeft as RedirectIcon
 } from '@mui/icons-material';
-import { NODE_TYPES } from '@local/shared';
+import { NodeType } from '@local/shared';
 
 const componentStyles = (theme: Theme) => ({
     root: {
@@ -42,17 +42,17 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 const optionsMap: {[x: string]: [string, SvgIconComponent]} = {
-    [NODE_TYPES.Combine]: ['Combine', CombineIcon],
-    [NODE_TYPES.Decision]: ['Decision', DecisionIcon],
-    [NODE_TYPES.End]: ['End', EndIcon],
-    [NODE_TYPES.Loop]: ['Loop', LoopIcon],
-    [NODE_TYPES.RoutineList]: ['Routine List', RoutineListIcon],
-    [NODE_TYPES.Redirect]: ['Redirect', RedirectIcon],
+    [NodeType.Combine]: ['Combine', CombineIcon],
+    [NodeType.Decision]: ['Decision', DecisionIcon],
+    [NodeType.End]: ['End', EndIcon],
+    [NodeType.Loop]: ['Loop', LoopIcon],
+    [NodeType.RoutineList]: ['Routine List', RoutineListIcon],
+    [NodeType.Redirect]: ['Redirect', RedirectIcon],
 }
 
 export const AddNode = ({
     scale = 1,
-    options = Object.values(NODE_TYPES).filter(o => o !== NODE_TYPES.Start),
+    options = Object.values(NodeType).filter(o => o !== NodeType.Start),
     onAdd,
 }: AddNodeProps) => {
     const classes = useStyles();

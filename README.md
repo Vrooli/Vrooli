@@ -40,6 +40,11 @@ A collaborative tool for visualizing and automating tasks
     - Decentralize all the things!
     - Continual improvements and bug fixes, to ensure Vrooli is as best as can be.
 
+## Join the Team
+Vrooli's vision is bright, but a lot of work needs to be done to get there. Please feel free to contribute to the project, however you can. All work is appreciated💙 
+
+If you'd like to work with me on this project, or create your own proposal for a feature on the roadmap, don't hesitate to reach out! My contact links can be found [here](https://matthalloran.info).
+
 ## Development Stack
 | Dependency  | Purpose  |  Version  |
 |---|---|---|
@@ -50,7 +55,14 @@ A collaborative tool for visualizing and automating tasks
 | [PostgreSQL](https://www.postgresql.org/)  | Database  | `postgres:13` |
 | [Redis](https://redis.io/) | Task Queueing | `redis` |
 
-## Join the Team
-Vrooli's vision is bright, but a lot of work needs to be done to get there. Please feel free to contribute to the project, however you can. All work is appreciated💙 
+## Directory Structure
+* [docs](./docs) - Stores additional guides, besides this one.
+    * [assets](./assets) - Data displayed in docs 
+* [packages](./packages) - Core website code, in a monorepo setup
+    * [server](./server) - The "behind the scenes" code
+    * [shared](./shared) - Data shared between packages  
+    * [ui](./ui) - What the user sees
+* [.env-example](./.env-example) - Environment variables. Rename to `.env` before starting
 
-If you'd like to work with me on this project, or create your own proposal for a feature on the roadmap, don't hesitate to reach out! My contact links can be found [here](https://matthalloran.info).
+## Workflow setup
+See [this guide](https://github.com/MattHalloran/ReactGraphQLTemplate#how-to-start) for setting up the development workflow and general development tips.

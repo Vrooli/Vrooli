@@ -22,7 +22,7 @@ export const typeDef = gql`
         receivesAccountUpdates: Boolean!
         receivesBusinessUpdates: Boolean!
         verified: Boolean!
-        userId: ID!
+        userId: ID
         user: User
     }
 

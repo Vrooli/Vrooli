@@ -1,5 +1,6 @@
+import { PrismaType } from "types";
 import { Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
-import { BaseState, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
+import { counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -79,23 +80,23 @@ Pick<Standard, 'reports' | 'comments'> &
 /* #region Model */
 //==============================================================
 
-export function StandardModel(prisma?: any) {
-    let obj: BaseState<Standard, StandardFullModel> = {
-        prisma,
-        model: MODEL_TYPES.Standard,
-    }
+export function StandardModel(prisma?: PrismaType) {
+    const model = MODEL_TYPES.Standard;
+    const format = formatter();
+    const sort = sorter();
 
     return {
-        ...obj,
-        ...counter<StandardCountInput, Standard, StandardFullModel>(obj),
-        ...creater<StandardInput, StandardFullModel>(obj),
-        ...deleter(obj),
-        ...findByIder<StandardFullModel>(obj),
-        ...formatter(),
+        prisma,
+        model,
+        ...format,
+        ...sort,
+        ...counter<StandardCountInput>(model, prisma),
+        ...creater<StandardInput, StandardFullModel>(model, prisma),
+        ...deleter(model, prisma),
+        ...findByIder<StandardFullModel>(model, prisma),
         ...reporter(),
-        ...searcher<StandardSortBy, StandardSearchInput, Standard, StandardFullModel>(obj),
-        ...sorter(),
-        ...updater<StandardInput, StandardFullModel>(obj),
+        ...searcher<StandardSortBy, StandardSearchInput, Standard, StandardFullModel>(model, format.toGraphQL, sort, prisma),
+        ...updater<StandardInput, StandardFullModel>(model, prisma),
     }
 }
 

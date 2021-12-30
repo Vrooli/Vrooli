@@ -1,14 +1,13 @@
-import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput } from "../schema/types";
-import { addJoinTables, BaseState, counter, deleter, findByIder, JoinMap, MODEL_TYPES, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
+import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, Email } from "../schema/types";
+import { addJoinTables, counter, deleter, findByIder, JoinMap, MODEL_TYPES, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
 import { onlyPrimitives } from "../utils/objectTools";
 import { CustomError } from "../error";
-import { CODE } from '@local/shared';
+import { AccountStatus, CODE } from '@local/shared';
 import bcrypt from 'bcrypt';
-import pkg from '@prisma/client';
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "../types";
-const { AccountStatus } = pkg;
+import { EmailAllPrimitives } from "./email";
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
 const HASHING_ROUNDS = 8;
@@ -24,21 +23,23 @@ const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
 
 // Type 1. RelationshipList
 export type UserRelationshipList = 'comments' | 'roles' | 'emails' | 'wallets' | 'resources' |
-    'projects' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
-    'starredResources' | 'starredStandards' | 'starredTags' | 'starredUsers' |
+    'projects' | 'starredBy' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
+    'starredResources' | 'starredRoutines' | 'starredStandards' | 'starredTags' | 'starredUsers' |
     'sentReports' | 'reports' | 'votedComments' | 'votedByTag';
 // Type 2. QueryablePrimitives
 // 2.1 Profile primitives (i.e. your own account)
-export type UserProfileQueryablePrimitives = Omit<Profile, UserRelationshipList>;
+export type UserProfileQueryablePrimitives = Omit<Profile, UserRelationshipList | 'status'> & {
+    status: AccountStatus;
+}
 // 2.2 User primitives (i.e. other users)
 export type UserQueryablePrimitives = Omit<User, UserRelationshipList>;
 // Type 3. AllPrimitives
 export type UserAllPrimitives = UserProfileQueryablePrimitives & {
-    password: string,
+    password: string | null,
     logInAttempts: number,
     lastLoginAttempt: Date,
     numExports: number,
-    lastExport?: Date,
+    lastExport: Date | null,
 };
 // type 4. FullModel
 export type UserFullModel = UserAllPrimitives &
@@ -70,7 +71,7 @@ export type UserFullModel = UserAllPrimitives &
 /**
  * Describes shape of component that converts between Prisma and GraphQL user object types.
  */
- export type UserFormatConverter = {
+export type UserFormatConverter = {
     joinMapper?: JoinMap;
     toDBProfile: (obj: RecursivePartial<Profile>) => RecursivePartial<UserFullModel>;
     toDBUser: (obj: RecursivePartial<User>) => RecursivePartial<UserFullModel>;
@@ -102,14 +103,14 @@ const formatter = (): UserFormatConverter => {
         toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<UserFullModel> => addJoinTables(obj, joinMapper),
         toDBUser: (obj: RecursivePartial<User>): RecursivePartial<UserFullModel> => addJoinTables(obj, joinMapper),
         toGraphQLProfile: (obj: RecursivePartial<UserFullModel>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),
-        toGraphQLUser: (obj: RecursivePartial<UserFullModel>): RecursivePartial<User> => removeJoinTables(obj, joinMapper), 
+        toGraphQLUser: (obj: RecursivePartial<UserFullModel>): RecursivePartial<User> => removeJoinTables(obj, joinMapper),
     }
 }
 
 /**
  * Component for search filters
  */
- const sorter = (): Sortable<UserSortBy> => ({
+const sorter = (): Sortable<UserSortBy> => ({
     defaultSort: UserSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
@@ -140,7 +141,7 @@ const formatter = (): UserFormatConverter => {
  * @param state 
  * @returns 
  */
-const validater = (state: any) => ({
+const validater = (prisma?: PrismaType) => ({
     /**
      * Creates session object from user
      */
@@ -165,9 +166,9 @@ const validater = (state: any) => ({
      * @param dateRequested Date of request, also stored in database
      * @returns Boolean indicating if the code is valid
      */
-    validateCode(providedCode: string, storedCode: string, dateRequested: Date): boolean {
+    validateCode(providedCode: string | null, storedCode: string | null, dateRequested: Date | null): boolean {
         return Boolean(providedCode) && Boolean(storedCode) && Boolean(dateRequested) &&
-            providedCode === storedCode && Date.now() - new Date(dateRequested).getTime() < CODE_TIMEOUT;
+            providedCode === storedCode && Date.now() - new Date(dateRequested as Date).getTime() < CODE_TIMEOUT;
     },
     /**
      * Hashes password for safe storage in database
@@ -188,9 +189,9 @@ const validater = (state: any) => ({
         // 1. Not deleted
         // 2. Not locked out
         const status_to_code: any = {
-            [AccountStatus.DELETED]: CODE.NoUser,
-            [AccountStatus.SOFT_LOCKED]: CODE.SoftLockout,
-            [AccountStatus.HARD_LOCKED]: CODE.HardLockout
+            [AccountStatus.Deleted]: CODE.NoUser,
+            [AccountStatus.SoftLocked]: CODE.SoftLockout,
+            [AccountStatus.HardLocked]: CODE.HardLockout
         }
         if (user.status in status_to_code) throw new CustomError(status_to_code[user.status]);
         // Validate plaintext password against hash
@@ -204,23 +205,25 @@ const validater = (state: any) => ({
      * @returns Session data
      */
     async logIn(password: string, user: any): Promise<Session | null> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // First, check if the log in fail counter should be reset
-        const unable_to_reset = [AccountStatus.HARD_LOCKED, AccountStatus.DELETED];
+        const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
         // If account is not deleted or hard-locked, and lockout duration has passed
         if (!unable_to_reset.includes(user.status) && Date.now() - new Date(user.lastLoginAttempt).getTime() > SOFT_LOCKOUT_DURATION) {
             console.log('returning with reset log in');
-            return await state.prisma.user.update({
+            return await prisma.user.update({
                 where: { id: user.id },
                 data: { logInAttempts: 0 },
                 select: {
                     theme: true,
                     roles: { select: { role: { select: { title: true } } } }
                 }
-            });
+            }) as any;
         }
         // If password is valid
         if (this.validatePassword(password, user)) {
-            return await state.prisma.user.update({
+            return await prisma.user.update({
                 where: { id: user.id },
                 data: {
                     logInAttempts: 0,
@@ -233,17 +236,17 @@ const validater = (state: any) => ({
                     theme: true,
                     roles: { select: { role: { select: { title: true } } } }
                 }
-            })
+            }) as any;
         }
         // If password is invalid
-        let new_status: any = AccountStatus.UNLOCKED;
+        let new_status: any = AccountStatus.Unlocked;
         let log_in_attempts = user.logInAttempts++;
         if (log_in_attempts > LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
-            new_status = AccountStatus.HARD_LOCKED;
+            new_status = AccountStatus.HardLocked;
         } else if (log_in_attempts > LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT) {
-            new_status = AccountStatus.SOFT_LOCKED;
+            new_status = AccountStatus.SoftLocked;
         }
-        await state.prisma.user.update({
+        await prisma.user.update({
             where: { id: user.id },
             data: { status: new_status, logInAttempts: log_in_attempts, lastLoginAttempt: new Date().toISOString() }
         })
@@ -254,10 +257,12 @@ const validater = (state: any) => ({
      * @param user User object
      */
     async setupPasswordReset(user: any): Promise<boolean> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Generate new code
         const resetPasswordCode = this.generateCode();
         // Store code and request time in user row
-        const updatedUser = await state.prisma.user.update({
+        const updatedUser = await prisma.user.update({
             where: { id: user.id },
             data: { resetPasswordCode, lastResetPasswordReqestAttempt: new Date().toISOString() },
             select: { emails: { select: { emailAddress: true } } }
@@ -269,52 +274,72 @@ const validater = (state: any) => ({
         return true;
     },
     /**
-    * Updated user object with new account verification code, and sends email to user with link
+    * Updates email object with new verification code, and sends email to user with link
     * @param user User object
     */
-    async setupVerificationCode(user: any): Promise<void> {
+    async setupVerificationCode(emailAddress: string): Promise<void> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Generate new code
         const verificationCode = this.generateCode();
-        // Store code and request time in user row
-        const updatedUser = await state.prisma.user.update({
-            where: { id: user.id },
-            data: { verificationCode, lastResetPasswordReqestAttempt: new Date().toISOString() },
-            select: { emails: { select: { emailAddress: true } } }
+        // Store code and request time in email row
+        const email = await prisma.email.update({
+            where: { emailAddress },
+            data: { verificationCode, lastVerificationCodeRequestAttempt: new Date().toISOString() },
+            select: { userId: true}
         })
-        // Send new verification emails
-        for (const email of updatedUser.emails) {
-            sendVerificationLink(email.emailAddress, user.id, verificationCode);
-        }
+        // If email is not associated with a user, throw error
+        if (!email.userId) throw new CustomError(CODE.ErrorUnknown, 'Email not associated with a user');
+        // Send new verification email
+        sendVerificationLink(emailAddress, email.userId, verificationCode);
+        // TODO send email to existing emails from user, warning of new email
     },
     /**
      * Validate verification code and update user's account status
-     * @param user User object
+     * @param emailAddress Email address string
+     * @param userId ID of user who owns email
      * @param code Verification code
      * @returns Updated user object
      */
-    async validateVerificationCode(user: any, code: string): Promise<any> {
+    async validateVerificationCode(emailAddress: string, userId: string, code: string): Promise<boolean> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Find email data
+        const email: any = prisma.email.findUnique({
+            where: { emailAddress },
+            select: {
+                id: true,
+                userId: true,
+                verified: true,
+                verificationCode: true,
+                lastVerificationCodeRequestAttempt: true
+            }
+        })
+        if (!email) throw new CustomError(CODE.EmailNotVerified, 'Email not found');
+        // Check that userId matches email's userId
+        if (email.userId !== userId) throw new CustomError(CODE.EmailNotVerified, 'Email does not belong to user');
         // If email already verified, remove old verification code
-        if (user.emailVerified) {
-            user = await state.prisma.user.update({
-                where: { id: user.id },
-                data: { verificationCode: null }
+        if (email.verified) {
+            await prisma.email.update({
+                where: { id: email.id },
+                data: { verificationCode: null, lastVerificationCodeRequestAttempt: null }
             })
         }
         // Otherwise, validate code
         else {
             // If code is correct and not expired
-            if (this.validateCode(code, user.verificationCode, user.lastVerificationCodeRequestAttempt)) {
-                user = await state.prisma.user.update({
-                    where: { id: user.id },
-                    data: { status: AccountStatus.UNLOCKED, emailVerified: true, verificationCode: null, lastVerificationCodeRequestAttempt: null }
+            if (this.validateCode(code, email.verificationCode, email.lastVerificationCodeRequestAttempt)) {
+                await prisma.email.update({
+                    where: { id: email.id },
+                    data: { verified: true, verificationCode: null, lastVerificationCodeRequestAttempt: null }
                 })
             }
             // If code is incorrect or expired, create new code and send email
             else {
-                user = await this.setupVerificationCode(user);
+                await this.setupVerificationCode(emailAddress);
             }
         }
-        return user;
+        return true;
     }
 })
 
@@ -323,21 +348,23 @@ const validater = (state: any) => ({
  * @param state 
  * @returns 
  */
-const findByEmailer = (state: any) => ({
+const findByEmailer = (prisma?: PrismaType) => ({
     /**
      * Find a user by email address
      * @param email The user's email address
      * @returns A user object without relationships
      */
-    async findByEmail(email: string): Promise<UserAllPrimitives> {
-        if (!email) throw new CustomError(CODE.BadCredentials);
+    async findByEmail(emailAddress: string): Promise<{user: UserAllPrimitives, email: EmailAllPrimitives}> {
+        // Check arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        if (!emailAddress) throw new CustomError(CODE.BadCredentials);
         // Validate email address
-        const emailRow = await state.prisma.email.findUnique({ where: { emailAddress: email } });
-        if (!emailRow) throw new CustomError(CODE.BadCredentials);
+        const email = await prisma.email.findUnique({ where: { emailAddress } });
+        if (!email) throw new CustomError(CODE.BadCredentials);
         // Find user
-        let user = await state.prisma.user.findUnique({ where: { id: emailRow.userId } });
+        let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
         if (!user) throw new CustomError(CODE.ErrorUnknown);
-        return user;
+        return { user, email }
     }
 })
 
@@ -346,10 +373,10 @@ const findByEmailer = (state: any) => ({
  * @param state 
  * @returns 
  */
-const upserter = ({ prisma }: BaseState<User, UserFullModel>) => ({
+const upserter = (prisma?: PrismaType) => ({
     async upsertUser(data: any, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<UserFullModel> | null> {
-        // Check arguments
-        if (!prisma) throw new CustomError(CODE.ErrorUnknown);
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Remove relationship data, as they are handled on a case-by-case basis
         let cleanedData = onlyPrimitives(data);
         // Upsert user
@@ -401,7 +428,7 @@ const upserter = ({ prisma }: BaseState<User, UserFullModel>) => ({
  * @param state 
  * @returns 
  */
-const porter = ({ prisma }: BaseState<User, UserFullModel>) => ({
+const porter = (prisma?: PrismaType) => ({
     /**
      * Import JSON data to Vrooli. Useful if uploading data created offline, or if
      * you're switching from a competitor to Vrooli. :)
@@ -416,7 +443,8 @@ const porter = ({ prisma }: BaseState<User, UserFullModel>) => ({
      * @param id 
      */
     async exportData(id: string): Promise<string> {
-        if (!prisma) throw new CustomError(CODE.ErrorUnknown);
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Find user
         const user = await prisma.user.findUnique({ where: { id }, select: { numExports: true, lastExport: true } });
         if (!user) throw new CustomError(CODE.ErrorUnknown);
@@ -435,24 +463,24 @@ const porter = ({ prisma }: BaseState<User, UserFullModel>) => ({
 //==============================================================
 
 export function UserModel(prisma?: PrismaType) {
-    let obj: BaseState<User, UserFullModel> = {
-        prisma,
-        model: MODEL_TYPES.User,
-    }
+    const model = MODEL_TYPES.User;
+    const format = formatter();
+    const sort = sorter();
 
     return {
-        ...obj,
-        ...counter<UserCountInput, User, UserFullModel>(obj),
-        ...deleter(obj),
-        ...findByEmailer(obj),
-        ...findByIder<UserFullModel>(obj),
-        ...formatter(),
-        ...porter(obj),
+        prisma,
+        model,
+        ...format,
+        ...sort,
+        ...counter<UserCountInput>(model, prisma),
+        ...deleter(model, prisma),
+        ...findByEmailer(prisma),
+        ...findByIder<UserFullModel>(model, prisma),
+        ...porter(prisma),
         ...reporter(),
-        ...searcher<UserSortBy, UserSearchInput, User, UserFullModel>(obj),
-        ...sorter(),
-        ...upserter(obj),
-        ...validater(obj),
+        ...searcher<UserSortBy, UserSearchInput, User, UserFullModel>(model, format.toGraphQLUser, sort, prisma),
+        ...upserter(prisma),
+        ...validater(prisma),
     }
 }
 

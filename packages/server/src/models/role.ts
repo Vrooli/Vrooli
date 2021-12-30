@@ -1,6 +1,6 @@
 import { RecursivePartial, PrismaType } from "types";
 import { Role, User } from "../schema/types";
-import { FormatConverter, addJoinTables, removeJoinTables, BaseState, MODEL_TYPES, findByIder } from "./base";
+import { FormatConverter, addJoinTables, removeJoinTables, MODEL_TYPES, findByIder } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -48,14 +48,12 @@ export type RoleFullModel = RoleAllPrimitives &
 //==============================================================
 
 export function RoleModel(prisma?: PrismaType) {
-    let obj: BaseState<Role, RoleFullModel> = {
-        prisma,
-        model: MODEL_TYPES.Role,
-    }
+    const model = MODEL_TYPES.Role;
 
     return {
-        ...obj,
-        ...findByIder<RoleFullModel>(obj),
+        prisma,
+        model,
+        ...findByIder<RoleFullModel>(model, prisma),
         ...formatter(),
     }
 }

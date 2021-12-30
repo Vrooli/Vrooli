@@ -8,20 +8,20 @@
 //==============================================================
 
 export enum AccountStatus {
-  DELETED = "DELETED",
-  HARD_LOCKED = "HARD_LOCKED",
-  SOFT_LOCKED = "SOFT_LOCKED",
-  UNLOCKED = "UNLOCKED",
+  Deleted = "Deleted",
+  HardLocked = "HardLocked",
+  SoftLocked = "SoftLocked",
+  Unlocked = "Unlocked",
 }
 
 export enum NodeType {
-  COMBINE = "COMBINE",
-  DECISION = "DECISION",
-  END = "END",
-  LOOP = "LOOP",
-  REDIRECT = "REDIRECT",
-  ROUTINE_LIST = "ROUTINE_LIST",
-  START = "START",
+  Combine = "Combine",
+  Decision = "Decision",
+  End = "End",
+  Loop = "Loop",
+  Redirect = "Redirect",
+  RoutineList = "RoutineList",
+  Start = "Start",
 }
 
 export enum OrganizationSortBy {
@@ -111,13 +111,13 @@ export enum StandardSortBy {
 }
 
 export enum StandardType {
-  ARRAY = "ARRAY",
-  BOOLEAN = "BOOLEAN",
-  FILE = "FILE",
-  NUMBER = "NUMBER",
-  OBJECT = "OBJECT",
-  STRING = "STRING",
-  URL = "URL",
+  Array = "Array",
+  Boolean = "Boolean",
+  File = "File",
+  Number = "Number",
+  Object = "Object",
+  String = "String",
+  Url = "Url",
 }
 
 export enum TagSortBy {
@@ -185,7 +185,6 @@ export interface EmailResetPasswordInput {
 
 export interface EmailSignUpInput {
   username: string;
-  pronouns?: string | null;
   email: string;
   theme: string;
   marketingEmails: boolean;
@@ -428,7 +427,7 @@ export interface UserDeleteInput {
 export interface UserInput {
   id?: string | null;
   username?: string | null;
-  pronouns?: string | null;
+  bio?: string | null;
   emails?: EmailInput[] | null;
   theme?: string | null;
   status?: AccountStatus | null;

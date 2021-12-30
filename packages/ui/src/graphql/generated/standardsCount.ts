@@ -7,11 +7,6 @@
 // GraphQL query operation: standardsCount
 // ====================================================
 
-export interface standardsCount_standardsCount {
-  __typename: "Count";
-  count: number | null;
-}
-
 export interface standardsCount {
-  standardsCount: standardsCount_standardsCount;
+  standardsCount: number;
 }

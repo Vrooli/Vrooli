@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE, ROUTINE_SORT_BY } from '@local/shared';
+import { CODE, RoutineSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteOneInput, FindByIdInput, ReportInput, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, Success } from './types';
@@ -116,7 +116,7 @@ export const typeDef = gql`
     extend type Query {
         routine(input: FindByIdInput!): Routine
         routines(input: RoutineSearchInput!): RoutineSearchResult!
-        routinesCount(input: RoutineCountInput!): number!
+        routinesCount(input: RoutineCountInput!): Int!
     }
 
     extend type Mutation {
@@ -128,7 +128,7 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
-    RoutineSortBy: ROUTINE_SORT_BY,
+    RoutineSortBy: RoutineSortBy,
     Query: {
         routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             throw new CustomError(CODE.NotImplemented);

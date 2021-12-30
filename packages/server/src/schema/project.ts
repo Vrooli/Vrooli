@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { CODE, PROJECT_SORT_BY } from '@local/shared';
+import { CODE, ProjectSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectSortBy, ProjectSearchInput, ReportInput, Success, ProjectSearchResult, ProjectCountInput } from './types';
+import { DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectSearchInput, ReportInput, Success, ProjectCountInput } from './types';
 import { Context } from '../context';
 import { ProjectModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -82,7 +82,7 @@ export const typeDef = gql`
     extend type Query {
         project(input: FindByIdInput!): Project
         projects(input: ProjectSearchInput!): ProjectSearchResult!
-        projectsCount(input: ProjectCountInput!): number!
+        projectsCount(input: ProjectCountInput!): Int!
     }
 
     extend type Mutation {
@@ -94,7 +94,7 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
-    ProjectSortBy: PROJECT_SORT_BY,
+    ProjectSortBy: ProjectSortBy,
     Query: {
         project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
             // Query database

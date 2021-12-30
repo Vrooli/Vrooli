@@ -7,11 +7,6 @@
 // GraphQL query operation: tagsCount
 // ====================================================
 
-export interface tagsCount_tagsCount {
-  __typename: "Count";
-  count: number | null;
-}
-
 export interface tagsCount {
-  tagsCount: tagsCount_tagsCount;
+  tagsCount: number;
 }

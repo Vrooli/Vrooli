@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE, STANDARD_SORT_BY } from '@local/shared';
+import { CODE, StandardSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
@@ -11,13 +11,13 @@ const { StandardType } = pkg;
 
 export const typeDef = gql`
     enum StandardType {
-        STRING
-        NUMBER
-        BOOLEAN
-        OBJECT
-        ARRAY
-        FILE
-        URL
+        String
+        Number
+        Boolean
+        Object
+        Array
+        File
+        Url
     }
 
     enum StandardSortBy {
@@ -94,7 +94,7 @@ export const typeDef = gql`
     extend type Query {
         standard(input: FindByIdInput!): Standard
         standards(input: StandardSearchInput!): StandardSearchResult!
-        standardsCount(input: StandardCountInput!): number!
+        standardsCount(input: StandardCountInput!): Int!
     }
 
     extend type Mutation {
@@ -107,7 +107,7 @@ export const typeDef = gql`
 
 export const resolvers = {
     StandardType: StandardType,
-    StandardSortBy: STANDARD_SORT_BY,
+    StandardSortBy: StandardSortBy,
     Query: {
         standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
             // Query database

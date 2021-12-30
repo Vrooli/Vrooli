@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE, USER_SORT_BY } from '@local/shared';
+import { CODE, UserSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { UserModel } from '../models';
 import { UserDeleteInput, ReportInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput } from './types';
@@ -24,7 +24,7 @@ export const typeDef = gql`
     input UserInput {
         id: ID
         username: String
-        pronouns: String
+        bio: String
         emails: [EmailInput!]
         theme: String
         status: AccountStatus
@@ -36,9 +36,8 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         username: String
-        pronouns: String!
+        bio: String
         theme: String!
-        emailVerified: Boolean!
         status: AccountStatus!
         comments: [Comment!]!
         roles: [Role!]!
@@ -66,7 +65,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         username: String
-        pronouns: String!
+        bio: String
         comments: [Comment!]!
         roles: [Role!]!
         resources: [Resource!]!
@@ -116,7 +115,7 @@ export const typeDef = gql`
         profile: Profile!
         user(input: FindByIdInput!): User
         users(input: UserSearchInput!): UserSearchResult!
-        usersCount(input: UserCountInput!): number!
+        usersCount(input: UserCountInput!): Int!
     }
 
     extend type Mutation {
@@ -128,7 +127,7 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
-    UserSortBy: USER_SORT_BY,
+    UserSortBy: UserSortBy,
     Query: {
         profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<any> | null> => {
             // Query database

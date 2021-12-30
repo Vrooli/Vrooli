@@ -1,6 +1,6 @@
 import { Organization, Project, Routine, Standard, Tag, TagCountInput, TagInput, TagSearchInput, TagSortBy, User } from "../schema/types";
-import { RecursivePartial } from "types";
-import { addJoinTables, BaseState, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { PrismaType, RecursivePartial } from "types";
+import { addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -86,23 +86,23 @@ export type TagFullModel = TagAllPrimitives &
 /* #region Model */
 //==============================================================
 
-export function TagModel(prisma?: any) {
-    let obj: BaseState<Tag, TagFullModel> = {
-        prisma,
-        model: MODEL_TYPES.Tag,
-    }
+export function TagModel(prisma?: PrismaType) {
+    const model = MODEL_TYPES.Tag;
+    const format = formatter();
+    const sort = sorter();
 
     return {
-        ...obj,
-        ...counter<TagCountInput, Tag, TagFullModel>(obj),
-        ...creater<TagInput, TagFullModel>(obj),
-        ...deleter(obj),
-        ...findByIder<TagFullModel>(obj),
-        ...formatter(),
+        prisma,
+        model,
+        ...format,
+        ...sort,
+        ...counter<TagCountInput>(model, prisma),
+        ...creater<TagInput, TagFullModel>(model, prisma),
+        ...deleter(model, prisma),
+        ...findByIder<TagFullModel>(model, prisma),
         ...reporter(),
-        ...searcher<TagSortBy, TagSearchInput, Tag, TagFullModel>(obj),
-        ...sorter(),
-        ...updater<TagInput, TagFullModel>(obj),
+        ...searcher<TagSortBy, TagSearchInput, Tag, TagFullModel>(model, format.toGraphQL, sort, prisma),
+        ...updater<TagInput, TagFullModel>(model, prisma),
     }
 }
 

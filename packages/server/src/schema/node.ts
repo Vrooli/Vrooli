@@ -1,23 +1,21 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE, NodeType } from '@local/shared';
 import { CustomError } from '../error';
 import { NodeModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, Node, NodeInput, Success } from './types';
 import { Context } from '../context';
-import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
-const { NodeType } = pkg;
 
 export const typeDef = gql`
     enum NodeType {
-        COMBINE
-        DECISION
-        END
-        LOOP
-        ROUTINE_LIST
-        REDIRECT
-        START
+        Combine
+        Decision
+        End
+        Loop
+        RoutineList
+        Redirect
+        Start
     }
 
     union NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList | NodeRedirect | NodeStart

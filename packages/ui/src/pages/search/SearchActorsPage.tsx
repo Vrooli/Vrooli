@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { USER_SORT_BY } from "@local/shared";
+import { UserSortBy } from "@local/shared";
 import { Grid, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { ActorCard, SearchBar, Selector } from "components";
@@ -16,7 +16,7 @@ const componentStyles = (theme: Theme) => ({
 
 const useStyles = makeStyles(combineStyles(searchStyles, componentStyles));
 
-const SORT_OPTIONS: {label: string, value: UserSortBy}[] = Object.values(USER_SORT_BY).map((sortOption) => ({ label: sortOption, value: sortOption as UserSortBy }));
+const SORT_OPTIONS: {label: string, value: UserSortBy}[] = Object.values(UserSortBy).map((sortOption) => ({ label: sortOption, value: sortOption as UserSortBy }));
 
 export const SearchActorsPage = () => {
     const classes = useStyles();

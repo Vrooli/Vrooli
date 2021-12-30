@@ -1,6 +1,6 @@
 import { makeStyles } from '@mui/styles';
 import { Theme, Typography } from '@mui/material';
-import { NODE_TYPES, ORCHESTRATION_DATA } from '@local/shared';
+import { NodeType, ORCHESTRATION_DATA } from '@local/shared';
 import { ZoomI } from 'components';
 
 //TEMP
@@ -13,7 +13,7 @@ const data: ORCHESTRATION_DATA = {
         // Start node
         {
             id: '1',
-            type: NODE_TYPES.Start,
+            type: NodeType.Start,
             // ID of previous node
             previous: null,
             // ID of next node
@@ -24,7 +24,7 @@ const data: ORCHESTRATION_DATA = {
         // Routine List node
         {
             id: '2',
-            type: NODE_TYPES.RoutineList,
+            type: NodeType.RoutineList,
             previous: '1',
             next: '3',
             data: {
@@ -45,7 +45,7 @@ const data: ORCHESTRATION_DATA = {
         // Routine List node
         {
             id: '3',
-            type: NODE_TYPES.RoutineList,
+            type: NodeType.RoutineList,
             previous: '2',
             next: '4',
             data: {
@@ -84,7 +84,7 @@ const data: ORCHESTRATION_DATA = {
         // Decision node
         {
             id: '4',
-            type: NODE_TYPES.Decision,
+            type: NodeType.Decision,
             previous: '3',
             // Decision nodes have no definitive next node
             // Instead, next node is determined by the decision
@@ -113,7 +113,7 @@ const data: ORCHESTRATION_DATA = {
         // Routine List node
         {
             id: '5',
-            type: NODE_TYPES.RoutineList,
+            type: NodeType.RoutineList,
             previous: '4',
             next: '7',
             data: {
@@ -127,7 +127,7 @@ const data: ORCHESTRATION_DATA = {
         // End node
         {
             id: '6',
-            type: NODE_TYPES.End,
+            type: NodeType.End,
             previous: '4',
             next: null,
             data: {
@@ -139,7 +139,7 @@ const data: ORCHESTRATION_DATA = {
         // Decision node
         {
             id: '7',
-            type: NODE_TYPES.Decision,
+            type: NodeType.Decision,
             previous: '4',
             next: null,
             data: {
@@ -166,7 +166,7 @@ const data: ORCHESTRATION_DATA = {
         // Redirect node
         {
             id: '8',
-            type: NODE_TYPES.Redirect,
+            type: NodeType.Redirect,
             previous: '7',
             next: '1',
             data: null,
@@ -174,7 +174,7 @@ const data: ORCHESTRATION_DATA = {
         // End node
         {
             id: '9',
-            type: NODE_TYPES.End,
+            type: NodeType.End,
             previous: '7',
             next: null,
             data: {

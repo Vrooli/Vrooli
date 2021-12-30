@@ -7,11 +7,6 @@
 // GraphQL query operation: organizationsCount
 // ====================================================
 
-export interface organizationsCount_organizationsCount {
-  __typename: "Count";
-  count: number | null;
-}
-
 export interface organizationsCount {
-  organizationsCount: organizationsCount_organizationsCount;
+  organizationsCount: number;
 }

@@ -3,7 +3,7 @@
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
 import { gql } from 'apollo-server-express';
-import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES } from '@local/shared';
+import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES, AccountStatus } from '@local/shared';
 import { CustomError, validateArgs } from '../error';
 import { generateNonce, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionToken } from '../auth/auth.js';
@@ -12,17 +12,15 @@ import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput,
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
 import { UserModel } from '../models';
-import pkg from '@prisma/client';
-const { AccountStatus } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const typeDef = gql`
     enum AccountStatus {
-        DELETED
-        UNLOCKED
-        SOFT_LOCKED
-        HARD_LOCKED
+        Deleted
+        Unlocked
+        SoftLocked
+        HardLocked
     }
 
     input EmailLogInInput {
@@ -33,7 +31,6 @@ export const typeDef = gql`
 
     input EmailSignUpInput {
         username: String!
-        pronouns: String
         email: String!
         theme: String!
         marketingEmails: Boolean!
@@ -96,7 +93,7 @@ export const resolvers = {
             const validateError = await validateArgs(emailLogInSchema, input);
             if (validateError) throw validateError;
             // Get user
-            let user = await UserModel(prisma).findByEmail(input?.email as string);
+            let { user, email } = await UserModel(prisma).findByEmail(input?.email as string);
             // Check for password in database, if doesn't exist, send a password reset link
             if (!Boolean(user.password)) {
                 await UserModel(prisma).setupPasswordReset(user);
@@ -104,7 +101,7 @@ export const resolvers = {
             }
             // Validate verification code, if supplied
             if (Boolean(input?.verificationCode)) {
-                user = await UserModel(prisma).validateVerificationCode(user, input?.verificationCode as string);
+                await UserModel(prisma).validateVerificationCode(email.emailAddress, user.id, input?.verificationCode as string);
             }
             const session = await UserModel(prisma).logIn(input?.password as string, user);
             if (session) {
@@ -127,7 +124,7 @@ export const resolvers = {
                 username: input.username,
                 password: UserModel(prisma).hashPassword(input.password),
                 theme: input.theme,
-                status: AccountStatus.UNLOCKED,
+                status: AccountStatus.Unlocked,
                 emails: [{ emailAddress: input.email }],
                 roles: [actorRole]
             });
@@ -137,7 +134,7 @@ export const resolvers = {
             // Set up session token
             await generateSessionToken(res, session);
             // Send verification email
-            await UserModel(prisma).setupVerificationCode(user);
+            await UserModel(prisma).setupVerificationCode(input.email);
             // Return user data
             return session;
         },

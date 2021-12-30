@@ -2,7 +2,8 @@
 // Typically an auto-generated GraphQL type would be imported like below:
 // import { Role } from "../schema/types";
 
-import { BaseState, creater, deleter, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
+import { PrismaType } from "types";
+import { creater, deleter, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
 
 // But for this example we will manually define the types
 type Maybe<T> = T | null;
@@ -93,20 +94,17 @@ const formatter = (): FormatConverter<Example, any> => ({
 //==============================================================
 
 // Last, we define the model component.
-export function ExampleModel(prisma: any) {
-    // The 'obj' field stores the data which can be passed to various composition functions.
-    let obj: BaseState<Example, ExampleFullModel> = {
-        prisma,
-        model: MODEL_TYPES.Comment, // This would be MODEL_TYPES.Example, if it was real
-    }
+export function ExampleModel(prisma: PrismaType) {
+    const model = MODEL_TYPES.Comment; // This would be MODEL_TYPES.Example, if it was real
 
-    // the return contains 'obj' + every composition function that applies to this model
+    // the return contains every composition function that applies to this model
     return {
-        ...obj,
-        ...creater<ExampleInput, ExampleFullModel>(obj),
+        prisma,
+        model,
+        ...creater<ExampleInput, ExampleFullModel>(model, prisma),
         ...formatter(),
-        ...updater<ExampleInput, ExampleFullModel>(obj),
-        ...deleter(obj),
+        ...updater<ExampleInput, ExampleFullModel>(model, prisma),
+        ...deleter(model, prisma),
         ...reporter()
     }
 }

@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { STANDARD_SORT_BY } from "@local/shared";
+import { StandardSortBy } from "@local/shared";
 import { Grid, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { StandardCard, SearchBar, Selector } from "components";
@@ -16,7 +16,7 @@ const componentStyles = (theme: Theme) => ({
 
 const useStyles = makeStyles(combineStyles(searchStyles, componentStyles));
 
-const SORT_OPTIONS: {label: string, value: StandardSortBy}[] = Object.values(STANDARD_SORT_BY).map((sortOption) => ({ label: sortOption, value: sortOption as StandardSortBy }));
+const SORT_OPTIONS: {label: string, value: StandardSortBy}[] = Object.values(StandardSortBy).map((sortOption) => ({ label: sortOption, value: sortOption as StandardSortBy }));
 
 export const SearchStandardsPage = () => {
     const classes = useStyles();

@@ -4,7 +4,7 @@ import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 import ogs from 'open-graph-scraper';
 import { OpenGraphResponse } from './types';
-import { METRIC_TIME_FRAME } from '@local/shared';
+import { MetricTimeFrame } from '@local/shared';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -98,7 +98,7 @@ export const typeDef = gql`
 
 export const resolvers = {
     Upload: GraphQLUpload,
-    MetricTimeFrame: METRIC_TIME_FRAME,
+    MetricTimeFrame: MetricTimeFrame,
     Date: new GraphQLScalarType({
         name: "Date",
         description: "Custom description for the date scalar",

@@ -7,11 +7,6 @@
 // GraphQL query operation: usersCount
 // ====================================================
 
-export interface usersCount_usersCount {
-  __typename: "Count";
-  count: number | null;
-}
-
 export interface usersCount {
-  usersCount: usersCount_usersCount;
+  usersCount: number;
 }

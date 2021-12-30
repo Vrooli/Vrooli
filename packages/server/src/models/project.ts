@@ -1,5 +1,6 @@
+import { PrismaType } from "types";
 import { Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
-import { BaseState, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
+import { counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -84,25 +85,25 @@ const sorter = (): Sortable<ProjectSortBy> => ({
 /* #region Model */
 //==============================================================
 
-export function ProjectModel(prisma?: any) {
-    let obj: BaseState<Project, ProjectFullModel> = {
-        prisma,
-        model: MODEL_TYPES.Project,
-        formatter: formatter(),
-        sorter: sorter(),
-    }
+export function ProjectModel(prisma?: PrismaType) {
+    const model = MODEL_TYPES.Project;
+    const format = formatter();
+    const sort = sorter();
 
     return {
-        ...obj,
-        ...counter<ProjectCountInput, Project, ProjectFullModel>(obj),
-        ...creater<ProjectInput, ProjectFullModel>(obj),
-        ...deleter(obj),
-        ...findByIder<ProjectFullModel>(obj),
+        prisma,
+        model,
+        ...format,
+        ...sort,
+        ...counter<ProjectCountInput>(model, prisma),
+        ...creater<ProjectInput, ProjectFullModel>(model, prisma),
+        ...deleter(model, prisma),
+        ...findByIder<ProjectFullModel>(model, prisma),
         ...formatter(),
         ...reporter(),
-        ...searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectFullModel>(obj),
+        ...searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectFullModel>(model, format.toGraphQL, sort, prisma),
         ...sorter(),
-        ...updater<ProjectInput, ProjectFullModel>(obj),
+        ...updater<ProjectInput, ProjectFullModel>(model, prisma),
     }
 }
 

@@ -7,11 +7,6 @@
 // GraphQL query operation: resourcesCount
 // ====================================================
 
-export interface resourcesCount_resourcesCount {
-  __typename: "Count";
-  count: number | null;
-}
-
 export interface resourcesCount {
-  resourcesCount: resourcesCount_resourcesCount;
+  resourcesCount: number;
 }

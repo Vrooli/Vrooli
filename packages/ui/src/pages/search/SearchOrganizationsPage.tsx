@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { ORGANIZATION_SORT_BY } from "@local/shared";
+import { OrganizationSortBy } from "@local/shared";
 import { Grid, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { OrganizationCard, SearchBar, Selector } from "components";
@@ -16,7 +16,7 @@ const componentStyles = (theme: Theme) => ({
 
 const useStyles = makeStyles(combineStyles(searchStyles, componentStyles));
 
-const SORT_OPTIONS: {label: string, value: OrganizationSortBy}[] = Object.values(ORGANIZATION_SORT_BY).map((sortOption) => ({ label: sortOption, value: sortOption as OrganizationSortBy }));
+const SORT_OPTIONS: {label: string, value: OrganizationSortBy}[] = Object.values(OrganizationSortBy).map((sortOption) => ({ label: sortOption, value: sortOption as OrganizationSortBy }));
 
 export const SearchOrganizationsPage = () => {
     const classes = useStyles();

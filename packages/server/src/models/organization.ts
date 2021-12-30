@@ -1,5 +1,6 @@
+import { PrismaType } from "../types";
 import { Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
-import { BaseState, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
+import { counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -80,25 +81,25 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
 /* #region Model */
 //==============================================================
 
-export function OrganizationModel(prisma?: any) {
-    let obj: BaseState<Organization, OrganizationFullModel> = {
-        prisma,
-        model: MODEL_TYPES.Organization,
-        formatter: formatter(),
-        sorter: sorter(),
-    }
+export function OrganizationModel(prisma?: PrismaType) {
+    const model = MODEL_TYPES.Organization;
+    const format = formatter();
+    const sort = sorter();
 
     return {
-        ...obj,
-        ...counter<OrganizationCountInput, Organization, OrganizationFullModel>(obj),
-        ...creater<OrganizationInput, OrganizationFullModel>(obj),
-        ...deleter(obj),
-        ...findByIder<OrganizationFullModel>(obj),
+        prisma,
+        model,
+        ...format,
+        ...sort,
+        ...counter<OrganizationCountInput>(model, prisma),
+        ...creater<OrganizationInput, OrganizationFullModel>(model, prisma),
+        ...deleter(model, prisma),
+        ...findByIder<OrganizationFullModel>(model, prisma),
         ...formatter(),
         ...reporter(),
-        ...searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationFullModel>(obj),
+        ...searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationFullModel>(model, format.toGraphQL, sort, prisma),
         ...sorter(),
-        ...updater<OrganizationInput, OrganizationFullModel>(obj),
+        ...updater<OrganizationInput, OrganizationFullModel>(model, prisma),
     }
 }
 

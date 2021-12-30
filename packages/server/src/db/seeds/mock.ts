@@ -1,8 +1,6 @@
 import bcrypt from 'bcrypt';
-import pkg from '@prisma/client';
 import { PrismaType } from '../../types';
-import { ROLES } from '@local/shared';
-const { AccountStatus } = pkg;
+import { AccountStatus, ROLES } from '@local/shared';
 const HASHING_ROUNDS = 8;
 
 // Create a user with emails and roles
@@ -36,7 +34,7 @@ export async function mock(prisma: PrismaType) {
         userData: {
             username: 'Elon Tusk🦏',
             password: bcrypt.hashSync('Elon', HASHING_ROUNDS),
-            status: AccountStatus.UNLOCKED,
+            status: AccountStatus.Unlocked,
         },
         emailsData: [
             { emailAddress: 'notarealemail@afakesite.com', verified: true },
@@ -51,7 +49,7 @@ export async function mock(prisma: PrismaType) {
         userData: {
             username: 'JohnCena87',
             password: bcrypt.hashSync('John', HASHING_ROUNDS),
-            status: AccountStatus.UNLOCKED,
+            status: AccountStatus.Unlocked,
         },
         emailsData: [
             { emailAddress: 'itsjohncena@afakesite.com', verified: true }
@@ -63,7 +61,7 @@ export async function mock(prisma: PrismaType) {
         userData: {
             username: 'Spongebob Userpants',
             password: bcrypt.hashSync('Spongebob', HASHING_ROUNDS),
-            status: AccountStatus.UNLOCKED,
+            status: AccountStatus.Unlocked,
         },
         emailsData: [
             { emailAddress: 'spongebobmeboy@afakesite.com', verified: true }

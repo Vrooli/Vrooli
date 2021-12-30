@@ -1,4 +1,4 @@
-import { NODE_TYPES } from "@local/shared";
+import { NodeType } from "@local/shared";
 import { ROUTINE_LIST_NODE_DATA, ROUTINE_LIST_NODE_ITEM_DATA } from '@local/shared';
 
 /**
@@ -27,8 +27,8 @@ export interface EditableProps {
  * Props for the "Add Node" button (has node in its name, but not actually a node)
  */
 export interface AddNodeProps extends ScaleProps, EditableProps {
-    options: NODE_TYPES[];
-    onAdd: (type: NODE_TYPES) => void;
+    options: NodeType[];
+    onAdd: (type: NodeType) => void;
 }
 
 /**

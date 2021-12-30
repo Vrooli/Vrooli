@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE, RESOURCE_FOR, RESOURCE_SORT_BY } from '@local/shared';
+import { CODE, ResourceFor, ResourceSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
@@ -90,7 +90,7 @@ export const typeDef = gql`
     extend type Query {
         resource(input: FindByIdInput!): Resource
         resources(input: ResourceSearchInput!): ResourceSearchResult!
-        resourcesCount(input: ResourceCountInput!): number!
+        resourcesCount(input: ResourceCountInput!): Int!
     }
 
     extend type Mutation {
@@ -102,8 +102,8 @@ export const typeDef = gql`
 `
 
 export const resolvers = {
-    ResourceFor: RESOURCE_FOR,
-    ResourceSortBy: RESOURCE_SORT_BY,
+    ResourceFor: ResourceFor,
+    ResourceSortBy: ResourceSortBy,
     Query: {
         resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
             // Query database
