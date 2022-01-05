@@ -1,5 +1,5 @@
-import { NodeType } from "@local/shared";
-import { ROUTINE_LIST_NODE_DATA, ROUTINE_LIST_NODE_ITEM_DATA } from '@local/shared';
+import { NodeData, NodeType } from "@local/shared";
+import { RoutineListNodeData, RoutineListNodeItemData } from '@local/shared';
 
 /**
  * Props for all scalable objects (so every component involved with routine orchestration)
@@ -12,7 +12,7 @@ export interface ScaleProps {
  * Props for all labelled node objects
  */
 export interface LabelledProps {
-    label?: string;
+    label?: string | null;
     labelVisible?: boolean;
 }
 
@@ -59,30 +59,38 @@ export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps 
 }
 
 /**
+ * Props for the Node Column (a container for displaying nodes on separate branches)
+ */
+export interface NodeColumnProps extends ScaleProps, EditableProps {
+    labelVisible?: boolean;
+    columnNumber: number;
+    nodes: NodeData[];
+}
+
+/**
  * Props for the Redirect node
  */
 export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditableProps {
+
 }
 
 /**
  * Props for the Routine List node
  */
 export interface RoutineListNodeProps extends ScaleProps, LabelledProps, EditableProps {
-    data?: ROUTINE_LIST_NODE_DATA;
-    onAdd: (data: ROUTINE_LIST_NODE_ITEM_DATA) => void;
+    data?: RoutineListNodeData;
+    onAdd: (data: RoutineListNodeItemData) => void;
 }
 
 /**
  * Props for a Routine List's subroutine
  */
 export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, EditableProps {
-    data?: ROUTINE_LIST_NODE_ITEM_DATA;
+    data?: RoutineListNodeItemData;
 }
 
 /**
  * Props for a Start node
  */
 export interface StartNodeProps extends ScaleProps, LabelledProps, EditableProps {
-    label?: string;
-    labelVisible?: boolean;
 }

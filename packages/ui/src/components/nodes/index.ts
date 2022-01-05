@@ -3,6 +3,7 @@ export * from './CombineNode/CombineNode';
 export * from './DecisionNode/DecisionNode';
 export * from './EndNode/EndNode';
 export * from './LoopNode/LoopNode';
+export * from './NodeColumn/NodeColumn';
 export * from './RedirectNode/RedirectNode';
 export * from './RoutineListNode/RoutineListNode';
 export * from './RoutineSubnode/RoutineSubnode';

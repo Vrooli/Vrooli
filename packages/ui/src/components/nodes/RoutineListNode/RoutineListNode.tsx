@@ -117,7 +117,7 @@ export const RoutineListNode = ({
                     disabled={!isEditable}
                     control={
                         <Checkbox
-                            id={`${data?.title}-ordered-option`}
+                            id={`${label ?? ''}-ordered-option`}
                             className={classes.routineOptionCheckbox}
                             size="small"
                             name='isOrderedCheckbox'
@@ -136,7 +136,7 @@ export const RoutineListNode = ({
                     disabled={!isEditable}
                     control={
                         <Checkbox
-                            id={`${data?.title}-optional-option`}
+                            id={`${label ?? ''}-optional-option`}
                             className={classes.routineOptionCheckbox}
                             size="small"
                             name='isOptionalCheckbox'
@@ -150,7 +150,7 @@ export const RoutineListNode = ({
                 />
             </Tooltip>
         </Collapse>
-    ), [classes.checkboxLabel, classes.listOptions, classes.routineOptionCheckbox, collapseOpen, data?.isOptional, data?.isOrdered, data?.title, isEditable]);
+    ), [classes.checkboxLabel, classes.listOptions, classes.routineOptionCheckbox, collapseOpen, data?.isOptional, data?.isOrdered, isEditable, label]);
 
     const routines = useMemo(() => data?.routines?.map(routine => (
         <RoutineSubnode

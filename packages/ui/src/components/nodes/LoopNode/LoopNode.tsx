@@ -55,7 +55,7 @@ export const LoopNode = ({
     return (
         <div>
             {dialog}
-            <Tooltip placement={'top'} title={label}>
+            <Tooltip placement={'top'} title={label ?? ''}>
                 <IconButton className={classes.root} style={{width: nodeSize, height: nodeSize, fontSize: fontSize}} onClick={openDialog}>
                     <LoopIcon className={classes.icon} />
                     {labelObject}

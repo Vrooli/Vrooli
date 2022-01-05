@@ -37,7 +37,7 @@ export const StartNode = ({
     const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
 
     return (
-        <Tooltip placement={'top'} title={label}>
+        <Tooltip placement={'top'} title={label ?? ''}>
             <div className={classes.root} style={{width: nodeSize, height: nodeSize, fontSize: fontSize}}>
                 {labelObject}
             </div>
