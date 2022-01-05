@@ -9,4 +9,3 @@ export * from './navigation';
 export * from './nodes';
 export * from './ScrollToTop';
 export * from './Snack/Snack';
-export * from './YoutubeEmbed';
