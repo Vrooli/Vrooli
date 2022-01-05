@@ -9,6 +9,14 @@ import { StandardType } from "./globalTypes";
 // GraphQL fragment: standardFields
 // ====================================================
 
+export interface standardFields_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface standardFields {
   __typename: "Standard";
   id: string;
@@ -19,4 +27,5 @@ export interface standardFields {
   default: string | null;
   isFile: boolean;
   created_at: any;
+  tags: standardFields_tags[];
 }

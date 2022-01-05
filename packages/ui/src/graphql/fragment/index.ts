@@ -1,4 +1,5 @@
 export * from './commentFields';
+export * from './deepRoutineFields';
 export * from './emailFields';
 export * from './nodeFields';
 export * from './organizationFields';

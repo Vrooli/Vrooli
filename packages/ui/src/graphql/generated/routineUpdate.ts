@@ -9,6 +9,14 @@ import { RoutineInput } from "./globalTypes";
 // GraphQL mutation operation: routineUpdate
 // ====================================================
 
+export interface routineUpdate_routineUpdate_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface routineUpdate_routineUpdate {
   __typename: "Routine";
   id: string;
@@ -17,6 +25,7 @@ export interface routineUpdate_routineUpdate {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  tags: routineUpdate_routineUpdate_tags[];
 }
 
 export interface routineUpdate {

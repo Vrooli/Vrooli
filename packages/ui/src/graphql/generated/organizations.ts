@@ -15,12 +15,21 @@ export interface organizations_organizations_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface organizations_organizations_edges_node_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface organizations_organizations_edges_node {
   __typename: "Organization";
   id: string;
   name: string;
   description: string | null;
   created_at: any;
+  tags: organizations_organizations_edges_node_tags[];
 }
 
 export interface organizations_organizations_edges {

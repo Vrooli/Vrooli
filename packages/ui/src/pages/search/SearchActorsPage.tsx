@@ -3,7 +3,7 @@ import { UserSortBy } from "@local/shared";
 import { Grid, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { ActorCard, SearchBar, Selector } from "components";
-import { UserSortBy } from "graphql/generated/globalTypes";
+//import { UserSortBy } from "graphql/generated/globalTypes";
 import { users, usersVariables } from "graphql/generated/users";
 import { usersQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
@@ -22,7 +22,7 @@ export const SearchActorsPage = () => {
     const classes = useStyles();
     const [searchString, setSearchString] = useState<string>('');
     const [sortBy, setSortBy] = useState<UserSortBy>(SORT_OPTIONS[1].value);
-    const { data } = useQuery<users, usersVariables>(usersQuery, { variables: { input: { sortBy, searchString } }, pollInterval: 50000 });
+    const { data } = useQuery<users, usersVariables>(usersQuery, { variables: { input: { sortBy: UserSortBy.AlphabeticalDesc, searchString } }, pollInterval: 50000 });
 
     console.log('SEARCH DATA', data);
 

@@ -9,21 +9,11 @@ import { NodeInput, NodeType } from "./globalTypes";
 // GraphQL mutation operation: nodeAdd
 // ====================================================
 
-export interface nodeAdd_nodeAdd_data_NodeCombine_from {
-  __typename: "NodeCombineFrom";
-  id: string;
-}
-
-export interface nodeAdd_nodeAdd_data_NodeCombine_to {
-  __typename: "Node";
-  id: string;
-}
-
 export interface nodeAdd_nodeAdd_data_NodeCombine {
   __typename: "NodeCombine";
   id: string;
-  from: nodeAdd_nodeAdd_data_NodeCombine_from[];
-  to: nodeAdd_nodeAdd_data_NodeCombine_to | null;
+  from: string[];
+  to: string;
 }
 
 export interface nodeAdd_nodeAdd_data_NodeDecision_decisions_when {
@@ -36,6 +26,8 @@ export interface nodeAdd_nodeAdd_data_NodeDecision_decisions {
   __typename: "NodeDecisionItem";
   id: string;
   title: string;
+  description: string | null;
+  toId: string | null;
   when: (nodeAdd_nodeAdd_data_NodeDecision_decisions_when | null)[];
 }
 
@@ -48,6 +40,7 @@ export interface nodeAdd_nodeAdd_data_NodeDecision {
 export interface nodeAdd_nodeAdd_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
+  wasSuccessful: boolean;
 }
 
 export interface nodeAdd_nodeAdd_data_NodeLoop {
@@ -55,9 +48,40 @@ export interface nodeAdd_nodeAdd_data_NodeLoop {
   id: string;
 }
 
+export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
+export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine {
+  __typename: "Routine";
+  id: string;
+  version: string | null;
+  title: string | null;
+  description: string | null;
+  created_at: any;
+  isAutomatable: boolean | null;
+  tags: nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine_tags[];
+}
+
+export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines {
+  __typename: "NodeRoutineListItem";
+  id: string;
+  title: string;
+  description: string | null;
+  isOptional: boolean;
+  routine: nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine | null;
+}
+
 export interface nodeAdd_nodeAdd_data_NodeRoutineList {
   __typename: "NodeRoutineList";
   id: string;
+  isOrdered: boolean;
+  isOptional: boolean;
+  routines: nodeAdd_nodeAdd_data_NodeRoutineList_routines[];
 }
 
 export interface nodeAdd_nodeAdd_data_NodeRedirect {
@@ -72,16 +96,6 @@ export interface nodeAdd_nodeAdd_data_NodeStart {
 
 export type nodeAdd_nodeAdd_data = nodeAdd_nodeAdd_data_NodeCombine | nodeAdd_nodeAdd_data_NodeDecision | nodeAdd_nodeAdd_data_NodeEnd | nodeAdd_nodeAdd_data_NodeLoop | nodeAdd_nodeAdd_data_NodeRoutineList | nodeAdd_nodeAdd_data_NodeRedirect | nodeAdd_nodeAdd_data_NodeStart;
 
-export interface nodeAdd_nodeAdd_previous {
-  __typename: "Node";
-  id: string;
-}
-
-export interface nodeAdd_nodeAdd_next {
-  __typename: "Node";
-  id: string;
-}
-
 export interface nodeAdd_nodeAdd {
   __typename: "Node";
   id: string;
@@ -92,8 +106,8 @@ export interface nodeAdd_nodeAdd {
   description: string | null;
   type: NodeType;
   data: nodeAdd_nodeAdd_data | null;
-  previous: nodeAdd_nodeAdd_previous | null;
-  next: nodeAdd_nodeAdd_next | null;
+  previous: string | null;
+  next: string | null;
 }
 
 export interface nodeAdd {

@@ -200,16 +200,10 @@ export interface FindByIdInput {
   id: string;
 }
 
-export interface NodeCombineFromInput {
-  id?: string | null;
-  combineId?: string | null;
-  fromId?: string | null;
-}
-
 export interface NodeCombineInput {
   id?: string | null;
-  from: NodeCombineFromInput[];
-  to?: NodeInput | null;
+  from?: string[] | null;
+  to?: string | null;
 }
 
 export interface NodeDecisionInput {
@@ -225,11 +219,14 @@ export interface NodeDecisionItemCaseInput {
 export interface NodeDecisionItemInput {
   id?: string | null;
   title?: string | null;
+  description?: string | null;
+  toId?: string | null;
   when?: (NodeDecisionItemCaseInput | null)[] | null;
 }
 
 export interface NodeEndInput {
   id?: string | null;
+  wasSuccessful?: boolean | null;
 }
 
 export interface NodeInput {
@@ -258,6 +255,7 @@ export interface NodeRedirectInput {
 export interface NodeRoutineListInput {
   id?: string | null;
   isOrdered?: boolean | null;
+  isOptional?: boolean | null;
   routines: NodeRoutineListItemInput[];
 }
 

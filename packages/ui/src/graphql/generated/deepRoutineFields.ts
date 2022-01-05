@@ -3,13 +3,13 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, StandardType, NodeType } from "./globalTypes";
+import { StandardType, NodeType } from "./globalTypes";
 
 // ====================================================
-// GraphQL query operation: routine
+// GraphQL fragment: deepRoutineFields
 // ====================================================
 
-export interface routine_routine_tags {
+export interface deepRoutineFields_tags {
   __typename: "Tag";
   id: string;
   tag: string;
@@ -17,7 +17,7 @@ export interface routine_routine_tags {
   created_at: any;
 }
 
-export interface routine_routine_inputs_routine_tags {
+export interface deepRoutineFields_inputs_routine_tags {
   __typename: "Tag";
   id: string;
   tag: string;
@@ -25,7 +25,7 @@ export interface routine_routine_inputs_routine_tags {
   created_at: any;
 }
 
-export interface routine_routine_inputs_routine {
+export interface deepRoutineFields_inputs_routine {
   __typename: "Routine";
   id: string;
   version: string | null;
@@ -33,10 +33,10 @@ export interface routine_routine_inputs_routine {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
-  tags: routine_routine_inputs_routine_tags[];
+  tags: deepRoutineFields_inputs_routine_tags[];
 }
 
-export interface routine_routine_inputs_standard_tags {
+export interface deepRoutineFields_inputs_standard_tags {
   __typename: "Tag";
   id: string;
   tag: string;
@@ -44,7 +44,7 @@ export interface routine_routine_inputs_standard_tags {
   created_at: any;
 }
 
-export interface routine_routine_inputs_standard {
+export interface deepRoutineFields_inputs_standard {
   __typename: "Standard";
   id: string;
   name: string;
@@ -54,16 +54,16 @@ export interface routine_routine_inputs_standard {
   default: string | null;
   isFile: boolean;
   created_at: any;
-  tags: routine_routine_inputs_standard_tags[];
+  tags: deepRoutineFields_inputs_standard_tags[];
 }
 
-export interface routine_routine_inputs {
+export interface deepRoutineFields_inputs {
   __typename: "RoutineInputItem";
-  routine: routine_routine_inputs_routine;
-  standard: routine_routine_inputs_standard;
+  routine: deepRoutineFields_inputs_routine;
+  standard: deepRoutineFields_inputs_standard;
 }
 
-export interface routine_routine_outputs_routine_tags {
+export interface deepRoutineFields_outputs_routine_tags {
   __typename: "Tag";
   id: string;
   tag: string;
@@ -71,7 +71,7 @@ export interface routine_routine_outputs_routine_tags {
   created_at: any;
 }
 
-export interface routine_routine_outputs_routine {
+export interface deepRoutineFields_outputs_routine {
   __typename: "Routine";
   id: string;
   version: string | null;
@@ -79,10 +79,10 @@ export interface routine_routine_outputs_routine {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
-  tags: routine_routine_outputs_routine_tags[];
+  tags: deepRoutineFields_outputs_routine_tags[];
 }
 
-export interface routine_routine_outputs_standard_tags {
+export interface deepRoutineFields_outputs_standard_tags {
   __typename: "Tag";
   id: string;
   tag: string;
@@ -90,7 +90,7 @@ export interface routine_routine_outputs_standard_tags {
   created_at: any;
 }
 
-export interface routine_routine_outputs_standard {
+export interface deepRoutineFields_outputs_standard {
   __typename: "Standard";
   id: string;
   name: string;
@@ -100,55 +100,55 @@ export interface routine_routine_outputs_standard {
   default: string | null;
   isFile: boolean;
   created_at: any;
-  tags: routine_routine_outputs_standard_tags[];
+  tags: deepRoutineFields_outputs_standard_tags[];
 }
 
-export interface routine_routine_outputs {
+export interface deepRoutineFields_outputs {
   __typename: "RoutineOutputItem";
-  routine: routine_routine_outputs_routine;
-  standard: routine_routine_outputs_standard;
+  routine: deepRoutineFields_outputs_routine;
+  standard: deepRoutineFields_outputs_standard;
 }
 
-export interface routine_routine_nodes_data_NodeCombine {
+export interface deepRoutineFields_nodes_data_NodeCombine {
   __typename: "NodeCombine";
   id: string;
   from: string[];
   to: string;
 }
 
-export interface routine_routine_nodes_data_NodeDecision_decisions_when {
+export interface deepRoutineFields_nodes_data_NodeDecision_decisions_when {
   __typename: "NodeDecisionItemCase";
   id: string;
   condition: string;
 }
 
-export interface routine_routine_nodes_data_NodeDecision_decisions {
+export interface deepRoutineFields_nodes_data_NodeDecision_decisions {
   __typename: "NodeDecisionItem";
   id: string;
   title: string;
   description: string | null;
   toId: string | null;
-  when: (routine_routine_nodes_data_NodeDecision_decisions_when | null)[];
+  when: (deepRoutineFields_nodes_data_NodeDecision_decisions_when | null)[];
 }
 
-export interface routine_routine_nodes_data_NodeDecision {
+export interface deepRoutineFields_nodes_data_NodeDecision {
   __typename: "NodeDecision";
   id: string;
-  decisions: routine_routine_nodes_data_NodeDecision_decisions[];
+  decisions: deepRoutineFields_nodes_data_NodeDecision_decisions[];
 }
 
-export interface routine_routine_nodes_data_NodeEnd {
+export interface deepRoutineFields_nodes_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
   wasSuccessful: boolean;
 }
 
-export interface routine_routine_nodes_data_NodeLoop {
+export interface deepRoutineFields_nodes_data_NodeLoop {
   __typename: "NodeLoop";
   id: string;
 }
 
-export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tags {
+export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
   id: string;
   tag: string;
@@ -156,7 +156,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tag
   created_at: any;
 }
 
-export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
+export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
   version: string | null;
@@ -164,39 +164,39 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
-  tags: routine_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
+  tags: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_tags[];
 }
 
-export interface routine_routine_nodes_data_NodeRoutineList_routines {
+export interface deepRoutineFields_nodes_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
   title: string;
   description: string | null;
   isOptional: boolean;
-  routine: routine_routine_nodes_data_NodeRoutineList_routines_routine | null;
+  routine: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine | null;
 }
 
-export interface routine_routine_nodes_data_NodeRoutineList {
+export interface deepRoutineFields_nodes_data_NodeRoutineList {
   __typename: "NodeRoutineList";
   id: string;
   isOrdered: boolean;
   isOptional: boolean;
-  routines: routine_routine_nodes_data_NodeRoutineList_routines[];
+  routines: deepRoutineFields_nodes_data_NodeRoutineList_routines[];
 }
 
-export interface routine_routine_nodes_data_NodeRedirect {
+export interface deepRoutineFields_nodes_data_NodeRedirect {
   __typename: "NodeRedirect";
   id: string;
 }
 
-export interface routine_routine_nodes_data_NodeStart {
+export interface deepRoutineFields_nodes_data_NodeStart {
   __typename: "NodeStart";
   id: string;
 }
 
-export type routine_routine_nodes_data = routine_routine_nodes_data_NodeCombine | routine_routine_nodes_data_NodeDecision | routine_routine_nodes_data_NodeEnd | routine_routine_nodes_data_NodeLoop | routine_routine_nodes_data_NodeRoutineList | routine_routine_nodes_data_NodeRedirect | routine_routine_nodes_data_NodeStart;
+export type deepRoutineFields_nodes_data = deepRoutineFields_nodes_data_NodeCombine | deepRoutineFields_nodes_data_NodeDecision | deepRoutineFields_nodes_data_NodeEnd | deepRoutineFields_nodes_data_NodeLoop | deepRoutineFields_nodes_data_NodeRoutineList | deepRoutineFields_nodes_data_NodeRedirect | deepRoutineFields_nodes_data_NodeStart;
 
-export interface routine_routine_nodes {
+export interface deepRoutineFields_nodes {
   __typename: "Node";
   id: string;
   created_at: any;
@@ -205,12 +205,12 @@ export interface routine_routine_nodes {
   title: string;
   description: string | null;
   type: NodeType;
-  data: routine_routine_nodes_data | null;
+  data: deepRoutineFields_nodes_data | null;
   previous: string | null;
   next: string | null;
 }
 
-export interface routine_routine {
+export interface deepRoutineFields {
   __typename: "Routine";
   id: string;
   version: string | null;
@@ -218,17 +218,9 @@ export interface routine_routine {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
-  tags: routine_routine_tags[];
+  tags: deepRoutineFields_tags[];
   instructions: string | null;
-  inputs: routine_routine_inputs[];
-  outputs: routine_routine_outputs[];
-  nodes: routine_routine_nodes[];
-}
-
-export interface routine {
-  routine: routine_routine | null;
-}
-
-export interface routineVariables {
-  input: FindByIdInput;
+  inputs: deepRoutineFields_inputs[];
+  outputs: deepRoutineFields_outputs[];
+  nodes: deepRoutineFields_nodes[];
 }

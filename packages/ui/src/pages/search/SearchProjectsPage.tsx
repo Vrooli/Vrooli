@@ -3,7 +3,6 @@ import { ProjectSortBy } from "@local/shared";
 import { Grid, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { ProjectCard, SearchBar, Selector } from "components";
-import { ProjectSortBy } from "graphql/generated/globalTypes";
 import { projects, projectsVariables } from "graphql/generated/projects";
 import { projectsQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";

@@ -3,7 +3,6 @@ import { RoutineSortBy } from "@local/shared";
 import { Grid, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { RoutineCard, SearchBar, Selector } from "components";
-import { RoutineSortBy } from "graphql/generated/globalTypes";
 import { routines, routinesVariables } from "graphql/generated/routines";
 import { routinesQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";

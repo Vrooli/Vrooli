@@ -3,7 +3,6 @@ import { StandardSortBy } from "@local/shared";
 import { Grid, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { StandardCard, SearchBar, Selector } from "components";
-import { StandardSortBy } from "graphql/generated/globalTypes";
 import { standards, standardsVariables } from "graphql/generated/standards";
 import { standardsQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";

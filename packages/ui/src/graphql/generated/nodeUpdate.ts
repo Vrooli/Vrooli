@@ -9,21 +9,11 @@ import { NodeInput, NodeType } from "./globalTypes";
 // GraphQL mutation operation: nodeUpdate
 // ====================================================
 
-export interface nodeUpdate_nodeUpdate_data_NodeCombine_from {
-  __typename: "NodeCombineFrom";
-  id: string;
-}
-
-export interface nodeUpdate_nodeUpdate_data_NodeCombine_to {
-  __typename: "Node";
-  id: string;
-}
-
 export interface nodeUpdate_nodeUpdate_data_NodeCombine {
   __typename: "NodeCombine";
   id: string;
-  from: nodeUpdate_nodeUpdate_data_NodeCombine_from[];
-  to: nodeUpdate_nodeUpdate_data_NodeCombine_to | null;
+  from: string[];
+  to: string;
 }
 
 export interface nodeUpdate_nodeUpdate_data_NodeDecision_decisions_when {
@@ -36,6 +26,8 @@ export interface nodeUpdate_nodeUpdate_data_NodeDecision_decisions {
   __typename: "NodeDecisionItem";
   id: string;
   title: string;
+  description: string | null;
+  toId: string | null;
   when: (nodeUpdate_nodeUpdate_data_NodeDecision_decisions_when | null)[];
 }
 
@@ -48,6 +40,7 @@ export interface nodeUpdate_nodeUpdate_data_NodeDecision {
 export interface nodeUpdate_nodeUpdate_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
+  wasSuccessful: boolean;
 }
 
 export interface nodeUpdate_nodeUpdate_data_NodeLoop {
@@ -55,9 +48,40 @@ export interface nodeUpdate_nodeUpdate_data_NodeLoop {
   id: string;
 }
 
+export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
+export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine {
+  __typename: "Routine";
+  id: string;
+  version: string | null;
+  title: string | null;
+  description: string | null;
+  created_at: any;
+  isAutomatable: boolean | null;
+  tags: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tags[];
+}
+
+export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines {
+  __typename: "NodeRoutineListItem";
+  id: string;
+  title: string;
+  description: string | null;
+  isOptional: boolean;
+  routine: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine | null;
+}
+
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList {
   __typename: "NodeRoutineList";
   id: string;
+  isOrdered: boolean;
+  isOptional: boolean;
+  routines: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines[];
 }
 
 export interface nodeUpdate_nodeUpdate_data_NodeRedirect {
@@ -72,16 +96,6 @@ export interface nodeUpdate_nodeUpdate_data_NodeStart {
 
 export type nodeUpdate_nodeUpdate_data = nodeUpdate_nodeUpdate_data_NodeCombine | nodeUpdate_nodeUpdate_data_NodeDecision | nodeUpdate_nodeUpdate_data_NodeEnd | nodeUpdate_nodeUpdate_data_NodeLoop | nodeUpdate_nodeUpdate_data_NodeRoutineList | nodeUpdate_nodeUpdate_data_NodeRedirect | nodeUpdate_nodeUpdate_data_NodeStart;
 
-export interface nodeUpdate_nodeUpdate_previous {
-  __typename: "Node";
-  id: string;
-}
-
-export interface nodeUpdate_nodeUpdate_next {
-  __typename: "Node";
-  id: string;
-}
-
 export interface nodeUpdate_nodeUpdate {
   __typename: "Node";
   id: string;
@@ -92,8 +106,8 @@ export interface nodeUpdate_nodeUpdate {
   description: string | null;
   type: NodeType;
   data: nodeUpdate_nodeUpdate_data | null;
-  previous: nodeUpdate_nodeUpdate_previous | null;
-  next: nodeUpdate_nodeUpdate_next | null;
+  previous: string | null;
+  next: string | null;
 }
 
 export interface nodeUpdate {

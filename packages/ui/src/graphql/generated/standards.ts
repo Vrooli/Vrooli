@@ -15,6 +15,14 @@ export interface standards_standards_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface standards_standards_edges_node_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface standards_standards_edges_node {
   __typename: "Standard";
   id: string;
@@ -25,6 +33,7 @@ export interface standards_standards_edges_node {
   default: string | null;
   isFile: boolean;
   created_at: any;
+  tags: standards_standards_edges_node_tags[];
 }
 
 export interface standards_standards_edges {

@@ -1,6 +1,8 @@
 import { gql } from 'graphql-tag';
+import { tagFields } from '.';
 
 export const routineFields = gql`
+    ${tagFields}
     fragment routineFields on Routine {
         id
         version
@@ -8,5 +10,8 @@ export const routineFields = gql`
         description
         created_at
         isAutomatable
+        tags {
+            ...tagFields
+        }
     }
 `

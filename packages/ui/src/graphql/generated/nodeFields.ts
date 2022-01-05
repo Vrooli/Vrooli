@@ -9,21 +9,11 @@ import { NodeType } from "./globalTypes";
 // GraphQL fragment: nodeFields
 // ====================================================
 
-export interface nodeFields_data_NodeCombine_from {
-  __typename: "NodeCombineFrom";
-  id: string;
-}
-
-export interface nodeFields_data_NodeCombine_to {
-  __typename: "Node";
-  id: string;
-}
-
 export interface nodeFields_data_NodeCombine {
   __typename: "NodeCombine";
   id: string;
-  from: nodeFields_data_NodeCombine_from[];
-  to: nodeFields_data_NodeCombine_to | null;
+  from: string[];
+  to: string;
 }
 
 export interface nodeFields_data_NodeDecision_decisions_when {
@@ -36,6 +26,8 @@ export interface nodeFields_data_NodeDecision_decisions {
   __typename: "NodeDecisionItem";
   id: string;
   title: string;
+  description: string | null;
+  toId: string | null;
   when: (nodeFields_data_NodeDecision_decisions_when | null)[];
 }
 
@@ -48,6 +40,7 @@ export interface nodeFields_data_NodeDecision {
 export interface nodeFields_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
+  wasSuccessful: boolean;
 }
 
 export interface nodeFields_data_NodeLoop {
@@ -55,9 +48,40 @@ export interface nodeFields_data_NodeLoop {
   id: string;
 }
 
+export interface nodeFields_data_NodeRoutineList_routines_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
+export interface nodeFields_data_NodeRoutineList_routines_routine {
+  __typename: "Routine";
+  id: string;
+  version: string | null;
+  title: string | null;
+  description: string | null;
+  created_at: any;
+  isAutomatable: boolean | null;
+  tags: nodeFields_data_NodeRoutineList_routines_routine_tags[];
+}
+
+export interface nodeFields_data_NodeRoutineList_routines {
+  __typename: "NodeRoutineListItem";
+  id: string;
+  title: string;
+  description: string | null;
+  isOptional: boolean;
+  routine: nodeFields_data_NodeRoutineList_routines_routine | null;
+}
+
 export interface nodeFields_data_NodeRoutineList {
   __typename: "NodeRoutineList";
   id: string;
+  isOrdered: boolean;
+  isOptional: boolean;
+  routines: nodeFields_data_NodeRoutineList_routines[];
 }
 
 export interface nodeFields_data_NodeRedirect {
@@ -72,16 +96,6 @@ export interface nodeFields_data_NodeStart {
 
 export type nodeFields_data = nodeFields_data_NodeCombine | nodeFields_data_NodeDecision | nodeFields_data_NodeEnd | nodeFields_data_NodeLoop | nodeFields_data_NodeRoutineList | nodeFields_data_NodeRedirect | nodeFields_data_NodeStart;
 
-export interface nodeFields_previous {
-  __typename: "Node";
-  id: string;
-}
-
-export interface nodeFields_next {
-  __typename: "Node";
-  id: string;
-}
-
 export interface nodeFields {
   __typename: "Node";
   id: string;
@@ -92,6 +106,6 @@ export interface nodeFields {
   description: string | null;
   type: NodeType;
   data: nodeFields_data | null;
-  previous: nodeFields_previous | null;
-  next: nodeFields_next | null;
+  previous: string | null;
+  next: string | null;
 }

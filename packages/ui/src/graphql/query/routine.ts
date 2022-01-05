@@ -1,11 +1,11 @@
 import { gql } from 'graphql-tag';
-import { routineFields } from 'graphql/fragment';
+import { deepRoutineFields } from 'graphql/fragment';
 
 export const routineQuery = gql`
-    ${routineFields}
+    ${deepRoutineFields}
     query routine($input: FindByIdInput!) {
         routine(input: $input) {
-            ...routineFields
+            ...deepRoutineFields
         }
     }
 `

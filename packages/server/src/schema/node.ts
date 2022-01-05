@@ -45,8 +45,8 @@ export const typeDef = gql`
         type: NodeType!
         data: NodeData
         routine: Routine!
-        previous: Node
-        next: Node
+        previous: ID
+        next: ID
         To: [Node!]!
         From: [Node!]!
         Previous: [Node!]!
@@ -56,28 +56,14 @@ export const typeDef = gql`
 
     input NodeCombineInput {
         id: ID
-        from: [NodeCombineFromInput!]!
-        to: NodeInput
+        from: [ID!]
+        to: ID
     }
 
     type NodeCombine {
         id: ID!
-        from: [NodeCombineFrom!]!
-        to: Node
-    }
-
-    input NodeCombineFromInput {
-        id: ID
-        combineId: ID
-        fromId: ID
-    }
-
-    type NodeCombineFrom {
-        id: ID!
-        combineId: ID!
-        fromId: ID!
-        combine: NodeCombine
-        from: Node
+        from: [ID!]!
+        to: ID!
     }
 
     input NodeDecisionInput {
@@ -93,12 +79,16 @@ export const typeDef = gql`
     input NodeDecisionItemInput {
         id: ID
         title: String
+        description: String
+        toId: ID
         when: [NodeDecisionItemCaseInput]
     }
 
     type NodeDecisionItem {
         id: ID!
         title: String!
+        description: String
+        toId: ID
         when: [NodeDecisionItemCase]!
     }
 
@@ -114,10 +104,12 @@ export const typeDef = gql`
 
     input NodeEndInput {
         id: ID
+        wasSuccessful: Boolean
     }
 
     type NodeEnd {
         id: ID!
+        wasSuccessful: Boolean!
     }
 
     input NodeLoopInput {
@@ -131,12 +123,14 @@ export const typeDef = gql`
     input NodeRoutineListInput {
         id: ID
         isOrdered: Boolean
+        isOptional: Boolean
         routines: [NodeRoutineListItemInput!]!
     }
 
     type NodeRoutineList {
         id: ID!
         isOrdered: Boolean!
+        isOptional: Boolean!
         routines: [NodeRoutineListItem!]!
     }
 
@@ -154,7 +148,6 @@ export const typeDef = gql`
         title: String!
         description: String
         isOptional: Boolean!
-        list: NodeRoutineList
         routine: Routine
     }
 

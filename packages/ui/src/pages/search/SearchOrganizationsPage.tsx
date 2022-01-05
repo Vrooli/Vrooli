@@ -3,7 +3,6 @@ import { OrganizationSortBy } from "@local/shared";
 import { Grid, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { OrganizationCard, SearchBar, Selector } from "components";
-import { OrganizationSortBy } from "graphql/generated/globalTypes";
 import { organizations, organizationsVariables } from "graphql/generated/organizations";
 import { organizationsQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";

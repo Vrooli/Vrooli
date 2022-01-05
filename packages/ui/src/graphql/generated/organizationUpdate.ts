@@ -9,12 +9,21 @@ import { OrganizationInput } from "./globalTypes";
 // GraphQL mutation operation: organizationUpdate
 // ====================================================
 
+export interface organizationUpdate_organizationUpdate_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface organizationUpdate_organizationUpdate {
   __typename: "Organization";
   id: string;
   name: string;
   description: string | null;
   created_at: any;
+  tags: organizationUpdate_organizationUpdate_tags[];
 }
 
 export interface organizationUpdate {

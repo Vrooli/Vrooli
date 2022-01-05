@@ -15,6 +15,14 @@ export interface routines_routines_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface routines_routines_edges_node_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface routines_routines_edges_node {
   __typename: "Routine";
   id: string;
@@ -23,6 +31,7 @@ export interface routines_routines_edges_node {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  tags: routines_routines_edges_node_tags[];
 }
 
 export interface routines_routines_edges {

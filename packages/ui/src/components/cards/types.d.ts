@@ -2,7 +2,7 @@ import {
     Organization,
     Project,
     Resource,
-    Routine,
+    RoutineShallow,
     Standard,
     User 
 } from 'types';
@@ -27,7 +27,7 @@ export interface ResourceCardProps {
 }
 
 export interface RoutineCardProps {
-    data: Routine;
+    data: RoutineShallow;
     onClick?: (name: string) => void;
 }
 

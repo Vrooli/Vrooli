@@ -432,8 +432,8 @@ export type Node = {
   data?: Maybe<NodeData>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  next?: Maybe<Node>;
-  previous?: Maybe<Node>;
+  next?: Maybe<Scalars['ID']>;
+  previous?: Maybe<Scalars['ID']>;
   routine: Routine;
   routineId: Scalars['ID'];
   title: Scalars['String'];
@@ -443,30 +443,15 @@ export type Node = {
 
 export type NodeCombine = {
   __typename?: 'NodeCombine';
-  from: Array<NodeCombineFrom>;
+  from: Array<Scalars['ID']>;
   id: Scalars['ID'];
-  to?: Maybe<Node>;
-};
-
-export type NodeCombineFrom = {
-  __typename?: 'NodeCombineFrom';
-  combine?: Maybe<NodeCombine>;
-  combineId: Scalars['ID'];
-  from?: Maybe<Node>;
-  fromId: Scalars['ID'];
-  id: Scalars['ID'];
-};
-
-export type NodeCombineFromInput = {
-  combineId?: InputMaybe<Scalars['ID']>;
-  fromId?: InputMaybe<Scalars['ID']>;
-  id?: InputMaybe<Scalars['ID']>;
+  to: Scalars['ID'];
 };
 
 export type NodeCombineInput = {
-  from: Array<NodeCombineFromInput>;
+  from?: InputMaybe<Array<Scalars['ID']>>;
   id?: InputMaybe<Scalars['ID']>;
-  to?: InputMaybe<NodeInput>;
+  to?: InputMaybe<Scalars['ID']>;
 };
 
 export type NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRedirect | NodeRoutineList | NodeStart;
@@ -484,8 +469,10 @@ export type NodeDecisionInput = {
 
 export type NodeDecisionItem = {
   __typename?: 'NodeDecisionItem';
+  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   title: Scalars['String'];
+  toId?: Maybe<Scalars['ID']>;
   when: Array<Maybe<NodeDecisionItemCase>>;
 };
 
@@ -501,18 +488,22 @@ export type NodeDecisionItemCaseInput = {
 };
 
 export type NodeDecisionItemInput = {
+  description?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
   title?: InputMaybe<Scalars['String']>;
+  toId?: InputMaybe<Scalars['ID']>;
   when?: InputMaybe<Array<InputMaybe<NodeDecisionItemCaseInput>>>;
 };
 
 export type NodeEnd = {
   __typename?: 'NodeEnd';
   id: Scalars['ID'];
+  wasSuccessful: Scalars['Boolean'];
 };
 
 export type NodeEndInput = {
   id?: InputMaybe<Scalars['ID']>;
+  wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type NodeInput = {
@@ -551,12 +542,14 @@ export type NodeRedirectInput = {
 export type NodeRoutineList = {
   __typename?: 'NodeRoutineList';
   id: Scalars['ID'];
+  isOptional: Scalars['Boolean'];
   isOrdered: Scalars['Boolean'];
   routines: Array<NodeRoutineListItem>;
 };
 
 export type NodeRoutineListInput = {
   id?: InputMaybe<Scalars['ID']>;
+  isOptional?: InputMaybe<Scalars['Boolean']>;
   isOrdered?: InputMaybe<Scalars['Boolean']>;
   routines: Array<NodeRoutineListItemInput>;
 };
@@ -566,7 +559,6 @@ export type NodeRoutineListItem = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isOptional: Scalars['Boolean'];
-  list?: Maybe<NodeRoutineList>;
   routine?: Maybe<Routine>;
   title: Scalars['String'];
 };

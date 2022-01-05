@@ -54,113 +54,106 @@ export type TagVoteType = ValueOf<typeof TagVoteType>;
 /* #region Sort Options */
 //==============================================================
 
-export const OrganizationSortBy = {
-    AlphabeticalAsc: 'AlphabeticalAsc',
-    AlphabeticalDesc: 'AlphabeticalDesc',
-    CommentsAsc: 'CommentsAsc',
-    CommentsDesc: 'CommentsDesc',
-    DateCreatedAsc: 'DateCreatedAsc',
-    DateCreatedDesc: 'DateCreatedDesc',
-    DateUpdatedAsc: 'DateUpdatedAsc',
-    DateUpdatedDesc: 'DateUpdatedDesc',
-    StarsAsc: 'StarsAsc',
-    StarsDesc: 'StarsDesc',
-    VotesAsc: 'VotesAsc',
-    VotesDesc: 'VotesDesc',
+export enum OrganizationSortBy {
+    AlphabeticalAsc = 'AlphabeticalAsc',
+    AlphabeticalDesc = 'AlphabeticalDesc',
+    CommentsAsc = 'CommentsAsc',
+    CommentsDesc = 'CommentsDesc',
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc = 'DateUpdatedDesc',
+    StarsAsc = 'StarsAsc',
+    StarsDesc = 'StarsDesc',
+    VotesAsc = 'VotesAsc',
+    VotesDesc = 'VotesDesc',
 }
-export type OrganizationSortBy = ValueOf<typeof OrganizationSortBy>;
 
-export const ProjectSortBy = {
-    AlphabeticalAsc: 'AlphabeticalAsc',
-    AlphabeticalDesc: 'AlphabeticalDesc',
-    CommentsAsc: 'CommentsAsc',
-    CommentsDesc: 'CommentsDesc',
-    ForksAsc: 'ForksAsc',
-    ForksDesc: 'ForksDesc',
-    DateCreatedAsc: 'DateCreatedAsc',
-    DateCreatedDesc: 'DateCreatedDesc',
-    DateUpdatedAsc: 'DateUpdatedAsc',
-    DateUpdatedDesc: 'DateUpdatedDesc',
-    StarsAsc: 'StarsAsc',
-    StarsDesc: 'StarsDesc',
-    VotesAsc: 'VotesAsc',
-    VotesDesc: 'VotesDesc',
+export enum ProjectSortBy {
+    AlphabeticalAsc = 'AlphabeticalAsc',
+    AlphabeticalDesc = 'AlphabeticalDesc',
+    CommentsAsc = 'CommentsAsc',
+    CommentsDesc = 'CommentsDesc',
+    ForksAsc = 'ForksAsc',
+    ForksDesc = 'ForksDesc',
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc = 'DateUpdatedDesc',
+    StarsAsc = 'StarsAsc',
+    StarsDesc = 'StarsDesc',
+    VotesAsc = 'VotesAsc',
+    VotesDesc = 'VotesDesc',
 }
-export type ProjectSortBy = ValueOf<typeof ProjectSortBy>;
 
-export const ResourceSortBy = {
-    AlphabeticalAsc: 'AlphabeticalAsc',
-    AlphabeticalDesc: 'AlphabeticalDesc',
-    CommentsAsc: 'CommentsAsc',
-    CommentsDesc: 'CommentsDesc',
-    DateCreatedAsc: 'DateCreatedAsc',
-    DateCreatedDesc: 'DateCreatedDesc',
-    DateUpdatedAsc: 'DateUpdatedAsc',
-    DateUpdatedDesc: 'DateUpdatedDesc',
-    StarsAsc: 'StarsAsc',
-    StarsDesc: 'StarsDesc',
+export enum ResourceSortBy{
+    AlphabeticalAsc = 'AlphabeticalAsc',
+    AlphabeticalDesc = 'AlphabeticalDesc',
+    CommentsAsc = 'CommentsAsc',
+    CommentsDesc = 'CommentsDesc',
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc = 'DateUpdatedDesc',
+    StarsAsc = 'StarsAsc',
+    StarsDesc = 'StarsDesc',
 }
-export type ResourceSortBy = ValueOf<typeof ResourceSortBy>;
 
-export const RoutineSortBy = {
-    AlphabeticalAsc: 'AlphabeticalAsc',
-    AlphabeticalDesc: 'AlphabeticalDesc',
-    CommentsAsc: 'CommentsAsc',
-    CommentsDesc: 'CommentsDesc',
-    ForksAsc: 'ForksAsc',
-    ForksDesc: 'ForksDesc',
-    DateCreatedAsc: 'DateCreatedAsc',
-    DateCreatedDesc: 'DateCreatedDesc',
-    DateUpdatedAsc: 'DateUpdatedAsc',
-    DateUpdatedDesc: 'DateUpdatedDesc',
-    StarsAsc: 'StarsAsc',
-    StarsDesc: 'StarsDesc',
-    VotesAsc: 'VotesAsc',
-    VotesDesc: 'VotesDesc',
+export enum RoutineSortBy {
+    AlphabeticalAsc = 'AlphabeticalAsc',
+    AlphabeticalDesc = 'AlphabeticalDesc',
+    CommentsAsc = 'CommentsAsc',
+    CommentsDesc = 'CommentsDesc',
+    ForksAsc = 'ForksAsc',
+    ForksDesc = 'ForksDesc',
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc = 'DateUpdatedDesc',
+    StarsAsc = 'StarsAsc',
+    StarsDesc = 'StarsDesc',
+    VotesAsc = 'VotesAsc',
+    VotesDesc = 'VotesDesc',
 }
-export type RoutineSortBy = ValueOf<typeof RoutineSortBy>;
 
-export const StandardSortBy = {
-    AlphabeticalAsc: 'AlphabeticalAsc',
-    AlphabeticalDesc: 'AlphabeticalDesc',
-    CommentsAsc: 'CommentsAsc',
-    CommentsDesc: 'CommentsDesc',
-    DateCreatedAsc: 'DateCreatedAsc',
-    DateCreatedDesc: 'DateCreatedDesc',
-    DateUpdatedAsc: 'DateUpdatedAsc',
-    DateUpdatedDesc: 'DateUpdatedDesc',
-    StarsAsc: 'StarsAsc',
-    StarsDesc: 'StarsDesc',
-    VotesAsc: 'VotesAsc',
-    VotesDesc: 'VotesDesc',
+export enum StandardSortBy {
+    AlphabeticalAsc = 'AlphabeticalAsc',
+    AlphabeticalDesc = 'AlphabeticalDesc',
+    CommentsAsc = 'CommentsAsc',
+    CommentsDesc = 'CommentsDesc',
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc = 'DateUpdatedDesc',
+    StarsAsc = 'StarsAsc',
+    StarsDesc = 'StarsDesc',
+    VotesAsc = 'VotesAsc',
+    VotesDesc = 'VotesDesc',
 }
-export type StandardSortBy = ValueOf<typeof StandardSortBy>;
 
-export const TagSortBy = {
-    AlphabeticalAsc: 'AlphabeticalAsc',
-    AlphabeticalDesc: 'AlphabeticalDesc',
-    DateCreatedAsc: 'DateCreatedAsc',
-    DateCreatedDesc: 'DateCreatedDesc',
-    DateUpdatedAsc: 'DateUpdatedAsc',
-    DateUpdatedDesc: 'DateUpdatedDesc',
-    StarsAsc: 'StarsAsc',
-    StarsDesc: 'StarsDesc',
+export enum TagSortBy { 
+    AlphabeticalAsc = 'AlphabeticalAsc',
+    AlphabeticalDesc = 'AlphabeticalDesc',
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc = 'DateUpdatedDesc',
+    StarsAsc = 'StarsAsc',
+    StarsDesc = 'StarsDesc',
 }
-export type TagSortBy = ValueOf<typeof TagSortBy>;
 
-export const UserSortBy = {
-    AlphabeticalAsc: 'AlphabeticalAsc',
-    AlphabeticalDesc: 'AlphabeticalDesc',
-    CommentsAsc: 'CommentsAsc',
-    CommentsDesc: 'CommentsDesc',
-    DateCreatedAsc: 'DateCreatedAsc',
-    DateCreatedDesc: 'DateCreatedDesc',
-    DateUpdatedAsc: 'DateUpdatedAsc',
-    DateUpdatedDesc: 'DateUpdatedDesc',
-    StarsAsc: 'StarsAsc',
-    StarsDesc: 'StarsDesc',
-}
-export type UserSortBy = ValueOf<typeof UserSortBy>;
+export enum UserSortBy {
+    AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
+    CommentsAsc = "CommentsAsc",
+    CommentsDesc = "CommentsDesc",
+    DateCreatedAsc = "DateCreatedAsc",
+    DateCreatedDesc = "DateCreatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+    StarsAsc = "StarsAsc",
+    StarsDesc = "StarsDesc",
+  }
 
 //==============================================================
 /* #endregion Sort Options */
@@ -169,52 +162,66 @@ export type UserSortBy = ValueOf<typeof UserSortBy>;
 //==============================================================
 /* #region Node Data */
 //==============================================================
-export type COMBINE_NODE_DATA = null // TODO: define combine data
-
-export type DECISION_NODE_DATA = {
-    title: string,
-    description: string | null,
-    decisions: Array<{
-        id: string,
-        title: string,
-        next: string,
-        when: Array<any> //TODO: define
-    }>
+export type CombineNodeData = {
+    from: string[],
+    to: string[],
 }
 
-export type END_NODE_DATA = {
+export type DecisionNodeDataDecision = {
+    id: string,
     title: string,
     description: string | null,
+    toId: string,
+    when: {
+        id: string,
+        condition: string,
+    }
+}
+
+export type DecisionNodeData = {
+    decisions: DecisionNodeDataDecision[]
+}
+
+export type EndNodeData = {
     wasSuccessful: boolean,
 }
 
-export type LOOP_NODE_DATA = null; //TODO: define loop data
+//TODO: define loop data
+export type LoopNodeData = {}
 
-export type ROUTINE_LIST_NODE_DATA = {
-    title: string,
-    description: string | null,
+export type RoutineListNodeData = {
     isOrdered: boolean,
     isOptional: boolean,
-    routines: Array<ROUTINE_LIST_NODE_ITEM_DATA>
+    routines: RoutineListNodeItemData[]
 };
 
-export type ROUTINE_LIST_NODE_ITEM_DATA = {
+export type RoutineListNodeItemData = {
     id: string,
-    title: string,
-    description: string | null,
     isOptional: boolean,
+    title: string | null,
+    description: string | null,
+    routine: {
+        id: string,
+        title: string,
+        description: string | null,
+        isAutomatable: boolean,
+    }
 }
 
-export type REDIRECT_NODE_DATA = null; // Supposed to be null
+export type RedirectNodeData = {}
 
-export type START_NODE_DATA = null; // Supposed to be null
+export type StartNodeData = {}
 
-export type NODE_DATA = {
+export type NodeDataData = CombineNodeData | DecisionNodeData | EndNodeData | LoopNodeData | RoutineListNodeData | RedirectNodeData | StartNodeData;
+
+export type NodeData = {
     id: string,
     type: NodeType,
+    title: string | null,
+    description: string | null,
     previous: string | null,
     next: string | null,
-    data: COMBINE_NODE_DATA | DECISION_NODE_DATA | END_NODE_DATA | LOOP_NODE_DATA | ROUTINE_LIST_NODE_DATA | REDIRECT_NODE_DATA | START_NODE_DATA,
+    data: NodeDataData | null,
 }
 //==============================================================
 /* #endregion Node Data */
@@ -244,8 +251,8 @@ export const ROLES = {
 }
 export type ROLES = ValueOf<typeof ROLES>;
 
-export type ORCHESTRATION_DATA = {
+export type OrchestrationData = {
     title: string,
     description?: string,
-    nodes: Array<NODE_DATA>,
+    nodes: NodeData[],
 }

@@ -3,6 +3,7 @@ import { organization_organization } from 'graphql/generated/organization';
 import { project_project } from 'graphql/generated/project';
 import { resource_resource } from 'graphql/generated/resource';
 import { routine_routine } from 'graphql/generated/routine';
+import { routines_routines_edges_node } from 'graphql/generated/routines';
 import { standard_standard } from 'graphql/generated/standard';
 import { tag_tag } from 'graphql/generated/tag';
 import { user_user } from 'graphql/generated/user';
@@ -31,7 +32,8 @@ export type Organization = organization_organization;
 export type Project = project_project;
 export type Report = any; //TODO
 export type Resource = resource_resource;
-export type Routine = routine_routine;
+export type RoutineDeep = routine_routine;
+export type RoutineShallow = routines_routines_edges_node;
 export type Standard = standard_standard;
 export type Tag = tag_tag;
 export type User = user_user;

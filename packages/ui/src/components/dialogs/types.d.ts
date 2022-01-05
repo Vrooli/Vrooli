@@ -14,7 +14,7 @@ export interface ListDialogItemData {
 }
 export interface ListDialogProps extends DialogProps {
     open?: boolean;
-    onSelect: (value: string) => void;
+    onSelect: (value: any) => void;
     onClose: () => void;
     title?: string;
     data?: ListDialogItemData[];

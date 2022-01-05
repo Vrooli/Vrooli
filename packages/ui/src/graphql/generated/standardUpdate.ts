@@ -9,6 +9,14 @@ import { StandardInput, StandardType } from "./globalTypes";
 // GraphQL mutation operation: standardUpdate
 // ====================================================
 
+export interface standardUpdate_standardUpdate_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface standardUpdate_standardUpdate {
   __typename: "Standard";
   id: string;
@@ -19,6 +27,7 @@ export interface standardUpdate_standardUpdate {
   default: string | null;
   isFile: boolean;
   created_at: any;
+  tags: standardUpdate_standardUpdate_tags[];
 }
 
 export interface standardUpdate {

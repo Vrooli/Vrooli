@@ -7,6 +7,14 @@
 // GraphQL fragment: routineFields
 // ====================================================
 
+export interface routineFields_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface routineFields {
   __typename: "Routine";
   id: string;
@@ -15,4 +23,5 @@ export interface routineFields {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  tags: routineFields_tags[];
 }

@@ -15,12 +15,21 @@ export interface projects_projects_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface projects_projects_edges_node_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface projects_projects_edges_node {
   __typename: "Project";
   id: string;
   name: string;
   description: string | null;
   created_at: any;
+  tags: projects_projects_edges_node_tags[];
 }
 
 export interface projects_projects_edges {

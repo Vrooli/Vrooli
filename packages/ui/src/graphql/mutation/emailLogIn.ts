@@ -4,8 +4,8 @@ import { sessionFields } from 'graphql/fragment';
 export const emailLogInMutation = gql`
     ${sessionFields}
     mutation emailLogIn($input: EmailLogInInput!) {
-    emailLogIn(input: $input) {
-        ...sessionFields
+        emailLogIn(input: $input) {
+            ...sessionFields
+        }
     }
-}
 `

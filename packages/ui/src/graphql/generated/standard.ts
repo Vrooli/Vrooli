@@ -9,6 +9,14 @@ import { FindByIdInput, StandardType } from "./globalTypes";
 // GraphQL query operation: standard
 // ====================================================
 
+export interface standard_standard_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
 export interface standard_standard {
   __typename: "Standard";
   id: string;
@@ -19,6 +27,7 @@ export interface standard_standard {
   default: string | null;
   isFile: boolean;
   created_at: any;
+  tags: standard_standard_tags[];
 }
 
 export interface standard {
