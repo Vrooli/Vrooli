@@ -167,13 +167,14 @@ model node_decision {
 
 // A specific decision in a decision node
 model node_decision_item {
-  id         String                    @id @default(uuid()) @db.Uuid
-  title      String                    @db.VarChar(128)
-  decisionId String                    @db.Uuid
-  toId       String?                   @db.Uuid
-  decision   node_decision             @relation(fields: [decisionId], references: [id], onDelete: Cascade)
-  when       node_decision_item_case[]
-  to         node?                     @relation(fields: [toId], references: [id], onDelete: SetNull)
+  id          String                    @id @default(uuid()) @db.Uuid
+  title       String                    @db.VarChar(128)
+  description String?                   @db.VarChar(128)
+  decisionId  String                    @db.Uuid
+  toId        String?                   @db.Uuid
+  decision    node_decision             @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  when        node_decision_item_case[]
+  to          node?                     @relation(fields: [toId], references: [id], onDelete: SetNull)
 }
 
 // A condition which must be true for a decision item to be available
@@ -181,13 +182,14 @@ model node_decision_item_case {
   id        String             @id @default(uuid()) @db.Uuid
   condition String             @db.VarChar(1024) // TODO make this a JSON object
   itemId    String             @db.Uuid
-  decision  node_decision_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item      node_decision_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 }
 
-// Data for end nodes (in addition to fields defined by node table) TODO complete
+// Data for end nodes (in addition to fields defined by node table)
 model node_end {
-  id   String @id @default(uuid()) @db.Uuid
-  node node[]
+  id            String  @id @default(uuid()) @db.Uuid
+  wasSuccessful Boolean @default(true)
+  node          node[]
 }
 
 // Data for loop nodes (in addition to fields defined by node table) TODO complete
@@ -198,10 +200,11 @@ model node_loop {
 
 // Data for routine list nodes (in addition to fields defined by node table) TODO complete
 model node_routine_list {
-  id        String                   @id @default(uuid()) @db.Uuid
-  isOrdered Boolean                  @default(false)
-  routines  node_routine_list_item[]
-  node      node[]
+  id         String                   @id @default(uuid()) @db.Uuid
+  isOrdered  Boolean                  @default(false)
+  isOptional Boolean                  @default(false)
+  routines   node_routine_list_item[]
+  node       node[]
 }
 
 // Many-to-many relationship between routine lists and routines

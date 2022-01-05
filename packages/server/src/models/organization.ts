@@ -92,14 +92,12 @@ export function OrganizationModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<OrganizationCountInput>(model, prisma),
-        ...creater<OrganizationInput, OrganizationFullModel>(model, prisma),
+        ...creater<OrganizationInput, Organization, OrganizationFullModel>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<OrganizationFullModel>(model, prisma),
-        ...formatter(),
+        ...findByIder<Organization, OrganizationFullModel>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationFullModel>(model, format.toGraphQL, sort, prisma),
-        ...sorter(),
-        ...updater<OrganizationInput, OrganizationFullModel>(model, prisma),
+        ...searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...updater<OrganizationInput, Organization, OrganizationFullModel>(model, format.toDB, prisma),
     }
 }
 

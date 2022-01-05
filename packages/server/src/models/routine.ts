@@ -53,7 +53,13 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
         nodeLists: 'list',
     };
     return {
-        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<any> => addJoinTables(obj, joinMapper),
+        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<any> => {
+            // Format join table relationships
+            obj = addJoinTables(obj, joinMapper)
+            // TODO
+            console.log('yeeeeeee', obj)
+            return obj
+        },
         toGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Routine> => removeJoinTables(obj, joinMapper)
     }
 }
@@ -65,8 +71,8 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
     defaultSort: RoutineSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [RoutineSortBy.AlphabeticalAsc]: { name: 'asc' },
-            [RoutineSortBy.AlphabeticalDesc]: { name: 'desc' },
+            [RoutineSortBy.AlphabeticalAsc]: { title: 'asc' },
+            [RoutineSortBy.AlphabeticalDesc]: { title: 'desc' },
             [RoutineSortBy.CommentsAsc]: { comments: { count: 'asc' } },
             [RoutineSortBy.CommentsDesc]: { comments: { count: 'desc' } },
             [RoutineSortBy.ForksAsc]: { forks: { count: 'asc' } },
@@ -113,11 +119,11 @@ export function RoutineModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<RoutineCountInput>(model, prisma),
-        ...creater<RoutineInput, RoutineFullModel>(model, prisma),
+        ...creater<RoutineInput, Routine, RoutineFullModel>(model, format.toDB, prisma),
         ...deleter(model, prisma),
         ...reporter(),
-        ...searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineFullModel>(model, format.toGraphQL, sort, prisma),
-        ...updater<RoutineInput, RoutineFullModel>(model, prisma),
+        ...searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...updater<RoutineInput, Routine, RoutineFullModel>(model, format.toDB, prisma),
     }
 }
 

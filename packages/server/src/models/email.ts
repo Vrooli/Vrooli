@@ -45,14 +45,15 @@ Pick<Email, 'user'>;
 
 export function EmailModel(prisma?: PrismaType) {
     const model = MODEL_TYPES.Email;
+    const format = formatter();
     
     return {
         prisma,
         model,
-        ...findByIder<EmailFullModel>(model, prisma),
-        ...formatter(),
-        ...creater<EmailInput, EmailFullModel>(model, prisma),
-        ...updater<EmailInput, EmailFullModel>(model, prisma),
+        ...format,
+        ...findByIder<Email, EmailFullModel>(model, format.toDB, prisma),
+        ...creater<EmailInput, Email, EmailFullModel>(model, format.toDB, prisma),
+        ...updater<EmailInput, Email, EmailFullModel>(model, format.toDB, prisma),
         ...deleter(model, prisma)
     }
 }

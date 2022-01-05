@@ -1,5 +1,5 @@
 import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, Email } from "../schema/types";
-import { addJoinTables, counter, deleter, findByIder, JoinMap, MODEL_TYPES, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
+import { addJoinTables, counter, deleter, findByIder, FormatConverter, JoinMap, MODEL_TYPES, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
 import { onlyPrimitives } from "../utils/objectTools";
 import { CustomError } from "../error";
 import { AccountStatus, CODE } from '@local/shared';
@@ -373,7 +373,7 @@ const findByEmailer = (prisma?: PrismaType) => ({
  * @param state 
  * @returns 
  */
-const upserter = (prisma?: PrismaType) => ({
+const upserter = (toDB: FormatConverter<User, UserFullModel>['toDB'], prisma?: PrismaType) => ({
     async upsertUser(data: any, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<UserFullModel> | null> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
@@ -417,7 +417,7 @@ const upserter = (prisma?: PrismaType) => ({
             })
         }
         // Create selector
-        const select = selectHelper(info);
+        const select = selectHelper<User, UserFullModel>(info, toDB);
         // Query database
         return await prisma.user.findUnique({ where: { id: user.id }, ...select }) as RecursivePartial<UserFullModel> | null;
     }
@@ -475,11 +475,11 @@ export function UserModel(prisma?: PrismaType) {
         ...counter<UserCountInput>(model, prisma),
         ...deleter(model, prisma),
         ...findByEmailer(prisma),
-        ...findByIder<UserFullModel>(model, prisma),
+        ...findByIder<User, UserFullModel>(model, format.toDBUser, prisma),
         ...porter(prisma),
         ...reporter(),
-        ...searcher<UserSortBy, UserSearchInput, User, UserFullModel>(model, format.toGraphQLUser, sort, prisma),
-        ...upserter(prisma),
+        ...searcher<UserSortBy, UserSearchInput, User, UserFullModel>(model, format.toDBUser, format.toGraphQLUser, sort, prisma),
+        ...upserter(format.toDBUser, prisma),
         ...validater(prisma),
     }
 }

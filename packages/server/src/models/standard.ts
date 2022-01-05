@@ -91,12 +91,12 @@ export function StandardModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<StandardCountInput>(model, prisma),
-        ...creater<StandardInput, StandardFullModel>(model, prisma),
+        ...creater<StandardInput, Standard, StandardFullModel>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<StandardFullModel>(model, prisma),
+        ...findByIder<Standard, StandardFullModel>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<StandardSortBy, StandardSearchInput, Standard, StandardFullModel>(model, format.toGraphQL, sort, prisma),
-        ...updater<StandardInput, StandardFullModel>(model, prisma),
+        ...searcher<StandardSortBy, StandardSearchInput, Standard, StandardFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...updater<StandardInput, Standard, StandardFullModel>(model, format.toDB, prisma),
     }
 }
 

@@ -135,17 +135,18 @@ const voter = (prisma?: PrismaType) => ({
 
 export function CommentModel(prisma?: PrismaType) {
     const model = MODEL_TYPES.Comment;
+    const format = formatter();
 
     return {
         prisma,
         model,
+        ...format,
         ...auther(prisma),
-        ...creater<CommentInput, CommentFullModel>(model, prisma),
+        ...creater<CommentInput, Comment, CommentFullModel>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<CommentFullModel>(model, prisma),
-        ...formatter(),
+        ...findByIder<Comment, CommentFullModel>(model, format.toDB, prisma),
         ...reporter(),
-        ...updater<CommentInput, CommentFullModel>(model, prisma),
+        ...updater<CommentInput, Comment, CommentFullModel>(model, format.toDB, prisma),
         ...voter(prisma),
     }
 }

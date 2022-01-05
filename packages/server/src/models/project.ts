@@ -96,14 +96,12 @@ export function ProjectModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<ProjectCountInput>(model, prisma),
-        ...creater<ProjectInput, ProjectFullModel>(model, prisma),
+        ...creater<ProjectInput, Project, ProjectFullModel>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<ProjectFullModel>(model, prisma),
-        ...formatter(),
+        ...findByIder<Project, ProjectFullModel>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectFullModel>(model, format.toGraphQL, sort, prisma),
-        ...sorter(),
-        ...updater<ProjectInput, ProjectFullModel>(model, prisma),
+        ...searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...updater<ProjectInput, Project, ProjectFullModel>(model, format.toDB, prisma),
     }
 }
 

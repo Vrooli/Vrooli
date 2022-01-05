@@ -5,7 +5,8 @@ import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, InputM
 import { CustomError } from '../error';
 import { PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
-import { GraphQLResolveInfo } from 'graphql';
+import { GraphQLObjectType, GraphQLResolveInfo } from 'graphql';
+import graphqlFields from 'graphql-fields';
 
 
 //======================================================================================================================
@@ -142,16 +143,49 @@ export const removeJoinTables = (obj: any, map: JoinMap): any => {
 }
 
 /**
- * Helper function for creating a Prisma select object
+ * Converts the {} values of a graphqlFields object to true
+ */
+const formatGraphQLFields = (fields: { [x: string]: any }): { [x: string]: any } => {
+    let converted: { [x: string]: any } = {};
+    Object.keys(fields).forEach((key) => {
+        if (Object.keys(fields[key]).length === 0) converted[key] = true;
+        else converted[key] = formatGraphQLFields(fields[key]);
+    });
+    return converted;
+}
+
+/**
+ * Adds "select" to the correct of an object to make it a Prisma select
+ */
+const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
+    let converted: { [x: string]: any } = {};
+    Object.keys(fields).forEach((key) => {
+        if (Object.keys(fields[key]).length > 0) converted[key] = padSelect(fields[key]);
+        else converted[key] = true;
+    });
+    return { select: converted };
+}
+
+/**
+ * Helper function for creating a Prisma select object. 
+ * If the select object is in the shape of a paginated search query, 
+ * then it will be converted to a prisma select object.
  * @returns select object for Prisma operations
  */
-export const selectHelper = (info: InfoType): any => {
+export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB']): any => {
     // Return undefined if info not set
     if (!info) return undefined;
-    // If info contains the "select" field, then it is already formatted correctly
-    if (Object.hasOwnProperty.call(info, 'select')) return info;
-    // Otherwise, use PrismaSelect to format the select object
-    return new PrismaSelect(info as GraphQLResolveInfo).value;
+    // Find select fields in info object
+    let select = info.hasOwnProperty('select') ?
+        (info as { select: any }).select : 
+        formatGraphQLFields(graphqlFields(info as GraphQLResolveInfo, {}, {}));
+    // If fields are in the shape of a paginated search query, then convert to a Prisma select object
+    if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
+        select = select.edges.node;
+    }
+    // Convert select from graphQL to database
+    select = toDB(select);
+    return padSelect(select);
 }
 
 /**
@@ -159,13 +193,13 @@ export const selectHelper = (info: InfoType): any => {
  * @param state 
  * @returns 
  */
-export const findByIder = <FullDBModel>(model: keyof PrismaType, prisma?: PrismaType) => ({
+export const findByIder = <GraphQLModel, FullDBModel>(model: keyof PrismaType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], prisma?: PrismaType) => ({
     async findById(input: FindByIdInput, info: InfoType): Promise<RecursivePartial<FullDBModel> | null> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         if (!input.id) throw new CustomError(CODE.InvalidArgs);
         // Create selector
-        const select = selectHelper(info);
+        const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
         // Access database
         return await (prisma[model] as BaseType).findUnique({ where: { id: input.id }, ...select }) as unknown as Partial<FullDBModel> | null;
     }
@@ -177,12 +211,12 @@ export const findByIder = <FullDBModel>(model: keyof PrismaType, prisma?: Prisma
  * @param state 
  * @returns 
  */
-export const creater = <ModelInput, FullDBModel>(model: keyof PrismaType, prisma?: PrismaType) => ({
+export const creater = <ModelInput, GraphQLModel, FullDBModel>(model: keyof PrismaType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], prisma?: PrismaType) => ({
     async create(input: ModelInput, info: InfoType): Promise<RecursivePartial<FullDBModel>> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector
-        const select = selectHelper(info);
+        const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
         // Access database
         return await (prisma[model] as BaseType).create({ data: { ...input }, ...select }) as unknown as RecursivePartial<FullDBModel>;
     }
@@ -193,13 +227,16 @@ export const creater = <ModelInput, FullDBModel>(model: keyof PrismaType, prisma
  * @param state 
  * @returns 
  */
-export const updater = <ModelInput extends UpdateInterface, FullDBModel>(model: keyof PrismaType, prisma?: PrismaType) => ({
+export const updater = <ModelInput extends UpdateInterface, GraphQLModel, FullDBModel>(
+    model: keyof PrismaType, 
+    toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], 
+    prisma?: PrismaType) => ({
     async update(input: ModelInput, info: InfoType): Promise<RecursivePartial<FullDBModel>> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         if (!input.id) throw new CustomError(CODE.InvalidArgs);
         // Create selector
-        const select = selectHelper(info);
+        const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
         // Access database
         return await (prisma[model] as BaseType).update({ where: { id: input.id }, data: { ...input }, ...select }) as unknown as RecursivePartial<FullDBModel>;
     }
@@ -248,7 +285,12 @@ export const reporter = () => ({
  * @param state 
  * @returns 
  */
-export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, GraphQLModel, FullDBModel>(model: keyof PrismaType, toGraphQL: (obj: RecursivePartial<FullDBModel>) => RecursivePartial<GraphQLModel>, sorter: Sortable<any>, prisma?: PrismaType) => ({
+export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, GraphQLModel, FullDBModel>(
+    model: keyof PrismaType, 
+    toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'],
+    toGraphQL: FormatConverter<GraphQLModel, FullDBModel>['toGraphQL'],
+    sorter: Sortable<any>, 
+    prisma?: PrismaType) => ({
     /**
      * Cursor-based search. Supports pagination, sorting, and filtering by string.
      * @param where Additional where clauses to apply to the search
@@ -257,10 +299,12 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
      * @returns 
      */
     async search(where: { [x: string]: any }, input: SearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+        const boop = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
+        console.log('SEARCH BOIII', boop)
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector
-        const select = selectHelper(info);
+        const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
         // Create query for specified ids
         const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
         // Determine sort order

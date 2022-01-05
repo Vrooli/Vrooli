@@ -49,11 +49,13 @@ export type RoleFullModel = RoleAllPrimitives &
 
 export function RoleModel(prisma?: PrismaType) {
     const model = MODEL_TYPES.Role;
+    const format = formatter();
 
     return {
         prisma,
         model,
-        ...findByIder<RoleFullModel>(model, prisma),
+        ...format,
+        ...findByIder<Role, RoleFullModel>(model, format.toDB, prisma),
         ...formatter(),
     }
 }

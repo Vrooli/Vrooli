@@ -49,7 +49,7 @@ export type NodeFullModel = NodeAllPrimitives &
  */
 const formatter = (): FormatConverter<Node, NodeFullModel> => ({
     toDB: (obj: RecursivePartial<Node>): RecursivePartial<NodeFullModel> => ({ ...obj }), //TODO
-    toGraphQL: (obj: RecursivePartial<NodeFullModel>): RecursivePartial<Node> => ({ ...obj }) //TODO
+    toGraphQL: (obj: RecursivePartial<NodeFullModel>): RecursivePartial<Node> => ({ ...obj }) //TODO must at least convert previous and next to ids
 })
 
 /**
@@ -134,14 +134,15 @@ const creater = (prisma?: PrismaType) => ({
 
 export function NodeModel(prisma?: PrismaType) {
     const model = MODEL_TYPES.Node;
+    const format = formatter();
 
     return {
         prisma,
         model,
-        ...findByIder<NodeFullModel>(model, prisma),
-        ...formatter(),
+        ...format,
+        ...findByIder<Node, NodeFullModel>(model, format.toDB, prisma),
         ...creater(prisma),
-        ...updater<NodeInput, NodeFullModel>(model, prisma),
+        ...updater<NodeInput, Node, NodeFullModel>(model, format.toDB, prisma),
         ...deleter(model, prisma)
     }
 }

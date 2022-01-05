@@ -164,9 +164,9 @@ export function ResourceModel(prisma?: PrismaType) {
         ...counter<ResourceCountInput>(model, prisma),
         ...creater(prisma),
         ...deleter(model, prisma),
-        ...findByIder<ResourceFullModel>(model, prisma),
+        ...findByIder<Resource, ResourceFullModel>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceFullModel>(model, format.toGraphQL, sort, prisma),
+        ...searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
         ...updater(prisma),
     }
 }

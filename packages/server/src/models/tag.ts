@@ -97,12 +97,12 @@ export function TagModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<TagCountInput>(model, prisma),
-        ...creater<TagInput, TagFullModel>(model, prisma),
+        ...creater<TagInput, Tag, TagFullModel>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<TagFullModel>(model, prisma),
+        ...findByIder<Tag, TagFullModel>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<TagSortBy, TagSearchInput, Tag, TagFullModel>(model, format.toGraphQL, sort, prisma),
-        ...updater<TagInput, TagFullModel>(model, prisma),
+        ...searcher<TagSortBy, TagSearchInput, Tag, TagFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...updater<TagInput, Tag, TagFullModel>(model, format.toDB, prisma),
     }
 }
 
