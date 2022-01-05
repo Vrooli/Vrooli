@@ -8,7 +8,7 @@ import { addJoinTables, counter, creater, deleter, FormatConverter, MODEL_TYPES,
 
 // Type 1. RelationshipList
 export type RoutineRelationshipList = 'inputs' | 'outputs' | 'nodes' | 'contextualResources' |
-    'externalResources' | 'donationResources' | 'tags' | 'users' | 'organizations' | 'starredBy' | 
+    'externalResources' | 'tags' | 'users' | 'organizations' | 'starredBy' | 
     'parent' | 'forks' | 'nodeLists' | 'reports' | 'comments';
 // Type 2. QueryablePrimitives
 export type RoutineQueryablePrimitives = Omit<Routine, RoutineRelationshipList>;
@@ -20,7 +20,6 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
 {
     contextualResources: { resource: Resource[] }[],
     externalResources: { resource: Resource[] }[],
-    donationResources: { resource: Resource[] }[],
     tags: { tag: Tag[] }[],
     users: { user: User[] }[],
     organizations: { organization: Organization[] }[],
@@ -44,7 +43,6 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
     const joinMapper = {
         contextualResources: 'resource',
         externalResources: 'resource',
-        donationResources: 'resource',
         tags: 'tag',
         users: 'user',
         organizations: 'organization',
@@ -53,13 +51,7 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
         nodeLists: 'list',
     };
     return {
-        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<any> => {
-            // Format join table relationships
-            obj = addJoinTables(obj, joinMapper)
-            // TODO
-            console.log('yeeeeeee', obj)
-            return obj
-        },
+        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<any> => addJoinTables(obj, joinMapper),
         toGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Routine> => removeJoinTables(obj, joinMapper)
     }
 }

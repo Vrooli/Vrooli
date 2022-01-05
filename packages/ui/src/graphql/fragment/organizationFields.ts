@@ -1,8 +1,11 @@
 import { gql } from 'graphql-tag';
-import { tagFields } from '.';
 
 export const organizationFields = gql`
-    ${tagFields}
+    fragment tagFields on Tag {
+        id
+        description
+        tag
+    }
     fragment organizationFields on Organization {
         id
         name

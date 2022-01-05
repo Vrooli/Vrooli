@@ -38,6 +38,7 @@ export const typeDef = gql`
         description: String
         comments: [Comment!]!
         resources: [Resource!]!
+        donationResources: [Resource!]!
         projects: [Project!]!
         wallets: [Wallet!]!
         starredBy: [User!]!

@@ -87,8 +87,6 @@ If you'd like to work with me on this project, or create your own proposal for a
             * [forms](./packages/ui/src/forms) - User input forms
             * [graphql](./packages/ui/src/graphql)
                 * [fragment](./packages/ui/src/graphql/fragment) - Fragments for reducing duplication of query and mutation return selections
-                    * [^(?!deep).+.*Fields.ts](./packages/ui/src/graphql/fragment) - Surface-level information of objects (e.g. id, name, description, etc.)
-                    * [deep.*Fields.ts](./packages/ui/src/graphql/fragment) - Full information of objects
                 * [generated](./packages/ui/src/graphql/generated) - Code automatically generated from `yarn graphql-generate` script
                 * [mutation](./packages/ui/src/graphql/mutation) - GraphQL mutations
                 * [query](./packages/ui/src/graphql/query) - GraphQL queries

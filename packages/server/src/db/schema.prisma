@@ -242,19 +242,20 @@ model node_start {
 //==============================================================
 // DAO information
 model organization {
-  id          String                   @id @default(uuid()) @db.Uuid
-  name        String                   @db.VarChar(128)
-  description String                   @db.VarChar(1024)
-  created_at  DateTime                 @default(now()) @db.Timestamptz(6)
-  updated_at  DateTime                 @default(now()) @db.Timestamptz(6)
-  comments    comment[]
-  resources   organization_resources[]
-  wallets     wallet[]
-  projects    project_organizations[]
-  starredBy   organization_stars[]
-  routines    routine_organizations[]
-  tags        organization_tags[] // Categorical tags set by creators or community-voted
-  reports     report[]
+  id                String                            @id @default(uuid()) @db.Uuid
+  name              String                            @db.VarChar(128)
+  description       String                            @db.VarChar(1024)
+  created_at        DateTime                          @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime                          @default(now()) @db.Timestamptz(6)
+  comments          comment[]
+  resources         organization_resources[]
+  donationResources organization_resources_donation[] // Resources for donation links
+  wallets           wallet[]
+  projects          project_organizations[]
+  starredBy         organization_stars[]
+  routines          routine_organizations[]
+  tags              organization_tags[] // Categorical tags set by creators or community-voted
+  reports           report[]
 }
 
 // Many-to-many relationship between organizations and resources
@@ -266,6 +267,17 @@ model organization_resources {
   resource     resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([forId, resourceId], name: "organization_resources_forid_resourceid_unique")
+}
+
+// Many-to-many relationship between organizations and donation resources
+model organization_resources_donation {
+  id           String       @id @default(uuid()) @db.Uuid
+  forId        String       @db.Uuid
+  resourceId   String       @db.Uuid
+  organization organization @relation(fields: [forId], references: [id], onDelete: Cascade)
+  resource     resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([forId, resourceId], name: "organization_resources_donation_forid_resourceid_unique")
 }
 
 // Many to many relationship between organizations and users who starred them
@@ -424,22 +436,23 @@ model report {
 //==============================================================
 
 model resource {
-  id                           String                         @id @default(uuid()) @db.Uuid
-  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
-  updated_at                   DateTime                       @default(now()) @db.Timestamptz(6)
-  title                        String                         @db.VarChar(128)
-  description                  String                         @db.VarChar(1024)
-  link                         String                         @db.VarChar(256) // URL or Vrooli ID (e.g. vrooli:org:12345, vrooli:rou:54321)
-  displayUrl                   String                         @db.VarChar(256) // URL for display image. Taken from OpenGraph data if not
-  organization_resources       organization_resources[]
-  project_resources            project_resources[]
-  routine_resources_contextual routine_resources_contextual[]
-  routine_resources_external   routine_resources_external[]
-  routine_resources_donation   routine_resources_donation[]
-  user_resources               user_resources[]
-  starredBy                    resource_stars[] // Users who starred the resource
-  reports                      report[]
-  comments                     comment[]
+  id                              String                            @id @default(uuid()) @db.Uuid
+  created_at                      DateTime                          @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime                          @default(now()) @db.Timestamptz(6)
+  title                           String                            @db.VarChar(128)
+  description                     String                            @db.VarChar(1024)
+  link                            String                            @db.VarChar(256) // URL or Vrooli ID (e.g. vrooli:org:12345, vrooli:rou:54321)
+  displayUrl                      String                            @db.VarChar(256) // URL for display image. Taken from OpenGraph data if not
+  organization_resources          organization_resources[]
+  organization_resources_donation organization_resources_donation[]
+  project_resources               project_resources[]
+  routine_resources_contextual    routine_resources_contextual[]
+  routine_resources_external      routine_resources_external[]
+  user_resources                  user_resources[]
+  user_resources_donation         user_resources_donation[]
+  starredBy                       resource_stars[] // Users who starred the resource
+  reports                         report[]
+  comments                        comment[]
 }
 
 // Many to many relationship between resources and users who starred them
@@ -496,7 +509,6 @@ model routine {
   nodes               node[] // Defines an orchestration (i.e. routine is made up of subroutines)
   contextualResources routine_resources_contextual[] // Resources to provide context to the routine
   externalResources   routine_resources_external[] // Resources for completing steps outside of Vrooli
-  donationResources   routine_resources_donation[] // Resources for donation links
   tags                routine_tags[] // Categorical tags set by creators or community-voted
   users               routine_users[] // Users who can edit main routine
   organizations       routine_organizations[] // Organizations who can edit main routine
@@ -540,17 +552,6 @@ model routine_resources_contextual {
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([forId, resourceId], name: "routine_resources_contextual_forid_resourceid_unique")
-}
-
-// Many-to-many relationship between routines and donation resources
-model routine_resources_donation {
-  id         String   @id @default(uuid()) @db.Uuid
-  forId      String   @db.Uuid
-  resourceId String   @db.Uuid
-  routine    routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
-  resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-  @@unique([forId, resourceId], name: "routine_resources_donation_forid_resourceid_unique")
 }
 
 // Many-to-many relationship between routines and external resources
@@ -729,28 +730,29 @@ model tag_votes {
 
 // A user of the system
 model user {
-  id                             String               @id @default(uuid()) @db.Uuid
-  username                       String?              @unique @db.VarChar(128)
-  bio                            String?              @db.VarChar(2048)
-  theme                          String               @default("light") @db.VarChar(255)
-  password                       String?              @db.VarChar(256)
-  logInAttempts                  Int                  @default(0)
-  lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6)
-  numExports                     Int                  @default(0)
-  lastExport                     DateTime?            @db.Timestamptz(6)
-  sessionToken                   String?              @db.VarChar(1024)
-  confirmationCode               String?              @unique @db.VarChar(256)
-  confirmationCodeDate           DateTime?            @db.Timestamptz(6)
-  resetPasswordCode              String?              @unique @db.VarChar(256)
-  lastResetPasswordReqestAttempt DateTime?            @db.Timestamptz(6)
-  status                         AccountStatus        @default(Unlocked)
-  created_at                     DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at                     DateTime             @default(now()) @db.Timestamptz(6)
+  id                             String                    @id @default(uuid()) @db.Uuid
+  username                       String?                   @unique @db.VarChar(128)
+  bio                            String?                   @db.VarChar(2048)
+  theme                          String                    @default("light") @db.VarChar(255)
+  password                       String?                   @db.VarChar(256)
+  logInAttempts                  Int                       @default(0)
+  lastLoginAttempt               DateTime                  @default(now()) @db.Timestamptz(6)
+  numExports                     Int                       @default(0)
+  lastExport                     DateTime?                 @db.Timestamptz(6)
+  sessionToken                   String?                   @db.VarChar(1024)
+  confirmationCode               String?                   @unique @db.VarChar(256)
+  confirmationCodeDate           DateTime?                 @db.Timestamptz(6)
+  resetPasswordCode              String?                   @unique @db.VarChar(256)
+  lastResetPasswordReqestAttempt DateTime?                 @db.Timestamptz(6)
+  status                         AccountStatus             @default(Unlocked)
+  created_at                     DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime                  @default(now()) @db.Timestamptz(6)
   comments                       comment[]
   roles                          user_roles[]
   emails                         email[]
   wallets                        wallet[]
   resources                      user_resources[] // Resources associated with user profile
+  donationResources              user_resources_donation[] // Resources for donation links
   projects                       project_users[] // Projects the user can control
   routines                       routine_users[] // Routines the user can control
   starredComments                comment_stars[]
@@ -760,9 +762,9 @@ model user {
   starredRoutines                routine_stars[]
   starredStandards               standard_stars[]
   starredTags                    tag_stars[]
-  starredUsers                   user_stars[]         @relation("user_star_starred")
-  starredBy                      user_stars[]         @relation("user_star_user")
-  sentReports                    report[]             @relation("report_from")
+  starredUsers                   user_stars[]              @relation("user_star_starred")
+  starredBy                      user_stars[]              @relation("user_star_user")
+  sentReports                    report[]                  @relation("report_from")
   reports                        report[]
   votedComments                  comment_votes[]
   votedByTag                     tag_votes[] // Votes for signifying that a object's tag is useful
@@ -777,6 +779,17 @@ model user_resources {
   resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@unique([forId, resourceId], name: "user_resources_forid_resourceid_unique")
+}
+
+// Many-to-many relationship between users and donation resources
+model user_resources_donation {
+  id         String   @id @default(uuid()) @db.Uuid
+  forId      String   @db.Uuid
+  resourceId String   @db.Uuid
+  user       user     @relation(fields: [forId], references: [id], onDelete: Cascade)
+  resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([forId, resourceId], name: "user_resources_donation_forid_resourceid_unique")
 }
 
 // Joining table to apply roles to user

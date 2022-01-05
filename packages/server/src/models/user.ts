@@ -23,7 +23,7 @@ const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
 
 // Type 1. RelationshipList
 export type UserRelationshipList = 'comments' | 'roles' | 'emails' | 'wallets' | 'resources' |
-    'projects' | 'starredBy' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
+    'donationResources' | 'projects' | 'starredBy' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
     'starredResources' | 'starredRoutines' | 'starredStandards' | 'starredTags' | 'starredUsers' |
     'sentReports' | 'reports' | 'votedComments' | 'votedByTag';
 // Type 2. QueryablePrimitives
@@ -47,6 +47,7 @@ export type UserFullModel = UserAllPrimitives &
 {
     roles: { role: Role[] }[],
     resources: { resource: Resource[] }[],
+    donationResources: { resource: Resource[] }[],
     projects: { project: Project[] }[],
     starredComments: { starred: Comment[] }[],
     starredProjects: { starred: Project[] }[],
@@ -85,6 +86,7 @@ export type UserFormatConverter = {
  */
 const formatter = (): UserFormatConverter => {
     const joinMapper = {
+        donationResources: 'resource',
         roles: 'role',
         resources: 'resource',
         projects: 'project',

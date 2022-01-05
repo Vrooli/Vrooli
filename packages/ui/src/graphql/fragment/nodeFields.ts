@@ -1,16 +1,31 @@
 import { gql } from 'graphql-tag';
-import { routineFields } from '.';
 
 export const nodeFields = gql`
-    ${routineFields}
+    fragment tagFields on Tag {
+        id
+        description
+        tag
+    }
+    fragment routineFields on Routine {
+        id
+        version
+        title
+        description
+        created_at
+        isAutomatable
+        tags {
+            ...tagFields
+        }
+    }
     fragment nodeFields on Node {
         id
         created_at
-        updated_at
-        routineId
-        title
         description
+        next
+        previous
+        title
         type
+        updated_at
         data {
             ... on NodeCombine {
                 id
@@ -21,8 +36,8 @@ export const nodeFields = gql`
                 id
                 decisions {
                     id
-                    title
                     description
+                    title
                     toId
                     when {
                         id
@@ -39,16 +54,10 @@ export const nodeFields = gql`
             }
             ... on NodeRoutineList {
                 id
-                isOrdered
                 isOptional
+                isOrdered
                 routines {
-                    id
-                    title
-                    description
-                    isOptional
-                    routine {
-                        ...routineFields
-                    }
+                    ...routineFields
                 }
             }
             ... on NodeRedirect {
@@ -58,7 +67,5 @@ export const nodeFields = gql`
                 id
             }
         }
-        previous
-        next
     }
 `

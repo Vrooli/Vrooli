@@ -44,6 +44,7 @@ export const typeDef = gql`
         emails: [Email!]!
         wallets: [Wallet!]!
         resources: [Resource!]!
+        donationResources: [Resource!]!
         projects: [Project!]!
         starredComments: [Comment!]!
         starredProjects: [Project!]!

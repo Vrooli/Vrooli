@@ -1,6 +1,6 @@
-import { PrismaType } from "../types";
+import { PrismaType, RecursivePartial } from "../types";
 import { Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
-import { counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
+import { addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -8,7 +8,7 @@ import { counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, re
 
 // Type 1. RelationshipList
 export type OrganizationRelationshipList = 'comments' | 'resources' | 'wallets' | 'projects' | 'starredBy' |
-    'routines' | 'tags' | 'reports';
+    'routines' | 'tags' | 'reports' | 'donationResources';
 // Type 2. QueryablePrimitives
 export type OrganizationQueryablePrimitives = Omit<Organization, OrganizationRelationshipList>;
 // Type 3. AllPrimitives
@@ -18,6 +18,7 @@ export type OrganizationFullModel = OrganizationAllPrimitives &
     Pick<Organization, 'comments' | 'wallets' | 'reports'> &
 {
     resources: { resource: Resource[] }[],
+    donationResources: { resource: Resource[] }[],
     projects: { project: Project[] }[],
     starredBy: { user: User[] }[],
     routines: { routine: Routine[] }[],
@@ -35,10 +36,20 @@ export type OrganizationFullModel = OrganizationAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<any, any> => ({
-    toDB: (obj: any): any => ({ ...obj }),
-    toGraphQL: (obj: any): any => ({ ...obj })
-})
+ const formatter = (): FormatConverter<Organization, OrganizationFullModel> => {
+    const joinMapper = {
+        donationResources: 'resource',
+        resources: 'resource',
+        projects: 'project',
+        starredBy: 'user',
+        routines: 'routine',
+        tags: 'tag',
+    };
+    return {
+        toDB: (obj: RecursivePartial<Organization>): RecursivePartial<OrganizationFullModel> => addJoinTables(obj, joinMapper),
+        toGraphQL: (obj: RecursivePartial<OrganizationFullModel>): RecursivePartial<Organization> => removeJoinTables(obj, joinMapper)
+    }
+}
 
 /**
  * Component for search filters

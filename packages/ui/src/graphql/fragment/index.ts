@@ -1,3 +1,4 @@
+// NOTE: Nested fragments are not supported, so there is duplicate code
 export * from './commentFields';
 export * from './deepRoutineFields';
 export * from './emailFields';
