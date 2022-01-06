@@ -2,13 +2,14 @@ import { makeStyles } from '@mui/styles';
 import { Stack, Theme } from '@mui/material';
 import { CombineNodeData, DecisionNodeData, DecisionNodeDataDecision, NodeData, NodeType } from '@local/shared';
 import { NodeGraphColumn } from 'components';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PUBS } from 'utils';
 import { NodeGraphProps } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
         border: '1px solid purple',
+        cursor: 'move',
         minWidth: '100%',
         minHeight: '100%',
         overflowX: 'scroll',
@@ -36,6 +37,36 @@ export const NodeGraph = ({
     nodes,
 }: NodeGraphProps) => {
     const classes = useStyles();
+
+    // Set event listeners for click-and-drag functionality
+    useEffect(() => {
+        // Mouse drag state
+        let touched = false;
+        let lastPosition: { x: number, y: number } = { x: 0, y: 0 };
+        const onMouseDown = (ev: MouseEvent) => {
+            touched = true;
+            lastPosition = { x: ev.clientX, y: ev.clientY };
+        }
+        const onMouseUp = (ev: MouseEvent) => {
+            touched = false;
+        }
+        const onMouseMove = (ev: MouseEvent) => {
+            if (touched) {
+                const deltaX = ev.clientX - lastPosition.x;
+                const deltaY = ev.clientY - lastPosition.y;
+                document.getElementById('graph-stack')?.scrollBy(-deltaX, -deltaY);
+                lastPosition = { x: ev.clientX, y: ev.clientY };
+            }
+        }
+        window.addEventListener('mousedown', onMouseDown);
+        window.addEventListener('mouseup', onMouseUp);
+        window.addEventListener('mousemove', onMouseMove);
+        return () => {
+            window.removeEventListener('mousedown', onMouseDown);
+            window.removeEventListener('mouseup', onMouseUp);
+            window.removeEventListener('mousemove', onMouseMove);
+        }
+    }, [])
 
     // Dictionary of node data and their columns
     const nodeDataMap: { [id: string]: NodePos } = useMemo(() => {
@@ -141,7 +172,7 @@ export const NodeGraph = ({
     }, [isEditable, labelVisible, nodeDataMap, scale]);
 
     return (
-        <Stack spacing={0} direction="row" className={classes.root}>
+        <Stack id="graph-stack" spacing={0} direction="row" className={classes.root}>
             {columns}
         </Stack>
     )
