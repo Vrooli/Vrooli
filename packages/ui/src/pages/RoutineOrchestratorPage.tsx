@@ -1,7 +1,7 @@
 import { makeStyles } from '@mui/styles';
 import { Button, Grid, Slider, Stack, Theme, Typography } from '@mui/material';
 import { CombineNodeData, DecisionNodeData, DecisionNodeDataDecision, NodeData, NodeType, OrchestrationData } from '@local/shared';
-import { NodeGraph, NodeGraphColumn } from 'components';
+import { NodeGraphContainer, NodeGraphColumn } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
@@ -387,7 +387,7 @@ export const RoutineOrchestratorPage = () => {
         <div className={classes.root}>
             <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
             <div className={classes.graphContainer}>
-                <NodeGraph
+                <NodeGraphContainer
                     scale={scale}
                     isEditable={true}
                     labelVisible={true}
