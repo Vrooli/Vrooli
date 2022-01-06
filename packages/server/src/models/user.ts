@@ -151,7 +151,7 @@ const validater = (prisma?: PrismaType) => ({
         return {
             id: user.id ?? '',
             theme: user.theme ?? 'light',
-            roles: user.roles ? user.roles.map(r => r?.role as RecursivePartial<Role>) : []
+            roles: user.roles ? user.roles.map(r => (r?.role as RecursivePartial<Role>)?.title ?? undefined) : []
         }
     },
     /**

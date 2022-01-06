@@ -4,9 +4,6 @@ export const sessionFields = gql`
     fragment sessionFields on Session {
         id
         theme
-        roles {
-            title
-            description
-        }
+        roles
     }
 `

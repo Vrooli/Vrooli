@@ -25,8 +25,8 @@ export interface nodeAdd_nodeAdd_data_NodeDecision_decisions_when {
 export interface nodeAdd_nodeAdd_data_NodeDecision_decisions {
   __typename: "NodeDecisionItem";
   id: string;
-  title: string;
   description: string | null;
+  title: string;
   toId: string | null;
   when: (nodeAdd_nodeAdd_data_NodeDecision_decisions_when | null)[];
 }
@@ -48,39 +48,15 @@ export interface nodeAdd_nodeAdd_data_NodeLoop {
   id: string;
 }
 
-export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  description: string | null;
-  created_at: any;
-}
-
-export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine {
-  __typename: "Routine";
-  id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
-  created_at: any;
-  isAutomatable: boolean | null;
-  tags: nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine_tags[];
-}
-
 export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
-  id: string;
-  title: string;
-  description: string | null;
-  isOptional: boolean;
-  routine: nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine | null;
 }
 
 export interface nodeAdd_nodeAdd_data_NodeRoutineList {
   __typename: "NodeRoutineList";
   id: string;
-  isOrdered: boolean;
   isOptional: boolean;
+  isOrdered: boolean;
   routines: nodeAdd_nodeAdd_data_NodeRoutineList_routines[];
 }
 
@@ -100,14 +76,13 @@ export interface nodeAdd_nodeAdd {
   __typename: "Node";
   id: string;
   created_at: any;
-  updated_at: any;
-  routineId: string;
-  title: string;
   description: string | null;
-  type: NodeType;
-  data: nodeAdd_nodeAdd_data | null;
-  previous: string | null;
   next: string | null;
+  previous: string | null;
+  title: string;
+  type: NodeType;
+  updated_at: any;
+  data: nodeAdd_nodeAdd_data | null;
 }
 
 export interface nodeAdd {

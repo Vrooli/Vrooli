@@ -94,8 +94,8 @@ export const RoutineSubnode = ({
     const [collapseOpen, setCollapseOpen] = useState(false);
     const toggleCollapse = () => setCollapseOpen(curr => !curr);
 
-    const nodeSize = useMemo(() => `${250 * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${250 * scale / 5}px, 2em)`, [scale]);
+    const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
+    const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography className={classes.headerLabel} variant="h6">{label}</Typography>
@@ -126,7 +126,7 @@ export const RoutineSubnode = ({
     ), [classes.checkboxLabel, classes.listOptions, classes.routineOptionCheckbox, collapseOpen, data?.isOptional, data?.title, isEditable]);
 
     return (
-        <div className={classes.root} style={{ width: nodeSize, maxHeight: nodeSize, fontSize: fontSize }}>
+        <div className={classes.root} style={{ minWidth: nodeSize, fontSize: fontSize }}>
             <Container className={classes.header} onClick={toggleCollapse}>
                 {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                 {labelObject}

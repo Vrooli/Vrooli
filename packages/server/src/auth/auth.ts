@@ -43,7 +43,7 @@ interface BasicToken {
 }
 interface SessionToken extends BasicToken {
     userId?: string;
-    roles: RecursivePartial<RoleQueryablePrimitives>[];
+    roles: string[];
     isLoggedIn: boolean;
 }
 
@@ -68,8 +68,8 @@ export async function generateSessionToken(res: Response, session: RecursivePart
     const tokenContents: SessionToken = {
         ...basicToken(),
         userId: session.id || undefined,
-        roles: session.roles as RoleQueryablePrimitives[] || [],
-        isLoggedIn: Array.isArray(session.roles) ? session.roles.some(r => r?.title === ROLES.Actor) : false,
+        roles: (session.roles as string[]) ?? [],
+        isLoggedIn: Array.isArray(session.roles) ? session.roles.includes(ROLES.Actor) : false,
     }
     if (!process.env.JWT_SECRET) {
         console.error('❗️ JWT_SECRET not set! Please check .env file');

@@ -9,17 +9,11 @@ import { EmailResetPasswordInput } from "./globalTypes";
 // GraphQL mutation operation: emailResetPassword
 // ====================================================
 
-export interface emailResetPassword_emailResetPassword_roles {
-  __typename: "Role";
-  title: string;
-  description: string | null;
-}
-
 export interface emailResetPassword_emailResetPassword {
   __typename: "Session";
   id: string | null;
   theme: string;
-  roles: emailResetPassword_emailResetPassword_roles[];
+  roles: string[];
 }
 
 export interface emailResetPassword {

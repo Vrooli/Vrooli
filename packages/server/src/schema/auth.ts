@@ -8,7 +8,7 @@ import { CustomError, validateArgs } from '../error';
 import { generateNonce, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionToken } from '../auth/auth.js';
 import { IWrap, RecursivePartial } from '../types';
-import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, User, WalletInitInput, Session, Role, Success } from './types';
+import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
 import { UserModel } from '../models';
@@ -59,7 +59,7 @@ export const typeDef = gql`
 
     type Session {
         id: ID
-        roles: [Role!]!
+        roles: [String!]!
         theme: String!
     }
 
@@ -155,15 +155,15 @@ export const resolvers = {
             // Find user in database
             let user = await UserModel(prisma).findById(
                 { id: input.id },
-                { select: {
+                {
                     id: true,
                     status: true,
                     theme: true,
                     resetPasswordCode: true,
                     lastResetPasswordReqestAttempt: true,
-                    emails: { select: { emailAddress: true } },
-                    roles: { select: { role: { select: { title: true } } } } 
-                }}
+                    emails: { emailAddress: true },
+                    roles: { title: true } 
+                }
             );
             if (!user) throw new CustomError(CODE.ErrorUnknown);
             // // If code is invalid TODO fix this
@@ -188,7 +188,7 @@ export const resolvers = {
         guestLogIn: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Create session
             const session: RecursivePartial<Session> = {
-                roles: [{ title: ROLES.Guest }],
+                roles: [ROLES.Guest],
                 theme: 'light',
             }
             // Set up session token
@@ -205,9 +205,18 @@ export const resolvers = {
                 res.clearCookie(COOKIE.Session);
                 throw new CustomError(CODE.SessionExpired);
             }
+            console.log('VALIDATE SESSIon', req.roles)
+            // If guest, return default session
+            if (req.roles.includes(ROLES.Guest)) {
+                return {
+                    roles: [ROLES.Guest],
+                    theme: 'light',
+                }
+            }
+            // Otherwise, check if session can be verified from userId
             const userData = await UserModel(prisma).findById(
                 { id: req.userId ?? '' },
-                { select: { id: true, status: true, theme: true, roles: { select: { role: { select: { title: true } } } } } }
+                { id: true, status: true, theme: true, roles: { title: true } }
             );
             if (userData) return UserModel().toSession(userData);
             // If user data failed to fetch, clear session and return error
@@ -303,7 +312,7 @@ export const resolvers = {
             // Create session token
             const session = {
                 id: walletData.userId,
-                roles: [{ title: ROLES.Actor }],
+                roles: [ROLES.Actor],
                 theme: walletData.user?.theme ?? 'light',
             }
             // Add session token to return payload

@@ -1,5 +1,5 @@
 import { makeStyles } from '@mui/styles';
-import { Theme, Typography } from '@mui/material';
+import { Stack, Theme, Typography } from '@mui/material';
 import { CombineNodeData, DecisionNodeData, DecisionNodeDataDecision, NodeData, NodeType, OrchestrationData } from '@local/shared';
 import { NodeColumn } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -169,7 +169,7 @@ const data: OrchestrationData = {
         {
             id: '6',
             type: NodeType.End,
-            title: 'asdfas',
+            title: 'Wasnt worth pursuing',
             description: 'afda',
             previous: '4',
             next: null,
@@ -183,7 +183,7 @@ const data: OrchestrationData = {
             type: NodeType.Decision,
             title: 'Try again?',
             description: null,
-            previous: '4',
+            previous: '5',
             next: null,
             data: {
                 decisions: [
@@ -220,22 +220,44 @@ const data: OrchestrationData = {
         {
             id: '9',
             type: NodeType.End,
-            title: 'asdf',
+            title: 'The good end',
             description: 'asdf',
             previous: '7',
             next: null,
             data: {
-                wasSuccessful: false,
+                wasSuccessful: true,
             }
         },
     ]
 }
 
 const useStyles = makeStyles((theme: Theme) => ({
-    root: {},
+    root: {
+        minWidth: '100%',
+        minHeight: '100%',
+        paddingTop: '10vh'
+    },
     title: {
         textAlign: 'center',
     },
+    // Horizontal scrolling container
+    graphContainer: {
+        height: '75vh',
+        border: '1px solid red',
+        // display: 'flex',
+        // flexDirection: 'row',
+        // flexWrap: 'nowrap',
+        // justifyContent: 'flex-start',
+        // alignItems: 'center',
+        // alignContent: 'center',
+    },
+    graphStack: {
+        border: '1px solid purple',
+        minWidth: '100%',
+        minHeight: '100%',
+        overflowX: 'scroll',
+        overflowY: 'scroll',
+    }
 }));
 
 /**
@@ -303,14 +325,16 @@ export const RoutineOrchestratorPage = () => {
     }, [routineData, routineUpdate, title])
 
     // Unorganized graph data
-    const nodeDataRaw = useMemo<NodeData[]>(() => routineData?.routine?.nodes ?? [], [routineData]);
+    const nodeDataRaw = data.nodes;//useMemo<NodeData[]>(() => routineData?.routine?.nodes ?? [], [routineData]);
     // Dictionary of node data and their columns
     const nodeDataMap: { [id: string]: NodePos } = useMemo(() => {
         // Position map for calculating node positions
         let posMap: { [id: string]: NodePos } = {};
         let startNodeId: string | null = null;
+        console.log('node data map', nodeDataRaw);
         // First pass of raw node data, to locate start node and populate position map
         for (let i = 0; i < nodeDataRaw.length; i++) {
+            console.log('raw data', nodeDataRaw[i]);
             const currId = nodeDataRaw[i].id;
             // If start node, must be in first column
             if (nodeDataRaw[i].type === NodeType.Start) {
@@ -319,7 +343,7 @@ export const RoutineOrchestratorPage = () => {
                     column: 0,
                     node: nodeDataRaw[i],
                 }
-            } 
+            }
             // Otherwise, node's column is currently unknown
             else {
                 posMap[currId] = {
@@ -337,25 +361,32 @@ export const RoutineOrchestratorPage = () => {
         const addNode = (nodeId: string) => {
             // Find node data
             const curr: NodePos = posMap[nodeId];
-            // If node not found or column already calculated, skip
-            if (!curr || curr.column !== -1) return;
-            // Calculate node's column. This is the same for all node types EXCEPT for combine nodes
+            console.log('addNode', nodeId, curr);
+            // If node not found or column already calculated (exception being the start node at column 0), skip
+            if (!curr || curr.column > 0) return;
+            console.log('a')
+            // Calculate node's column (unless it is the start node). This is the same for all node types EXCEPT for combine nodes
             if (curr.node.type === NodeType.Combine) {
+                console.log('b.1')
                 const previousNodes = (curr.node.data as CombineNodeData | null)?.from ?? [];
                 const farthestPreviousNode = Math.max(...previousNodes.map(prev => posMap[prev].column));
                 posMap[nodeId].column = farthestPreviousNode === -1 ? -1 : farthestPreviousNode + 1;
             }
-            else {
+            else if (curr.node.type !== NodeType.Start) {
+                console.log('b.2')
                 const prevNode = posMap[curr.node.previous ?? ''];
+                console.log('prevNode', prevNode);
                 if (!prevNode) return;
                 posMap[nodeId].column = prevNode.column === -1 ? -1 : prevNode.column + 1;
+                console.log('calculated column', posMap[nodeId].column);
             }
             // Call addNode on each next node. Thiss is the same for all node types EXCEPT for decision nodes
             if (curr.node.type === NodeType.Decision) {
+                console.log('in decision logic', curr?.node?.data)
                 const decisions: DecisionNodeDataDecision[] | undefined = (curr.node.data as DecisionNodeData | undefined)?.decisions;
                 if (!decisions) return;
                 for (let i = 0; i < decisions.length; i++) {
-                    addNode(decisions[i].toId);
+                    addNode(decisions[i].next);
                 }
             }
             else {
@@ -369,6 +400,7 @@ export const RoutineOrchestratorPage = () => {
 
     // Node column objects
     const columns = useMemo(() => {
+        console.log('calculating columns', nodeDataMap);
         // 2D node data array, ordered by column. 
         // Each column is ordered in a consistent way, so that the nodes in a column are always in the same order
         let list: NodeData[][] = [];
@@ -386,8 +418,8 @@ export const RoutineOrchestratorPage = () => {
         // Sort each column
         // TODO
         // return column objects
-        return list.map((columnData, index) => <NodeColumn 
-            key={`node-column-${index}`} 
+        return list.map((columnData, index) => <NodeColumn
+            key={`node-column-${index}`}
             columnNumber={index}
             nodes={columnData}
             isEditable={true}
@@ -397,10 +429,13 @@ export const RoutineOrchestratorPage = () => {
     }, [nodeDataMap, scale]);
 
     return (
-        <div id="page" className={classes.root}>
-            asdf
+        <div className={classes.root}>
             <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
-            {columns}
+            <div className={classes.graphContainer}>
+                <Stack spacing={10} direction="row" className={classes.graphStack}>
+                    {columns}
+                </Stack>
+            </div>
         </div>
     )
 };

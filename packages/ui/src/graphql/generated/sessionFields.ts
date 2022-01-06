@@ -7,15 +7,9 @@
 // GraphQL fragment: sessionFields
 // ====================================================
 
-export interface sessionFields_roles {
-  __typename: "Role";
-  title: string;
-  description: string | null;
-}
-
 export interface sessionFields {
   __typename: "Session";
   id: string | null;
   theme: string;
-  roles: sessionFields_roles[];
+  roles: string[];
 }

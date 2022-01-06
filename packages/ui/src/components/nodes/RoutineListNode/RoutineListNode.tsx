@@ -65,6 +65,9 @@ const componentStyles = (theme: Theme) => ({
     routineOptionCheckbox: {
         padding: '4px',
     },
+    collapse: {
+        padding: '0.5em',
+    },
     addButton: {
         position: 'relative',
         padding: '0',
@@ -168,14 +171,14 @@ export const RoutineListNode = ({
     ) : null, [addSize, classes.addButton, classes.icon, isEditable]);
 
     return (
-        <div className={classes.root} style={{ width: nodeSize, maxHeight: nodeSize, fontSize: fontSize }}>
+        <div className={classes.root} style={{ width: nodeSize, fontSize: fontSize }}>
             <Container className={classes.header} onClick={toggleCollapse}>
                 {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                 {labelObject}
                 {isEditable ? <DeleteIcon /> : null}
             </Container>
             {optionsCollapse}
-            <Collapse in={collapseOpen}>
+            <Collapse className={classes.collapse} in={collapseOpen}>
                 {routines}
                 {addButton}
             </Collapse>

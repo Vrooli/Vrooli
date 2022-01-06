@@ -604,6 +604,7 @@ export type Organization = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
+  donationResources: Array<Resource>;
   id: Scalars['ID'];
   name: Scalars['String'];
   projects: Array<Project>;
@@ -675,6 +676,7 @@ export type Profile = {
   bio?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
   created_at: Scalars['Date'];
+  donationResources: Array<Resource>;
   emails: Array<Email>;
   id: Scalars['ID'];
   projects: Array<Project>;
@@ -1042,7 +1044,6 @@ export type Routine = {
   contextualResources: Array<Resource>;
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
-  donationResources: Array<Resource>;
   externalResources: Array<Resource>;
   forks: Array<Routine>;
   id: Scalars['ID'];
@@ -1146,7 +1147,7 @@ export enum RoutineSortBy {
 export type Session = {
   __typename?: 'Session';
   id?: Maybe<Scalars['ID']>;
-  roles: Array<Role>;
+  roles: Array<Scalars['String']>;
   theme: Scalars['String'];
 };
 

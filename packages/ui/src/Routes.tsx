@@ -95,7 +95,7 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #region Orchestration Routes ========= */}
                 {/* Pages for creating and running routine orchestrations */}
                 <Route
-                    path={`${LINKS.Orchestrate}/:id?`}
+                    path={`${LINKS.Orchestrate}/:id`}
                     // sitemapIndex={false}
                     element={
                         <Page title={title('Plan Routine')} {...props} restrictedToRoles={Object.values(ROLES)}>

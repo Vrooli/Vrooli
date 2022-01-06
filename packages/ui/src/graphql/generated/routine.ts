@@ -3,38 +3,11 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, StandardType, NodeType } from "./globalTypes";
+import { FindByIdInput, NodeType } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routine
 // ====================================================
-
-export interface routine_routine_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  description: string | null;
-  created_at: any;
-}
-
-export interface routine_routine_inputs_routine_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  description: string | null;
-  created_at: any;
-}
-
-export interface routine_routine_inputs_routine {
-  __typename: "Routine";
-  id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
-  created_at: any;
-  isAutomatable: boolean | null;
-  tags: routine_routine_inputs_routine_tags[];
-}
 
 export interface routine_routine_inputs_standard_tags {
   __typename: "Tag";
@@ -47,66 +20,18 @@ export interface routine_routine_inputs_standard_tags {
 export interface routine_routine_inputs_standard {
   __typename: "Standard";
   id: string;
-  name: string;
-  description: string | null;
-  type: StandardType;
-  schema: string;
   default: string | null;
+  description: string | null;
   isFile: boolean;
-  created_at: any;
+  name: string;
+  schema: string;
   tags: routine_routine_inputs_standard_tags[];
 }
 
 export interface routine_routine_inputs {
   __typename: "RoutineInputItem";
-  routine: routine_routine_inputs_routine;
+  id: string;
   standard: routine_routine_inputs_standard;
-}
-
-export interface routine_routine_outputs_routine_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  description: string | null;
-  created_at: any;
-}
-
-export interface routine_routine_outputs_routine {
-  __typename: "Routine";
-  id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
-  created_at: any;
-  isAutomatable: boolean | null;
-  tags: routine_routine_outputs_routine_tags[];
-}
-
-export interface routine_routine_outputs_standard_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  description: string | null;
-  created_at: any;
-}
-
-export interface routine_routine_outputs_standard {
-  __typename: "Standard";
-  id: string;
-  name: string;
-  description: string | null;
-  type: StandardType;
-  schema: string;
-  default: string | null;
-  isFile: boolean;
-  created_at: any;
-  tags: routine_routine_outputs_standard_tags[];
-}
-
-export interface routine_routine_outputs {
-  __typename: "RoutineOutputItem";
-  routine: routine_routine_outputs_routine;
-  standard: routine_routine_outputs_standard;
 }
 
 export interface routine_routine_nodes_data_NodeCombine {
@@ -125,8 +50,8 @@ export interface routine_routine_nodes_data_NodeDecision_decisions_when {
 export interface routine_routine_nodes_data_NodeDecision_decisions {
   __typename: "NodeDecisionItem";
   id: string;
-  title: string;
   description: string | null;
+  title: string;
   toId: string | null;
   when: (routine_routine_nodes_data_NodeDecision_decisions_when | null)[];
 }
@@ -148,39 +73,15 @@ export interface routine_routine_nodes_data_NodeLoop {
   id: string;
 }
 
-export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  description: string | null;
-  created_at: any;
-}
-
-export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
-  __typename: "Routine";
-  id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
-  created_at: any;
-  isAutomatable: boolean | null;
-  tags: routine_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
-}
-
 export interface routine_routine_nodes_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
-  id: string;
-  title: string;
-  description: string | null;
-  isOptional: boolean;
-  routine: routine_routine_nodes_data_NodeRoutineList_routines_routine | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList {
   __typename: "NodeRoutineList";
   id: string;
-  isOrdered: boolean;
   isOptional: boolean;
+  isOrdered: boolean;
   routines: routine_routine_nodes_data_NodeRoutineList_routines[];
 }
 
@@ -200,29 +101,81 @@ export interface routine_routine_nodes {
   __typename: "Node";
   id: string;
   created_at: any;
+  description: string | null;
+  next: string | null;
+  previous: string | null;
+  title: string;
+  type: NodeType;
   updated_at: any;
-  routineId: string;
+  data: routine_routine_nodes_data | null;
+}
+
+export interface routine_routine_organizations {
+  __typename: "Organization";
+  id: string;
+  name: string;
+}
+
+export interface routine_routine_outputs {
+  __typename: "RoutineOutputItem";
+}
+
+export interface routine_routine_parent {
+  __typename: "Routine";
+  id: string;
+  title: string | null;
+}
+
+export interface routine_routine_contextualResources {
+  __typename: "Resource";
+  id: string;
   title: string;
   description: string | null;
-  type: NodeType;
-  data: routine_routine_nodes_data | null;
-  previous: string | null;
-  next: string | null;
+  link: string;
+  displayUrl: string | null;
+}
+
+export interface routine_routine_externalResources {
+  __typename: "Resource";
+  id: string;
+  title: string;
+  description: string | null;
+  link: string;
+  displayUrl: string | null;
+}
+
+export interface routine_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+}
+
+export interface routine_routine_users {
+  __typename: "User";
+  id: string;
+  username: string | null;
 }
 
 export interface routine_routine {
   __typename: "Routine";
   id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
   created_at: any;
-  isAutomatable: boolean | null;
-  tags: routine_routine_tags[];
   instructions: string | null;
+  isAutomatable: boolean | null;
+  title: string | null;
+  updated_at: any;
+  version: string | null;
   inputs: routine_routine_inputs[];
-  outputs: routine_routine_outputs[];
   nodes: routine_routine_nodes[];
+  organizations: routine_routine_organizations[];
+  outputs: routine_routine_outputs[];
+  parent: routine_routine_parent | null;
+  contextualResources: routine_routine_contextualResources[];
+  externalResources: routine_routine_externalResources[];
+  tags: routine_routine_tags[];
+  users: routine_routine_users[];
 }
 
 export interface routine {

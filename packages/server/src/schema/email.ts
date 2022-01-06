@@ -51,7 +51,7 @@ export const resolvers = {
          */
         emailUpdate: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             // Find the email object in the database
-            const curr = await EmailModel(prisma).findById({ id: input.id as string }, { select: { userId: true }});
+            const curr = await EmailModel(prisma).findById({ id: input.id as string }, { userId: true });
             // Validate that the email belongs to the user
             if (curr === null || req.userId !== curr.userId) throw new CustomError(CODE.Unauthorized);
             // Update object

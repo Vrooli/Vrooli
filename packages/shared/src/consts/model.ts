@@ -171,7 +171,7 @@ export type DecisionNodeDataDecision = {
     id: string,
     title: string,
     description: string | null,
-    toId: string,
+    next: string,
     when: {
         id: string,
         condition: string,

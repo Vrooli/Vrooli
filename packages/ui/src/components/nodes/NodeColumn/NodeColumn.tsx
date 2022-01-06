@@ -56,7 +56,7 @@ export const NodeColumn = ({
     }) ?? [], [columnNumber, isEditable, labelVisible, nodes, scale])
 
     return (
-        <Stack spacing={10} className={classes.root}>
+        <Stack spacing={10} direction="column" className={classes.root}>
             {nodeList}
         </Stack>
     )

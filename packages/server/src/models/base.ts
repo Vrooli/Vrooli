@@ -77,7 +77,7 @@ type Models<T> = {
 }
 export type PrismaModels = Models<Prisma.RejectOnNotFound | Prisma.RejectPerOperation | undefined>
 
-type InfoType = GraphQLResolveInfo | { select: any } | null;
+type InfoType = GraphQLResolveInfo | { [x: string]: any } | null;
 
 type PaginatedSearchResult = {
     pageInfo: PageInfo;
@@ -175,16 +175,18 @@ const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
 export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB']): any => {
     // Return undefined if info not set
     if (!info) return undefined;
+    console.log('INFO', info);
+    console.log('a', info.hasOwnProperty('fieldName'));
     // Find select fields in info object
-    let select = info.hasOwnProperty('select') ?
-        (info as { select: any }).select : 
-        formatGraphQLFields(graphqlFields(info as GraphQLResolveInfo, {}, {}));
+    let select = info.hasOwnProperty('fieldName') ?
+        formatGraphQLFields(graphqlFields((info as GraphQLResolveInfo), {}, {})) :
+        info;
     // If fields are in the shape of a paginated search query, then convert to a Prisma select object
     if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
         select = select.edges.node;
     }
     // Convert select from graphQL to database
-    select = toDB(select);
+    select = toDB(select as any);
     return padSelect(select);
 }
 
@@ -195,6 +197,7 @@ export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: Fo
  */
 export const findByIder = <GraphQLModel, FullDBModel>(model: keyof PrismaType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], prisma?: PrismaType) => ({
     async findById(input: FindByIdInput, info: InfoType): Promise<RecursivePartial<FullDBModel> | null> {
+        console.log('FIND BY ID', Boolean(prisma), input)
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         if (!input.id) throw new CustomError(CODE.InvalidArgs);
