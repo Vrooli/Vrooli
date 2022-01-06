@@ -13,6 +13,9 @@ export const nodeStyles: Styles<Theme, {}> = (theme: Theme) => ({
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         lineBreak: 'anywhere',
+        display:' -webkit-box',
+        '-webkit-line-clamp': '3',
+        '-webkit-box-orient': 'vertical',
         textShadow:
             `-0.5px -0.5px 0 black,  
             0.5px -0.5px 0 black,

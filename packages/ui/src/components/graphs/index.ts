@@ -1,2 +1,3 @@
 export * from './BarGraph/BarGraph';
-export * from './Zoom/Zoom';
+export * from './NodeGraph/NodeGraph';
+export * from './NodeGraphColumn/NodeGraphColumn';

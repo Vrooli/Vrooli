@@ -50,6 +50,7 @@ const componentStyles = (theme: Theme) => ({
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         lineBreak: 'anywhere',
+        whiteSpace: 'pre',
         textShadow:
             `-0.5px -0.5px 0 black,  
             0.5px -0.5px 0 black,
@@ -64,9 +65,6 @@ const componentStyles = (theme: Theme) => ({
     },
     routineOptionCheckbox: {
         padding: '4px',
-    },
-    collapse: {
-        padding: '0.5em',
     },
     addButton: {
         position: 'relative',
@@ -100,9 +98,9 @@ export const RoutineListNode = ({
     const [collapseOpen, setCollapseOpen] = useState(false);
     const toggleCollapse = () => setCollapseOpen(curr => !curr);
 
-    const nodeSize = useMemo(() => `${250 * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${250 * scale / 5}px, 2em)`, [scale]);
-    const addSize = useMemo(() => `${250 * scale / 6}px`, [scale]);
+    const nodeSize = useMemo(() => `${350 * scale}px`, [scale]);
+    const fontSize = useMemo(() => `min(${350 * scale / 5}px, 2em)`, [scale]);
+    const addSize = useMemo(() => `${350 * scale / 8}px`, [scale]);
 
     const addRoutine = () => {
         console.log('ADD ROUTINE CALLED')
@@ -172,13 +170,15 @@ export const RoutineListNode = ({
 
     return (
         <div className={classes.root} style={{ width: nodeSize, fontSize: fontSize }}>
-            <Container className={classes.header} onClick={toggleCollapse}>
-                {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                {labelObject}
-                {isEditable ? <DeleteIcon /> : null}
-            </Container>
+            <Tooltip placement={'top'} title={label ?? 'Routine List'}>
+                <Container className={classes.header} onClick={toggleCollapse}>
+                    {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    {labelObject}
+                    {isEditable ? <DeleteIcon /> : null}
+                </Container>
+            </Tooltip>
             {optionsCollapse}
-            <Collapse className={classes.collapse} in={collapseOpen}>
+            <Collapse className={classes.collapse} style={{padding: collapseOpen ? '0.5em' : '0'}} in={collapseOpen}>
                 {routines}
                 {addButton}
             </Collapse>

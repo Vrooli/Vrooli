@@ -59,15 +59,6 @@ export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps 
 }
 
 /**
- * Props for the Node Column (a container for displaying nodes on separate branches)
- */
-export interface NodeColumnProps extends ScaleProps, EditableProps {
-    labelVisible?: boolean;
-    columnNumber: number;
-    nodes: NodeData[];
-}
-
-/**
  * Props for the Redirect node
  */
 export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditableProps {

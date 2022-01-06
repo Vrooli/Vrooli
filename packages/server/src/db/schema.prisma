@@ -72,6 +72,10 @@ model comment_votes {
 //==============================================================
 // #region Email
 //==============================================================
+
+//==============================================================
+// #region Email
+//==============================================================
 // Email data
 model email {
   id                                 String    @id @default(uuid()) @db.Uuid
@@ -690,19 +694,9 @@ model tag {
   projects      project_tags[]
   routines      routine_tags[]
   standards     standard_tags[]
-  starredBy     tag_stars[] // Users who starred the tag
+  hiddenBy      user_tag_hidden[] // Users who are hiding the tag
+  starredBy     user_tag_stars[] // Users who starred the tag
   votes         tag_votes[]
-}
-
-// Many to many relationship between tags and users who starred them
-model tag_stars {
-  id        String @id @default(uuid()) @db.Uuid
-  starredId String @db.Uuid
-  userId    String @db.Uuid
-  starred   tag    @relation(fields: [starredId], references: [id], onDelete: Cascade)
-  user      user   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([starredId, userId], name: "tag_stars_starredid_userid_unique")
 }
 
 // Votes for signifying the helpfulness of an object when applied to a tag
@@ -761,7 +755,8 @@ model user {
   starredResources               resource_stars[]
   starredRoutines                routine_stars[]
   starredStandards               standard_stars[]
-  starredTags                    tag_stars[]
+  hiddenTags                     user_tag_hidden[]
+  starredTags                    user_tag_stars[]
   starredUsers                   user_stars[]              @relation("user_star_starred")
   starredBy                      user_stars[]              @relation("user_star_user")
   sentReports                    report[]                  @relation("report_from")
@@ -812,6 +807,29 @@ model user_stars {
   user      user   @relation("user_star_user", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([starredId, userId], name: "tag_stars_starredid_userid_unique")
+}
+
+// Many to many relationship between users and tags they have hidden/blurred
+model user_tag_hidden {
+  id       String  @id @default(uuid()) @db.Uuid
+  isBlur Boolean @default(true) // Determines if content with this tag is hidden completely, or blurred
+  userId  String  @db.Uuid
+  tagId  String  @db.Uuid
+  user    user @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag    tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tagId], name: "user_tags_hidden_userid_tagid_unique")
+}
+
+// Many to many relationship between users and tags they have starred (will show up in customized feeds)
+model user_tag_stars {
+  id        String @id @default(uuid()) @db.Uuid
+  starredId String @db.Uuid
+  userId    String @db.Uuid
+  starred   tag    @relation(fields: [starredId], references: [id], onDelete: Cascade)
+  user      user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([starredId, userId], name: "user_tag_stars_starredid_userid_unique")
 }
 
 //==============================================================

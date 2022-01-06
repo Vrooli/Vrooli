@@ -1,31 +1,29 @@
 import { makeStyles } from '@mui/styles';
 import { Stack, Theme } from '@mui/material';
 import { useMemo } from 'react';
-import { NodeColumnProps } from '../types';
-import { nodeStyles } from '../styles';
-import { combineStyles } from 'utils';
+import { NodeGraphColumnProps } from '../types';
 import { NodeType, RoutineListNodeData } from '@local/shared';
-import { CombineNode, DecisionNode, EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '..';
+import { CombineNode, DecisionNode, EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../../nodes';
 
-const componentStyles = (theme: Theme) => ({
+const useStyles = makeStyles((theme: Theme) => ({
     root: {
         position: 'relative',
-        display: 'block',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         backgroundColor: 'transparent',
-        padding: '100px',
     },
-});
+}));
 
-const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
-
-export const NodeColumn = ({
+export const NodeGraphColumn = ({
     scale = 1,
     columnNumber,
     nodes,
     labelVisible,
     isEditable,
-}: NodeColumnProps) => {
+}: NodeGraphColumnProps) => {
     const classes = useStyles();
+    const padding = useMemo(() => `${scale*25}px`, [scale]);
 
     const nodeList = useMemo(() => nodes?.map((node, index) => {
         const commonProps = {
@@ -56,7 +54,7 @@ export const NodeColumn = ({
     }) ?? [], [columnNumber, isEditable, labelVisible, nodes, scale])
 
     return (
-        <Stack spacing={10} direction="column" className={classes.root}>
+        <Stack spacing={10} direction="column" className={classes.root} style={{padding}}>
             {nodeList}
         </Stack>
     )

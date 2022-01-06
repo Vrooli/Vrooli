@@ -1,7 +1,7 @@
 import { makeStyles } from '@mui/styles';
-import { Stack, Theme, Typography } from '@mui/material';
+import { Button, Grid, Slider, Stack, Theme, Typography } from '@mui/material';
 import { CombineNodeData, DecisionNodeData, DecisionNodeDataDecision, NodeData, NodeType, OrchestrationData } from '@local/shared';
-import { NodeColumn } from 'components';
+import { NodeGraph, NodeGraphColumn } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
@@ -9,6 +9,14 @@ import { routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
 import { PUBS } from 'utils';
+import {
+    Done as DoneIcon,
+    Edit as EditIcon,
+    Restore as RestoreIcon,
+    Update as UpdateIcon
+} from '@mui/icons-material';
+import { RoutineDeep } from 'types';
+import isEqual from 'lodash/isEqual';
 
 //TEMP
 const data: OrchestrationData = {
@@ -251,191 +259,142 @@ const useStyles = makeStyles((theme: Theme) => ({
         // alignItems: 'center',
         // alignContent: 'center',
     },
-    graphStack: {
-        border: '1px solid purple',
-        minWidth: '100%',
-        minHeight: '100%',
-        overflowX: 'scroll',
-        overflowY: 'scroll',
-    }
+    optionsContainer: {
+        height: '15vh',
+        padding: theme.spacing(2),
+    },
 }));
-
-/**
- * Describes the data and general position of a node in the graph. 
- * A completely linear graph would have all nodes at the same level (i.e. one per column, each at row 0).
- * A column with a decision node adds ONE row to the following column FOR EACH possible decision. 
- * A column with a combine node removes ONE row from the following column FOR EACH possible combination, AND 
- * places itself in the vertical center of each combined node
- */
-type NodePos = {
-    column: number; // column in which node is displayed
-    // rows: number; // number of rows in the column the node is displayed in
-    // pos: number; // relative position in column. 0 is top, 1 is bottom
-    node: NodeData;
-}
-
-// /**
-//  * Node data organized by row and column. This is accomplished 
-//  * by using a 2D array, where the first dimension is the column, 
-//  * and the second dimension is the row.
-//  * A completely linear graph would have all nodes at the same level (i.e. one per column, each at row 0).
-//  * A column with a decision node adds ONE row to the following column FOR EACH possible decision. 
-//  * A column with a combine node removes ONE row from the following column FOR EACH possible combination, AND 
-//  * places itself in the vertical center of each combined node
-//  */
-// type OrderedNodeList = Array<{
-//     rows: number; // Number of node rows in this column (NOT necessarily the number of nodes in this column. Rather, used to determine the positioning of each node)
-//     nodes: {
-//         node: NodeData;
-//         position: number; // Position of node in this column. Must be between 0 and #rows - 1 (CAN be non-integer)
-//     }
-// }>;
 
 export const RoutineOrchestratorPage = () => {
     const classes = useStyles();
     // Queries routine data
     const { data: routineData } = useQuery<routine>(routineQuery, { variables: { input: { id: 'TODO' } } });
+    const [routine, setRoutine] = useState<RoutineDeep | null>(null);
+    const [changedRoutine, setChangedRoutine] = useState<RoutineDeep | null>(null);
     // Routine mutator
-    const [routineUpdate] = useMutation<any>(routineUpdateMutation);
+    const [routineUpdate, { loading }] = useMutation<any>(routineUpdateMutation);
     // The routine's title
     const [title, setTitle] = useState<string>('');
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
+    const [isEditing, setIsEditing] = useState<boolean>(false);
 
     useEffect(() => {
         setTitle(routineData?.routine?.title ?? '');
+        setRoutine(routineData?.routine ?? null);
     }, [routineData]);
+
+    useEffect(() => {
+        setChangedRoutine(routine);
+    }, [routine]);
+
+    const handleScaleChange = (_event: any, newScale: number | number[]) => {
+        console.log('HANDLE SCALE CHANGE', newScale);
+        setScale(newScale as number);
+    };
+
+    const startEditing = useCallback(() => setIsEditing(true), []);
 
     /**
      * Mutates routine data
      */
     const updateRoutine = useCallback(() => {
-        if (!routineData?.routine?.id) {
+        if (!changedRoutine || isEqual(routine, changedRoutine)) {
+            PubSub.publish(PUBS.Snack, { message: 'No changes detected', severity: 'error' });
+            return;
+        }
+        if (!changedRoutine.id) {
             PubSub.publish(PUBS.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
         mutationWrapper({
             mutation: routineUpdate,
             input: {
-                id: routineData.routine.id,
+                id: changedRoutine.id,
                 title,
             },
             successMessage: () => 'Routine updated.',
         })
-    }, [routineData, routineUpdate, title])
+    }, [changedRoutine, routine, routineUpdate, title])
 
-    // Unorganized graph data
-    const nodeDataRaw = data.nodes;//useMemo<NodeData[]>(() => routineData?.routine?.nodes ?? [], [routineData]);
-    // Dictionary of node data and their columns
-    const nodeDataMap: { [id: string]: NodePos } = useMemo(() => {
-        // Position map for calculating node positions
-        let posMap: { [id: string]: NodePos } = {};
-        let startNodeId: string | null = null;
-        console.log('node data map', nodeDataRaw);
-        // First pass of raw node data, to locate start node and populate position map
-        for (let i = 0; i < nodeDataRaw.length; i++) {
-            console.log('raw data', nodeDataRaw[i]);
-            const currId = nodeDataRaw[i].id;
-            // If start node, must be in first column
-            if (nodeDataRaw[i].type === NodeType.Start) {
-                startNodeId = currId;
-                posMap[currId] = {
-                    column: 0,
-                    node: nodeDataRaw[i],
-                }
-            }
-            // Otherwise, node's column is currently unknown
-            else {
-                posMap[currId] = {
-                    column: -1,
-                    node: nodeDataRaw[i],
-                }
-            }
-        }
-        // If no start node was found, throw error
-        if (!startNodeId) {
-            PubSub.publish(PUBS.Snack, { message: 'No start node found', severity: 'error' });
-            return posMap;
-        }
-        // Helper function for recursively updating position map
-        const addNode = (nodeId: string) => {
-            // Find node data
-            const curr: NodePos = posMap[nodeId];
-            console.log('addNode', nodeId, curr);
-            // If node not found or column already calculated (exception being the start node at column 0), skip
-            if (!curr || curr.column > 0) return;
-            console.log('a')
-            // Calculate node's column (unless it is the start node). This is the same for all node types EXCEPT for combine nodes
-            if (curr.node.type === NodeType.Combine) {
-                console.log('b.1')
-                const previousNodes = (curr.node.data as CombineNodeData | null)?.from ?? [];
-                const farthestPreviousNode = Math.max(...previousNodes.map(prev => posMap[prev].column));
-                posMap[nodeId].column = farthestPreviousNode === -1 ? -1 : farthestPreviousNode + 1;
-            }
-            else if (curr.node.type !== NodeType.Start) {
-                console.log('b.2')
-                const prevNode = posMap[curr.node.previous ?? ''];
-                console.log('prevNode', prevNode);
-                if (!prevNode) return;
-                posMap[nodeId].column = prevNode.column === -1 ? -1 : prevNode.column + 1;
-                console.log('calculated column', posMap[nodeId].column);
-            }
-            // Call addNode on each next node. Thiss is the same for all node types EXCEPT for decision nodes
-            if (curr.node.type === NodeType.Decision) {
-                console.log('in decision logic', curr?.node?.data)
-                const decisions: DecisionNodeDataDecision[] | undefined = (curr.node.data as DecisionNodeData | undefined)?.decisions;
-                if (!decisions) return;
-                for (let i = 0; i < decisions.length; i++) {
-                    addNode(decisions[i].next);
-                }
-            }
-            else {
-                if (curr.node.next) addNode(curr.node.next);
-            }
-        }
-        // Starting with the start node, search for other nodes
-        addNode(startNodeId);
-        return posMap;
-    }, [nodeDataRaw]);
+    const revertChanges = useCallback(() => {
+        setChangedRoutine(routine);
+    }, [routine])
 
-    // Node column objects
-    const columns = useMemo(() => {
-        console.log('calculating columns', nodeDataMap);
-        // 2D node data array, ordered by column. 
-        // Each column is ordered in a consistent way, so that the nodes in a column are always in the same order
-        let list: NodeData[][] = [];
-        // Iterate through node data map
-        for (const value of Object.values(nodeDataMap)) {
-            // Skips nodes that did not receive a column
-            if (value.column < 0) continue;
-            // Add new column(s) if necessary
-            while (list.length <= value.column) {
-                list.push([]);
+    let options = useMemo(() => (
+        <Grid className={classes.optionsContainer} container spacing={1}>
+            {
+                isEditing ?
+                    (
+                        <>
+                            <Grid item xs={12} sm={6}>
+                                <Slider
+                                    aria-label="graph-scale"
+                                    min={0.01}
+                                    max={1}
+                                    defaultValue={1}
+                                    step={0.01}
+                                    value={scale}
+                                    valueLabelDisplay="auto"
+                                    onChange={handleScaleChange} />
+                            </Grid>
+                            <Grid item xs={12} sm={3}>
+                                <Button
+                                    fullWidth
+                                    startIcon={<UpdateIcon />}
+                                    onClick={updateRoutine}
+                                    disabled={loading || !isEqual(routine, changedRoutine)}
+                                >Update</Button>
+                            </Grid>
+                            <Grid item xs={12} sm={3}>
+                                <Button
+                                    fullWidth
+                                    startIcon={<RestoreIcon />}
+                                    onClick={revertChanges}
+                                    disabled={loading || isEqual(routine, changedRoutine)}
+                                >Revert</Button>
+                            </Grid>
+                        </>
+                    ) :
+                    (
+                        <>
+                            <Grid item xs={12} sm={9}>
+                                <Slider
+                                    aria-label="graph-scale"
+                                    min={0.01}
+                                    max={1}
+                                    defaultValue={1}
+                                    step={0.01}
+                                    value={scale}
+                                    valueLabelDisplay="auto"
+                                    onChange={handleScaleChange} />
+                            </Grid>
+                            <Grid item xs={12} sm={3}>
+                                <Button
+                                    fullWidth
+                                    startIcon={<EditIcon />}
+                                    onClick={startEditing}
+                                    disabled={loading}
+                                >Update</Button>
+                            </Grid>
+                        </>
+                    )
             }
-            // Add node to column
-            list[value.column].push(value.node);
-        }
-        // Sort each column
-        // TODO
-        // return column objects
-        return list.map((columnData, index) => <NodeColumn
-            key={`node-column-${index}`}
-            columnNumber={index}
-            nodes={columnData}
-            isEditable={true}
-            scale={scale}
-            labelVisible={true}
-        />)
-    }, [nodeDataMap, scale]);
+        </Grid >
+    ), [changedRoutine, classes.optionsContainer, isEditing, loading, revertChanges, routine, scale, startEditing, updateRoutine])
 
     return (
         <div className={classes.root}>
             <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
             <div className={classes.graphContainer}>
-                <Stack spacing={10} direction="row" className={classes.graphStack}>
-                    {columns}
-                </Stack>
+                <NodeGraph
+                    scale={scale}
+                    isEditable={true}
+                    labelVisible={true}
+                    nodes={data?.nodes}
+                />
             </div>
+            {options}
         </div>
     )
 };

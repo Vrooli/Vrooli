@@ -24,6 +24,7 @@ const componentStyles = (theme: Theme) => ({
         position: 'relative',
         display: 'block',
         borderRadius: '12px',
+        marginBottom: '8px',
         backgroundColor: theme.palette.background.paper,
         color: theme.palette.background.textPrimary,
         boxShadow: '0px 0px 12px gray',
@@ -48,6 +49,7 @@ const componentStyles = (theme: Theme) => ({
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         lineBreak: 'anywhere',
+        whiteSpace: 'pre',
         textShadow:
             `-0.5px -0.5px 0 black,  
             0.5px -0.5px 0 black,

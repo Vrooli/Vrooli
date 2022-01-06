@@ -7,5 +7,5 @@ export * from './ProjectsPage';
 export * from './RoutineOrchestratorPage';
 export * from './SettingsPage';
 export * from './StartPage';
-export * from './dashboard/StatsPage';
+export * from './dashboard/StatsPage/StatsPage';
 export * from './styles';
