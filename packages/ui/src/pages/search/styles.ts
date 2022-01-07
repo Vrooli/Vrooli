@@ -1,5 +1,5 @@
 import { Theme } from '@mui/material';
-import { Styles } from "@mui/styles";
+import { Styles } from '@mui/styles';
 
 export const searchStyles: Styles<Theme, {}> = (theme: Theme) => ({
     cardFlex: {

@@ -27,6 +27,11 @@ const {
     RoutineOrchestratorPage,
     RoutineViewPage,
     RunRoutinePage,
+    SearchActorsPage,
+    SearchOrganizationsPage,
+    SearchProjectsPage,
+    SearchRoutinesPage,
+    SearchStandardsPage,
     StartPage,
     StatsPage,
 } = lazily(() => import('./pages'));
@@ -91,6 +96,54 @@ export const AllRoutes = (props: CommonProps) => {
                     }
                 />
                 {/* ========= #endregion Dashboard Routes ========= */}
+
+                {/* ========= #region Search Routes ========= */}
+                <Route
+                    path={`${LINKS.Search}/users`}
+                    // sitemapIndex={false}
+                    element={
+                        <Page title={title('Search Users')} {...props}>
+                            <SearchActorsPage />
+                        </Page>
+                    }
+                />
+                <Route
+                    path={`${LINKS.Search}/organizations`}
+                    // sitemapIndex={false}
+                    element={
+                        <Page title={title('Search Organizations')} {...props}>
+                            <SearchOrganizationsPage />
+                        </Page>
+                    }
+                />
+                <Route
+                    path={`${LINKS.Search}/projects`}
+                    // sitemapIndex={false}
+                    element={
+                        <Page title={title('Search Projects')} {...props}>
+                            <SearchProjectsPage />
+                        </Page>
+                    }
+                />
+                <Route
+                    path={`${LINKS.Search}/routines`}
+                    // sitemapIndex={false}
+                    element={
+                        <Page title={title('Search Routines')} {...props}>
+                            <SearchRoutinesPage />
+                        </Page>
+                    }
+                />
+                <Route
+                    path={`${LINKS.Search}/standards`}
+                    // sitemapIndex={false}
+                    element={
+                        <Page title={title('Search Standards')} {...props}>
+                            <SearchStandardsPage />
+                        </Page>
+                    }
+                />
+                {/* ========= #endregion Search Routes ========= */}
 
                 {/* ========= #region Orchestration Routes ========= */}
                 {/* Pages for creating and running routine orchestrations */}

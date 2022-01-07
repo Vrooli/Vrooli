@@ -116,8 +116,8 @@ const sorter = (): Sortable<UserSortBy> => ({
     defaultSort: UserSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [UserSortBy.AlphabeticalAsc]: { name: 'asc' },
-            [UserSortBy.AlphabeticalDesc]: { name: 'desc' },
+            [UserSortBy.AlphabeticalAsc]: { username: 'asc' },
+            [UserSortBy.AlphabeticalDesc]: { username: 'desc' },
             [UserSortBy.CommentsAsc]: { comments: { count: 'asc' } },
             [UserSortBy.CommentsDesc]: { comments: { count: 'desc' } },
             [UserSortBy.DateCreatedAsc]: { created_at: 'asc' },
