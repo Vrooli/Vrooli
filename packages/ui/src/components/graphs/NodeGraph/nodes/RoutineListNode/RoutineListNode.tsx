@@ -9,7 +9,7 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { nodeStyles } from '../styles';
 import { combineStyles } from 'utils';
@@ -20,6 +20,8 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
+import { RoutineListNodeData } from '@local/shared';
+import { NodeContextMenu } from '../..';
 
 const componentStyles = (theme: Theme) => ({
     root: {
@@ -87,11 +89,11 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 export const RoutineListNode = ({
+    node,
     scale = 1,
     label = 'Routine List',
     labelVisible = true,
     isEditable = true,
-    data,
     onAdd = () => { },
 }: RoutineListNodeProps) => {
     const classes = useStyles();
@@ -124,7 +126,7 @@ export const RoutineListNode = ({
                             name='isOrderedCheckbox'
                             value='isOrderedCheckbox'
                             color='secondary'
-                            checked={data?.isOrdered}
+                            checked={(node?.data as RoutineListNodeData)?.isOrdered}
                             onChange={() => {}}
                         />
                     }
@@ -143,7 +145,7 @@ export const RoutineListNode = ({
                             name='isOptionalCheckbox'
                             value='isOptionalCheckbox'
                             color='secondary'
-                            checked={data?.isOptional}
+                            checked={(node?.data as RoutineListNodeData)?.isOptional}
                             onChange={() => {}}
                         />
                     }
@@ -151,16 +153,16 @@ export const RoutineListNode = ({
                 />
             </Tooltip>
         </Collapse>
-    ), [classes.checkboxLabel, classes.listOptions, classes.routineOptionCheckbox, collapseOpen, data?.isOptional, data?.isOrdered, isEditable, label]);
+    ), [classes.checkboxLabel, classes.listOptions, classes.routineOptionCheckbox, collapseOpen, node?.data, isEditable, label]);
 
-    const routines = useMemo(() => data?.routines?.map(routine => (
+    const routines = useMemo(() => (node?.data as RoutineListNodeData)?.routines?.map(routine => (
         <RoutineSubnode
             key={`${routine.id}`}
             scale={scale}
             labelVisible={labelVisible}
             data={routine}
         />
-    )), [data, labelVisible, scale]);
+    )), [node?.data, labelVisible, scale]);
 
     const addButton = useMemo(() => isEditable ? (
         <IconButton className={classes.addButton} style={{ width: addSize, height: addSize }} onClick={addRoutine}>
@@ -168,10 +170,37 @@ export const RoutineListNode = ({
         </IconButton>
     ) : null, [addSize, classes.addButton, classes.icon, isEditable]);
 
+    // Right click context menu
+    const [contextAnchor, setContextAnchor] = useState<any>(null);
+    const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
+    const contextOpen = Boolean(contextAnchor);
+    const openContext = useCallback((ev: MouseEvent<HTMLDivElement>) => {
+        setContextAnchor(ev.currentTarget)
+        ev.preventDefault();
+    }, []);
+    const closeContext = useCallback(() => setContextAnchor(null), []);
+
     return (
         <div className={classes.root} style={{ width: nodeSize, fontSize: fontSize }}>
+            <NodeContextMenu
+                id={contextId}
+                anchorEl={contextAnchor}
+                open={contextOpen}
+                node={node}
+                onClose={closeContext}
+                onAddBefore={() => { }}
+                onAddAfter={() => { }}
+                onDelete={() => { }}
+                onEdit={() => { }}
+                onMove={() => { }}
+            />
             <Tooltip placement={'top'} title={label ?? 'Routine List'}>
-                <Container className={classes.header} onClick={toggleCollapse}>
+                <Container 
+                    className={classes.header} 
+                    onClick={toggleCollapse}
+                    aria-owns={contextOpen ? contextId : undefined}
+                    onContextMenu={openContext}
+                >
                     {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                     {labelObject}
                     {isEditable ? <DeleteIcon /> : null}

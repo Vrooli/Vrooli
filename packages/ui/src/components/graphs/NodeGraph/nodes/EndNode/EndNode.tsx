@@ -1,9 +1,10 @@
 import { makeStyles } from '@mui/styles';
 import { Theme, Tooltip, Typography } from '@mui/material';
-import { useMemo } from 'react';
+import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
 import { nodeStyles } from '../styles';
 import { combineStyles } from 'utils';
+import { NodeContextMenu } from '../..';
 
 const componentStyles = (theme: Theme) => ({
     outerCirlce: {
@@ -35,6 +36,7 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 export const EndNode = ({
+    node,
     scale = 1,
     label = 'End',
     labelVisible = true,
@@ -49,13 +51,43 @@ export const EndNode = ({
     const innerCircleSize = useMemo(() => `${100 * scale / 1.5}px`, [scale]);
     const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
 
+    // Right click context menu
+    const [contextAnchor, setContextAnchor] = useState<any>(null);
+    const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
+    const contextOpen = Boolean(contextAnchor);
+    const openContext = useCallback((ev: MouseEvent<HTMLDivElement>) => {
+        setContextAnchor(ev.currentTarget)
+        ev.preventDefault();
+    }, []);
+    const closeContext = useCallback(() => setContextAnchor(null), []);
+
     return (
-        <Tooltip placement={'top'} title={'End'}>
-            <div className={classes.outerCirlce} style={{width: outerCircleSize, height: outerCircleSize, fontSize: fontSize}}>
-                <div className={classes.innerCirlce} style={{width: innerCircleSize, height: innerCircleSize}}>
-                    {labelObject}
+        <div>
+            <NodeContextMenu
+                id={contextId}
+                anchorEl={contextAnchor}
+                open={contextOpen}
+                node={node}
+                onClose={closeContext}
+                onAddBefore={() => { }}
+                onAddAfter={() => { }}
+                onDelete={() => { }}
+                onEdit={() => { }}
+                onMove={() => { }}
+            />
+            <Tooltip placement={'top'} title={'End'}>
+                <div
+                    className={classes.outerCirlce}
+                    style={{ width: outerCircleSize, height: outerCircleSize, fontSize: fontSize }}
+                    aria-owns={contextOpen ? contextId : undefined}
+                    onContextMenu={openContext}
+                    onClick={() => { }}
+                >
+                    <div className={classes.innerCirlce} style={{ width: innerCircleSize, height: innerCircleSize }}>
+                        {labelObject}
+                    </div>
                 </div>
-            </div>
-        </Tooltip>
+            </Tooltip>
+        </div>
     )
 }

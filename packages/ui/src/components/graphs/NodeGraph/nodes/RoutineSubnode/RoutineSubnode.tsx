@@ -86,11 +86,11 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 export const RoutineSubnode = ({
+    data,
     scale = 1,
     label = 'Routine Item',
     labelVisible = true,
     isEditable = true,
-    data,
 }: RoutineSubnodeProps) => {
     const classes = useStyles();
     const [collapseOpen, setCollapseOpen] = useState(false);

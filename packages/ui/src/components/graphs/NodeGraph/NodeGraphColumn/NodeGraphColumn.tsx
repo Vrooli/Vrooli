@@ -29,6 +29,7 @@ export const NodeGraphColumn = ({
     const nodeList = useMemo(() => nodes?.map((node, index) => {
         const commonProps = {
             key: `node-${columnNumber}-${index}`,
+            node,
             scale,
             label: node?.title,
             labelVisible,
@@ -44,7 +45,7 @@ export const NodeGraphColumn = ({
             case NodeType.Loop:
                 return <LoopNode {...commonProps} />;
             case NodeType.RoutineList:
-                return <RoutineListNode {...commonProps} data={node.data as RoutineListNodeData} onAdd={() => {}} />;
+                return <RoutineListNode {...commonProps} onAdd={() => {}} />;
             case NodeType.Redirect:
                 return <RedirectNode {...commonProps} />;
             case NodeType.Start:

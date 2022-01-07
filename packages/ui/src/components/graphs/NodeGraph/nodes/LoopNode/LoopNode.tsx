@@ -1,10 +1,11 @@
 import { makeStyles } from '@mui/styles';
 import { IconButton, Theme, Tooltip, Typography } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { LoopNodeProps } from '../types';
 import { nodeStyles } from '../styles';
 import { combineStyles } from 'utils';
 import { Loop as LoopIcon } from '@mui/icons-material';
+import { NodeContextMenu } from '../..';
 
 const componentStyles = (theme: Theme) => ({
     root: {
@@ -33,6 +34,7 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 export const LoopNode = ({
+    node,
     scale = 1,
     label = 'Loop',
     labelVisible = true,
@@ -52,11 +54,39 @@ export const LoopNode = ({
     const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
 
+    // Right click context menu
+    const [contextAnchor, setContextAnchor] = useState<any>(null);
+    const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
+    const contextOpen = Boolean(contextAnchor);
+    const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
+        setContextAnchor(ev.currentTarget)
+        ev.preventDefault();
+    }, []);
+    const closeContext = useCallback(() => setContextAnchor(null), []);
+
     return (
         <div>
             {dialog}
+            <NodeContextMenu
+                id={contextId}
+                anchorEl={contextAnchor}
+                open={contextOpen}
+                node={node}
+                onClose={closeContext}
+                onAddBefore={() => { }}
+                onAddAfter={() => { }}
+                onDelete={() => { }}
+                onEdit={() => { }}
+                onMove={() => { }}
+            />
             <Tooltip placement={'top'} title={label ?? ''}>
-                <IconButton className={classes.root} style={{width: nodeSize, height: nodeSize, fontSize: fontSize}} onClick={openDialog}>
+                <IconButton 
+                    className={classes.root} 
+                    style={{width: nodeSize, height: nodeSize, fontSize: fontSize}} 
+                    onClick={openDialog}
+                    aria-owns={contextOpen ? contextId : undefined}
+                    onContextMenu={openContext}
+                >
                     <LoopIcon className={classes.icon} />
                     {labelObject}
                 </IconButton>

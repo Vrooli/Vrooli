@@ -48,10 +48,12 @@ export const NodeGraphContainer = ({
                 lastPosition = { x: ev.clientX, y: ev.clientY };
             }
         }
+        // Add event listeners
         window.addEventListener('mousedown', onMouseDown);
         window.addEventListener('mouseup', onMouseUp);
         window.addEventListener('mousemove', onMouseMove);
         return () => {
+            // Remove event listeners
             window.removeEventListener('mousedown', onMouseDown);
             window.removeEventListener('mouseup', onMouseUp);
             window.removeEventListener('mousemove', onMouseMove);

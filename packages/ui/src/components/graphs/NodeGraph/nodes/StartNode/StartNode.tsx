@@ -23,6 +23,7 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 export const StartNode = ({
+    node,
     scale = 1,
     label = 'Start',
     labelVisible = true,
@@ -31,7 +32,7 @@ export const StartNode = ({
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography className={`${classes.label} ${classes.noSelect}`} variant="h6">{label}</Typography>
-    ): null, [label, labelVisible, classes.label]);
+    ): null, [labelVisible, classes.label, classes.noSelect, label]);
 
     const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);

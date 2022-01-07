@@ -8,6 +8,9 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
+// Displays a line between two nodes.
+// If in editing mode, an "Add Node" button appears on the line. 
+// This button always appears inbetween two node columns, to avoid collisions with nodes.
 export const NodeGraphEdge = ({
     from,
     to,

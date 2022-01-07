@@ -17,7 +17,7 @@ import { DndProvider } from 'react-dnd';
 import { useMutation } from '@apollo/client';
 import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
-import { Session, UserRoles } from 'types';
+import { Session } from 'types';
 import hotkeys from 'hotkeys-js';
 import { useLocation } from 'react-router';
 
@@ -66,7 +66,6 @@ export function App() {
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState(themes.light);
-    const [roles, setRoles] = useState<UserRoles>(null);
     const [loading, setLoading] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useMutation<any>(validateSessionMutation);
@@ -112,19 +111,21 @@ export function App() {
         if (session?.theme) setTheme(themes[session?.theme])
         //else if (session && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(themes.dark);
         else setTheme(themes.light);
-        setRoles(session?.roles ?? null);
     }, [session])
 
     const checkSession = useCallback((session?: any) => {
         if (session) {
+            console.log('setting session a', session)
             setSession(session);
             return;
         }
         // Check if previous log in exists
         validateSession().then((response) => {
+            console.log('setting session b', response.data.validateSession as Session)
             setSession(response?.data?.validateSession as Session);
         }).catch((response) => {
             if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
+            console.log('sessing sesssion c oh no')
             // If not logged in as guest and failed to log in as user, set empty object
             if (!session) setSession({})
         })
@@ -162,7 +163,7 @@ export function App() {
                             }}
                         >
                             <div id="content-wrap" className={classes.contentWrap}>
-                                <Navbar userRoles={roles} />
+                                <Navbar userRoles={session?.roles ?? []} />
                                 {loading ?
                                     <div className={classes.spinner}>
                                         <CircularProgress size={100} />
@@ -172,12 +173,12 @@ export function App() {
                                 <Snack />
                                 <AllRoutes
                                     session={session}
-                                    sessionChecked={Boolean(session)}
+                                    sessionChecked={session !== undefined}
                                     onSessionUpdate={checkSession}
-                                    userRoles={roles}
+                                    userRoles={session?.roles ?? []}
                                 />
                             </div>
-                            <BottomNav userRoles={roles} />
+                            <BottomNav userRoles={session?.roles ?? []} />
                             <Footer />
                         </main>
                     </div>

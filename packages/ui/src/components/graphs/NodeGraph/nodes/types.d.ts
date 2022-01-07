@@ -1,5 +1,12 @@
 import { NodeData, NodeType } from "@local/shared";
-import { RoutineListNodeData, RoutineListNodeItemData } from '@local/shared';
+import { NodeData, RoutineListNodeItemData } from '@local/shared';
+
+/**
+ * Props for all nodes (besides the Add node)
+ */
+export interface NodeDataProps {
+    node: NodeData;
+}
 
 /**
  * Props for all scalable objects (so every component involved with routine orchestration)
@@ -34,42 +41,42 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
 /**
  * Props for the Combine node
  */
-export interface CombineNodeProps extends ScaleProps, LabelledProps, EditableProps {
+export interface CombineNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
     
 }
 
 /**
  * Props for the Decision node
  */
-export interface DecisionNodeProps extends ScaleProps, LabelledProps, EditableProps {
+export interface DecisionNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
     text?: string;
 }
 
 /**
  * Props for the End node
  */
-export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps {
+export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
 
 }
 
 /**
  * Props for the Loop node
  */
-export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps {
+export interface LoopNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
+
 }
 
 /**
  * Props for the Redirect node
  */
-export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditableProps {
+export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
 
 }
 
 /**
  * Props for the Routine List node
  */
-export interface RoutineListNodeProps extends ScaleProps, LabelledProps, EditableProps {
-    data?: RoutineListNodeData;
+export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
     onAdd: (data: RoutineListNodeItemData) => void;
 }
 
@@ -83,5 +90,6 @@ export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, Editable
 /**
  * Props for a Start node
  */
-export interface StartNodeProps extends ScaleProps, LabelledProps, EditableProps {
+export interface StartNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
+
 }

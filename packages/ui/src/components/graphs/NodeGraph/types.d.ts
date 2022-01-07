@@ -14,6 +14,19 @@ export type NodePos = {
     node: NodeData;
 }
 
+export interface NodeContextMenuProps {
+    id: string;
+    open: boolean;
+    anchorEl: HTMLElement | null;
+    node: NodeData;
+    onClose: () => void;
+    onAddBefore: (node: NodeData) => void;
+    onAddAfter: (node: NodeData) => void;
+    onEdit: (node: NodeData) => void;
+    onDelete: (node: NodeData) => void;
+    onMove: (node: NodeData) => void;
+}
+
 export interface NodeGraphProps {
     scale?: number;
     isEditable?: boolean;

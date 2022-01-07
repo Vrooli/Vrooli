@@ -1,9 +1,10 @@
 import { makeStyles } from '@mui/styles';
 import { Theme, Tooltip, Typography } from '@mui/material';
-import { useMemo } from 'react';
+import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { DecisionNodeProps } from '../types';
 import { nodeStyles } from '../styles';
 import { combineStyles } from 'utils';
+import { NodeContextMenu } from '../..';
 
 const componentStyles = (theme: Theme) => ({
     root: {
@@ -42,6 +43,7 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 export const DecisionNode = ({
+    node,
     scale = 1,
     label = 'Continue?',
     text = 'Would you like to continue?',
@@ -52,16 +54,46 @@ export const DecisionNode = ({
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography className={`${classes.label} ${classes.noSelect}`} variant="h6">{label}</Typography>
-    ): null, [labelVisible, classes.label, classes.noSelect, label]);
+    ) : null, [labelVisible, classes.label, classes.noSelect, label]);
 
     const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
 
+    // Right click context menu
+    const [contextAnchor, setContextAnchor] = useState<any>(null);
+    const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
+    const contextOpen = Boolean(contextAnchor);
+    const openContext = useCallback((ev: MouseEvent<HTMLDivElement>) => {
+        setContextAnchor(ev.currentTarget)
+        ev.preventDefault();
+    }, []);
+    const closeContext = useCallback(() => setContextAnchor(null), []);
+
     return (
-        <Tooltip placement={'top'} title={text}>
-            <div className={classes.root} style={{width: nodeSize, height: nodeSize, lineHeight: nodeSize, fontSize: fontSize}}>
-                {labelObject}
-            </div>
-        </Tooltip>
+        <div>
+            <NodeContextMenu
+                id={contextId}
+                anchorEl={contextAnchor}
+                open={contextOpen}
+                node={node}
+                onClose={closeContext}
+                onAddBefore={() => { }}
+                onAddAfter={() => { }}
+                onDelete={() => { }}
+                onEdit={() => { }}
+                onMove={() => { }}
+            />
+            <Tooltip placement={'top'} title={text}>
+                <div 
+                    className={classes.root} 
+                    style={{ width: nodeSize, height: nodeSize, lineHeight: nodeSize, fontSize: fontSize }}
+                    aria-owns={contextOpen ? contextId : undefined}
+                    onContextMenu={openContext}
+                    onClick={() => {}}
+                >
+                    {labelObject}
+                </div>
+            </Tooltip>
+        </div>
     )
 }

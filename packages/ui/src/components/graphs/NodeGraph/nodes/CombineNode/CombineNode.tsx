@@ -1,10 +1,12 @@
 import { makeStyles } from '@mui/styles';
 import { Theme, Tooltip, Typography } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { CombineNodeProps } from '../types';
 import { nodeStyles } from '../styles';
 import { combineStyles } from 'utils';
 import { ArrowRightIcon } from 'assets/img';
+import { NodeContextMenu } from '../..';
+import { CombineNodeData } from '@local/shared';
 
 const componentStyles = (theme: Theme) => ({
     root: {
@@ -27,6 +29,7 @@ const componentStyles = (theme: Theme) => ({
 const useStyles = makeStyles(combineStyles(nodeStyles, componentStyles));
 
 export const CombineNode = ({
+    node,
     scale = 1,
     label = 'Combine',
     labelVisible = true,
@@ -39,6 +42,12 @@ export const CombineNode = ({
         <div>TODO</div>
     ) : null, [dialogOpen])
 
+    // Right click context menu
+    const [contextAnchor, setContextAnchor] = useState(null);
+    const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
+    const contextOpen = Boolean(contextAnchor);
+    const closeContext = useCallback(() => setContextAnchor(null), []);
+
     const labelObject = useMemo(() => labelVisible ? (
         <Typography className={`${classes.label} ${classes.noSelect} ${classes.ignoreHover}`} style={{ marginLeft: '-20px' }} variant="h6">{label}</Typography>
     ) : null, [labelVisible, classes.label, classes.noSelect, classes.ignoreHover, label]);
@@ -49,8 +58,24 @@ export const CombineNode = ({
     return (
         <div>
             {dialog}
+            <NodeContextMenu 
+                id={contextId}
+                anchorEl={contextAnchor} 
+                open={contextOpen} 
+                node={node}
+                onClose={closeContext} 
+                onAddBefore={() => {}}
+                onAddAfter={() => {}}
+                onDelete={() => {}}
+                onEdit={() => {}}
+                onMove={() => {}}
+            />
             <Tooltip placement={'top'} title='Combine'>
-                <div className={classes.root} style={{ width: nodeSize, height: nodeSize, fontSize: fontSize }}>
+                <div 
+                    className={classes.root} 
+                    style={{ width: nodeSize, height: nodeSize, fontSize: fontSize }}
+                    aria-owns={contextOpen ? contextId : undefined}
+                >
                     <ArrowRightIcon
                         className={classes.triangle}
                         onClick={openDialog}
