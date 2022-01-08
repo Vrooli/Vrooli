@@ -22,7 +22,7 @@ import {
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { CopyrightBreadcrumbs } from 'components';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { HamburgerProps } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -67,7 +67,7 @@ export const Hamburger = ({
     userRoles,
 }: HamburgerProps) => {
     const classes = useStyles();
-    const navigate = useNavigate();
+    const [, setLocation] = useLocation();
     const theme = useTheme();
     const [contactOpen, setContactOpen] = useState(true);
     const [open, setOpen] = useState(false);
@@ -109,7 +109,7 @@ export const Hamburger = ({
                     </Collapse>
                     {actionsToList({
                         actions: nav_actions,
-                        navigate,
+                        setLocation,
                         classes: { listItem: `${classes.menuItem} ${classes.highlight}`, listItemIcon: classes.highlight },
                         onAnyClick: closeMenu,
                     })}

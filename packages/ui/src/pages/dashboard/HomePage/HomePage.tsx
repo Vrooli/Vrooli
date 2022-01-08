@@ -7,7 +7,7 @@ import { useQuery } from '@apollo/client';
 import { autocompleteQuery } from 'graphql/query';
 import { debounce } from 'lodash';
 import { ActorCard, FeedList, OrganizationCard, ProjectCard, RoutineCard, StandardCard } from 'components';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { APP_LINKS, AutocompleteResultType } from '@local/shared';
 
 /**
@@ -18,7 +18,7 @@ import { APP_LINKS, AutocompleteResultType } from '@local/shared';
  * which opens a full search page for that object type.
  */
 export const HomePage = () => {
-    const navigate = useNavigate();
+    const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>('');
     const updateSearch = useCallback((e: any, newValue: any) => setSearchString(newValue), []);
     const { data, refetch } = useQuery<autocomplete, autocompleteVariables>(autocompleteQuery, { variables: { input: { searchString } } });
@@ -40,14 +40,14 @@ export const HomePage = () => {
                 return prefix + 'Routines';
             case AutocompleteResultType.Standard:
                 return prefix + 'Standards';
-            default AutocompleteResultType.User:
+            default:
                 return prefix + 'Users';
         }
     }, [searchString]);
 
     // Opens correct search page
     const openSearch = useCallback((objectType: AutocompleteResultType, id?: string) => {
-        const navHelper = (baseLink: string) => navigate(id ? `${baseLink}/${id}` : baseLink);
+        const navHelper = (baseLink: string) => setLocation(id ? `${baseLink}/${id}` : baseLink);
         switch (objectType) {
             case AutocompleteResultType.Organization:
                 return navHelper(APP_LINKS.SearchOrganizations);
@@ -57,18 +57,13 @@ export const HomePage = () => {
                 return navHelper(APP_LINKS.SearchRoutines);
             case AutocompleteResultType.Standard:
                 return navHelper(APP_LINKS.SearchStandards);
-            default AutocompleteResultType.User:
+            default:
                 return navHelper(APP_LINKS.SearchUsers);
         }
     }, [])
 
     return (
-        <Box
-            id="page"
-            sx={{
-                background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)',
-            }}
-        >
+        <Box id="page">
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '30vh' } }}>
                 <Typography component="h1" variant="h2" sx={{ ...centeredText }}>What would you like to do?</Typography>
@@ -111,31 +106,31 @@ export const HomePage = () => {
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 <FeedList 
-                    title={getFeedTitle("Routines")}
+                    title={getFeedTitle(AutocompleteResultType.Routine)}
                     data={[]} 
                     cardFactory={(d: any) => <RoutineCard data={d} />} 
                     onClick={() => {}}
                 />
                 <FeedList 
-                    title={getFeedTitle("Projects")}
+                    title={getFeedTitle(AutocompleteResultType.Project)}
                     data={[]} 
                     cardFactory={(d: any) => <ProjectCard data={d} />} 
                     onClick={() => {}}
                 />
                 <FeedList 
-                    title={getFeedTitle("Organizations")}
+                    title={getFeedTitle(AutocompleteResultType.Organization)}
                     data={[]} 
                     cardFactory={(d: any) => <OrganizationCard data={d} />} 
                     onClick={() => {}}
                 />
                 <FeedList 
-                    title={getFeedTitle("Users")}
+                    title={getFeedTitle(AutocompleteResultType.User)}
                     data={[]} 
                     cardFactory={(d: any) => <ActorCard data={d} />} 
                     onClick={() => {}}
                 />
                 <FeedList 
-                    title={getFeedTitle("Standards")}
+                    title={getFeedTitle(AutocompleteResultType.Standard)}
                     data={[]} 
                     cardFactory={(d: any) => <StandardCard data={d} />} 
                     onClick={() => {}}

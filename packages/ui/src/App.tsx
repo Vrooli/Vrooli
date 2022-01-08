@@ -9,7 +9,7 @@ import {
 import PubSub from 'pubsub-js';
 import { PUBS, themes } from 'utils';
 import { AllRoutes } from 'Routes';
-import { CssBaseline, CircularProgress } from '@mui/material';
+import { Box, CssBaseline, CircularProgress } from '@mui/material';
 import { StyledEngineProvider, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -19,7 +19,6 @@ import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
 import hotkeys from 'hotkeys-js';
-import { useLocation } from 'react-router';
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -61,7 +60,6 @@ const useStyles = makeStyles(() => ({
 
 export function App() {
     const classes = useStyles();
-    const { pathname, hash } = useLocation();
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
@@ -73,20 +71,20 @@ export function App() {
     // If anchor tag in url, scroll to element
     useEffect(() => {
         // if not a hash link, scroll to top
-        if (hash === '') {
+        if (window.location.hash === '') {
             window.scrollTo(0, 0);
         }
         // else scroll to id
         else {
             setTimeout(() => {
-                const id = hash.replace('#', '');
+                const id = window.location.hash.replace('#', '');
                 const element = document.getElementById(id);
                 if (element) {
                     element.scrollIntoView();
                 }
             }, 0);
         }
-    }, [hash, pathname]); // do this on route change
+    }, [window.location]); // do this on route change
 
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -162,7 +160,7 @@ export function App() {
                                 color: theme.palette.background.textPrimary,
                             }}
                         >
-                            <div id="content-wrap" className={classes.contentWrap}>
+                            <Box id="content-wrap" className={classes.contentWrap} sx={{background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)'}}>
                                 <Navbar userRoles={session?.roles ?? []} />
                                 {loading ?
                                     <div className={classes.spinner}>
@@ -177,7 +175,7 @@ export function App() {
                                     onSessionUpdate={checkSession}
                                     userRoles={session?.roles ?? []}
                                 />
-                            </div>
+                            </Box>
                             <BottomNav userRoles={session?.roles ?? []} />
                             <Footer />
                         </main>

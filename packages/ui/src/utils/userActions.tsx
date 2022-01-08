@@ -23,7 +23,7 @@ import {
 import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
 import { openLink } from 'utils';
-import { NavigateFunction } from 'react-router-dom';
+import { Path } from 'wouter';
 
 export const ACTION_TAGS = {
     Home: 'home',
@@ -87,18 +87,18 @@ export const createActions = (actions: ActionArray[]): Action[] => actions.map(a
 // Display actions as a list
 interface ActionsToListProps {
     actions: Action[];
-    navigate: NavigateFunction;
+    setLocation: (to: Path, options?: { replace?: boolean }) => void;
     classes?: { [key: string]: string };
     showIcon?: boolean;
     onAnyClick?: () => any;
 }
-export const actionsToList = ({ actions, navigate, classes = { listItem: '', listItemIcon: '' }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
+export const actionsToList = ({ actions, setLocation, classes = { listItem: '', listItemIcon: '' }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
     return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
         <ListItem
             key={value}
             classes={{ root: classes.listItem }}
             onClick={() => {
-                openLink(navigate, link);
+                openLink(setLocation, link);
                 if (onClick) onClick();
                 if (onAnyClick) onAnyClick();
             }}>
@@ -116,17 +116,17 @@ export const actionsToList = ({ actions, navigate, classes = { listItem: '', lis
 // Display actions in a horizontal menu
 interface ActionsToMenuProps {
     actions: Action[];
-    navigate: NavigateFunction;
+    setLocation: (to: Path, options?: { replace?: boolean }) => void;
     classes?: { [key: string]: string };
 }
-export const actionsToMenu = ({ actions, navigate, classes = { root: '' } }: ActionsToMenuProps) => {
+export const actionsToMenu = ({ actions, setLocation, classes = { root: '' } }: ActionsToMenuProps) => {
     return actions.map(({ label, value, link, onClick }) => (
         <Button
             key={value}
             variant="text"
             size="large"
             classes={classes}
-            onClick={() => { openLink(navigate, link); if (onClick) onClick() }}
+            onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
         >
             {label}
         </Button>
@@ -136,17 +136,17 @@ export const actionsToMenu = ({ actions, navigate, classes = { root: '' } }: Act
 // Display actions in a bottom navigation
 interface ActionsToBottomNavProps {
     actions: Action[];
-    navigate: NavigateFunction;
+    setLocation: (to: Path, options?: { replace?: boolean }) => void;
     classes?: { [key: string]: string };
 }
-export const actionsToBottomNav = ({ actions, navigate, classes = { root: '' } }: ActionsToBottomNavProps) => {
+export const actionsToBottomNav = ({ actions, setLocation, classes = { root: '' } }: ActionsToBottomNavProps) => {
     return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
         <BottomNavigationAction
             key={value}
             classes={classes}
             label={label}
             value={value}
-            onClick={() => { openLink(navigate, link); if (onClick) onClick() }}
+            onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>} />
     ))
 }
@@ -154,12 +154,12 @@ export const actionsToBottomNav = ({ actions, navigate, classes = { root: '' } }
 // Display an action as an icon button
 interface ActionToIconButtonProps {
     action: Action;
-    navigate: NavigateFunction;
+    setLocation: (to: Path, options?: { replace?: boolean }) => void;
     classes?: { [key: string]: string };
 }
-export const actionToIconButton = ({ action, navigate, classes = { root: '' } }: ActionToIconButtonProps) => {
+export const actionToIconButton = ({ action, setLocation, classes = { root: '' } }: ActionToIconButtonProps) => {
     const { value, link, Icon, numNotifications } = action;
-    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(navigate, link)}>
+    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(setLocation, link)}>
         <Badge badgeContent={numNotifications} color="error">
             <Icon />
         </Badge>

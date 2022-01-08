@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { APP_LINKS } from '@local/shared';
-import { useLocation, Navigate } from 'react-router-dom';
+import { useLocation, Redirect } from 'wouter';
 import { UserRoles } from 'types';
 import { PUBS } from 'utils';
 
@@ -21,7 +21,7 @@ export const Page = ({
     restrictedToRoles = [],
     children
 }: Props) => {
-    const location = useLocation();
+    const [location] = useLocation();
     console.log('sessio checked', sessionChecked, userRoles);
 
     useEffect(() => {
@@ -33,10 +33,10 @@ export const Page = ({
         if (Array.isArray(userRoles)) {
             if (userRoles.some(r => restrictedToRoles.includes(r))) return children;
         }
-        if (sessionChecked && location.pathname !== redirect) { 
+        if (sessionChecked && location !== redirect) { 
             console.log('session check failed', restrictedToRoles, userRoles)
             PubSub.publish(PUBS.Snack, { message: 'Page restricted. Please log in', severity: 'error' });
-            return <Navigate to={redirect} />
+            return <Redirect to={redirect} />
         }
         return null;
     }

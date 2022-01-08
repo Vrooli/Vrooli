@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { emailLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { CODE, emailLogInSchema } from '@local/shared';
@@ -17,17 +17,17 @@ import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { formStyles } from './styles';
 import { emailLogIn } from 'graphql/generated/emailLogIn';
-import { FormProps } from './types';
+import { LogInFormProps } from './types';
 
 const useStyles = makeStyles(formStyles);
 
 export const LogInForm = ({
+    code,
     onSessionUpdate,
     onFormChange = () => {}
-}: FormProps) => {
+}: LogInFormProps) => {
     const classes = useStyles();
-    const navigate = useNavigate();
-    const urlParams = useParams<{code?: string}>();
+    const [, setLocation] = useLocation();
     const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
 
     const formik = useFormik({
@@ -39,15 +39,15 @@ export const LogInForm = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation: emailLogIn,
-                input: { ...values, verificationCode: urlParams.code },
+                input: { ...values, verificationCode: code },
                 successCondition: (response) => response.data.emailLogIn !== null,
-                onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); navigate(APP_LINKS.Home) },
+                onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); setLocation(APP_LINKS.Home) },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(PUBS.AlertDialog, {
                             message: 'Before signing in, please follow the link sent to your email to change your password.',
                             firstButtonText: 'OK',
-                            firstButtonClicked: () => navigate(APP_LINKS.Home),
+                            firstButtonClicked: () => setLocation(APP_LINKS.Home),
                         });
                     }
                 }

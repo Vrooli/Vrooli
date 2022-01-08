@@ -1,8 +1,7 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { makeStyles } from '@mui/styles';
 import { BottomNavigation, Theme } from '@mui/material';
 import { actionsToBottomNav, ACTION_TAGS, getUserActions } from 'utils';
-import { CommonProps } from 'types';
 import { BottomNavProps } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -30,12 +29,12 @@ export const BottomNav = ({
     userRoles,
     ...props
 }: BottomNavProps) => {
-    let navigate = useNavigate();
+    const [, setLocation] = useLocation();
     const classes = useStyles();
 
     let actions = actionsToBottomNav({
         actions: getUserActions({ userRoles, exclude: [ACTION_TAGS.LogOut] }),
-        navigate,
+        setLocation,
         classes: { root: classes.icon }
     });
 

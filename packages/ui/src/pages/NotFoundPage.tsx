@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'wouter';
 import { Button } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { combineStyles } from 'utils';

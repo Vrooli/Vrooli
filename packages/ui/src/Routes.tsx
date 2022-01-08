@@ -1,6 +1,6 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Switch } from 'wouter';
 import { BUSINESS_NAME, ROLES } from '@local/shared';
 import { APP_LINKS as LINKS } from '@local/shared';
 // import { Sitemap } from 'Sitemap';
@@ -32,6 +32,7 @@ const {
     SearchProjectsPage,
     SearchRoutinesPage,
     SearchStandardsPage,
+    StandardViewPage,
     StartPage,
     StatsPage,
 } = lazily(() => import('./pages'));
@@ -43,231 +44,145 @@ export const AllRoutes = (props: CommonProps) => {
     return (
         <Suspense fallback={<div>Loading...</div>}>
             <ScrollToTop />
-            <Routes>
-                {/* <Route
+            {/* <Route
                     path="/sitemap"
                     element={Sitemap}
                 /> */}
+            <Switch>
                 {/* ========= #region Dashboard Routes ========= */}
                 {/* Customizable pages available to logged in users */}
-                <Route
-                    path={LINKS.Home}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Home')} {...props}>
-                            <HomePage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Projects}/*`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Projects')} {...props}>
-                            <ProjectsPage session={props.session} />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Learn}/*`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Learn')} {...props}>
-                            <LearnPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Research}/*`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Research')} {...props}>
-                            <ResearchPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Develop}/*`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Develop')} {...props}>
-                            <DevelopPage />
-                        </Page>
-                    }
-                />
+                <Route path={LINKS.Home}>
+                    <Page title={title('Home')} {...props}>
+                        <HomePage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Projects}/*`}>
+                    <Page title={title('Projects')} {...props}>
+                        <HomePage />
+                    </Page>
+                </Route>
+                <Route path={LINKS.Learn} >
+                    <Page title={title('Learn')} {...props}>
+                        <LearnPage />
+                    </Page>
+                </Route>
+                <Route path={LINKS.Research}>
+                    <Page title={title('Research')} {...props}>
+                        <ResearchPage />
+                    </Page>
+                </Route>
+                <Route path={LINKS.Develop}>
+                    <Page title={title('Develop')} {...props}>
+                        <DevelopPage />
+                    </Page>
+                </Route>
                 {/* ========= #endregion Dashboard Routes ========= */}
 
                 {/* ========= #region Search Routes ========= */}
-                <Route
-                    path={`${LINKS.Search}/users`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Search Users')} {...props}>
-                            <SearchActorsPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Search}/organizations`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Search Organizations')} {...props}>
-                            <SearchOrganizationsPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Search}/projects`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Search Projects')} {...props}>
-                            <SearchProjectsPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Search}/routines`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Search Routines')} {...props}>
-                            <SearchRoutinesPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Search}/standards`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Search Standards')} {...props}>
-                            <SearchStandardsPage />
-                        </Page>
-                    }
-                />
+                <Route path={`${LINKS.SearchUsers}/:id?`}>
+                    <Page title={title('Users Search')} {...props}>
+                        <SearchActorsPage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.SearchOrganizations}/:id?`}>
+                    <Page title={title('Organizations Search')} {...props}>
+                        <SearchOrganizationsPage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.SearchProjects}/:id?`}>
+                    <Page title={title('Projects Search')} {...props}>
+                        <SearchProjectsPage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.SearchRoutines}/:id?`}>
+                    <Page title={title('Routines Search')} {...props}>
+                        <SearchRoutinesPage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.SearchStandards}/id?`}>
+                    <Page title={title('Standards Search')} {...props}>
+                        <SearchStandardsPage />
+                    </Page>
+                </Route>
                 {/* ========= #endregion Search Routes ========= */}
 
                 {/* ========= #region Orchestration Routes ========= */}
                 {/* Pages for creating and running routine orchestrations */}
-                <Route
-                    path={`${LINKS.Orchestrate}/:id`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Plan Routine')} {...props} restrictedToRoles={Object.values(ROLES)}>
-                            <RoutineOrchestratorPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Run}/:id?`}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Run Routine')} {...props}>
-                            <RunRoutinePage />
-                        </Page>
-                    }
-                />
+                <Route path={`${LINKS.Orchestrate}/:id`}>
+                    <Page title={title('Plan Routine')} {...props} restrictedToRoles={Object.values(ROLES)}>
+                        <RoutineOrchestratorPage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Run}/:id?`}>
+                    <Page title={title('Run Routine')} {...props}>
+                        <RunRoutinePage />
+                    </Page>
+                </Route>
                 {/* ========= #endregion Orchestration Routes ========= */}
 
                 {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (organizations, actors, projects, routines, resources, data) */}
-                <Route
-                    path={`${LINKS.Profile}/:id?`}
-                    // sitemapIndex={true}
-                    // priority={0.1}
-                    element={
-                        <Page title={title('Profile')} {...props}>
-                            <ActorViewPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Organization}/:id?`}
-                    // sitemapIndex={true}
-                    // priority={0.1}
-                    element={
-                        <Page title={title('Organization')} {...props}>
-                            <OrganizationViewPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Project}/:id?`}
-                    // sitemapIndex={true}
-                    // priority={0.1}
-                    element={
-                        <Page title={title('Project')} {...props}>
-                            <ProjectViewPage />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.Routine}/:id?`}
-                    // sitemapIndex={true}
-                    // priority={0.1}
-                    element={
-                        <Page title={title('Routine')} {...props}>
-                            <RoutineViewPage />
-                        </Page>
-                    }
-                />
-
+                {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
+                <Route path={`${LINKS.Profile}/:id?`}>
+                    <Page title={title('Profile')} {...props}>
+                        <ActorViewPage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Organization}/:id?`}>
+                    <Page title={title('Organization')} {...props}>
+                        <OrganizationViewPage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Project}/:id?`}>
+                    <Page title={title('Project')} {...props}>
+                        <ProjectViewPage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Routine}/:id?`}>
+                    <Page title={title('Routine')} {...props}>
+                        <RoutineViewPage />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.Standard}/:id?`}>
+                    <Page title={title('Standard')} {...props}>
+                        <StandardViewPage />
+                    </Page>
+                </Route>
                 {/* =========  #endregion ========= */}
 
                 {/* ========= #region Authentication Routes ========= */}
-                <Route
-                    path={LINKS.Start}
-                    // sitemapIndex={true}
-                    // priority={0.8}
-                    element={
-                        <Page title={title('Start')} {...props}>
-                            <StartPage {...props} />
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.ForgotPassword}/:code?`}
-                    // sitemapIndex={true}
-                    // priority={0.1}
-                    element={
-                        <Page title={title('Forgot Password')} {...props}>
-                            <FormPage title="Forgot Password" maxWidth="700px">
-                                <ForgotPasswordForm />
-                            </FormPage>
-                        </Page>
-                    }
-                />
-                <Route
-                    path={`${LINKS.ResetPassword}/:id?/:code?`}
-                    // sitemapIndex={true}
-                    // priority={0.1}
-                    element={
-                        <Page title={title('Reset Password')} {...props}>
-                            <FormPage title="Reset Password" maxWidth="700px">
-                                <ResetPasswordForm {...props} />
-                            </FormPage>
-                        </Page>
-                    }
-                />
-
+                <Route path={LINKS.Start}>
+                    <Page title={title('Start')} {...props}>
+                        <StartPage {...props} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.ForgotPassword}/:code?`} >
+                    <Page title={title('Forgot Password')} {...props}>
+                        <FormPage title="Forgot Password" maxWidth="700px">
+                            <ForgotPasswordForm />
+                        </FormPage>
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.ResetPassword}/:userId?/:code?`}>
+                    {(params: any) => <Page title={title('Reset Password')} {...props}>
+                        <FormPage title="Reset Password" maxWidth="700px">
+                            <ResetPasswordForm userId={params.userId} code={params.code} onSessionUpdate={props.onSessionUpdate} />
+                        </FormPage>
+                    </Page>}
+                </Route>
                 {/* =========  #endregion ========= */}
 
-                <Route
-                    path={LINKS.Stats}
-                    // sitemapIndex={false}
-                    element={
-                        <Page title={title('Stats📊')} {...props}>
-                            <StatsPage />
-                        </Page>
-                    }
-                />
-
-                <Route
-                    element={
-                        <Page title={title('404')} {...props}>
-                            <NotFoundPage />
-                        </Page>
-                    }
-                />
-            </Routes>
+                <Route path={LINKS.Stats}>
+                    <Page title={title('Stats📊')} {...props}>
+                        <StatsPage />
+                    </Page>
+                </Route>
+                <Route>
+                    <Page title={title('404')} {...props}>
+                        <NotFoundPage />
+                    </Page>
+                </Route>
+            </Switch>
         </Suspense>
     );
 }

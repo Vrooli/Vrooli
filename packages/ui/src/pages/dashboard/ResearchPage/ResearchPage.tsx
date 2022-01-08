@@ -1,22 +1,14 @@
-import { makeStyles } from '@mui/styles';
-import { Theme } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { ResourceList } from 'components';
-
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {}
-}));
+import { centeredText } from 'styles';
 
 export const ResearchPage = ({
 
 }) => {
-    const classes = useStyles();
-
     return (
-        <div id="page" className={classes.root}>
-            asdfdsafdsafd
-            asdf
-            asdfdsafdsafddsa
+        <Box id="page">
+            <Typography component="h1" variant="h2" sx={{ ...centeredText }}>Research Dashboard</Typography>
             <ResourceList />
-        </div>
+        </Box>
     )
 }

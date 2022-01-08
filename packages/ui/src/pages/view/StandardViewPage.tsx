@@ -1,0 +1,1 @@
+export const StandardViewPage = () => { return ( <div></div> ) }

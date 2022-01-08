@@ -10,20 +10,20 @@ import {
 import { makeStyles } from '@mui/styles';
 import { APP_LINKS } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { useParams } from 'react-router-dom';
 import { formStyles } from './styles';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { emailResetPassword } from 'graphql/generated/emailResetPassword';
-import { FormProps } from './types';
+import { ResetPasswordFormProps } from './types';
 
 const useStyles = makeStyles(formStyles);
 
 export const ResetPasswordForm = ({
+    userId,
+    code,
     onSessionUpdate
-}: FormProps) => {
+}: ResetPasswordFormProps) => {
     const classes = useStyles();
-    const navigate = useNavigate();
-    const urlParams = useParams<{id?: string; code?: string}>();
+    const [, setLocation] = useLocation();
     const [emailResetPassword, {loading}] = useMutation<emailResetPassword>(emailResetPasswordMutation);
 
     const formik = useFormik({
@@ -35,8 +35,8 @@ export const ResetPasswordForm = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation: emailResetPassword,
-                input: { id: urlParams.id, code: urlParams.code, newPassword: values.newPassword },
-                onSuccess: (response) => { onSessionUpdate(response.data.emailResetPassword); navigate(APP_LINKS.Home) },
+                input: { id: userId, code, newPassword: values.newPassword },
+                onSuccess: (response) => { onSessionUpdate(response.data.emailResetPassword); setLocation(APP_LINKS.Home) },
                 successMessage: () => 'Password reset.',
             })
         },

@@ -2,7 +2,7 @@ import React from 'react';
 import { addDecorator, } from '@storybook/react';
 import { themes } from 'utils';
 import { Typography } from '@mui/material';
-import { BrowserRouter } from 'react-router-dom';
+import { Router } from 'wouter';
 import { ThemeProvider } from '@mui/styles';
 import { useDarkMode } from 'storybook-dark-mode';
 
@@ -35,12 +35,12 @@ addDecorator((story) => {
 });
 
 /**
- * Mocks react-router-dom
+ * Mocks wouter
  */
 addDecorator((story) => (
-    <BrowserRouter>
+    <Router>
         {story()}
-    </BrowserRouter>
+    </Router>
 ))
 
 export const parameters = {

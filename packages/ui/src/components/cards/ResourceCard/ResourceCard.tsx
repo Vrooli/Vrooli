@@ -14,7 +14,7 @@ import { cardStyles } from '../styles';
 import { useEffect, useMemo } from 'react';
 import { readOpenGraphQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { ResourceCardProps } from '../types';
 import { readOpenGraph, readOpenGraphVariables } from 'graphql/generated/readOpenGraph';
 
@@ -45,7 +45,7 @@ export const ResourceCard = ({
     data
 }: ResourceCardProps) => {
     const classes = useStyles();
-    const navigate = useNavigate();
+    const [, setLocation] = useLocation();
     const [getOpenGraphData, { data: queryResult }] = useLazyQuery<readOpenGraph, readOpenGraphVariables>(readOpenGraphQuery);
     const queryData = useMemo(() => queryResult?.readOpenGraph, [queryResult]);
     const title = useMemo(() => data?.title ?? queryData?.title, [data, queryData]);
@@ -74,7 +74,7 @@ export const ResourceCard = ({
 
     return (
         <Tooltip placement="top" title={data?.description ?? queryData?.description ?? ''}>
-            <Card className={`${classes.root} ${classes.cardRoot}`} onClick={() => openLink(navigate, url)}>
+            <Card className={`${classes.root} ${classes.cardRoot}`} onClick={() => openLink(setLocation, url)}>
                 <CardActionArea>
                     {display}
                     <CardContent className={`${classes.content} ${classes.topMargin}`}>

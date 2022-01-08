@@ -5,7 +5,7 @@ import {
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'utils';
 import { Button, Container, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { useMemo } from 'react';
 import { NavListProps } from '../types';
 
@@ -47,7 +47,7 @@ export const NavList = ({
     userRoles
 }: NavListProps) => {
     const classes = useStyles();
-    const navigate = useNavigate();
+    const [, setLocation] = useLocation();
 
     const nav_actions = useMemo<Action[]>(() => getUserActions({ userRoles }), [userRoles]);
     // Display button for entering main application
@@ -55,11 +55,11 @@ export const NavList = ({
     const enter_button = useMemo(() => enter_action ? (
         <Button 
             className={classes.button} 
-            onClick={() => openLink(navigate, enter_action.link)}
+            onClick={() => openLink(setLocation, enter_action.link)}
             >
                 {enter_action.label}
         </Button>
-    ) : null, [enter_action, classes.button, navigate])
+    ) : null, [enter_action, classes.button, setLocation])
 
     return (
         <Container className={classes.root}>
@@ -73,7 +73,7 @@ export const NavList = ({
             </PopupMenu>
             {actionsToMenu({
                 actions: nav_actions.filter((a: Action) => a.value !== ACTION_TAGS.LogIn),
-                navigate,
+                setLocation,
                 classes: { root: classes.navItem },
             })}
             {enter_button}

@@ -5,7 +5,7 @@ import { AppBar, Toolbar, Typography, Slide, useScrollTrigger, Theme } from '@mu
 import { makeStyles } from '@mui/styles';
 import { Hamburger } from '../Hamburger/Hamburger';
 import { NavList } from '../NavList/NavList';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { NavbarProps } from '../types';
 
 const SHOW_HAMBURGER_AT = 1000;
@@ -72,7 +72,7 @@ export const Navbar = ({
     userRoles
 }: NavbarProps) => {
     const classes = useStyles();
-    const navigate = useNavigate();
+    const [, setLocation] = useLocation();
     const [show_hamburger, setShowHamburger] = useState(false);
 
     let child_props = { 
@@ -88,7 +88,7 @@ export const Navbar = ({
 
     const updateWindowDimensions = () => setShowHamburger(window.innerWidth <= SHOW_HAMBURGER_AT);
 
-    const toHome = useCallback(() => navigate(APP_LINKS.Home), [navigate]);
+    const toHome = useCallback(() => setLocation(APP_LINKS.Home), [setLocation]);
 
     return (
         <HideOnScroll>

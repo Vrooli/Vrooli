@@ -18,9 +18,9 @@ export function FeedList<DataType>({
         <Box
             onClick={handleContainerClick}
             sx={{
+                transition: 'filter 1s scale 1s ease-in-out',
                 '&:hover': {
                     transform: 'scale(1.05)',
-                    transition: 'filter 1s scale 1s ease-in-out',
                     filter: `brightness(105%)`,
                 },
             }}
