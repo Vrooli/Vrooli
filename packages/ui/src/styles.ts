@@ -9,3 +9,7 @@ export const centeredDiv: SxProps = {
 export const centeredText: SxProps = {
     textAlign: 'center',
 }
+
+export const containerShadow: SxProps = {
+    boxShadow: '0px 0px 12px gray',
+}

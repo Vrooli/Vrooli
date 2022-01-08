@@ -198,7 +198,7 @@ export const resolvers = {
                 }
             })).map((r: any) => ({
                 id: r.id,
-                title: r.title,
+                title: r.name,
                 objectType: AutocompleteResultType.Organization,
                 stars: r._count.starredBy
             }));
@@ -217,7 +217,7 @@ export const resolvers = {
                 }
             })).map((r: any) => ({
                 id: r.id,
-                title: r.title,
+                title: r.name,
                 objectType: AutocompleteResultType.Project,
                 stars: r._count.starredBy
             }));
@@ -236,7 +236,7 @@ export const resolvers = {
                 }
             })).map((r: any) => ({
                 id: r.id,
-                title: r.title,
+                title: r.name,
                 objectType: AutocompleteResultType.Standard,
                 stars: r._count.starredBy
             }));
@@ -244,7 +244,7 @@ export const resolvers = {
             const users = (await prisma.user.findMany({
                 where: {
                     ...UserModel().getSearchStringQuery(input.searchString),
-                    ...starredByQuery,
+                    //...starredByQuery,
                 },
                 orderBy: UserModel().getSortQuery(UserSortBy.StarsDesc),
                 take,
@@ -255,10 +255,11 @@ export const resolvers = {
                 }
             })).map((r: any) => ({
                 id: r.id,
-                title: r.title,
+                title: r.username,
                 objectType: AutocompleteResultType.User,
                 stars: r._count.starredBy
             }));
+            console.log('USERS', users);
             // Combine query results and sort by stars
             return routines.concat(organizations, projects, standards, users).sort((a: any, b: any) => {
                 return b.stars - a.stars;

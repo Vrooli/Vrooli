@@ -1,22 +1,43 @@
 // Used to display popular/search results of a particular object type
-import { Box, Typography } from '@mui/material';
+import { Box, Tooltip, Typography } from '@mui/material';
 import { FeedListProps } from '../types';
-import { centeredText } from 'styles';
-import { useMemo } from 'react';
+import { centeredText, containerShadow } from 'styles';
+import { useCallback, useMemo } from 'react';
 
 export function FeedList<DataType>({
     title = 'Popular Items',
     data,
     cardFactory,
+    onClick,
 }: FeedListProps<DataType>) {
     const cards = useMemo(() => data ? ((Object.values(data) as any)?.edges?.map((edge, index) => cardFactory(edge.node, index))) : null, [cardFactory, data]);
 
+    const handleContainerClick = useCallback(() => onClick(), [onClick]);
+
     return (
-        <Box sx={{borderRadius: '25%', background: 'background.paper', minHeight: 'min(300px, 25vh)'}}>
+        <Box
+            onClick={handleContainerClick}
+            sx={{
+                '&:hover': {
+                    transform: 'scale(1.05)',
+                    transition: 'filter 1s scale 1s ease-in-out',
+                    filter: `brightness(105%)`,
+                },
+            }}
+        >
             <Typography component="h2" variant="h4" sx={{ ...centeredText }}>{title}</Typography>
-            <div>
-                {cards}
-            </div>
+            <Tooltip placement="bottom" title="Press to see more">
+                <Box
+                    sx={{
+                        ...containerShadow,
+                        borderRadius: '16px',
+                        background: (t) => t.palette.background.default,
+                        minHeight: 'min(300px, 25vh)'
+                    }}
+                >
+                    {cards}
+                </Box>
+            </Tooltip>
         </Box>
     )
 }

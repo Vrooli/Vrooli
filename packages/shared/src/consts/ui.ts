@@ -14,7 +14,11 @@ export const APP_LINKS = {
     Routine: '/routine', // View or update specific routine
     Run: '/run', // Displays a UI corresponding to the current subroutine
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
-    Search: '/search', // Search routines and users
+    SearchOrganizations: '/search/organization', // Search organizations
+    SearchProjects: '/search/project', // Search projects
+    SearchRoutines: '/search/routine', // Search routines
+    SearchStandards: '/search/standard', // Search standards
+    SearchUsers: '/search/user', // Search users
     Start: '/start', // Provides options for entering application
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
 }
