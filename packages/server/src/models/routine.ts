@@ -65,18 +65,18 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
         return {
             [RoutineSortBy.AlphabeticalAsc]: { title: 'asc' },
             [RoutineSortBy.AlphabeticalDesc]: { title: 'desc' },
-            [RoutineSortBy.CommentsAsc]: { comments: { count: 'asc' } },
-            [RoutineSortBy.CommentsDesc]: { comments: { count: 'desc' } },
-            [RoutineSortBy.ForksAsc]: { forks: { count: 'asc' } },
-            [RoutineSortBy.ForksDesc]: { forks: { count: 'desc' } },
+            [RoutineSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
+            [RoutineSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
+            [RoutineSortBy.ForksAsc]: { forks: { _count: 'asc' } },
+            [RoutineSortBy.ForksDesc]: { forks: { _count: 'desc' } },
             [RoutineSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [RoutineSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [RoutineSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [RoutineSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [RoutineSortBy.StarsAsc]: { stars: { count: 'asc' } },
-            [RoutineSortBy.StarsDesc]: { stars: { count: 'desc' } },
-            [RoutineSortBy.VotesAsc]: { votes: { count: 'asc' } },
-            [RoutineSortBy.VotesDesc]: { votes: { count: 'desc' } },
+            [RoutineSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
+            [RoutineSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
+            [RoutineSortBy.VotesAsc]: { votes: { _count: 'asc' } },
+            [RoutineSortBy.VotesDesc]: { votes: { _count: 'desc' } },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
@@ -86,7 +86,7 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
                 { title: { ...insensitive } },
                 { description: { ...insensitive } },
                 { instructions: { ...insensitive } },
-                { tags: { tag: { name: { ...insensitive } } } },
+                { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
     }

@@ -14,10 +14,10 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
-export interface BaseSearchPageProps<SortBy> {
+export interface BaseSearchPageProps<DataType, SortBy> {
     title?: string | null;
     sortOptions: SearchSortBy<SortBy>[];
     defaultSortOption: SortBy;
     query: DocumentNode;
-    cardFactory: (node: User, index: number) => JSX.Element;
+    cardFactory: (node: DataType, index: number) => JSX.Element;
 }

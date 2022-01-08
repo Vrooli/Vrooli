@@ -60,16 +60,16 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
         return {
             [OrganizationSortBy.AlphabeticalAsc]: { name: 'asc' },
             [OrganizationSortBy.AlphabeticalDesc]: { name: 'desc' },
-            [OrganizationSortBy.CommentsAsc]: { comments: { count: 'asc' } },
-            [OrganizationSortBy.CommentsDesc]: { comments: { count: 'desc' } },
+            [OrganizationSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
+            [OrganizationSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [OrganizationSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [OrganizationSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [OrganizationSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [OrganizationSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [OrganizationSortBy.StarsAsc]: { stars: { count: 'asc' } },
-            [OrganizationSortBy.StarsDesc]: { stars: { count: 'desc' } },
-            [OrganizationSortBy.VotesAsc]: { votes: { count: 'asc' } },
-            [OrganizationSortBy.VotesDesc]: { votes: { count: 'desc' } },
+            [OrganizationSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
+            [OrganizationSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
+            [OrganizationSortBy.VotesAsc]: { votes: { _count: 'asc' } },
+            [OrganizationSortBy.VotesDesc]: { votes: { _count: 'desc' } },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
@@ -78,7 +78,7 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
             OR: [
                 { name: { ...insensitive } },
                 { description: { ...insensitive } },
-                { tags: { tag: { name: { ...insensitive } } } },
+                { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
     }

@@ -2,7 +2,7 @@ import { makeStyles } from '@mui/styles';
 import { Stack, Theme } from '@mui/material';
 import { useMemo } from 'react';
 import { NodeGraphColumnProps } from '../types';
-import { NodeType, RoutineListNodeData } from '@local/shared';
+import { NodeType } from '@local/shared';
 import { CombineNode, DecisionNode, EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
 
 const useStyles = makeStyles((theme: Theme) => ({

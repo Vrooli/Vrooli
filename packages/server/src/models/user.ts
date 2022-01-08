@@ -118,14 +118,14 @@ const sorter = (): Sortable<UserSortBy> => ({
         return {
             [UserSortBy.AlphabeticalAsc]: { username: 'asc' },
             [UserSortBy.AlphabeticalDesc]: { username: 'desc' },
-            [UserSortBy.CommentsAsc]: { comments: { count: 'asc' } },
-            [UserSortBy.CommentsDesc]: { comments: { count: 'desc' } },
+            [UserSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
+            [UserSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [UserSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [UserSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [UserSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [UserSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [UserSortBy.StarsAsc]: { stars: { count: 'asc' } },
-            [UserSortBy.StarsDesc]: { stars: { count: 'desc' } },
+            [UserSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
+            [UserSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {

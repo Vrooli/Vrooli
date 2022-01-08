@@ -1,3 +1,4 @@
+export * from './autocomplete';
 export * from './organization';
 export * from './organizations';
 export * from './organizationsCount';

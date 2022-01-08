@@ -63,8 +63,8 @@ export type TagFullModel = TagAllPrimitives &
             [TagSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [TagSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [TagSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [TagSortBy.StarsAsc]: { stars: { count: 'asc' } },
-            [TagSortBy.StarsDesc]: { stars: { count: 'desc' } },
+            [TagSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
+            [TagSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {

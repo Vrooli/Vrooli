@@ -51,18 +51,18 @@ const sorter = (): Sortable<ProjectSortBy> => ({
         return {
             [ProjectSortBy.AlphabeticalAsc]: { name: 'asc' },
             [ProjectSortBy.AlphabeticalDesc]: { name: 'desc' },
-            [ProjectSortBy.CommentsAsc]: { comments: { count: 'asc' } },
-            [ProjectSortBy.CommentsDesc]: { comments: { count: 'desc' } },
-            [ProjectSortBy.ForksAsc]: { forks: { count: 'asc' } },
-            [ProjectSortBy.ForksDesc]: { forks: { count: 'desc' } },
+            [ProjectSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
+            [ProjectSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
+            [ProjectSortBy.ForksAsc]: { forks: { _count: 'asc' } },
+            [ProjectSortBy.ForksDesc]: { forks: { _count: 'desc' } },
             [ProjectSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [ProjectSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [ProjectSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [ProjectSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [ProjectSortBy.StarsAsc]: { stars: { count: 'asc' } },
-            [ProjectSortBy.StarsDesc]: { stars: { count: 'desc' } },
-            [ProjectSortBy.VotesAsc]: { votes: { count: 'asc' } },
-            [ProjectSortBy.VotesDesc]: { votes: { count: 'desc' } },
+            [ProjectSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
+            [ProjectSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
+            [ProjectSortBy.VotesAsc]: { votes: { _count: 'asc' } },
+            [ProjectSortBy.VotesDesc]: { votes: { _count: 'desc' } },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
@@ -71,7 +71,7 @@ const sorter = (): Sortable<ProjectSortBy> => ({
             OR: [
                 { name: { ...insensitive } },
                 { description: { ...insensitive } },
-                { tags: { tag: { name: { ...insensitive } } } },
+                { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
     }

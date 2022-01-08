@@ -1,10 +1,13 @@
 import { gql } from 'apollo-server-express';
-import { GraphQLScalarType } from "graphql";
+import { GraphQLResolveInfo, GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 import ogs from 'open-graph-scraper';
-import { OpenGraphResponse } from './types';
-import { MetricTimeFrame } from '@local/shared';
+import { AutocompleteInput, Autocomplete, OpenGraphResponse, OrganizationSortBy, ProjectSortBy, RoutineSortBy, UserSortBy, StandardSortBy } from './types';
+import { AutocompleteResultType, MetricTimeFrame } from '@local/shared';
+import { IWrap } from '../types';
+import { Context } from '../context';
+import { OrganizationModel, ProjectModel, RoutineModel, StandardModel, UserModel } from '../models';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -17,6 +20,15 @@ export const typeDef = gql`
         Weekly
         Monthly
         Yearly
+    }
+
+    # Enums for autocomplete search result types
+    enum AutocompleteResultType {
+        Organization
+        Project
+        Routine
+        Standard
+        User
     }
 
     # Return type for a cursor-based pagination's pageInfo response
@@ -60,20 +72,6 @@ export const typeDef = gql`
         files: [Upload!]!
     }
 
-    # Base query. Must contain something,
-    # which can be as simple as '_empty: String'
-    type Query {
-        # _empty: String
-        readAssets(input: ReadAssetsInput!): [String]!
-        readOpenGraph(input: ReadOpenGraphInput!): OpenGraphResponse!
-    }
-    # Base mutation. Must contain something,
-    # which can be as simple as '_empty: String'
-    type Mutation {
-        # _empty: String
-        writeAssets(input: WriteAssetsInput!): Boolean
-    }
-
     # Input for finding object by id
     input FindByIdInput {
         id: ID!
@@ -94,11 +92,40 @@ export const typeDef = gql`
         id: ID!
         reason: String
     }
+
+    # Input for site-wide autocomplete search
+    input AutocompleteInput {
+        searchString: String!
+        take: Int
+    }
+
+    type Autocomplete {
+        title: String!
+        id: ID!
+        objectType: AutocompleteResultType!
+        stars: Int!
+    }
+
+    # Base query. Must contain something,
+    # which can be as simple as '_empty: String'
+    type Query {
+        # _empty: String
+        readAssets(input: ReadAssetsInput!): [String]!
+        readOpenGraph(input: ReadOpenGraphInput!): OpenGraphResponse!
+        autocomplete(input: AutocompleteInput!): [Autocomplete!]!
+    }
+    # Base mutation. Must contain something,
+    # which can be as simple as '_empty: String'
+    type Mutation {
+        # _empty: String
+        writeAssets(input: WriteAssetsInput!): Boolean
+    }
 `
 
 export const resolvers = {
     Upload: GraphQLUpload,
     MetricTimeFrame: MetricTimeFrame,
+    AutocompleteResultType: AutocompleteResultType,
     Date: new GraphQLScalarType({
         name: "Date",
         description: "Custom description for the date scalar",
@@ -130,8 +157,113 @@ export const resolvers = {
                 }).catch(err => {
                     console.error('Caught error fetching Open Graph url', err);
                     return {};
-                }).finally(() => {return {}})
-        }
+                }).finally(() => { return {} })
+        },
+        autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Autocomplete[]> => {
+            const take = input.take ? Math.ceil(input.take / 4) : 10;
+            //const MinimumStars = 1; // Minimum stars required to show up in autocomplete results. Will increase in the future.
+            //const starredByQuery = { starredBy: { gte: MinimumStars } }; TODO for now, Prisma does not offer this type of sorting. See https://github.com/prisma/prisma/issues/8935. Instead, returning if any stars exist.
+            const starredByQuery = { NOT: { starredBy: { none: {} } } };
+            // Query routines
+            const routines = (await prisma.routine.findMany({
+                where: {
+                    ...RoutineModel().getSearchStringQuery(input.searchString),
+                    ...starredByQuery,
+                },
+                orderBy: RoutineModel().getSortQuery(RoutineSortBy.StarsDesc),
+                take,
+                select: {
+                    id: true,
+                    title: true,
+                    _count: { select: { starredBy: true } }
+                }
+            })).map((r: any) => ({
+                id: r.id,
+                title: r.title,
+                objectType: AutocompleteResultType.Routine,
+                stars: r._count.starredBy
+            }));
+            // Query organizations
+            const organizations = (await prisma.organization.findMany({
+                where: {
+                    ...OrganizationModel().getSearchStringQuery(input.searchString),
+                    ...starredByQuery,
+                },
+                orderBy: OrganizationModel().getSortQuery(OrganizationSortBy.StarsDesc),
+                take,
+                select: {
+                    id: true,
+                    name: true,
+                    _count: { select: { starredBy: true } }
+                }
+            })).map((r: any) => ({
+                id: r.id,
+                title: r.title,
+                objectType: AutocompleteResultType.Organization,
+                stars: r._count.starredBy
+            }));
+            // Query projects
+            const projects = (await prisma.project.findMany({
+                where: {
+                    ...ProjectModel().getSearchStringQuery(input.searchString),
+                    ...starredByQuery,
+                },
+                orderBy: ProjectModel().getSortQuery(ProjectSortBy.StarsDesc),
+                take,
+                select: {
+                    id: true,
+                    name: true,
+                    _count: { select: { starredBy: true } }
+                }
+            })).map((r: any) => ({
+                id: r.id,
+                title: r.title,
+                objectType: AutocompleteResultType.Project,
+                stars: r._count.starredBy
+            }));
+            // Query standards
+            const standards = (await prisma.organization.findMany({
+                where: {
+                    ...StandardModel().getSearchStringQuery(input.searchString),
+                    ...starredByQuery,
+                },
+                orderBy: StandardModel().getSortQuery(StandardSortBy.StarsDesc),
+                take,
+                select: {
+                    id: true,
+                    name: true,
+                    _count: { select: { starredBy: true } }
+                }
+            })).map((r: any) => ({
+                id: r.id,
+                title: r.title,
+                objectType: AutocompleteResultType.Standard,
+                stars: r._count.starredBy
+            }));
+            // Query users
+            const users = (await prisma.user.findMany({
+                where: {
+                    ...UserModel().getSearchStringQuery(input.searchString),
+                    ...starredByQuery,
+                },
+                orderBy: UserModel().getSortQuery(UserSortBy.StarsDesc),
+                take,
+                select: {
+                    id: true,
+                    username: true,
+                    _count: { select: { starredBy: true } }
+                }
+            })).map((r: any) => ({
+                id: r.id,
+                title: r.title,
+                objectType: AutocompleteResultType.User,
+                stars: r._count.starredBy
+            }));
+            // Combine query results and sort by stars
+            return routines.concat(organizations, projects, standards, users).sort((a: any, b: any) => {
+                return b.stars - a.stars;
+            });
+        },
     },
     Mutation: {
         writeAssets: async (_parent: undefined, { input }: any): Promise<boolean> => {

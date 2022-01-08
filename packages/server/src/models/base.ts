@@ -5,7 +5,7 @@ import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, InputM
 import { CustomError } from '../error';
 import { PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
-import { GraphQLObjectType, GraphQLResolveInfo } from 'graphql';
+import { GraphQLResolveInfo } from 'graphql';
 import graphqlFields from 'graphql-fields';
 
 

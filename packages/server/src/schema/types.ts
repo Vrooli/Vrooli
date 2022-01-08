@@ -23,6 +23,19 @@ export enum AccountStatus {
   Unlocked = 'Unlocked'
 }
 
+export type Autocomplete = {
+  __typename?: 'Autocomplete';
+  id: Scalars['ID'];
+  objectType: Scalars['String'];
+  stars: Scalars['Int'];
+  title: Scalars['String'];
+};
+
+export type AutocompleteInput = {
+  searchString: Scalars['String'];
+  take?: InputMaybe<Scalars['Int']>;
+};
+
 export type Comment = {
   __typename?: 'Comment';
   created_at: Scalars['Date'];
@@ -781,6 +794,7 @@ export enum ProjectSortBy {
 
 export type Query = {
   __typename?: 'Query';
+  autocomplete: Array<Autocomplete>;
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
   organizationsCount: Scalars['Int'];
@@ -805,6 +819,11 @@ export type Query = {
   user?: Maybe<User>;
   users: UserSearchResult;
   usersCount: Scalars['Int'];
+};
+
+
+export type QueryAutocompleteArgs = {
+  input: AutocompleteInput;
 };
 
 

@@ -144,6 +144,11 @@ export enum UserSortBy {
   StarsDesc = "StarsDesc",
 }
 
+export interface AutocompleteInput {
+  searchString: string;
+  take?: number | null;
+}
+
 export interface CommentInput {
   id?: string | null;
   text?: string | null;

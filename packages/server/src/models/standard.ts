@@ -48,16 +48,16 @@ Pick<Standard, 'reports' | 'comments'> &
         return {
             [StandardSortBy.AlphabeticalAsc]: { name: 'asc' },
             [StandardSortBy.AlphabeticalDesc]: { name: 'desc' },
-            [StandardSortBy.CommentsAsc]: { comments: { count: 'asc' } },
-            [StandardSortBy.CommentsDesc]: { comments: { count: 'desc' } },
+            [StandardSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
+            [StandardSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [StandardSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [StandardSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [StandardSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [StandardSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [StandardSortBy.StarsAsc]: { stars: { count: 'asc' } },
-            [StandardSortBy.StarsDesc]: { stars: { count: 'desc' } },
-            [StandardSortBy.VotesAsc]: { votes: { count: 'asc' } },
-            [StandardSortBy.VotesDesc]: { votes: { count: 'desc' } },
+            [StandardSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
+            [StandardSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
+            [StandardSortBy.VotesAsc]: { votes: { _count: 'asc' } },
+            [StandardSortBy.VotesDesc]: { votes: { _count: 'desc' } },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
@@ -66,7 +66,7 @@ Pick<Standard, 'reports' | 'comments'> &
             OR: [
                 { name: { ...insensitive } },
                 { description: { ...insensitive } },
-                { tags: { tag: { name: { ...insensitive } } } },
+                { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
     }

@@ -120,14 +120,14 @@ const sorter = (): Sortable<ResourceSortBy> => ({
         return {
             [ResourceSortBy.AlphabeticalAsc]: { title: 'asc' },
             [ResourceSortBy.AlphabeticalDesc]: { title: 'desc' },
-            [ResourceSortBy.CommentsAsc]: { comments: { count: 'asc' } },
-            [ResourceSortBy.CommentsDesc]: { comments: { count: 'desc' } },
+            [ResourceSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
+            [ResourceSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [ResourceSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [ResourceSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [ResourceSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [ResourceSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [ResourceSortBy.StarsAsc]: { stars: { count: 'asc' } },
-            [ResourceSortBy.StarsDesc]: { stars: { count: 'desc' } },
+            [ResourceSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
+            [ResourceSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {

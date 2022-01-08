@@ -19,13 +19,13 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
-export function BaseSearchPage<SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
+export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
     title = 'Search',
     sortOptions,
     defaultSortOption,
     query,
     cardFactory,
-}: BaseSearchPageProps<SortBy>) {
+}: BaseSearchPageProps<DataType, SortBy>) {
     const classes = useStyles();
     const [searchString, setSearchString] = useState<string>('');
     const [sortBy, setSortBy] = useState<SortBy | undefined>(defaultSortOption ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
