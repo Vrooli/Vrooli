@@ -21,6 +21,7 @@ export interface routines_routines_edges_node_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface routines_routines_edges_node {
@@ -32,6 +33,7 @@ export interface routines_routines_edges_node {
   created_at: any;
   isAutomatable: boolean | null;
   tags: routines_routines_edges_node_tags[];
+  stars: number;
 }
 
 export interface routines_routines_edges {

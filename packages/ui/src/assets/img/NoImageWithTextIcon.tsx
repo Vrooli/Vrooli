@@ -3,7 +3,7 @@ import { SvgProps } from './types';
 export const NoImageWithTextIcon = (props: SvgProps) => (
     <svg xmlns="http://www.w3.org/2000/svg"
         viewBox="12 12 73 90"
-        className={props.className}
+        style={props.style}
         aria-labelledby="noimagewithtext-title"
         width={props.width}
         height={props.height}

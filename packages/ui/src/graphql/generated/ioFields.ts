@@ -13,6 +13,7 @@ export interface ioFields_standard_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface ioFields_standard {

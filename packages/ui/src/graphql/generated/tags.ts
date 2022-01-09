@@ -21,6 +21,7 @@ export interface tags_tags_edges_node {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface tags_tags_edges {

@@ -15,6 +15,7 @@ export interface standardUpdate_standardUpdate_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface standardUpdate_standardUpdate {
@@ -28,6 +29,7 @@ export interface standardUpdate_standardUpdate {
   isFile: boolean;
   created_at: any;
   tags: standardUpdate_standardUpdate_tags[];
+  stars: number;
 }
 
 export interface standardUpdate {

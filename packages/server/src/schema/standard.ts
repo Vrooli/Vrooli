@@ -56,6 +56,7 @@ export const typeDef = gql`
         schema: String!
         default: String
         isFile: Boolean!
+        stars: Int!
         tags: [Tag!]!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!

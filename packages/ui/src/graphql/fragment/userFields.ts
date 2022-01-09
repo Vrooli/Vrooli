@@ -4,5 +4,6 @@ export const userFields = gql`
     fragment userFields on User {
         id
         username
+        stars
     }
 `

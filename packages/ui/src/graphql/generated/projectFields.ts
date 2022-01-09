@@ -13,6 +13,7 @@ export interface projectFields_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface projectFields {
@@ -22,4 +23,5 @@ export interface projectFields {
   description: string | null;
   created_at: any;
   tags: projectFields_tags[];
+  stars: number;
 }

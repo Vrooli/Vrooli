@@ -11,4 +11,5 @@ export interface userFields {
   __typename: "User";
   id: string;
   username: string | null;
+  stars: number;
 }

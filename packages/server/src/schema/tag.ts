@@ -29,6 +29,7 @@ export const typeDef = gql`
         description: String
         created_at: Date!
         updated_at: Date!
+        stars: Int!
         starredBy: [User!]!
     }
 

@@ -1,6 +1,6 @@
 export interface SvgProps extends React.SVGProps<SVGSVGElement> {
     iconTitle?: string;
-    className?: string;
+    style?: any;
     onClick?: () => any;
     width?: number | string;
     height?: number | string;

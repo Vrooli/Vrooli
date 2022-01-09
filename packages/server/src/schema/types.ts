@@ -23,17 +23,18 @@ export enum AccountStatus {
   Unlocked = 'Unlocked'
 }
 
-export type Autocomplete = {
-  __typename?: 'Autocomplete';
-  id: Scalars['ID'];
-  objectType: Scalars['String'];
-  stars: Scalars['Int'];
-  title: Scalars['String'];
-};
-
 export type AutocompleteInput = {
   searchString: Scalars['String'];
   take?: InputMaybe<Scalars['Int']>;
+};
+
+export type AutocompleteResult = {
+  __typename?: 'AutocompleteResult';
+  organizations: Array<Organization>;
+  projects: Array<Project>;
+  routines: Array<Routine>;
+  standards: Array<Standard>;
+  users: Array<User>;
 };
 
 export type Comment = {
@@ -625,6 +626,7 @@ export type Organization = {
   resources: Array<Resource>;
   routines: Array<Routine>;
   starredBy: Array<User>;
+  stars: Scalars['Int'];
   tags: Array<Tag>;
   updated_at: Scalars['Date'];
   wallets: Array<Wallet>;
@@ -734,6 +736,7 @@ export type Project = {
   reports: Array<Report>;
   resources?: Maybe<Array<Resource>>;
   starredBy?: Maybe<Array<User>>;
+  stars: Scalars['Int'];
   tags: Array<Tag>;
   updated_at: Scalars['Date'];
   users?: Maybe<Array<User>>;
@@ -794,7 +797,7 @@ export enum ProjectSortBy {
 
 export type Query = {
   __typename?: 'Query';
-  autocomplete: Array<Autocomplete>;
+  autocomplete: AutocompleteResult;
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
   organizationsCount: Scalars['Int'];
@@ -1076,6 +1079,7 @@ export type Routine = {
   parent?: Maybe<Routine>;
   reports: Array<Report>;
   starredBy: Array<User>;
+  stars: Scalars['Int'];
   tags: Array<Tag>;
   title?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
@@ -1184,6 +1188,7 @@ export type Standard = {
   routineOutputs: Array<Routine>;
   schema: Scalars['String'];
   starredBy: Array<User>;
+  stars: Scalars['Int'];
   tags: Array<Tag>;
   type: StandardType;
   updated_at: Scalars['Date'];
@@ -1262,6 +1267,7 @@ export type Tag = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   starredBy: Array<User>;
+  stars: Scalars['Int'];
   tag: Scalars['String'];
   updated_at: Scalars['Date'];
 };
@@ -1325,6 +1331,7 @@ export type User = {
   resources: Array<Resource>;
   roles: Array<Role>;
   starredBy: Array<User>;
+  stars: Scalars['Int'];
   username?: Maybe<Scalars['String']>;
 };
 

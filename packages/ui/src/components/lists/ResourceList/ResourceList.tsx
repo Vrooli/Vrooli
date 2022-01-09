@@ -1,7 +1,7 @@
-import { makeStyles } from '@mui/styles';
-import { Theme, Typography } from '@mui/material';
+import { Box, Tooltip, Typography } from '@mui/material';
 import { ResourceCard } from 'components';
 import { ResourceListProps } from '../types';
+import { centeredText, containerShadow } from 'styles';
 
 //TODO Temp data for designing card
 // Tries to use open graph metadata when fields not specified
@@ -50,51 +50,42 @@ const cardData = [
     }
 ]
 
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {
-        border: `2px dashed ${theme.palette.text.primary}`,
-        borderRadius: '10px',
-        padding: '0',
-    },
-    title: {
-        textAlign: 'center',
-        background: theme.palette.primary.light,
-        color: theme.palette.primary.contrastText,
-    },
-    hs: {
-        display: 'flex',
-        padding: '0',
-        overflowX: 'scroll',
-    },
-    item: {
-        display: 'inline',
-        margin: '5px',
-    },
-    noScrollbar: {
-        scrollbarWidth: 'none',
-        marginBottom: '0',
-        paddingBottom: '0',
-        '&::-webkit-scrollbar': {
-            display: 'none',
-        }
-    }
-}));
-
 export const ResourceList = ({
     title = 'Resources'
 }: ResourceListProps) => {
-    const classes = useStyles();
-
     return (
-        <div className={classes.root}>
-            <Typography component="h2" variant="h4" className={classes.title}>{title}</Typography>
-            <ul className={`${classes.hs}`}>
-                {cardData.map((c: any) => (
-                    <li className={classes.item}>
-                        <ResourceCard data={c} />
-                    </li>
-                ))}
-            </ul>
-        </div>
+        <Box>
+            <Typography component="h2" variant="h4" sx={{ ...centeredText }}>{title}</Typography>
+            <Tooltip placement="bottom" title="Relevant clicks. Click a card to modify, or drag in a new link to add">
+                <Box
+                    sx={{
+                        ...containerShadow,
+                        borderRadius: '16px',
+                        background: (t) => t.palette.background.default,
+                        border: (t) => `1px dashed ${t.palette.text.primary}`,
+                        minHeight: 'min(300px, 25vh)'
+                    }}
+                >
+                    {cardData.map((c: any) => (
+                        <ul
+                            style={{
+                                display: 'flex',
+                                padding: '0',
+                                overflowX: 'scroll',
+                            }}
+                        >
+                            <li
+                                style={{
+                                    display: 'inline',
+                                    margin: '5px',
+                                }}
+                            >
+                                <ResourceCard data={c} />
+                            </li>
+                        </ul>
+                    ))}
+                </Box>
+            </Tooltip>
+        </Box>
     )
 }

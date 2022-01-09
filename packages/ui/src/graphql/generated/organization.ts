@@ -15,6 +15,7 @@ export interface organization_organization_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface organization_organization {
@@ -24,6 +25,7 @@ export interface organization_organization {
   description: string | null;
   created_at: any;
   tags: organization_organization_tags[];
+  stars: number;
 }
 
 export interface organization {

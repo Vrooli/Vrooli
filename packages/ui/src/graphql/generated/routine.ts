@@ -15,6 +15,7 @@ export interface routine_routine_inputs_standard_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface routine_routine_inputs_standard {
@@ -150,6 +151,7 @@ export interface routine_routine_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface routine_routine_users {
@@ -167,6 +169,7 @@ export interface routine_routine {
   title: string | null;
   updated_at: any;
   version: string | null;
+  stars: number;
   inputs: routine_routine_inputs[];
   nodes: routine_routine_nodes[];
   organizations: routine_routine_organizations[];

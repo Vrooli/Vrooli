@@ -15,6 +15,7 @@ export interface deepRoutineFields_inputs_standard_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface deepRoutineFields_inputs_standard {
@@ -150,6 +151,7 @@ export interface deepRoutineFields_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface deepRoutineFields_users {
@@ -167,6 +169,7 @@ export interface deepRoutineFields {
   title: string | null;
   updated_at: any;
   version: string | null;
+  stars: number;
   inputs: deepRoutineFields_inputs[];
   nodes: deepRoutineFields_nodes[];
   organizations: deepRoutineFields_organizations[];

@@ -1,5 +1,5 @@
 import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, Email } from "../schema/types";
-import { addJoinTables, counter, deleter, findByIder, FormatConverter, JoinMap, MODEL_TYPES, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
+import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, JoinMap, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
 import { onlyPrimitives } from "../utils/objectTools";
 import { CustomError } from "../error";
 import { AccountStatus, CODE } from '@local/shared';
@@ -59,6 +59,7 @@ export type UserFullModel = UserAllPrimitives &
     starredUsers: { starred: User[] }[],
     votedComments: { voted: Comment[] }[],
     votedByTag: { tag: Tag[] }[],
+    _count: { starredBy: number }[],
 };
 
 //======================================================================================================================
@@ -101,11 +102,22 @@ const formatter = (): UserFormatConverter => {
         votedComments: 'voted',
         votedByTag: 'tag',
     };
+    const countMapper = {
+        stars: 'starredBy',
+    }
     return {
         toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<UserFullModel> => addJoinTables(obj, joinMapper),
-        toDBUser: (obj: RecursivePartial<User>): RecursivePartial<UserFullModel> => addJoinTables(obj, joinMapper),
+        toDBUser: (obj: RecursivePartial<User>): RecursivePartial<UserFullModel> => {
+            let modified = addJoinTables(obj, joinMapper);
+            modified = addCountQueries(modified, countMapper);
+            return modified;
+        },
         toGraphQLProfile: (obj: RecursivePartial<UserFullModel>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),
-        toGraphQLUser: (obj: RecursivePartial<UserFullModel>): RecursivePartial<User> => removeJoinTables(obj, joinMapper),
+        toGraphQLUser: (obj: RecursivePartial<UserFullModel>): RecursivePartial<User> => {
+            let modified = removeJoinTables(obj, joinMapper);
+            modified = removeCountQueries(modified, countMapper);
+            return modified;
+        },
     }
 }
 

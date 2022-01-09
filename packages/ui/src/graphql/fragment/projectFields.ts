@@ -14,5 +14,6 @@ export const projectFields = gql`
         tags {
             ...tagFields
         }
+        stars
     }
 `

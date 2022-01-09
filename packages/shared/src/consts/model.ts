@@ -227,15 +227,6 @@ export type NodeData = {
 /* #endregion Node Data */
 //==============================================================
 
-export const AutocompleteResultType = {
-    Organization: 'Organization',
-    Project: 'Project',
-    Routine: 'Routine',
-    Standard: 'Standard',
-    User: 'User',
-}
-export type AutocompleteResultType = ValueOf<typeof AutocompleteResultType>;
-
 export const MetricTimeFrame = {
     Daily: 'Daily',
     Weekly: 'Weekly',

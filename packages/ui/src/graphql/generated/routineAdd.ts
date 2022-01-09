@@ -15,6 +15,7 @@ export interface routineAdd_routineAdd_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface routineAdd_routineAdd {
@@ -26,6 +27,7 @@ export interface routineAdd_routineAdd {
   created_at: any;
   isAutomatable: boolean | null;
   tags: routineAdd_routineAdd_tags[];
+  stars: number;
 }
 
 export interface routineAdd {

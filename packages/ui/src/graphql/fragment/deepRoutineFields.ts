@@ -87,6 +87,7 @@ export const deepRoutineFields = gql`
         title
         updated_at
         version
+        stars
         inputs {
             ...ioFields
         }

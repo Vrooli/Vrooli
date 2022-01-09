@@ -15,6 +15,7 @@ export interface projectAdd_projectAdd_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface projectAdd_projectAdd {
@@ -24,6 +25,7 @@ export interface projectAdd_projectAdd {
   description: string | null;
   created_at: any;
   tags: projectAdd_projectAdd_tags[];
+  stars: number;
 }
 
 export interface projectAdd {

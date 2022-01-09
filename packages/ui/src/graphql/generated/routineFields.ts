@@ -13,6 +13,7 @@ export interface routineFields_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface routineFields {
@@ -24,4 +25,5 @@ export interface routineFields {
   created_at: any;
   isAutomatable: boolean | null;
   tags: routineFields_tags[];
+  stars: number;
 }

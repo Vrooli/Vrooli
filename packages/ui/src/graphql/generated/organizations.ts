@@ -21,6 +21,7 @@ export interface organizations_organizations_edges_node_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface organizations_organizations_edges_node {
@@ -30,6 +31,7 @@ export interface organizations_organizations_edges_node {
   description: string | null;
   created_at: any;
   tags: organizations_organizations_edges_node_tags[];
+  stars: number;
 }
 
 export interface organizations_organizations_edges {

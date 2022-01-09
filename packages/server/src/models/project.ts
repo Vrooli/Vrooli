@@ -1,6 +1,6 @@
-import { PrismaType } from "types";
+import { PrismaType, RecursivePartial } from "types";
 import { Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
-import { counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -24,6 +24,7 @@ export type ProjectFullModel = ProjectAllPrimitives &
     parent: { project: Project[] }[],
     forks: { project: Project[] }[],
     tags: { tag: Tag[] }[],
+    _count: { starredBy: number }[],
 };
 
 //======================================================================================================================
@@ -37,10 +38,31 @@ export type ProjectFullModel = ProjectAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<any, any> => ({
-    toDB: (obj: any): any => ({ ...obj }),
-    toGraphQL: (obj: any): any => ({ ...obj })
-})
+ const formatter = (): FormatConverter<Project, ProjectFullModel> => {
+    const joinMapper = {
+        resources: 'resource',
+        tags: 'tag',
+        users: 'user',
+        organizations: 'organization',
+        starredBy: 'user',
+        forks: 'fork',
+    };
+    const countMapper = {
+        stars: 'starredBy',
+    }
+    return {
+        toDB: (obj: RecursivePartial<Project>): RecursivePartial<ProjectFullModel> => {
+            let modified = addJoinTables(obj, joinMapper);
+            modified = addCountQueries(modified, countMapper);
+            return modified;
+        },
+        toGraphQL: (obj: RecursivePartial<ProjectFullModel>): RecursivePartial<Project> => {
+            let modified = removeJoinTables(obj, joinMapper);
+            modified = removeCountQueries(modified, countMapper);
+            return modified;
+        },
+    }
+}
 
 /**
  * Component for search filters

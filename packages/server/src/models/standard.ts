@@ -1,6 +1,6 @@
-import { PrismaType } from "types";
+import { PrismaType, RecursivePartial } from "types";
 import { Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
-import { counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -15,12 +15,13 @@ export type StandardQueryablePrimitives = Omit<Standard, StandardRelationshipLis
 export type StandardAllPrimitives = StandardQueryablePrimitives;
 // type 4. FullModel
 export type StandardFullModel = StandardAllPrimitives &
-Pick<Standard, 'reports' | 'comments'> &
+    Pick<Standard, 'reports' | 'comments'> &
 {
     tags: { tag: Tag[] }[],
     routineInputs: { routine: Routine[] }[],
     routineOutputs: { routine: Routine[] }[],
     starredBy: { user: User[] }[],
+    _count: { starredBy: number }[],
 };
 
 //======================================================================================================================
@@ -34,15 +35,32 @@ Pick<Standard, 'reports' | 'comments'> &
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<any, any>  => ({
-    toDB: (obj: any): any => ({ ...obj}),
-    toGraphQL: (obj: any): any => ({ ...obj })
-})
+const formatter = (): FormatConverter<Standard, StandardFullModel> => {
+    const joinMapper = {
+        tags: 'tag',
+        starredBy: 'user',
+    };
+    const countMapper = {
+        stars: 'starredBy',
+    }
+    return {
+        toDB: (obj: RecursivePartial<Standard>): RecursivePartial<StandardFullModel> => {
+            let modified = addJoinTables(obj, joinMapper);
+            modified = addCountQueries(modified, countMapper);
+            return modified;
+        },
+        toGraphQL: (obj: RecursivePartial<StandardFullModel>): RecursivePartial<Standard> => {
+            let modified = removeJoinTables(obj, joinMapper);
+            modified = removeCountQueries(modified, countMapper);
+            return modified;
+        },
+    }
+}
 
 /**
  * Component for search filters
  */
- const sorter = (): Sortable<StandardSortBy> => ({
+const sorter = (): Sortable<StandardSortBy> => ({
     defaultSort: StandardSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {

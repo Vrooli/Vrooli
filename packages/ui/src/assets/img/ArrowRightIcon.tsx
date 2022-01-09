@@ -2,7 +2,7 @@ import { SvgProps } from './types';
 
 export const ArrowRightIcon = (props: SvgProps) => (
     <svg xmlns="http://www.w3.org/2000/svg"
-        className={props.className}
+        style={props.style}
         viewBox="0 0 164.70816 189.38828"
         aria-labelledby="combine-node-shape"
         width={props.width}

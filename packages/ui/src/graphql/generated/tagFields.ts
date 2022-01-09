@@ -13,4 +13,5 @@ export interface tagFields {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }

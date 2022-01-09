@@ -1,8 +1,17 @@
+import { User } from 'types';
+
+export interface ActorListItemProps {
+    data: User;
+    isStarred: boolean;
+    isOwn: boolean;
+    onClick: (id: string) => void;
+    onStarClick: (id: string, removing: boolean) => void;
+}
+
 export interface FeedListProps<DataType> {
     title?: string;
-    data: DataType[];
-    cardFactory: (node: DataType, index: number) => JSX.Element;
     onClick: (pressedId?: string) => void;
+    children: JSX.Element[];
 }
 
 export interface ResourceListProps {

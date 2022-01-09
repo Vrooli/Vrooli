@@ -3,8 +3,8 @@ import { GraphQLResolveInfo, GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 import ogs from 'open-graph-scraper';
-import { AutocompleteInput, Autocomplete, OpenGraphResponse, OrganizationSortBy, ProjectSortBy, RoutineSortBy, UserSortBy, StandardSortBy } from './types';
-import { AutocompleteResultType, MetricTimeFrame } from '@local/shared';
+import { AutocompleteInput, AutocompleteResult, OpenGraphResponse } from './types';
+import { MetricTimeFrame, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
 import { OrganizationModel, ProjectModel, RoutineModel, StandardModel, UserModel } from '../models';
@@ -20,15 +20,6 @@ export const typeDef = gql`
         Weekly
         Monthly
         Yearly
-    }
-
-    # Enums for autocomplete search result types
-    enum AutocompleteResultType {
-        Organization
-        Project
-        Routine
-        Standard
-        User
     }
 
     # Return type for a cursor-based pagination's pageInfo response
@@ -99,11 +90,12 @@ export const typeDef = gql`
         take: Int
     }
 
-    type Autocomplete {
-        title: String!
-        id: ID!
-        objectType: AutocompleteResultType!
-        stars: Int!
+    type AutocompleteResult {
+        organizations: [Organization!]!
+        projects: [Project!]!
+        routines: [Routine!]!
+        standards: [Standard!]!
+        users: [User!]!
     }
 
     # Base query. Must contain something,
@@ -112,7 +104,7 @@ export const typeDef = gql`
         # _empty: String
         readAssets(input: ReadAssetsInput!): [String]!
         readOpenGraph(input: ReadOpenGraphInput!): OpenGraphResponse!
-        autocomplete(input: AutocompleteInput!): [Autocomplete!]!
+        autocomplete(input: AutocompleteInput!): AutocompleteResult!
     }
     # Base mutation. Must contain something,
     # which can be as simple as '_empty: String'
@@ -125,7 +117,6 @@ export const typeDef = gql`
 export const resolvers = {
     Upload: GraphQLUpload,
     MetricTimeFrame: MetricTimeFrame,
-    AutocompleteResultType: AutocompleteResultType,
     Date: new GraphQLScalarType({
         name: "Date",
         description: "Custom description for the date scalar",
@@ -159,111 +150,71 @@ export const resolvers = {
                     return {};
                 }).finally(() => { return {} })
         },
-        autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<Autocomplete[]> => {
-            const take = input.take ? Math.ceil(input.take / 4) : 10;
+        autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
             //const MinimumStars = 1; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             //const starredByQuery = { starredBy: { gte: MinimumStars } }; TODO for now, Prisma does not offer this type of sorting. See https://github.com/prisma/prisma/issues/8935. Instead, returning if any stars exist.
-            const starredByQuery = { NOT: { starredBy: { none: {} } } };
-            // Query routines
-            const routines = (await prisma.routine.findMany({
-                where: {
-                    ...RoutineModel().getSearchStringQuery(input.searchString),
-                    ...starredByQuery,
-                },
-                orderBy: RoutineModel().getSortQuery(RoutineSortBy.StarsDesc),
-                take,
-                select: {
-                    id: true,
-                    title: true,
-                    _count: { select: { starredBy: true } }
-                }
-            })).map((r: any) => ({
-                id: r.id,
-                title: r.title,
-                objectType: AutocompleteResultType.Routine,
-                stars: r._count.starredBy
-            }));
             // Query organizations
-            const organizations = (await prisma.organization.findMany({
-                where: {
-                    ...OrganizationModel().getSearchStringQuery(input.searchString),
-                    ...starredByQuery,
-                },
-                orderBy: OrganizationModel().getSortQuery(OrganizationSortBy.StarsDesc),
-                take,
-                select: {
-                    id: true,
-                    name: true,
-                    _count: { select: { starredBy: true } }
-                }
-            })).map((r: any) => ({
-                id: r.id,
-                title: r.name,
-                objectType: AutocompleteResultType.Organization,
-                stars: r._count.starredBy
-            }));
+            const organizations = (await OrganizationModel(prisma).search({
+                //...starredByQuery,
+            }, {
+                ...input,
+                sortBy: OrganizationSortBy.StarsDesc
+            }, {
+                id: true,
+                name: true,
+                stars: true
+            })).edges.map(({ node }: any) => node);
             // Query projects
-            const projects = (await prisma.project.findMany({
-                where: {
-                    ...ProjectModel().getSearchStringQuery(input.searchString),
-                    ...starredByQuery,
-                },
-                orderBy: ProjectModel().getSortQuery(ProjectSortBy.StarsDesc),
-                take,
-                select: {
-                    id: true,
-                    name: true,
-                    _count: { select: { starredBy: true } }
-                }
-            })).map((r: any) => ({
-                id: r.id,
-                title: r.name,
-                objectType: AutocompleteResultType.Project,
-                stars: r._count.starredBy
-            }));
+            const projects = (await ProjectModel(prisma).search({
+                //...starredByQuery,
+            }, {
+                ...input,
+                sortBy: ProjectSortBy.StarsDesc
+            }, {
+                id: true,
+                name: true,
+                stars: true
+            })).edges.map(({ node }: any) => node);
+            // Query routines
+            const routines = (await RoutineModel(prisma).search({
+                //...starredByQuery,
+            }, {
+                ...input,
+                sortBy: RoutineSortBy.StarsDesc
+            }, {
+                id: true,
+                title: true,
+                stars: true
+            })).edges.map(({ node }: any) => node);
             // Query standards
-            const standards = (await prisma.organization.findMany({
-                where: {
-                    ...StandardModel().getSearchStringQuery(input.searchString),
-                    ...starredByQuery,
-                },
-                orderBy: StandardModel().getSortQuery(StandardSortBy.StarsDesc),
-                take,
-                select: {
-                    id: true,
-                    name: true,
-                    _count: { select: { starredBy: true } }
-                }
-            })).map((r: any) => ({
-                id: r.id,
-                title: r.name,
-                objectType: AutocompleteResultType.Standard,
-                stars: r._count.starredBy
-            }));
+            const standards = (await StandardModel(prisma).search({
+                //...starredByQuery,
+            }, {
+                ...input,
+                sortBy: StandardSortBy.StarsDesc
+            }, {
+                id: true,
+                name: true,
+                stars: true
+            })).edges.map(({ node }: any) => node);
             // Query users
-            const users = (await prisma.user.findMany({
-                where: {
-                    ...UserModel().getSearchStringQuery(input.searchString),
-                    //...starredByQuery,
-                },
-                orderBy: UserModel().getSortQuery(UserSortBy.StarsDesc),
-                take,
-                select: {
-                    id: true,
-                    username: true,
-                    _count: { select: { starredBy: true } }
-                }
-            })).map((r: any) => ({
-                id: r.id,
-                title: r.username,
-                objectType: AutocompleteResultType.User,
-                stars: r._count.starredBy
-            }));
-            console.log('USERS', users);
-            // Combine query results and sort by stars
-            return routines.concat(organizations, projects, standards, users).sort((a: any, b: any) => {
-                return b.stars - a.stars;
-            });
+            const users = (await UserModel(prisma).search({
+                //...starredByQuery,
+            }, {
+                ...input,
+                sortBy: UserSortBy.StarsDesc
+            }, {
+                id: true,
+                username: true,
+                stars: true
+            })).edges.map(({ node }: any) => node);
+            return {
+                organizations,
+                projects,
+                routines,
+                standards,
+                users
+            }
         },
     },
     Mutation: {

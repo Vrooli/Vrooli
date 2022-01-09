@@ -13,6 +13,7 @@ export interface organizationFields_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface organizationFields {
@@ -22,4 +23,5 @@ export interface organizationFields {
   description: string | null;
   created_at: any;
   tags: organizationFields_tags[];
+  stars: number;
 }

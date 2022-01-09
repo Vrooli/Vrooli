@@ -45,6 +45,7 @@ export const typeDef = gql`
         description: String
         instructions: String
         isAutomatable: Boolean
+        stars: Int!
         inputs: [RoutineInputItem!]!
         outputs: [RoutineOutputItem!]!
         nodes: [Node!]!

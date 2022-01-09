@@ -1,17 +1,14 @@
 // Used to display popular/search results of a particular object type
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, List, Tooltip, Typography } from '@mui/material';
 import { FeedListProps } from '../types';
 import { centeredText, containerShadow } from 'styles';
 import { useCallback, useMemo } from 'react';
 
 export function FeedList<DataType>({
     title = 'Popular Items',
-    data,
-    cardFactory,
     onClick,
+    children,
 }: FeedListProps<DataType>) {
-    const cards = useMemo(() => data ? ((Object.values(data) as any)?.edges?.map((edge, index) => cardFactory(edge.node, index))) : null, [cardFactory, data]);
-
     const handleContainerClick = useCallback(() => onClick(), [onClick]);
 
     return (
@@ -30,12 +27,14 @@ export function FeedList<DataType>({
                 <Box
                     sx={{
                         ...containerShadow,
-                        borderRadius: '16px',
+                        borderRadius: '8px',
                         background: (t) => t.palette.background.default,
                         minHeight: 'min(300px, 25vh)'
                     }}
                 >
-                    {cards}
+                    <List>
+                        {children}
+                    </List>
                 </Box>
             </Tooltip>
         </Box>

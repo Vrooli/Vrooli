@@ -15,6 +15,7 @@ export interface standard_standard_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface standard_standard {
@@ -28,6 +29,7 @@ export interface standard_standard {
   isFile: boolean;
   created_at: any;
   tags: standard_standard_tags[];
+  stars: number;
 }
 
 export interface standard {

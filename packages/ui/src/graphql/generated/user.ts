@@ -13,6 +13,7 @@ export interface user_user {
   __typename: "User";
   id: string;
   username: string | null;
+  stars: number;
 }
 
 export interface user {

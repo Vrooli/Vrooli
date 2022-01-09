@@ -15,6 +15,7 @@ export interface standardFields_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface standardFields {
@@ -28,4 +29,5 @@ export interface standardFields {
   isFile: boolean;
   created_at: any;
   tags: standardFields_tags[];
+  stars: number;
 }

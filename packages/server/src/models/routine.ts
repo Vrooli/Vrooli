@@ -1,6 +1,6 @@
 import { Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTables, counter, creater, deleter, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, FormatConverter, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -26,6 +26,7 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
     starredBy: { user: User[] }[],
     forks: { fork: Routine[] }[],
     nodeLists: { list: Routine[] }[],
+    _count: { starredBy: number }[],
 };
 
 //======================================================================================================================
@@ -39,7 +40,7 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Routine, any> => {
+ const formatter = (): FormatConverter<Routine, RoutineFullModel> => {
     const joinMapper = {
         contextualResources: 'resource',
         externalResources: 'resource',
@@ -50,9 +51,20 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
         forks: 'fork',
         nodeLists: 'list',
     };
+    const countMapper = {
+        stars: 'starredBy',
+    }
     return {
-        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<any> => addJoinTables(obj, joinMapper),
-        toGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Routine> => removeJoinTables(obj, joinMapper)
+        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<RoutineFullModel> => {
+            let modified = addJoinTables(obj, joinMapper);
+            modified = addCountQueries(modified, countMapper);
+            return modified;
+        },
+        toGraphQL: (obj: RecursivePartial<RoutineFullModel>): RecursivePartial<Routine> => {
+            let modified = removeJoinTables(obj, joinMapper);
+            modified = removeCountQueries(modified, countMapper);
+            return modified;
+        },
     }
 }
 

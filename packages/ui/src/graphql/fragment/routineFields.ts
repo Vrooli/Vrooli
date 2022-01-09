@@ -16,5 +16,6 @@ export const routineFields = gql`
         tags {
             ...tagFields
         }
+        stars
     }
 `

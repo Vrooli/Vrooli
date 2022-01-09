@@ -3,10 +3,31 @@ import { gql } from 'graphql-tag';
 export const autocompleteQuery = gql`
     query autocomplete($input: AutocompleteInput!) {
         autocomplete(input: $input) {
-            id
-            title
-            objectType
-            stars
+            organizations {
+                id
+                name
+                stars
+            }
+            projects {
+                id
+                name
+                stars
+            }
+            routines {
+                id
+                title
+                stars
+            }
+            standards {
+                id
+                name
+                stars
+            }
+            users {
+                id
+                username
+                stars
+            }
         }
     }
 `

@@ -28,6 +28,7 @@ export const BarGraph = ({
     data = letterFrequency,
     dimensions,
     margins = DEFAULT_MARGINS,
+    style,
 }: BarGraphProps) => {
 
     const state = useMemo(() => {
@@ -70,7 +71,7 @@ export const BarGraph = ({
     }, [data, dimensions, margins])
 
     return (
-        <svg className={className} width={state.width} height={state.height}>
+        <svg className={className} width={state.width} height={state.height} style={style}>
             <Group left={20}>
                 {data.map((d, i) => {
                     const barHeight = state.yMax - state.yPoint(d);

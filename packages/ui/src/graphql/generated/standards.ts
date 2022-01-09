@@ -21,6 +21,7 @@ export interface standards_standards_edges_node_tags {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface standards_standards_edges_node {
@@ -34,6 +35,7 @@ export interface standards_standards_edges_node {
   isFile: boolean;
   created_at: any;
   tags: standards_standards_edges_node_tags[];
+  stars: number;
 }
 
 export interface standards_standards_edges {

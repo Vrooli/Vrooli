@@ -1,6 +1,5 @@
 // Components for providing basic functionality to model objects
 import { CODE } from '@local/shared';
-import { PrismaSelect } from '@paljs/plugins';
 import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, InputMaybe, ReportInput, Scalars, MetricTimeFrame } from '../schema/types';
 import { CustomError } from '../error';
 import { PrismaType, RecursivePartial } from '../types';
@@ -24,8 +23,21 @@ interface UpdateInterface {
  * (e.g. User -> UserRole -> Role becomes UserRole -> Role)
  */
 export type FormatConverter<GraphQLModel, FullDBModel> = {
+    /**
+     * Helps add/remove many-to-many join tables, since they are not included in GraphQL
+     */
     joinMapper?: JoinMap;
+    /**
+     * Helps add/remove fields for relationship counts, since they are not included formatted the same in GraphQL vs. Prisma
+     */
+    countMapper?: CountMap;
+    /**
+     * Converts object from GraphQL representation to Prisma
+     */
     toDB: (obj: RecursivePartial<GraphQLModel>) => RecursivePartial<FullDBModel>;
+    /**
+     * Converts object from Prisma representation to GraphQL
+     */
     toGraphQL: (obj: RecursivePartial<FullDBModel>) => RecursivePartial<GraphQLModel>;
 }
 
@@ -43,6 +55,11 @@ export type Sortable<SortBy> = {
  * their corresponding join table names.
  */
 export type JoinMap = { [key: string]: string };
+
+/**
+ * Mapper for associating a model's GraphQL count fields to the relationships they count
+ */
+ export type CountMap = { [key: string]: string };
 
 type BaseType = PrismaModels['comment']; // It doesn't matter what PrismaType is used here, it's just to help TypeScript handle Prisma operations
 
@@ -124,6 +141,28 @@ export const addJoinTables = (obj: any, map: JoinMap): any => {
 }
 
 /**
+ * Helper function for converting GraphQL count fields to Prisma relationship counts
+ * @param obj - GraphQL-shaped object
+ * @param map - Mapping of GraphQL field names to Prisma relationship names
+ */
+ export const addCountQueries = (obj: any, map: CountMap): any => {
+    // Create result object
+    let result: any = {};
+    // Iterate over join map
+    for (const [key, value] of Object.entries(map)) {
+        if (obj[key]) {
+            if (!obj._count) obj._count = {};
+            obj._count[value] = true;
+            delete obj[key];
+        }
+    }
+    return {
+        ...obj,
+        ...result
+    }
+}
+
+/**
  * Helper function for removing join tables between
  * many-to-many relationship parents and children
  * @param obj - DB-shaped object
@@ -136,6 +175,30 @@ export const removeJoinTables = (obj: any, map: JoinMap): any => {
     for (const [key, value] of Object.entries(map)) {
         if (obj[key] && obj[key][value]) result[key] = obj[key][value];
     }
+    return {
+        ...obj,
+        ...result
+    }
+}
+
+/**
+ * Helper function for converting Prisma relationship counts to GraphQL count fields
+ * @param obj - GraphQL-shaped object
+ * @param map - Mapping of GraphQL field names to Prisma relationship names
+ */
+ export const removeCountQueries = (obj: any, map: CountMap): any => {
+    // Create result object
+    let result: any = {};
+    // If no counts, no reason to continue
+    if (!obj._count) return obj;
+    // Iterate over count map
+    for (const [key, value] of Object.entries(map)) {
+        if (obj._count[value] !== undefined && obj._count[value] !== null) {
+            obj[key] = obj._count[value];
+        }
+    }
+    // Make sure to delete _count field
+    delete obj._count;
     return {
         ...obj,
         ...result
@@ -304,6 +367,7 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
     async search(where: { [x: string]: any }, input: SearchInput, info: InfoType): Promise<PaginatedSearchResult> {
         const boop = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
         console.log('SEARCH BOIII', boop)
+        console.log('SEARCH BOIII _COUNT', boop._count)
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector

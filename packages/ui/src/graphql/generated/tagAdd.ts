@@ -15,6 +15,7 @@ export interface tagAdd_tagAdd {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface tagAdd {

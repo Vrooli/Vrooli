@@ -6,5 +6,6 @@ export const tagFields = gql`
         tag
         description
         created_at
+        stars
     }
 `

@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../types";
 import { Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
-import { addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -23,6 +23,7 @@ export type OrganizationFullModel = OrganizationAllPrimitives &
     starredBy: { user: User[] }[],
     routines: { routine: Routine[] }[],
     tags: { tag: Tag[] }[],
+    _count: { starredBy: number }[],
 };
 
 //======================================================================================================================
@@ -45,9 +46,20 @@ export type OrganizationFullModel = OrganizationAllPrimitives &
         routines: 'routine',
         tags: 'tag',
     };
+    const countMapper = {
+        stars: 'starredBy',
+    }
     return {
-        toDB: (obj: RecursivePartial<Organization>): RecursivePartial<OrganizationFullModel> => addJoinTables(obj, joinMapper),
-        toGraphQL: (obj: RecursivePartial<OrganizationFullModel>): RecursivePartial<Organization> => removeJoinTables(obj, joinMapper)
+        toDB: (obj: RecursivePartial<Organization>): RecursivePartial<OrganizationFullModel> => {
+            let modified = addJoinTables(obj, joinMapper);
+            modified = addCountQueries(modified, countMapper);
+            return modified;
+        },
+        toGraphQL: (obj: RecursivePartial<OrganizationFullModel>): RecursivePartial<Organization> => {
+            let modified = removeJoinTables(obj, joinMapper);
+            modified = removeCountQueries(modified, countMapper);
+            return modified;
+        },
     }
 }
 

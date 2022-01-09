@@ -1,20 +1,17 @@
-import { Theme } from '@mui/material';
-import { Styles } from '@mui/styles';
+import { SxProps } from '@mui/material';
+import { containerShadow } from 'styles';
 
-export const cardStyles: Styles<Theme, {}> = (theme: Theme) => ({
-    cardRoot: {
-        background: theme.palette.primary.main,
-        color: theme.palette.primary.contrastText,
-        borderRadius: 15,
-        margin: 3,
-        cursor: 'pointer',
-        maxWidth: '500px',
-    },
-    content: {
-        padding: 8,
-        position: 'inherit',
-    },
-    icon: {
-        fill: theme.palette.secondary.light,
-    },
-});
+export const cardRoot: SxProps = {
+    ...containerShadow,
+    background: '#2167a3',
+    color: (t: any) => t.palette.primary.contrastText,
+    borderRadius: '16px',
+    margin: 0,
+    cursor: 'pointer',
+    maxWidth: '500px',
+}
+
+export const cardContent: SxProps = {
+    padding: 1,
+    position: 'inherit',
+}

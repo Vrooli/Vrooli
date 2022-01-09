@@ -3,4 +3,5 @@ export interface BarGraphProps {
     data?: any;
     dimensions?: Dimensions;
     margins?: Margins;
+    style?: any;
 }

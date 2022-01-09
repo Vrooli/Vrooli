@@ -67,6 +67,7 @@ export const typeDef = gql`
         created_at: Date!
         username: String
         bio: String
+        stars: Int!
         comments: [Comment!]!
         roles: [Role!]!
         resources: [Resource!]!

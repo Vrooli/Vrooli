@@ -15,6 +15,7 @@ export interface tagUpdate_tagUpdate {
   tag: string;
   description: string | null;
   created_at: any;
+  stars: number;
 }
 
 export interface tagUpdate {

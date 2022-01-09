@@ -19,6 +19,7 @@ export interface users_users_edges_node {
   __typename: "User";
   id: string;
   username: string | null;
+  stars: number;
 }
 
 export interface users_users_edges {

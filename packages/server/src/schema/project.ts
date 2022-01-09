@@ -40,6 +40,7 @@ export const typeDef = gql`
         updated_at: Date!
         name: String!
         description: String
+        stars: Int!
         resources: [Resource!]
         wallets: [Wallet!]
         users: [User!]
