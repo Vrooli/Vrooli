@@ -31,4 +31,5 @@ export interface SelectorProps {
     disabled?: boolean;
     color?: string;
     className?: string;
+    style?: any;
 }

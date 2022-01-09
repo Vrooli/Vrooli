@@ -19,5 +19,5 @@ export interface BaseSearchPageProps<DataType, SortBy> {
     sortOptions: SearchSortBy<SortBy>[];
     defaultSortOption: SortBy;
     query: DocumentNode;
-    cardFactory: (node: DataType, index: number) => JSX.Element;
+    listItemFactory: (node: DataType, index: number) => JSX.Element;
 }

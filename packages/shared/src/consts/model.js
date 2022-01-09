@@ -145,11 +145,11 @@ export var UserSortBy;
 //==============================================================
 /* #endregion Node Data */
 //==============================================================
-export const MetricTimeFrame = {
-    Daily: 'Daily',
-    Weekly: 'Weekly',
-    Monthly: 'Monthly',
-    Yearly: 'Yearly',
+export const TimeFrame = {
+    Day: 'Day',
+    Week: 'Week',
+    Month: 'Month',
+    Year: 'Year',
 };
 export const ResourceFor = {
     Actor: 'Actor',

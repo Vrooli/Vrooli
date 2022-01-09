@@ -1,16 +1,52 @@
-import { User } from 'types';
+import { Organization, Project, Routine, Standard, User } from 'types';
 
-export interface ActorListItemProps {
-    data: User;
+export interface ObjectListItemProps {
     isStarred: boolean;
     isOwn: boolean;
-    onClick: (id: string) => void;
+    onClick?: (id: string) => void;
     onStarClick: (id: string, removing: boolean) => void;
 }
 
-export interface FeedListProps<DataType> {
+export interface ActorListItemProps extends ObjectListItemProps {
+    data: Partial<User>;
+}
+
+export interface OrganizationListItemProps extends ObjectListItemProps {
+    data: Partial<Organization>;
+}
+
+export interface ProjectListItemProps extends ObjectListItemProps {
+    data: Partial<Project>;
+}
+
+export interface RoutineListItemProps extends ObjectListItemProps {
+    data: Partial<Routine>;
+}
+
+export interface StandardListItemProps extends ObjectListItemProps {
+    data: Partial<Standard>;
+}
+
+export interface SortMenuProps {
+    sortOptions: any[];
+    anchorEl: HTMLElement | null;
+    onClose: (label?: string, value?: string) => void;
+}
+
+export interface TimeMenuProps {
+    anchorEl: HTMLElement | null;
+    onClose: (label?: string, after?: Date | null, before?: Date | null) => void;
+}
+
+export interface DateRangeMenuProps {
+    anchorEl: HTMLElement | null;
+    onClose: () => void;
+    onSubmit: (after?: Date | null, before?: Date | null) => void;
+}
+
+export interface FeedListProps {
     title?: string;
-    onClick: (pressedId?: string) => void;
+    onClick: () => void;
     children: JSX.Element[];
 }
 

@@ -64,6 +64,8 @@ export const typeDef = gql`
         forType: ResourceFor
         ids: [ID!]
         sortBy: ResourceSortBy
+        createdTimeFrame: TimeFrame
+        updatedTimeFrame: TimeFrame
         searchString: String
         after: String
         take: Int
@@ -83,8 +85,8 @@ export const typeDef = gql`
 
     # Input for count
     input ResourceCountInput {
-        createdMetric: MetricTimeFrame
-        updatedMetric: MetricTimeFrame
+        createdTimeFrame: TimeFrame
+        updatedTimeFrame: TimeFrame
     }
 
     extend type Query {

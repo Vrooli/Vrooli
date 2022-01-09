@@ -132,13 +132,6 @@ export type FindByIdInput = {
   id: Scalars['ID'];
 };
 
-export enum MetricTimeFrame {
-  Daily = 'Daily',
-  Monthly = 'Monthly',
-  Weekly = 'Weekly',
-  Yearly = 'Yearly'
-}
-
 export type Mutation = {
   __typename?: 'Mutation';
   commentAdd: Comment;
@@ -633,8 +626,8 @@ export type Organization = {
 };
 
 export type OrganizationCountInput = {
-  createdMetric?: InputMaybe<MetricTimeFrame>;
-  updatedMetric?: InputMaybe<MetricTimeFrame>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
 export type OrganizationEdge = {
@@ -652,10 +645,12 @@ export type OrganizationInput = {
 
 export type OrganizationSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<OrganizationSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
 };
 
@@ -744,8 +739,8 @@ export type Project = {
 };
 
 export type ProjectCountInput = {
-  createdMetric?: InputMaybe<MetricTimeFrame>;
-  updatedMetric?: InputMaybe<MetricTimeFrame>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
 export type ProjectEdge = {
@@ -765,10 +760,12 @@ export type ProjectInput = {
 
 export type ProjectSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
 };
 
@@ -988,8 +985,8 @@ export type Resource = {
 };
 
 export type ResourceCountInput = {
-  createdMetric?: InputMaybe<MetricTimeFrame>;
-  updatedMetric?: InputMaybe<MetricTimeFrame>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
 export type ResourceEdge = {
@@ -1019,12 +1016,14 @@ export type ResourceInput = {
 
 export type ResourceSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
   forId?: InputMaybe<Scalars['ID']>;
   forType?: InputMaybe<ResourceFor>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ResourceSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
 export type ResourceSearchResult = {
@@ -1088,8 +1087,8 @@ export type Routine = {
 };
 
 export type RoutineCountInput = {
-  createdMetric?: InputMaybe<MetricTimeFrame>;
-  updatedMetric?: InputMaybe<MetricTimeFrame>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
 export type RoutineEdge = {
@@ -1137,10 +1136,12 @@ export type RoutineOutputItemInput = {
 
 export type RoutineSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
 };
 
@@ -1195,8 +1196,8 @@ export type Standard = {
 };
 
 export type StandardCountInput = {
-  createdMetric?: InputMaybe<MetricTimeFrame>;
-  updatedMetric?: InputMaybe<MetricTimeFrame>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
 export type StandardEdge = {
@@ -1218,10 +1219,12 @@ export type StandardInput = {
 
 export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
 };
 
@@ -1273,8 +1276,8 @@ export type Tag = {
 };
 
 export type TagCountInput = {
-  createdMetric?: InputMaybe<MetricTimeFrame>;
-  updatedMetric?: InputMaybe<MetricTimeFrame>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
 export type TagEdge = {
@@ -1289,10 +1292,12 @@ export type TagInput = {
 
 export type TagSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<TagSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
 };
 
@@ -1320,6 +1325,11 @@ export type TagVoteInput = {
   objectType: Scalars['String'];
 };
 
+export type TimeFrame = {
+  after?: InputMaybe<Scalars['Date']>;
+  before?: InputMaybe<Scalars['Date']>;
+};
+
 export type User = {
   __typename?: 'User';
   bio?: Maybe<Scalars['String']>;
@@ -1336,8 +1346,8 @@ export type User = {
 };
 
 export type UserCountInput = {
-  createdMetric?: InputMaybe<MetricTimeFrame>;
-  updatedMetric?: InputMaybe<MetricTimeFrame>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
 export type UserDeleteInput = {
@@ -1368,10 +1378,12 @@ export type UserRole = {
 
 export type UserSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<UserSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
 export type UserSearchResult = {

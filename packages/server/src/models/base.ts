@@ -1,6 +1,6 @@
 // Components for providing basic functionality to model objects
 import { CODE } from '@local/shared';
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, InputMaybe, ReportInput, Scalars, MetricTimeFrame } from '../schema/types';
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, InputMaybe, ReportInput, Scalars, TimeFrame } from '../schema/types';
 import { CustomError } from '../error';
 import { PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
@@ -105,16 +105,18 @@ type PaginatedSearchResult = {
 }
 
 type SearchInputBase<SortBy> = {
-    ids?: string[] | null;
-    searchString?: string | null;
-    sortBy?: SortBy | null;
+    ids?: string[] | null; // Specific ids to search for
+    searchString?: string | null; // String to search for. Which fields this includes are defined by the model
+    sortBy?: SortBy | null; // Sort order
+    createdTimeFrame?: Partial<TimeFrame> | null; // Objects created within this timeFrame
+    updatedTimeFrame?: Partial<TimeFrame> | null; // Objects updated within this timeFrame
     after?: string | null;
     take?: number | null;
 }
 
 type CountInputBase = {
-    createdMetric?: MetricTimeFrame | null;
-    updatedMetric?: MetricTimeFrame | null;
+    createdTimeFrame?: Partial<TimeFrame> | null;
+    updatedTimeFrame?: Partial<TimeFrame> | null;
 }
 
 //======================================================================================================================
@@ -238,8 +240,6 @@ const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
 export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB']): any => {
     // Return undefined if info not set
     if (!info) return undefined;
-    console.log('INFO', info);
-    console.log('a', info.hasOwnProperty('fieldName'));
     // Find select fields in info object
     let select = info.hasOwnProperty('fieldName') ?
         formatGraphQLFields(graphqlFields((info as GraphQLResolveInfo), {}, {})) :
@@ -250,6 +250,8 @@ export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: Fo
     }
     // Convert select from graphQL to database
     select = toDB(select as any);
+    // Make sure to delete __typename field
+    delete select.__typename;
     return padSelect(select);
 }
 
@@ -378,12 +380,18 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
         const sortQuery = sorter.getSortQuery(input.sortBy ?? sorter.defaultSort);
         // Determine text search query
         const searchQuery = input.searchString ? sorter.getSearchStringQuery(input.searchString) : undefined;
+        // Determine createdTimeFrame query
+        const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
+        // Determine updatedTimeFrame query
+        const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
         // Find requested search array
         const searchResults = await (prisma[model] as BaseType).findMany({
             where: {
                 ...where,
                 ...idQuery,
                 ...searchQuery,
+                ...createdQuery,
+                ...updatedQuery,
             },
             orderBy: sortQuery,
             take: input.take ?? 20,
@@ -430,30 +438,24 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
 })
 
 /**
+ * Converts time frame to Prisma "where" query
+ * @param time Time frame to convert
+ * @param fieldName Name of time field (typically created_at or updated_at)
+ */
+export const timeFrameToPrisma = (fieldName: string, time?: TimeFrame | null | undefined): any => {
+    if (!time || (!time.before && !time.after)) return undefined;
+    let where: any = ({ [fieldName]: {} });
+    if (time.before) where[fieldName].lte = time.before;
+    if (time.after) where[fieldName].gte = time.after;
+    return where;
+}
+
+/**
  * Compositional component for models which can be counted (e.g. for metrics)
  * @param state 
  * @returns 
  */
 export const counter = <CountInput extends CountInputBase>(model: keyof PrismaModels, prisma?: PrismaType) => ({
-    /**
-     * Converts time frame enum to milliseconds
-     * @param time Time frame to convert
-     * @returns Time frame in milliseconds
-     */
-    timeConverter: (time: MetricTimeFrame) => {
-        switch (time) {
-            case MetricTimeFrame.Daily:
-                return 86400000;
-            case MetricTimeFrame.Weekly:
-                return 604800000;
-            case MetricTimeFrame.Monthly:
-                return 2592000000;
-            case MetricTimeFrame.Yearly:
-                return 31536000000;
-            default:
-                return 86400000;
-        }
-    },
     /**
      * Counts the number of objects in the database, optionally filtered by a where clauses
      * @param where Additional where clauses, in addition to the createdMetric and updatedMetric passed into input
@@ -464,9 +466,9 @@ export const counter = <CountInput extends CountInputBase>(model: keyof PrismaMo
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create query for created metric
-        const createdQuery = input.createdMetric ? ({ created_at: { gt: new Date(Date.now() - this.timeConverter(input.createdMetric)) } }) : undefined;
-        // Create query for updated metric
-        const updatedQuery = input.updatedMetric ? ({ updated_at: { gt: new Date(Date.now() - this.timeConverter(input.updatedMetric)) } }) : undefined;
+        const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
+        // Create query for created metric
+        const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
         // Count objects that match queries
         return await (prisma[model] as BaseType).count({
             where: {

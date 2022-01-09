@@ -1,6 +1,6 @@
 // Used to display popular/search results of a particular object type
 import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
-import { ActorListItemProps } from '../types';
+import { RoutineListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS } from '@local/shared';
@@ -10,35 +10,35 @@ import {
 } from '@mui/icons-material';
 import { useLocation } from 'wouter';
 
-export function ActorListItem({
+export function RoutineListItem({
     data,
     isStarred = false,
     isOwn = false,
     onClick,
     onStarClick = () => { },
-}: ActorListItemProps) {
+}: RoutineListItemProps) {
     const [, setLocation] = useLocation();
 
     const handleClick = useCallback(() => {
-        // If onClick provided, call it
-        if (onClick) onClick(data.id ?? '');
-        // Otherwise, navigate to the actor's profile
-        else setLocation(`${APP_LINKS.Profile}/${data.id}`)
+        // If onClick provided, call if
+        if (onClick) onClick(data.id);
+        // Otherwise, navigate to the object's page
+        else setLocation(`${APP_LINKS.Routine}/${data.id}`)
     }, [onClick, data.id]);
 
     const handleStarClick = useCallback((e: any) => {
         // Prevent propagation of normal click event
         e.stopPropagation();
         // Call the onStarClick callback
-        onStarClick(data.id ?? '', isStarred)
+        onStarClick(data.id, isStarred)
     }, [onStarClick, data.id, isStarred]);
 
     const starIcon = useMemo(() => {
         const Icon = isStarred ? IsStarredIcon : IsNotStarredIcon;
         let tooltip: string;
         if (isOwn) tooltip = 'Cannot favorite yourself 💩';
-        else if (isStarred) tooltip = 'Remove user from favorites';
-        else tooltip = 'Love this user? Give them a star!';
+        else if (isStarred) tooltip = 'Remove routine from favorites';
+        else tooltip = 'Love this routine? Give it a star!';
 
         return (
             <Tooltip placement="left" title={tooltip}>
@@ -58,7 +58,7 @@ export function ActorListItem({
             >
                 <ListItemButton component="div" onClick={handleClick}>
                     <ListItemText
-                        primary={data.username}
+                        primary={data.title}
                         sx={{ ...multiLineEllipsis(2) }}
                     />
                     <Stack

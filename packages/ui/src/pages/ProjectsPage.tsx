@@ -5,7 +5,7 @@ import { pageStyles } from './styles';
 import { useQuery } from '@apollo/client';
 import { projectsQuery } from 'graphql/query';
 import { useCallback, useMemo, useState } from 'react';
-import { NewProjectDialog, ProjectCard } from 'components';
+import { NewProjectDialog } from 'components';
 import { projects, projectsVariables } from 'graphql/generated/projects';
 import { Session } from 'types';
 
@@ -34,13 +34,13 @@ export const ProjectsPage = ({
     const openNewProjectDialog = useCallback(() => setNewProjectOpen(true), []);
     const closeNewProjectDialog = useCallback(() => setNewProjectOpen(false), []);
 
-    const cards = useMemo(() => (
-        projects?.projects?.edges?.map((edge, index) =>
-            <ProjectCard
-                key={index}
-                data={edge.node}
-            />)
-    ), [projects])
+    // const cards = useMemo(() => (
+    //     projects?.projects?.edges?.map((edge, index) =>
+    //         <ProjectCard
+    //             key={index}
+    //             data={edge.node}
+    //         />)
+    // ), [projects])
 
     return (
         <div id="page">
@@ -50,7 +50,7 @@ export const ProjectsPage = ({
                 <Button onClick={openNewProjectDialog}>New Project</Button>
             </div>
             <div className={classes.cardFlex}>
-                {cards}
+                {/* {cards} */}
             </div>
         </div>
     );

@@ -1,7 +1,7 @@
 import { gql } from 'graphql-tag';
 
 export const organizationsCountQuery = gql`
-    query organizationsCount {
-        organizationsCount
+    query organizationsCount($input: OrganizationCountInput!) {
+        organizationsCount(input: $input)
     }
 `

@@ -277,6 +277,11 @@ export interface NodeStartInput {
   id?: string | null;
 }
 
+export interface OrganizationCountInput {
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
+}
+
 export interface OrganizationInput {
   id?: string | null;
   name: string;
@@ -288,6 +293,8 @@ export interface OrganizationSearchInput {
   userId?: string | null;
   ids?: string[] | null;
   sortBy?: OrganizationSortBy | null;
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
   searchString?: string | null;
   after?: string | null;
   take?: number | null;
@@ -297,6 +304,11 @@ export interface ProfileUpdateInput {
   data: UserInput;
   currentPassword: string;
   newPassword?: string | null;
+}
+
+export interface ProjectCountInput {
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface ProjectInput {
@@ -312,6 +324,8 @@ export interface ProjectSearchInput {
   userId?: string | null;
   ids?: string[] | null;
   sortBy?: ProjectSortBy | null;
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
   searchString?: string | null;
   after?: string | null;
   take?: number | null;
@@ -330,6 +344,11 @@ export interface ReportInput {
   reason?: string | null;
 }
 
+export interface ResourceCountInput {
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
+}
+
 export interface ResourceInput {
   id?: string | null;
   title: string;
@@ -345,9 +364,16 @@ export interface ResourceSearchInput {
   forType?: ResourceFor | null;
   ids?: string[] | null;
   sortBy?: ResourceSortBy | null;
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
   searchString?: string | null;
   after?: string | null;
   take?: number | null;
+}
+
+export interface RoutineCountInput {
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface RoutineInput {
@@ -377,9 +403,16 @@ export interface RoutineSearchInput {
   userId?: string | null;
   ids?: string[] | null;
   sortBy?: RoutineSortBy | null;
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
   searchString?: string | null;
   after?: string | null;
   take?: number | null;
+}
+
+export interface StandardCountInput {
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface StandardInput {
@@ -398,8 +431,15 @@ export interface StandardSearchInput {
   ids?: string[] | null;
   sortBy?: StandardSortBy | null;
   searchString?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
   after?: string | null;
   take?: number | null;
+}
+
+export interface TagCountInput {
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface TagInput {
@@ -411,6 +451,8 @@ export interface TagSearchInput {
   ids?: string[] | null;
   sortBy?: TagSortBy | null;
   searchString?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
   after?: string | null;
   take?: number | null;
 }
@@ -420,6 +462,16 @@ export interface TagVoteInput {
   isUpvote: boolean;
   objectType: string;
   objectId: string;
+}
+
+export interface TimeFrame {
+  after?: any | null;
+  before?: any | null;
+}
+
+export interface UserCountInput {
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface UserDeleteInput {
@@ -440,6 +492,8 @@ export interface UserSearchInput {
   ids?: string[] | null;
   sortBy?: UserSortBy | null;
   searchString?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
   after?: string | null;
   take?: number | null;
 }

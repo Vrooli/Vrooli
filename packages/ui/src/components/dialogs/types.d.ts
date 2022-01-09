@@ -6,6 +6,13 @@ export interface AlertDialogProps extends DialogProps {};
 
 export interface ComponentWrapperDialogProps extends DialogProps {};
 
+export interface FormDialogProps {
+    title: string;
+    children: JSX.Element;
+    maxWidth?: string | number;
+    onClose: () => void;
+}
+
 export interface ListDialogItemData {
     label: string;
     value: string;

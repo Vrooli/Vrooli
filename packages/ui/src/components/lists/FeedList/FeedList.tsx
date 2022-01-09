@@ -1,14 +1,14 @@
 // Used to display popular/search results of a particular object type
-import { Box, List, Tooltip, Typography } from '@mui/material';
+import { Box, Link, List, Tooltip, Typography } from '@mui/material';
 import { FeedListProps } from '../types';
-import { centeredText, containerShadow } from 'styles';
-import { useCallback, useMemo } from 'react';
+import { centeredText, clickSize, containerShadow } from 'styles';
+import { useCallback } from 'react';
 
-export function FeedList<DataType>({
+export function FeedList({
     title = 'Popular Items',
     onClick,
     children,
-}: FeedListProps<DataType>) {
+}: FeedListProps) {
     const handleContainerClick = useCallback(() => onClick(), [onClick]);
 
     return (
@@ -16,6 +16,7 @@ export function FeedList<DataType>({
             onClick={handleContainerClick}
             sx={{
                 transition: 'filter 1s scale 1s ease-in-out',
+                cursor: 'pointer',
                 '&:hover': {
                     transform: 'scale(1.05)',
                     filter: `brightness(105%)`,
@@ -35,6 +36,20 @@ export function FeedList<DataType>({
                     <List>
                         {children}
                     </List>
+                    <Link onClick={handleContainerClick}>
+                        <Typography
+                            sx={{
+                                ...clickSize,
+                                color: (t) => t.palette.secondary.dark,
+                                display: 'flex',
+                                alignItems: 'center',
+                                flexDirection: 'row-reverse',
+                                marginRight: 1,
+                            }}
+                        >
+                            See more results
+                        </Typography>
+                    </Link>
                 </Box>
             </Tooltip>
         </Box>

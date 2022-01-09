@@ -1,7 +1,7 @@
 import { gql } from 'graphql-tag';
 
 export const routinesCountQuery = gql`
-    query routinesCount {
-        routinesCount
+    query routinesCount($input: RoutineCountInput!) {
+        routinesCount(input: $input)
     }
 `

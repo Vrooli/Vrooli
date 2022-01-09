@@ -45,6 +45,8 @@ export const typeDef = gql`
         ids: [ID!]
         sortBy: TagSortBy
         searchString: String
+        createdTimeFrame: TimeFrame
+        updatedTimeFrame: TimeFrame
         after: String
         take: Int
     }
@@ -63,8 +65,8 @@ export const typeDef = gql`
 
     # Input for count
     input TagCountInput {
-        createdMetric: MetricTimeFrame
-        updatedMetric: MetricTimeFrame
+        createdTimeFrame: TimeFrame
+        updatedTimeFrame: TimeFrame
     }
 
     extend type Query {

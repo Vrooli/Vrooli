@@ -6,9 +6,12 @@
 // be able to utilize the full functionality of the service
 import { useLocation } from 'wouter';
 import {
+    Box,
     Button,
     Dialog,
     Grid,
+    Stack,
+    SxProps,
     Theme,
     Typography,
 } from '@mui/material';
@@ -29,6 +32,7 @@ import {
 import { guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
+import { centeredText, containerShadow } from 'styles';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -52,6 +56,10 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
+const buttonProps: SxProps = {
+    height: '4em',
+}
+
 export const StartPage = ({
     onSessionUpdate
 }: Pick<CommonProps, 'onSessionUpdate'>) => {
@@ -62,18 +70,18 @@ export const StartPage = ({
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<FORMS>(FORMS.LogIn);
     const handleFormChange = useCallback((type: FORMS = FORMS.LogIn) => type !== popupForm && setPopupForm(type), [popupForm]);
-    const Form = useMemo(() => {
+    const [Form, formTitle] = useMemo(() => {
         switch (popupForm) {
             case FORMS.ForgotPassword:
-                return ForgotPasswordForm
+                return [ForgotPasswordForm, 'Forgot Password'];
             case FORMS.LogIn:
-                return LogInForm
+                return [LogInForm, 'Log In'];
             case FORMS.ResetPassword:
-                return ResetPasswordForm
+                return [ResetPasswordForm, 'Reset Password'];
             case FORMS.SignUp:
-                return SignUpForm
+                return [SignUpForm, 'Sign Up'];
             default:
-                return LogInForm
+                return [LogInForm, 'Log In'];
         }
     }, [popupForm])
 
@@ -134,37 +142,49 @@ export const StartPage = ({
     }, [guestLogIn, setLocation, onSessionUpdate]);
 
     return (
-        <div className={classes.root}>
-            <div className={classes.horizontal}>
-                <Typography className={classes.prompt} variant="h6">Please select your log in method</Typography>
-                <HelpButton title={'boop'} />
-            </div>
-            <Grid className={classes.buttonContainer} container spacing={2}>
-                <Grid item xs={12}>
-                    <Button
-                        className={classes.option}
-                        fullWidth
-                        onClick={walletLogin}
-                    >Wallet (Nami)</Button>
-                </Grid>
-                <Grid item xs={12}>
-                    <Button
-                        className={classes.option}
-                        fullWidth
-                        onClick={toEmailLogIn}
-                    >Email</Button>
-                </Grid>
-                <Grid item xs={12}>
-                    <Button
-                        className={classes.option}
-                        fullWidth
-                        onClick={requestGuestToken}
-                    >Enter As Guest</Button>
-                </Grid>
-            </Grid>
-            <Dialog open={emailPopupOpen} onClose={closeEmailPopup}>
-                <Form onSessionUpdate={onSessionUpdate} onFormChange={handleFormChange} />
+        <Box className={classes.root}>
+            <Box
+                sx={{
+                    width: 'min(100%, 500px)',
+                    margin: 'auto',
+                    paddingTop: { xs: '5vh', sm: '20vh' },
+                }}
+            >
+                <div className={classes.horizontal}>
+                    <Typography className={classes.prompt} variant="h6">Please select your log in method</Typography>
+                    <HelpButton title={'boop'} />
+                </div>
+                <Stack
+                    direction="column"
+                    spacing={2}
+                >
+                    <Button fullWidth onClick={walletLogin} sx={{ ...buttonProps }}>Wallet (Nami)</Button>
+                    <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>Email</Button>
+                    <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>Enter As Guest</Button>
+                </Stack>
+            </Box>
+            <Dialog
+                open={emailPopupOpen}
+                onClose={closeEmailPopup}
+            >
+                <Box
+                    sx={{
+                        width: '100',
+                        borderRadius: '4px 4px 0 0',
+                        padding: 1,
+                        background: (t) => t.palette.primary.dark,
+                        color: 'white',
+                    }}
+                >
+                    <Typography variant="h6" sx={{ ...centeredText }}>{formTitle}</Typography>
+                </Box>
+                <Box sx={{ padding: 1 }}>
+                    <Form
+                        onSessionUpdate={onSessionUpdate}
+                        onFormChange={handleFormChange}
+                    />
+                </Box>
             </Dialog>
-        </div>
+        </Box>
     );
 }

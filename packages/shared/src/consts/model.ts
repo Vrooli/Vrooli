@@ -227,14 +227,6 @@ export type NodeData = {
 /* #endregion Node Data */
 //==============================================================
 
-export const MetricTimeFrame = {
-    Daily: 'Daily',
-    Weekly: 'Weekly',
-    Monthly: 'Monthly',
-    Yearly: 'Yearly',
-}
-export type MetricTimeFrame = ValueOf<typeof MetricTimeFrame>;
-
 export const ResourceFor = {
     Actor: 'Actor',
     Organization: 'Organization',

@@ -28,6 +28,7 @@ export const Selector = ({
     disabled = false,
     color,
     className,
+    style,
     ...props
 }: SelectorProps) => {
     const classes = useStyles();
@@ -79,7 +80,7 @@ export const Selector = ({
             <InputLabel id={inputAriaLabel} shrink={selected_formatted?.length > 0} style={{color: displayColor}}>{label}</InputLabel>
             <Select
                 className={className}
-                style={{color: displayColor}}
+                style={{...style, color: displayColor}}
                 labelId={inputAriaLabel}
                 value={selected}
                 onChange={handleChange}

@@ -91,6 +91,8 @@ export const typeDef = gql`
         ids: [ID!]
         sortBy: UserSortBy
         searchString: String
+        createdTimeFrame: TimeFrame
+        updatedTimeFrame: TimeFrame
         after: String
         take: Int
     }
@@ -109,8 +111,8 @@ export const typeDef = gql`
 
     # Input for count
     input UserCountInput {
-        createdMetric: MetricTimeFrame
-        updatedMetric: MetricTimeFrame
+        createdTimeFrame: TimeFrame
+        updatedTimeFrame: TimeFrame
     }
 
     extend type Query {

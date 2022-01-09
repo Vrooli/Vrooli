@@ -10,6 +10,13 @@ export const centeredText: SxProps = {
     textAlign: 'center',
 }
 
+/**
+ * Lighthouse recommended size for clickable elements, to improve SEO
+ */
+export const clickSize: SxProps = {
+    minHeight: '48px',
+}
+
 export const containerShadow: SxProps = {
     boxShadow: '0px 0px 12px gray',
 }

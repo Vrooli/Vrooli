@@ -4,7 +4,7 @@ import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 import ogs from 'open-graph-scraper';
 import { AutocompleteInput, AutocompleteResult, OpenGraphResponse } from './types';
-import { MetricTimeFrame, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from '@local/shared';
+import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
 import { OrganizationModel, ProjectModel, RoutineModel, StandardModel, UserModel } from '../models';
@@ -14,12 +14,10 @@ export const typeDef = gql`
     scalar Date
     scalar Upload
 
-    # Enums for counting objects recently created or updated (for metrics)
-    enum MetricTimeFrame {
-        Daily
-        Weekly
-        Monthly
-        Yearly
+    # Used for filtering by date created/updated, as well as fetching metrics (e.g. monthly active users)
+    input TimeFrame {
+        after: Date
+        before: Date
     }
 
     # Return type for a cursor-based pagination's pageInfo response
@@ -116,7 +114,6 @@ export const typeDef = gql`
 
 export const resolvers = {
     Upload: GraphQLUpload,
-    MetricTimeFrame: MetricTimeFrame,
     Date: new GraphQLScalarType({
         name: "Date",
         description: "Custom description for the date scalar",
@@ -151,6 +148,7 @@ export const resolvers = {
                 }).finally(() => { return {} })
         },
         autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
+            console.log('Autocomplete input', input);
             //const MinimumStars = 1; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             //const starredByQuery = { starredBy: { gte: MinimumStars } }; TODO for now, Prisma does not offer this type of sorting. See https://github.com/prisma/prisma/issues/8935. Instead, returning if any stars exist.
             // Query organizations
