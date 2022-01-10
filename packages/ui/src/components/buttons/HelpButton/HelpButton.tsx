@@ -45,6 +45,7 @@ export const HelpButton = ({
                     <Popover
                         id={popup_id}
                         open={popup_open}
+                        disableScrollLock={true}
                         anchorEl={anchorEl}
                         onClose={closePopup}
                         classes={{

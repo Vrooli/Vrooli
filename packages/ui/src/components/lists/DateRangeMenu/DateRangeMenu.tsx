@@ -24,6 +24,7 @@ export const DateRangeMenu = ({
             anchorEl={anchorEl}
             open={open}
             onClose={onClose}
+            disableScrollLock={true}
         >
             <Typography sx={{ ...centeredText }}>Select date range</Typography>
             <LocalizationProvider dateAdapter={AdapterDateFns}>

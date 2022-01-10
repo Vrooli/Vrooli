@@ -44,6 +44,7 @@ const AlertDialog = () => {
     return (
         <Dialog
             open={open}
+            disableScrollLock={true}
             onClose={resetState}
             aria-labelledby="alert-dialog-title"
             aria-describedby="alert-dialog-description"

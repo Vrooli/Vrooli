@@ -21,7 +21,7 @@ export function ActorListItem({
 
     const handleClick = useCallback(() => {
         // If onClick provided, call it
-        if (onClick) onClick(data.id ?? '');
+        if (onClick) onClick(data);
         // Otherwise, navigate to the actor's profile
         else setLocation(`${APP_LINKS.Profile}/${data.id}`)
     }, [onClick, data.id]);

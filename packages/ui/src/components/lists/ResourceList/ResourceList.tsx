@@ -51,7 +51,7 @@ const cardData = [
 ]
 
 export const ResourceList = ({
-    title = 'Resources'
+    title = 'Pinned Resources'
 }: ResourceListProps) => {
     return (
         <Box>
@@ -66,14 +66,15 @@ export const ResourceList = ({
                         minHeight: 'min(300px, 25vh)'
                     }}
                 >
-                    {cardData.map((c: any) => (
-                        <ul
-                            style={{
-                                display: 'flex',
-                                padding: '0',
-                                overflowX: 'scroll',
-                            }}
-                        >
+                    <ul
+                        style={{
+                            display: 'flex',
+                            padding: '0',
+                            overflowX: 'scroll',
+                        }}
+                    >
+                        {cardData.map((c: any) => (
+
                             <li
                                 style={{
                                     display: 'inline',
@@ -82,8 +83,8 @@ export const ResourceList = ({
                             >
                                 <ResourceCard data={c} />
                             </li>
-                        </ul>
-                    ))}
+                        ))}
+                    </ul>
                 </Box>
             </Tooltip>
         </Box>

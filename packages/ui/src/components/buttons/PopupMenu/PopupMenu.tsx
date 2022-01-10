@@ -37,6 +37,7 @@ export function PopupMenu({
                 open={open}
                 anchorEl={anchorEl}
                 onClose={handleClose}
+                disableScrollLock={true}
                 classes={{
                     paper: classes.paper
                 }}

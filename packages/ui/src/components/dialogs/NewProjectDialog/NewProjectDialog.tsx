@@ -103,7 +103,7 @@ export const NewProjectDialog = ({
     );
 
     return (
-        <Dialog fullScreen open={open} onClose={onClose} TransitionComponent={UpTransition}>
+        <Dialog fullScreen disableScrollLock={true} open={open} onClose={onClose} TransitionComponent={UpTransition}>
             <AppBar className={classes.appBar}>
                 <Toolbar>
                     <IconButton edge="start" color="inherit" onClick={onClose} aria-label="close">

@@ -165,6 +165,7 @@ export const StartPage = ({
             </Box>
             <Dialog
                 open={emailPopupOpen}
+                disableScrollLock={true}
                 onClose={closeEmailPopup}
             >
                 <Box

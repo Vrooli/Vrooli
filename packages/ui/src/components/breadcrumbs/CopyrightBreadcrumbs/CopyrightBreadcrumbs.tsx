@@ -3,6 +3,7 @@ import { BUSINESS_NAME, LANDING_LINKS, LANDING_URL } from '@local/shared';
 import { CopyrightBreadcrumbsProps } from '../types';
 
 export const CopyrightBreadcrumbs = ({ 
+    sx,
     ...props 
 }: CopyrightBreadcrumbsProps) => {
     const paths = [
@@ -13,7 +14,8 @@ export const CopyrightBreadcrumbs = ({
     return BreadcrumbsBase({
         paths: paths,
         ariaLabel: 'Copyright breadcrumb',
-        style: {
+        sx: {
+            ...sx,
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',

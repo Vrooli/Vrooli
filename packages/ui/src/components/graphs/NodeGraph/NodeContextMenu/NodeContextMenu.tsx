@@ -69,6 +69,7 @@ export const NodeContextMenu = ({
     return (
         <Popover
             className={classes.root}
+            disableScrollLock={true}
             sx={{ pointerEvents: 'none' }}
             open={open}
             anchorEl={anchorEl}

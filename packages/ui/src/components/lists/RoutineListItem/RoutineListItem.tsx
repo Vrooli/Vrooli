@@ -21,7 +21,7 @@ export function RoutineListItem({
 
     const handleClick = useCallback(() => {
         // If onClick provided, call if
-        if (onClick) onClick(data.id);
+        if (onClick) onClick(data);
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Routine}/${data.id}`)
     }, [onClick, data.id]);

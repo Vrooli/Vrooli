@@ -1,6 +1,7 @@
 import { RoutineSortBy } from "@local/shared";
 import { RoutineListItem } from "components";
 import { routinesQuery } from "graphql/query";
+import { useCallback, useState } from "react";
 import { RoutineDeep } from "types";
 import { SortValueToLabelMap } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
@@ -12,23 +13,31 @@ const SORT_OPTIONS: SearchSortBy<RoutineSortBy>[] = Object.values(RoutineSortBy)
 }));
 
 export const SearchRoutinesPage = () => {
-    const listItemFactory = (node: RoutineDeep, index: number) => (
+    const [selected, setSelected] = useState<RoutineDeep | undefined>(undefined);
+    const dialogOpen = Boolean(selected);
+
+    const handleDialogClose = useCallback(() => setSelected(undefined), []);
+
+    const listItemFactory = (node: any, index: number) => (
         <RoutineListItem 
             key={`routine-list-item-${index}`} 
             data={node} 
             isStarred={false}
             isOwn={false}
-            onClick={() => {}}
+            onClick={(selected: RoutineDeep) => setSelected(selected)}
             onStarClick={() => {}}
         />)
 
     return (
         <BaseSearchPage 
             title={'Search Routines'}
+            searchPlaceholder="Search by title, description, instructions, or tags..."
             sortOptions={SORT_OPTIONS}
             defaultSortOption={SORT_OPTIONS[1]}
             query={routinesQuery}
             listItemFactory={listItemFactory}
+            getOptionLabel={(o: any) => o.title}
+            onObjectSelect={(selected: RoutineDeep) => setSelected(selected)}
         />
     )
 }

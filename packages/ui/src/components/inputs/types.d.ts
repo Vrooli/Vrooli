@@ -12,12 +12,15 @@ export interface DropzoneProps {
 }
 
 export interface SearchBarProps {
-    label?: string;
+    id?: string;
+    placeholder?: string;
     value: string;
+    options?: any[];
+    getOptionLabel?: (option: any) => string;
     onChange: (updatedText: string) => any;
+    onInputChange?: (event: any, newValue: any) => any;
     debounce?: number;
-    fullWidth?: boolean;
-    className?: string;
+    sx?: any;
 }
 
 export interface SelectorProps {

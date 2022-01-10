@@ -1,6 +1,7 @@
 import { StandardSortBy } from "@local/shared";
 import { StandardListItem } from "components";
 import { standardsQuery } from "graphql/query";
+import { useCallback, useState } from "react";
 import { Standard } from "types";
 import { SortValueToLabelMap } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
@@ -12,23 +13,31 @@ const SORT_OPTIONS: SearchSortBy<StandardSortBy>[] = Object.values(StandardSortB
 }));
 
 export const SearchStandardsPage = () => {
-    const listItemFactory = (node: Standard, index: number) => (
+    const [selected, setSelected] = useState<Standard | undefined>(undefined);
+    const dialogOpen = Boolean(selected);
+
+    const handleDialogClose = useCallback(() => setSelected(undefined), []);
+
+    const listItemFactory = (node: any, index: number) => (
         <StandardListItem 
             key={`standard-list-item-${index}`} 
             data={node} 
             isStarred={false}
             isOwn={false}
-            onClick={() => {}}
+            onClick={(selected: Standard) => setSelected(selected)}
             onStarClick={() => {}}
         />)
 
     return (
         <BaseSearchPage 
             title={'Search Standards'}
+            searchPlaceholder="Search by name, description, or tags..."
             sortOptions={SORT_OPTIONS}
             defaultSortOption={SORT_OPTIONS[1]}
             query={standardsQuery}
             listItemFactory={listItemFactory}
+            getOptionLabel={(o: any) => o.name}
+            onObjectSelect={(selected: Standard) => setSelected(selected)}
         />
     )
 }

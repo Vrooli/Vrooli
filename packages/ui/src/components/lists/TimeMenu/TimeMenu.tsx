@@ -44,6 +44,7 @@ export function TimeMenu({
         <Menu
             id="results-time-menu"
             anchorEl={anchorEl}
+            disableScrollLock={true}
             open={open}
             onClose={() => onClose()}
             MenuListProps={{ 'aria-labelledby': 'results-time-menu-list' }}

@@ -44,9 +44,6 @@ const useStyles = makeStyles((theme: Theme) => ({
     icon: {
         fill: theme.palette.primary.contrastText,
     },
-    copyright: {
-        color: theme.palette.primary.contrastText,
-    },
 }));
 
 export const Footer = () => {
@@ -94,7 +91,7 @@ export const Footer = () => {
                     </List>
                 </Grid>
             </Grid>
-            <CopyrightBreadcrumbs className={classes.copyright} textColor={theme.palette.primary.contrastText} />
+            <CopyrightBreadcrumbs sx={{color: (t) => t.palette.primary.contrastText}} />
         </div>
     );
 }

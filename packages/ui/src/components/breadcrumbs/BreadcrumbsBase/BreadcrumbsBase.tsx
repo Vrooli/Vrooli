@@ -3,7 +3,6 @@ import {
     Link 
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import merge from 'lodash/merge';
 import { BreadcrumbsBaseProps } from '../types';
 import { useMemo } from 'react';
 import { useLocation } from 'wouter';
@@ -25,17 +24,11 @@ const BreadcrumbsBase = ({
     paths,
     separator = '|',
     ariaLabel = 'breadcrumb',
-    textColor = 'textPrimary',
-    style,
-    className
+    textColor,
+    sx,
 }: BreadcrumbsBaseProps) => {
     const classes = useStyles();
     const [, setLocation] = useLocation();
-    // Add user styling to default root style
-    let rootStyle = merge(classes.root, style ?? {});
-    // Match separator color to link color, if not specified
-    // @ts-expect-error
-    if (textColor) rootStyle.color = textColor;
 
     const pathLinks = useMemo(() => (
         paths.map(p => (
@@ -50,7 +43,12 @@ const BreadcrumbsBase = ({
     ), [setLocation, paths, textColor])
 
     return (
-            <Breadcrumbs className={className} style={style ?? {}} classes={{root: classes.root, li: classes.li}} separator={separator} aria-label={ariaLabel}>
+            <Breadcrumbs 
+                sx={sx} 
+                classes={{root: classes.root, li: classes.li}} 
+                separator={separator} 
+                aria-label={ariaLabel}
+            >
                 {pathLinks}
             </Breadcrumbs>
     );

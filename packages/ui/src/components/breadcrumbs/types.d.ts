@@ -3,10 +3,11 @@ export interface BreadcrumbsBaseProps {
     separator?: string;
     ariaLabel?: string;
     textColor?: string;
-    style?: object;
-    className?: string;
+    sx?: any;
 }
 
-export type CopyrightBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel' | 'style'>
+export type CopyrightBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>
 
 export type PolicyBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>
+
+export type SearchBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>

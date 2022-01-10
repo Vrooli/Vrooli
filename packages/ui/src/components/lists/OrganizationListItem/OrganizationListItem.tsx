@@ -21,7 +21,7 @@ export function OrganizationListItem({
 
     const handleClick = useCallback(() => {
         // If onClick provided, call it
-        if (onClick) onClick(data.id ?? '');
+        if (onClick) onClick(data);
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Organization}/${data.id}`)
     }, [onClick, data.id]);

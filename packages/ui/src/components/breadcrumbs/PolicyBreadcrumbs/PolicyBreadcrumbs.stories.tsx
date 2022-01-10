@@ -1,5 +1,5 @@
 import { Meta, Story } from "@storybook/react";
-import { PolicyBreadcrumbs as Component } from '../';
+import { PolicyBreadcrumbs as Component } from '..';
 import { PolicyBreadcrumbsProps as Props } from '../types';
 
 // Define story metadata

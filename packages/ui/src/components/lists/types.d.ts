@@ -3,7 +3,7 @@ import { Organization, Project, Routine, Standard, User } from 'types';
 export interface ObjectListItemProps {
     isStarred: boolean;
     isOwn: boolean;
-    onClick?: (id: string) => void;
+    onClick?: (data: any) => void; // Full data passed back, to display while more details load
     onStarClick: (id: string, removing: boolean) => void;
 }
 

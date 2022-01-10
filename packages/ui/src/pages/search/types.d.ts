@@ -16,8 +16,11 @@ export interface SearchQueryVariablesInput<SortBy> {
 
 export interface BaseSearchPageProps<DataType, SortBy> {
     title?: string | null;
+    searchPlaceholder?: string;
     sortOptions: SearchSortBy<SortBy>[];
     defaultSortOption: SearchSortBy<SortBy>;
     query: DocumentNode;
     listItemFactory: (node: DataType, index: number) => JSX.Element;
+    getOptionLabel: (option: any) => string;
+    onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
 }

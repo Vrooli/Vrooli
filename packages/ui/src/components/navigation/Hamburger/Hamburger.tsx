@@ -54,13 +54,6 @@ const useStyles = makeStyles((theme: Theme) => ({
     instagram: {
         fill: '#ffffff', // '#F77737',
     },
-    copyright: {
-        color: theme.palette.primary.contrastText,
-        padding: 5,
-        display: 'block',
-        marginLeft: 'auto',
-        marginRight: 'auto',
-    },
 }));
 
 export const Hamburger = ({
@@ -114,7 +107,15 @@ export const Hamburger = ({
                         onAnyClick: closeMenu,
                     })}
                 </List>
-                <CopyrightBreadcrumbs className={classes.copyright} textColor={theme.palette.primary.contrastText} />
+                <CopyrightBreadcrumbs
+                    sx={{
+                        color: (t) => t.palette.primary.contrastText,
+                        padding: 5,
+                        display: 'block',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }}
+                />
             </SwipeableDrawer>
         </>
     );

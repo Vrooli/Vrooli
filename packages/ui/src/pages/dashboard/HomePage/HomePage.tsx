@@ -1,14 +1,13 @@
-import { Autocomplete, Box, IconButton, Input, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Search as SearchIcon } from '@mui/icons-material';
 import { centeredDiv, centeredText } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
 import { useQuery } from '@apollo/client';
 import { autocompleteQuery } from 'graphql/query';
-import { debounce } from 'lodash';
-import { ActorListItem, FeedList, OrganizationListItem, ProjectListItem, RoutineListItem, StandardListItem } from 'components';
+import { ActorListItem, FeedList, OrganizationListItem, ProjectListItem, RoutineListItem, SearchBar, StandardListItem } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
+import AwesomeDebouncePromise from 'awesome-debounce-promise';
 
 const ObjectType = {
     Organization: 'Organization',
@@ -36,16 +35,18 @@ const linkMap = {
 export const HomePage = () => {
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>('');
-    const updateSearch = useCallback((e: any, newValue: any) =>{console.log('update search'); setSearchString(newValue)}, []);
+    const updateSearch = useCallback((newValue: any) => { console.log('update search'); setSearchString(newValue) }, []);
     // Search query removes words that start with a '!'. These are used for sorting results.
     const { data, refetch } = useQuery<autocomplete, autocompleteVariables>(autocompleteQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
-    const debouncedRefetch = useCallback(() => debounce(() => refetch(), 200), [refetch]); //TODO debounce not working
-    useEffect(() => { debouncedRefetch() }, [debouncedRefetch, searchString]);
+    //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
+    useEffect(() => { console.log('refetching...'); refetch() }, [refetch, searchString]);
+
     const { routines, projects, organizations, standards, users } = useMemo(() => {
         if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
         const { routines, projects, organizations, standards, users } = data.autocomplete;
         return { routines, projects, organizations, standards, users };
     }, [data]);
+
     const autocompleteOptions = useMemo(() => {
         if (!data) return [];
         const routines = data.autocomplete.routines.map(r => ({ title: r.title, id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
@@ -61,8 +62,7 @@ export const HomePage = () => {
     /**
      * When an autocomplete item is selected, navigate to object
      */
-    const onInputSelect = useCallback((e: any, newValue: any) => {
-        console.log('onInputSelect', newValue);
+    const onInputSelect = useCallback((_e: any, newValue: any) => {
         if (!newValue) return;
         // Determine object from selected label
         const selectedItem = autocompleteOptions.find(o => `${o.title} | ${o.objectType}` === newValue);
@@ -155,34 +155,15 @@ export const HomePage = () => {
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '30vh' } }}>
                 <Typography component="h1" variant="h2" sx={{ ...centeredText }}>What would you like to do?</Typography>
                 {/* ========= #region Custom SearchBar ========= */}
-                <Autocomplete
-                    disablePortal
+                <SearchBar
                     id="main-search"
+                    placeholder='Search routines, projects, and more...'
                     options={autocompleteOptions}
                     getOptionLabel={(o: any) => `${o.title} | ${o.objectType}`}
-                    sx={{ width: 'min(100%, 600px)' }}
+                    value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
-                    renderInput={(params) => (
-                        < Paper
-                            component="form"
-                            sx={{ p: '2px 4px', display: 'flex', alignItems: 'center', borderRadius: '10px' }}
-                        >
-                            <Input
-                                sx={{ ml: 1, flex: 1 }}
-                                disableUnderline={true}
-                                value={searchString}
-                                placeholder='Search routines, projects, and more...'
-                                autoFocus
-                                {...params.InputProps}
-                                inputProps={params.inputProps}
-                            />
-                            <IconButton sx={{ p: '10px' }} aria-label="main-search-icon">
-                                <SearchIcon />
-                            </IconButton>
-                        </Paper>
-                    )
-                    }
+                    sx={{ width: 'min(100%, 600px)' }}
                 />
                 {/* =========  #endregion ========= */}
             </Stack>

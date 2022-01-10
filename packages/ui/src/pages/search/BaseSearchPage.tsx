@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client";
 import { Box, Button, FormControlLabel, Grid, List, Switch, Tooltip, Typography } from "@mui/material";
-import { SearchBar, SortMenu, TimeMenu } from "components";
+import { SearchBar, SearchBreadcrumbs, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { centeredText, containerShadow, centeredDiv } from "styles";
 import { BaseSearchPageProps, SearchQueryVariablesInput } from "./types";
@@ -11,10 +11,13 @@ import {
 
 export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
     title = 'Search',
+    searchPlaceholder = 'Search...',
     sortOptions,
     defaultSortOption,
     query,
     listItemFactory,
+    getOptionLabel,
+    onObjectSelect,
 }: BaseSearchPageProps<DataType, SortBy>) {
     const [searchString, setSearchString] = useState<string>('');
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
@@ -27,9 +30,16 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
 
     useEffect(() => { refetch() }, [refetch, searchString, sortBy]);
 
-    const listItems = useMemo(() => data ? ((Object.values(data) as any)?.edges?.map((edge, index) => listItemFactory(edge.node, index))) : null, [listItemFactory, data]);
+    const listItemData = useMemo(() => {
+        if (!data) return [];
+        const queryData = Object.values(data)[0];
+        if (!queryData) return [];
+        return queryData.edges.map((edge, index) => edge.node);
+    }, [data]);
 
-    const handleSearch = useCallback((newString) => {console.log('HANDLE SEARCH', newString); setSearchString(newString)}, []);
+    const listItems = useMemo(() => listItemData.map((data, index) => listItemFactory(data, index)), [listItemData, listItemFactory]);
+
+    const handleSearch = useCallback((newString) => { console.log('HANDLE SEARCH', newString); setSearchString(newString) }, []);
 
     const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
     const handleSortClose = (label?: string, selected?: string) => {
@@ -45,6 +55,18 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
         else setCreatedTimeFrame({ after, before });
         if (label) setCreatedTimeFrameLabel(label);
     };
+
+    /**
+     * When an autocomplete item is selected, navigate to object
+     */
+     const onInputSelect = useCallback((_e: any, newValue: any) => {
+        if (!newValue) return;
+        // Determine object from selected label
+        const selectedItem = listItemData.find(o => getOptionLabel(o) === newValue);
+        if (!selectedItem) return;
+        console.log('selectedItem', selectedItem);
+        onObjectSelect(selectedItem);
+    }, [listItemData]);
 
     const searchResultContainer = useMemo(() => (
         <Box
@@ -72,10 +94,20 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
             />
+            <SearchBreadcrumbs sx={{...centeredDiv, color: (t) => t.palette.secondary.dark}}/>
             <Typography component="h2" variant="h4" sx={{ ...centeredText, paddingTop: 2 }}>{title}</Typography>
             <Grid container spacing={2}>
                 <Grid item xs={12} sm={8}>
-                    <SearchBar fullWidth value={searchString} onChange={handleSearch} />
+                    <SearchBar
+                        id={`${title}-search-bar`}
+                        placeholder={searchPlaceholder}
+                        options={listItemData}
+                        getOptionLabel={getOptionLabel}
+                        value={searchString}
+                        onChange={handleSearch}
+                        onInputChange={onInputSelect}
+                        sx={{ width: 'min(100%, 600px)' }}
+                    />
                 </Grid>
                 <Grid item xs={6} sm={2}>
                     <Button

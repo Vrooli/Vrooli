@@ -64,6 +64,7 @@ const ListDialog = ({
                 className: classes.root,
             }}
             onClose={onClose}
+            disableScrollLock={true}
             aria-labelledby="simple-dialog-title"
             open={open}
             {...props}>
