@@ -8,33 +8,24 @@ import {
     FormControlLabel,
     Grid,
     Link,
+    Paper,
     TextField,
     Typography,
     useTheme
 } from '@mui/material';
-import { makeStyles } from '@mui/styles';
-import { combineStyles, Forms, Pubs } from 'utils';
+import { Forms, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useLocation } from 'wouter';
-import { formStyles } from './styles';
 import { emailSignUp } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
-
-const componentStyles = () => ({
-    phoneInput: {
-        width: '100%',
-    },
-})
-
-const useStyles = makeStyles(combineStyles(formStyles, componentStyles));
+import { clickSize, formNavLink, formPaper, formSubmit } from 'styles';
 
 export const SignUpForm = ({
     onSessionUpdate,
-    onFormChange = () => {},
+    onFormChange = () => { },
 }: FormProps) => {
-    const classes = useStyles();
     const theme = useTheme();
     const [, setLocation] = useLocation();
     const [emailSignUp, { loading }] = useMutation<emailSignUp>(emailSignUpMutation);
@@ -52,7 +43,7 @@ export const SignUpForm = ({
             mutationWrapper({
                 mutation: emailSignUp,
                 input: {
-                    ...values, 
+                    ...values,
                     marketingEmails: Boolean(values.marketingEmails),
                     theme: theme.palette.mode ?? 'light',
                 },
@@ -60,14 +51,14 @@ export const SignUpForm = ({
                     onSessionUpdate(response.data.emailSignUp);
                     PubSub.publish(Pubs.AlertDialog, {
                         message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
-                        buttons: [ { text: 'OK', onClick: () => setLocation(APP_LINKS.Profile) } ]
+                        buttons: [{ text: 'OK', onClick: () => setLocation(APP_LINKS.Profile) }]
                     });
                 },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.EmailInUse.code)) {
                         PubSub.publish(Pubs.AlertDialog, {
                             message: `${response.message}. Press OK if you would like to be redirected to the forgot password form.`,
-                            buttons: [ { text: 'OK', onClick: () => onFormChange(Forms.ForgotPassword) } ]
+                            buttons: [{ text: 'OK', onClick: () => onFormChange(Forms.ForgotPassword) }]
                         });
                     }
                 }
@@ -79,104 +70,117 @@ export const SignUpForm = ({
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
 
     return (
-        <form className={classes.form} onSubmit={formik.handleSubmit}>
-            <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                <TextField
-                        fullWidth
-                        autoFocus
-                        id="username"
-                        name="username"
-                        autoComplete="username"
-                        label="Username"
-                        value={formik.values.username}
-                        onChange={formik.handleChange}
-                        error={formik.touched.username && Boolean(formik.errors.username)}
-                        helperText={formik.touched.username && formik.errors.username}
-                    />
+        <Paper sx={{ ...formPaper }}>
+            <form onSubmit={formik.handleSubmit}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            fullWidth
+                            autoFocus
+                            id="username"
+                            name="username"
+                            autoComplete="username"
+                            label="Username"
+                            value={formik.values.username}
+                            onChange={formik.handleChange}
+                            error={formik.touched.username && Boolean(formik.errors.username)}
+                            helperText={formik.touched.username && formik.errors.username}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            id="email"
+                            name="email"
+                            autoComplete="email"
+                            label="Email Address"
+                            value={formik.values.email}
+                            onChange={formik.handleChange}
+                            error={formik.touched.email && Boolean(formik.errors.email)}
+                            helperText={formik.touched.email && formik.errors.email}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            id="password"
+                            name="password"
+                            type="password"
+                            autoComplete="new-password"
+                            label="Password"
+                            value={formik.values.password}
+                            onChange={formik.handleChange}
+                            error={formik.touched.password && Boolean(formik.errors.password)}
+                            helperText={formik.touched.password && formik.errors.password}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            type="password"
+                            autoComplete="new-password"
+                            label="Confirm Password"
+                            value={formik.values.confirmPassword}
+                            onChange={formik.handleChange}
+                            error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
+                            helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    id="marketingEmails"
+                                    name="marketingEmails"
+                                    value="marketingEmails"
+                                    color="secondary"
+                                    checked={Boolean(formik.values.marketingEmails)}
+                                    onChange={formik.handleChange}
+                                />
+                            }
+                            label="I want to receive marketing promotions and updates via email."
+                        />
+                    </Grid>
                 </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="email"
-                        name="email"
-                        autoComplete="email"
-                        label="Email Address"
-                        value={formik.values.email}
-                        onChange={formik.handleChange}
-                        error={formik.touched.email && Boolean(formik.errors.email)}
-                        helperText={formik.touched.email && formik.errors.email}
-                    />
+                <Button
+                    fullWidth
+                    disabled={loading}
+                    type="submit"
+                    color="secondary"
+                    sx={{ ...formSubmit }}
+                >
+                    Sign Up
+                </Button>
+                <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                        <Link onClick={toLogIn}>
+                            <Typography
+                                sx={{
+                                    ...clickSize,
+                                    ...formNavLink,
+                                }}
+                            >
+                                Already have an account? Log in
+                            </Typography>
+                        </Link>
+                    </Grid>
+                    <Grid item xs={6}>
+                        <Link onClick={toForgotPassword}>
+                            <Typography
+                                sx={{
+                                    ...clickSize,
+                                    ...formNavLink,
+                                    flexDirection: 'row-reverse' as const,
+                                }}
+                            >
+                                Forgot Password?
+                            </Typography>
+                        </Link>
+                    </Grid>
                 </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="password"
-                        name="password"
-                        type="password"
-                        autoComplete="new-password"
-                        label="Password"
-                        value={formik.values.password}
-                        onChange={formik.handleChange}
-                        error={formik.touched.password && Boolean(formik.errors.password)}
-                        helperText={formik.touched.password && formik.errors.password}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type="password"
-                        autoComplete="new-password"
-                        label="Confirm Password"
-                        value={formik.values.confirmPassword}
-                        onChange={formik.handleChange}
-                        error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
-                        helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                id="marketingEmails"
-                                name="marketingEmails"
-                                value="marketingEmails"
-                                color="secondary"
-                                checked={Boolean(formik.values.marketingEmails)}
-                                onChange={formik.handleChange}
-                            />
-                        }
-                        label="I want to receive marketing promotions and updates via email."
-                    />
-                </Grid>
-            </Grid>
-            <Button
-                fullWidth
-                disabled={loading}
-                type="submit"
-                color="secondary"
-                className={classes.submit}
-            >
-                Sign Up
-            </Button>
-            <Grid container spacing={2}>
-                <Grid item xs={6}>
-                    <Link onClick={toLogIn}>
-                        <Typography className={classes.clickSize}>
-                            Already have an account? Log in
-                        </Typography>
-                    </Link>
-                </Grid>
-                <Grid item xs={6}>
-                    <Link onClick={toForgotPassword}>
-                        <Typography className={`${classes.clickSize} ${classes.linkRight}`}>
-                            Forgot Password?
-                        </Typography>
-                    </Link>
-                </Grid>
-            </Grid>
-        </form>
+            </form>
+        </Paper>
     );
 }

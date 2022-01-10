@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { HelpButton } from 'components';
 import { useMemo } from 'react';
-import { centeredText } from 'styles';
+import { centeredText, noSelect } from 'styles';
 import { ListMenuProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 
@@ -75,6 +75,7 @@ export const ListMenu = ({
         >
             <Box 
                 sx={{ 
+                    ...noSelect,
                     display: 'flex', 
                     alignItems: 'center',
                     background: (t) => t.palette.primary.dark 

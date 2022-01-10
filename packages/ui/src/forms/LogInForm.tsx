@@ -7,26 +7,23 @@ import {
     Button,
     Grid,
     Link,
+    Paper,
     TextField,
     Typography
 } from '@mui/material';
-import { makeStyles } from '@mui/styles';
 import { Forms, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { formStyles } from './styles';
 import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
-
-const useStyles = makeStyles(formStyles);
+import { clickSize, formNavLink, formPaper, formSubmit } from 'styles';
 
 export const LogInForm = ({
     code,
     onSessionUpdate,
-    onFormChange = () => {}
+    onFormChange = () => { }
 }: LogInFormProps) => {
-    const classes = useStyles();
     const [, setLocation] = useLocation();
     const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
 
@@ -59,61 +56,74 @@ export const LogInForm = ({
     const toSignUp = () => onFormChange(Forms.SignUp);
 
     return (
-        <form className={classes.form} onSubmit={formik.handleSubmit}>
-            <Grid container spacing={2}>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="email"
-                        name="email"
-                        autoComplete="email"
-                        label="Email Address"
-                        value={formik.values.email}
-                        onChange={formik.handleChange}
-                        error={formik.touched.email && Boolean(formik.errors.email)}
-                        helperText={formik.touched.email && formik.errors.email}
-                    />
+        <Paper sx={{ ...formPaper }}>
+            <form onSubmit={formik.handleSubmit}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            id="email"
+                            name="email"
+                            autoComplete="email"
+                            label="Email Address"
+                            value={formik.values.email}
+                            onChange={formik.handleChange}
+                            error={formik.touched.email && Boolean(formik.errors.email)}
+                            helperText={formik.touched.email && formik.errors.email}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            id="password"
+                            name="password"
+                            type="password"
+                            autoComplete="current-password"
+                            label="Password"
+                            value={formik.values.password}
+                            onChange={formik.handleChange}
+                            error={formik.touched.password && Boolean(formik.errors.password)}
+                            helperText={formik.touched.password && formik.errors.password}
+                        />
+                    </Grid>
                 </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="password"
-                        name="password"
-                        type="password"
-                        autoComplete="current-password"
-                        label="Password"
-                        value={formik.values.password}
-                        onChange={formik.handleChange}
-                        error={formik.touched.password && Boolean(formik.errors.password)}
-                        helperText={formik.touched.password && formik.errors.password}
-                    />
+                <Button
+                    fullWidth
+                    disabled={loading}
+                    type="submit"
+                    color="secondary"
+                    sx={{ ...formSubmit }}
+                >
+                    Log In
+                </Button>
+                <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                        <Link onClick={toForgotPassword}>
+                            <Typography
+                                sx={{
+                                    ...clickSize,
+                                    ...formNavLink,
+                                }}
+                            >
+                                Forgot Password?
+                            </Typography>
+                        </Link>
+                    </Grid>
+                    <Grid item xs={6}>
+                        <Link onClick={toSignUp}>
+                            <Typography
+                                sx={{
+                                    ...clickSize,
+                                    ...formNavLink,
+                                    flexDirection: 'row-reverse' as any,
+                                }}
+                            >
+                                Don't have an account? Sign up
+                            </Typography>
+                        </Link>
+                    </Grid>
                 </Grid>
-            </Grid>
-            <Button
-                fullWidth
-                disabled={loading}
-                type="submit"
-                color="secondary"
-                className={classes.submit}
-            >
-                Log In
-            </Button>
-            <Grid container spacing={2}>
-                <Grid item xs={6}>
-                    <Link onClick={toForgotPassword}>
-                        <Typography className={classes.clickSize}>
-                            Forgot Password?
-                        </Typography>
-                    </Link>
-                </Grid>
-                <Grid item xs={6}>
-                    <Link onClick={toSignUp}>
-                        <Typography className={`${classes.clickSize} ${classes.linkRight}`}>
-                            Don't have an account? Sign up
-                        </Typography>
-                    </Link>
-                </Grid>
-            </Grid>
-        </form>
+            </form>
+        </Paper>
     );
 }

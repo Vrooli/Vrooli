@@ -1,36 +1,28 @@
-import { Theme } from '@mui/material';
-import { Styles } from "@mui/styles";
+import { SxProps } from '@mui/material';
+import { CSSProperties } from "@mui/styles";
+import { multiLineEllipsis, textShadow } from 'styles';
 
-export const nodeStyles: Styles<Theme, {}> = (theme: Theme) => ({
-    // Disables text highlighting
-    noSelect: {
-        '-webkit-touch-callout': 'none', /* iOS Safari */
-        '-webkit-user-select': 'none', /* Safari */
-        '-ms-user-select': 'none', /* Internet Explorer/Edge */
-        'user-select': 'none', /* Non-prefixed version, currently
-                                  supported by Chrome, Edge, Opera and Firefox */
-    },
-    label: {
-        position: 'absolute',
-        textAlign: 'center',
-        margin: '0',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '100%',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        lineBreak: 'anywhere',
-        display:' -webkit-box',
-        '-webkit-line-clamp': '3',
-        '-webkit-box-orient': 'vertical',
-        textShadow:
-            `-0.5px -0.5px 0 black,  
-            0.5px -0.5px 0 black,
-            -0.5px 0.5px 0 black,
-            0.5px 0.5px 0 black`
-    },
-    ignoreHover: {
-        pointerEvents: 'none',
-    }
-});
+export const nodeLabel: SxProps = {
+    ...multiLineEllipsis(3),
+    ...textShadow,
+    position: 'absolute',
+    textAlign: 'center',
+    margin: '0',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: '100%',
+    lineBreak: 'anywhere',
+} as CSSProperties;
+
+export const routineNodeListOptions: SxProps = {
+    background: '#b0bbe7',
+} as CSSProperties;
+
+export const routineNodeCheckboxLabel: SxProps = {
+    marginLeft: '0'
+} as CSSProperties;
+
+export const routineNodeCheckboxOption: SxProps = {
+    padding: '4px',
+} as CSSProperties;

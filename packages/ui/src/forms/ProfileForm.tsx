@@ -4,41 +4,27 @@ import { useMutation, useQuery } from '@apollo/client';
 import { profileUpdateMutation } from 'graphql/mutation';
 import { profileQuery } from 'graphql/query';
 import { useFormik } from 'formik';
-import { combineStyles, Pubs } from 'utils';
+import { Pubs } from 'utils';
 import PubSub from 'pubsub-js';
-import { 
-    Button, 
-    Checkbox, 
-    Container, 
-    FormControl, 
+import {
+    Button,
+    Checkbox,
+    Container,
+    FormControl,
     FormControlLabel,
-    FormHelperText, 
-    Grid, 
+    FormHelperText,
+    Grid,
+    Paper,
     Radio,
     RadioGroup,
-    TextField, 
-    Theme 
+    TextField,
 } from '@mui/material';
-import { makeStyles } from '@mui/styles';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { formStyles } from './styles';
 import { profile } from 'graphql/generated/profile';
 import { profileUpdate } from 'graphql/generated/profileUpdate';
-
-const componentStyles = (theme: Theme) => ({
-    buttons: {
-        paddingTop: theme.spacing(2),
-        paddingBottom: theme.spacing(2),
-    },
-    phoneInput: {
-        width: '100%',
-    }
-})
-
-const useStyles = makeStyles(combineStyles(formStyles, componentStyles));
+import { formPaper, formSubmit } from 'styles';
 
 export const ProfileForm = () => {
-    const classes = useStyles()
     const [editing, setEditing] = useState(false);
     const { data: profile } = useQuery<profile>(profileQuery);
     const [updateUser, { loading }] = useMutation<profileUpdate>(profileUpdateMutation);
@@ -92,149 +78,158 @@ export const ProfileForm = () => {
     const setTheme = useCallback((e) => { formik.handleChange(e); PubSub.publish(Pubs.Theme, e.target.value) }, [formik])
 
     return (
-        <form className={classes.form} onSubmit={formik.handleSubmit}>
-            <fieldset disabled={!editing}>
-                <Container>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
-                        <TextField
+        <Paper sx={{ ...formPaper }}>
+            <form onSubmit={formik.handleSubmit}>
+                <fieldset disabled={!editing}>
+                    <Container>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    fullWidth
+                                    autoFocus
+                                    id="username"
+                                    name="username"
+                                    autoComplete="username"
+                                    label="Username"
+                                    value={formik.values.username}
+                                    onChange={formik.handleChange}
+                                    error={formik.touched.username && Boolean(formik.errors.username)}
+                                    helperText={formik.touched.username && formik.errors.username}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    id="email"
+                                    name="email"
+                                    autoComplete="email"
+                                    label="Email Address"
+                                    value={formik.values.email}
+                                    onChange={formik.handleChange}
+                                    error={formik.touched.email && Boolean(formik.errors.email)}
+                                    helperText={formik.touched.email && formik.errors.email}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <FormControl component="fieldset">
+                                    <RadioGroup
+                                        id="theme"
+                                        name="theme"
+                                        aria-label="theme-check"
+                                        value={formik.values.theme}
+                                        onChange={setTheme}
+                                    >
+                                        <FormControlLabel value="light" control={<Radio />} label="Light ☀️" />
+                                        <FormControlLabel value="dark" control={<Radio />} label="Dark 🌙" />
+                                    </RadioGroup>
+                                    <FormHelperText>{formik.touched.theme && formik.errors.theme}</FormHelperText>
+                                </FormControl>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            id="accountEmails"
+                                            name="accountEmails"
+                                            value="accountEmails"
+                                            color="secondary"
+                                            checked={formik.values.accountEmails}
+                                            onChange={formik.handleChange}
+                                        />
+                                    }
+                                    label="I want to receive account updates via email."
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            id="businessEmails"
+                                            name="businessEmails"
+                                            value="businessEmails"
+                                            color="secondary"
+                                            checked={formik.values.businessEmails}
+                                            onChange={formik.handleChange}
+                                        />
+                                    }
+                                    label="I want to receive marketing promotions and updates via email."
+                                />
+                            </Grid>
+                        </Grid>
+                    </Container>
+                    <Container>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    id="currentPassword"
+                                    name="currentPassword"
+                                    type="password"
+                                    autoComplete="password"
+                                    label="Current Password"
+                                    value={formik.values.currentPassword}
+                                    onChange={formik.handleChange}
+                                    error={formik.touched.currentPassword && Boolean(formik.errors.currentPassword)}
+                                    helperText={formik.touched.currentPassword && formik.errors.currentPassword}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    id="newPassword"
+                                    name="newPassword"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    label="New Password"
+                                    value={formik.values.newPassword}
+                                    onChange={formik.handleChange}
+                                    error={formik.touched.newPassword && Boolean(formik.errors.newPassword)}
+                                    helperText={formik.touched.newPassword && formik.errors.newPassword}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    id="newPasswordConfirmation"
+                                    name="newPasswordConfirmation"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    label="Confirm New Password"
+                                    value={formik.values.newPasswordConfirmation}
+                                    onChange={formik.handleChange}
+                                    error={formik.touched.newPasswordConfirmation && Boolean(formik.errors.newPasswordConfirmation)}
+                                    helperText={formik.touched.newPasswordConfirmation && formik.errors.newPasswordConfirmation}
+                                />
+                            </Grid>
+                        </Grid>
+                    </Container>
+                </fieldset>
+                <Grid
+                    container
+                    spacing={2}
+                    sx={{
+                        paddingTop: 2,
+                        paddingBottom: 2,
+                    }}
+                >
+                    <Grid item xs={12} sm={6}>
+                        <Button fullWidth onClick={toggleEdit}>
+                            {editing ? "Cancel" : "Edit"}
+                        </Button>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Button
                             fullWidth
-                            autoFocus
-                            id="username"
-                            name="username"
-                            autoComplete="username"
-                            label="Username"
-                            value={formik.values.username}
-                            onChange={formik.handleChange}
-                            error={formik.touched.username && Boolean(formik.errors.username)}
-                            helperText={formik.touched.username && formik.errors.username}
-                        />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                id="email"
-                                name="email"
-                                autoComplete="email"
-                                label="Email Address"
-                                value={formik.values.email}
-                                onChange={formik.handleChange}
-                                error={formik.touched.email && Boolean(formik.errors.email)}
-                                helperText={formik.touched.email && formik.errors.email}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <FormControl component="fieldset">
-                                <RadioGroup
-                                    id="theme"
-                                    name="theme"
-                                    aria-label="theme-check"
-                                    value={formik.values.theme}
-                                    onChange={setTheme}
-                                >
-                                    <FormControlLabel value="light" control={<Radio />} label="Light ☀️" />
-                                    <FormControlLabel value="dark" control={<Radio />} label="Dark 🌙" />
-                                </RadioGroup>
-                                <FormHelperText>{formik.touched.theme && formik.errors.theme}</FormHelperText>
-                            </FormControl>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        id="accountEmails"
-                                        name="accountEmails"
-                                        value="accountEmails"
-                                        color="secondary"
-                                        checked={formik.values.accountEmails}
-                                        onChange={formik.handleChange}
-                                    />
-                                }
-                                label="I want to receive account updates via email."
-                            />
-                        </Grid>
-                        <Grid item xs={6}>
-                            <FormControlLabel
-                                control={
-                                    <Checkbox
-                                        id="businessEmails"
-                                        name="businessEmails"
-                                        value="businessEmails"
-                                        color="secondary"
-                                        checked={formik.values.businessEmails}
-                                        onChange={formik.handleChange}
-                                    />
-                                }
-                                label="I want to receive marketing promotions and updates via email."
-                            />
-                        </Grid>
+                            disabled={loading}
+                            type="submit"
+                            color="secondary"
+                            sx={{ ...formSubmit }}
+                        >
+                            Save Changes
+                        </Button>
                     </Grid>
-                </Container>
-                <Container>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                id="currentPassword"
-                                name="currentPassword"
-                                type="password"
-                                autoComplete="password"
-                                label="Current Password"
-                                value={formik.values.currentPassword}
-                                onChange={formik.handleChange}
-                                error={formik.touched.currentPassword && Boolean(formik.errors.currentPassword)}
-                                helperText={formik.touched.currentPassword && formik.errors.currentPassword}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                id="newPassword"
-                                name="newPassword"
-                                type="password"
-                                autoComplete="new-password"
-                                label="New Password"
-                                value={formik.values.newPassword}
-                                onChange={formik.handleChange}
-                                error={formik.touched.newPassword && Boolean(formik.errors.newPassword)}
-                                helperText={formik.touched.newPassword && formik.errors.newPassword}
-                            />
-                        </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                id="newPasswordConfirmation"
-                                name="newPasswordConfirmation"
-                                type="password"
-                                autoComplete="new-password"
-                                label="Confirm New Password"
-                                value={formik.values.newPasswordConfirmation}
-                                onChange={formik.handleChange}
-                                error={formik.touched.newPasswordConfirmation && Boolean(formik.errors.newPasswordConfirmation)}
-                                helperText={formik.touched.newPasswordConfirmation && formik.errors.newPasswordConfirmation}
-                            />
-                        </Grid>
-                    </Grid>
-                </Container>
-            </fieldset>
-            <Grid className={classes.buttons} container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                    <Button fullWidth onClick={toggleEdit}>
-                        {editing ? "Cancel" : "Edit"}
-                    </Button>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                    <Button
-                        fullWidth
-                        disabled={loading}
-                        type="submit"
-                        color="secondary"
-                        className={classes.submit}
-                    >
-                        Save Changes
-                    </Button>
-                </Grid>
-            </Grid>
-        </form>
+            </form>
+        </Paper>
     );
 }

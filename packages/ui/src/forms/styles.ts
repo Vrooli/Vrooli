@@ -1,21 +1,17 @@
-import { Theme } from '@mui/material';
-import { Styles } from '@mui/styles';
+import { Color, SxProps, Theme } from '@mui/material';
+import { CSSProperties, Styles } from '@mui/styles';
 
-export const formStyles: Styles<Theme, {}> = (theme: Theme) => ({
-    form: {
-        width: '100%',
-        marginTop: theme.spacing(3),
-    },
-    submit: {
-        margin: theme.spacing(3, 0, 2),
-    },
-    linkRight: {
-        flexDirection: 'row-reverse',
-    },
-    clickSize: {
-        color: theme.palette.secondary.dark,
-        minHeight: '48px', // Lighthouse recommends this for SEO, as it is more clickable
-        display: 'flex',
-        alignItems: 'center',
-    },
-});
+export const formPaper: SxProps = {
+    width: '100%',
+    marginTop: 3
+} as CSSProperties;
+
+export const formSubmit: SxProps = {
+    margin: '0 auto',
+} as CSSProperties;
+
+export const formNavLink = (t: Theme): SxProps => ({
+    color: t.palette.secondary.dark,
+    display: 'flex',
+    alignItems: 'center',
+}) as CSSProperties;

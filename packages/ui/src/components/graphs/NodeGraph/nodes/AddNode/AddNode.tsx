@@ -1,9 +1,6 @@
-import { makeStyles } from '@mui/styles';
 import { Box, IconButton, Tooltip } from '@mui/material';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { AddNodeProps } from '../types';
-import { nodeStyles } from '../styles';
-import { combineStyles } from 'utils';
 import { ListMenu } from 'components';
 import {
     Add as AddIcon,
