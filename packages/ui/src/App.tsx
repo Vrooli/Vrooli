@@ -7,7 +7,7 @@ import {
     Snack
 } from 'components';
 import PubSub from 'pubsub-js';
-import { PUBS, themes } from 'utils';
+import { Pubs, themes } from 'utils';
 import { AllRoutes } from 'Routes';
 import { Box, CssBaseline, CircularProgress } from '@mui/material';
 import { StyledEngineProvider, ThemeProvider } from '@mui/material';
@@ -91,9 +91,9 @@ export function App() {
         setLoading(false);
 
         const handlers = {
-            OPEN_MENU: () => PubSub.publish(PUBS.BurgerMenuOpen, true),
-            TOGGLE_MENU: () => PubSub.publish(PUBS.BurgerMenuOpen, 'toggle'),
-            CLOSE_MENU: () => PubSub.publish(PUBS.BurgerMenuOpen, false),
+            OPEN_MENU: () => PubSub.publish(Pubs.BurgerMenuOpen, true),
+            TOGGLE_MENU: () => PubSub.publish(Pubs.BurgerMenuOpen, 'toggle'),
+            CLOSE_MENU: () => PubSub.publish(Pubs.BurgerMenuOpen, false),
             CLOSE_MENU_OR_POPUP: () => {
                 handlers.CLOSE_MENU();
             }
@@ -132,7 +132,7 @@ export function App() {
     useEffect(() => {
         checkSession();
         // Handle loading spinner, which can have a delay
-        let loadingSub = PubSub.subscribe(PUBS.Loading, (_, data) => {
+        let loadingSub = PubSub.subscribe(Pubs.Loading, (_, data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             if (Number.isInteger(data)) {
                 timeoutRef.current = setTimeout(() => setLoading(true), Math.abs(data));
@@ -140,7 +140,7 @@ export function App() {
                 setLoading(Boolean(data));
             }
         });
-        let themeSub = PubSub.subscribe(PUBS.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
+        let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
         return (() => {
             PubSub.unsubscribe(loadingSub);
             PubSub.unsubscribe(themeSub);

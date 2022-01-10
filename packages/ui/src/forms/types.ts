@@ -1,8 +1,8 @@
 import { CommonProps } from "types";
-import { FORMS } from "utils";
+import { Forms } from "utils";
 
 export interface FormProps extends Partial<CommonProps> {
-    onFormChange?: (form: FORMS) => any;
+    onFormChange?: (form: Forms) => any;
 }
 
 export interface LogInFormProps extends FormProps {

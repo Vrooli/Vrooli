@@ -2,7 +2,7 @@
 import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
 import { initializeApollo } from 'graphql/utils/initialize';
 import { Session } from 'types';
-import { PUBS } from 'utils';
+import { Pubs } from 'utils';
 
 export const hasWalletExtension = () => Boolean(window.cardano);
 
@@ -65,7 +65,7 @@ export const validateWallet = async (): Promise<Session | null> => {
         session = await walletComplete(address, signedPayload);
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
-        PubSub.publish(PUBS.AlertDialog, {
+        PubSub.publish(Pubs.AlertDialog, {
             message: error.message ?? 'Unknown error occurred',
             buttons: [{ text: 'OK' }]
         });

@@ -19,8 +19,8 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
     const [searchString, setSearchString] = useState<string>('');
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
-    const [sortBy, setSortBy] = useState<SortBy | undefined>(defaultSortOption ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
-    const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption ?? sortOptions.length > 0 ? sortOptions[0].label : undefined);
+    const [sortBy, setSortBy] = useState<SortBy | undefined>(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
+    const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption.label ?? sortOptions.length > 0 ? sortOptions[0].label : 'Sort');
     const [createdTimeFrame, setCreatedTimeFrame] = useState<any | undefined>(undefined);
     const [createdTimeFrameLabel, setCreatedTimeFrameLabel] = useState<string>('Time');
     const { data, refetch } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { sortBy, searchString, createdTimeFrame } } as any) });
@@ -29,8 +29,7 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
 
     const listItems = useMemo(() => data ? ((Object.values(data) as any)?.edges?.map((edge, index) => listItemFactory(edge.node, index))) : null, [listItemFactory, data]);
 
-    const handleSort = useCallback((e) => setSortBy(e.target.value), []);
-    const handleSearch = useCallback((newString) => setSearchString(newString), []);
+    const handleSearch = useCallback((newString) => {console.log('HANDLE SEARCH', newString); setSearchString(newString)}, []);
 
     const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
     const handleSortClose = (label?: string, selected?: string) => {
@@ -46,6 +45,21 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
         else setCreatedTimeFrame({ after, before });
         if (label) setCreatedTimeFrameLabel(label);
     };
+
+    const searchResultContainer = useMemo(() => (
+        <Box
+            sx={{
+                ...containerShadow,
+                borderRadius: '8px',
+                marginTop: 2,
+                background: (t) => t.palette.background.default,
+            }}
+        >
+            <List>
+                {listItems}
+            </List>
+        </Box>
+    ), [listItems]);
 
     return (
         <Box id="page">
@@ -90,18 +104,7 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
                     </Button>
                 </Grid>
             </Grid>
-            <Box
-                sx={{
-                    ...containerShadow,
-                    borderRadius: '8px',
-                    marginTop: 2,
-                    background: (t) => t.palette.background.default,
-                }}
-            >
-                <List>
-                    {listItems}
-                </List>
-            </Box>
+            {listItems && listItems.length > 0 ? searchResultContainer : null}
             {/* <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
                 <Typography component="h2" variant="h4" sx={{ ...centeredText }}>
                     Couldn't find what you were looking for? Try creating your own!

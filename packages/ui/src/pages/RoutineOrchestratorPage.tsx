@@ -8,7 +8,7 @@ import { useMutation, useQuery } from '@apollo/client';
 import { routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
-import { PUBS } from 'utils';
+import { Pubs } from 'utils';
 import {
     Done as DoneIcon,
     Edit as EditIcon,
@@ -300,11 +300,11 @@ export const RoutineOrchestratorPage = () => {
      */
     const updateRoutine = useCallback(() => {
         if (!changedRoutine || isEqual(routine, changedRoutine)) {
-            PubSub.publish(PUBS.Snack, { message: 'No changes detected', severity: 'error' });
+            PubSub.publish(Pubs.Snack, { message: 'No changes detected', severity: 'error' });
             return;
         }
         if (!changedRoutine.id) {
-            PubSub.publish(PUBS.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
+            PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
         mutationWrapper({

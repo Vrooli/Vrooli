@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 import { COOKIE, ValueOf } from '@local/shared';
 
-export const PUBS = {
+export const Pubs = {
     ...COOKIE,
     Loading: "loading",
     AlertDialog: "alertDialog",
@@ -10,13 +10,25 @@ export const PUBS = {
     ArrowMenuOpen: "arrowMenuOpen",
     Theme: "theme",
 }
-export type PUBS = ValueOf<typeof PUBS>;
+export type Pubs = ValueOf<typeof Pubs>;
 
-export const FORMS = {
+export const Forms = {
     ForgotPassword: 'forgot-password',
     LogIn: 'logIn',
     Profile: 'profile',
     ResetPassword: 'reset-password',
     SignUp: 'signUp',
 }
-export type FORMS = ValueOf<typeof FORMS>;
+export type Forms = ValueOf<typeof Forms>;
+
+/**
+ * Converts GraphQL sort values to User-Friendly labels
+ */
+export const SortValueToLabelMap = {
+    'AlphabeticalAsc': 'Z-A',
+    'AlphabeticalDesc': 'A-Z',
+    'CommentsDesc': 'Most Comments',
+    'StarsDesc': 'Most Stars',
+    'ForksDesc': 'Most Forks',
+}
+export type SortValueToLabelMap = ValueOf<typeof SortValueToLabelMap>;

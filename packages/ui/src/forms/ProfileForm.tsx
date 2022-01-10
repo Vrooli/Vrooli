@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@apollo/client';
 import { profileUpdateMutation } from 'graphql/mutation';
 import { profileQuery } from 'graphql/query';
 import { useFormik } from 'formik';
-import { combineStyles, PUBS } from 'utils';
+import { combineStyles, Pubs } from 'utils';
 import PubSub from 'pubsub-js';
 import { 
     Button, 
@@ -89,7 +89,7 @@ export const ProfileForm = () => {
         setEditing(edit => !edit);
     }
 
-    const setTheme = useCallback((e) => { formik.handleChange(e); PubSub.publish(PUBS.Theme, e.target.value) }, [formik])
+    const setTheme = useCallback((e) => { formik.handleChange(e); PubSub.publish(Pubs.Theme, e.target.value) }, [formik])
 
     return (
         <form className={classes.form} onSubmit={formik.handleSubmit}>

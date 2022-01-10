@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { IconButton, Button, Snackbar, Theme, SnackbarProps } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
-import { PUBS } from 'utils';
+import { Pubs } from 'utils';
 import PubSub from 'pubsub-js';
 import { makeStyles } from '@mui/styles';
 import { ValueOf } from '@local/shared';
@@ -50,7 +50,7 @@ function Snack() {
     const [state, setState] = useState<SnackState>(new SnackState());
 
     useEffect(() => {
-        let snackSub = PubSub.subscribe(PUBS.Snack, (_, o) => setState({ ...(new SnackState()), ...o }));
+        let snackSub = PubSub.subscribe(Pubs.Snack, (_, o) => setState({ ...(new SnackState()), ...o }));
         return () => { PubSub.unsubscribe(snackSub) };
     }, [])
 

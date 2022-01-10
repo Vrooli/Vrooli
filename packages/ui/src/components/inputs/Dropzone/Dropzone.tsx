@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { PUBS } from 'utils';
+import { Pubs } from 'utils';
 import PubSub from 'pubsub-js';
 import { Button, Grid, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -67,7 +67,7 @@ export const Dropzone = ({
         maxFiles: maxFiles,
         onDrop: acceptedFiles => {
             if (acceptedFiles.length <= 0) {
-                PubSub.publish(PUBS.Snack, { message: 'Files not accepted', severity: 'error' });
+                PubSub.publish(Pubs.Snack, { message: 'Files not accepted', severity: 'error' });
                 return;
             }
             setFiles(acceptedFiles.map(file => Object.assign(file, {
@@ -79,7 +79,7 @@ export const Dropzone = ({
     const upload = (e) => {
         e.stopPropagation();
         if (files.length === 0) {
-            PubSub.publish(PUBS.Snack, { message: 'No files selected', severity: 'error' });
+            PubSub.publish(Pubs.Snack, { message: 'No files selected', severity: 'error' });
             return;
         }
         onUpload(files);

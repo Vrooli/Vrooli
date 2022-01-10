@@ -17,7 +17,7 @@ export interface SearchQueryVariablesInput<SortBy> {
 export interface BaseSearchPageProps<DataType, SortBy> {
     title?: string | null;
     sortOptions: SearchSortBy<SortBy>[];
-    defaultSortOption: SortBy;
+    defaultSortOption: SearchSortBy<SortBy>;
     query: DocumentNode;
     listItemFactory: (node: DataType, index: number) => JSX.Element;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ContactInfo } from 'components';
-import { actionsToList, getUserActions, PUBS } from 'utils';
+import { actionsToList, getUserActions, Pubs } from 'utils';
 import PubSub from 'pubsub-js';
 import {
     Close as CloseIcon,
@@ -73,14 +73,14 @@ export const Hamburger = ({
     const [open, setOpen] = useState(false);
 
     useEffect(() => {
-        let openSub = PubSub.subscribe(PUBS.BurgerMenuOpen, (_, b) => {
+        let openSub = PubSub.subscribe(Pubs.BurgerMenuOpen, (_, b) => {
             setOpen(open => b === 'toggle' ? !open : b);
         });
         return () => { PubSub.unsubscribe(openSub) };
     }, [])
 
-    const closeMenu = () => PubSub.publish(PUBS.BurgerMenuOpen, false);
-    const toggleOpen = () => PubSub.publish(PUBS.BurgerMenuOpen, 'toggle');
+    const closeMenu = () => PubSub.publish(Pubs.BurgerMenuOpen, false);
+    const toggleOpen = () => PubSub.publish(Pubs.BurgerMenuOpen, 'toggle');
 
     const handleContactClick = () => {
         setContactOpen(!contactOpen);

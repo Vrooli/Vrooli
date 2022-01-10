@@ -2,7 +2,7 @@
 // - Success and error messages
 // - Loading spinner
 import isFunction from 'lodash/isFunction';
-import { PUBS } from "utils";
+import { Pubs } from "utils";
 import PubSub from 'pubsub-js';
 import { ApolloCache, DefaultContext, MutationFunctionOptions, OperationVariables } from '@apollo/client';
 
@@ -44,30 +44,30 @@ export const mutationWrapper = ({
     onError,
     spinnerDelay = 1000,
 }: Props) => {
-    if (spinnerDelay) PubSub.publish(PUBS.Loading, spinnerDelay);
+    if (spinnerDelay) PubSub.publish(Pubs.Loading, spinnerDelay);
     mutation(input ? { variables: { input } } : undefined).then((response) => {
         if (successCondition(response)) {
-            if (successMessage || successData) PubSub.publish(PUBS.Snack, { message: successMessage && successMessage(response), ...successData });
-            if (spinnerDelay) PubSub.publish(PUBS.Loading, false);
+            if (successMessage || successData) PubSub.publish(Pubs.Snack, { message: successMessage && successMessage(response), ...successData });
+            if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
             if (isFunction(onSuccess)) onSuccess(response)
         } else {
             if (errorMessage || errorData) {
-                PubSub.publish(PUBS.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
+                PubSub.publish(Pubs.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
             }
-            else if (showDefaultErrorSnack) PubSub.publish(PUBS.Snack, { message: 'Unknown error occurred.', severity: 'error', data: response });
-            if (spinnerDelay) PubSub.publish(PUBS.Loading, false);
+            else if (showDefaultErrorSnack) PubSub.publish(Pubs.Snack, { message: 'Unknown error occurred.', severity: 'error', data: response });
+            if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
             if (isFunction(onError)) onError(response);
         }
     }).catch((response) => {
-        if (spinnerDelay) PubSub.publish(PUBS.Loading, false);
+        if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
         if (errorMessage || errorData) {
-            PubSub.publish(PUBS.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
+            PubSub.publish(Pubs.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
         }
         else if (showDefaultErrorSnack) {
             // Don't show internal errors, as they're often a block of code
             //TODO likely doesn't work
             const messageToShow = response.code === 'INTERNAL_SERVER_ERROR' ? 'Unknown error occurred.' : response.message ?? 'Unknown error occurred.';
-            PubSub.publish(PUBS.Snack, { message: messageToShow, severity: 'error', data: response });
+            PubSub.publish(Pubs.Snack, { message: messageToShow, severity: 'error', data: response });
         }
         if (isFunction(onError)) onError(response);
     })

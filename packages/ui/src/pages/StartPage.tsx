@@ -16,7 +16,7 @@ import {
     Typography,
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { FORMS, PUBS } from 'utils';
+import { Forms, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import { useCallback, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/walletIntegration';
@@ -68,17 +68,17 @@ export const StartPage = ({
     const [guestLogIn] = useMutation<any>(guestLogInMutation);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
-    const [popupForm, setPopupForm] = useState<FORMS>(FORMS.LogIn);
-    const handleFormChange = useCallback((type: FORMS = FORMS.LogIn) => type !== popupForm && setPopupForm(type), [popupForm]);
+    const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);
+    const handleFormChange = useCallback((type: Forms = Forms.LogIn) => type !== popupForm && setPopupForm(type), [popupForm]);
     const [Form, formTitle] = useMemo(() => {
         switch (popupForm) {
-            case FORMS.ForgotPassword:
+            case Forms.ForgotPassword:
                 return [ForgotPasswordForm, 'Forgot Password'];
-            case FORMS.LogIn:
+            case Forms.LogIn:
                 return [LogInForm, 'Log In'];
-            case FORMS.ResetPassword:
+            case Forms.ResetPassword:
                 return [ResetPasswordForm, 'Reset Password'];
-            case FORMS.SignUp:
+            case Forms.SignUp:
                 return [SignUpForm, 'Sign Up'];
             default:
                 return [LogInForm, 'Log In'];
@@ -93,7 +93,7 @@ export const StartPage = ({
 
 
     const toEmailLogIn = useCallback(() => {
-        setPopupForm(FORMS.LogIn);
+        setPopupForm(Forms.LogIn);
         setEmailPopupOpen(true);
     }, [])
 
@@ -109,7 +109,7 @@ export const StartPage = ({
     const walletLogin = useCallback(async () => {
         // Check if wallet extension installed
         if (!hasWalletExtension()) {
-            PubSub.publish(PUBS.AlertDialog, {
+            PubSub.publish(Pubs.AlertDialog, {
                 message: 'Wallet not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
                     { text: 'Try Again', onClick: walletLogin },
@@ -123,7 +123,7 @@ export const StartPage = ({
         const session = await validateWallet();
         console.log('wallet validation', session);
         if (session) {
-            PubSub.publish(PUBS.Snack, { message: 'Wallet verified.' })
+            PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
             // Set actor role
             onSessionUpdate(session)
             // Redirect to main dashboard

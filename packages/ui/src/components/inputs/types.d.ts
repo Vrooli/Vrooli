@@ -1,3 +1,5 @@
+import { ChangeEvent } from 'react';
+
 export interface DropzoneProps {
     acceptedFileTypes?: string[];
     dropzoneText?: string;

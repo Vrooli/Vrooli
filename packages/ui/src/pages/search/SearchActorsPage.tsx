@@ -2,9 +2,14 @@ import { UserSortBy } from "@local/shared";
 import { ActorListItem } from "components";
 import { usersQuery } from "graphql/query";
 import { User } from "types";
+import { SortValueToLabelMap } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
+import { SearchSortBy } from "./types";
 
-const SORT_OPTIONS: {label: string, value: UserSortBy}[] = Object.values(UserSortBy).map((sortOption) => ({ label: sortOption, value: sortOption as UserSortBy }));
+const SORT_OPTIONS: SearchSortBy<UserSortBy>[] = Object.values(UserSortBy).map((sortOption) => ({ 
+    label: SortValueToLabelMap[sortOption], 
+    value: sortOption as UserSortBy 
+}));
 
 export const SearchActorsPage = () => {
     const listItemFactory = (node: User, index: number) => (
@@ -21,7 +26,7 @@ export const SearchActorsPage = () => {
         <BaseSearchPage 
             title={'Search Actors'}
             sortOptions={SORT_OPTIONS}
-            defaultSortOption={SORT_OPTIONS[1].value}
+            defaultSortOption={SORT_OPTIONS[1]}
             query={usersQuery}
             listItemFactory={listItemFactory}
         />

@@ -7,7 +7,7 @@ import {
     DialogContentText,
     DialogTitle,
 } from '@mui/material';
-import { PUBS } from 'utils';
+import { Pubs } from 'utils';
 import PubSub from 'pubsub-js';
 
 interface StateButton {
@@ -30,7 +30,7 @@ const AlertDialog = () => {
     let open = Boolean(state.title) || Boolean(state.message);
 
     useEffect(() => {
-        let dialogSub = PubSub.subscribe(PUBS.AlertDialog, (_, o) => setState({...default_state, ...o}));
+        let dialogSub = PubSub.subscribe(Pubs.AlertDialog, (_, o) => setState({...default_state, ...o}));
         return () => { PubSub.unsubscribe(dialogSub) };
     }, [])
 

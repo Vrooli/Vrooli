@@ -3,7 +3,7 @@ import { Stack, Theme } from '@mui/material';
 import { CombineNodeData, DecisionNodeData, DecisionNodeDataDecision, NodeData, NodeType } from '@local/shared';
 import { NodeGraphColumn, NodeGraphEdge } from 'components';
 import { useEffect, useMemo } from 'react';
-import { PUBS } from 'utils';
+import { Pubs } from 'utils';
 import { NodeGraphProps, NodePos } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -89,7 +89,7 @@ export const NodeGraphContainer = ({
         }
         // If no start node was found, throw error
         if (!startNodeId) {
-            PubSub.publish(PUBS.Snack, { message: 'No start node found', severity: 'error' });
+            PubSub.publish(Pubs.Snack, { message: 'No start node found', severity: 'error' });
             return posMap;
         }
         // Helper function for recursively updating position map

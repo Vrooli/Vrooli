@@ -13,7 +13,7 @@ import {
     useTheme
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { combineStyles, FORMS, PUBS } from 'utils';
+import { combineStyles, Forms, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
@@ -58,16 +58,16 @@ export const SignUpForm = ({
                 },
                 onSuccess: (response) => {
                     onSessionUpdate(response.data.emailSignUp);
-                    PubSub.publish(PUBS.AlertDialog, {
+                    PubSub.publish(Pubs.AlertDialog, {
                         message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
                         buttons: [ { text: 'OK', onClick: () => setLocation(APP_LINKS.Profile) } ]
                     });
                 },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.EmailInUse.code)) {
-                        PubSub.publish(PUBS.AlertDialog, {
+                        PubSub.publish(Pubs.AlertDialog, {
                             message: `${response.message}. Press OK if you would like to be redirected to the forgot password form.`,
-                            buttons: [ { text: 'OK', onClick: () => onFormChange(FORMS.ForgotPassword) } ]
+                            buttons: [ { text: 'OK', onClick: () => onFormChange(Forms.ForgotPassword) } ]
                         });
                     }
                 }
@@ -75,8 +75,8 @@ export const SignUpForm = ({
         },
     });
 
-    const toLogIn = () => onFormChange(FORMS.LogIn);
-    const toForgotPassword = () => onFormChange(FORMS.ForgotPassword);
+    const toLogIn = () => onFormChange(Forms.LogIn);
+    const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
 
     return (
         <form className={classes.form} onSubmit={formik.handleSubmit}>

@@ -11,7 +11,7 @@ import {
     Typography
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { FORMS, PUBS } from 'utils';
+import { Forms, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
@@ -44,7 +44,7 @@ export const LogInForm = ({
                 onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); setLocation(APP_LINKS.Home) },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
-                        PubSub.publish(PUBS.AlertDialog, {
+                        PubSub.publish(Pubs.AlertDialog, {
                             message: 'Before signing in, please follow the link sent to your email to change your password.',
                             firstButtonText: 'OK',
                             firstButtonClicked: () => setLocation(APP_LINKS.Home),
@@ -55,8 +55,8 @@ export const LogInForm = ({
         },
     });
 
-    const toForgotPassword = () => onFormChange(FORMS.ForgotPassword);
-    const toSignUp = () => onFormChange(FORMS.SignUp);
+    const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
+    const toSignUp = () => onFormChange(Forms.SignUp);
 
     return (
         <form className={classes.form} onSubmit={formik.handleSubmit}>

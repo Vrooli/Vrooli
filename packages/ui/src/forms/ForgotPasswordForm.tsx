@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { APP_LINKS } from '@local/shared';
-import { FORMS } from 'utils';
+import { Forms } from 'utils';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useLocation } from 'wouter';
 import { formStyles } from './styles';
@@ -43,8 +43,8 @@ export const ForgotPasswordForm = ({
         },
     });
 
-    const toSignUp = () => onFormChange(FORMS.SignUp);
-    const toLogIn = () => onFormChange(FORMS.LogIn);
+    const toSignUp = () => onFormChange(Forms.SignUp);
+    const toLogIn = () => onFormChange(Forms.LogIn);
 
     return (
         <form className={classes.form} onSubmit={formik.handleSubmit}>

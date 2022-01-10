@@ -2,15 +2,8 @@
 
 import { Menu, MenuItem } from "@mui/material";
 import { useMemo } from "react";
+import { SortValueToLabelMap } from "utils";
 import { SortMenuProps } from "../types";
-
-const optionMap = {
-    'AlphabeticalAsc': 'Z-A',
-    'AlphabeticalDesc': 'A-Z',
-    'CommentsDesc': 'Most Comments',
-    'StarsDesc': 'Most Stars',
-    'ForksDesc': 'Most Forks',
-}
 
 export function SortMenu({
     sortOptions,
@@ -22,14 +15,15 @@ export function SortMenu({
     const menuItems = useMemo(() => {
         let menuItems: JSX.Element[] = [];
         sortOptions.forEach(option => {
-            if (optionMap[option.value]) {
+            const optionLabel = SortValueToLabelMap[option.value];
+            if (optionLabel) {
                 menuItems.push(
                     <MenuItem
                         key={option.value}
                         value={option.value}
-                        onClick={() => onClose(optionMap[option.value], option.value)}
+                        onClick={() => onClose(optionLabel, option.value)}
                     >
-                        {optionMap[option.value]}
+                        {optionLabel}
                     </MenuItem>
                 );
             }

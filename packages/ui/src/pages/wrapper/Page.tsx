@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { APP_LINKS } from '@local/shared';
 import { useLocation, Redirect } from 'wouter';
 import { UserRoles } from 'types';
-import { PUBS } from 'utils';
+import { Pubs } from 'utils';
 
 interface Props {
     title?: string;
@@ -35,7 +35,7 @@ export const Page = ({
         }
         if (sessionChecked && location !== redirect) { 
             console.log('session check failed', restrictedToRoles, userRoles)
-            PubSub.publish(PUBS.Snack, { message: 'Page restricted. Please log in', severity: 'error' });
+            PubSub.publish(Pubs.Snack, { message: 'Page restricted. Please log in', severity: 'error' });
             return <Redirect to={redirect} />
         }
         return null;
