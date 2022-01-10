@@ -22,7 +22,7 @@ import {
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { profile } from 'graphql/generated/profile';
 import { profileUpdate } from 'graphql/generated/profileUpdate';
-import { formPaper, formSubmit } from 'styles';
+import { formPaper, formSubmit } from './styles';
 
 export const ProfileForm = () => {
     const [editing, setEditing] = useState(false);

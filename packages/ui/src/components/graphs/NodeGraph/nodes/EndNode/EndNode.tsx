@@ -2,7 +2,8 @@ import { Box, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
 import { NodeContextMenu } from '../..';
-import { nodeLabel, noSelect } from 'styles';
+import { nodeLabel } from '../styles';
+import { noSelect } from 'styles';
 
 export const EndNode = ({
     node,

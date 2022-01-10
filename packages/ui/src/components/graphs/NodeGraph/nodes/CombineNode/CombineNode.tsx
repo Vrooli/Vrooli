@@ -3,7 +3,8 @@ import { CSSProperties, useCallback, useMemo, useState } from 'react';
 import { CombineNodeProps } from '../types';
 import { ArrowRightIcon } from 'assets/img';
 import { NodeContextMenu } from '../..';
-import { nodeLabel, noSelect } from 'styles';
+import { nodeLabel } from '../styles';
+import { noSelect } from 'styles';
 
 export const CombineNode = ({
     node,

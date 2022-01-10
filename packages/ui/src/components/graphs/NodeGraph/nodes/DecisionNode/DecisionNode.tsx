@@ -2,7 +2,8 @@ import { Box, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { DecisionNodeProps } from '../types';
 import { NodeContextMenu } from '../..';
-import { nodeLabel, noSelect, textShadow } from 'styles';
+import { nodeLabel } from '../styles';
+import { noSelect, textShadow } from 'styles';
 
 export const DecisionNode = ({
     node,

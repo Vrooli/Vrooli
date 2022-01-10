@@ -1,5 +1,5 @@
-import { Color, SxProps, Theme } from '@mui/material';
-import { CSSProperties, Styles } from '@mui/styles';
+import { SxProps, Theme } from '@mui/material';
+import { CSSProperties } from '@mui/styles';
 
 export const formPaper: SxProps = {
     width: '100%',

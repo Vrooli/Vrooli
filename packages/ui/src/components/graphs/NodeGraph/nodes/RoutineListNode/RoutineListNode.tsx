@@ -8,7 +8,7 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { RoutineSubnode } from '..';
 import {
@@ -20,14 +20,11 @@ import {
 import { RoutineListNodeData } from '@local/shared';
 import { NodeContextMenu } from '../..';
 import { 
-    containerShadow,
-    multiLineEllipsis, 
-    noSelect,
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
     routineNodeListOptions,
-    textShadow,
-} from 'styles';
+} from '../styles';
+import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 
 export const RoutineListNode = ({
     node,
@@ -59,7 +56,7 @@ export const RoutineListNode = ({
                 width: '100%',
                 lineBreak: 'anywhere' as any,
                 whiteSpace: 'pre' as any,
-            }}
+            } as CSSProperties}
         >
             {label}
         </Typography>
@@ -161,8 +158,8 @@ export const RoutineListNode = ({
                 position: 'relative',
                 display: 'block',
                 borderRadius: '12px',
-                backgroundColor: theme.palette.background.paper,
-                color: theme.palette.background.textPrimary,
+                backgroundColor: (t) => t.palette.background.paper,
+                color: (t) => t.palette.background.textPrimary,
                 boxShadow: '0px 0px 12px gray',
             }}
         >
@@ -186,8 +183,8 @@ export const RoutineListNode = ({
                         display: 'flex',
                         alignItems: 'center',
                         borderRadius: '12px 12px 0 0',
-                        backgroundColor: theme.palette.primary.dark,
-                        color: theme.palette.primary.contrastText,
+                        backgroundColor: (t) => t.palette.primary.dark,
+                        color: (t) => t.palette.primary.contrastText,
                         padding: '0.1em',
                         textAlign: 'center',
                         cursor: 'pointer',

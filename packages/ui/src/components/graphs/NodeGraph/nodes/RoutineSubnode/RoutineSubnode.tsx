@@ -4,11 +4,10 @@ import {
     Collapse,
     Container,
     FormControlLabel,
-    Theme,
     Tooltip,
     Typography
 } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { CSSProperties, useMemo, useState } from 'react';
 import { RoutineSubnodeProps } from '../types';
 import {
     Close as DeleteIcon,
@@ -17,14 +16,11 @@ import {
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { 
-    multiLineEllipsis,
-    noSelect,
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
     routineNodeListOptions,
-    containerShadow,
-    textShadow,
-} from 'styles';
+} from '../styles';
+import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 
 export const RoutineSubnode = ({
     data,
@@ -50,7 +46,7 @@ export const RoutineSubnode = ({
                 width: '100%',
                 lineBreak: 'anywhere',
                 whiteSpace: 'pre',
-            }}
+            } as CSSProperties}
         >
             {label}
         </Typography>

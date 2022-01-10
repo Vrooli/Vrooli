@@ -13,7 +13,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useLocation } from 'wouter';
 import { emailResetPassword } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';
-import { formPaper, formSubmit } from 'styles';
+import { formPaper, formSubmit } from './styles';
 
 export const ResetPasswordForm = ({
     userId,

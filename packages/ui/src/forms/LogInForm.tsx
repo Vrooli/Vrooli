@@ -17,7 +17,8 @@ import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
-import { clickSize, formNavLink, formPaper, formSubmit } from 'styles';
+import { formNavLink, formPaper, formSubmit } from './styles';
+import { clickSize } from 'styles';
 
 export const LogInForm = ({
     code,

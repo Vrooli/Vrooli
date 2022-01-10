@@ -20,7 +20,8 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useLocation } from 'wouter';
 import { emailSignUp } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
-import { clickSize, formNavLink, formPaper, formSubmit } from 'styles';
+import { formNavLink, formPaper, formSubmit } from './styles';
+import { clickSize } from 'styles';
 
 export const SignUpForm = ({
     onSessionUpdate,

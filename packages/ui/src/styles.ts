@@ -1,10 +1,6 @@
 import { SxProps } from "@mui/material"
 import { CSSProperties } from "@mui/styles";
 
-export * from './components/styles';
-export * from './forms/styles';
-export * from './pages/styles';
-
 //==============================================================
 /* #region Centering */
 //==============================================================

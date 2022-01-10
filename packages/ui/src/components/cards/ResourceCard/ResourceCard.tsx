@@ -13,7 +13,8 @@ import { readOpenGraphQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { useLocation } from 'wouter';
 import { ResourceCardProps } from '../types';
-import { cardContent, cardRoot, multiLineEllipsis } from 'styles';
+import { cardContent, cardRoot } from '../styles';
+import { multiLineEllipsis } from 'styles';
 import { readOpenGraph, readOpenGraphVariables } from 'graphql/generated/readOpenGraph';
 
 export const ResourceCard = ({
