@@ -4,10 +4,11 @@ import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 import ogs from 'open-graph-scraper';
 import { AutocompleteInput, AutocompleteResult, OpenGraphResponse } from './types';
-import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from '@local/shared';
+import { CODE, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
 import { OrganizationModel, ProjectModel, RoutineModel, StandardModel, UserModel } from '../models';
+import { CustomError } from '../error';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -96,6 +97,22 @@ export const typeDef = gql`
         users: [User!]!
     }
 
+    type StatisticsResult {
+        daily: StatisticsTimeFrame!
+        weekly: StatisticsTimeFrame!
+        monthly: StatisticsTimeFrame!
+        yearly: StatisticsTimeFrame!
+        allTime: StatisticsTimeFrame!
+    }
+
+    type StatisticsTimeFrame {
+        organizations: [Int!]!
+        projects: [Int!]!
+        routines: [Int!]!
+        standards: [Int!]!
+        users: [Int!]!
+    }
+
     # Base query. Must contain something,
     # which can be as simple as '_empty: String'
     type Query {
@@ -103,6 +120,7 @@ export const typeDef = gql`
         readAssets(input: ReadAssetsInput!): [String]!
         readOpenGraph(input: ReadOpenGraphInput!): OpenGraphResponse!
         autocomplete(input: AutocompleteInput!): AutocompleteResult!
+        statistics: StatisticsResult!
     }
     # Base mutation. Must contain something,
     # which can be as simple as '_empty: String'
@@ -147,6 +165,9 @@ export const resolvers = {
                     return {};
                 }).finally(() => { return {} })
         },
+        /**
+         * Autocomplete endpoint for main page. Combines search queries for all main objects
+         */
         autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
             console.log('Autocomplete input', input);
             //const MinimumStars = 1; // Minimum stars required to show up in autocomplete results. Will increase in the future.
@@ -213,6 +234,14 @@ export const resolvers = {
                 standards,
                 users
             }
+        },
+        /**
+         * Returns site-wide statistics
+         */
+        statistics: async (_parent: undefined, { input }: IWrap<AutocompleteInput>): Promise<any> => {
+            // Query current stats
+            // Read historical stats from file
+            return new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {

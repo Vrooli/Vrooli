@@ -1,5 +1,5 @@
-import { useQuery } from "@apollo/client";
-import { Box, Button, FormControlLabel, Grid, List, Switch, Tooltip, Typography } from "@mui/material";
+import { ApolloQueryResult, useQuery } from "@apollo/client";
+import { Box, Button, FormControlLabel, Grid, List, Stack, Switch, Tooltip, Typography } from "@mui/material";
 import { SearchBar, SearchBreadcrumbs, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { centeredText, containerShadow, centeredDiv } from "styles";
@@ -15,6 +15,7 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
     sortOptions,
     defaultSortOption,
     query,
+    take = 20,
     listItemFactory,
     getOptionLabel,
     onObjectSelect,
@@ -26,18 +27,76 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
     const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption.label ?? sortOptions.length > 0 ? sortOptions[0].label : 'Sort');
     const [createdTimeFrame, setCreatedTimeFrame] = useState<any | undefined>(undefined);
     const [createdTimeFrameLabel, setCreatedTimeFrameLabel] = useState<string>('Time');
-    const { data, refetch } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { sortBy, searchString, createdTimeFrame } } as any) });
+    const [after, setAfter] = useState<string | undefined>(undefined);
+    const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after, take, sortBy, searchString, createdTimeFrame } } as any) });
+    const [allData, setAllData] = useState<DataType[]>([]);
 
-    useEffect(() => { refetch() }, [refetch, searchString, sortBy]);
+    // On search filters/sort change, reset the page
+    useEffect(() => {
+        setAfter(undefined);
+    }, [searchString, sortBy, createdTimeFrame]);
 
-    const listItemData = useMemo(() => {
+    // Load page whenever "after" is set or unset
+    useEffect(() => {
+        fetchPage();
+    }, [after]);
+
+    // Fetch more data by setting "after"
+    const loadMore = useCallback(() => {
+        if (!pageData) return;
+        const queryData: any = Object.values(pageData)[0];
+        if (!queryData || !queryData.pageInfo) return [];
+        if (queryData.pageInfo?.hasNextPage) {
+            const { endCursor } = queryData.pageInfo;
+            if (endCursor) {
+                setAfter(endCursor);
+            }
+        }
+    }, [pageData, setAfter]);
+
+    // Helper method for converting fetched data to an array of object data
+    const parseData = useCallback((data: any) => {
         if (!data) return [];
-        const queryData = Object.values(data)[0];
-        if (!queryData) return [];
+        const queryData: any = Object.values(data)[0];
+        console.log('query dta', queryData)
+        if (!queryData || !queryData.edges) return [];
         return queryData.edges.map((edge, index) => edge.node);
-    }, [data]);
+    }, []);
 
-    const listItems = useMemo(() => listItemData.map((data, index) => listItemFactory(data, index)), [listItemData, listItemFactory]);
+    // Parse newly fetched data, and determine if it should be appended to the existing data
+    useEffect(() => {
+        const parsedData = parseData(pageData);
+        if (!parsedData) {
+            setAllData([]);
+            return;
+        }
+        if (after) {
+            setAllData([...allData, ...parsedData]);
+        } else {
+            setAllData(parsedData);
+        }
+    }, [pageData]);
+
+    const listItems = useMemo(() => allData.map((data, index) => listItemFactory(data, index)), [allData, listItemFactory]);
+
+    // If near the bottom of the page, load more data
+    // If scrolled past a certain point, show an "Add New" button
+    const handleScroll = useCallback(() => { //TODO THIS DOESN"T WORK YET
+        const scrolledY = window.scrollY;
+        const windowHeight = window.innerHeight;
+        if (!loading && scrolledY > windowHeight - 500) {
+            loadMore();
+        }
+        // if (scrolledY > windowHeight - 500) {
+        //     setAddNewButton(true);
+        // }
+    }, [pageData, loadMore, loading]);
+
+    // Set event listener for infinite scroll
+    useEffect(() => {
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
 
     const handleSearch = useCallback((newString) => { console.log('HANDLE SEARCH', newString); setSearchString(newString) }, []);
 
@@ -59,14 +118,14 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
     /**
      * When an autocomplete item is selected, navigate to object
      */
-     const onInputSelect = useCallback((_e: any, newValue: any) => {
+    const onInputSelect = useCallback((_e: any, newValue: any) => {
         if (!newValue) return;
         // Determine object from selected label
-        const selectedItem = listItemData.find(o => getOptionLabel(o) === newValue);
+        const selectedItem = allData.find(o => getOptionLabel(o) === newValue);
         if (!selectedItem) return;
         console.log('selectedItem', selectedItem);
         onObjectSelect(selectedItem);
-    }, [listItemData]);
+    }, [allData]);
 
     const searchResultContainer = useMemo(() => (
         <Box
@@ -94,14 +153,14 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
             />
-            <SearchBreadcrumbs sx={{...centeredDiv, color: (t) => t.palette.secondary.dark}}/>
+            <SearchBreadcrumbs sx={{ ...centeredDiv, color: (t) => t.palette.secondary.dark }} />
             <Typography component="h2" variant="h4" sx={{ ...centeredText, paddingTop: 2 }}>{title}</Typography>
             <Grid container spacing={2}>
                 <Grid item xs={12} sm={8}>
                     <SearchBar
                         id={`${title}-search-bar`}
                         placeholder={searchPlaceholder}
-                        options={listItemData}
+                        options={allData}
                         getOptionLabel={getOptionLabel}
                         value={searchString}
                         onChange={handleSearch}

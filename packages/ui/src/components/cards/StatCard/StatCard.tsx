@@ -24,7 +24,11 @@ export const StatCard = ({
     }, [setDimensions])
 
     return (
-        <Card ref={ref} sx={{ ...cardRoot }}>
+        <Card ref={ref} sx={{ 
+            ...cardRoot,
+            width: '100%',
+            height: '100%', 
+        }}>
             <CardContent
                 sx={{
                     display: 'contents',

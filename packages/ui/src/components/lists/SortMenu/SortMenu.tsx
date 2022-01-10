@@ -34,6 +34,7 @@ export function SortMenu({
     return (
         <Menu
             id="sort-results-menu"
+            disableScrollLock
             anchorEl={anchorEl}
             open={open}
             onClose={() => onClose()}

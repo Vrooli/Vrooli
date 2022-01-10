@@ -20,6 +20,7 @@ export interface BaseSearchPageProps<DataType, SortBy> {
     sortOptions: SearchSortBy<SortBy>[];
     defaultSortOption: SearchSortBy<SortBy>;
     query: DocumentNode;
+    take?: number; // Number of items to fetch per page
     listItemFactory: (node: DataType, index: number) => JSX.Element;
     getOptionLabel: (option: any) => string;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried

@@ -75,7 +75,7 @@ export const BarGraph = ({
             <Group left={20}>
                 {data.map((d, i) => {
                     const barHeight = state.yMax - state.yPoint(d);
-                    console.log('barHeighttt', state.yMax, state.yPoint(d));
+                    // console.log('barHeighttt', state.yMax, state.yPoint(d));
                     return (
                         <Group key={`bar-${i}`}>
                             <Bar
