@@ -57,7 +57,6 @@ export const LoopNode = ({
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
-    const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
         setContextAnchor(ev.currentTarget)
         ev.preventDefault();
@@ -70,7 +69,6 @@ export const LoopNode = ({
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                open={contextOpen}
                 node={node}
                 onClose={closeContext}
                 onAddBefore={() => { }}
@@ -84,7 +82,7 @@ export const LoopNode = ({
                     className={classes.root} 
                     style={{width: nodeSize, height: nodeSize, fontSize: fontSize}} 
                     onClick={openDialog}
-                    aria-owns={contextOpen ? contextId : undefined}
+                    aria-owns={Boolean(contextAnchor) ? contextId : undefined}
                     onContextMenu={openContext}
                 >
                     <LoopIcon className={classes.icon} />

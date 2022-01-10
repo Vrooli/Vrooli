@@ -1,4 +1,4 @@
-import { DialogProps } from '@mui/material';
+import { DialogProps, MenuProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 
@@ -13,18 +13,19 @@ export interface FormDialogProps {
     onClose: () => void;
 }
 
-export interface ListDialogItemData {
+export interface ListMenuItemData {
     label: string;
     value: string;
     Icon?: SvgIconComponent;
     helpData?: HelpButtonProps;
 }
-export interface ListDialogProps extends DialogProps {
-    open?: boolean;
+export interface ListMenuProps {
+    id: string;
+    anchorEl: HTMLElement | null;
     onSelect: (value: any) => void;
     onClose: () => void;
     title?: string;
-    data?: ListDialogItemData[];
+    data?: ListMenuItemData[];
 }
 
 export interface NewProjectDialogProps extends DialogProps {

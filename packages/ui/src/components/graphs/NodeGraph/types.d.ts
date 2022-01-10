@@ -16,7 +16,6 @@ export type NodePos = {
 
 export interface NodeContextMenuProps {
     id: string;
-    open: boolean;
     anchorEl: HTMLElement | null;
     node: NodeData;
     onClose: () => void;

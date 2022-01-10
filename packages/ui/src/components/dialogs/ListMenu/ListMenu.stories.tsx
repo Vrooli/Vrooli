@@ -1,10 +1,10 @@
 import { Meta, Story } from "@storybook/react";
-import { ListDialog as Component } from '../';
-import { ListDialogProps as Props } from '../types';
+import { ListMenu as Component } from '..';
+import { ListMenuProps as Props } from '../types';
 
 // Define story metadata
 export default {
-    title: 'dialogs/ListDialog',
+    title: 'dialogs/ListMenu',
     component: Component,
 } as Meta;
 

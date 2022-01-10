@@ -18,7 +18,9 @@ import { multiLineEllipsis } from 'styles';
 import { readOpenGraph, readOpenGraphVariables } from 'graphql/generated/readOpenGraph';
 
 export const ResourceCard = ({
-    data
+    data,
+    onClick,
+    onRightClick,
 }: ResourceCardProps) => {
     const [, setLocation] = useLocation();
     const [getOpenGraphData, { data: queryResult }] = useLazyQuery<readOpenGraph, readOpenGraphVariables>(readOpenGraphQuery);
@@ -49,8 +51,9 @@ export const ResourceCard = ({
 
     return (
         <Tooltip placement="top" title={data?.description ?? queryData?.description ?? ''}>
-            <Card 
-                onClick={() => openLink(setLocation, url)}
+            <Card
+                onClick={() => {return;openLink(setLocation, url)}}
+                onContextMenu={(e) => onRightClick(e, data)}
                 sx={{
                     ...cardRoot,
                     width: 'max(50px, 15vh)',
@@ -59,12 +62,12 @@ export const ResourceCard = ({
             >
                 <CardActionArea>
                     {display}
-                    <CardContent sx={{...cardContent}}>
+                    <CardContent sx={{ ...cardContent }}>
                         <Typography
                             gutterBottom
                             variant="body1"
                             component="h3"
-                            sx={{...multiLineEllipsis(2)}}
+                            sx={{ ...multiLineEllipsis(2) }}
                         >
                             {title}
                         </Typography>

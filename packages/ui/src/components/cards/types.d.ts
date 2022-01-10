@@ -23,7 +23,9 @@ export interface ProjectCardProps {
 }
 
 export interface ResourceCardProps {
-    data: Resource
+    data: Resource;
+    onClick: (data: Resource) => void;
+    onRightClick: (ev: any, data: Resource) => void;
 }
 
 export interface RoutineCardProps {

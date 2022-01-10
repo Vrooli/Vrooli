@@ -1,4 +1,4 @@
-import { NodeContextMenuProps } from '../types';
+import { ResourceListItemContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import {
     Delete as DeleteIcon,
@@ -10,48 +10,50 @@ import {
 } from '@mui/icons-material';
 import { ListMenu } from 'components';
 
-const listOptionsMap: {[x: string]: [string, SvgIconComponent]} = {
-    'addBefore': ['Add node before', MoveDownIcon],
-    'addAfter': ['Add node after', MoveUpIcon],
-    'delete': ['Delete node', DeleteIcon],
-    'edit': ['Edit node', EditIcon],
-    'move': ['Move node', EditLocationIcon],
+const listOptionsMap: { [x: string]: [string, SvgIconComponent] } = {
+    'addBefore': ['Add resource before', MoveDownIcon],
+    'addAfter': ['Add resource after', MoveUpIcon],
+    'delete': ['Delete resource', DeleteIcon],
+    'edit': ['Edit resource', EditIcon],
+    'move': ['Move resource', EditLocationIcon],
 }
 
-const listOptions: ListMenuItemData[] = Object.keys(listOptionsMap).map(o => ({ 
+const listOptions: ListMenuItemData[] = Object.keys(listOptionsMap).map(o => ({
     label: listOptionsMap[o][0],
     value: o,
     Icon: listOptionsMap[o][1]
 }));
 
 // Custom context menu for nodes
-export const NodeContextMenu = ({
+export const ResourceListItemContextMenu = ({
     id,
     anchorEl,
-    node,
+    resource,
     onClose,
     onAddBefore,
     onAddAfter,
     onEdit,
     onDelete,
     onMove,
-}: NodeContextMenuProps) => {
+}: ResourceListItemContextMenuProps) => {
+    console.log('in resource list item context menu', { id, anchorEl, resource, onClose, onAddBefore, onAddAfter, onEdit, onDelete, onMove })
     const onMenuItemSelect = (value: string) => {
+        if (!resource) return;
         switch (value) {
             case 'addBefore':
-                onAddBefore(node);
+                onAddBefore(resource);
                 break;
             case 'addAfter':
-                onAddAfter(node);
+                onAddAfter(resource);
                 break;
             case 'edit':
-                onEdit(node);
+                onEdit(resource);
                 break;
             case 'delete':
-                onDelete(node);
+                onDelete(resource);
                 break;
             case 'move':
-                onMove(node);
+                onMove(resource);
                 break;
         }
         onClose();
@@ -61,7 +63,7 @@ export const NodeContextMenu = ({
         <ListMenu
             id={id}
             anchorEl={anchorEl}
-            title='Node Options'
+            title='Resource Options'
             data={listOptions}
             onSelect={onMenuItemSelect}
             onClose={onClose}

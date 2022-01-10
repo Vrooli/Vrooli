@@ -61,7 +61,6 @@ export const CombineNode = ({
             <NodeContextMenu 
                 id={contextId}
                 anchorEl={contextAnchor} 
-                open={contextOpen} 
                 node={node}
                 onClose={closeContext} 
                 onAddBefore={() => {}}

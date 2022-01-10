@@ -1,7 +1,11 @@
+// Displays a list of resources. If the user can modify the list, 
+// it will display options for adding, removing, and sorting
 import { Box, Tooltip, Typography } from '@mui/material';
-import { ResourceCard } from 'components';
+import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListProps } from '../types';
 import { centeredText, containerShadow } from 'styles';
+import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { Resource } from 'types';
 
 //TODO Temp data for designing card
 // Tries to use open graph metadata when fields not specified
@@ -51,10 +55,38 @@ const cardData = [
 ]
 
 export const ResourceList = ({
-    title = 'Pinned Resources'
+    title = 'Pinned Resources',
+    canEdit = true,
 }: ResourceListProps) => {
+
+    // Right click context menu
+    const [contextAnchor, setContextAnchor] = useState<any>(null);
+    const [selected, setSelected] = useState<any | null>(null);
+    const contextId = useMemo(() => `resource-context-menu-${selected?.url}`, [selected]);
+    const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>, data: any) => {
+        console.log('setting context anchor', ev.currentTarget, data);
+        setContextAnchor(ev.currentTarget);
+        setSelected(data);
+        ev.preventDefault();
+    }, []);
+    const closeContext = useCallback(() => {
+        setContextAnchor(null);
+        setSelected(null);
+    }, []);
+
     return (
         <Box>
+            <ResourceListItemContextMenu
+                id={contextId}
+                anchorEl={contextAnchor}
+                resource={selected}
+                onClose={closeContext}
+                onAddBefore={() => { }}
+                onAddAfter={() => { }}
+                onDelete={() => { }}
+                onEdit={() => { }}
+                onMove={() => { }}
+            />
             <Typography component="h2" variant="h4" sx={{ ...centeredText }}>{title}</Typography>
             <Tooltip placement="bottom" title="Relevant clicks. Click a card to modify, or drag in a new link to add">
                 <Box
@@ -62,7 +94,8 @@ export const ResourceList = ({
                         ...containerShadow,
                         borderRadius: '16px',
                         background: (t) => t.palette.background.default,
-                        border: (t) => `1px dashed ${t.palette.text.primary}`,
+                        border: (t) => `1px ${t.palette.text.primary}`,
+                        borderStyle: canEdit ? 'dashed' : 'solid',
                         minHeight: 'min(300px, 25vh)'
                     }}
                 >
@@ -71,9 +104,10 @@ export const ResourceList = ({
                             display: 'flex',
                             padding: '0',
                             overflowX: 'scroll',
+                            margin: '0',
                         }}
                     >
-                        {cardData.map((c: any) => (
+                        {cardData.map((c: any, index) => (
 
                             <li
                                 style={{
@@ -81,7 +115,13 @@ export const ResourceList = ({
                                     margin: '5px',
                                 }}
                             >
-                                <ResourceCard data={c} />
+                                <ResourceCard 
+                                    key={`resource-card-${index}`}
+                                    data={c} 
+                                    onClick={() => {}}
+                                    onRightClick={openContext}
+                                    aria-owns={Boolean(selected) ? contextId : undefined} 
+                                />
                             </li>
                         ))}
                     </ul>

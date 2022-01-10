@@ -1,4 +1,4 @@
-import { Organization, Project, Routine, Standard, User } from 'types';
+import { Organization, Project, Resource, Routine, Standard, User } from 'types';
 
 export interface ObjectListItemProps {
     isStarred: boolean;
@@ -52,8 +52,21 @@ export interface FeedListProps {
 
 export interface ResourceListProps {
     title?: string;
+    canEdit?: boolean;
 }
 
 export interface StatsListProps {
     data: Array<any>;
+}
+
+export interface ResourceListItemContextMenuProps {
+    id: string;
+    anchorEl: HTMLElement | null;
+    resource: Resource | null;
+    onClose: () => void;
+    onAddBefore: (resource: Resource) => void;
+    onAddAfter: (resource: Resource) => void;
+    onEdit: (resource: Resource) => void;
+    onDelete: (resource: Resource) => void;
+    onMove: (resource: Resource) => void;
 }

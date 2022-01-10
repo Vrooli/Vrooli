@@ -70,7 +70,6 @@ export const RedirectNode = ({
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                open={contextOpen}
                 node={node}
                 onClose={closeContext}
                 onAddBefore={() => { }}

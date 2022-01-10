@@ -4,6 +4,7 @@ export * from './FeedList/FeedList';
 export * from './OrganizationListItem/OrganizationListItem';
 export * from './ProjectListItem/ProjectListItem';
 export * from './ResourceList/ResourceList';
+export * from './ResourceListItemContextMenu/ResourceListItemContextMenu';
 export * from './RoutineListItem/RoutineListItem';
 export * from './SortMenu/SortMenu';
 export * from './StandardListItem/StandardListItem';
