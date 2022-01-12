@@ -1,7 +1,7 @@
-import { ApolloQueryResult, useQuery } from "@apollo/client";
-import { Box, Button, FormControlLabel, Grid, List, Stack, Switch, Tooltip, Typography } from "@mui/material";
+import { useQuery } from "@apollo/client";
+import { Box, Button, Grid, List, Tooltip, Typography } from "@mui/material";
 import { SearchBar, SearchBreadcrumbs, SortMenu, TimeMenu } from "components";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { centeredText, containerShadow, centeredDiv } from "styles";
 import { BaseSearchPageProps, SearchQueryVariablesInput } from "./types";
 import {
@@ -19,6 +19,9 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
     listItemFactory,
     getOptionLabel,
     onObjectSelect,
+    popupButtonText,
+    popupButtonTooltip = "Couldn't find what you were looking for? Try creating your own!",
+    onPopupButtonClick,
 }: BaseSearchPageProps<DataType, SortBy>) {
     const [searchString, setSearchString] = useState<string>('');
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
@@ -30,6 +33,7 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
     const [after, setAfter] = useState<string | undefined>(undefined);
     const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after, take, sortBy, searchString, createdTimeFrame } } as any) });
     const [allData, setAllData] = useState<DataType[]>([]);
+    const [addNewButton, setAddNewButton] = useState<boolean>(false);
 
     // On search filters/sort change, reset the page
     useEffect(() => {
@@ -87,9 +91,9 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
         if (!loading && scrolledY > windowHeight - 500) {
             loadMore();
         }
-        // if (scrolledY > windowHeight - 500) {
-        //     setAddNewButton(true);
-        // }
+        if (scrolledY > 100) {
+            setAddNewButton(true); //TODO have button show up if not enough results for a scroll
+        }
     }, [pageData, loadMore, loading]);
 
     // Set event listener for infinite scroll
@@ -141,6 +145,30 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
             </List>
         </Box>
     ), [listItems]);
+
+    const addNewButtonContainer = useMemo(() => (
+        <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
+            <Tooltip title={popupButtonTooltip}>
+                <Button 
+                    onClick={onPopupButtonClick}
+                    size="large"
+                    sx={{
+                        zIndex: 100,
+                        minidth: 'min(100%, 200px)',
+                        height: '48px',
+                        borderRadius: 3,
+                        position: 'fixed',
+                        bottom: '5em',
+                        transform: addNewButton ? 'translateY(0)' : 'translateY(10em)',
+                        transition: 'transform 1s ease-in-out',
+
+                    } as CSSProperties}
+                >
+                    {popupButtonText}
+                </Button>
+            </Tooltip>
+        </Box>
+    ), [addNewButton, popupButtonText, popupButtonTooltip, onPopupButtonClick]);
 
     return (
         <Box id="page">
@@ -196,14 +224,7 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
                 </Grid>
             </Grid>
             {listItems && listItems.length > 0 ? searchResultContainer : null}
-            {/* <Box sx={{ ...centeredDiv, paddingTop: 1 }}>
-                <Typography component="h2" variant="h4" sx={{ ...centeredText }}>
-                    Couldn't find what you were looking for? Try creating your own!
-                </Typography>
-                <Button>
-                    New 
-                </Button>
-            </Box> */}
+            {addNewButtonContainer}
         </Box>
     )
 }
