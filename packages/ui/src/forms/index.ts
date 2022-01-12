@@ -1,3 +1,4 @@
+export * from './BaseForm/BaseForm';
 export * from './ForgotPasswordForm';
 export * from './LogInForm';
 export * from './ProfileForm';

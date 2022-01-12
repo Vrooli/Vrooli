@@ -42,6 +42,7 @@
     "react-router-sitemap": "^1.2.0",
     "react-scripts": "^4.0.1",
     "react-swipeable-views": "^0.14.0",
+    "schema-to-yup": "^1.11.2",
     "typescript": "^4.4.4",
     "web-vitals": "^2.1.0",
     "workbox-background-sync": "^6.3.0",

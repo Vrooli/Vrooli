@@ -25,6 +25,7 @@ export interface SearchBarProps {
 
 export interface SelectorProps {
     options: any[];
+    getOptionLabel?: (option: any) => string;
     selected: any;
     handleChange: (change: any) => any;
     fullWidth?: boolean;
