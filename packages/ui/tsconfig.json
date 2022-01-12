@@ -22,7 +22,7 @@
         "jsx": "react-jsx",
         "noImplicitAny": false,
         "noImplicitThis": true,
-        "strictNullChecks": true
+        "strictNullChecks": true,
     },
     "include": [
         "src",

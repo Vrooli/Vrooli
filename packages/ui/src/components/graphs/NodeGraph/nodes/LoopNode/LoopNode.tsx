@@ -1,9 +1,10 @@
-import { Box, IconButton, Theme, Tooltip, Typography } from '@mui/material';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { LoopNodeProps } from '../types';
 import { Loop as LoopIcon } from '@mui/icons-material';
 import { NodeContextMenu } from '../..';
-import { noSelect } from 'styles';
+import { containerShadow, noSelect } from 'styles';
+import { nodeLabel } from '../styles';
 
 export const LoopNode = ({
     node,
@@ -25,7 +26,7 @@ export const LoopNode = ({
                 ...noSelect,
                 ...nodeLabel,
                 pointerEvents: 'none',
-            }}
+            } as CSSProperties}
         >
             {label}
         </Typography>

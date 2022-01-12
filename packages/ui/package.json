@@ -32,6 +32,7 @@
     "graphql-tag": "^2.12.4",
     "hotkeys-js": "^3.8.7",
     "lodash": "^4.17.21",
+    "markdown-to-jsx": "^7.1.5",
     "pubsub-js": "^1.9.3",
     "react": "^17.0.2",
     "react-dnd": "^14.0.2",

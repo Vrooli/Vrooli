@@ -9,16 +9,13 @@ import {
     Box,
     Button,
     Dialog,
-    Grid,
     Stack,
     SxProps,
-    Theme,
     Typography,
 } from '@mui/material';
-import { makeStyles } from '@mui/styles';
 import { Forms, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/walletIntegration';
 import { CommonProps } from 'types';
 import { ROLES } from '@local/shared';
@@ -32,29 +29,8 @@ import {
 import { guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { centeredText, containerShadow } from 'styles';
-
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {
-        padding: '1em',
-        paddingTop: '20vh',
-        border: '2px solid brown',
-        minHeight: '100vh', //Fullscreen
-    },
-    horizontal: {
-        textAlign: 'center',
-    },
-    prompt: {
-        display: 'inline-block',
-    },
-    buttonContainer: {
-        maxWidth: '500px',
-        margin: 'auto', //Horizontal align
-    },
-    option: {
-        height: '4em',
-    },
-}));
+import { centeredText } from 'styles';
+import helpMarkdown from './startHelp.md';
 
 const buttonProps: SxProps = {
     height: '4em',
@@ -63,7 +39,6 @@ const buttonProps: SxProps = {
 export const StartPage = ({
     onSessionUpdate
 }: Pick<CommonProps, 'onSessionUpdate'>) => {
-    const classes = useStyles();
     const [, setLocation] = useLocation();
     const [guestLogIn] = useMutation<any>(guestLogInMutation);
     // Handles email authentication popup
@@ -84,6 +59,17 @@ export const StartPage = ({
                 return [LogInForm, 'Log In'];
         }
     }, [popupForm])
+
+    const [helpText, setHelpText] = useState<string>('');
+
+    // Parse help text from markdown
+    useEffect(() => {
+        fetch(helpMarkdown)
+            .then((response) => response.text())
+            .then((text) => {
+                setHelpText(text);
+            });
+    }, []);
 
     // Opens link to install wallet extension
     const downloadExtension = useCallback(() => {
@@ -142,7 +128,14 @@ export const StartPage = ({
     }, [guestLogIn, setLocation, onSessionUpdate]);
 
     return (
-        <Box className={classes.root}>
+        <Box
+            sx={{
+                padding: '1em',
+                paddingTop: '20vh',
+                border: '2px solid brown',
+                minHeight: '100vh', //Fullscreen
+            }}
+        >
             <Box
                 sx={{
                     width: 'min(100%, 500px)',
@@ -150,10 +143,17 @@ export const StartPage = ({
                     paddingTop: { xs: '5vh', sm: '20vh' },
                 }}
             >
-                <div className={classes.horizontal}>
-                    <Typography className={classes.prompt} variant="h6">Please select your log in method</Typography>
-                    <HelpButton title={'boop'} />
-                </div>
+                <Box sx={{...centeredText}}>
+                    <Typography 
+                        variant="h6"
+                        sx={{
+                            display: 'inline-block',
+                        }}
+                    >
+                        Please select your log in method
+                    </Typography>
+                    <HelpButton markdown={helpText} />
+                </Box>
                 <Stack
                     direction="column"
                     spacing={2}

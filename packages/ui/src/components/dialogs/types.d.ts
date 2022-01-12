@@ -32,3 +32,11 @@ export interface NewProjectDialogProps extends DialogProps {
     open?: boolean;
     onClose: () => any;
 };
+
+export interface AddDialogBaseProps extends DialogProps {
+    title: string;
+    open: boolean;
+    onSubmit: (value: any) => any;
+    onClose: () => any;
+    children: JSX.Element | JSX.Element[];
+};

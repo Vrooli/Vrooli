@@ -1,8 +1,8 @@
 import { Box, Tooltip, Typography } from '@mui/material';
-import { useMemo } from 'react';
+import { CSSProperties, useMemo } from 'react';
 import { StartNodeProps } from '../types';
+import { nodeLabel } from '../styles';
 import { containerShadow, noSelect } from 'styles';
-import { combineStyles } from 'utils';
 
 export const StartNode = ({
     node,
@@ -17,7 +17,7 @@ export const StartNode = ({
             sx={{
                 ...noSelect,
                 ...nodeLabel,
-            }}
+            } as CSSProperties}
         >
             {label}
         </Typography>

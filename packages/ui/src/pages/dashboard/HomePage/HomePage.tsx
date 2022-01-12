@@ -175,6 +175,18 @@ export const HomePage = () => {
             <Stack spacing={10} direction="column">
                 {feeds}
             </Stack>
+            {/* FAQ */}
+            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '40px', paddingBottom: '40px' }}>
+                <Typography component="h2" variant="h3">FAQ</Typography>
+                <Typography variant="h5">What is This?</Typography>
+                <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
+
+                <Typography variant="h5">What can I do?</Typography>
+                <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
+
+                <Typography variant="h5">How does it work?</Typography>
+                <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
+            </Stack>
         </Box>
     )
 }

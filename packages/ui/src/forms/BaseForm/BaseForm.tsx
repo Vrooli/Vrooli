@@ -31,11 +31,11 @@ export const BaseForm = ({
     /**
      * Controls updates and validation of form
      */
-    const formik = useMemo(() => useFormik({
+    const formik = useFormik({
         initialValues,
         validationSchema,
         onSubmit: (values) => onSubmit(values),
-    }), [onSubmit, initialValues, validationSchema]);
+    });
 
     const grid = useMemo(() => generateGrid(schema.formLayout, schema.containers, schema.fields, formik), [schema, formik])
 

@@ -1,69 +1,93 @@
-import { useMemo, useState } from 'react';
-import { makeStyles } from '@mui/styles';
-import { IconButton, Popover, Theme, Tooltip } from '@mui/material';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Box, IconButton, Menu, Popover, Tooltip } from '@mui/material';
 import { HelpOutline as HelpIcon } from "@mui/icons-material";
+import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
-
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {
-        display: 'inline',
-    },
-    button: {
-        display: 'inline-flex',
-        bottom: '2px',
-        fill: theme.palette.secondary.contrastText,
-    },
-    popupPaper: {
-        background: theme.palette.primary.light,
-    },
-}));
+import { Close as CloseIcon } from '@mui/icons-material';
 
 export const HelpButton = ({
-    title = '', // What the tooltip displays
-    description,
-    id = 'help-details-popover'
+    id = 'help-details-popover',
+    markdown, // Markdown to display in the menu
 }: HelpButtonProps) => {
-    const classes = useStyles();
     const [anchorEl, setAnchorEl] = useState(null);
+    const open = Boolean(anchorEl);
+    const openTimerRef = useRef<number | undefined>();
+    const closeTimerRef = useRef<number | undefined>();
 
-    const openPopup = (event) => setAnchorEl(event.currentTarget);
-    const closePopup = () => setAnchorEl(null);
+    const openMenu = useCallback((event) => {
+        if (!anchorEl) setAnchorEl(event.currentTarget);
+    }, [anchorEl])
+    const closeMenu = () => {
+        setAnchorEl(null);
+    };
 
-    const popup_open = Boolean(anchorEl);
-    const popup_id = popup_open ? id : undefined;
-
-    const popup = useMemo(() => {
-        //Todo design popup
-        return (<div>{description}</div>)
-    }, [description])
+    const menu = useMemo(() => {
+        return (
+            <Box>
+                <Box
+                    sx={{
+                        background: (t) => t.palette.primary.dark,
+                    }}
+                >
+                    <IconButton edge="start" color="inherit" onClick={closeMenu} aria-label="close">
+                        <CloseIcon 
+                            sx={{
+                                fill: 'white',
+                                marginLeft: '0.5em',
+                            }} 
+                        />
+                    </IconButton>
+                </Box>
+                <Box sx={{ padding: 1 }}>
+                    <Markdown>{markdown}</Markdown>
+                </Box>
+            </Box>
+        )
+    }, [markdown])
 
     return (
-        <div className={classes.root}>
-            <Tooltip placement="top" title={title}>
-                <IconButton className={classes.button}>
-                    <HelpIcon onClick={openPopup} />
-                    <Popover
-                        id={popup_id}
-                        open={popup_open}
+        <Box
+            sx={{
+                display: 'inline',
+            }}
+        >
+            <Tooltip placement='top' title={!open ? "Open Help Menu" : ''}>
+                <IconButton
+                    onClick={openMenu}
+                    sx={{
+                        display: 'inline-flex',
+                        bottom: '2px',
+                    }}
+                >
+                    <HelpIcon sx={{fill: 'gb(103 103 104 / 87%)'}} />
+                    <Menu
+                        id={id}
+                        open={open}
                         disableScrollLock={true}
                         anchorEl={anchorEl}
-                        onClose={closePopup}
-                        classes={{
-                            paper: classes.popupPaper
-                        }}
+                        onClose={closeMenu}
                         anchorOrigin={{
                             vertical: 'bottom',
-                            horizontal: 'center',
+                            horizontal: 'right',
                         }}
                         transformOrigin={{
                             vertical: 'top',
-                            horizontal: 'center',
+                            horizontal: 'left',
+                        }}
+                        sx={{
+                            '& .MuiPopover-paper': {
+                                background: (t) => t.palette.background.paper,
+                                maxWidth: 'min(100vw, 400px)',
+                            },
+                            '& .MuiMenu-list': {
+                                padding: 0,
+                            }
                         }}
                     >
-                        {popup}
-                    </Popover>
+                        {menu}
+                    </Menu>
                 </IconButton>
             </Tooltip>
-        </div>
+        </Box>
     )
 }

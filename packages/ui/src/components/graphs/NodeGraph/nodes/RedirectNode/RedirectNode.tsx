@@ -1,9 +1,9 @@
-import { Box, IconButton, Theme, Tooltip, Typography } from '@mui/material';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { RedirectNodeProps } from '../types';
-import { combineStyles } from 'utils';
 import { UTurnLeft as RedirectIcon } from '@mui/icons-material';
 import { NodeContextMenu } from '../..';
+import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 
 export const RedirectNode = ({
@@ -26,7 +26,7 @@ export const RedirectNode = ({
                 ...noSelect,
                 ...nodeLabel,
                 pointerEvents: 'none',
-            }}
+            } as CSSProperties}
         >
             {label}
         </Typography>

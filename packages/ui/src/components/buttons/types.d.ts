@@ -1,9 +1,8 @@
 import { ButtonProps } from '@mui/material';
 
 export interface HelpButtonProps extends ButtonProps {
-    title?: string;
-    description?: string;
     id?: string;
+    markdown: string;
 }
 
 export interface PopupMenuProps extends ButtonProps {

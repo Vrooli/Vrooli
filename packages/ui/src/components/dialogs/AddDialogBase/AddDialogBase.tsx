@@ -1,4 +1,3 @@
-import { makeStyles } from '@mui/styles';
 import {
     AppBar,
     Box,
@@ -6,7 +5,6 @@ import {
     Dialog,
     Grid,
     IconButton,
-    Theme,
     Toolbar,
     Typography,
 } from '@mui/material';
@@ -20,6 +18,10 @@ import { CSSProperties } from 'react';
 import { AddDialogBaseProps } from '../types';
 import { centeredText } from 'styles';
 
+/**
+ * Dialog for displaying any "Add" form
+ * @returns 
+ */
 export const AddDialogBase = ({
     title,
     open = true,
