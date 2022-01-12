@@ -4,3 +4,4 @@ export * from './AlertDialog/AlertDialog';
 export * from './ComponentWrapperDialog/ComponentWrapperDialog';
 export * from './ListMenu/ListMenu';
 export * from './NewProjectDialog/NewProjectDialog';
+export * from './ShareDialog/ShareDialog';

@@ -40,3 +40,8 @@ export interface AddDialogBaseProps extends DialogProps {
     onClose: () => any;
     children: JSX.Element | JSX.Element[];
 };
+
+export interface ShareDialogProps extends DialogProps {
+    open: boolean;
+    onClose: () => any;
+}
