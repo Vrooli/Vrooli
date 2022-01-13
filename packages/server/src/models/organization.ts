@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../types";
 import { Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -96,6 +96,22 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
     }
 })
 
+/**
+ * Component for searching
+ */
+ export const organizationSearcher = (
+    model: keyof PrismaType, 
+    toDB: FormatConverter<Organization, OrganizationFullModel>['toDB'],
+    toGraphQL: FormatConverter<Organization, OrganizationFullModel>['toGraphQL'],
+    sorter: Sortable<any>, 
+    prisma?: PrismaType) => ({
+    async search(where: { [x: string]: any }, input: OrganizationSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+        const userIdQuery = input.userId ? { members: { some: { userId: input.userId } } } : {};
+        const search = searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationFullModel>(model, toDB, toGraphQL, sorter, prisma);
+        return search.search({...userIdQuery, ...where}, input, info);
+    }
+})
+
 //==============================================================
 /* #endregion Custom Components */
 //==============================================================
@@ -119,7 +135,7 @@ export function OrganizationModel(prisma?: PrismaType) {
         ...deleter(model, prisma),
         ...findByIder<Organization, OrganizationFullModel>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...organizationSearcher(model, format.toDB, format.toGraphQL, sort, prisma),
         ...updater<OrganizationInput, Organization, OrganizationFullModel>(model, format.toDB, prisma),
     }
 }

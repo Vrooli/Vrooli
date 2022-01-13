@@ -5,5 +5,6 @@ export const userFields = gql`
         id
         username
         stars
+        bio
     }
 `

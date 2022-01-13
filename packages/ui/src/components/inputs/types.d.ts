@@ -1,3 +1,4 @@
+import { InputProps } from '@mui/material';
 import { ChangeEvent } from 'react';
 
 export interface DropzoneProps {
@@ -11,7 +12,15 @@ export interface DropzoneProps {
     disabled?: boolean;
 }
 
-export interface SearchBarProps {
+export interface SearchBarProps extends InputProps {
+    id?: string;
+    placeholder?: string;
+    value: string;
+    onChange: (updatedText: string) => any;
+    debounce?: number;
+}
+
+export interface AutocompleteSearchBarProps extends SearchBarProps {
     id?: string;
     placeholder?: string;
     value: string;
@@ -20,7 +29,6 @@ export interface SearchBarProps {
     onChange: (updatedText: string) => any;
     onInputChange?: (event: any, newValue: any) => any;
     debounce?: number;
-    sx?: any;
 }
 
 export interface SelectorProps {

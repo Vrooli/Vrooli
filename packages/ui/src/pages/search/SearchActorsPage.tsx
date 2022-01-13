@@ -1,7 +1,8 @@
 import { UserSortBy } from "@local/shared";
 import { Dialog, DialogTitle } from "@mui/material";
-import { ActorListItem, ShareDialog } from "components";
+import { ActorListItem, AddDialogBase, ShareDialog } from "components";
 import { usersQuery } from "graphql/query";
+import { ActorViewPage } from "pages";
 import { useCallback, useState } from "react";
 import { User } from "types";
 import { SortValueToLabelMap } from "utils";
@@ -15,10 +16,10 @@ const SORT_OPTIONS: SearchSortBy<UserSortBy>[] = Object.values(UserSortBy).map((
 
 export const SearchActorsPage = () => {
     const [selected, setSelected] = useState<User | undefined>(undefined);
-    const addDialogOpen = Boolean(selected);
+    const selectedDialogOpen = Boolean(selected);
     const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
-    const handleAddDialogClose = useCallback(() => setSelected(undefined), []);
+    const handleSelectedDialogClose = useCallback(() => setSelected(undefined), []);
     const handleInviteDialogOpen = useCallback(() => setInviteDialogOpen(true), []);
     const handleInviteDialogClose = useCallback(() => setInviteDialogOpen(false), []);
 
@@ -36,6 +37,15 @@ export const SearchActorsPage = () => {
         <>
             {/* Invite link dialog */}
             <ShareDialog onClose={handleInviteDialogClose} open={inviteDialogOpen} />
+            {/* Selected dialog */}
+            <AddDialogBase
+                title={selected?.username ?? "User"}
+                open={selectedDialogOpen}
+                onClose={handleSelectedDialogClose}
+                onSubmit={() => { }}
+            >
+                {/* <ActorViewPage data={selected} /> */}
+            </AddDialogBase>
             {/* Search component */}
             <BaseSearchPage
                 title={'Search Actors'}

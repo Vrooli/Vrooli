@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE, MemberRole } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
 import { Count, DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy, ReportInput, Success } from './types';
@@ -21,6 +21,12 @@ export const typeDef = gql`
         StarsDesc
         VotesAsc
         VotesDesc
+    }
+
+    enum MemberRole {
+        Admin
+        Member
+        Owner
     }
 
     input OrganizationInput {
@@ -46,6 +52,12 @@ export const typeDef = gql`
         routines: [Routine!]!
         tags: [Tag!]!
         reports: [Report!]!
+        members: [Member!]!
+    }
+
+    type Member {
+        user: User!
+        role: MemberRole!
     }
 
     input OrganizationSearchInput {
@@ -93,6 +105,7 @@ export const typeDef = gql`
 
 export const resolvers = {
     OrganizationSortBy: OrganizationSortBy,
+    MemberRole: MemberRole,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
             // Query database
@@ -101,10 +114,8 @@ export const resolvers = {
             return dbModel ? OrganizationModel().toGraphQL(dbModel) : null;
         },
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            // Create query for specified user
-            const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
             // Return search query
-            return await OrganizationModel(prisma).search({...userQuery,}, input, info);
+            return await OrganizationModel(prisma).search({}, input, info);
         },
         organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
             // Return count query

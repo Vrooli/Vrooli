@@ -1,10 +1,10 @@
 import { Meta, Story } from "@storybook/react";
-import { SearchBar as Component } from '..';
-import { SearchBarProps as Props } from '../types';
+import { AutocompleteSearchBar as Component } from '..';
+import { AutocompleteSearchBarProps as Props } from '../types';
 
 // Define story metadata
 export default {
-    title: 'inputs/SearchBar',
+    title: 'inputs/AutocompleteSearchBar',
     component: Component,
 } as Meta;
 

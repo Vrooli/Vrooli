@@ -20,8 +20,8 @@ export const Selector = ({
     style,
     ...props
 }: SelectorProps) => {
-
-    const getOptionStyle = useCallback((theme: Theme, option: any)  =>{
+    console.log('slelector', options, selected);
+    const getOptionStyle = useCallback((theme: Theme, option: any) => {
         const label = getOptionLabel ? getOptionLabel(option) : option;
         return {
             fontWeight:
@@ -31,38 +31,14 @@ export const Selector = ({
         };
     }, [options, getOptionLabel]);
 
-    const renderedSelects = useMemo(() => {
-        // If nothing is selected, don't display anything
-        if (!selected || (isArray(selected) && selected.length === 0)) {
-            return '';
-        }
-        // If not multiple, just display the selected option
-        if (!multiple) {
-            return getOptionLabel ? getOptionLabel(selected) : selected;
-        }
-        // If multiple, display all selected options as chips
-        return (
-            <Box
-                sx={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                }}
-            >
-                {selected.map((o) => (
-                    <Chip label={getOptionLabel ? getOptionLabel(o) : o} key={o} />
-                ))}
-            </Box>
-        )
-    }, [selected, multiple, getOptionLabel]);
-
     return (
         <FormControl
             variant="outlined"
             sx={{ width: fullWidth ? '-webkit-fill-available' : '' }}
         >
-            <InputLabel 
-                id={inputAriaLabel} 
-                shrink={selected?.length > 0} 
+            <InputLabel
+                id={inputAriaLabel}
+                shrink={selected?.length > 0}
                 sx={{ color: (t) => t.palette.background.textPrimary }}
             >
                 {label}
@@ -76,7 +52,29 @@ export const Selector = ({
                 required={required}
                 disabled={disabled}
                 multiple={multiple}
-                renderValue={renderedSelects}
+                renderValue={() => {
+                    // If nothing is selected, don't display anything
+                    if (!selected || (isArray(selected) && selected.length === 0)) {
+                        return '';
+                    }
+                    // If not multiple, just display the selected option
+                    if (!multiple) {
+                        return getOptionLabel ? getOptionLabel(selected) : selected;
+                    }
+                    // If multiple, display all selected options as chips
+                    return (
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                            }}
+                        >
+                            {selected.map((o) => (
+                                <Chip label={getOptionLabel ? getOptionLabel(o) : o} key={o} />
+                            ))}
+                        </Box>
+                    )
+                }}
                 {...props}
                 sx={{
                     ...style,
@@ -91,10 +89,10 @@ export const Selector = ({
                     ) : null
                 }
                 {
-                    selected.map((o, index) => (
-                        <MenuItem 
-                            key={`select-option-${index}`} 
-                            value={o} 
+                    options.map((o, index) => (
+                        <MenuItem
+                            key={`select-option-${index}`}
+                            value={o}
                             sx={(t) => getOptionStyle(t, o)}
                         >
                             {getOptionLabel ? getOptionLabel(o) : o}

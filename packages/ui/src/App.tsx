@@ -84,7 +84,7 @@ export function App() {
                 }
             }, 0);
         }
-    }, [window.location]); // do this on route change
+    }, []); // do this on route change
 
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);

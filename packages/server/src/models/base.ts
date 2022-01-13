@@ -94,9 +94,9 @@ type Models<T> = {
 }
 export type PrismaModels = Models<Prisma.RejectOnNotFound | Prisma.RejectPerOperation | undefined>
 
-type InfoType = GraphQLResolveInfo | { [x: string]: any } | null;
+export type InfoType = GraphQLResolveInfo | { [x: string]: any } | null;
 
-type PaginatedSearchResult = {
+export type PaginatedSearchResult = {
     pageInfo: PageInfo;
     edges: Array<{
         cursor: string;
@@ -104,7 +104,7 @@ type PaginatedSearchResult = {
     }>;
 }
 
-type SearchInputBase<SortBy> = {
+export type SearchInputBase<SortBy> = {
     ids?: string[] | null; // Specific ids to search for
     searchString?: string | null; // String to search for. Which fields this includes are defined by the model
     sortBy?: SortBy | null; // Sort order
@@ -114,7 +114,7 @@ type SearchInputBase<SortBy> = {
     take?: number | null;
 }
 
-type CountInputBase = {
+export type CountInputBase = {
     createdTimeFrame?: Partial<TimeFrame> | null;
     updatedTimeFrame?: Partial<TimeFrame> | null;
 }

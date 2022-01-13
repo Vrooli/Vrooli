@@ -1,10 +1,9 @@
 import { APP_LINKS } from '@local/shared';
 import { Box, Dialog, DialogTitle, List, ListItem, Typography } from '@mui/material';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { ShareDialogProps } from '../types';
 import { 
     EmailIcon,
-    InstagramIcon,
     LinkedinIcon,
     TwitterIcon,
 } from 'assets/img';
@@ -21,7 +20,6 @@ const shareOptions: Array<[any, string, string]> = [
     [EmailIcon, 'Email', `mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`],
     [TwitterIcon, 'Twitter', `https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`],
     [LinkedinIcon, 'LinkedIn', `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`],
-    [InstagramIcon, 'Instagram', `https://www.instagram.com/intent/share/?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(postText)}`],
 ]
 
 const shareListItems = shareOptions.map(([Icon, label, link]) => (

@@ -240,6 +240,13 @@ export const ResourceFor = {
 }
 export type ResourceFor = ValueOf<typeof ResourceFor>;
 
+export const MemberRole = {
+    Admin: 'Admin',
+    Member: 'Member',
+    Owner: 'Owner',
+}
+export type MemberRole = ValueOf<typeof MemberRole>;
+
 export const ROLES = {
     Actor: 'Actor',
     Guest: 'Guest',

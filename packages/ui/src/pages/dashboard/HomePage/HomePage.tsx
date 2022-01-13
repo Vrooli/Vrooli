@@ -4,7 +4,7 @@ import { centeredDiv, centeredText } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
 import { useQuery } from '@apollo/client';
 import { autocompleteQuery } from 'graphql/query';
-import { ActorListItem, FeedList, OrganizationListItem, ProjectListItem, RoutineListItem, SearchBar, StandardListItem } from 'components';
+import { ActorListItem, FeedList, OrganizationListItem, ProjectListItem, RoutineListItem, AutocompleteSearchBar, StandardListItem } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
@@ -155,7 +155,7 @@ export const HomePage = () => {
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '30vh' } }}>
                 <Typography component="h1" variant="h2" sx={{ ...centeredText }}>What would you like to do?</Typography>
                 {/* ========= #region Custom SearchBar ========= */}
-                <SearchBar
+                <AutocompleteSearchBar
                     id="main-search"
                     placeholder='Search routines, projects, and more...'
                     options={autocompleteOptions}

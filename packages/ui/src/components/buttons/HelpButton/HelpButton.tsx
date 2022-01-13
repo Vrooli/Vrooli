@@ -1,18 +1,16 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Box, IconButton, Menu, Popover, Tooltip } from '@mui/material';
+import { useCallback, useMemo, useState } from 'react';
+import { Box, IconButton, Menu, Tooltip } from '@mui/material';
 import { HelpOutline as HelpIcon } from "@mui/icons-material";
 import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 
 export const HelpButton = ({
-    id = 'help-details-popover',
+    id = 'help-details-menu',
     markdown, // Markdown to display in the menu
 }: HelpButtonProps) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
-    const openTimerRef = useRef<number | undefined>();
-    const closeTimerRef = useRef<number | undefined>();
 
     const openMenu = useCallback((event) => {
         if (!anchorEl) setAnchorEl(event.currentTarget);

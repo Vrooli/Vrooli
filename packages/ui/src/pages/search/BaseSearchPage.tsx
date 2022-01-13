@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client";
 import { Box, Button, Grid, List, Tooltip, Typography } from "@mui/material";
-import { SearchBar, SearchBreadcrumbs, SortMenu, TimeMenu } from "components";
+import { AutocompleteSearchBar, SearchBreadcrumbs, SortMenu, TimeMenu } from "components";
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
 import { centeredText, containerShadow, centeredDiv } from "styles";
 import { BaseSearchPageProps, SearchQueryVariablesInput } from "./types";
@@ -185,7 +185,7 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
             <Typography component="h2" variant="h4" sx={{ ...centeredText, paddingTop: 2 }}>{title}</Typography>
             <Grid container spacing={2}>
                 <Grid item xs={12} sm={8}>
-                    <SearchBar
+                    <AutocompleteSearchBar
                         id={`${title}-search-bar`}
                         placeholder={searchPlaceholder}
                         options={allData}
