@@ -20,15 +20,3 @@ export const Forms = {
     SignUp: 'signUp',
 }
 export type Forms = ValueOf<typeof Forms>;
-
-/**
- * Converts GraphQL sort values to User-Friendly labels
- */
-export const SortValueToLabelMap = {
-    'AlphabeticalAsc': 'Z-A',
-    'AlphabeticalDesc': 'A-Z',
-    'CommentsDesc': 'Most Comments',
-    'StarsDesc': 'Most Stars',
-    'ForksDesc': 'Most Forks',
-}
-export type SortValueToLabelMap = ValueOf<typeof SortValueToLabelMap>;

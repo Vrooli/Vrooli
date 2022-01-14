@@ -16,8 +16,8 @@ export type ResourceRelationshipList = 'organization_resources' | 'project_resou
 export type ResourceQueryablePrimitives = Omit<Resource, ResourceRelationshipList>;
 // Type 3. AllPrimitives
 export type ResourceAllPrimitives = ResourceQueryablePrimitives;
-// type 4. FullModel
-export type ResourceFullModel = ResourceAllPrimitives &
+// type 4. Database shape
+export type ResourceDB = ResourceAllPrimitives &
     Pick<Resource, 'reports' | 'comments'> &
 {
     organization_resources: { organization: Organization[] },
@@ -50,9 +50,9 @@ const applyMap = {
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Resource, ResourceFullModel> => ({
-    toDB: (obj: RecursivePartial<Resource>): RecursivePartial<ResourceFullModel> => (obj as any), //TODO
-    toGraphQL: (obj: RecursivePartial<ResourceFullModel>): RecursivePartial<Resource> => (obj as any) //TODO
+const formatter = (): FormatConverter<Resource, ResourceDB> => ({
+    toDB: (obj: RecursivePartial<Resource>): RecursivePartial<ResourceDB> => (obj as any), //TODO
+    toGraphQL: (obj: RecursivePartial<ResourceDB>): RecursivePartial<Resource> => (obj as any) //TODO
 })
 /**
  * Custom compositional component for creating resources
@@ -75,7 +75,7 @@ const creater = (prisma?: PrismaType) => ({
             }
         })
     },
-    async create(data: ResourceInput, info: any): Promise<RecursivePartial<ResourceFullModel>> {
+    async create(data: ResourceInput, info: any): Promise<RecursivePartial<ResourceDB>> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Filter out for and forId, since they are not part of the resource object
@@ -95,7 +95,7 @@ const creater = (prisma?: PrismaType) => ({
  * @returns 
  */
 const updater = (prisma?: PrismaType) => ({
-    async update(data: ResourceInput, info: any): Promise<ResourceFullModel> {
+    async update(data: ResourceInput, info: any): Promise<ResourceDB> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Filter out for and forId, since they are not part of the resource object
@@ -164,9 +164,9 @@ export function ResourceModel(prisma?: PrismaType) {
         ...counter<ResourceCountInput>(model, prisma),
         ...creater(prisma),
         ...deleter(model, prisma),
-        ...findByIder<Resource, ResourceFullModel>(model, format.toDB, prisma),
+        ...findByIder<Resource, ResourceDB>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceDB>(model, format.toDB, format.toGraphQL, sort, prisma),
         ...updater(prisma),
     }
 }

@@ -12,4 +12,5 @@ export interface userFields {
   id: string;
   username: string | null;
   stars: number;
+  bio: string | null;
 }

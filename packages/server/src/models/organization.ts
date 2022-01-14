@@ -13,8 +13,8 @@ export type OrganizationRelationshipList = 'comments' | 'resources' | 'wallets' 
 export type OrganizationQueryablePrimitives = Omit<Organization, OrganizationRelationshipList>;
 // Type 3. AllPrimitives
 export type OrganizationAllPrimitives = OrganizationQueryablePrimitives;
-// type 4. FullModel
-export type OrganizationFullModel = OrganizationAllPrimitives &
+// type 4. Database shape
+export type OrganizationDB = OrganizationAllPrimitives &
     Pick<Organization, 'comments' | 'wallets' | 'reports'> &
 {
     resources: { resource: Resource[] }[],
@@ -37,7 +37,7 @@ export type OrganizationFullModel = OrganizationAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Organization, OrganizationFullModel> => {
+ const formatter = (): FormatConverter<Organization, OrganizationDB> => {
     const joinMapper = {
         donationResources: 'resource',
         resources: 'resource',
@@ -50,12 +50,12 @@ export type OrganizationFullModel = OrganizationAllPrimitives &
         stars: 'starredBy',
     }
     return {
-        toDB: (obj: RecursivePartial<Organization>): RecursivePartial<OrganizationFullModel> => {
+        toDB: (obj: RecursivePartial<Organization>): RecursivePartial<OrganizationDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             return modified;
         },
-        toGraphQL: (obj: RecursivePartial<OrganizationFullModel>): RecursivePartial<Organization> => {
+        toGraphQL: (obj: RecursivePartial<OrganizationDB>): RecursivePartial<Organization> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
             return modified;
@@ -89,7 +89,7 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
         return ({
             OR: [
                 { name: { ...insensitive } },
-                { description: { ...insensitive } },
+                { bio: { ...insensitive } },
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
@@ -101,14 +101,20 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
  */
  export const organizationSearcher = (
     model: keyof PrismaType, 
-    toDB: FormatConverter<Organization, OrganizationFullModel>['toDB'],
-    toGraphQL: FormatConverter<Organization, OrganizationFullModel>['toGraphQL'],
+    toDB: FormatConverter<Organization, OrganizationDB>['toDB'],
+    toGraphQL: FormatConverter<Organization, OrganizationDB>['toGraphQL'],
     sorter: Sortable<any>, 
     prisma?: PrismaType) => ({
     async search(where: { [x: string]: any }, input: OrganizationSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+        // Many-to-many search queries
+        const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
+        const routineIdQuery = input.routineId ? { routines: { some: { routineId: input.routineId } } } : {};
         const userIdQuery = input.userId ? { members: { some: { userId: input.userId } } } : {};
-        const search = searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationFullModel>(model, toDB, toGraphQL, sorter, prisma);
-        return search.search({...userIdQuery, ...where}, input, info);
+        // One-to-many search queries
+        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
+        const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
+        const search = searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationDB>(model, toDB, toGraphQL, sorter, prisma);
+        return search.search({...projectIdQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...where}, input, info);
     }
 })
 
@@ -131,12 +137,12 @@ export function OrganizationModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<OrganizationCountInput>(model, prisma),
-        ...creater<OrganizationInput, Organization, OrganizationFullModel>(model, format.toDB, prisma),
+        ...creater<OrganizationInput, Organization, OrganizationDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<Organization, OrganizationFullModel>(model, format.toDB, prisma),
+        ...findByIder<Organization, OrganizationDB>(model, format.toDB, prisma),
         ...reporter(),
         ...organizationSearcher(model, format.toDB, format.toGraphQL, sort, prisma),
-        ...updater<OrganizationInput, Organization, OrganizationFullModel>(model, format.toDB, prisma),
+        ...updater<OrganizationInput, Organization, OrganizationDB>(model, format.toDB, prisma),
     }
 }
 

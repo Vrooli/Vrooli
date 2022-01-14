@@ -55,6 +55,9 @@ export const typeDef = gql`
 
     input ProjectSearchInput {
         userId: ID
+        organizationId: ID
+        parentId: ID
+        reportId: ID
         ids: [ID!]
         sortBy: ProjectSortBy
         createdTimeFrame: TimeFrame

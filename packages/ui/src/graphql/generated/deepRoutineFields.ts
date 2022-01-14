@@ -167,6 +167,7 @@ export interface deepRoutineFields {
   instructions: string | null;
   isAutomatable: boolean | null;
   title: string | null;
+  description: string | null;
   updated_at: any;
   version: string | null;
   stars: number;

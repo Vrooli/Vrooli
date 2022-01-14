@@ -46,6 +46,8 @@ export const typeDef = gql`
         tags: [TagInput!]
     }
 
+    union Contributor = User | Organization
+
     type Standard {
         id: ID!
         created_at: Date!
@@ -57,6 +59,7 @@ export const typeDef = gql`
         default: String
         isFile: Boolean!
         stars: Int!
+        creator: Contributor
         tags: [Tag!]!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!
@@ -67,6 +70,9 @@ export const typeDef = gql`
 
     input StandardSearchInput {
         userId: ID
+        organizationId: ID
+        routineId: ID
+        reportId: ID
         ids: [ID!]
         sortBy: StandardSortBy
         searchString: String

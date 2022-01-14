@@ -12,8 +12,8 @@ export type RoleRelationshipList = 'users';
 export type RoleQueryablePrimitives = Omit<Role, RoleRelationshipList>;
 // Type 3. AllPrimitives
 export type RoleAllPrimitives = RoleQueryablePrimitives;
-// type 4. FullModel
-export type RoleFullModel = RoleAllPrimitives &
+// type 4. Database shape
+export type RoleDB = RoleAllPrimitives &
 {
     users: { user: User[] }[],
 };
@@ -29,13 +29,13 @@ export type RoleFullModel = RoleAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Role, RoleFullModel> => {
+ const formatter = (): FormatConverter<Role, RoleDB> => {
     const joinMapper = {
         users: 'user',
     };
     return {
-        toDB: (obj: RecursivePartial<Role>): RecursivePartial<RoleFullModel> => addJoinTables(obj, joinMapper),
-        toGraphQL: (obj: RecursivePartial<RoleFullModel>): RecursivePartial<Role> => removeJoinTables(obj, joinMapper)
+        toDB: (obj: RecursivePartial<Role>): RecursivePartial<RoleDB> => addJoinTables(obj, joinMapper),
+        toGraphQL: (obj: RecursivePartial<RoleDB>): RecursivePartial<Role> => removeJoinTables(obj, joinMapper)
     }
 }
 
@@ -55,7 +55,7 @@ export function RoleModel(prisma?: PrismaType) {
         prisma,
         model,
         ...format,
-        ...findByIder<Role, RoleFullModel>(model, format.toDB, prisma),
+        ...findByIder<Role, RoleDB>(model, format.toDB, prisma),
         ...formatter(),
     }
 }

@@ -1,27 +1,24 @@
 import { UserSortBy } from "@local/shared";
-import { Dialog, DialogTitle } from "@mui/material";
-import { ActorListItem, AddDialogBase, ShareDialog } from "components";
+import { ActorListItem, ActorView, ShareDialog, ViewDialogBase } from "components";
 import { usersQuery } from "graphql/query";
-import { ActorViewPage } from "pages";
 import { useCallback, useState } from "react";
 import { User } from "types";
-import { SortValueToLabelMap } from "utils";
+import { labelledSortOptions } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
-import { SearchSortBy } from "./types";
+import { LabelledSortOption } from "utils";
 
-const SORT_OPTIONS: SearchSortBy<UserSortBy>[] = Object.values(UserSortBy).map((sortOption) => ({
-    label: SortValueToLabelMap[sortOption],
-    value: sortOption as UserSortBy
-}));
+const SORT_OPTIONS: LabelledSortOption<UserSortBy>[] = labelledSortOptions(UserSortBy);
 
 export const SearchActorsPage = () => {
+    // Handles dialog when selecting a search result
     const [selected, setSelected] = useState<User | undefined>(undefined);
     const selectedDialogOpen = Boolean(selected);
-    const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-
     const handleSelectedDialogClose = useCallback(() => setSelected(undefined), []);
-    const handleInviteDialogOpen = useCallback(() => setInviteDialogOpen(true), []);
-    const handleInviteDialogClose = useCallback(() => setInviteDialogOpen(false), []);
+
+    // Handles dialog for the button that appears after scrolling a certain distance
+    const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
+    const handleSurpriseDialogOpen = useCallback(() => setSurpriseDialogOpen(true), []);
+    const handleSurpriseDialogClose = useCallback(() => setSurpriseDialogOpen(false), []);
 
     const listItemFactory = (node: User, index: number) => (
         <ActorListItem
@@ -36,19 +33,18 @@ export const SearchActorsPage = () => {
     return (
         <>
             {/* Invite link dialog */}
-            <ShareDialog onClose={handleInviteDialogClose} open={inviteDialogOpen} />
+            <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
-            <AddDialogBase
+            <ViewDialogBase
                 title={selected?.username ?? "User"}
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
-                onSubmit={() => { }}
             >
-                {/* <ActorViewPage data={selected} /> */}
-            </AddDialogBase>
+                <ActorView partialData={selected} />
+            </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage
-                title={'Search Actors'}
+                title="Search Actors"
                 searchPlaceholder="Search by username..."
                 sortOptions={SORT_OPTIONS}
                 defaultSortOption={SORT_OPTIONS[1]}
@@ -56,9 +52,9 @@ export const SearchActorsPage = () => {
                 listItemFactory={listItemFactory}
                 getOptionLabel={(o: any) => o.username}
                 onObjectSelect={(selected: User) => setSelected(selected)}
-                popupButtonText={'Invite'}
-                popupButtonTooltip={"Can't find who you're looking for? Invite them😊"}
-                onPopupButtonClick={handleInviteDialogOpen}
+                popupButtonText="Invite"
+                popupButtonTooltip="Can't find who you're looking for? Invite them😊"
+                onPopupButtonClick={handleSurpriseDialogOpen}
             />
         </>
     )

@@ -85,6 +85,7 @@ export const deepRoutineFields = gql`
         instructions
         isAutomatable
         title
+        description
         updated_at
         version
         stars

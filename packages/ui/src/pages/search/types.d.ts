@@ -1,7 +1,5 @@
 import { DocumentNode } from "graphql";
 
-export type SearchSortBy<SortBy> = { label: string, value: SortBy };
-
 export interface SearchQueryVariables {
     input: UserSearchInput;
 }

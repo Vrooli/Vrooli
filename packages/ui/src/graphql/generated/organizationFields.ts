@@ -20,7 +20,7 @@ export interface organizationFields {
   __typename: "Organization";
   id: string;
   name: string;
-  description: string | null;
+  bio: string | null;
   created_at: any;
   tags: organizationFields_tags[];
   stars: number;

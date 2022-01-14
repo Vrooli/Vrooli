@@ -183,7 +183,7 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
             />
             <SearchBreadcrumbs sx={{ ...centeredDiv, color: (t) => t.palette.secondary.dark }} />
             <Typography component="h2" variant="h4" sx={{ ...centeredText, paddingTop: 2 }}>{title}</Typography>
-            <Grid container spacing={2}>
+            <Grid container spacing={2} margin="auto" width="min(100%, 600px)">
                 <Grid item xs={12} sm={8}>
                     <AutocompleteSearchBar
                         id={`${title}-search-bar`}
@@ -193,7 +193,6 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
                         value={searchString}
                         onChange={handleSearch}
                         onInputChange={onInputSelect}
-                        sx={{ width: 'min(100%, 600px)' }}
                     />
                 </Grid>
                 <Grid item xs={6} sm={2}>

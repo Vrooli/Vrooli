@@ -99,7 +99,7 @@ export const AllRoutes = (props: CommonProps) => {
                         <SearchRoutinesPage />
                     </Page>
                 </Route>
-                <Route path={`${LINKS.SearchStandards}/id?`}>
+                <Route path={`${LINKS.SearchStandards}/:id?`}>
                     <Page title={title('Standards Search')} {...props}>
                         <SearchStandardsPage />
                     </Page>

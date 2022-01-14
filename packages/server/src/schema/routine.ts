@@ -88,6 +88,9 @@ export const typeDef = gql`
 
     input RoutineSearchInput {
         userId: ID
+        organizationId: ID
+        parentId: ID
+        reportId: ID
         ids: [ID!]
         sortBy: RoutineSortBy
         createdTimeFrame: TimeFrame

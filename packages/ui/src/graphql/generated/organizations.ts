@@ -28,7 +28,7 @@ export interface organizations_organizations_edges_node {
   __typename: "Organization";
   id: string;
   name: string;
-  description: string | null;
+  bio: string | null;
   created_at: any;
   tags: organizations_organizations_edges_node_tags[];
   stars: number;

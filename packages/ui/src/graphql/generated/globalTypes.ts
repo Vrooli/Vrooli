@@ -285,12 +285,16 @@ export interface OrganizationCountInput {
 export interface OrganizationInput {
   id?: string | null;
   name: string;
-  description?: string | null;
+  bio?: string | null;
   resources?: ResourceInput[] | null;
 }
 
 export interface OrganizationSearchInput {
   userId?: string | null;
+  projectId?: string | null;
+  routineId?: string | null;
+  standardId?: string | null;
+  reportId?: string | null;
   ids?: string[] | null;
   sortBy?: OrganizationSortBy | null;
   createdTimeFrame?: TimeFrame | null;
@@ -322,6 +326,9 @@ export interface ProjectInput {
 
 export interface ProjectSearchInput {
   userId?: string | null;
+  organizationId?: string | null;
+  parentId?: string | null;
+  reportId?: string | null;
   ids?: string[] | null;
   sortBy?: ProjectSortBy | null;
   createdTimeFrame?: TimeFrame | null;
@@ -401,6 +408,9 @@ export interface RoutineOutputItemInput {
 
 export interface RoutineSearchInput {
   userId?: string | null;
+  organizationId?: string | null;
+  parentId?: string | null;
+  reportId?: string | null;
   ids?: string[] | null;
   sortBy?: RoutineSortBy | null;
   createdTimeFrame?: TimeFrame | null;
@@ -428,6 +438,9 @@ export interface StandardInput {
 
 export interface StandardSearchInput {
   userId?: string | null;
+  organizationId?: string | null;
+  routineId?: string | null;
+  reportId?: string | null;
   ids?: string[] | null;
   sortBy?: StandardSortBy | null;
   searchString?: string | null;
@@ -489,6 +502,11 @@ export interface UserInput {
 }
 
 export interface UserSearchInput {
+  organizationId?: string | null;
+  projectId?: string | null;
+  routineId?: string | null;
+  reportId?: string | null;
+  standardId?: string | null;
   ids?: string[] | null;
   sortBy?: UserSortBy | null;
   searchString?: string | null;

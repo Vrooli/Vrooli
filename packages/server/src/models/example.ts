@@ -47,7 +47,7 @@ type Example = {
 // 1. RelationshipList - List of queryable + non-queryable relationship fields
 // 2. QueryablePrimitives - All queryable non-relationship fields
 // 3. AllPrimitives - All queryable + non-queryable non-relationship fields
-// 4. FullModel - All queryable + non-queryable fields (primitive + relationship)
+// 4. DB - The model as it appears in the database (primitive + relationship)
 //    - This one's tricky because the relationships must be defined as they appear in the database,
 //      not how they are represented in the GraphQL schema.
 
@@ -58,12 +58,12 @@ export type ExampleQueryablePrimitives = Omit<Example, ExampleRelationshipList>;
 // Type 3. AllPrimitives
 // For this example, we will say there's one primitive field that is not queryable: 'secretField'
 export type ExampleAllPrimitives = ExampleQueryablePrimitives & { secretField: string };
-// type 4. FullModel
+// type 4. Database shape
 // For this example, let's say that children1 is defined by a join table,
 // while children2 is linked directly to the parent.
 // This means that children1 must change the shape of its relationship field,
 // while children2 can be picked from the auto-generated GraphQL type
-export type ExampleFullModel = ExampleAllPrimitives & 
+export type ExampleDB = ExampleAllPrimitives & 
 Pick<Example, 'children2'> &
 { 
     children1: { child: Array<Child> },
@@ -103,8 +103,8 @@ export function ExampleModel(prisma: PrismaType) {
         prisma,
         model,
         ...format,
-        ...creater<ExampleInput, Example, ExampleFullModel>(model, format.toDB, prisma),
-        ...updater<ExampleInput, Example, ExampleFullModel>(model, format.toDB, prisma),
+        ...creater<ExampleInput, Example, ExampleDB>(model, format.toDB, prisma),
+        ...updater<ExampleInput, Example, ExampleDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
         ...reporter()
     }

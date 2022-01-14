@@ -1,6 +1,6 @@
 import { Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, FormatConverter, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -14,8 +14,8 @@ export type RoutineRelationshipList = 'inputs' | 'outputs' | 'nodes' | 'contextu
 export type RoutineQueryablePrimitives = Omit<Routine, RoutineRelationshipList>;
 // Type 3. AllPrimitives
 export type RoutineAllPrimitives = RoutineQueryablePrimitives;
-// type 4. FullModel
-export type RoutineFullModel = RoutineAllPrimitives &
+// type 4. Database shape
+export type RoutineDB = RoutineAllPrimitives &
 Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'> &
 {
     contextualResources: { resource: Resource[] }[],
@@ -40,7 +40,7 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Routine, RoutineFullModel> => {
+ const formatter = (): FormatConverter<Routine, RoutineDB> => {
     const joinMapper = {
         contextualResources: 'resource',
         externalResources: 'resource',
@@ -55,12 +55,12 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
         stars: 'starredBy',
     }
     return {
-        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<RoutineFullModel> => {
+        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<RoutineDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             return modified;
         },
-        toGraphQL: (obj: RecursivePartial<RoutineFullModel>): RecursivePartial<Routine> => {
+        toGraphQL: (obj: RecursivePartial<RoutineDB>): RecursivePartial<Routine> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
             return modified;
@@ -104,6 +104,27 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
     }
 })
 
+/**
+ * Component for searching
+ */
+ export const routineSearcher = (
+    model: keyof PrismaType, 
+    toDB: FormatConverter<Routine, RoutineDB>['toDB'],
+    toGraphQL: FormatConverter<Routine, RoutineDB>['toGraphQL'],
+    sorter: Sortable<any>, 
+    prisma?: PrismaType) => ({
+    async search(where: { [x: string]: any }, input: RoutineSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+        // Many-to-many search queries
+        const userIdQuery = input.userId ? { users: { some: { userId: input.userId } } } : {};
+        const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
+        // One-to-many search queries
+        const parentIdQuery = input.parentId ? { forks: { some: { forkId: input.parentId } } } : {};
+        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
+        const search = searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineDB>(model, toDB, toGraphQL, sorter, prisma);
+        return search.search({...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where}, input, info);
+    }
+})
+
 //==============================================================
 /* #endregion Custom Components */
 //==============================================================
@@ -123,11 +144,11 @@ export function RoutineModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<RoutineCountInput>(model, prisma),
-        ...creater<RoutineInput, Routine, RoutineFullModel>(model, format.toDB, prisma),
+        ...creater<RoutineInput, Routine, RoutineDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
         ...reporter(),
-        ...searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
-        ...updater<RoutineInput, Routine, RoutineFullModel>(model, format.toDB, prisma),
+        ...routineSearcher(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...updater<RoutineInput, Routine, RoutineDB>(model, format.toDB, prisma),
     }
 }
 

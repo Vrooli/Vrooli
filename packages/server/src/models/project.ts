@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "types";
 import { Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -13,8 +13,8 @@ export type ProjectRelationshipList = 'resources' | 'wallets' | 'users' | 'organ
 export type ProjectQueryablePrimitives = Omit<Project, ProjectRelationshipList>;
 // Type 3. AllPrimitives
 export type ProjectAllPrimitives = ProjectQueryablePrimitives;
-// type 4. FullModel
-export type ProjectFullModel = ProjectAllPrimitives &
+// type 4. Database shape
+export type ProjectDB = ProjectAllPrimitives &
     Pick<Project, 'wallets' | 'reports' | 'comments'> &
 {
     resources: { resource: Resource[] }[],
@@ -38,7 +38,7 @@ export type ProjectFullModel = ProjectAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Project, ProjectFullModel> => {
+ const formatter = (): FormatConverter<Project, ProjectDB> => {
     const joinMapper = {
         resources: 'resource',
         tags: 'tag',
@@ -51,12 +51,12 @@ export type ProjectFullModel = ProjectAllPrimitives &
         stars: 'starredBy',
     }
     return {
-        toDB: (obj: RecursivePartial<Project>): RecursivePartial<ProjectFullModel> => {
+        toDB: (obj: RecursivePartial<Project>): RecursivePartial<ProjectDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             return modified;
         },
-        toGraphQL: (obj: RecursivePartial<ProjectFullModel>): RecursivePartial<Project> => {
+        toGraphQL: (obj: RecursivePartial<ProjectDB>): RecursivePartial<Project> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
             return modified;
@@ -99,6 +99,27 @@ const sorter = (): Sortable<ProjectSortBy> => ({
     }
 })
 
+/**
+ * Component for searching
+ */
+ export const projectSearcher = (
+    model: keyof PrismaType, 
+    toDB: FormatConverter<Project, ProjectDB>['toDB'],
+    toGraphQL: FormatConverter<Project, ProjectDB>['toGraphQL'],
+    sorter: Sortable<any>, 
+    prisma?: PrismaType) => ({
+    async search(where: { [x: string]: any }, input: ProjectSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+        // Many-to-many search queries
+        const userIdQuery = input.userId ? { projects: { some: { userId: input.userId } } } : {};
+        const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
+        // One-to-many search queries
+        const parentIdQuery = input.parentId ? { forks: { some: { forkId: input.parentId } } } : {};
+        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
+        const search = searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectDB>(model, toDB, toGraphQL, sorter, prisma);
+        return search.search({...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where}, input, info);
+    }
+})
+
 //==============================================================
 /* #endregion Custom Components */
 //==============================================================
@@ -118,12 +139,12 @@ export function ProjectModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<ProjectCountInput>(model, prisma),
-        ...creater<ProjectInput, Project, ProjectFullModel>(model, format.toDB, prisma),
+        ...creater<ProjectInput, Project, ProjectDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<Project, ProjectFullModel>(model, format.toDB, prisma),
+        ...findByIder<Project, ProjectDB>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
-        ...updater<ProjectInput, Project, ProjectFullModel>(model, format.toDB, prisma),
+        ...projectSearcher(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...updater<ProjectInput, Project, ProjectDB>(model, format.toDB, prisma),
     }
 }
 

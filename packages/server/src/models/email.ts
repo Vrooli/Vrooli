@@ -15,8 +15,8 @@ export type EmailAllPrimitives = EmailQueryablePrimitives & {
     verificationCode: string | null;
     lastVerificationCodeRequestAttempt: Date | null;
 }
-// type 4. FullModel
-export type EmailFullModel = EmailAllPrimitives &
+// type 4. Database shape
+export type EmailDB = EmailAllPrimitives &
 Pick<Email, 'user'>;
 
 //======================================================================================================================
@@ -51,9 +51,9 @@ export function EmailModel(prisma?: PrismaType) {
         prisma,
         model,
         ...format,
-        ...findByIder<Email, EmailFullModel>(model, format.toDB, prisma),
-        ...creater<EmailInput, Email, EmailFullModel>(model, format.toDB, prisma),
-        ...updater<EmailInput, Email, EmailFullModel>(model, format.toDB, prisma),
+        ...findByIder<Email, EmailDB>(model, format.toDB, prisma),
+        ...creater<EmailInput, Email, EmailDB>(model, format.toDB, prisma),
+        ...updater<EmailInput, Email, EmailDB>(model, format.toDB, prisma),
         ...deleter(model, prisma)
     }
 }

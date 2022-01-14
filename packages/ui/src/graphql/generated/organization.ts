@@ -22,7 +22,7 @@ export interface organization_organization {
   __typename: "Organization";
   id: string;
   name: string;
-  description: string | null;
+  bio: string | null;
   created_at: any;
   tags: organization_organization_tags[];
   stars: number;

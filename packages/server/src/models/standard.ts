@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "types";
 import { Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -13,8 +13,8 @@ export type StandardRelationshipList = 'tags' | 'routineInputs' | 'routineOutput
 export type StandardQueryablePrimitives = Omit<Standard, StandardRelationshipList>;
 // Type 3. AllPrimitives
 export type StandardAllPrimitives = StandardQueryablePrimitives;
-// type 4. FullModel
-export type StandardFullModel = StandardAllPrimitives &
+// type 4. Database shape
+export type StandardDB = StandardAllPrimitives &
     Pick<Standard, 'reports' | 'comments'> &
 {
     tags: { tag: Tag[] }[],
@@ -35,7 +35,7 @@ export type StandardFullModel = StandardAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Standard, StandardFullModel> => {
+const formatter = (): FormatConverter<Standard, StandardDB> => {
     const joinMapper = {
         tags: 'tag',
         starredBy: 'user',
@@ -44,14 +44,29 @@ const formatter = (): FormatConverter<Standard, StandardFullModel> => {
         stars: 'starredBy',
     }
     return {
-        toDB: (obj: RecursivePartial<Standard>): RecursivePartial<StandardFullModel> => {
+        toDB: (obj: RecursivePartial<Standard>): RecursivePartial<StandardDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
+            if (modified.creator) {
+                if (modified.creator.hasOwnProperty('username')) {
+                    modified.user = modified.creator;
+                } else {
+                    modified.organization = modified.creator;
+                }
+                delete modified.creator;
+            }
             return modified;
         },
-        toGraphQL: (obj: RecursivePartial<StandardFullModel>): RecursivePartial<Standard> => {
+        toGraphQL: (obj: RecursivePartial<StandardDB>): RecursivePartial<Standard> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
+            if (modified.user) {
+                modified.creator = modified.user;
+                delete modified.user;
+            } else if (modified.organization) {
+                modified.creator = modified.organization;
+                delete modified.organization;
+            }
             return modified;
         },
     }
@@ -90,6 +105,32 @@ const sorter = (): Sortable<StandardSortBy> => ({
     }
 })
 
+/**
+ * Component for searching
+ */
+ export const standardSearcher = (
+    model: keyof PrismaType, 
+    toDB: FormatConverter<Standard, StandardDB>['toDB'],
+    toGraphQL: FormatConverter<Standard, StandardDB>['toGraphQL'],
+    sorter: Sortable<any>, 
+    prisma?: PrismaType) => ({
+    async search(where: { [x: string]: any }, input: StandardSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+        // Many-to-one search queries
+        const userIdQuery = input.userId ? { userId: input.userId } : {};
+        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : {};
+        // One-to-many search queries
+        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
+        const routineIdQuery = input.routineId ? { 
+            OR: [
+                { routineInputs: { some: { routineId: input.routineId } } },
+                { routineOutputs: { some: { routineId: input.routineId } } },
+            ]
+         } : {};
+        const search = searcher<StandardSortBy, StandardSearchInput, Standard, StandardDB>(model, toDB, toGraphQL, sorter, prisma);
+        return search.search({...userIdQuery, ...organizationIdQuery, ...reportIdQuery, ...routineIdQuery, ...where}, input, info);
+    }
+})
+
 //==============================================================
 /* #endregion Custom Components */
 //==============================================================
@@ -109,12 +150,12 @@ export function StandardModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<StandardCountInput>(model, prisma),
-        ...creater<StandardInput, Standard, StandardFullModel>(model, format.toDB, prisma),
+        ...creater<StandardInput, Standard, StandardDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<Standard, StandardFullModel>(model, format.toDB, prisma),
+        ...findByIder<Standard, StandardDB>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<StandardSortBy, StandardSearchInput, Standard, StandardFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
-        ...updater<StandardInput, Standard, StandardFullModel>(model, format.toDB, prisma),
+        ...standardSearcher(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...updater<StandardInput, Standard, StandardDB>(model, format.toDB, prisma),
     }
 }
 

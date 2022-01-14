@@ -15,8 +15,8 @@ export type CommentRelationshipList = 'user' | 'organization' | 'project' | 'res
 export type CommentQueryablePrimitives = Omit<Comment, CommentRelationshipList>;
 // Type 3. AllPrimitives
 export type CommentAllPrimitives = CommentQueryablePrimitives;
-// type 4. FullModel
-export type CommentFullModel = CommentAllPrimitives &
+// type 4. Database shape
+export type CommentDB = CommentAllPrimitives &
     Pick<Comment, 'user' | 'organization' | 'project' | 'resource' | 'routine' | 'standard' | 'reports'> &
 {
     stars: number,
@@ -142,11 +142,11 @@ export function CommentModel(prisma?: PrismaType) {
         model,
         ...format,
         ...auther(prisma),
-        ...creater<CommentInput, Comment, CommentFullModel>(model, format.toDB, prisma),
+        ...creater<CommentInput, Comment, CommentDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<Comment, CommentFullModel>(model, format.toDB, prisma),
+        ...findByIder<Comment, CommentDB>(model, format.toDB, prisma),
         ...reporter(),
-        ...updater<CommentInput, Comment, CommentFullModel>(model, format.toDB, prisma),
+        ...updater<CommentInput, Comment, CommentDB>(model, format.toDB, prisma),
         ...voter(prisma),
     }
 }

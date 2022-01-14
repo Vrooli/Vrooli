@@ -27,17 +27,23 @@ export interface ListMenuProps {
     title?: string;
     data?: ListMenuItemData[];
 }
-
-export interface NewProjectDialogProps extends DialogProps {
-    open?: boolean;
-    onClose: () => any;
-};
-
 export interface AddDialogBaseProps extends DialogProps {
     title: string;
     open: boolean;
     onSubmit: (value: any) => any;
     onClose: () => any;
+    children: JSX.Element | JSX.Element[];
+};
+
+export interface ViewDialogBaseProps extends DialogProps {
+    title: string;
+    open: boolean;
+    canEdit?: boolean; // Can only edit if you own the object
+    isEditing?: boolean; // Is currently editing
+    onEdit?: () => any; // Callback when starting to edit object
+    onSave?: () => any; // Callback when saving changes
+    onRevert?: () => any; // Callback when reverting changes
+    onClose?: () => any; // Callback when closing dialog
     children: JSX.Element | JSX.Element[];
 };
 

@@ -18,6 +18,35 @@ export interface standard_standard_tags {
   stars: number;
 }
 
+export interface standard_standard_creator_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+  stars: number;
+  bio: string | null;
+}
+
+export interface standard_standard_creator_Organization_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+  stars: number;
+}
+
+export interface standard_standard_creator_Organization {
+  __typename: "Organization";
+  id: string;
+  name: string;
+  bio: string | null;
+  created_at: any;
+  tags: standard_standard_creator_Organization_tags[];
+  stars: number;
+}
+
+export type standard_standard_creator = standard_standard_creator_User | standard_standard_creator_Organization;
+
 export interface standard_standard {
   __typename: "Standard";
   id: string;
@@ -30,6 +59,7 @@ export interface standard_standard {
   created_at: any;
   tags: standard_standard_tags[];
   stars: number;
+  creator: standard_standard_creator | null;
 }
 
 export interface standard {

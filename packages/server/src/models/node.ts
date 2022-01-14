@@ -20,8 +20,8 @@ export type NodeRelationshipList = 'dataCombine' | 'dataDecision' | 'dataEnd' | 
 export type NodeQueryablePrimitives = Omit<Node, NodeRelationshipList>;
 // Type 3. AllPrimitives
 export type NodeAllPrimitives = NodeQueryablePrimitives;
-// type 4. FullModel
-export type NodeFullModel = NodeAllPrimitives &
+// type 4. Database shape
+export type NodeDB = NodeAllPrimitives &
     Pick<Node, 'previous' | 'next' | 'routine' | 'Previous' | 'Next'> &
 {
     dataCombine?: { from: Node[], to: Node },
@@ -47,9 +47,9 @@ export type NodeFullModel = NodeAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Node, NodeFullModel> => ({
-    toDB: (obj: RecursivePartial<Node>): RecursivePartial<NodeFullModel> => ({ ...obj }), //TODO
-    toGraphQL: (obj: RecursivePartial<NodeFullModel>): RecursivePartial<Node> => ({ ...obj }) //TODO must at least convert previous and next to ids
+const formatter = (): FormatConverter<Node, NodeDB> => ({
+    toDB: (obj: RecursivePartial<Node>): RecursivePartial<NodeDB> => ({ ...obj }), //TODO
+    toGraphQL: (obj: RecursivePartial<NodeDB>): RecursivePartial<Node> => ({ ...obj }) //TODO must at least convert previous and next to ids
 })
 
 /**
@@ -86,7 +86,7 @@ const creater = (prisma?: PrismaType) => ({
         const row = await prisma?.node_start.create({ data });
         return { dataStartId: row?.id ?? '' };
     },
-    async create(data: NodeInput, info: any): Promise<NodeFullModel> {
+    async create(data: NodeInput, info: any): Promise<NodeDB> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         if (!data.routineId) throw new CustomError(CODE.InvalidArgs, 'Routine ID not specified')
@@ -140,9 +140,9 @@ export function NodeModel(prisma?: PrismaType) {
         prisma,
         model,
         ...format,
-        ...findByIder<Node, NodeFullModel>(model, format.toDB, prisma),
+        ...findByIder<Node, NodeDB>(model, format.toDB, prisma),
         ...creater(prisma),
-        ...updater<NodeInput, Node, NodeFullModel>(model, format.toDB, prisma),
+        ...updater<NodeInput, Node, NodeDB>(model, format.toDB, prisma),
         ...deleter(model, prisma)
     }
 }

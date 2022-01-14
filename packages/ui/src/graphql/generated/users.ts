@@ -20,6 +20,7 @@ export interface users_users_edges_node {
   id: string;
   username: string | null;
   stars: number;
+  bio: string | null;
 }
 
 export interface users_users_edges {

@@ -88,6 +88,11 @@ export const typeDef = gql`
     }
 
     input UserSearchInput {
+        organizationId: ID
+        projectId: ID
+        routineId: ID
+        reportId: ID
+        standardId: ID
         ids: [ID!]
         sortBy: UserSortBy
         searchString: String

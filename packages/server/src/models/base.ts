@@ -185,7 +185,7 @@ export const removeJoinTables = (obj: any, map: JoinMap): any => {
 
 /**
  * Helper function for converting Prisma relationship counts to GraphQL count fields
- * @param obj - GraphQL-shaped object
+ * @param obj - Prisma-shaped object
  * @param map - Mapping of GraphQL field names to Prisma relationship names
  */
  export const removeCountQueries = (obj: any, map: CountMap): any => {

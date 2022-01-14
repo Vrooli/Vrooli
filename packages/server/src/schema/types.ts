@@ -67,6 +67,8 @@ export type CommentInput = {
   text?: InputMaybe<Scalars['String']>;
 };
 
+export type Contributor = Organization | User;
+
 export type Count = {
   __typename?: 'Count';
   count?: Maybe<Scalars['Int']>;
@@ -131,6 +133,18 @@ export type FeedbackInput = {
 export type FindByIdInput = {
   id: Scalars['ID'];
 };
+
+export type Member = {
+  __typename?: 'Member';
+  role: MemberRole;
+  user: User;
+};
+
+export enum MemberRole {
+  Admin = 'Admin',
+  Member = 'Member',
+  Owner = 'Owner'
+}
 
 export type Mutation = {
   __typename?: 'Mutation';
@@ -608,11 +622,12 @@ export type OpenGraphResponse = {
 
 export type Organization = {
   __typename?: 'Organization';
+  bio?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
   created_at: Scalars['Date'];
-  description?: Maybe<Scalars['String']>;
   donationResources: Array<Resource>;
   id: Scalars['ID'];
+  members: Array<Member>;
   name: Scalars['String'];
   projects: Array<Project>;
   reports: Array<Report>;
@@ -637,7 +652,7 @@ export type OrganizationEdge = {
 };
 
 export type OrganizationInput = {
-  description?: InputMaybe<Scalars['String']>;
+  bio?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
   name: Scalars['String'];
   resources?: InputMaybe<Array<ResourceInput>>;
@@ -647,8 +662,12 @@ export type OrganizationSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  reportId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<OrganizationSortBy>;
+  standardId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -762,6 +781,9 @@ export type ProjectSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  parentId?: InputMaybe<Scalars['ID']>;
+  reportId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -813,6 +835,7 @@ export type Query = {
   standard?: Maybe<Standard>;
   standards: StandardSearchResult;
   standardsCount: Scalars['Int'];
+  statistics: StatisticsResult;
   tag?: Maybe<Tag>;
   tags: TagSearchResult;
   tagsCount: Scalars['Int'];
@@ -1138,6 +1161,9 @@ export type RoutineSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  parentId?: InputMaybe<Scalars['ID']>;
+  reportId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -1179,6 +1205,7 @@ export type Standard = {
   __typename?: 'Standard';
   comments: Array<Comment>;
   created_at: Scalars['Date'];
+  creator?: Maybe<Contributor>;
   default?: Maybe<Scalars['String']>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
@@ -1221,6 +1248,9 @@ export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  reportId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -1258,6 +1288,24 @@ export enum StandardType {
   String = 'String',
   Url = 'Url'
 }
+
+export type StatisticsResult = {
+  __typename?: 'StatisticsResult';
+  allTime: StatisticsTimeFrame;
+  daily: StatisticsTimeFrame;
+  monthly: StatisticsTimeFrame;
+  weekly: StatisticsTimeFrame;
+  yearly: StatisticsTimeFrame;
+};
+
+export type StatisticsTimeFrame = {
+  __typename?: 'StatisticsTimeFrame';
+  organizations: Array<Scalars['Int']>;
+  projects: Array<Scalars['Int']>;
+  routines: Array<Scalars['Int']>;
+  standards: Array<Scalars['Int']>;
+  users: Array<Scalars['Int']>;
+};
 
 export type Success = {
   __typename?: 'Success';
@@ -1380,8 +1428,13 @@ export type UserSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  reportId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<UserSortBy>;
+  standardId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };

@@ -1,5 +1,5 @@
 import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, Email } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, JoinMap, MODEL_TYPES, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
+import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, InfoType, JoinMap, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
 import { onlyPrimitives } from "../utils/objectTools";
 import { CustomError } from "../error";
 import { AccountStatus, CODE } from '@local/shared';
@@ -41,8 +41,8 @@ export type UserAllPrimitives = UserProfileQueryablePrimitives & {
     numExports: number,
     lastExport: Date | null,
 };
-// type 4. FullModel
-export type UserFullModel = UserAllPrimitives &
+// type 4. Database shape
+export type UserDB = UserAllPrimitives &
     Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports'> &
 {
     roles: { role: Role[] }[],
@@ -75,10 +75,10 @@ export type UserFullModel = UserAllPrimitives &
  */
 export type UserFormatConverter = {
     joinMapper?: JoinMap;
-    toDBProfile: (obj: RecursivePartial<Profile>) => RecursivePartial<UserFullModel>;
-    toDBUser: (obj: RecursivePartial<User>) => RecursivePartial<UserFullModel>;
-    toGraphQLProfile: (obj: RecursivePartial<UserFullModel>) => RecursivePartial<Profile>;
-    toGraphQLUser: (obj: RecursivePartial<UserFullModel>) => RecursivePartial<User>;
+    toDBProfile: (obj: RecursivePartial<Profile>) => RecursivePartial<UserDB>;
+    toDBUser: (obj: RecursivePartial<User>) => RecursivePartial<UserDB>;
+    toGraphQLProfile: (obj: RecursivePartial<UserDB>) => RecursivePartial<Profile>;
+    toGraphQLUser: (obj: RecursivePartial<UserDB>) => RecursivePartial<User>;
 }
 
 /**
@@ -106,14 +106,14 @@ const formatter = (): UserFormatConverter => {
         stars: 'starredBy',
     }
     return {
-        toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<UserFullModel> => addJoinTables(obj, joinMapper),
-        toDBUser: (obj: RecursivePartial<User>): RecursivePartial<UserFullModel> => {
+        toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<UserDB> => addJoinTables(obj, joinMapper),
+        toDBUser: (obj: RecursivePartial<User>): RecursivePartial<UserDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             return modified;
         },
-        toGraphQLProfile: (obj: RecursivePartial<UserFullModel>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),
-        toGraphQLUser: (obj: RecursivePartial<UserFullModel>): RecursivePartial<User> => {
+        toGraphQLProfile: (obj: RecursivePartial<UserDB>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),
+        toGraphQLUser: (obj: RecursivePartial<UserDB>): RecursivePartial<User> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
             return modified;
@@ -159,7 +159,7 @@ const validater = (prisma?: PrismaType) => ({
     /**
      * Creates session object from user
      */
-    toSession(user: RecursivePartial<UserFullModel>): RecursivePartial<Session> {
+    toSession(user: RecursivePartial<UserDB>): RecursivePartial<Session> {
         return {
             id: user.id ?? '',
             theme: user.theme ?? 'light',
@@ -387,8 +387,8 @@ const findByEmailer = (prisma?: PrismaType) => ({
  * @param state 
  * @returns 
  */
-const upserter = (toDB: FormatConverter<User, UserFullModel>['toDB'], prisma?: PrismaType) => ({
-    async upsertUser(data: any, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<UserFullModel> | null> {
+const upserter = (toDB: FormatConverter<User, UserDB>['toDB'], prisma?: PrismaType) => ({
+    async upsertUser(data: any, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<UserDB> | null> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Remove relationship data, as they are handled on a case-by-case basis
@@ -431,9 +431,9 @@ const upserter = (toDB: FormatConverter<User, UserFullModel>['toDB'], prisma?: P
             })
         }
         // Create selector
-        const select = selectHelper<User, UserFullModel>(info, toDB);
+        const select = selectHelper<User, UserDB>(info, toDB);
         // Query database
-        return await prisma.user.findUnique({ where: { id: user.id }, ...select }) as RecursivePartial<UserFullModel> | null;
+        return await prisma.user.findUnique({ where: { id: user.id }, ...select }) as RecursivePartial<UserDB> | null;
     }
 })
 
@@ -468,6 +468,28 @@ const porter = (prisma?: PrismaType) => ({
     },
 })
 
+/**
+ * Component for searching
+ */
+ export const userSearcher = (
+    model: keyof PrismaType, 
+    toDB: FormatConverter<User, UserDB>['toDB'],
+    toGraphQL: FormatConverter<User, UserDB>['toGraphQL'],
+    sorter: Sortable<any>, 
+    prisma?: PrismaType) => ({
+    async search(where: { [x: string]: any }, input: UserSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+        // Many-to-many search queries
+        const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
+        const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
+        const routineIdQuery = input.routineId ? { routines: { some: { routineId: input.routineId } } } : {};
+        // One-to-many search queries
+        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
+        const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
+        const search = searcher<UserSortBy, UserSearchInput, User, UserDB>(model, toDB, toGraphQL, sorter, prisma);
+        return search.search({...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery, ...where}, input, info);
+    }
+})
+
 //==============================================================
 /* #endregion Custom Components */
 //==============================================================
@@ -489,10 +511,10 @@ export function UserModel(prisma?: PrismaType) {
         ...counter<UserCountInput>(model, prisma),
         ...deleter(model, prisma),
         ...findByEmailer(prisma),
-        ...findByIder<User, UserFullModel>(model, format.toDBUser, prisma),
+        ...findByIder<User, UserDB>(model, format.toDBUser, prisma),
         ...porter(prisma),
         ...reporter(),
-        ...searcher<UserSortBy, UserSearchInput, User, UserFullModel>(model, format.toDBUser, format.toGraphQLUser, sort, prisma),
+        ...userSearcher(model, format.toDBUser, format.toGraphQLUser, sort, prisma),
         ...upserter(format.toDBUser, prisma),
         ...validater(prisma),
     }

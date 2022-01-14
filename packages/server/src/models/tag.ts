@@ -13,8 +13,8 @@ export type TagRelationshipList = 'organizations' | 'projects' | 'routines' | 's
 export type TagQueryablePrimitives = Omit<Tag, TagRelationshipList>;
 // Type 3. AllPrimitives
 export type TagAllPrimitives = TagQueryablePrimitives;
-// type 4. FullModel
-export type TagFullModel = TagAllPrimitives &
+// type 4. Database shape
+export type TagDB = TagAllPrimitives &
 {
     organizations: { tagged: Organization[] },
     projects: { tagged: Project[] },
@@ -35,7 +35,7 @@ export type TagFullModel = TagAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Tag, TagFullModel> => {
+ const formatter = (): FormatConverter<Tag, TagDB> => {
     const joinMapper = {
         organizations: 'tagged',
         projects: 'tagged',
@@ -45,8 +45,8 @@ export type TagFullModel = TagAllPrimitives &
         votes: 'voter',
     };
     return {
-        toDB: (obj: RecursivePartial<Tag>): RecursivePartial<TagFullModel> => addJoinTables(obj, joinMapper),
-        toGraphQL: (obj: RecursivePartial<TagFullModel>): RecursivePartial<Tag> => removeJoinTables(obj, joinMapper)
+        toDB: (obj: RecursivePartial<Tag>): RecursivePartial<TagDB> => addJoinTables(obj, joinMapper),
+        toGraphQL: (obj: RecursivePartial<TagDB>): RecursivePartial<Tag> => removeJoinTables(obj, joinMapper)
     }
 }
 
@@ -97,12 +97,12 @@ export function TagModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<TagCountInput>(model, prisma),
-        ...creater<TagInput, Tag, TagFullModel>(model, format.toDB, prisma),
+        ...creater<TagInput, Tag, TagDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...findByIder<Tag, TagFullModel>(model, format.toDB, prisma),
+        ...findByIder<Tag, TagDB>(model, format.toDB, prisma),
         ...reporter(),
-        ...searcher<TagSortBy, TagSearchInput, Tag, TagFullModel>(model, format.toDB, format.toGraphQL, sort, prisma),
-        ...updater<TagInput, Tag, TagFullModel>(model, format.toDB, prisma),
+        ...searcher<TagSortBy, TagSearchInput, Tag, TagDB>(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...updater<TagInput, Tag, TagDB>(model, format.toDB, prisma),
     }
 }
 

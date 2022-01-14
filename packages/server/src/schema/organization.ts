@@ -32,7 +32,7 @@ export const typeDef = gql`
     input OrganizationInput {
         id: ID
         name: String!
-        description: String
+        bio: String
         resources: [ResourceInput!]
     }
 
@@ -41,7 +41,7 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         name: String!
-        description: String
+        bio: String
         stars: Int!
         comments: [Comment!]!
         resources: [Resource!]!
@@ -62,6 +62,10 @@ export const typeDef = gql`
 
     input OrganizationSearchInput {
         userId: ID
+        projectId: ID
+        routineId: ID
+        standardId: ID
+        reportId: ID
         ids: [ID!]
         sortBy: OrganizationSortBy
         createdTimeFrame: TimeFrame

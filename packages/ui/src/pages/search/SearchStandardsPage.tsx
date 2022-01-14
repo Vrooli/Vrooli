@@ -1,43 +1,61 @@
 import { StandardSortBy } from "@local/shared";
-import { StandardListItem } from "components";
+import { StandardListItem, StandardView, ShareDialog, ViewDialogBase } from "components";
 import { standardsQuery } from "graphql/query";
 import { useCallback, useState } from "react";
 import { Standard } from "types";
-import { SortValueToLabelMap } from "utils";
+import { labelledSortOptions } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
-import { SearchSortBy } from "./types";
+import { LabelledSortOption } from "utils";
 
-const SORT_OPTIONS: SearchSortBy<StandardSortBy>[] = Object.values(StandardSortBy).map((sortOption) => ({ 
-    label: SortValueToLabelMap[sortOption], 
-    value: sortOption as StandardSortBy 
-}));
+const SORT_OPTIONS: LabelledSortOption<StandardSortBy>[] = labelledSortOptions(StandardSortBy);
 
 export const SearchStandardsPage = () => {
+    // Handles dialog when selecting a search result
     const [selected, setSelected] = useState<Standard | undefined>(undefined);
-    const dialogOpen = Boolean(selected);
+    const selectedDialogOpen = Boolean(selected);
+    const handleSelectedDialogClose = useCallback(() => setSelected(undefined), []);
 
-    const handleDialogClose = useCallback(() => setSelected(undefined), []);
+    // Handles dialog for the button that appears after scrolling a certain distance
+    const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
+    const handleSurpriseDialogOpen = useCallback(() => setSurpriseDialogOpen(true), []);
+    const handleSurpriseDialogClose = useCallback(() => setSurpriseDialogOpen(false), []);
 
-    const listItemFactory = (node: any, index: number) => (
-        <StandardListItem 
-            key={`standard-list-item-${index}`} 
-            data={node} 
+    const listItemFactory = (node: Standard, index: number) => (
+        <StandardListItem
+            key={`standard-list-item-${index}`}
+            data={node}
             isStarred={false}
             isOwn={false}
             onClick={(selected: Standard) => setSelected(selected)}
-            onStarClick={() => {}}
+            onStarClick={() => { }}
         />)
 
     return (
-        <BaseSearchPage 
-            title={'Search Standards'}
-            searchPlaceholder="Search by name, description, or tags..."
-            sortOptions={SORT_OPTIONS}
-            defaultSortOption={SORT_OPTIONS[1]}
-            query={standardsQuery}
-            listItemFactory={listItemFactory}
-            getOptionLabel={(o: any) => o.name}
-            onObjectSelect={(selected: Standard) => setSelected(selected)}
-        />
+        <>
+            {/* Invite link dialog */}
+            <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
+            {/* Selected dialog */}
+            <ViewDialogBase
+                title={selected?.name ?? "Standard"}
+                open={selectedDialogOpen}
+                onClose={handleSelectedDialogClose}
+            >
+                <StandardView partialData={selected} />
+            </ViewDialogBase>
+            {/* Search component */}
+            <BaseSearchPage
+                title="Search Standards"
+                searchPlaceholder="Search..."
+                sortOptions={SORT_OPTIONS}
+                defaultSortOption={SORT_OPTIONS[1]}
+                query={standardsQuery}
+                listItemFactory={listItemFactory}
+                getOptionLabel={(o: any) => o.name}
+                onObjectSelect={(selected: Standard) => setSelected(selected)}
+                popupButtonText="Add"
+                popupButtonTooltip="Can't find what you're looking for? Create it!😎"
+                onPopupButtonClick={handleSurpriseDialogOpen}
+            />
+        </>
     )
 }

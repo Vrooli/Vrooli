@@ -3,6 +3,7 @@ export * from './combineStyles';
 export * from './consts';
 export * from './objectTools';
 export * from './openLink';
+export * from './sorting';
 export * from './theme';
 export * from './useHistoryState';
 export * from './userActions';
