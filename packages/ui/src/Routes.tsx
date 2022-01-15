@@ -21,7 +21,6 @@ const {
     NotFoundPage,
     Page,
     OrganizationViewPage,
-    ProjectsPage,
     ProjectViewPage,
     ResearchPage,
     RoutineOrchestratorPage,
@@ -53,11 +52,6 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* Customizable pages available to logged in users */}
                 <Route path={LINKS.Home}>
                     <Page title={title('Home')} {...props}>
-                        <HomePage />
-                    </Page>
-                </Route>
-                <Route path={`${LINKS.Projects}/*`}>
-                    <Page title={title('Projects')} {...props}>
                         <HomePage />
                     </Page>
                 </Route>

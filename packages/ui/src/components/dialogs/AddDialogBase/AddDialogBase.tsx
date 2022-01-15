@@ -59,7 +59,6 @@ export const AddDialogBase = ({
     return (
         <Dialog
             fullScreen
-            disableScrollLock={true}
             open={open}
             onClose={onClose}
             TransitionComponent={UpTransition}

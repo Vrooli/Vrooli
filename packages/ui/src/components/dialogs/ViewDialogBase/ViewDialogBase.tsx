@@ -84,7 +84,6 @@ export const ViewDialogBase = ({
     return (
         <Dialog
             fullScreen
-            disableScrollLock={true}
             open={open}
             onClose={onClose}
             TransitionComponent={UpTransition}

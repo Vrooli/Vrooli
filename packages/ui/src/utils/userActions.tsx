@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 import {
-    Apps as ProjectsIcon,
+    AccountCircle as ProfileIcon,
     ExitToApp as LogOutIcon,
     Home as HomeIcon,
     PersonAdd as RegisterIcon,
@@ -27,10 +27,10 @@ import { Path } from 'wouter';
 
 export const ACTION_TAGS = {
     Home: 'home',
-    Projects: 'projects',
     Learn: 'learn',
     Research: 'research',
     Develop: 'develop',
+    Profile: 'profile',
     LogIn: 'logIn',
     LogOut: 'logOut',
 }
@@ -54,11 +54,6 @@ interface GetUserActionsProps {
 export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps): Action[] {
     // Home action always available
     let actions: ActionArray[] = [['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]];
-    // Map user roles to string array
-    // Projets action is only for logged-in users (since it uses personal data)
-    if (userRoles?.includes(ROLES.Actor)) {
-        actions.push(['Projects', ACTION_TAGS.Projects, LINKS.Projects, null, ProjectsIcon, 0]);
-    }
     // Available for all users
     actions.push(
         ['Learn', ACTION_TAGS.Learn, LINKS.Learn, null, LearnIcon, 0],
@@ -69,7 +64,10 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
     if (!userRoles?.includes(ROLES.Actor)) {
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
     } else {
-        actions.push(['Log Out', ACTION_TAGS.LogOut, LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logOutMutation }) }, LogOutIcon, 0]);
+        actions.push(
+            ['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0],
+            ['Log Out', ACTION_TAGS.LogOut, LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logOutMutation }) }, LogOutIcon, 0]
+        );
     }
 
     return actions.map(a => createAction(a)).filter(a => !exclude.includes(a.value));

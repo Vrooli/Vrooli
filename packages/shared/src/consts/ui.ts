@@ -9,7 +9,6 @@ export const APP_LINKS = {
     Organization: '/organization', // View or update specific organization
     Profile: '/profile', // View or update profile and settings (or view another actor's profile)
     Project: '/project', // View or update specific project
-    Projects: '/projects', // View your created and saved projects
     Research: '/research', // Research dashboard
     Routine: '/routine', // View or update specific routine
     Run: '/run', // Displays a UI corresponding to the current subroutine
