@@ -125,18 +125,20 @@ export const resolvers = {
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions
             // Create object
-            const dbModel = await ProjectModel(prisma).create(input, info);
+            const dbModel = await ProjectModel(prisma).create(input as any, info);
             // Format object to GraphQL type
-            return ProjectModel().toGraphQL(dbModel);
+            if (dbModel) return ProjectModel().toGraphQL(dbModel);
+            throw new CustomError(CODE.ErrorUnknown);
         },
         projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO must be updating your own
             // Update object
-            const dbModel = await ProjectModel(prisma).update(input, info);
+            //const dbModel = await ProjectModel(prisma).update(input, info);
             // Format to GraphQL type
-            return ProjectModel().toGraphQL(dbModel);
+            //return ProjectModel().toGraphQL(dbModel);
+            throw new CustomError(CODE.NotImplemented);
         },
         projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in

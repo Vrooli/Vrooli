@@ -1,6 +1,9 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { Organization, OrganizationCountInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
+import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
+import { GraphQLResolveInfo } from "graphql";
+import { CustomError } from "../error";
+import { CODE } from "@local/shared";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -17,12 +20,12 @@ export type OrganizationAllPrimitives = OrganizationQueryablePrimitives;
 export type OrganizationDB = OrganizationAllPrimitives &
     Pick<Organization, 'comments' | 'wallets' | 'reports'> &
 {
-    resources: { resource: Resource[] }[],
-    donationResources: { resource: Resource[] }[],
-    projects: { project: Project[] }[],
-    starredBy: { user: User[] }[],
-    routines: { routine: Routine[] }[],
-    tags: { tag: Tag[] }[],
+    resources: { resource: Resource }[],
+    donationResources: { resource: Resource }[],
+    projects: { project: Project }[],
+    starredBy: { user: User }[],
+    routines: { routine: Routine }[],
+    tags: { tag: Tag }[],
     _count: { starredBy: number }[],
 };
 
@@ -33,6 +36,29 @@ export type OrganizationDB = OrganizationAllPrimitives &
 //==============================================================
 /* #region Custom Components */
 //==============================================================
+
+/**
+ * Custom component for creating organization. 
+ * NOTE: Data should be in Prisma shape, not GraphQL
+ */
+ const organizationCreater = (toDB: FormatConverter<Organization, OrganizationDB>['toDB'], prisma?: PrismaType) => ({
+    async create(
+        data: any, 
+        info: GraphQLResolveInfo | null = null,
+    ): Promise<RecursivePartial<OrganizationDB> | null> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Shape data for Prisma (i.e. add "connect"s and "create"s), and remove any unsupported relationships
+        //const shapedData = shapeCreateData(data, removeFields, keepFields);
+        //console.log('organizationCreate shapedData', shapedData);
+        // Perform additional checks
+        // TODO
+        // Create
+        const { id } = await prisma.organization.create({ data });
+        // Query database
+        return await prisma.organization.findUnique({ where: { id }, ...selectHelper<Organization, OrganizationDB>(info, toDB) }) as RecursivePartial<OrganizationDB> | null;
+    }
+})
 
 /**
  * Component for formatting between graphql and prisma types
@@ -99,8 +125,7 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
 /**
  * Component for searching
  */
- export const organizationSearcher = (
-    model: keyof PrismaType, 
+ export const organizationSearcher = ( 
     toDB: FormatConverter<Organization, OrganizationDB>['toDB'],
     toGraphQL: FormatConverter<Organization, OrganizationDB>['toGraphQL'],
     sorter: Sortable<any>, 
@@ -113,7 +138,7 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
         // One-to-many search queries
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-        const search = searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationDB>(model, toDB, toGraphQL, sorter, prisma);
+        const search = searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationDB>(MODEL_TYPES.Organization, toDB, toGraphQL, sorter, prisma);
         return search.search({...projectIdQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...where}, input, info);
     }
 })
@@ -137,12 +162,11 @@ export function OrganizationModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<OrganizationCountInput>(model, prisma),
-        ...creater<OrganizationInput, Organization, OrganizationDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
         ...findByIder<Organization, OrganizationDB>(model, format.toDB, prisma),
         ...reporter(),
-        ...organizationSearcher(model, format.toDB, format.toGraphQL, sort, prisma),
-        ...updater<OrganizationInput, Organization, OrganizationDB>(model, format.toDB, prisma),
+        ...organizationCreater(format.toDB, prisma),
+        ...organizationSearcher(format.toDB, format.toGraphQL, sort, prisma),
     }
 }
 

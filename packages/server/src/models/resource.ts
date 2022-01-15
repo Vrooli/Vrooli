@@ -20,13 +20,13 @@ export type ResourceAllPrimitives = ResourceQueryablePrimitives;
 export type ResourceDB = ResourceAllPrimitives &
     Pick<Resource, 'reports' | 'comments'> &
 {
-    organization_resources: { organization: Organization[] },
-    project_resources: { project: Project[] },
-    routine_resources_contextual: { routine: Routine[] },
-    routine_resources_external: { routine: Routine[] },
-    routine_resources_donation: { routine: Routine[] },
-    user_resources: { user: User[] },
-    starredBy: { user: User[] }[],
+    organization_resources: { organization: Organization },
+    project_resources: { project: Project },
+    routine_resources_contextual: { routine: Routine },
+    routine_resources_external: { routine: Routine },
+    routine_resources_donation: { routine: Routine },
+    user_resources: { user: User },
+    starredBy: { user: User }[],
 };
 
 //======================================================================================================================

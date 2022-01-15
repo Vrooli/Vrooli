@@ -1,6 +1,9 @@
+import { CODE } from "@local/shared";
+import { CustomError } from "../error";
+import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
 import { Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -17,13 +20,13 @@ export type ProjectAllPrimitives = ProjectQueryablePrimitives;
 export type ProjectDB = ProjectAllPrimitives &
     Pick<Project, 'wallets' | 'reports' | 'comments'> &
 {
-    resources: { resource: Resource[] }[],
-    users: { user: User[] }[],
-    organizations: { organization: Organization[] }[],
-    starredBy: { user: User[] }[],
-    parent: { project: Project[] }[],
-    forks: { project: Project[] }[],
-    tags: { tag: Tag[] }[],
+    resources: { resource: Resource }[],
+    users: { user: User }[],
+    organizations: { organization: Organization }[],
+    starredBy: { user: User }[],
+    parent: { project: Project }[],
+    forks: { project: Project }[],
+    tags: { tag: Tag }[],
     _count: { starredBy: number }[],
 };
 
@@ -34,6 +37,31 @@ export type ProjectDB = ProjectAllPrimitives &
 //==============================================================
 /* #region Custom Components */
 //==============================================================
+
+/**
+ * Custom component for creating project. 
+ * NOTE: Data should be in Prisma shape, not GraphQL
+ */
+ const projectCreater = (toDB: FormatConverter<Project, ProjectDB>['toDB'], prisma?: PrismaType) => ({
+    async create(
+        data: any, 
+        info: GraphQLResolveInfo | null = null,
+        removeFields?: string[],
+        keepFields?: string[],
+    ): Promise<RecursivePartial<ProjectDB> | null> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Shape data for Prisma (i.e. add "connect"s and "create"s), and remove any unsupported relationships
+        //const shapedData = shapeCreateData(data, removeFields, keepFields);
+        //console.log('projectCreate shapedData', shapedData);
+        // Perform additional checks
+        // TODO
+        // Create
+        const { id } = await prisma.project.create({ data });
+        // Query database
+        return await prisma.user.findUnique({ where: { id }, ...selectHelper<Project, ProjectDB>(info, toDB) }) as RecursivePartial<ProjectDB> | null;
+    }
+})
 
 /**
  * Component for formatting between graphql and prisma types
@@ -103,7 +131,6 @@ const sorter = (): Sortable<ProjectSortBy> => ({
  * Component for searching
  */
  export const projectSearcher = (
-    model: keyof PrismaType, 
     toDB: FormatConverter<Project, ProjectDB>['toDB'],
     toGraphQL: FormatConverter<Project, ProjectDB>['toGraphQL'],
     sorter: Sortable<any>, 
@@ -115,7 +142,7 @@ const sorter = (): Sortable<ProjectSortBy> => ({
         // One-to-many search queries
         const parentIdQuery = input.parentId ? { forks: { some: { forkId: input.parentId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const search = searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectDB>(model, toDB, toGraphQL, sorter, prisma);
+        const search = searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectDB>(MODEL_TYPES.Project, toDB, toGraphQL, sorter, prisma);
         return search.search({...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where}, input, info);
     }
 })
@@ -143,8 +170,8 @@ export function ProjectModel(prisma?: PrismaType) {
         ...deleter(model, prisma),
         ...findByIder<Project, ProjectDB>(model, format.toDB, prisma),
         ...reporter(),
-        ...projectSearcher(model, format.toDB, format.toGraphQL, sort, prisma),
-        ...updater<ProjectInput, Project, ProjectDB>(model, format.toDB, prisma),
+        ...projectCreater(format.toDB, prisma),
+        ...projectSearcher(format.toDB, format.toGraphQL, sort, prisma),
     }
 }
 

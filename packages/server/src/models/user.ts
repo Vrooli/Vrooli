@@ -1,6 +1,5 @@
 import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, Email } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, InfoType, JoinMap, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
-import { onlyPrimitives } from "../utils/objectTools";
+import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, getRelationshipData, InfoType, JoinMap, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { AccountStatus, CODE } from '@local/shared';
 import bcrypt from 'bcrypt';
@@ -45,20 +44,20 @@ export type UserAllPrimitives = UserProfileQueryablePrimitives & {
 export type UserDB = UserAllPrimitives &
     Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports'> &
 {
-    roles: { role: Role[] }[],
-    resources: { resource: Resource[] }[],
-    donationResources: { resource: Resource[] }[],
-    projects: { project: Project[] }[],
-    starredComments: { starred: Comment[] }[],
-    starredProjects: { starred: Project[] }[],
-    starredOrganizations: { starred: Organization[] }[],
-    starredResources: { starred: Resource[] }[],
-    starredRoutines: { starred: Routine[] }[],
-    starredStandards: { starred: Standard[] }[],
-    starredTags: { starred: Tag[] }[],
-    starredUsers: { starred: User[] }[],
-    votedComments: { voted: Comment[] }[],
-    votedByTag: { tag: Tag[] }[],
+    roles: { role: Role }[],
+    resources: { resource: Resource }[],
+    donationResources: { resource: Resource }[],
+    projects: { project: Project }[],
+    starredComments: { starred: Comment }[],
+    starredProjects: { starred: Project }[],
+    starredOrganizations: { starred: Organization }[],
+    starredResources: { starred: Resource }[],
+    starredRoutines: { starred: Routine }[],
+    starredStandards: { starred: Standard }[],
+    starredTags: { starred: Tag }[],
+    starredUsers: { starred: User }[],
+    votedComments: { voted: Comment }[],
+    votedByTag: { tag: Tag }[],
     _count: { starredBy: number }[],
 };
 
@@ -383,59 +382,93 @@ const findByEmailer = (prisma?: PrismaType) => ({
 })
 
 /**
- * Custom component for upserting resources
- * @param state 
- * @returns 
+ * Custom component for creating users. 
+ * NOTE: Data should be in Prisma shape, not GraphQL
  */
-const upserter = (toDB: FormatConverter<User, UserDB>['toDB'], prisma?: PrismaType) => ({
-    async upsertUser(data: any, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<UserDB> | null> {
+ const userCreater = (toDB: FormatConverter<User, UserDB>['toDB'], prisma?: PrismaType) => ({
+    async create(
+        data: any, 
+        info: GraphQLResolveInfo | null = null,
+    ): Promise<RecursivePartial<UserDB> | null> {
         // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        // Remove relationship data, as they are handled on a case-by-case basis
-        let cleanedData = onlyPrimitives(data);
-        // Upsert user
-        let user;
-        if (!data.id) {
-            // Check for valid username
-            //TODO
-            // Make sure username isn't in use
-            if (await prisma.user.findUnique({ where: { username: data.username } })) throw new CustomError(CODE.UsernameInUse);
-            user = await prisma.user.create({ data: cleanedData })
-        } else {
-            user = await prisma.user.update({
-                where: { id: data.id },
-                data: cleanedData
-            })
-        }
-        // Upsert emails
-        for (const email of (data.emails ?? [])) {
+        if (!prisma || !data.username) throw new CustomError(CODE.InvalidArgs);
+        // Remove any relationships should not be created/connected in this operation
+        data = keepOnly(data, ['roles', 'emails', 'resources', 'donationResources', 'hiddenTags', 'starredTags']);
+        // Perform additional checks
+        // Check for valid emails
+        for (const email of getRelationshipData(data, 'emails')) {
+            if (!email) continue;
             const emailExists = await prisma.email.findUnique({ where: { emailAddress: email.emailAddress } });
             if (emailExists && emailExists.id !== email.id) throw new CustomError(CODE.EmailInUse);
-            if (!email.id) {
-                await prisma.email.create({ data: { ...email, id: undefined, user: user.id } })
-            } else {
-                await prisma.email.update({
-                    where: { id: email.id },
-                    data: email
-                })
-            }
         }
-        // Upsert roles
-        for (const role of (data.roles ?? [])) {
-            if (!role.id) continue;
-            const roleData = { userId: user.id, roleId: role.id };
-            await prisma.user_roles.upsert({
-                where: { user_roles_userid_roleid_unique: roleData },
-                create: roleData,
-                update: roleData
-            })
+        console.log('email boop', getRelationshipData(data, 'emails'))
+        // Make sure roles have valid ids
+        for (const role of getRelationshipData(data, 'roles')) {
+            if (!role?.role) continue;
+            if (!role.role.id) throw new CustomError(CODE.InvalidArgs);
+            const roleExists = await prisma.role.findUnique({ where: { id: role.role.id } });
+            if (!roleExists) throw new CustomError(CODE.InvalidArgs);
         }
-        // Create selector
-        const select = selectHelper<User, UserDB>(info, toDB);
+        console.log('role boop', getRelationshipData(data, 'roles'))
+        // Create
+        const { id } = await prisma.user.create({ data });
         // Query database
-        return await prisma.user.findUnique({ where: { id: user.id }, ...select }) as RecursivePartial<UserDB> | null;
+        return await prisma.user.findUnique({ where: { id }, ...selectHelper<User, UserDB>(info, toDB) }) as RecursivePartial<UserDB> | null;
     }
 })
+
+// /**
+//  * Custom component for upserting users.
+//  * Contains an overall upsert, as well as one for each relationship
+//  */
+// const userUpserter = (toDB: FormatConverter<User, UserDB>['toDB'], prisma?: PrismaType) => ({
+//     async upsert(data: UpsertUserInput, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<UserDB> | null> {
+//         // Check for valid arguments
+//         if (!prisma || !data.username) throw new CustomError(CODE.InvalidArgs);
+//         // Remove relationship data, as they are handled on a case-by-case basis
+//         let cleanedData = onlyPrimitives(data);
+
+
+//         const user = await prisma.user.upsert({
+//             where: { id: cleanedData.id },
+//         })
+
+
+//         // Upsert user
+//         let user;
+//         if (!data.id) {
+//             // Check for valid username
+//             //TODO
+//             // Make sure username isn't in use
+//             if (await prisma.user.findUnique({ where: { username: data.username } })) throw new CustomError(CODE.UsernameInUse);
+//             user = await prisma.user.create({ data: cleanedData })
+//         } else {
+//             user = await prisma.user.update({
+//                 where: { id: data.id },
+//                 data: cleanedData
+//             })
+//         }
+//         // Upsert emails
+//         for (const email of (data.emails ?? [])) {
+//             // Fetch all existing 
+//             // Check if child is allowed to be added
+//             if (!email.id) {
+//                 const emailExists = await prisma.email.findUnique({ where: { emailAddress: email.emailAddress } });
+//                 if (emailExists && emailExists.id !== email.id) throw new CustomError(CODE.EmailInUse);
+//             }
+//             // Add child
+//             await upsertOneToManyRelationship(MODEL_TYPES.Email, 'userId', prisma, email, user.id);
+//         }
+//         // Upsert roles
+//         for (const role of (data.roles ?? [])) {
+//             if (!role.id) continue;
+//             const joinData = { userId: user.id, roleId: role.id };
+//             await upsertManyToManyRelationship('user_roles', 'user_roles_userid_roleid_unique', 'userId', 'roleId', prisma, joinData);
+//         }
+//         // Query database
+//         return await prisma.user.findUnique({ where: { id: user.id }, ...selectHelper<User, UserDB>(info, toDB) }) as RecursivePartial<UserDB> | null;
+//     }
+// })
 
 /**
  * Custom component for importing/exporting data from Vrooli
@@ -472,7 +505,6 @@ const porter = (prisma?: PrismaType) => ({
  * Component for searching
  */
  export const userSearcher = (
-    model: keyof PrismaType, 
     toDB: FormatConverter<User, UserDB>['toDB'],
     toGraphQL: FormatConverter<User, UserDB>['toGraphQL'],
     sorter: Sortable<any>, 
@@ -485,7 +517,7 @@ const porter = (prisma?: PrismaType) => ({
         // One-to-many search queries
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-        const search = searcher<UserSortBy, UserSearchInput, User, UserDB>(model, toDB, toGraphQL, sorter, prisma);
+        const search = searcher<UserSortBy, UserSearchInput, User, UserDB>(MODEL_TYPES.User, toDB, toGraphQL, sorter, prisma);
         return search.search({...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery, ...where}, input, info);
     }
 })
@@ -514,8 +546,8 @@ export function UserModel(prisma?: PrismaType) {
         ...findByIder<User, UserDB>(model, format.toDBUser, prisma),
         ...porter(prisma),
         ...reporter(),
-        ...userSearcher(model, format.toDBUser, format.toGraphQLUser, sort, prisma),
-        ...upserter(format.toDBUser, prisma),
+        ...userCreater(format.toDBUser, prisma),
+        ...userSearcher(format.toDBUser, format.toGraphQLUser, sort, prisma),
         ...validater(prisma),
     }
 }

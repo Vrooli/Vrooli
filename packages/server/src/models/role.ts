@@ -15,7 +15,7 @@ export type RoleAllPrimitives = RoleQueryablePrimitives;
 // type 4. Database shape
 export type RoleDB = RoleAllPrimitives &
 {
-    users: { user: User[] }[],
+    users: { user: User }[],
 };
 
 //======================================================================================================================

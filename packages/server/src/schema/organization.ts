@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, MemberRole } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy, ReportInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, ReportInput, Success } from './types';
 import { Context } from '../context';
 import { OrganizationModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -132,18 +132,20 @@ export const resolvers = {
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions
             // Create object
-            const dbModel = await OrganizationModel(prisma).create(input, info);
+            const dbModel = await OrganizationModel(prisma).create(input as any, info);
             // Format object to GraphQL type
-            return OrganizationModel().toGraphQL(dbModel);
+            if (dbModel) return OrganizationModel().toGraphQL(dbModel);
+            throw new CustomError(CODE.ErrorUnknown);
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO must be updating your own
             // Update object
-            const dbModel = await OrganizationModel(prisma).update(input, info);
+            //const dbModel = await OrganizationModel(prisma).update(input, info);
             // Format to GraphQL type
-            return OrganizationModel().toGraphQL(dbModel);
+            //return OrganizationModel().toGraphQL(dbModel);
+            throw new CustomError(CODE.NotImplemented);
         },
         organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in

@@ -150,19 +150,25 @@ export const resolvers = {
         },
     },
     Mutation: {
-        routineAdd: async (_parent: undefined, { input }: IWrap<RoutineInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
+        routineAdd: async (_parent: undefined, { input }: IWrap<RoutineInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
+            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // TODO add extra restrictions
+            // Create object
+            const dbModel = await RoutineModel(prisma).create(input as any, info);
+            // Format object to GraphQL type
+            if (dbModel) return RoutineModel().toGraphQL(dbModel);
+            throw new CustomError(CODE.ErrorUnknown);
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add extra restrictions
             // Update object
-            const dbModel = await RoutineModel(prisma).update(input, info);
+            //const dbModel = await RoutineModel(prisma).update(input, info);
             // Format to GraphQL type
-            return RoutineModel().toGraphQL(dbModel);
+            //return RoutineModel().toGraphQL(dbModel);
+            throw new CustomError(CODE.NotImplemented);
         },
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in

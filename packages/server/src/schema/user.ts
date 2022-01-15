@@ -167,10 +167,11 @@ export const resolvers = {
             let user = await prisma.user.findUnique({ where: { id: input.data.id } });
             if (!user) throw new CustomError(CODE.InvalidArgs);
             if (!UserModel(prisma).validatePassword(input.currentPassword, user)) throw new CustomError(CODE.BadCredentials);
-            // Update user
-            let dbModel = await UserModel(prisma).upsertUser(input.data, info);
+            // Update user TODO
+            // let dbModel = await UserModel(prisma).upsert(input.data as any, info);
             // Format data
-            return dbModel ? UserModel().toGraphQLProfile(dbModel) : null;
+            //return dbModel ? UserModel().toGraphQLProfile(dbModel) : null;
+            throw new CustomError(CODE.NotImplemented);
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be deleting your own

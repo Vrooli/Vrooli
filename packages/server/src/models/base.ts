@@ -6,6 +6,8 @@ import { PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
 import graphqlFields from 'graphql-fields';
+import pkg from 'lodash';
+const { isObject } = pkg;
 
 
 //======================================================================================================================
@@ -59,9 +61,9 @@ export type JoinMap = { [key: string]: string };
 /**
  * Mapper for associating a model's GraphQL count fields to the relationships they count
  */
- export type CountMap = { [key: string]: string };
+export type CountMap = { [key: string]: string };
 
-type BaseType = PrismaModels['comment']; // It doesn't matter what PrismaType is used here, it's just to help TypeScript handle Prisma operations
+export type BaseType = PrismaModels['comment']; // It doesn't matter what PrismaType is used here, it's just to help TypeScript handle Prisma operations
 
 // Strings for accessing model functions from Prisma
 export const MODEL_TYPES = {
@@ -147,7 +149,7 @@ export const addJoinTables = (obj: any, map: JoinMap): any => {
  * @param obj - GraphQL-shaped object
  * @param map - Mapping of GraphQL field names to Prisma relationship names
  */
- export const addCountQueries = (obj: any, map: CountMap): any => {
+export const addCountQueries = (obj: any, map: CountMap): any => {
     // Create result object
     let result: any = {};
     // Iterate over join map
@@ -188,7 +190,7 @@ export const removeJoinTables = (obj: any, map: JoinMap): any => {
  * @param obj - Prisma-shaped object
  * @param map - Mapping of GraphQL field names to Prisma relationship names
  */
- export const removeCountQueries = (obj: any, map: CountMap): any => {
+export const removeCountQueries = (obj: any, map: CountMap): any => {
     // Create result object
     let result: any = {};
     // If no counts, no reason to continue
@@ -210,7 +212,7 @@ export const removeJoinTables = (obj: any, map: JoinMap): any => {
 /**
  * Converts the {} values of a graphqlFields object to true
  */
-const formatGraphQLFields = (fields: { [x: string]: any }): { [x: string]: any } => {
+export const formatGraphQLFields = (fields: { [x: string]: any }): { [x: string]: any } => {
     let converted: { [x: string]: any } = {};
     Object.keys(fields).forEach((key) => {
         if (Object.keys(fields[key]).length === 0) converted[key] = true;
@@ -220,9 +222,19 @@ const formatGraphQLFields = (fields: { [x: string]: any }): { [x: string]: any }
 }
 
 /**
+ * Removes the "__typename" field recursively from a JSON-serializable object
+ * @param obj - JSON-serializable object with possible __typename fields
+ * @return obj without __typename fields
+ */
+export const removeTypenames = (obj: { [x: string]: any }): { [x: string]: any } => {
+    return JSON.parse(JSON.stringify(obj, (k, v) => (k === '__typename') ? undefined : v))
+}
+
+
+/**
  * Adds "select" to the correct of an object to make it a Prisma select
  */
-const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
+export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
     let converted: { [x: string]: any } = {};
     Object.keys(fields).forEach((key) => {
         if (Object.keys(fields[key]).length > 0) converted[key] = padSelect(fields[key]);
@@ -250,8 +262,8 @@ export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: Fo
     }
     // Convert select from graphQL to database
     select = toDB(select as any);
-    // Make sure to delete __typename field
-    delete select.__typename;
+    // Make sure to delete all occurrences of the __typename field
+    select = removeTypenames(select);
     return padSelect(select);
 }
 
@@ -296,19 +308,19 @@ export const creater = <ModelInput, GraphQLModel, FullDBModel>(model: keyof Pris
  * @returns 
  */
 export const updater = <ModelInput extends UpdateInterface, GraphQLModel, FullDBModel>(
-    model: keyof PrismaType, 
-    toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], 
+    model: keyof PrismaType,
+    toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'],
     prisma?: PrismaType) => ({
-    async update(input: ModelInput, info: InfoType): Promise<RecursivePartial<FullDBModel>> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        if (!input.id) throw new CustomError(CODE.InvalidArgs);
-        // Create selector
-        const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
-        // Access database
-        return await (prisma[model] as BaseType).update({ where: { id: input.id }, data: { ...input }, ...select }) as unknown as RecursivePartial<FullDBModel>;
-    }
-})
+        async update(input: ModelInput, info: InfoType): Promise<RecursivePartial<FullDBModel>> {
+            // Check for valid arguments
+            if (!prisma) throw new CustomError(CODE.InvalidArgs);
+            if (!input.id) throw new CustomError(CODE.InvalidArgs);
+            // Create selector
+            const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
+            // Access database
+            return await (prisma[model] as BaseType).update({ where: { id: input.id }, data: { ...input }, ...select }) as unknown as RecursivePartial<FullDBModel>;
+        }
+    })
 
 /**
  * Compositional component for models which can be deleted directly.
@@ -354,88 +366,88 @@ export const reporter = () => ({
  * @returns 
  */
 export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, GraphQLModel, FullDBModel>(
-    model: keyof PrismaType, 
+    model: keyof PrismaType,
     toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'],
     toGraphQL: FormatConverter<GraphQLModel, FullDBModel>['toGraphQL'],
-    sorter: Sortable<any>, 
+    sorter: Sortable<any>,
     prisma?: PrismaType) => ({
-    /**
-     * Cursor-based search. Supports pagination, sorting, and filtering by string.
-     * @param where Additional where clauses to apply to the search
-     * @param input GraphQL-provided search parameters
-     * @param info Requested return information
-     * @returns 
-     */
-    async search(where: { [x: string]: any }, input: SearchInput, info: InfoType): Promise<PaginatedSearchResult> {
-        const boop = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
-        console.log('SEARCH BOIII', boop)
-        console.log('SEARCH BOIII _COUNT', boop._count)
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        // Create selector
-        const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
-        // Create query for specified ids
-        const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
-        // Determine sort order
-        const sortQuery = sorter.getSortQuery(input.sortBy ?? sorter.defaultSort);
-        // Determine text search query
-        const searchQuery = input.searchString ? sorter.getSearchStringQuery(input.searchString) : undefined;
-        // Determine createdTimeFrame query
-        const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
-        // Determine updatedTimeFrame query
-        const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
-        // Find requested search array
-        const searchResults = await (prisma[model] as BaseType).findMany({
-            where: {
-                ...where,
-                ...idQuery,
-                ...searchQuery,
-                ...createdQuery,
-                ...updatedQuery,
-            },
-            orderBy: sortQuery,
-            take: input.take ?? 20,
-            skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
-            cursor: input.after ? {
-                id: input.after
-            } : undefined,
-            ...select
-        });
-        // If there are results
-        if (searchResults.length > 0) {
-            // Find cursor
-            const cursor = searchResults[searchResults.length - 1].id;
-            // Query after the cursor to check if there are more results
-            const hasNextPage = await (prisma[model] as BaseType).findMany({
-                take: 1,
-                cursor: {
-                    id: cursor
-                }
+        /**
+         * Cursor-based search. Supports pagination, sorting, and filtering by string.
+         * @param where Additional where clauses to apply to the search
+         * @param input GraphQL-provided search parameters
+         * @param info Requested return information
+         * @returns 
+         */
+        async search(where: { [x: string]: any }, input: SearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+            const boop = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
+            console.log('SEARCH BOIII', boop)
+            console.log('SEARCH BOIII _COUNT', boop._count)
+            // Check for valid arguments
+            if (!prisma) throw new CustomError(CODE.InvalidArgs);
+            // Create selector
+            const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
+            // Create query for specified ids
+            const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
+            // Determine sort order
+            const sortQuery = sorter.getSortQuery(input.sortBy ?? sorter.defaultSort);
+            // Determine text search query
+            const searchQuery = input.searchString ? sorter.getSearchStringQuery(input.searchString) : undefined;
+            // Determine createdTimeFrame query
+            const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
+            // Determine updatedTimeFrame query
+            const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
+            // Find requested search array
+            const searchResults = await (prisma[model] as BaseType).findMany({
+                where: {
+                    ...where,
+                    ...idQuery,
+                    ...searchQuery,
+                    ...createdQuery,
+                    ...updatedQuery,
+                },
+                orderBy: sortQuery,
+                take: input.take ?? 20,
+                skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
+                cursor: input.after ? {
+                    id: input.after
+                } : undefined,
+                ...select
             });
-            // Return results
-            return {
-                pageInfo: {
-                    hasNextPage: hasNextPage.length > 0,
-                    endCursor: cursor,
-                },
-                edges: searchResults.map((result: any) => ({
-                    cursor: result.id,
-                    node: toGraphQL(result),
-                }))
+            // If there are results
+            if (searchResults.length > 0) {
+                // Find cursor
+                const cursor = searchResults[searchResults.length - 1].id;
+                // Query after the cursor to check if there are more results
+                const hasNextPage = await (prisma[model] as BaseType).findMany({
+                    take: 1,
+                    cursor: {
+                        id: cursor
+                    }
+                });
+                // Return results
+                return {
+                    pageInfo: {
+                        hasNextPage: hasNextPage.length > 0,
+                        endCursor: cursor,
+                    },
+                    edges: searchResults.map((result: any) => ({
+                        cursor: result.id,
+                        node: toGraphQL(result),
+                    }))
+                }
+            }
+            // If there are no results
+            else {
+                return {
+                    pageInfo: {
+                        endCursor: null,
+                        hasNextPage: false,
+                    },
+                    edges: []
+                }
             }
         }
-        // If there are no results
-        else {
-            return {
-                pageInfo: {
-                    endCursor: null,
-                    hasNextPage: false,
-                },
-                edges: []
-            }
-        }
-    }
-})
+    })
 
 /**
  * Converts time frame to Prisma "where" query
@@ -479,3 +491,244 @@ export const counter = <CountInput extends CountInputBase>(model: keyof PrismaMo
         });
     }
 })
+
+// /**
+//  * Creates or updates a one-to-many relationship between two objects 
+//  * (where the child has a field that references the parent's id). 
+//  * @param modelName The name of the child model in Prisma
+//  * @param parentIdFieldName The name of the column in the child model that references the parent's id
+//  * @param prisma The Prisma client
+//  * @param childData The child data
+//  * @param parentId The id of the parent object, if updating an existing relationship
+//  */
+// export async function upsertOneToManyRelationship<Child extends { [x: string]: any }>(
+//     childName: keyof PrismaType,
+//     parentIdFieldName: string,
+//     prisma: PrismaType,
+//     childData: Child,
+//     parentId?: string | null): Promise<Child> {
+//     // Check arguments
+//     if (!prisma) throw new CustomError(CODE.InvalidArgs);
+//     // Remove the relationship's relationship data, as it is handled on a case-by-case basis for security reasons
+//     const childPrimitives = onlyPrimitives(childData);
+//     let result;
+//     // Check for id in modelData to determine if this is an update or insert
+//     if (!childPrimitives.id) {
+//         // Insert relationship, with reference to model
+//         result = await (prisma[childName] as BaseType).create({
+//             data: {
+//                 ...childPrimitives,
+//                 id: undefined,
+//                 [parentIdFieldName]: parentId
+//             } as any
+//         }) as unknown as Partial<Child> | null;
+//     } else {
+//         // Update relationship
+//         result = await (prisma[childName] as BaseType).update({
+//             where: { id: childPrimitives.id as string },
+//             data: childPrimitives
+//         })
+//     }
+//     return result as Child;
+// }
+
+// /**
+//  * Creates or updates a many-to-many relationship between two objects 
+//  * (where there is a joining table to link the parent and child). 
+//  * @param joinTableName The name of the join table in Prisma
+//  * @param joinTableUniqueName The name of the unique constraint in the join table
+//  * @param parentIdFieldName The name of the column in the join table that references the parent's id
+//  * @param childIdFieldName The name of the column in the join table that references the child's id
+//  * @param prisma The Prisma client
+//  * @param childData The child data, including the parent and child ids in the same keys as specified by parentIdFieldName and childIdFieldName
+//  * @param parentId The id of the parent object
+//  */
+// export async function upsertManyToManyRelationship<Child extends { [x: string]: any }>(
+//     joinTableName: keyof PrismaType,
+//     joinTableUniqueName: string,
+//     childIdFieldName: string,
+//     parentIdFieldName: string,
+//     prisma: PrismaType,
+//     joinData: { [x: string]: any },
+// ): Promise<Child> {
+//     // Check arguments
+//     if (!prisma) throw new CustomError(CODE.InvalidArgs);
+//     // Remove the relationship's relationship data, as it is handled on a case-by-case basis for security reasons
+//     const joinPrimitives = onlyPrimitives(joinData);
+//     if (!joinPrimitives[parentIdFieldName] || !joinPrimitives[childIdFieldName]) throw new CustomError(CODE.InvalidArgs);
+//     return await (prisma[joinTableName] as BaseType).upsert({
+//         where: { [joinTableUniqueName]: { [childIdFieldName]: joinPrimitives[childIdFieldName], [parentIdFieldName]: joinPrimitives[parentIdFieldName] } },
+//         create: joinPrimitives as any,
+//         update: joinPrimitives as any
+//     }) as unknown as Child;
+// }
+
+// /**
+//  * Adds "create" field to the correct parts of an object to make it a correct Prisma data object. 
+//  * Also keeps or removes specified fields, with support for nested fields (e.g. "parent.child.field").
+//  * @param data The object being shaped. Should already be shaped for Prisma (i.e. not GraphQL)
+//  * @param removeFields The fields to remove. If not specified, no fields are removed except if "keepFields" is specified
+//  * @param keepFields The fields to keep. If not specified, all fields are kept except for ones in "removeFields"
+//  */
+// export const shapeCreateData = (
+//     data: { [x: string]: any },
+//     removeFields?: string[],
+//     keepFields?: string[],
+// ): { [x: string]: any } => {
+//     // Create result object
+//     let converted: { [x: string]: any } = {};
+//     // Loop through object's keys
+//     Object.keys(data).forEach((key) => {
+//         console.log('hereeeeee', key, data[key]);
+//         // If "__typename", skip
+//         if (key === '__typename') return;
+//         // Determine if this key should be kept
+//         let skip = false;
+//         if (Array.isArray(keepFields) && keepFields.length > 0) {
+//             skip = !keepFields.some(f => f === key || f.startsWith(key + '.'));
+//         }
+//         if (Array.isArray(removeFields) && removeFields.length > 0) {
+//             skip = skip || removeFields.some(f => f === key || f.startsWith(key + '.'));
+//         }
+//         if (skip) return;
+//         // If value is a primitive, add to result without modification
+//         if (!Array.isArray(data[key]) && !isObject(data[key])) {
+//             console.log('is primitive', data[key]);
+//             converted[key] = data[key];
+//             return;
+//         }
+//         // Determine keep fields for nested object
+//         let nestedKeepFields: string[] | undefined;
+//         if (keepFields) {
+//             nestedKeepFields = keepFields.filter(field => field.startsWith(key + "."));
+//         }
+//         // Determine remove fields for nested object
+//         let nestedRemoveFields: string[] | undefined;
+//         if (removeFields) {
+//             nestedRemoveFields = removeFields.filter(field => field.startsWith(key + "."));
+//         }
+//         console.log('nestedRemoveFields', nestedRemoveFields);
+//         console.log('nestedKeepFields', nestedKeepFields);
+//         // If value is an array (i.e. many-to-many relationship), recursively shape each element in value
+//         if (Array.isArray(data[key])) {
+//             console.log('isArray', data[key]);
+//             // Determine which elements will be created (i.e. no id)
+//             const willCreate: boolean[] = data[key].map((e: any) => {
+//                 // If "id" is present, but wrapped by a join table (e.g. { role: { id: '123' } })
+//                 if (isObject(e) && Object.keys(e).length === 1) {
+//                     const joinValue = e[Object.keys(e)[0]];
+//                     if (isObject(joinValue)) return !joinValue.id;
+//                 }
+//                 // If "id" is present directly (e.g. { id: '123' })
+//                 return !e.id
+//             });
+//             // Shape elements that will be created and connected
+//             let create = [];
+//             let connect = [];
+//             for (let i = 0; i < data[key].length; i++) {
+//                 if (willCreate[i]) {
+//                     create.push(shapeCreateData(data[key][i], nestedRemoveFields, nestedKeepFields));
+//                 } else {
+//                     connect.push({ id: data[key][i].id });
+//                 }
+//             }
+//             console.log('create', create);
+//             console.log('connect', connect);
+//             converted[key] = {};
+//             if (create.length > 0) converted[key].create = create;
+//             if (connect.length > 0) converted[key].connect = connect;
+//         }
+//         // If value is an object (i.e. one-to-one relationship), recursively shape value
+//         else if (isObject(data[key])) {
+//             console.log('isObject', data[key]);
+//             const curr = data[key];
+//             // Determine if object will be created or connected. If connected, store id
+//             let connectId;
+//             // Connect if "id" is present, but wrapped by a join table (e.g. { role: { id: '123' } })
+//             if (isObject(curr) && Object.keys(curr).length === 1) {
+//                 const joinValue = curr[Object.keys(curr)[0]];
+//                 if (isObject(joinValue)) {
+//                     connectId = joinValue.id;
+//                 }
+//             }
+//             // Connect if "id" is present directly (e.g. { id: '123' })
+//             else {
+//                 connectId = curr.id;
+//             }
+//             if (connectId) {
+//                 converted[key] = { connect: { id: connectId } };
+//             } else {
+//                 converted[key] = { create: shapeCreateData(data[key], nestedRemoveFields, nestedKeepFields) };
+//             }
+//         }
+//     });
+//     // The root object doesn't get wrapped in a "create" field
+//     return converted;
+// }
+
+/**
+ * Removes any non-primitive fields (i.e. relationships) that are not specified in the "keepFields" array.
+ * @param data The object being filtered
+ * @param keepFields The relationships to keep. If not specified, all fields are kept
+ * @returns data without non-specified relationships
+ */
+export const keepOnly = (data: { [x: string]: any }, keepFields: string[]): { [x: string]: any } => {
+    // Create result object
+    let converted: { [x: string]: any } = {};
+    // Loop through object's keys
+    Object.keys(data).forEach((key) => {
+        // If relationship
+        if (isObject(data[key])) {
+            // Only keep if key in keepFields
+            if (keepFields.some(f => f === key)) {
+                converted[key] = data[key];
+            }
+        }
+        else converted[key] = data[key];
+    });
+    return converted;
+}
+
+/**
+ * Recursively removes specified fields from an object, 
+ * WHILE keeping their values
+ */
+export const removeFields = (
+    data: { [x: string]: any },
+    fields: string[],
+): any => {
+    if (Array.isArray(data)) {
+        return data.map(e => removeFields(e, fields));
+    }
+    if (!isObject(data)) {
+        return data;
+    }
+    let result: {[x: string]: any} = {}
+    let found = false;
+    Object.keys(data).forEach(key => {
+        const curr = (data as any)[key];
+        fields.forEach(field => {
+            if (key === field && isObject(curr)) {
+                found = true;
+                result = removeFields(curr, fields);
+            }
+        })
+        if (!found)
+            result[key] = removeFields(curr, fields);
+    })
+    return result;
+}
+
+/**
+ * Grabs relationship data from a Prisma add/update data object
+ */
+export const getRelationshipData = (
+    data: { [x: string]: any },
+    relationship: string,
+): any[] => {
+    // Get relationship field value
+    const value = data[relationship];
+    // Remove prisma operations. We want only the data!
+    const shapedValue = removeFields(value, ['connect', 'create'])
+    return Array.isArray(shapedValue) ? shapedValue : [];
+}

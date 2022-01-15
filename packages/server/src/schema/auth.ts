@@ -120,13 +120,13 @@ export const resolvers = {
             const actorRole = await prisma.role.findUnique({ where: { title: ROLES.Actor } });
             if (!actorRole) throw new CustomError(CODE.ErrorUnknown);
             // Create user object
-            const user = await UserModel(prisma).upsertUser({
+            const user = await UserModel(prisma).create({
                 username: input.username,
                 password: UserModel(prisma).hashPassword(input.password),
                 theme: input.theme,
                 status: AccountStatus.Unlocked,
                 emails: [{ emailAddress: input.email }],
-                roles: [actorRole]
+                roles: [{ role: actorRole }]
             });
             if (!user) throw new CustomError(CODE.ErrorUnknown);
             // Create session from user object

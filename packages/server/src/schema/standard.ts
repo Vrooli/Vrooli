@@ -145,9 +145,10 @@ export const resolvers = {
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // TODO add more restrictions
             // Create object
-            const dbModel = await StandardModel(prisma).create(input, info);
+            const dbModel = await StandardModel(prisma).create(input as any, info);
             // Format object to GraphQL type
-            return StandardModel().toGraphQL(dbModel);
+            if (dbModel) return StandardModel().toGraphQL(dbModel);
+            throw new CustomError(CODE.ErrorUnknown);
         },
         /**
          * Update standards you've created
@@ -157,9 +158,10 @@ export const resolvers = {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const dbModel = await StandardModel(prisma).update(input, info);
+            //const dbModel = await StandardModel(prisma).update(input, info);
             // Format to GraphQL type
-            return StandardModel().toGraphQL(dbModel);
+            //return StandardModel().toGraphQL(dbModel);
+            throw new CustomError(CODE.NotImplemented);
         },
         /**
          * Delete standards you've created. Other standards must go through a reporting system

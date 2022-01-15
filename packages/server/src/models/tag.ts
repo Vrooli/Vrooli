@@ -16,12 +16,12 @@ export type TagAllPrimitives = TagQueryablePrimitives;
 // type 4. Database shape
 export type TagDB = TagAllPrimitives &
 {
-    organizations: { tagged: Organization[] },
-    projects: { tagged: Project[] },
-    routines: { tagged: Routine[] },
-    standards: { tagged: Standard[] },
-    starredBy: { user: User[] },
-    votes: { voter: User[] },
+    organizations: { tagged: Organization },
+    projects: { tagged: Project },
+    routines: { tagged: Routine },
+    standards: { tagged: Standard },
+    starredBy: { user: User },
+    votes: { voter: User },
 };
 
 //======================================================================================================================

@@ -1,6 +1,9 @@
+import { CODE } from "@local/shared";
+import { CustomError } from "../error";
+import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
 import { Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -17,10 +20,10 @@ export type StandardAllPrimitives = StandardQueryablePrimitives;
 export type StandardDB = StandardAllPrimitives &
     Pick<Standard, 'reports' | 'comments'> &
 {
-    tags: { tag: Tag[] }[],
-    routineInputs: { routine: Routine[] }[],
-    routineOutputs: { routine: Routine[] }[],
-    starredBy: { user: User[] }[],
+    tags: { tag: Tag }[],
+    routineInputs: { routine: Routine }[],
+    routineOutputs: { routine: Routine }[],
+    starredBy: { user: User }[],
     _count: { starredBy: number }[],
 };
 
@@ -31,6 +34,29 @@ export type StandardDB = StandardAllPrimitives &
 //==============================================================
 /* #region Custom Components */
 //==============================================================
+
+/**
+ * Custom component for creating standard. 
+ * NOTE: Data should be in Prisma shape, not GraphQL
+ */
+ const standardCreater = (toDB: FormatConverter<Standard, StandardDB>['toDB'], prisma?: PrismaType) => ({
+    async create(
+        data: any, 
+        info: GraphQLResolveInfo | null = null,
+    ): Promise<RecursivePartial<StandardDB> | null> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Shape data for Prisma (i.e. add "connect"s and "create"s), and remove any unsupported relationships
+        //const shapedData = shapeCreateData(data, removeFields, keepFields);
+        //console.log('userCreate shapedData', shapedData);
+        // Perform additional checks
+        // TODO
+        // Create
+        const { id } = await prisma.standard.create({ data });
+        // Query database
+        return await prisma.standard.findUnique({ where: { id }, ...selectHelper<Standard, StandardDB>(info, toDB) }) as RecursivePartial<StandardDB> | null;
+    }
+})
 
 /**
  * Component for formatting between graphql and prisma types
@@ -109,7 +135,6 @@ const sorter = (): Sortable<StandardSortBy> => ({
  * Component for searching
  */
  export const standardSearcher = (
-    model: keyof PrismaType, 
     toDB: FormatConverter<Standard, StandardDB>['toDB'],
     toGraphQL: FormatConverter<Standard, StandardDB>['toGraphQL'],
     sorter: Sortable<any>, 
@@ -126,7 +151,7 @@ const sorter = (): Sortable<StandardSortBy> => ({
                 { routineOutputs: { some: { routineId: input.routineId } } },
             ]
          } : {};
-        const search = searcher<StandardSortBy, StandardSearchInput, Standard, StandardDB>(model, toDB, toGraphQL, sorter, prisma);
+        const search = searcher<StandardSortBy, StandardSearchInput, Standard, StandardDB>(MODEL_TYPES.Standard, toDB, toGraphQL, sorter, prisma);
         return search.search({...userIdQuery, ...organizationIdQuery, ...reportIdQuery, ...routineIdQuery, ...where}, input, info);
     }
 })
@@ -154,8 +179,8 @@ export function StandardModel(prisma?: PrismaType) {
         ...deleter(model, prisma),
         ...findByIder<Standard, StandardDB>(model, format.toDB, prisma),
         ...reporter(),
-        ...standardSearcher(model, format.toDB, format.toGraphQL, sort, prisma),
-        ...updater<StandardInput, Standard, StandardDB>(model, format.toDB, prisma),
+        ...standardCreater(format.toDB, prisma),
+        ...standardSearcher(format.toDB, format.toGraphQL, sort, prisma),
     }
 }
 
