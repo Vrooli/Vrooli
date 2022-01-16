@@ -77,12 +77,6 @@ export const typeDef = gql`
         ids: [ID!]!
     }
 
-    # Input for reporting an object
-    input ReportInput {
-        id: ID!
-        reason: String
-    }
-
     # Input for site-wide autocomplete search
     input AutocompleteInput {
         searchString: String!

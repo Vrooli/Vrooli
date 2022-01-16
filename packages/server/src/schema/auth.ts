@@ -175,7 +175,7 @@ export const resolvers = {
             // }
             // Remove request data from user, and set new password
             await prisma.user.update({
-                where: { id: user.id },
+                where: { id: user.id as unknown as string },
                 data: {
                     resetPasswordCode: null,
                     lastResetPasswordReqestAttempt: null,

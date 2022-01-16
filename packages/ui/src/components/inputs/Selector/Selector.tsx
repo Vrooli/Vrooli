@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { Box, Chip, FormControl, InputLabel, MenuItem, Select, Theme } from '@mui/material';
 import isArray from 'lodash/isArray';
 import { SelectorProps } from '../types';

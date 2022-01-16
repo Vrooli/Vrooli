@@ -11,14 +11,13 @@ import { CustomError } from "../error";
 
 // Type 1. RelationshipList
 export type ResourceRelationshipList = 'organization_resources' | 'project_resources' | 'routine_resources_contextual' |
-    'routine_resources_external' | 'user_resources' | 'comments';
+    'routine_resources_external' | 'user_resources';
 // Type 2. QueryablePrimitives
 export type ResourceQueryablePrimitives = Omit<Resource, ResourceRelationshipList>;
 // Type 3. AllPrimitives
 export type ResourceAllPrimitives = ResourceQueryablePrimitives;
 // type 4. Database shape
 export type ResourceDB = ResourceAllPrimitives &
-    Pick<Resource, 'comments'> &
 {
     organization_resources: { organization: Organization },
     project_resources: { project: Project },
@@ -37,12 +36,11 @@ export type ResourceDB = ResourceAllPrimitives &
 
 // Maps routine apply types to the correct prisma join tables
 const applyMap = {
-    [ResourceFor.Actor]: 'userResources',
     [ResourceFor.Organization]: 'organizationResources',
     [ResourceFor.Project]: 'projectResources',
     [ResourceFor.RoutineContextual]: 'routineResourcesContextual',
-    [ResourceFor.RoutineDonation]: 'routineResourcesDonation',
     [ResourceFor.RoutineExternal]: 'routineResourcesExternal',
+    [ResourceFor.User]: 'userResources',
 }
 
 /**
@@ -118,8 +116,6 @@ const sorter = (): Sortable<ResourceSortBy> => ({
         return {
             [ResourceSortBy.AlphabeticalAsc]: { title: 'asc' },
             [ResourceSortBy.AlphabeticalDesc]: { title: 'desc' },
-            [ResourceSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
-            [ResourceSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [ResourceSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [ResourceSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [ResourceSortBy.DateUpdatedAsc]: { updated_at: 'asc' },

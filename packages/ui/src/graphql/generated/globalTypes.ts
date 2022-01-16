@@ -27,8 +27,6 @@ export enum NodeType {
 export enum OrganizationSortBy {
   AlphabeticalAsc = "AlphabeticalAsc",
   AlphabeticalDesc = "AlphabeticalDesc",
-  CommentsAsc = "CommentsAsc",
-  CommentsDesc = "CommentsDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",

@@ -60,10 +60,18 @@ export type Comment = {
   vote?: Maybe<Scalars['Int']>;
 };
 
+export enum CommentFor {
+  Organization = 'Organization',
+  Project = 'Project',
+  Routine = 'Routine',
+  Standard = 'Standard',
+  User = 'User'
+}
+
 export type CommentInput = {
+  createdFor: CommentFor;
+  forId: Scalars['ID'];
   id?: InputMaybe<Scalars['ID']>;
-  objectId?: InputMaybe<Scalars['ID']>;
-  objectType?: InputMaybe<Scalars['String']>;
   text?: InputMaybe<Scalars['String']>;
 };
 
@@ -150,9 +158,7 @@ export type Mutation = {
   __typename?: 'Mutation';
   commentAdd: Comment;
   commentDeleteOne: Success;
-  commentReport: Success;
   commentUpdate: Comment;
-  commentVote: Success;
   emailAdd: Email;
   emailDeleteMany: Count;
   emailLogIn: Session;
@@ -169,33 +175,31 @@ export type Mutation = {
   nodeUpdate: Node;
   organizationAdd: Organization;
   organizationDeleteOne: Success;
-  organizationReport: Success;
   organizationUpdate: Organization;
   profileUpdate: Profile;
   projectAdd: Project;
   projectDeleteOne: Success;
-  projectReport: Success;
   projectUpdate: Project;
+  reportAdd: Report;
+  reportDeleteOne: Success;
+  reportUpdate: Report;
   resourceAdd: Resource;
   resourceDeleteMany: Count;
-  resourceReport: Success;
   resourceUpdate: Resource;
   routineAdd: Routine;
   routineDeleteOne: Success;
-  routineReport: Success;
   routineUpdate: Routine;
   standardAdd: Standard;
   standardDeleteMany: Count;
-  standardReport: Success;
   standardUpdate: Standard;
   tagAdd: Tag;
   tagDeleteMany: Count;
-  tagReport: Success;
   tagUpdate: Tag;
-  tagVote: Success;
   userDeleteOne: Success;
-  userReport: Success;
   validateSession: Session;
+  voteAdd: Vote;
+  voteDeleteOne: Success;
+  voteUpdate: Vote;
   walletComplete: Session;
   walletInit: Scalars['String'];
   walletRemove: Success;
@@ -213,18 +217,8 @@ export type MutationCommentDeleteOneArgs = {
 };
 
 
-export type MutationCommentReportArgs = {
-  input: ReportInput;
-};
-
-
 export type MutationCommentUpdateArgs = {
   input: CommentInput;
-};
-
-
-export type MutationCommentVoteArgs = {
-  input: VoteInput;
 };
 
 
@@ -293,11 +287,6 @@ export type MutationOrganizationDeleteOneArgs = {
 };
 
 
-export type MutationOrganizationReportArgs = {
-  input: ReportInput;
-};
-
-
 export type MutationOrganizationUpdateArgs = {
   input: OrganizationInput;
 };
@@ -318,13 +307,23 @@ export type MutationProjectDeleteOneArgs = {
 };
 
 
-export type MutationProjectReportArgs = {
+export type MutationProjectUpdateArgs = {
+  input: ProjectInput;
+};
+
+
+export type MutationReportAddArgs = {
   input: ReportInput;
 };
 
 
-export type MutationProjectUpdateArgs = {
-  input: ProjectInput;
+export type MutationReportDeleteOneArgs = {
+  input: DeleteOneInput;
+};
+
+
+export type MutationReportUpdateArgs = {
+  input: ReportInput;
 };
 
 
@@ -335,11 +334,6 @@ export type MutationResourceAddArgs = {
 
 export type MutationResourceDeleteManyArgs = {
   input: DeleteManyInput;
-};
-
-
-export type MutationResourceReportArgs = {
-  input: ReportInput;
 };
 
 
@@ -358,11 +352,6 @@ export type MutationRoutineDeleteOneArgs = {
 };
 
 
-export type MutationRoutineReportArgs = {
-  input: ReportInput;
-};
-
-
 export type MutationRoutineUpdateArgs = {
   input: RoutineInput;
 };
@@ -375,11 +364,6 @@ export type MutationStandardAddArgs = {
 
 export type MutationStandardDeleteManyArgs = {
   input: DeleteManyInput;
-};
-
-
-export type MutationStandardReportArgs = {
-  input: ReportInput;
 };
 
 
@@ -398,18 +382,8 @@ export type MutationTagDeleteManyArgs = {
 };
 
 
-export type MutationTagReportArgs = {
-  input: ReportInput;
-};
-
-
 export type MutationTagUpdateArgs = {
   input: TagInput;
-};
-
-
-export type MutationTagVoteArgs = {
-  input: TagVoteInput;
 };
 
 
@@ -418,8 +392,18 @@ export type MutationUserDeleteOneArgs = {
 };
 
 
-export type MutationUserReportArgs = {
-  input: ReportInput;
+export type MutationVoteAddArgs = {
+  input: VoteInput;
+};
+
+
+export type MutationVoteDeleteOneArgs = {
+  input: DeleteOneInput;
+};
+
+
+export type MutationVoteUpdateArgs = {
+  input: VoteInput;
 };
 
 
@@ -682,16 +666,12 @@ export type OrganizationSearchResult = {
 export enum OrganizationSortBy {
   AlphabeticalAsc = 'AlphabeticalAsc',
   AlphabeticalDesc = 'AlphabeticalDesc',
-  CommentsAsc = 'CommentsAsc',
-  CommentsDesc = 'CommentsDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
   DateUpdatedDesc = 'DateUpdatedDesc',
   StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc',
-  VotesAsc = 'VotesAsc',
-  VotesDesc = 'VotesDesc'
+  StarsDesc = 'StarsDesc'
 }
 
 export type PageInfo = {
@@ -726,8 +706,7 @@ export type Profile = {
   theme: Scalars['String'];
   updated_at: Scalars['Date'];
   username?: Maybe<Scalars['String']>;
-  votedByTag: Array<Tag>;
-  votedComments: Array<Comment>;
+  votes: Array<Vote>;
   wallets: Array<Wallet>;
 };
 
@@ -975,22 +954,31 @@ export type ReadOpenGraphInput = {
 
 export type Report = {
   __typename?: 'Report';
-  created_at: Scalars['Date'];
   details?: Maybe<Scalars['String']>;
-  from: User;
-  fromId: Scalars['ID'];
-  id: Scalars['ID'];
+  id?: Maybe<Scalars['ID']>;
   reason: Scalars['String'];
 };
 
+export enum ReportFor {
+  Comment = 'Comment',
+  Organization = 'Organization',
+  Project = 'Project',
+  Routine = 'Routine',
+  Standard = 'Standard',
+  Tag = 'Tag',
+  User = 'User'
+}
+
 export type ReportInput = {
-  id: Scalars['ID'];
-  reason?: InputMaybe<Scalars['String']>;
+  createdFor: ReportFor;
+  details?: InputMaybe<Scalars['String']>;
+  forId: Scalars['ID'];
+  id?: InputMaybe<Scalars['ID']>;
+  reason: Scalars['String'];
 };
 
 export type Resource = {
   __typename?: 'Resource';
-  comments: Array<Comment>;
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   displayUrl?: Maybe<Scalars['String']>;
@@ -1018,12 +1006,11 @@ export type ResourceEdge = {
 };
 
 export enum ResourceFor {
-  Actor = 'Actor',
   Organization = 'Organization',
   Project = 'Project',
   RoutineContextual = 'RoutineContextual',
-  RoutineDonation = 'RoutineDonation',
-  RoutineExternal = 'RoutineExternal'
+  RoutineExternal = 'RoutineExternal',
+  User = 'User'
 }
 
 export type ResourceInput = {
@@ -1034,6 +1021,7 @@ export type ResourceInput = {
   id?: InputMaybe<Scalars['ID']>;
   link: Scalars['String'];
   title: Scalars['String'];
+  usedFor?: InputMaybe<ResourceUsedFor>;
 };
 
 export type ResourceSearchInput = {
@@ -1057,8 +1045,6 @@ export type ResourceSearchResult = {
 export enum ResourceSortBy {
   AlphabeticalAsc = 'AlphabeticalAsc',
   AlphabeticalDesc = 'AlphabeticalDesc',
-  CommentsAsc = 'CommentsAsc',
-  CommentsDesc = 'CommentsDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -1094,6 +1080,8 @@ export type Routine = {
   __typename?: 'Routine';
   comments: Array<Comment>;
   contextualResources: Array<Resource>;
+  createdByOrganization?: Maybe<Organization>;
+  createdByUser?: Maybe<User>;
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   externalResources: Array<Resource>;
@@ -1104,16 +1092,17 @@ export type Routine = {
   isAutomatable?: Maybe<Scalars['Boolean']>;
   nodeLists: Array<NodeRoutineList>;
   nodes: Array<Node>;
-  organizations: Array<Organization>;
+  organization?: Maybe<Organization>;
   outputs: Array<RoutineOutputItem>;
   parent?: Maybe<Routine>;
+  project?: Maybe<Project>;
   reports: Array<Report>;
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
   title?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
-  users: Array<User>;
+  user?: Maybe<User>;
   version?: Maybe<Scalars['String']>;
 };
 
@@ -1458,8 +1447,6 @@ export type UserSearchResult = {
 export enum UserSortBy {
   AlphabeticalAsc = 'AlphabeticalAsc',
   AlphabeticalDesc = 'AlphabeticalDesc',
-  CommentsAsc = 'CommentsAsc',
-  CommentsDesc = 'CommentsDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -1468,8 +1455,24 @@ export enum UserSortBy {
   StarsDesc = 'StarsDesc'
 }
 
+export type Vote = {
+  __typename?: 'Vote';
+  id?: Maybe<Scalars['ID']>;
+  isUpvote: Scalars['Boolean'];
+};
+
+export enum VoteFor {
+  Comment = 'Comment',
+  Project = 'Project',
+  Routine = 'Routine',
+  Standard = 'Standard',
+  Tag = 'Tag'
+}
+
 export type VoteInput = {
-  id: Scalars['ID'];
+  createdFor: VoteFor;
+  forId: Scalars['ID'];
+  id?: InputMaybe<Scalars['ID']>;
   isUpvote: Scalars['Boolean'];
 };
 

@@ -29,7 +29,7 @@ export function SortMenu({
             }
         });
         return menuItems;
-    }, [sortOptions])
+    }, [sortOptions, onClose])
 
     return (
         <Menu

@@ -3,7 +3,7 @@ import { CODE, TagSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { TagModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Success, Tag, TagCountInput, TagInput, TagSearchInput, TagVoteInput } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagInput, TagSearchInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -79,8 +79,6 @@ export const typeDef = gql`
         tagAdd(input: TagInput!): Tag!
         tagUpdate(input: TagInput!): Tag!
         tagDeleteMany(input: DeleteManyInput!): Count!
-        tagReport(input: ReportInput!): Success!
-        tagVote(input: TagVoteInput!): Success!
     }
 `
 
@@ -141,19 +139,5 @@ export const resolvers = {
             // TODO add more restrictions
             return await TagModel(prisma).deleteMany(input);
         },
-        /**
-         * Reports a tag. After enough reports, the tag will be deleted.
-         * Objects associated with the tag will not be deleted.
-         * @returns True if report was successfully recorded
-         */
-        tagReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            const success = await TagModel(prisma).report(input);
-            return { success };
-        },
-        tagVote: async (_parent: undefined, { input }: IWrap<TagVoteInput>, context: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            throw new CustomError(CODE.NotImplemented);
-        }
     }
 }

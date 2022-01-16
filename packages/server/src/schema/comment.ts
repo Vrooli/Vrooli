@@ -1,18 +1,26 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
+import { CODE, CommentFor } from '@local/shared';
 import { CustomError } from '../error';
-import { Comment, CommentInput, DeleteOneInput, ReportInput, Success, VoteInput } from './types';
+import { Comment, CommentInput, DeleteOneInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
 import { CommentModel } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
+    enum CommentFor {
+        Organization
+        Project
+        Routine
+        Standard
+        User
+    }   
+
     input CommentInput {
         id: ID
         text: String
-        objectType: String
-        objectId: ID
+        createdFor: CommentFor!
+        forId: ID!
     }
 
     type Comment {
@@ -37,21 +45,15 @@ export const typeDef = gql`
         vote: Int
     }
 
-    input VoteInput {
-        id: ID!
-        isUpvote: Boolean!
-    }
-
     extend type Mutation {
         commentAdd(input: CommentInput!): Comment!
         commentUpdate(input: CommentInput!): Comment!
         commentDeleteOne(input: DeleteOneInput!): Success!
-        commentReport(input: ReportInput!): Success!
-        commentVote(input: VoteInput!): Success!
     }
 `
 
 export const resolvers = {
+    CommentFor: CommentFor,
     Mutation: {
         commentAdd: async (_parent: undefined, { input }: IWrap<CommentInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
             // Must be logged in
@@ -84,26 +86,5 @@ export const resolvers = {
             const success = await CommentModel(prisma).delete(input);
             return { success };
         },
-        /**
-         * Reports a comment. After enough reports, the comment will be deleted.
-         * @returns True if report was successfully recorded
-         */
-        commentReport: async (_parent: undefined, { input }: IWrap<ReportInput>, context: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!context.req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            const success = await CommentModel(context.prisma).report(input);
-            return { success };
-        },
-        commentVote: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req}: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            // Validate input
-            if (!input.id) throw new CustomError(CODE.InvalidArgs);
-            const authenticated = await CommentModel(prisma).isAuthenticatedToVote(input.id, req.userId);
-            if (!authenticated) throw new CustomError(CODE.Unauthorized);
-            // Vote and return result
-            const success = await CommentModel(prisma).vote(input, req.userId);
-            return { success };
-        }
     }
 }

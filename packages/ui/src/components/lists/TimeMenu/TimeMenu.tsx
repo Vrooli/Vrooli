@@ -38,7 +38,7 @@ export function TimeMenu({
         >
             {label}
         </MenuItem>
-    )), [])
+    )), [onClose])
 
     return (
         <Menu

@@ -17,6 +17,9 @@ datasource db {
 //==============================================================
 // #region Comment
 //==============================================================
+// Comments can be submitted by either a user or an organization.
+// They can be associated with a project, routine, or standard.
+//==============================================================
 
 model comment {
     id             String          @id @default(uuid()) @db.Uuid
@@ -28,18 +31,16 @@ model comment {
     organizationId String?         @db.Uuid
     // Comment posted to an object with this foreign id
     projectId      String?         @db.Uuid
-    resourceId     String?         @db.Uuid
     routineId      String?         @db.Uuid
     standardId     String?         @db.Uuid
     user           user?           @relation(fields: [userId], references: [id])
     organization   organization?   @relation(fields: [organizationId], references: [id])
     project        project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    resource       resource?       @relation(fields: [resourceId], references: [id], onDelete: Cascade)
     routine        routine?        @relation(fields: [routineId], references: [id], onDelete: Cascade)
     standard       standard?       @relation(fields: [standardId], references: [id], onDelete: Cascade)
     reports        report[]
     stars          comment_stars[]
-    votes          comment_votes[]
+    votes          vote[]          @relation("vote_comment")
 }
 
 // Many to many relationship between comments and users who starred them
@@ -51,18 +52,6 @@ model comment_stars {
     user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([starredId, userId], name: "comment_stars_starredid_userid_unique")
-}
-
-// Many to many relationship between comments and users who voted on them
-model comment_votes {
-    id       String  @id @default(uuid()) @db.Uuid
-    isUpvote Boolean @default(true) // Determines if vote is upvote or downvote
-    votedId  String  @db.Uuid
-    voterId  String  @db.Uuid
-    voted    comment @relation(fields: [votedId], references: [id], onDelete: Cascade)
-    voter    user    @relation(fields: [voterId], references: [id], onDelete: Cascade)
-
-    @@unique([votedId, voterId], name: "comment_votes_votedid_voterid_unique")
 }
 
 //==============================================================
@@ -244,29 +233,30 @@ model node_start {
 //==============================================================
 // #region Organization
 //==============================================================
-// An organization is any group of one or more users that work 
-// together to accomplish a common goal/goals. In the crypto 
-// world, these are preferably Decentralized Autonomous 
+// An organization is any group of one or more users that work
+// together to accomplish a common goal/goals. In the crypto
+// world, these are preferably Decentralized Autonomous
 // Organizations (DAOs). But any organization can use this platform.
 //==============================================================
 
 model organization {
-    id                String                            @id @default(uuid()) @db.Uuid
-    name              String                            @db.VarChar(128)
-    bio               String?                           @db.VarChar(2048)
-    created_at        DateTime                          @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime                          @default(now()) @db.Timestamptz(6)
-    comments          comment[]
-    standards         standard[]
-    resources         organization_resources[] // Links displayed on the organization's page
-    wallets           wallet[]
-    projects          project_organizations[]
-    starredBy         organization_stars[]
-    routines          routine[]                         @relation("routine_organization_owner") // Routines the organization can control
-    routinesCreated   routine[]                         @relation("routine_organization_creator") // Routines the organization created, but not necessarily controlled
-    tags              organization_tags[] // Categorical tags set by creators or community-voted
-    reports           report[]
-    members           organization_users[]
+    id              String                   @id @default(uuid()) @db.Uuid
+    name            String                   @db.VarChar(128)
+    bio             String?                  @db.VarChar(2048)
+    created_at      DateTime                 @default(now()) @db.Timestamptz(6)
+    updated_at      DateTime                 @default(now()) @db.Timestamptz(6)
+    comments        comment[]
+    standards       standard[]
+    resources       organization_resources[] // Links displayed on the organization's page
+    wallets         wallet[]
+    projects        project[]                @relation("project_organization_owner") // Projects the organization can contorl
+    projectsCreated project[]                @relation("project_organization_creator") // Projects the organization created, but cannot necessarily control
+    starredBy       organization_stars[]
+    routines        routine[]                @relation("routine_organization_owner") // Routines the organization can control
+    routinesCreated routine[]                @relation("routine_organization_creator") // Routines the organization created, but cannot necessarily control
+    tags            organization_tags[] // Categorical tags set by creators or community-voted
+    reports         report[]
+    members         organization_users[]
 }
 
 // Many-to-many relationship between organizations and resources
@@ -325,22 +315,29 @@ model organization_users {
 // A project is "owned" by organizations and/or users,
 // and it can be "starred" by many users
 model project {
-    id            String                  @id @default(uuid()) @db.Uuid
-    name          String                  @db.VarChar(128)
-    description   String                  @db.VarChar(1024)
-    created_at    DateTime                @default(now()) @db.Timestamptz(6)
-    updated_at    DateTime                @default(now()) @db.Timestamptz(6)
-    resources     project_resources[]
-    wallets       wallet[]
-    users         project_users[]
-    organizations project_organizations[]
-    starredBy     project_stars[]
-    parent        project_forks?          @relation("project_parent")
-    forks         project_forks[]         @relation("project_fork")
-    reports       report[]
-    tags          project_tags[] // Categorical tags set by creators or community-voted
-    comments      comment[]
-    routines      routine[] // Routines created by this project
+    id                      String              @id @default(uuid()) @db.Uuid
+    name                    String              @db.VarChar(128)
+    description             String              @db.VarChar(1024)
+    created_at              DateTime            @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime            @default(now()) @db.Timestamptz(6)
+    userId                  String?             @db.Uuid // User who can edit this
+    organizationId          String?             @db.Uuid // Organization who can edit this
+    createdByUserId         String?             @db.Uuid // User who created this
+    createdByOrganizationId String?             @db.Uuid // Organization who created this
+    user                    user?               @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+    organization            organization?       @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+    createdByUser           user?               @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+    createdByOrganization   organization?       @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+    resources               project_resources[]
+    wallets                 wallet[]
+    starredBy               project_stars[]
+    parent                  project_forks?      @relation("project_parent")
+    forks                   project_forks[]     @relation("project_fork")
+    reports                 report[]
+    tags                    project_tags[] // Categorical tags set by creators or community-voted
+    comments                comment[]
+    routines                routine[] // Routines created by this project
+    votes                   vote[]              @relation("vote_project")
 }
 
 // One to many relationship between a project and projects forked from it
@@ -352,17 +349,6 @@ model project_forks {
     fork     project @relation("project_fork", fields: [forkId], references: [id], onDelete: Cascade)
 
     @@unique([parentId, forkId], name: "project_forks_parentid_forkid_unique")
-}
-
-// Many-to-many relationship between projects and organizations
-model project_organizations {
-    id             String       @id @default(uuid()) @db.Uuid
-    projectId      String       @db.Uuid
-    organizationId String       @db.Uuid
-    project        project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-    @@unique([projectId, organizationId], name: "project_organizations_projectid_organizationid_unique")
 }
 
 // Many-to-many relationship between projects and resources
@@ -398,17 +384,6 @@ model project_tags {
     @@unique([taggedId, tagId], name: "project_tags_taggedid_tagid_unique")
 }
 
-// Many to many relationship between projects and users
-model project_users {
-    id        String  @id @default(uuid()) @db.Uuid
-    projectId String  @db.Uuid
-    userId    String  @db.Uuid
-    project   project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([projectId, userId], name: "project_users_projectid_userid_unique")
-}
-
 //==============================================================
 // #endregion
 //==============================================================
@@ -430,12 +405,14 @@ model report {
     resourceId     String?       @db.Uuid
     routineId      String?       @db.Uuid
     standardId     String?       @db.Uuid
+    tagId          String?       @db.Uuid
     userId         String?       @db.Uuid
     comment        comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
     organization   organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     project        project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
     routine        routine?      @relation(fields: [routineId], references: [id], onDelete: Cascade)
     standard       standard?     @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    tag            tag?          @relation(fields: [tagId], references: [id], onDelete: Cascade)
     user           user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -446,9 +423,9 @@ model report {
 //==============================================================
 // #region Resource
 //==============================================================
-// A resource is a link or address that provides context to 
+// A resource is a link or address that provides context to
 // whatever object it is associated with. This may be a user's social
-// media links, a project's website, a routine's instruction video, etc. 
+// media links, a project's website, a routine's instruction video, etc.
 // A resource can be of the following types:
 // - AdaHandle - Must start with "$". See https://adahandle.com/
 // - Cardano RECEIVE address - Must start with "addr:"
@@ -457,20 +434,19 @@ model report {
 //==============================================================
 
 model resource {
-    id                              String                            @id @default(uuid()) @db.Uuid
-    created_at                      DateTime                          @default(now()) @db.Timestamptz(6)
-    updated_at                      DateTime                          @default(now()) @db.Timestamptz(6)
-    title                           String                            @db.VarChar(128)
-    description                     String                            @db.VarChar(1024)
-    link                            String                            @db.VarChar(256) // The actual link
-    displayUrl                      String?                           @db.VarChar(256) // Optional URL for resource display image
-    usedFor                         ResourceUsedFor                   @default(Context)
-    organization_resources          organization_resources[]
-    project_resources               project_resources[]
-    routine_resources_contextual    routine_resources_contextual[]
-    routine_resources_external      routine_resources_external[]
-    user_resources                  user_resources[]
-    comments                        comment[]
+    id                           String                         @id @default(uuid()) @db.Uuid
+    created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+    updated_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+    title                        String                         @db.VarChar(128)
+    description                  String                         @db.VarChar(1024)
+    link                         String                         @db.VarChar(256) // The actual link
+    displayUrl                   String?                        @db.VarChar(256) // Optional URL for resource display image
+    usedFor                      ResourceUsedFor                @default(Context)
+    organization_resources       organization_resources[]
+    project_resources            project_resources[]
+    routine_resources_contextual routine_resources_contextual[]
+    routine_resources_external   routine_resources_external[]
+    user_resources               user_resources[]
 }
 
 //==============================================================
@@ -498,10 +474,10 @@ model role {
 //==============================================================
 // #region Routine
 //==============================================================
-// The most important object in the system. A routine is a way to 
-// describe the process for completing some task. It may consist of 
+// The most important object in the system. A routine is a way to
+// describe the process for completing some task. It may consist of
 // subroutines, which are themselves routines.
-// A routine is owned by either a user or organization. It can be 
+// A routine is owned by either a user or organization. It can be
 // transferred to another user or organization.
 //==============================================================
 
@@ -536,6 +512,7 @@ model routine {
     nodeLists               node_routine_list_item[] // Routine list nodes the routine is a part of
     reports                 report[]
     comments                comment[]
+    votes                   vote[]                         @relation("vote_routine")
 }
 
 // One to many relationship between a routine and routines forked from it
@@ -647,6 +624,7 @@ model standard {
     starredBy      standard_stars[] // Users who starred the standard
     reports        report[]
     comments       comment[]
+    votes          vote[]           @relation("vote_standard")
 }
 
 // Many to many relationship between standards and users who starred them
@@ -692,22 +670,8 @@ model tag {
     standards     standard_tags[]
     hiddenBy      user_tag_hidden[] // Users who are hiding the tag
     starredBy     user_tag_stars[] // Users who starred the tag
-    votes         tag_votes[]
-}
-
-// Votes for signifying the helpfulness of an object when applied to a tag
-// Ex: if a user searches for routines with a tag, then the results will be ranked by the votes associated with the tag
-model tag_votes {
-    id       String      @id @default(uuid()) @db.Uuid
-    isUpvote Boolean     @default(true) // Determines if vote is upvote or downvote
-    type     TagVoteType
-    objectId String      @db.Uuid
-    tagId    String      @db.Uuid
-    voterId  String      @db.Uuid
-    tag      tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
-    voter    user        @relation(fields: [voterId], references: [id], onDelete: Cascade)
-
-    @@unique([objectId, tagId, voterId], name: "tag_votes_objectid_tagid_voterid_unique")
+    votes         vote[]              @relation("vote_tag")
+    reports       report[]
 }
 
 //==============================================================
@@ -720,23 +684,23 @@ model tag_votes {
 
 // A user of the system
 model user {
-    id                             String                    @id @default(uuid()) @db.Uuid
-    username                       String?                   @unique @db.VarChar(128)
-    bio                            String?                   @db.VarChar(2048)
-    theme                          String                    @default("light") @db.VarChar(255)
-    password                       String?                   @db.VarChar(256)
-    logInAttempts                  Int                       @default(0)
-    lastLoginAttempt               DateTime                  @default(now()) @db.Timestamptz(6)
-    numExports                     Int                       @default(0)
-    lastExport                     DateTime?                 @db.Timestamptz(6)
-    sessionToken                   String?                   @db.VarChar(1024)
-    confirmationCode               String?                   @unique @db.VarChar(256)
-    confirmationCodeDate           DateTime?                 @db.Timestamptz(6)
-    resetPasswordCode              String?                   @unique @db.VarChar(256)
-    lastResetPasswordReqestAttempt DateTime?                 @db.Timestamptz(6)
-    status                         AccountStatus             @default(Unlocked)
-    created_at                     DateTime                  @default(now()) @db.Timestamptz(6)
-    updated_at                     DateTime                  @default(now()) @db.Timestamptz(6)
+    id                             String               @id @default(uuid()) @db.Uuid
+    username                       String?              @unique @db.VarChar(128)
+    bio                            String?              @db.VarChar(2048)
+    theme                          String               @default("light") @db.VarChar(255)
+    password                       String?              @db.VarChar(256)
+    logInAttempts                  Int                  @default(0)
+    lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6)
+    numExports                     Int                  @default(0)
+    lastExport                     DateTime?            @db.Timestamptz(6)
+    sessionToken                   String?              @db.VarChar(1024)
+    confirmationCode               String?              @unique @db.VarChar(256)
+    confirmationCodeDate           DateTime?            @db.Timestamptz(6)
+    resetPasswordCode              String?              @unique @db.VarChar(256)
+    lastResetPasswordReqestAttempt DateTime?            @db.Timestamptz(6)
+    status                         AccountStatus        @default(Unlocked)
+    created_at                     DateTime             @default(now()) @db.Timestamptz(6)
+    updated_at                     DateTime             @default(now()) @db.Timestamptz(6)
     comments                       comment[]
     roles                          user_roles[]
     emails                         email[]
@@ -744,9 +708,10 @@ model user {
     standards                      standard[]
     resources                      user_resources[] // Resources associated with user profile
     organizations                  organization_users[] // Projects the user is a member of
-    projects                       project_users[] // Projects the user can control
-    routines                       routine[]                 @relation("routine_user_owner") // Routines the user can control
-    routinesCreated                routine[]                 @relation("routine_user_creator") // Routines the user created, but not necessarily controlled
+    projects                       project[]            @relation("project_user_owner") // Projects that the user can control
+    projectsCreated                project[]            @relation("project_user_creator") // Projects that the user created, but cannot necessarily control
+    routines                       routine[]            @relation("routine_user_owner") // Routines the user can control
+    routinesCreated                routine[]            @relation("routine_user_creator") // Routines the user created, but cannot necessarily control
     starredComments                comment_stars[]
     starredProjects                project_stars[]
     starredOrganizations           organization_stars[]
@@ -754,12 +719,11 @@ model user {
     starredStandards               standard_stars[]
     hiddenTags                     user_tag_hidden[]
     starredTags                    user_tag_stars[]
-    starredUsers                   user_stars[]              @relation("user_star_starred")
-    starredBy                      user_stars[]              @relation("user_star_user")
-    sentReports                    report[]                  @relation("report_from")
+    starredUsers                   user_stars[]         @relation("user_star_starred")
+    starredBy                      user_stars[]         @relation("user_star_user")
+    sentReports                    report[]             @relation("report_from")
     reports                        report[]
-    votedComments                  comment_votes[]
-    votedByTag                     tag_votes[] // Votes for signifying that a object's tag is useful
+    votes                          vote[]               @relation("vote_user") // Votes the user has cast, NOT votes the user has received (since users can't be voted on)
 }
 
 // Many-to-many relationship between user and resources
@@ -820,6 +784,35 @@ model user_tag_stars {
 
 //==============================================================
 // #endregion
+//==============================================================
+
+//==============================================================
+// #region Vote
+//==============================================================
+// Votes can be submitted only by a user, not an organization.
+// This is to prevent users from voting multiple times for the same object.
+// Votes can be applied to comments, projects, routines, standards, and tags.
+//==============================================================
+
+model vote {
+    id         String    @id @default(uuid()) @db.Uuid
+    isUpvote   Boolean   @default(true) // Determines if vote is upvote or downvote
+    userId     String?   @db.Uuid // ID of user who voted
+    commentId  String?   @db.Uuid
+    projectId  String?   @db.Uuid
+    routineId  String?   @db.Uuid
+    standardId String?   @db.Uuid
+    tagId      String?   @db.Uuid
+    user       user?     @relation("vote_user", fields: [userId], references: [id])
+    comment    comment?  @relation("vote_comment", fields: [commentId], references: [id])
+    project    project?  @relation("vote_project", fields: [projectId], references: [id], onDelete: Cascade)
+    routine    routine?  @relation("vote_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    standard   standard? @relation("vote_standard", fields: [standardId], references: [id], onDelete: Cascade)
+    tag        tag?      @relation("vote_tag", fields: [tagId], references: [id], onDelete: Cascade)
+}
+
+//==============================================================
+// #endregion Vote
 //==============================================================
 
 //==============================================================

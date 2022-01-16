@@ -72,12 +72,14 @@ export const MODEL_TYPES = {
     Node: 'node',
     Organization: 'organization',
     Project: 'project',
+    Report: 'report',
     Resource: 'resource',
     Role: 'role',
     Routine: 'routine',
     Standard: 'standard',
     Tag: 'tag',
-    User: 'user'
+    User: 'user',
+    Vote: 'vote',
 } as const
 
 // Types for Prisma model objects. These are required when indexing the Prisma model without using dot notation

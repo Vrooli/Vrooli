@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, ProjectSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectSearchInput, ReportInput, Success, ProjectCountInput } from './types';
+import { DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectSearchInput, Success, ProjectCountInput } from './types';
 import { Context } from '../context';
 import { ProjectModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -96,7 +96,6 @@ export const typeDef = gql`
         projectAdd(input: ProjectInput!): Project!
         projectUpdate(input: ProjectInput!): Project!
         projectDeleteOne(input: DeleteOneInput!): Success!
-        projectReport(input: ReportInput!): Success!
     }
 `
 
@@ -148,16 +147,5 @@ export const resolvers = {
             const success = await ProjectModel(prisma).delete(input);
             return { success };
         },
-        /**
-         * Reports a project. After enough reports, it will be deleted.
-         * Related objects will not be deleted.
-         * @returns True if report was successfully recorded
-         */
-         projectReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            const success = await ProjectModel(prisma).report(input);
-            return { success };
-        }
     }
 }

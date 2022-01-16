@@ -24,7 +24,7 @@ export function OrganizationListItem({
         if (onClick) onClick(data);
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Organization}/${data.id}`)
-    }, [onClick, data.id]);
+    }, [onClick, data, setLocation]);
 
     const handleStarClick = useCallback((e: any) => {
         // Prevent propagation of normal click event
@@ -45,7 +45,7 @@ export function OrganizationListItem({
                 <Icon onClick={handleStarClick} sx={{ fill: '#ffac3a', cursor: isOwn ? 'default' : 'pointer' }} />
             </Tooltip>
         )
-    }, [isOwn, isStarred])
+    }, [isOwn, isStarred, handleStarClick])
 
     return (
         <Tooltip placement="top" title="View details">

@@ -18,7 +18,6 @@ import {
     ListItemText,
     SwipeableDrawer,
     Theme,
-    useTheme
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { CopyrightBreadcrumbs } from 'components';
@@ -61,7 +60,6 @@ export const Hamburger = ({
 }: HamburgerProps) => {
     const classes = useStyles();
     const [, setLocation] = useLocation();
-    const theme = useTheme();
     const [contactOpen, setContactOpen] = useState(true);
     const [open, setOpen] = useState(false);
 

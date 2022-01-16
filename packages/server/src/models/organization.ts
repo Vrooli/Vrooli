@@ -93,16 +93,12 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
         return {
             [OrganizationSortBy.AlphabeticalAsc]: { name: 'asc' },
             [OrganizationSortBy.AlphabeticalDesc]: { name: 'desc' },
-            [OrganizationSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
-            [OrganizationSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [OrganizationSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [OrganizationSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [OrganizationSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [OrganizationSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
             [OrganizationSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
             [OrganizationSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
-            [OrganizationSortBy.VotesAsc]: { votes: { _count: 'asc' } },
-            [OrganizationSortBy.VotesDesc]: { votes: { _count: 'desc' } },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
@@ -128,9 +124,9 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
     async search(where: { [x: string]: any }, input: OrganizationSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
         // Many-to-many search queries
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-        const routineIdQuery = input.routineId ? { routines: { some: { routineId: input.routineId } } } : {};
-        const userIdQuery = input.userId ? { members: { some: { userId: input.userId } } } : {};
         // One-to-many search queries
+        const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
+        const userIdQuery = input.userId ? { members: { some: { id: input.userId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
         const search = searcher<OrganizationSortBy, OrganizationSearchInput, Organization, OrganizationDB>(MODEL_TYPES.Organization, toDB, toGraphQL, sorter, prisma);

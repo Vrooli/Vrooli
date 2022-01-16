@@ -24,7 +24,7 @@ const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
 export type UserRelationshipList = 'comments' | 'roles' | 'emails' | 'wallets' | 'resources' |
     'projects' | 'routines' | 'routinesCreated' | 'starredBy' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
     'starredRoutines' | 'starredStandards' | 'starredTags' | 'starredUsers' |
-    'sentReports' | 'reports' | 'votedComments' | 'votedByTag';
+    'sentReports' | 'reports' | 'votes';
 // Type 2. QueryablePrimitives
 // 2.1 Profile primitives (i.e. your own account)
 export type UserProfileQueryablePrimitives = Omit<Profile, UserRelationshipList | 'status'> & {
@@ -42,7 +42,7 @@ export type UserAllPrimitives = UserProfileQueryablePrimitives & {
 };
 // type 4. Database shape
 export type UserDB = UserAllPrimitives &
-    Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports' | 'routines' | 'routinesCreated'> &
+    Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports' | 'routines' | 'routinesCreated' | 'votes'> &
 {
     roles: { role: Role }[],
     resources: { resource: Resource }[],
@@ -54,8 +54,6 @@ export type UserDB = UserAllPrimitives &
     starredStandards: { starred: Standard }[],
     starredTags: { starred: Tag }[],
     starredUsers: { starred: User }[],
-    votedComments: { voted: Comment }[],
-    votedByTag: { tag: Tag }[],
     _count: { starredBy: number }[],
 };
 
@@ -125,8 +123,6 @@ const sorter = (): Sortable<UserSortBy> => ({
         return {
             [UserSortBy.AlphabeticalAsc]: { username: 'asc' },
             [UserSortBy.AlphabeticalDesc]: { username: 'desc' },
-            [UserSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
-            [UserSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [UserSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [UserSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [UserSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
@@ -506,8 +502,8 @@ const porter = (prisma?: PrismaType) => ({
         // Many-to-many search queries
         const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-        const routineIdQuery = input.routineId ? { routines: { some: { routineId: input.routineId } } } : {};
         // One-to-many search queries
+        const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
         const search = searcher<UserSortBy, UserSearchInput, User, UserDB>(MODEL_TYPES.User, toDB, toGraphQL, sorter, prisma);

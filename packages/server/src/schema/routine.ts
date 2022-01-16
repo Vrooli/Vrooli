@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, RoutineSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteOneInput, FindByIdInput, ReportInput, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { RoutineModel } from '../models';
@@ -53,8 +53,10 @@ export const typeDef = gql`
         externalResources: [Resource!]!
         project: Project
         tags: [Tag!]!
-        users: [User!]!
-        organizations: [Organization!]!
+        user: User
+        organization: Organization
+        createdByUser: User
+        createdByOrganization: Organization
         starredBy: [User!]!
         parent: Routine
         forks: [Routine!]!
@@ -129,7 +131,6 @@ export const typeDef = gql`
         routineAdd(input: RoutineInput!): Routine!
         routineUpdate(input: RoutineInput!): Routine!
         routineDeleteOne(input: DeleteOneInput!): Success!
-        routineReport(input: ReportInput!): Success!
     }
 `
 
@@ -178,15 +179,5 @@ export const resolvers = {
             const success = await RoutineModel(prisma).delete(input);
             return { success };
         },
-        /**
-         * Reports a routine. After enough reports, it will be deleted.
-         * Related objects will not be deleted.
-         * @returns True if report was successfully recorded
-         */
-         routineReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<boolean> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await RoutineModel(prisma).report(input);
-        }
     }
 }

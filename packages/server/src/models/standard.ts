@@ -139,7 +139,7 @@ const sorter = (): Sortable<StandardSortBy> => ({
     sorter: Sortable<any>, 
     prisma?: PrismaType) => ({
     async search(where: { [x: string]: any }, input: StandardSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
-        // Many-to-one search queries
+        // One-to-one search queries
         const userIdQuery = input.userId ? { userId: input.userId } : {};
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : {};
         // One-to-many search queries

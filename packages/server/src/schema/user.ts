@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, UserSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { UserModel } from '../models';
-import { UserDeleteInput, ReportInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput } from './types';
+import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -11,8 +11,6 @@ export const typeDef = gql`
     enum UserSortBy {
         AlphabeticalAsc
         AlphabeticalDesc
-        CommentsAsc
-        CommentsDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
@@ -57,8 +55,7 @@ export const typeDef = gql`
         starredBy: [User!]!
         sentReports: [Report!]!
         reports: [Report!]!
-        votedComments: [Comment!]!
-        votedByTag: [Tag!]!
+        votes: [Vote!]!
     }
 
     # User information available for other accounts
@@ -132,7 +129,6 @@ export const typeDef = gql`
     extend type Mutation {
         profileUpdate(input: ProfileUpdateInput!): Profile!
         userDeleteOne(input: UserDeleteInput!): Success!
-        userReport(input: ReportInput!): Success!
         exportData: String!
     }
 `
@@ -184,17 +180,6 @@ export const resolvers = {
             if (!UserModel(prisma).validatePassword(input.password, user)) throw new CustomError(CODE.BadCredentials);
             // Delete user
             const success = await UserModel(prisma).delete(user.id);
-            return { success }
-        },
-        /**
-         * Reports a user. After enough reports, it will be deleted.
-         * Related objects will not be deleted.
-         * @returns True if report was successfully recorded
-         */
-        userReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            const success = await UserModel(prisma).report(input);
             return { success }
         },
         /**

@@ -9,7 +9,7 @@ import { PrismaType } from '../types';
 const { PrismaClient } = pkg;
 const prisma = new PrismaClient();
 
-const executeSeed = async (func: (prisma: PrismaType) => any) => {
+const executeSeed = async (func: (prisma: PrismaType) => any, exitOnFail = false,) => {
     await func(prisma).catch((error: any) => {
         console.error(error);
         process.exit(1);
@@ -20,8 +20,8 @@ const executeSeed = async (func: (prisma: PrismaType) => any) => {
 
 export const setupDatabase = async () => {
     // Seed database
-    await executeSeed(init);
+    await executeSeed(init, true);
     if (process.env.CREATE_MOCK_DATA) {
-        await executeSeed(mock);
+        await executeSeed(mock, false);
     }
 }

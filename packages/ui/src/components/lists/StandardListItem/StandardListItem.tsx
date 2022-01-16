@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { StandardListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
@@ -24,7 +24,7 @@ export function StandardListItem({
         if (onClick) onClick(data);
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Standard}/${data.id}`)
-    }, [onClick, data.id]);
+    }, [onClick, data, setLocation]);
 
     const handleStarClick = useCallback((e: any) => {
         // Prevent propagation of normal click event
@@ -45,7 +45,7 @@ export function StandardListItem({
                 <Icon onClick={handleStarClick} sx={{ fill: '#ffac3a', cursor: isOwn ? 'default' : 'pointer' }} />
             </Tooltip>
         )
-    }, [isOwn, isStarred])
+    }, [isOwn, isStarred, handleStarClick]);
 
     return (
         <Tooltip placement="top" title="View details">

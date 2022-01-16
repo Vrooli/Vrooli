@@ -3,7 +3,7 @@ import { CODE, StandardSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, Success } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, Success } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
@@ -110,7 +110,6 @@ export const typeDef = gql`
         standardAdd(input: StandardInput!): Standard!
         standardUpdate(input: StandardInput!): Standard!
         standardDeleteMany(input: DeleteManyInput!): Count!
-        standardReport(input: ReportInput!): Success!
     }
 `
 
@@ -173,16 +172,5 @@ export const resolvers = {
             // TODO add more restrictions
             return await StandardModel(prisma).deleteMany(input);
         },
-        /**
-         * Reports a standard. After enough reports, it will be deleted.
-         * Related objects will not be deleted.
-         * @returns True if report was successfully recorded
-         */
-         standardReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            const success = await StandardModel(prisma).report(input);
-            return { success };
-        }
     }
 }

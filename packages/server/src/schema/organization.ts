@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { CODE, MemberRole } from '@local/shared';
+import { CODE, MemberRole, OrganizationSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, ReportInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, Success } from './types';
 import { Context } from '../context';
 import { OrganizationModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -11,16 +11,12 @@ export const typeDef = gql`
     enum OrganizationSortBy {
         AlphabeticalAsc
         AlphabeticalDesc
-        CommentsAsc
-        CommentsDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
         StarsAsc
         StarsDesc
-        VotesAsc
-        VotesDesc
     }
 
     enum MemberRole {
@@ -103,7 +99,6 @@ export const typeDef = gql`
         organizationAdd(input: OrganizationInput!): Organization!
         organizationUpdate(input: OrganizationInput!): Organization!
         organizationDeleteOne(input: DeleteOneInput): Success!
-        organizationReport(input: ReportInput!): Success!
     }
 `
 
@@ -154,16 +149,5 @@ export const resolvers = {
             const success = await OrganizationModel(prisma).delete(input);
             return { success };
         },
-        /**
-         * Reports an organization. After enough reports, it will be deleted.
-         * Related objects will not be deleted.
-         * @returns True if report was successfully recorded
-         */
-        organizationReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            const success = await OrganizationModel(prisma).report(input);
-            return { success };
-        }
     }
 }

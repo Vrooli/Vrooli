@@ -3,7 +3,7 @@ import { CODE, ResourceFor, ResourceSortBy, ResourceUsedFor } from '@local/share
 import { CustomError } from '../error';
 import { ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteManyInput, FindByIdInput, ReportInput, Resource, ResourceCountInput, ResourceInput, ResourceSearchInput, Success } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceInput, ResourceSearchInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -13,15 +13,12 @@ export const typeDef = gql`
         Project
         RoutineContextual
         RoutineExternal
-        RoutineDonation
-        Actor
+        User
     }
 
     enum ResourceSortBy {
         AlphabeticalAsc
         AlphabeticalDesc
-        CommentsAsc
-        CommentsDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
@@ -45,6 +42,7 @@ export const typeDef = gql`
         description: String
         link: String!
         displayUrl: String
+        usedFor: ResourceUsedFor
         createdFor: ResourceFor!
         forId: ID!
     }
@@ -63,7 +61,6 @@ export const typeDef = gql`
         routine_resources_contextual: [Routine!]!
         routine_resources_external: [Routine!]!
         user_resources: [User!]!
-        comments: [Comment!]!
     }
 
     input ResourceSearchInput {
@@ -106,7 +103,6 @@ export const typeDef = gql`
         resourceAdd(input: ResourceInput!): Resource!
         resourceUpdate(input: ResourceInput!): Resource!
         resourceDeleteMany(input: DeleteManyInput!): Count!
-        resourceReport(input: ReportInput!): Success!
     }
 `
 
@@ -155,16 +151,5 @@ export const resolvers = {
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             return await ResourceModel(prisma).deleteMany(input);
         },
-        /**
-         * Reports a resource. After enough reports, it will be deleted.
-         * Related objects will not be deleted.
-         * @returns True if report was successfully recorded
-         */
-         resourceReport: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, _info: any): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            const success = await ResourceModel(prisma).report(input);
-            return { success };
-        }
     }
 }

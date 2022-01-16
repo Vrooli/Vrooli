@@ -9,19 +9,19 @@ import { creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, u
 //======================================================================================================================
 
 // Type 1. RelationshipList
-export type CommentRelationshipList = 'user' | 'organization' | 'project' | 'resource' |
+export type CommentRelationshipList = 'user' | 'organization' | 'project' |
     'routine' | 'standard' | 'reports' | 'stars' | 'votes';
 // Type 2. QueryablePrimitives
 export type CommentQueryablePrimitives = Omit<Comment, CommentRelationshipList>;
 // Type 3. AllPrimitives
 export type CommentAllPrimitives = CommentQueryablePrimitives;
 // type 4. Database shape
-export type CommentDB = CommentAllPrimitives &
-    Pick<Comment, 'user' | 'organization' | 'project' | 'resource' | 'routine' | 'standard' | 'reports'> &
-{
-    stars: number,
-    votes: number,
-};
+export type CommentDB = any;
+// export type CommentDB = CommentAllPrimitives &
+//     Pick<Comment, 'user' | 'organization' | 'project' | 'routine' | 'standard' | 'reports' | 'votes'> &
+// {
+//     stars: number,
+// };
 
 //======================================================================================================================
 /* #endregion Type Definitions */
@@ -88,39 +88,39 @@ const voter = (prisma?: PrismaType) => ({
          * @return True if vote counted (even if it was a duplicate)
          */
         async vote(input: VoteInput, userId: string): Promise<boolean> {
-            // Check for valid inputs
-            if (!prisma) throw new CustomError(CODE.InvalidArgs);
-            if (!input.id || !userId) return false;
-            // Check for existing votes (should only be one or none)
-            const existingVotes = await prisma.comment_votes.findMany({
-                where: { votedId: input.id ?? '', voterId: userId },
-                select: { id: true, isUpvote: true }
-            });
-            // If only one vote exists, update it (if switching between upvote/downvote)
-            if (Array.isArray(existingVotes) && existingVotes.length === 1) {
-                // If the vote is the same, return as success
-                if (existingVotes[0].isUpvote === input.isUpvote) return true;
-                // Otherwise, update the vote
-                await prisma.comment_votes.update({
-                    where: { id: existingVotes[0].id },
-                    data: { isUpvote: input.isUpvote }
-                })
-                return true;
-            }
-            // If multiple votes exist (shouldn't hit this case, but you never know🤷‍♂️), delete them
-            if (Array.isArray(existingVotes) && existingVotes.length > 0) {
-                await prisma.comment_votes.deleteMany({
-                    where: { id: { in: existingVotes.map(vote => vote.id) } }
-                })
-            }
-            // If here, no votes exist, so create a new one
-            await prisma.comment_votes.create({
-                data: {
-                    isUpvote: input.isUpvote,
-                    voterId: userId,
-                    votedId: input.id
-                }
-            })
+            // // Check for valid inputs
+            // if (!prisma) throw new CustomError(CODE.InvalidArgs);
+            // if (!input.id || !userId) return false;
+            // // Check for existing votes (should only be one or none)
+            // const existingVotes = await prisma.comment_votes.findMany({
+            //     where: { votedId: input.id ?? '', voterId: userId },
+            //     select: { id: true, isUpvote: true }
+            // });
+            // // If only one vote exists, update it (if switching between upvote/downvote)
+            // if (Array.isArray(existingVotes) && existingVotes.length === 1) {
+            //     // If the vote is the same, return as success
+            //     if (existingVotes[0].isUpvote === input.isUpvote) return true;
+            //     // Otherwise, update the vote
+            //     await prisma.comment_votes.update({
+            //         where: { id: existingVotes[0].id },
+            //         data: { isUpvote: input.isUpvote }
+            //     })
+            //     return true;
+            // }
+            // // If multiple votes exist (shouldn't hit this case, but you never know🤷‍♂️), delete them
+            // if (Array.isArray(existingVotes) && existingVotes.length > 0) {
+            //     await prisma.comment_votes.deleteMany({
+            //         where: { id: { in: existingVotes.map(vote => vote.id) } }
+            //     })
+            // }
+            // // If here, no votes exist, so create a new one
+            // await prisma.comment_votes.create({
+            //     data: {
+            //         isUpvote: input.isUpvote,
+            //         voterId: userId,
+            //         votedId: input.id
+            //     }
+            // })
             return true;
         }
     })

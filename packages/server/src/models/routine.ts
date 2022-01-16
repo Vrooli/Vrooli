@@ -18,18 +18,17 @@ export type RoutineQueryablePrimitives = Omit<Routine, RoutineRelationshipList>;
 // Type 3. AllPrimitives
 export type RoutineAllPrimitives = RoutineQueryablePrimitives;
 // type 4. Database shape
-export type RoutineDB = any;
-// export type RoutineDB = RoutineAllPrimitives &
-// Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent' | 'project' | 'user' | 'organization' | 'createdByUser' | 'createdByOrganization'> &
-// {
-//     contextualResources: { resource: Resource }[],
-//     externalResources: { resource: Resource }[],
-//     tags: { tag: Tag }[],
-//     starredBy: { user: User }[],
-//     forks: { fork: Routine }[],
-//     nodeLists: { list: Routine }[],
-//     _count: { starredBy: number }[],
-// };
+export type RoutineDB = RoutineAllPrimitives &
+Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent' | 'project' | 'user' | 'organization' | 'createdByUser' | 'createdByOrganization'> &
+{
+    contextualResources: { resource: Resource }[],
+    externalResources: { resource: Resource }[],
+    tags: { tag: Tag }[],
+    starredBy: { user: User }[],
+    forks: { fork: Routine }[],
+    nodeLists: { list: Routine }[],
+    _count: { starredBy: number }[],
+};
 
 //======================================================================================================================
 /* #endregion Type Definitions */
@@ -135,9 +134,9 @@ export type RoutineDB = any;
     sorter: Sortable<any>, 
     prisma?: PrismaType) => ({
     async search(where: { [x: string]: any }, input: RoutineSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
-        // Many-to-many search queries
-        const userIdQuery = input.userId ? { users: { some: { userId: input.userId } } } : {};
-        const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
+        // One-to-one search queries
+        const userIdQuery = input.userId ? { user: { id: input.userId } } : {};
+        const organizationIdQuery = input.organizationId ? { organization: { id: input.organizationId } } : {};
         // One-to-many search queries
         const parentIdQuery = input.parentId ? { forks: { some: { forkId: input.parentId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
