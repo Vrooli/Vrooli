@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../types";
 import { Organization, OrganizationCountInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
+import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
 import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
 import { CODE } from "@local/shared";
@@ -11,20 +11,18 @@ import { CODE } from "@local/shared";
 
 // Type 1. RelationshipList
 export type OrganizationRelationshipList = 'comments' | 'resources' | 'wallets' | 'projects' | 'starredBy' |
-    'routines' | 'tags' | 'reports' | 'donationResources';
+    'routines' | 'routinesCreated' | 'tags' | 'reports';
 // Type 2. QueryablePrimitives
 export type OrganizationQueryablePrimitives = Omit<Organization, OrganizationRelationshipList>;
 // Type 3. AllPrimitives
 export type OrganizationAllPrimitives = OrganizationQueryablePrimitives;
 // type 4. Database shape
 export type OrganizationDB = OrganizationAllPrimitives &
-    Pick<Organization, 'comments' | 'wallets' | 'reports'> &
+    Pick<Organization, 'comments' | 'wallets' | 'reports' | 'routines' | 'routinesCreated'> &
 {
     resources: { resource: Resource }[],
-    donationResources: { resource: Resource }[],
     projects: { project: Project }[],
     starredBy: { user: User }[],
-    routines: { routine: Routine }[],
     tags: { tag: Tag }[],
     _count: { starredBy: number }[],
 };
@@ -48,9 +46,8 @@ export type OrganizationDB = OrganizationAllPrimitives &
     ): Promise<RecursivePartial<OrganizationDB> | null> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        // Shape data for Prisma (i.e. add "connect"s and "create"s), and remove any unsupported relationships
-        //const shapedData = shapeCreateData(data, removeFields, keepFields);
-        //console.log('organizationCreate shapedData', shapedData);
+        // Remove any relationships should not be created/connected in this operation
+        data = keepOnly(data, ['resources', 'tags', 'members', 'projects']);
         // Perform additional checks
         // TODO
         // Create
@@ -65,11 +62,9 @@ export type OrganizationDB = OrganizationAllPrimitives &
  */
  const formatter = (): FormatConverter<Organization, OrganizationDB> => {
     const joinMapper = {
-        donationResources: 'resource',
         resources: 'resource',
         projects: 'project',
         starredBy: 'user',
-        routines: 'routine',
         tags: 'tag',
     };
     const countMapper = {

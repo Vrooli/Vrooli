@@ -89,11 +89,9 @@ export enum ProjectSortBy {
     DateUpdatedAsc = 'DateUpdatedAsc',
 }
 
-export enum ResourceSortBy{
+export enum ResourceSortBy {
     AlphabeticalDesc = 'AlphabeticalDesc',
     AlphabeticalAsc = 'AlphabeticalAsc',
-    StarsDesc = 'StarsDesc',
-    StarsAsc = 'StarsAsc',
     CommentsDesc = 'CommentsDesc',
     CommentsAsc = 'CommentsAsc',
     DateCreatedDesc = 'DateCreatedDesc',
@@ -134,7 +132,7 @@ export enum StandardSortBy {
     DateUpdatedAsc = 'DateUpdatedAsc',
 }
 
-export enum TagSortBy { 
+export enum TagSortBy {
     AlphabeticalDesc = 'AlphabeticalDesc',
     AlphabeticalAsc = 'AlphabeticalAsc',
     StarsDesc = 'StarsDesc',
@@ -156,7 +154,7 @@ export enum UserSortBy {
     DateCreatedAsc = "DateCreatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
-  }
+}
 
 //==============================================================
 /* #endregion Sort Options */
@@ -239,6 +237,18 @@ export const ResourceFor = {
     RoutineDonation: 'RoutineDonation',
 }
 export type ResourceFor = ValueOf<typeof ResourceFor>;
+
+export const ResourceUsedFor = {
+    Community: 'Community',
+    Context: 'Context',
+    Donation: 'Donation',
+    Learning: 'Learning',
+    OfficialWebsite: 'OfficialWebsite',
+    Related: 'Related',
+    Social: 'Social',
+    Tutorial: 'Tutorial',
+}
+export type ResourceUsedFor = ValueOf<typeof ResourceUsedFor>;
 
 export const MemberRole = {
     Admin: 'Admin',

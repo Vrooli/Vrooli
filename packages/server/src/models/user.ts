@@ -22,8 +22,8 @@ const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
 
 // Type 1. RelationshipList
 export type UserRelationshipList = 'comments' | 'roles' | 'emails' | 'wallets' | 'resources' |
-    'donationResources' | 'projects' | 'starredBy' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
-    'starredResources' | 'starredRoutines' | 'starredStandards' | 'starredTags' | 'starredUsers' |
+    'projects' | 'routines' | 'routinesCreated' | 'starredBy' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
+    'starredRoutines' | 'starredStandards' | 'starredTags' | 'starredUsers' |
     'sentReports' | 'reports' | 'votedComments' | 'votedByTag';
 // Type 2. QueryablePrimitives
 // 2.1 Profile primitives (i.e. your own account)
@@ -42,16 +42,14 @@ export type UserAllPrimitives = UserProfileQueryablePrimitives & {
 };
 // type 4. Database shape
 export type UserDB = UserAllPrimitives &
-    Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports'> &
+    Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports' | 'routines' | 'routinesCreated'> &
 {
     roles: { role: Role }[],
     resources: { resource: Resource }[],
-    donationResources: { resource: Resource }[],
     projects: { project: Project }[],
     starredComments: { starred: Comment }[],
     starredProjects: { starred: Project }[],
     starredOrganizations: { starred: Organization }[],
-    starredResources: { starred: Resource }[],
     starredRoutines: { starred: Routine }[],
     starredStandards: { starred: Standard }[],
     starredTags: { starred: Tag }[],
@@ -86,14 +84,12 @@ export type UserFormatConverter = {
  */
 const formatter = (): UserFormatConverter => {
     const joinMapper = {
-        donationResources: 'resource',
         roles: 'role',
         resources: 'resource',
         projects: 'project',
         starredComments: 'starred',
         starredProjects: 'starred',
         starredOrganizations: 'starred',
-        starredResources: 'starred',
         starredRoutines: 'starred',
         starredStandards: 'starred',
         starredTags: 'starred',
@@ -393,15 +389,13 @@ const findByEmailer = (prisma?: PrismaType) => ({
         // Check for valid arguments
         if (!prisma || !data.username) throw new CustomError(CODE.InvalidArgs);
         // Remove any relationships should not be created/connected in this operation
-        data = keepOnly(data, ['roles', 'emails', 'resources', 'donationResources', 'hiddenTags', 'starredTags']);
-        // Perform additional checks
+        data = keepOnly(data, ['roles', 'emails', 'resources', 'hiddenTags', 'starredTags']);
         // Check for valid emails
         for (const email of getRelationshipData(data, 'emails')) {
             if (!email) continue;
             const emailExists = await prisma.email.findUnique({ where: { emailAddress: email.emailAddress } });
             if (emailExists && emailExists.id !== email.id) throw new CustomError(CODE.EmailInUse);
         }
-        console.log('email boop', getRelationshipData(data, 'emails'))
         // Make sure roles have valid ids
         for (const role of getRelationshipData(data, 'roles')) {
             if (!role?.role) continue;
@@ -409,7 +403,6 @@ const findByEmailer = (prisma?: PrismaType) => ({
             const roleExists = await prisma.role.findUnique({ where: { id: role.role.id } });
             if (!roleExists) throw new CustomError(CODE.InvalidArgs);
         }
-        console.log('role boop', getRelationshipData(data, 'roles'))
         // Create
         const { id } = await prisma.user.create({ data });
         // Query database

@@ -625,7 +625,6 @@ export type Organization = {
   bio?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
   created_at: Scalars['Date'];
-  donationResources: Array<Resource>;
   id: Scalars['ID'];
   members: Array<Member>;
   name: Scalars['String'];
@@ -633,6 +632,7 @@ export type Organization = {
   reports: Array<Report>;
   resources: Array<Resource>;
   routines: Array<Routine>;
+  routinesCreated: Array<Routine>;
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
@@ -705,19 +705,19 @@ export type Profile = {
   bio?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
   created_at: Scalars['Date'];
-  donationResources: Array<Resource>;
   emails: Array<Email>;
   id: Scalars['ID'];
   projects: Array<Project>;
   reports: Array<Report>;
   resources: Array<Resource>;
   roles: Array<Role>;
+  routines: Array<Routine>;
+  routinesCreated: Array<Routine>;
   sentReports: Array<Report>;
   starredBy: Array<User>;
   starredComments: Array<Comment>;
   starredOrganizations: Array<Organization>;
   starredProjects: Array<Project>;
-  starredResources: Array<Resource>;
   starredRoutines: Array<Routine>;
   starredStandards: Array<Standard>;
   starredTags: Array<Tag>;
@@ -749,6 +749,7 @@ export type Project = {
   parent?: Maybe<Project>;
   reports: Array<Report>;
   resources?: Maybe<Array<Resource>>;
+  routines: Array<Routine>;
   starredBy?: Maybe<Array<User>>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
@@ -997,13 +998,11 @@ export type Resource = {
   link: Scalars['String'];
   organization_resources: Array<Organization>;
   project_resources: Array<Project>;
-  reports: Array<Report>;
   routine_resources_contextual: Array<Routine>;
-  routine_resources_donation: Array<Routine>;
   routine_resources_external: Array<Routine>;
-  starredBy: Array<User>;
   title: Scalars['String'];
   updated_at: Scalars['Date'];
+  usedFor: ResourceUsedFor;
   user_resources: Array<User>;
 };
 
@@ -1063,9 +1062,18 @@ export enum ResourceSortBy {
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc',
-  StarsAsc = 'StarsAsc',
-  StarsDesc = 'StarsDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
+export enum ResourceUsedFor {
+  Community = 'Community',
+  Context = 'Context',
+  Donation = 'Donation',
+  Learning = 'Learning',
+  OfficialWebsite = 'OfficialWebsite',
+  Related = 'Related',
+  Social = 'Social',
+  Tutorial = 'Tutorial'
 }
 
 export type Response = {
@@ -1388,6 +1396,8 @@ export type User = {
   reports: Array<Report>;
   resources: Array<Resource>;
   roles: Array<Role>;
+  routines: Array<Routine>;
+  routinesCreated: Array<Routine>;
   starredBy: Array<User>;
   stars: Scalars['Int'];
   username?: Maybe<Scalars['String']>;

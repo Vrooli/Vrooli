@@ -44,12 +44,12 @@ export const typeDef = gql`
         emails: [Email!]!
         wallets: [Wallet!]!
         resources: [Resource!]!
-        donationResources: [Resource!]!
         projects: [Project!]!
+        routines: [Routine!]!
+        routinesCreated: [Routine!]!
         starredComments: [Comment!]!
         starredProjects: [Project!]!
         starredOrganizations: [Organization!]!
-        starredResources: [Resource!]!
         starredRoutines: [Routine!]!
         starredStandards: [Standard!]!
         starredTags: [Tag!]!
@@ -74,6 +74,8 @@ export const typeDef = gql`
         projects: [Project!]!
         starredBy: [User!]!
         reports: [Report!]!
+        routines: [Routine!]!
+        routinesCreated: [Routine!]!
     }
 
     input ProfileUpdateInput {

@@ -51,6 +51,7 @@ export const typeDef = gql`
         tags: [Tag!]!
         reports: [Report!]!
         comments: [Comment!]!
+        routines: [Routine!]!
     }
 
     input ProjectSearchInput {

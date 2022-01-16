@@ -3,7 +3,7 @@ import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
 import { Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -11,14 +11,14 @@ import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, 
 
 // Type 1. RelationshipList
 export type ProjectRelationshipList = 'resources' | 'wallets' | 'users' | 'organizations' | 'starredBy' |
-    'parent' | 'forks' | 'reports' | 'tags' | 'comments';
+    'parent' | 'forks' | 'reports' | 'tags' | 'comments' | 'routines';
 // Type 2. QueryablePrimitives
 export type ProjectQueryablePrimitives = Omit<Project, ProjectRelationshipList>;
 // Type 3. AllPrimitives
 export type ProjectAllPrimitives = ProjectQueryablePrimitives;
 // type 4. Database shape
 export type ProjectDB = ProjectAllPrimitives &
-    Pick<Project, 'wallets' | 'reports' | 'comments'> &
+    Pick<Project, 'wallets' | 'reports' | 'comments' | 'routines'> &
 {
     resources: { resource: Resource }[],
     users: { user: User }[],
@@ -51,9 +51,8 @@ export type ProjectDB = ProjectAllPrimitives &
     ): Promise<RecursivePartial<ProjectDB> | null> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        // Shape data for Prisma (i.e. add "connect"s and "create"s), and remove any unsupported relationships
-        //const shapedData = shapeCreateData(data, removeFields, keepFields);
-        //console.log('projectCreate shapedData', shapedData);
+        // Remove any relationships should not be created/connected in this operation
+        data = keepOnly(data, ['resources', 'parent', 'tags']);
         // Perform additional checks
         // TODO
         // Create

@@ -45,11 +45,11 @@ export const typeDef = gql`
         stars: Int!
         comments: [Comment!]!
         resources: [Resource!]!
-        donationResources: [Resource!]!
         projects: [Project!]!
         wallets: [Wallet!]!
         starredBy: [User!]!
         routines: [Routine!]!
+        routinesCreated: [Routine!]!
         tags: [Tag!]!
         reports: [Report!]!
         members: [Member!]!

@@ -11,22 +11,20 @@ import { CustomError } from "../error";
 
 // Type 1. RelationshipList
 export type ResourceRelationshipList = 'organization_resources' | 'project_resources' | 'routine_resources_contextual' |
-    'routine_resources_external' | 'routine_resources_donation' | 'user_resources' | 'starredBy' | 'reports' | 'comments';
+    'routine_resources_external' | 'user_resources' | 'comments';
 // Type 2. QueryablePrimitives
 export type ResourceQueryablePrimitives = Omit<Resource, ResourceRelationshipList>;
 // Type 3. AllPrimitives
 export type ResourceAllPrimitives = ResourceQueryablePrimitives;
 // type 4. Database shape
 export type ResourceDB = ResourceAllPrimitives &
-    Pick<Resource, 'reports' | 'comments'> &
+    Pick<Resource, 'comments'> &
 {
     organization_resources: { organization: Organization },
     project_resources: { project: Project },
     routine_resources_contextual: { routine: Routine },
     routine_resources_external: { routine: Routine },
-    routine_resources_donation: { routine: Routine },
     user_resources: { user: User },
-    starredBy: { user: User }[],
 };
 
 //======================================================================================================================
@@ -126,8 +124,6 @@ const sorter = (): Sortable<ResourceSortBy> => ({
             [ResourceSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [ResourceSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [ResourceSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [ResourceSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
-            [ResourceSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {

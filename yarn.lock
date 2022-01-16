@@ -16853,10 +16853,10 @@ scheduler@^0.20.2:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
 
-schema-to-yup@^1.11.2:
-  version "1.11.2"
-  resolved "https://registry.yarnpkg.com/schema-to-yup/-/schema-to-yup-1.11.2.tgz#eb77ff8ac45852a2146d846a94ada63473657f87"
-  integrity sha512-Pz+Jgcv+iA7nT4HJhjN7+dwa7ZJqo7QP0H+C8Jwx4oJ0VYQa2z5FA6JicgWA87g+Ek1q7SiDJ+lHqDvETDwm5w==
+schema-to-yup@^1.11.4:
+  version "1.11.4"
+  resolved "https://registry.yarnpkg.com/schema-to-yup/-/schema-to-yup-1.11.4.tgz#c69290c016c63d0dedf74b3fa5b157ade8696141"
+  integrity sha512-yH5MU22Rnf5a7p388ziRxIsuqBfICQHOyRfFgpv5J+72FhndNi2Q3ShI5CESRz59fobx/3SxJIB0ZfzIXDiZtA==
   dependencies:
     dashify "^2.0.0"
     uniq "^1.0.1"

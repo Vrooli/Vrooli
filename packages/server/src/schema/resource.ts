@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE, ResourceFor, ResourceSortBy } from '@local/shared';
+import { CODE, ResourceFor, ResourceSortBy, ResourceUsedFor } from '@local/shared';
 import { CustomError } from '../error';
 import { ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
@@ -26,8 +26,17 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
+    }
+
+    enum ResourceUsedFor {
+        Community
+        Context
+        Donation
+        Learning
+        OfficialWebsite
+        Related
+        Social
+        Tutorial
     }
 
     input ResourceInput {
@@ -48,14 +57,12 @@ export const typeDef = gql`
         description: String
         link: String!
         displayUrl: String
+        usedFor: ResourceUsedFor!
         organization_resources: [Organization!]!
         project_resources: [Project!]!
         routine_resources_contextual: [Routine!]!
         routine_resources_external: [Routine!]!
-        routine_resources_donation: [Routine!]!
         user_resources: [User!]!
-        starredBy: [User!]!
-        reports: [Report!]!
         comments: [Comment!]!
     }
 
@@ -106,6 +113,7 @@ export const typeDef = gql`
 export const resolvers = {
     ResourceFor: ResourceFor,
     ResourceSortBy: ResourceSortBy,
+    ResourceUsedFor: ResourceUsedFor,
     Query: {
         resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
             // Query database

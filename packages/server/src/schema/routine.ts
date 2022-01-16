@@ -51,6 +51,7 @@ export const typeDef = gql`
         nodes: [Node!]!
         contextualResources: [Resource!]!
         externalResources: [Resource!]!
+        project: Project
         tags: [Tag!]!
         users: [User!]!
         organizations: [Organization!]!

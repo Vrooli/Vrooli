@@ -3,7 +3,7 @@ import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
 import { Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -46,9 +46,8 @@ export type StandardDB = StandardAllPrimitives &
     ): Promise<RecursivePartial<StandardDB> | null> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        // Shape data for Prisma (i.e. add "connect"s and "create"s), and remove any unsupported relationships
-        //const shapedData = shapeCreateData(data, removeFields, keepFields);
-        //console.log('userCreate shapedData', shapedData);
+        // Remove any relationships should not be created/connected in this operation
+        data = keepOnly(data, ['user', 'organization', 'tags']);
         // Perform additional checks
         // TODO
         // Create

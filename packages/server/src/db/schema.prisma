@@ -244,7 +244,12 @@ model node_start {
 //==============================================================
 // #region Organization
 //==============================================================
-// DAO information
+// An organization is any group of one or more users that work 
+// together to accomplish a common goal/goals. In the crypto 
+// world, these are preferably Decentralized Autonomous 
+// Organizations (DAOs). But any organization can use this platform.
+//==============================================================
+
 model organization {
     id                String                            @id @default(uuid()) @db.Uuid
     name              String                            @db.VarChar(128)
@@ -253,12 +258,12 @@ model organization {
     updated_at        DateTime                          @default(now()) @db.Timestamptz(6)
     comments          comment[]
     standards         standard[]
-    resources         organization_resources[]
-    donationResources organization_resources_donation[] // Resources for donation links
+    resources         organization_resources[] // Links displayed on the organization's page
     wallets           wallet[]
     projects          project_organizations[]
     starredBy         organization_stars[]
-    routines          routine_organizations[]
+    routines          routine[]                         @relation("routine_organization_owner") // Routines the organization can control
+    routinesCreated   routine[]                         @relation("routine_organization_creator") // Routines the organization created, but not necessarily controlled
     tags              organization_tags[] // Categorical tags set by creators or community-voted
     reports           report[]
     members           organization_users[]
@@ -273,17 +278,6 @@ model organization_resources {
     resource     resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
     @@unique([forId, resourceId], name: "organization_resources_forid_resourceid_unique")
-}
-
-// Many-to-many relationship between organizations and donation resources
-model organization_resources_donation {
-    id           String       @id @default(uuid()) @db.Uuid
-    forId        String       @db.Uuid
-    resourceId   String       @db.Uuid
-    organization organization @relation(fields: [forId], references: [id], onDelete: Cascade)
-    resource     resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-    @@unique([forId, resourceId], name: "organization_resources_donation_forid_resourceid_unique")
 }
 
 // Many to many relationship between organizations and users who starred them
@@ -346,6 +340,7 @@ model project {
     reports       report[]
     tags          project_tags[] // Categorical tags set by creators or community-voted
     comments      comment[]
+    routines      routine[] // Routines created by this project
 }
 
 // One to many relationship between a project and projects forked from it
@@ -439,7 +434,6 @@ model report {
     comment        comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
     organization   organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     project        project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    resource       resource?     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
     routine        routine?      @relation(fields: [routineId], references: [id], onDelete: Cascade)
     standard       standard?     @relation(fields: [standardId], references: [id], onDelete: Cascade)
     user           user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -452,6 +446,15 @@ model report {
 //==============================================================
 // #region Resource
 //==============================================================
+// A resource is a link or address that provides context to 
+// whatever object it is associated with. This may be a user's social
+// media links, a project's website, a routine's instruction video, etc. 
+// A resource can be of the following types:
+// - AdaHandle - Must start with "$". See https://adahandle.com/
+// - Cardano RECEIVE address - Must start with "addr:"
+// - An IPFS address - Must start with "ipfs:"
+// - A typical url - Must start with "http://", "https://", or "www."
+//==============================================================
 
 model resource {
     id                              String                            @id @default(uuid()) @db.Uuid
@@ -459,29 +462,15 @@ model resource {
     updated_at                      DateTime                          @default(now()) @db.Timestamptz(6)
     title                           String                            @db.VarChar(128)
     description                     String                            @db.VarChar(1024)
-    link                            String                            @db.VarChar(256) // URL or Vrooli ID (e.g. vrooli:org:12345, vrooli:rou:54321)
-    displayUrl                      String                            @db.VarChar(256) // URL for display image. Taken from OpenGraph data if not
+    link                            String                            @db.VarChar(256) // The actual link
+    displayUrl                      String?                           @db.VarChar(256) // Optional URL for resource display image
+    usedFor                         ResourceUsedFor                   @default(Context)
     organization_resources          organization_resources[]
-    organization_resources_donation organization_resources_donation[]
     project_resources               project_resources[]
     routine_resources_contextual    routine_resources_contextual[]
     routine_resources_external      routine_resources_external[]
     user_resources                  user_resources[]
-    user_resources_donation         user_resources_donation[]
-    starredBy                       resource_stars[] // Users who starred the resource
-    reports                         report[]
     comments                        comment[]
-}
-
-// Many to many relationship between resources and users who starred them
-model resource_stars {
-    id        String   @id @default(uuid()) @db.Uuid
-    starredId String   @db.Uuid
-    userId    String   @db.Uuid
-    starred   resource @relation(fields: [starredId], references: [id], onDelete: Cascade)
-    user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([starredId, userId], name: "resource_stars_starredid_userid_unique")
 }
 
 //==============================================================
@@ -509,33 +498,44 @@ model role {
 //==============================================================
 // #region Routine
 //==============================================================
+// The most important object in the system. A routine is a way to 
+// describe the process for completing some task. It may consist of 
+// subroutines, which are themselves routines.
+// A routine is owned by either a user or organization. It can be 
+// transferred to another user or organization.
+//==============================================================
 
-// Routine data
-// Like projects, a routine is "owned" by organizations and/or users,
-// and it can be "starred" by many users
 model routine {
-    id                  String                         @id @default(uuid()) @db.Uuid
-    version             String                         @default("1.0.0") @db.VarChar(16) // Arbitrary version number
-    title               String                         @db.VarChar(128)
-    description         String                         @db.VarChar(2048)
-    instructions        String                         @db.VarChar(8192) // Plaintext or markdown instructions
-    isAutomatable       Boolean                        @default(false) // Indicates if the routine can be run automatically, if all conditions are met
-    created_at          DateTime                       @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime                       @default(now()) @db.Timestamptz(6)
-    inputs              routine_input[]
-    outputs             routine_output[]
-    nodes               node[] // Defines an orchestration (i.e. routine is made up of subroutines)
-    contextualResources routine_resources_contextual[] // Resources to provide context to the routine
-    externalResources   routine_resources_external[] // Resources for completing steps outside of Vrooli
-    tags                routine_tags[] // Categorical tags set by creators or community-voted
-    users               routine_users[] // Users who can edit main routine
-    organizations       routine_organizations[] // Organizations who can edit main routine
-    starredBy           routine_stars[] // Users who starred the routine
-    parent              routine_forks?                 @relation("routine_parent")
-    forks               routine_forks[]                @relation("routine_fork")
-    nodeLists           node_routine_list_item[] // Routine list nodes the routine is a part of
-    reports             report[]
-    comments            comment[]
+    id                      String                         @id @default(uuid()) @db.Uuid
+    version                 String                         @default("1.0.0") @db.VarChar(16) // Arbitrary version number
+    title                   String                         @db.VarChar(128)
+    description             String                         @db.VarChar(2048)
+    instructions            String                         @db.VarChar(8192) // Plaintext or markdown instructions
+    isAutomatable           Boolean                        @default(false) // Indicates if the routine can be run automatically, if all conditions are met
+    created_at              DateTime                       @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime                       @default(now()) @db.Timestamptz(6)
+    projectId               String?                        @db.Uuid // Project this routine belongs to, if any
+    userId                  String?                        @db.Uuid // User who can edit this routine
+    organizationId          String?                        @db.Uuid // Organization who can edit this routine
+    createdByUserId         String?                        @db.Uuid // User who created this routine
+    createdByOrganizationId String?                        @db.Uuid // Organization who created this routine
+    project                 project?                       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    user                    user?                          @relation("routine_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+    organization            organization?                  @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+    createdByUser           user?                          @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+    createdByOrganization   organization?                  @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+    inputs                  routine_input[]
+    outputs                 routine_output[]
+    nodes                   node[] // Defines an orchestration (i.e. routine is made up of subroutines)
+    contextualResources     routine_resources_contextual[] // Resources to provide context to the routine
+    externalResources       routine_resources_external[] // Resources for completing steps outside of Vrooli
+    tags                    routine_tags[] // Categorical tags set by creators or community-voted
+    starredBy               routine_stars[] // Users who starred the routine
+    parent                  routine_forks?                 @relation("routine_parent")
+    forks                   routine_forks[]                @relation("routine_fork")
+    nodeLists               node_routine_list_item[] // Routine list nodes the routine is a part of
+    reports                 report[]
+    comments                comment[]
 }
 
 // One to many relationship between a routine and routines forked from it
@@ -583,17 +583,6 @@ model routine_resources_external {
     @@unique([forId, resourceId], name: "routine_resources_external_forid_resourceid_unique")
 }
 
-// Many-to-many relationship between routines and organizations
-model routine_organizations {
-    id             String       @id @default(uuid()) @db.Uuid
-    routineId      String       @db.Uuid
-    organizationId String       @db.Uuid
-    routine        routine      @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-    @@unique([routineId, organizationId], name: "routine_organizations_routineid_organizationid_unique")
-}
-
 // Data for a routine output
 model routine_output {
     id          String   @id @default(uuid()) @db.Uuid
@@ -626,17 +615,6 @@ model routine_tags {
     tag      tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
     @@unique([taggedId, tagId], name: "routine_tags_taggedid_tagid_unique")
-}
-
-// Many to many relationship between routines and users
-model routine_users {
-    id        String  @id @default(uuid()) @db.Uuid
-    routineId String  @db.Uuid
-    userId    String  @db.Uuid
-    routine   routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([routineId, userId], name: "routine_users_routineid_userid_unique")
 }
 
 //==============================================================
@@ -765,14 +743,13 @@ model user {
     wallets                        wallet[]
     standards                      standard[]
     resources                      user_resources[] // Resources associated with user profile
-    donationResources              user_resources_donation[] // Resources for donation links
     organizations                  organization_users[] // Projects the user is a member of
     projects                       project_users[] // Projects the user can control
-    routines                       routine_users[] // Routines the user can control
+    routines                       routine[]                 @relation("routine_user_owner") // Routines the user can control
+    routinesCreated                routine[]                 @relation("routine_user_creator") // Routines the user created, but not necessarily controlled
     starredComments                comment_stars[]
     starredProjects                project_stars[]
     starredOrganizations           organization_stars[]
-    starredResources               resource_stars[]
     starredRoutines                routine_stars[]
     starredStandards               standard_stars[]
     hiddenTags                     user_tag_hidden[]
@@ -794,17 +771,6 @@ model user_resources {
     resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
     @@unique([forId, resourceId], name: "user_resources_forid_resourceid_unique")
-}
-
-// Many-to-many relationship between users and donation resources
-model user_resources_donation {
-    id         String   @id @default(uuid()) @db.Uuid
-    forId      String   @db.Uuid
-    resourceId String   @db.Uuid
-    user       user     @relation(fields: [forId], references: [id], onDelete: Cascade)
-    resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-    @@unique([forId, resourceId], name: "user_resources_donation_forid_resourceid_unique")
 }
 
 // Joining table to apply roles to user
@@ -908,6 +874,17 @@ enum NodeType {
     RoutineList
     Redirect
     Start
+}
+
+enum ResourceUsedFor {
+    Community // e.g. Discord invite link
+    Context // e.g. Pitch video link
+    Donation // e.g. Patreon link
+    Learning // e.g. White Paper link
+    OfficialWebsite // e.g. Website or Github link
+    Related // e.g. Anything that's related to the project, but doesn't fit into any of the other categories
+    Social // e.g. Twitter, Facebook, Instagram
+    Tutorial // e.g. Youtube video link
 }
 
 enum StandardType {

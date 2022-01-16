@@ -1,6 +1,6 @@
 import { Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
+import { addCountQueries, addJoinTables, counter, creater, deleter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
 import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
 import { CODE } from "@local/shared";
@@ -11,26 +11,25 @@ import { CODE } from "@local/shared";
 
 // Type 1. RelationshipList
 export type RoutineRelationshipList = 'inputs' | 'outputs' | 'nodes' | 'contextualResources' |
-    'externalResources' | 'tags' | 'users' | 'organizations' | 'starredBy' | 
-    'parent' | 'forks' | 'nodeLists' | 'reports' | 'comments';
+    'externalResources' | 'tags' | 'starredBy' | 'project' | 'user' | 'organization' |
+    'createdByUser' | 'createdByOrganization' | 'parent' | 'forks' | 'nodeLists' | 'reports' | 'comments';
 // Type 2. QueryablePrimitives
 export type RoutineQueryablePrimitives = Omit<Routine, RoutineRelationshipList>;
 // Type 3. AllPrimitives
 export type RoutineAllPrimitives = RoutineQueryablePrimitives;
 // type 4. Database shape
-export type RoutineDB = RoutineAllPrimitives &
-Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'> &
-{
-    contextualResources: { resource: Resource }[],
-    externalResources: { resource: Resource }[],
-    tags: { tag: Tag }[],
-    users: { user: User }[],
-    organizations: { organization: Organization }[],
-    starredBy: { user: User }[],
-    forks: { fork: Routine }[],
-    nodeLists: { list: Routine }[],
-    _count: { starredBy: number }[],
-};
+export type RoutineDB = any;
+// export type RoutineDB = RoutineAllPrimitives &
+// Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent' | 'project' | 'user' | 'organization' | 'createdByUser' | 'createdByOrganization'> &
+// {
+//     contextualResources: { resource: Resource }[],
+//     externalResources: { resource: Resource }[],
+//     tags: { tag: Tag }[],
+//     starredBy: { user: User }[],
+//     forks: { fork: Routine }[],
+//     nodeLists: { list: Routine }[],
+//     _count: { starredBy: number }[],
+// };
 
 //======================================================================================================================
 /* #endregion Type Definitions */
@@ -51,9 +50,8 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
     ): Promise<RecursivePartial<RoutineDB> | null> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        // Shape data for Prisma (i.e. add "connect"s and "create"s), and remove any unsupported relationships
-        //const shapedData = shapeCreateData(data, removeFields, keepFields);
-        //console.log('routineCreate shapedData', shapedData);
+        // Remove any relationships should not be created/connected in this operation
+        data = keepOnly(data, ['inputs', 'outputs', 'nodes', 'contextualResources', 'externalResources', 'tags', 'users', 'organizations', 'parent']);
         // Perform additional checks
         // TODO
         // Create
@@ -71,8 +69,6 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
         contextualResources: 'resource',
         externalResources: 'resource',
         tags: 'tag',
-        users: 'user',
-        organizations: 'organization',
         starredBy: 'user',
         forks: 'fork',
         nodeLists: 'list',
