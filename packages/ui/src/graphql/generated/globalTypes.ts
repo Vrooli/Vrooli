@@ -14,6 +14,14 @@ export enum AccountStatus {
   Unlocked = "Unlocked",
 }
 
+export enum CommentFor {
+  Organization = "Organization",
+  Project = "Project",
+  Routine = "Routine",
+  Standard = "Standard",
+  User = "User",
+}
+
 export enum NodeType {
   Combine = "Combine",
   Decision = "Decision",
@@ -33,8 +41,6 @@ export enum OrganizationSortBy {
   DateUpdatedDesc = "DateUpdatedDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
-  VotesAsc = "VotesAsc",
-  VotesDesc = "VotesDesc",
 }
 
 export enum ProjectSortBy {
@@ -54,26 +60,42 @@ export enum ProjectSortBy {
   VotesDesc = "VotesDesc",
 }
 
+export enum ReportFor {
+  Comment = "Comment",
+  Organization = "Organization",
+  Project = "Project",
+  Routine = "Routine",
+  Standard = "Standard",
+  Tag = "Tag",
+  User = "User",
+}
+
 export enum ResourceFor {
-  Actor = "Actor",
   Organization = "Organization",
   Project = "Project",
   RoutineContextual = "RoutineContextual",
-  RoutineDonation = "RoutineDonation",
   RoutineExternal = "RoutineExternal",
+  User = "User",
 }
 
 export enum ResourceSortBy {
   AlphabeticalAsc = "AlphabeticalAsc",
   AlphabeticalDesc = "AlphabeticalDesc",
-  CommentsAsc = "CommentsAsc",
-  CommentsDesc = "CommentsDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
-  StarsAsc = "StarsAsc",
-  StarsDesc = "StarsDesc",
+}
+
+export enum ResourceUsedFor {
+  Community = "Community",
+  Context = "Context",
+  Donation = "Donation",
+  Learning = "Learning",
+  OfficialWebsite = "OfficialWebsite",
+  Related = "Related",
+  Social = "Social",
+  Tutorial = "Tutorial",
 }
 
 export enum RoutineSortBy {
@@ -132,14 +154,20 @@ export enum TagSortBy {
 export enum UserSortBy {
   AlphabeticalAsc = "AlphabeticalAsc",
   AlphabeticalDesc = "AlphabeticalDesc",
-  CommentsAsc = "CommentsAsc",
-  CommentsDesc = "CommentsDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
+}
+
+export enum VoteFor {
+  Comment = "Comment",
+  Project = "Project",
+  Routine = "Routine",
+  Standard = "Standard",
+  Tag = "Tag",
 }
 
 export interface AutocompleteInput {
@@ -150,8 +178,8 @@ export interface AutocompleteInput {
 export interface CommentInput {
   id?: string | null;
   text?: string | null;
-  objectType?: string | null;
-  objectId?: string | null;
+  createdFor: CommentFor;
+  forId: string;
 }
 
 export interface DeleteManyInput {
@@ -345,8 +373,11 @@ export interface ReadOpenGraphInput {
 }
 
 export interface ReportInput {
-  id: string;
-  reason?: string | null;
+  id?: string | null;
+  reason: string;
+  details?: string | null;
+  createdFor: ReportFor;
+  forId: string;
 }
 
 export interface ResourceCountInput {
@@ -360,6 +391,7 @@ export interface ResourceInput {
   description?: string | null;
   link: string;
   displayUrl?: string | null;
+  usedFor?: ResourceUsedFor | null;
   createdFor: ResourceFor;
   forId: string;
 }
@@ -468,13 +500,6 @@ export interface TagSearchInput {
   take?: number | null;
 }
 
-export interface TagVoteInput {
-  id: string;
-  isUpvote: boolean;
-  objectType: string;
-  objectId: string;
-}
-
 export interface TimeFrame {
   after?: any | null;
   before?: any | null;
@@ -515,8 +540,10 @@ export interface UserSearchInput {
 }
 
 export interface VoteInput {
-  id: string;
+  id?: string | null;
   isUpvote: boolean;
+  createdFor: VoteFor;
+  forId: string;
 }
 
 export interface WalletCompleteInput {

@@ -74,8 +74,34 @@ export interface routine_routine_nodes_data_NodeLoop {
   id: string;
 }
 
+export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+  stars: number;
+}
+
+export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
+  __typename: "Routine";
+  id: string;
+  version: string | null;
+  title: string | null;
+  description: string | null;
+  created_at: any;
+  isAutomatable: boolean | null;
+  tags: routine_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
+  stars: number;
+}
+
 export interface routine_routine_nodes_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
+  id: string;
+  title: string;
+  description: string | null;
+  isOptional: boolean;
+  routine: routine_routine_nodes_data_NodeRoutineList_routines_routine | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList {
@@ -111,7 +137,7 @@ export interface routine_routine_nodes {
   data: routine_routine_nodes_data | null;
 }
 
-export interface routine_routine_organizations {
+export interface routine_routine_organization {
   __typename: "Organization";
   id: string;
   name: string;
@@ -154,7 +180,7 @@ export interface routine_routine_tags {
   stars: number;
 }
 
-export interface routine_routine_users {
+export interface routine_routine_user {
   __typename: "User";
   id: string;
   username: string | null;
@@ -173,13 +199,13 @@ export interface routine_routine {
   stars: number;
   inputs: routine_routine_inputs[];
   nodes: routine_routine_nodes[];
-  organizations: routine_routine_organizations[];
+  organization: routine_routine_organization | null;
   outputs: routine_routine_outputs[];
   parent: routine_routine_parent | null;
   contextualResources: routine_routine_contextualResources[];
   externalResources: routine_routine_externalResources[];
   tags: routine_routine_tags[];
-  users: routine_routine_users[];
+  user: routine_routine_user | null;
 }
 
 export interface routine {

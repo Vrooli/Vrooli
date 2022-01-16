@@ -6,7 +6,21 @@ export const deepRoutineFields = gql`
         description
         tag
     }
-    fragment ioFields on RoutineInputItem {
+    fragment inputFields on RoutineInputItem {
+        id
+        standard {
+            id
+            default
+            description
+            isFile
+            name
+            schema
+            tags {
+                ...tagFields
+            }
+        }
+    }
+    fragment outputFields on RoutineInputItem {
         id
         standard {
             id
@@ -60,7 +74,13 @@ export const deepRoutineFields = gql`
                 isOptional
                 isOrdered
                 routines {
-                    ...routineFields
+                    id
+                    title
+                    description
+                    isOptional
+                    routine {
+                        ...routineFields
+                    }
                 }
             }
             ... on NodeRedirect {
@@ -90,17 +110,17 @@ export const deepRoutineFields = gql`
         version
         stars
         inputs {
-            ...ioFields
+            ...inputFields
         }
         nodes {
             ...nodeFields
         }
-        organizations {
+        organization {
             id
             name
         }
         outputs {
-            ...ioFields
+            ...outputFields
         }
         parent {
             id
@@ -115,7 +135,7 @@ export const deepRoutineFields = gql`
         tags {
             ...tagFields
         }
-        users {
+        user {
             id
             username
         }

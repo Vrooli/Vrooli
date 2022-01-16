@@ -74,8 +74,34 @@ export interface deepRoutineFields_nodes_data_NodeLoop {
   id: string;
 }
 
+export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+  stars: number;
+}
+
+export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
+  __typename: "Routine";
+  id: string;
+  version: string | null;
+  title: string | null;
+  description: string | null;
+  created_at: any;
+  isAutomatable: boolean | null;
+  tags: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_tags[];
+  stars: number;
+}
+
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
+  id: string;
+  title: string;
+  description: string | null;
+  isOptional: boolean;
+  routine: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine | null;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList {
@@ -111,7 +137,7 @@ export interface deepRoutineFields_nodes {
   data: deepRoutineFields_nodes_data | null;
 }
 
-export interface deepRoutineFields_organizations {
+export interface deepRoutineFields_organization {
   __typename: "Organization";
   id: string;
   name: string;
@@ -154,7 +180,7 @@ export interface deepRoutineFields_tags {
   stars: number;
 }
 
-export interface deepRoutineFields_users {
+export interface deepRoutineFields_user {
   __typename: "User";
   id: string;
   username: string | null;
@@ -173,11 +199,11 @@ export interface deepRoutineFields {
   stars: number;
   inputs: deepRoutineFields_inputs[];
   nodes: deepRoutineFields_nodes[];
-  organizations: deepRoutineFields_organizations[];
+  organization: deepRoutineFields_organization | null;
   outputs: deepRoutineFields_outputs[];
   parent: deepRoutineFields_parent | null;
   contextualResources: deepRoutineFields_contextualResources[];
   externalResources: deepRoutineFields_externalResources[];
   tags: deepRoutineFields_tags[];
-  users: deepRoutineFields_users[];
+  user: deepRoutineFields_user | null;
 }

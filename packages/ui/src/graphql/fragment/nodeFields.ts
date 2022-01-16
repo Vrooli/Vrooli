@@ -57,7 +57,13 @@ export const nodeFields = gql`
                 isOptional
                 isOrdered
                 routines {
-                    ...routineFields
+                    id
+                    title
+                    description
+                    isOptional
+                    routine {
+                        ...routineFields
+                    }
                 }
             }
             ... on NodeRedirect {

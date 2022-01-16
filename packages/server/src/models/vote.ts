@@ -52,7 +52,6 @@ export function VoteModel(prisma?: PrismaType) {
         ...creater<VoteInput, Vote, VoteDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
         ...findByIder<Vote, VoteDB>(model, format.toDB, prisma),
-        ...updater<VoteInput, Vote, VoteDB>(model, format.toDB, prisma),
     }
 }
 

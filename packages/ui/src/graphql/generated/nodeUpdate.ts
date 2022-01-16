@@ -48,8 +48,34 @@ export interface nodeUpdate_nodeUpdate_data_NodeLoop {
   id: string;
 }
 
+export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+  stars: number;
+}
+
+export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine {
+  __typename: "Routine";
+  id: string;
+  version: string | null;
+  title: string | null;
+  description: string | null;
+  created_at: any;
+  isAutomatable: boolean | null;
+  tags: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tags[];
+  stars: number;
+}
+
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
+  id: string;
+  title: string;
+  description: string | null;
+  isOptional: boolean;
+  routine: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine | null;
 }
 
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList {
