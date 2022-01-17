@@ -46,8 +46,8 @@ export const typeDef = gql`
         instructions: String
         isAutomatable: Boolean
         stars: Int!
-        votes: Int!
-        isUpvoted: Boolean!
+        score: Int!
+        isUpvoted: Boolean
         inputs: [RoutineInputItem!]!
         outputs: [RoutineOutputItem!]!
         nodes: [Node!]!

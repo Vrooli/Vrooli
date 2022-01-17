@@ -6,7 +6,7 @@ export const commentFields = gql`
         text
         created_at
         updated_at
-        votes
+        score
         isUpvoted
         creator {
             ... on Organization {

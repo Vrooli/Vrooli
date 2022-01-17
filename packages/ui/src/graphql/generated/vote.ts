@@ -3,21 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { DeleteOneInput } from "./globalTypes";
+import { VoteInput } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: voteDeleteOne
+// GraphQL mutation operation: vote
 // ====================================================
 
-export interface voteDeleteOne_voteDeleteOne {
+export interface vote_vote {
   __typename: "Success";
   success: boolean | null;
 }
 
-export interface voteDeleteOne {
-  voteDeleteOne: voteDeleteOne_voteDeleteOne;
+export interface vote {
+  vote: vote_vote;
 }
 
-export interface voteDeleteOneVariables {
-  input: DeleteOneInput;
+export interface voteVariables {
+  input: VoteInput;
 }

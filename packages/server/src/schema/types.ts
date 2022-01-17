@@ -45,11 +45,11 @@ export type Comment = {
   id: Scalars['ID'];
   isUpvoted: Scalars['Boolean'];
   reports: Array<Report>;
+  score?: Maybe<Scalars['Int']>;
   starredBy?: Maybe<Array<User>>;
   stars?: Maybe<Scalars['Int']>;
   text?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
-  votes?: Maybe<Scalars['Int']>;
 };
 
 export enum CommentFor {
@@ -197,8 +197,7 @@ export type Mutation = {
   tagUpdate: Tag;
   userDeleteOne: Success;
   validateSession: Session;
-  voteAdd: Success;
-  voteRemove: Success;
+  vote: Success;
   walletComplete: Session;
   walletInit: Scalars['String'];
   walletRemove: Success;
@@ -391,13 +390,8 @@ export type MutationUserDeleteOneArgs = {
 };
 
 
-export type MutationVoteAddArgs = {
+export type MutationVoteArgs = {
   input: VoteInput;
-};
-
-
-export type MutationVoteRemoveArgs = {
-  input: VoteRemoveInput;
 };
 
 
@@ -724,11 +718,11 @@ export type Project = {
   reports: Array<Report>;
   resources?: Maybe<Array<Resource>>;
   routines: Array<Routine>;
+  score: Scalars['Int'];
   starredBy?: Maybe<Array<User>>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
   updated_at: Scalars['Date'];
-  votes: Scalars['Int'];
   wallets?: Maybe<Array<Wallet>>;
 };
 
@@ -747,7 +741,7 @@ export type ProjectInput = {
   description?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
   name: Scalars['String'];
-  organizations?: InputMaybe<Array<OrganizationInput>>;
+  organizationId: InputMaybe<Scalars['ID']>;
   resources?: InputMaybe<Array<ResourceInput>>;
   users?: InputMaybe<Array<UserInput>>;
 };
@@ -1092,13 +1086,13 @@ export type Routine = {
   parent?: Maybe<Routine>;
   project?: Maybe<Project>;
   reports: Array<Report>;
+  score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
   title?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
   version?: Maybe<Scalars['String']>;
-  votes: Scalars['Int'];
 };
 
 export type RoutineCountInput = {
@@ -1208,12 +1202,12 @@ export type Standard = {
   routineInputs: Array<Routine>;
   routineOutputs: Array<Routine>;
   schema: Scalars['String'];
+  score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
   type: StandardType;
   updated_at: Scalars['Date'];
-  votes: Scalars['Int'];
 };
 
 export type StandardCountInput = {
@@ -1312,11 +1306,11 @@ export type Tag = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isUpvoted: Scalars['Boolean'];
+  score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tag: Scalars['String'];
   updated_at: Scalars['Date'];
-  votes: Scalars['Int'];
 };
 
 export type TagCountInput = {
@@ -1457,7 +1451,7 @@ export enum VoteFor {
 
 export type VoteInput = {
   forId: Scalars['ID'];
-  isUpvote: Scalars['Boolean'];
+  isUpvote?: InputMaybe<Scalars['Boolean']>;
   voteFor: VoteFor;
 };
 

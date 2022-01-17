@@ -84,6 +84,8 @@ Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inp
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
             modified = removeOwnerField(modified);
+            // Remove isUpvoted, as it is calculated in its own query
+            if (modified.isUpvoted) delete modified.isUpvoted;
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<RoutineDB>): RecursivePartial<Routine> => {

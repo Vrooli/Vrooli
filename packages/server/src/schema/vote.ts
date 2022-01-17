@@ -17,7 +17,7 @@ export const typeDef = gql`
     }   
 
     input VoteInput {
-        isUpvote: Boolean!
+        isUpvote: Boolean
         voteFor: VoteFor!
         forId: ID!
     }
@@ -28,8 +28,7 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        voteAdd(input: VoteInput!): Success!
-        voteRemove(input: VoteRemoveInput!): Success!
+        vote(input: VoteInput!): Success!
     }
 `
 
@@ -37,24 +36,14 @@ export const resolvers = {
     VoteFor: VoteFor,
     Mutation: {
         /**
-         * Adds a vote to an object. A user can only cast one vote per object. So if a user re-votes, 
+         * Adds or removes a vote to an object. A user can only cast one vote per object. So if a user re-votes, 
          * their previous vote is overruled. A user may vote on their own project/routine/etc.
          * @returns 
          */
-        voteAdd: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
+        vote: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            const success = await VoteModel(prisma).castVote(req.userId, input);
-            return { success };
-        },
-        /**
-         * Removes a vote from an object
-         * @returns 
-         */
-        voteRemove: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            const success = await VoteModel(prisma).removeVote(req.userId, input);
+            const success = await VoteModel(prisma).vote(req.userId, input);
             return { success };
         },
     }

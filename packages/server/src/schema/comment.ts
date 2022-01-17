@@ -35,8 +35,8 @@ export const typeDef = gql`
         reports: [Report!]!
         stars: Int
         starredBy: [User!]
-        votes: Int
-        isUpvoted: Boolean!
+        score: Int
+        isUpvoted: Boolean
     }
 
     input DeleteCommentInput {
@@ -59,17 +59,17 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const comment = await CommentModel(prisma).addComment(req.userId, input, info);
-            if (!comment) throw new CustomError(CODE.ErrorUnknown);
-            return comment;
+            const created = await CommentModel(prisma).addComment(req.userId, input, info);
+            if (!created) throw new CustomError(CODE.ErrorUnknown);
+            return created;
         },
         commentUpdate: async (_parent: undefined, { input }: IWrap<CommentInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const comment = await CommentModel(prisma).updateComment(req.userId, input, info);
-            if (!comment) throw new CustomError(CODE.ErrorUnknown);
-            return comment;
+            const updated = await CommentModel(prisma).updateComment(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
         },
         commentDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account

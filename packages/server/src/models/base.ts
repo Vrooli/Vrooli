@@ -35,10 +35,12 @@ export type FormatConverter<GraphQLModel, FullDBModel> = {
     countMapper?: CountMap;
     /**
      * Converts object from GraphQL representation to Prisma
+     * @param obj GraphQL object to convert
      */
     toDB: (obj: RecursivePartial<GraphQLModel>) => RecursivePartial<FullDBModel>;
     /**
      * Converts object from Prisma representation to GraphQL
+     * @param obj - Prisma object to convert
      */
     toGraphQL: (obj: RecursivePartial<FullDBModel>) => RecursivePartial<GraphQLModel>;
 }
@@ -172,12 +174,14 @@ export const addCountQueries = (obj: any, map: CountMap): any => {
  * Helper function for converting creator GraphQL field to Prisma createdByUser/createdByOrganization fields
  */
 export const removeCreatorField = (modified: any): any => {
-    console.log('removeCreatorField', modified);
     if (modified.creator) {
-        if (modified.creator.hasOwnProperty('username')) {
-            modified.createdByUser = modified.creator;
-        } else {
-            modified.createdByOrganization = modified.creator;
+        modified.createdByUser = {
+            id: true,
+            username: true,
+        }
+        modified.createdByOrganization = {
+            id: true,
+            name: true,
         }
         delete modified.creator;
     }
@@ -188,13 +192,13 @@ export const removeCreatorField = (modified: any): any => {
  * Helper function for Prisma createdByUser/createdByOrganization fields to GraphQL creator field
  */
  export const addCreatorField = (modified: any): any => {
-    if (modified.createdByUser) {
+    if (modified.createdByUser?.id) {
         modified.creator = modified.createdByUser;
-        delete modified.createdByUser;
-    } else if (modified.createdByOrganization) {
+    } else if (modified.createdByOrganization?.id) {
         modified.creator = modified.createdByOrganization;
-        delete modified.createdByOrganization;
     }
+    delete modified.createdByUser;
+    delete modified.createdByOrganization;
     return modified;
 }
 
@@ -202,13 +206,16 @@ export const removeCreatorField = (modified: any): any => {
  * Helper function for converting owner GraphQL field to Prisma user/organization fields
  */
  export const removeOwnerField = (modified: any): any => {
-    if (modified.creator) {
-        if (modified.creator.hasOwnProperty('username')) {
-            modified.user = modified.creator;
-        } else {
-            modified.organization = modified.creator;
+    if (modified.owner) {
+        modified.user = {
+            id: true,
+            username: true,
         }
-        delete modified.creator;
+        modified.organization = {
+            id: true,
+            name: true,
+        }
+        delete modified.owner;
     }
     return modified;
 }
@@ -217,13 +224,13 @@ export const removeCreatorField = (modified: any): any => {
  * Helper function for Prisma user/organization fields to GraphQL owner field
  */
  export const addOwnerField = (modified: any): any => {
-    if (modified.user) {
-        modified.creator = modified.user;
-        delete modified.user;
-    } else if (modified.organization) {
-        modified.creator = modified.organization;
-        delete modified.organization;
+    if (modified.user?.id) {
+        modified.owner = modified.user;
+    } else if (modified.organization?.id) {
+        modified.owner = modified.organization;
     }
+    delete modified.user;
+    delete modified.organization;
     return modified;
 }
 
@@ -425,7 +432,6 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
          * @param where Additional where clauses to apply to the search
          * @param input GraphQL-provided search parameters
          * @param info Requested return information
-         * @returns 
          */
         async search(where: { [x: string]: any }, input: SearchInput, info: InfoType): Promise<PaginatedSearchResult> {
             const boop = selectHelper<GraphQLModel, FullDBModel>(info, toDB);

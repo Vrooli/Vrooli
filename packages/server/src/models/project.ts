@@ -1,9 +1,11 @@
-import { CODE } from "@local/shared";
+import { CODE, MemberRole } from "@local/shared";
 import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
-import { Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
+import { FindByIdInput, Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
 import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, creater, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
+import { hasProfanity } from "../utils/censor";
+import { OrganizationModel } from "./organization";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -43,9 +45,9 @@ export type ProjectDB = ProjectAllPrimitives &
  * Custom component for creating project. 
  * NOTE: Data should be in Prisma shape, not GraphQL
  */
- const projectCreater = (toDB: FormatConverter<Project, ProjectDB>['toDB'], prisma?: PrismaType) => ({
+const projectCreater = (toDB: FormatConverter<Project, ProjectDB>['toDB'], prisma?: PrismaType) => ({
     async create(
-        data: any, 
+        data: any,
         info: GraphQLResolveInfo | null = null,
     ): Promise<RecursivePartial<ProjectDB> | null> {
         // Check for valid arguments
@@ -64,7 +66,7 @@ export type ProjectDB = ProjectAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Project, ProjectDB> => {
+const formatter = (): FormatConverter<Project, ProjectDB> => {
     const joinMapper = {
         resources: 'resource',
         tags: 'tag',
@@ -78,10 +80,14 @@ export type ProjectDB = ProjectAllPrimitives &
     }
     return {
         toDB: (obj: RecursivePartial<Project>): RecursivePartial<ProjectDB> => {
+            console.log('project todb', obj);
+            console.log('project owner', obj.owner);
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
             modified = removeOwnerField(modified);
+            // Remove isUpvoted, as it is calculated in its own query
+            if (modified.isUpvoted) delete modified.isUpvoted;
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<ProjectDB>): RecursivePartial<Project> => {
@@ -130,20 +136,150 @@ const sorter = (): Sortable<ProjectSortBy> => ({
 })
 
 /**
- * Component for searching
+ * Handles the authorized adding, updating, and deleting of projects.
  */
- export const projectSearcher = (
-    toDB: FormatConverter<Project, ProjectDB>['toDB'],
-    toGraphQL: FormatConverter<Project, ProjectDB>['toGraphQL'],
-    sorter: Sortable<any>, 
-    prisma?: PrismaType) => ({
-    async search(where: { [x: string]: any }, input: ProjectSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
-        const userIdQuery = input.userId ? { projects: { some: { userId: input.userId } } } : {};
-        const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
+const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<ProjectSortBy>, prisma?: PrismaType) => ({
+    async findProject(
+        userId: string | null,
+        input: FindByIdInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Create selector
+        const select = selectHelper<Project, ProjectDB>(info, formatter().toDB);
+        // Access database
+        let project = await prisma.project.findUnique({ where: { id: input.id }, ...select });
+        // Return project with "isUpvoted" field. This must be queried separately.
+        if (!userId || !project) return project;
+        const vote = await prisma.vote.findFirst({ where: { userId, projectId: project.id } });
+        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
+        return { ...project, isUpvoted };
+    },
+    async searchProjects(
+        where: { [x: string]: any },
+        userId: string | null,
+        input: ProjectSearchInput,
+        info: InfoType = null,
+    ): Promise<PaginatedSearchResult> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Create where clauses
+        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
+        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const parentIdQuery = input.parentId ? { forks: { some: { forkId: input.parentId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const search = searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectDB>(MODEL_TYPES.Project, toDB, toGraphQL, sorter, prisma);
-        return search.search({...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where}, input, info);
+        // Search
+        const search = searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectDB>(MODEL_TYPES.Project, format.toDB, format.toGraphQL, sort, prisma);
+        let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where }, input, info);
+        // Compute "isUpvoted" field for each project
+        // If userId not provided, then "isUpvoted" is null
+        if (!userId) {
+            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null } }));
+            return searchResults;
+        }
+        // Otherwise, query votes for all search results in one query
+        const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
+        const isUpvotedArray = await prisma.vote.findMany({ where: { userId, projectId: { in: resultIds } } });
+        console.log('isUpvotedArray', isUpvotedArray);
+        searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
+            const isUpvoted = isUpvotedArray.find(({ id }) => id === node.id)?.isUpvote ?? null;
+            return { cursor, node: { ...node, isUpvoted } };
+        });
+        return searchResults;
+    },
+    async addProject(
+        userId: string,
+        input: ProjectInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!prisma || !input.name || input.name.length < 1) throw new CustomError(CODE.InvalidArgs);
+        // Check for censored words
+        if (hasProfanity(input.name) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
+        // Create project data
+        let projectData: { [x: string]: any } = { name: input.name, description: input.description ?? '' };
+        // Associate with either organization or user
+        if (input.organizationId) {
+            // Make sure the user is an admin of the organization
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+            if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+            projectData = { ...projectData, organization: { connect: { id: input.organizationId } } };
+        } else {
+            projectData = { ...projectData, user: { connect: { id: userId } } };
+        }
+        // TODO resources
+        // Create project
+        const project = await prisma.project.create({
+            data: projectData as any,
+            ...selectHelper<Project, ProjectDB>(info, format.toDB)
+        })
+        // Return project with "isUpvoted" field. Will be false in this case.
+        return { ...project, isUpvoted: false };
+    },
+    async updateProject(
+        userId: string,
+        input: ProjectInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!prisma || !input.name || input.name.length < 1) throw new CustomError(CODE.InvalidArgs);
+        // Check for censored words
+        if (hasProfanity(input.name) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
+        // Create project data
+        let projectData: { [x: string]: any } = { name: input.name, description: input.description ?? '' };
+        // Associate with either organization or user
+        if (input.organizationId) {
+            // Make sure the user is an admin of the organization
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+            if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+            projectData = { ...projectData, organization: { connect: { id: input.organizationId } } };
+        } else {
+            projectData = { ...projectData, user: { connect: { id: userId } } };
+        }
+        // TODO resources
+        // Find project
+        let project = await prisma.project.findFirst({
+            where: {
+                OR: [
+                    { organizationId: input.organizationId },
+                    { userId },
+                ]
+            }
+        })
+        if (!project) throw new CustomError(CODE.ErrorUnknown);
+        // Update project
+        project = await prisma.project.update({
+            where: { id: project.id },
+            data: projectData as any,
+            ...selectHelper<Project, ProjectDB>(info, format.toDB)
+        });
+        // Return project with "isUpvoted" field. This must be queried separately.
+        const vote = await prisma.vote.findFirst({ where: { userId, projectId: project.id } });
+        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
+        return { ...project, isUpvoted };
+    },
+    async deleteProject(userId: string, input: any): Promise<boolean> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Find project
+        const project = await prisma.project.findFirst({
+            where: {
+                OR: [
+                    { organizationId: input.organizationId },
+                    { userId },
+                ]
+            }
+        })
+        if (!project) throw new CustomError(CODE.ErrorUnknown);
+        // Make sure the user is an admin of the organization
+        const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+        if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+        // Delete comment
+        await prisma.project.delete({
+            where: { id: project.id },
+        });
+        return true;
     }
 })
 
@@ -166,11 +302,9 @@ export function ProjectModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<ProjectCountInput>(model, prisma),
-        ...creater<ProjectInput, Project, ProjectDB>(model, format.toDB, prisma),
-        ...deleter(model, prisma),
         ...findByIder<Project, ProjectDB>(model, format.toDB, prisma),
+        ...projecter(format, sort, prisma),
         ...projectCreater(format.toDB, prisma),
-        ...projectSearcher(format.toDB, format.toGraphQL, sort, prisma),
     }
 }
 

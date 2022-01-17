@@ -109,6 +109,7 @@ export const deepRoutineFields = gql`
         updated_at
         version
         stars
+        score
         inputs {
             ...inputFields
         }

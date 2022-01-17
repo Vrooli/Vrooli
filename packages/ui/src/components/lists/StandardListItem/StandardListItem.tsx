@@ -9,6 +9,7 @@ import {
     StarBorder as IsNotStarredIcon,
 } from '@mui/icons-material';
 import { useLocation } from 'wouter';
+import { UpvoteDownvote } from '..';
 
 export function StandardListItem({
     data,
@@ -57,6 +58,11 @@ export function StandardListItem({
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
+                    <UpvoteDownvote
+                        votes={data.votes}
+                        isUpvoted={data.isUpvoted}
+                        onVote={() => { }}
+                    />
                     <ListItemText
                         primary={data.name}
                         sx={{ ...multiLineEllipsis(2) }}

@@ -546,12 +546,7 @@ export interface UserSearchInput {
 }
 
 export interface VoteInput {
-  isUpvote: boolean;
-  voteFor: VoteFor;
-  forId: string;
-}
-
-export interface VoteRemoveInput {
+  isUpvote?: boolean | null;
   voteFor: VoteFor;
   forId: string;
 }

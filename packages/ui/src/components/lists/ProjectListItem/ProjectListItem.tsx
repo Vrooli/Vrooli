@@ -3,13 +3,16 @@ import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip } fr
 import { ProjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS, VoteFor } from '@local/shared';
 import {
     Star as IsStarredIcon,
     StarBorder as IsNotStarredIcon,
 } from '@mui/icons-material';
 import { useLocation } from 'wouter';
 import { UpvoteDownvote } from 'components';
+import { voteMutation } from 'graphql/mutation';
+import { vote } from 'graphql/generated/vote';
+import { useMutation } from '@apollo/client';
 
 export function ProjectListItem({
     data,
@@ -19,6 +22,7 @@ export function ProjectListItem({
     onStarClick = () => { },
 }: ProjectListItemProps) {
     const [, setLocation] = useLocation();
+    const [vote, { loading }] = useMutation<vote>(voteMutation);
 
     const handleClick = useCallback(() => {
         // If onClick provided, call if
@@ -33,6 +37,17 @@ export function ProjectListItem({
         // Call the onStarClick callback
         onStarClick(data.id ?? '', isStarred)
     }, [onStarClick, data.id, isStarred]);
+
+    const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
+        // Prevent propagation of normal click event
+        e.stopPropagation();
+        // Send vote mutation
+        vote({ variables: { input: {
+            isUpvote,
+            voteFor: VoteFor.Project,
+            forId: data.id
+        } } });
+    }, [data])
 
     const starIcon = useMemo(() => {
         const Icon = isStarred ? IsStarredIcon : IsNotStarredIcon;
@@ -60,7 +75,7 @@ export function ProjectListItem({
                 <UpvoteDownvote
                     votes={data.votes}
                     isUpvoted={data.isUpvoted}
-                    
+                    onVote={handleVote}
                 />
                 <ListItemButton component="div" onClick={handleClick}>
                     <ListItemText

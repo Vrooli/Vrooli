@@ -57,8 +57,8 @@ export const typeDef = gql`
         default: String
         isFile: Boolean!
         stars: Int!
-        votes: Int!
-        isUpvoted: Boolean!
+        score: Int!
+        isUpvoted: Boolean
         creator: Contributor
         tags: [Tag!]!
         routineInputs: [Routine!]!

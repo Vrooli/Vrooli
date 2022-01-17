@@ -263,16 +263,12 @@ export async function mock(prisma: PrismaType) {
     const project1 = await projectModel.create({
         name: "Vrooli",
         description: "This is getting meta!",
-        organizations: { 
-            create: [{ organization: { connect: { id: organization1?.id } } }]
-        },
+        organization: { connect: { id: organization1?.id } },
     })
     const project2 = await projectModel.create({
         name: "Vrooli 2",
         description: "This is getting meta!",
-        organizations: { 
-            create: [{ organization: { connect: { id: organization1?.id } } }]
-        },
+        organization: { connect: { id: organization2?.id } },
     })
     //==============================================================
     /* #endregion Create projects */

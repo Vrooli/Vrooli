@@ -166,7 +166,7 @@ export const resolvers = {
         /**
          * Autocomplete endpoint for main page. Combines search queries for all main objects
          */
-        autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
+        autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
             console.log('Autocomplete input', input);
             //const MinimumStars = 1; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             //const starredByQuery = { starredBy: { gte: MinimumStars } }; TODO for now, Prisma does not offer this type of sorting. See https://github.com/prisma/prisma/issues/8935. Instead, returning if any stars exist.
@@ -182,16 +182,18 @@ export const resolvers = {
                 stars: true
             })).edges.map(({ node }: any) => node);
             // Query projects
-            const projects = (await ProjectModel(prisma).search({
-                //...starredByQuery,
-            }, {
-                ...input,
-                sortBy: ProjectSortBy.StarsDesc
-            }, {
-                id: true,
-                name: true,
-                stars: true
-            })).edges.map(({ node }: any) => node);
+            const projects = (await ProjectModel(prisma).searchProjects(
+                {
+                    //...starredByQuery,
+                },
+                req.userId ?? null,
+                { ...input, sortBy: ProjectSortBy.StarsDesc },
+                {
+                    id: true,
+                    name: true,
+                    stars: true
+                }
+            )).edges.map(({ node }: any) => node);
             // Query routines
             const routines = (await RoutineModel(prisma).search({
                 //...starredByQuery,

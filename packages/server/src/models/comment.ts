@@ -5,6 +5,11 @@ import { PrismaType, RecursivePartial } from "types";
 import { addCountQueries, addCreatorField, addJoinTables, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeCreatorField, removeJoinTables, selectHelper } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { GraphQLResolveInfo } from "graphql";
+import { UserDB } from "./user";
+import { OrganizationDB } from "./organization";
+import { ProjectDB } from "./project";
+import { RoutineDB } from "./routine";
+import { StandardDB } from "./standard";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -19,8 +24,12 @@ export type CommentQueryablePrimitives = Omit<Comment, CommentRelationshipList>;
 export type CommentAllPrimitives = CommentQueryablePrimitives;
 // type 4. Database shape
 export type CommentDB = CommentAllPrimitives &
-    Pick<Comment, 'user' | 'organization' | 'project' | 'routine' | 'standard' | 'reports'> &
 {
+    user: UserDB,
+    organization: OrganizationDB,
+    project: ProjectDB,
+    routine: RoutineDB,
+    standard: StandardDB,
     stars: number,
 };
 
@@ -47,6 +56,8 @@ const formatter = (): FormatConverter<Comment, CommentDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
+            // Remove isUpvoted, as it is calculated in its own query
+            if (modified.isUpvoted) delete modified.isUpvoted;
             console.log('comment toDB', modified);
             // if (modified.commentedOn) {
             //     if (modified.creator.hasOwnProperty('username')) {
@@ -101,7 +112,7 @@ const commenter = (prisma?: PrismaType) => ({
         // Check for censored words
         if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
         // Add comment
-        return await prisma.comment.create({
+        let comment = await prisma.comment.create({
             data: {
                 text: input.text,
                 userId,
@@ -109,6 +120,8 @@ const commenter = (prisma?: PrismaType) => ({
             },
             ...selectHelper<Comment, CommentDB>(info, formatter().toDB)
         });
+        // Return comment with "isUpvoted" field. Will be false in this case.
+        return { ...comment, isUpvoted: false };
     },
     async updateComment(
         userId: string, 
@@ -120,7 +133,7 @@ const commenter = (prisma?: PrismaType) => ({
         // Check for censored words
         if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
         // Find comment
-        const comment = await prisma.comment.findFirst({
+        let comment = await prisma.comment.findFirst({
             where: {
                 userId,
                 [forMapper[input.createdFor]]: input.forId,
@@ -128,13 +141,17 @@ const commenter = (prisma?: PrismaType) => ({
         })
         if (!comment) throw new CustomError(CODE.ErrorUnknown);
         // Update comment
-        return await prisma.comment.update({
+        comment = await prisma.comment.update({
             where: { id: comment.id },
             data: {
                 text: input.text,
             },
             ...selectHelper<Comment, CommentDB>(info, formatter().toDB)
         });
+        // Return comment with "isUpvoted" field. This must be queried separately.
+        const vote = await prisma.vote.findFirst({ where: { userId, commentId: comment.id } });
+        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
+        return { ...comment, isUpvoted };
     },
     async deleteComment(userId: string, input: any): Promise<boolean> {
         // Check for valid arguments

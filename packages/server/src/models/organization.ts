@@ -3,7 +3,7 @@ import { Organization, OrganizationCountInput, OrganizationSearchInput, Organiza
 import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
-import { CODE } from "@local/shared";
+import { CODE, MemberRole } from "@local/shared";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -54,6 +54,21 @@ export type OrganizationDB = OrganizationAllPrimitives &
         const { id } = await prisma.organization.create({ data });
         // Query database
         return await prisma.organization.findUnique({ where: { id }, ...selectHelper<Organization, OrganizationDB>(info, toDB) }) as RecursivePartial<OrganizationDB> | null;
+    }
+})
+
+const memberCheck = (prisma?: PrismaType) => ({
+    async isOwnerOrAdmin (userId: string, organizationId: string): Promise<boolean> {
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        const memberData = await prisma.organization_users.findFirst({ 
+            where: {
+                organization: { id: organizationId },
+                user: { id: userId },
+                role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+            }
+        });
+        console.log('member data', memberData);
+        return Boolean(memberData);
     }
 })
 
@@ -155,6 +170,7 @@ export function OrganizationModel(prisma?: PrismaType) {
         ...counter<OrganizationCountInput>(model, prisma),
         ...deleter(model, prisma),
         ...findByIder<Organization, OrganizationDB>(model, format.toDB, prisma),
+        ...memberCheck(prisma),
         ...organizationCreater(format.toDB, prisma),
         ...organizationSearcher(format.toDB, format.toGraphQL, sort, prisma),
     }

@@ -73,6 +73,8 @@ const formatter = (): FormatConverter<Standard, StandardDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
+            // Remove isUpvoted, as it is calculated in its own query
+            if (modified.isUpvoted) delete modified.isUpvoted;
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<StandardDB>): RecursivePartial<Standard> => {

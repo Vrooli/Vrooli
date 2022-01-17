@@ -40,6 +40,7 @@ model comment {
     standard       standard?       @relation(fields: [standardId], references: [id], onDelete: Cascade)
     reports        report[]
     stars          comment_stars[]
+    score          Int             @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     votes          vote[]          @relation("vote_comment")
 }
 
@@ -301,7 +302,7 @@ model organization_users {
     organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([organizationId, userId], name: "organization_users_projectid_userid_unique")
+    @@unique([organizationId, userId], name: "organization_users_organizationid_userid_unique")
 }
 
 //==============================================================
@@ -317,7 +318,7 @@ model organization_users {
 model project {
     id                      String              @id @default(uuid()) @db.Uuid
     name                    String              @db.VarChar(128)
-    description             String              @db.VarChar(1024)
+    description             String?             @db.VarChar(2048)
     created_at              DateTime            @default(now()) @db.Timestamptz(6)
     updated_at              DateTime            @default(now()) @db.Timestamptz(6)
     userId                  String?             @db.Uuid // User who can edit this
@@ -337,6 +338,7 @@ model project {
     tags                    project_tags[] // Categorical tags set by creators or community-voted
     comments                comment[]
     routines                routine[] // Routines created by this project
+    score                   Int                 @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     votes                   vote[]              @relation("vote_project")
 }
 
@@ -512,6 +514,7 @@ model routine {
     nodeLists               node_routine_list_item[] // Routine list nodes the routine is a part of
     reports                 report[]
     comments                comment[]
+    score                   Int                            @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     votes                   vote[]                         @relation("vote_routine")
 }
 
@@ -624,6 +627,7 @@ model standard {
     starredBy               standard_stars[] // Users who starred the standard
     reports                 report[]
     comments                comment[]
+    score                   Int              @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     votes                   vote[]           @relation("vote_standard")
 }
 
@@ -670,6 +674,7 @@ model tag {
     standards     standard_tags[]
     hiddenBy      user_tag_hidden[] // Users who are hiding the tag
     starredBy     user_tag_stars[] // Users who starred the tag
+    score         Int                 @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     votes         vote[]              @relation("vote_tag")
     reports       report[]
 }

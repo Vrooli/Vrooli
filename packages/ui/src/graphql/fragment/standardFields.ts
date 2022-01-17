@@ -29,7 +29,7 @@ export const standardFields = gql`
             }
         }
         stars
-        votes
+        score
         isUpvoted
     }
 `
