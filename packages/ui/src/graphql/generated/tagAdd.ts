@@ -16,6 +16,8 @@ export interface tagAdd_tagAdd {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface tagAdd {

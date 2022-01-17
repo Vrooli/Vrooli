@@ -55,7 +55,6 @@ export const typeDef = gql`
         starredBy: [User!]!
         sentReports: [Report!]!
         reports: [Report!]!
-        votes: [Vote!]!
     }
 
     # User information available for other accounts

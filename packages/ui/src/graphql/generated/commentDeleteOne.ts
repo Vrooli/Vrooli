@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { DeleteOneInput } from "./globalTypes";
+import { DeleteCommentInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: commentDeleteOne
@@ -19,5 +19,5 @@ export interface commentDeleteOne {
 }
 
 export interface commentDeleteOneVariables {
-  input: DeleteOneInput;
+  input: DeleteCommentInput;
 }

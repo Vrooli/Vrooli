@@ -16,14 +16,8 @@ export interface standard_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
-}
-
-export interface standard_standard_creator_User {
-  __typename: "User";
-  id: string;
-  username: string | null;
-  stars: number;
-  bio: string | null;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface standard_standard_creator_Organization_tags {
@@ -33,6 +27,8 @@ export interface standard_standard_creator_Organization_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface standard_standard_creator_Organization {
@@ -45,7 +41,15 @@ export interface standard_standard_creator_Organization {
   stars: number;
 }
 
-export type standard_standard_creator = standard_standard_creator_User | standard_standard_creator_Organization;
+export interface standard_standard_creator_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+  stars: number;
+  bio: string | null;
+}
+
+export type standard_standard_creator = standard_standard_creator_Organization | standard_standard_creator_User;
 
 export interface standard_standard {
   __typename: "Standard";
@@ -58,8 +62,10 @@ export interface standard_standard {
   isFile: boolean;
   created_at: any;
   tags: standard_standard_tags[];
-  stars: number;
   creator: standard_standard_creator | null;
+  stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface standard {

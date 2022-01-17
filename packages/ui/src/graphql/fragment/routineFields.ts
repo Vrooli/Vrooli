@@ -17,5 +17,7 @@ export const routineFields = gql`
             ...tagFields
         }
         stars
+        votes
+        isUpvoted
     }
 `

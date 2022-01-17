@@ -46,6 +46,8 @@ export const typeDef = gql`
         instructions: String
         isAutomatable: Boolean
         stars: Int!
+        votes: Int!
+        isUpvoted: Boolean!
         inputs: [RoutineInputItem!]!
         outputs: [RoutineOutputItem!]!
         nodes: [Node!]!
@@ -53,10 +55,8 @@ export const typeDef = gql`
         externalResources: [Resource!]!
         project: Project
         tags: [Tag!]!
-        user: User
-        organization: Organization
-        createdByUser: User
-        createdByOrganization: Organization
+        owner: Contributor
+        creator: Contributor
         starredBy: [User!]!
         parent: Routine
         forks: [Routine!]!

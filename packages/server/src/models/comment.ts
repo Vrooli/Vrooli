@@ -1,8 +1,10 @@
-import { CODE } from "@local/shared";
+import { CODE, CommentFor } from "@local/shared";
 import { CustomError } from "../error";
-import { Comment, CommentInput, VoteInput } from "schema/types";
+import { Comment, CommentInput } from "schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
+import { addCountQueries, addCreatorField, addJoinTables, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeCreatorField, removeJoinTables, selectHelper } from "./base";
+import { hasProfanity } from "../utils/censor";
+import { GraphQLResolveInfo } from "graphql";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -10,18 +12,17 @@ import { creater, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, u
 
 // Type 1. RelationshipList
 export type CommentRelationshipList = 'user' | 'organization' | 'project' |
-    'routine' | 'standard' | 'reports' | 'stars' | 'votes';
+    'routine' | 'standard' | 'reports' | 'stars';
 // Type 2. QueryablePrimitives
 export type CommentQueryablePrimitives = Omit<Comment, CommentRelationshipList>;
 // Type 3. AllPrimitives
 export type CommentAllPrimitives = CommentQueryablePrimitives;
 // type 4. Database shape
-export type CommentDB = any;
-// export type CommentDB = CommentAllPrimitives &
-//     Pick<Comment, 'user' | 'organization' | 'project' | 'routine' | 'standard' | 'reports' | 'votes'> &
-// {
-//     stars: number,
-// };
+export type CommentDB = CommentAllPrimitives &
+    Pick<Comment, 'user' | 'organization' | 'project' | 'routine' | 'standard' | 'reports'> &
+{
+    stars: number,
+};
 
 //======================================================================================================================
 /* #endregion Type Definitions */
@@ -34,96 +35,125 @@ export type CommentDB = any;
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<any, any> => ({
-    toDB: (obj: RecursivePartial<Comment>): RecursivePartial<any> => obj as any,
-    toGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Comment> => obj as any
-})
+const formatter = (): FormatConverter<Comment, CommentDB> => {
+    const joinMapper = {
+        starredBy: 'user',
+    };
+    const countMapper = {
+        stars: 'starredBy',
+    }
+    return {
+        toDB: (obj: RecursivePartial<Comment>): RecursivePartial<CommentDB> => {
+            let modified = addJoinTables(obj, joinMapper);
+            modified = addCountQueries(modified, countMapper);
+            modified = removeCreatorField(modified);
+            console.log('comment toDB', modified);
+            // if (modified.commentedOn) {
+            //     if (modified.creator.hasOwnProperty('username')) {
+            //         modified.createdByUser = modified.creator;
+            //     } else {
+            //         modified.createdByOrganization = modified.creator;
+            //     }
+            //     delete modified.creator;
+            // }
+            return modified;
+        },
+        toGraphQL: (obj: RecursivePartial<CommentDB>): RecursivePartial<Comment> => {
+            let modified = removeJoinTables(obj, joinMapper);
+            modified = removeCountQueries(modified, countMapper);
+            modified = addCreatorField(modified);
+            if (modified.project) {
+                modified.commentedOn = modified.project;
+                delete modified.project;
+            }
+            else if (modified.routine) {
+                modified.commentedOn = modified.routine;
+                delete modified.routine;
+            }
+            else if (modified.standard) {
+                modified.commentedOn = modified.standard;
+                delete modified.standard;
+            }
+            return modified;
+        },
+    }
+}
+
+const forMapper = {
+    [CommentFor.Project]: 'project',
+    [CommentFor.Routine]: 'routine',
+    [CommentFor.Standard]: 'standard',
+}
 
 /**
- * Component for comment authentication
- * @param state 
- * @returns 
+ * Handles the authorized adding, updating, and deleting of comments.
+ * Only users can add comments, and they can do so multiple times on 
+ * the same object.
  */
-const auther = (prisma?: PrismaType) => ({
-    /**
-     * Determines if the user is allowed to edit/delete the comment
-     * @param commentId The comment's ID
-     * @param userId The user's ID
-     */
-    async isAuthenticatedToModify(commentId: string, userId: string): Promise<boolean> {
+const commenter = (prisma?: PrismaType) => ({
+    async addComment(
+        userId: string, 
+        input: CommentInput,
+        info: GraphQLResolveInfo | null = null,
+    ): Promise<any> {
         // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        if (!commentId || !userId) return false;
-        // Find rows that match the comment ID and user ID (should only be one or none)
-        const comments = await prisma.comment.findMany({ where: { id: commentId, userId } });
-        return Array.isArray(comments) && comments.length > 0;
+        if (!prisma || !input.text || input.text.length < 1) throw new CustomError(CODE.InvalidArgs);
+        // Check for censored words
+        if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
+        // Add comment
+        return await prisma.comment.create({
+            data: {
+                text: input.text,
+                userId,
+                [forMapper[input.createdFor]]: input.forId,
+            },
+            ...selectHelper<Comment, CommentDB>(info, formatter().toDB)
+        });
     },
-    /**
-     * Determines if the user is allowed to vote on a comment
-     * @param commentId The comment's ID
-     * @param userId The user's ID
-     */
-    async isAuthenticatedToVote(commentId: string, userId: string): Promise<boolean> {
+    async updateComment(
+        userId: string, 
+        input: CommentInput,
+        info: GraphQLResolveInfo | null = null,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!prisma || !input.text || input.text.length < 1) throw new CustomError(CODE.InvalidArgs);
+        // Check for censored words
+        if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
+        // Find comment
+        const comment = await prisma.comment.findFirst({
+            where: {
+                userId,
+                [forMapper[input.createdFor]]: input.forId,
+            }
+        })
+        if (!comment) throw new CustomError(CODE.ErrorUnknown);
+        // Update comment
+        return await prisma.comment.update({
+            where: { id: comment.id },
+            data: {
+                text: input.text,
+            },
+            ...selectHelper<Comment, CommentDB>(info, formatter().toDB)
+        });
+    },
+    async deleteComment(userId: string, input: any): Promise<boolean> {
         // Check for valid arguments
         if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        if (!commentId || !userId) return false;
-        // Find comment in database
-        const comment = await prisma.comment.findFirst({ where: { id: commentId } });
-        // Verify that comment was not created by the user. If the user has voted on it before,
-        // it's fine (could be switching from upvote to downvote, etc.)
-        return comment ? comment.userId !== userId : false;
+        // Find comment
+        const comment = await prisma.comment.findFirst({
+            where: {
+                userId,
+                [forMapper[input.createdFor]]: input.forId,
+            }
+        })
+        if (!comment) throw new CustomError(CODE.ErrorUnknown);
+        // Delete comment
+        await prisma.comment.delete({
+            where: { id: comment.id },
+        });
+        return true;
     }
 })
-
-/**
- * Component for comment voting
- * @param state 
- * @returns 
- */
-const voter = (prisma?: PrismaType) => ({
-        /**
-         * Adds a vote to the comment
-         * @param input GraphQL vote input
-         * @param userId The user's ID
-         * @return True if vote counted (even if it was a duplicate)
-         */
-        async vote(input: VoteInput, userId: string): Promise<boolean> {
-            // // Check for valid inputs
-            // if (!prisma) throw new CustomError(CODE.InvalidArgs);
-            // if (!input.id || !userId) return false;
-            // // Check for existing votes (should only be one or none)
-            // const existingVotes = await prisma.comment_votes.findMany({
-            //     where: { votedId: input.id ?? '', voterId: userId },
-            //     select: { id: true, isUpvote: true }
-            // });
-            // // If only one vote exists, update it (if switching between upvote/downvote)
-            // if (Array.isArray(existingVotes) && existingVotes.length === 1) {
-            //     // If the vote is the same, return as success
-            //     if (existingVotes[0].isUpvote === input.isUpvote) return true;
-            //     // Otherwise, update the vote
-            //     await prisma.comment_votes.update({
-            //         where: { id: existingVotes[0].id },
-            //         data: { isUpvote: input.isUpvote }
-            //     })
-            //     return true;
-            // }
-            // // If multiple votes exist (shouldn't hit this case, but you never know🤷‍♂️), delete them
-            // if (Array.isArray(existingVotes) && existingVotes.length > 0) {
-            //     await prisma.comment_votes.deleteMany({
-            //         where: { id: { in: existingVotes.map(vote => vote.id) } }
-            //     })
-            // }
-            // // If here, no votes exist, so create a new one
-            // await prisma.comment_votes.create({
-            //     data: {
-            //         isUpvote: input.isUpvote,
-            //         voterId: userId,
-            //         votedId: input.id
-            //     }
-            // })
-            return true;
-        }
-    })
 
 //==============================================================
 /* #endregion Custom Components */
@@ -141,13 +171,8 @@ export function CommentModel(prisma?: PrismaType) {
         prisma,
         model,
         ...format,
-        ...auther(prisma),
-        ...creater<CommentInput, Comment, CommentDB>(model, format.toDB, prisma),
-        ...deleter(model, prisma),
+        ...commenter(prisma),
         ...findByIder<Comment, CommentDB>(model, format.toDB, prisma),
-        ...reporter(),
-        ...updater<CommentInput, Comment, CommentDB>(model, format.toDB, prisma),
-        ...voter(prisma),
     }
 }
 

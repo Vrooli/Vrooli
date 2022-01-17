@@ -20,7 +20,7 @@ export const deepRoutineFields = gql`
             }
         }
     }
-    fragment outputFields on RoutineInputItem {
+    fragment outputFields on RoutineOutputItem {
         id
         standard {
             id
@@ -115,9 +115,15 @@ export const deepRoutineFields = gql`
         nodes {
             ...nodeFields
         }
-        organization {
-            id
-            name
+        owner {
+            ... on Organization {
+                id
+                name
+            }
+            ... on User {
+                id
+                username
+            }
         }
         outputs {
             ...outputFields
@@ -134,10 +140,6 @@ export const deepRoutineFields = gql`
         }
         tags {
             ...tagFields
-        }
-        user {
-            id
-            username
         }
     }
 `

@@ -41,7 +41,7 @@ export * from './tagUpdate';
 export * from './userDeleteOne';
 export * from './validateSession';
 export * from './voteAdd';
-export * from './voteDeleteOne';
+export * from './voteRemove';
 export * from './walletComplete';
 export * from './walletInit';
 export * from './walletRemove';

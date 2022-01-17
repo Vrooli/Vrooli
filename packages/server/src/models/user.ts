@@ -1,5 +1,5 @@
 import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, Email } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, getRelationshipData, InfoType, JoinMap, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
+import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, getRelationshipData, InfoType, JoinMap, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { AccountStatus, CODE } from '@local/shared';
 import bcrypt from 'bcrypt';
@@ -24,7 +24,7 @@ const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
 export type UserRelationshipList = 'comments' | 'roles' | 'emails' | 'wallets' | 'resources' |
     'projects' | 'routines' | 'routinesCreated' | 'starredBy' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
     'starredRoutines' | 'starredStandards' | 'starredTags' | 'starredUsers' |
-    'sentReports' | 'reports' | 'votes';
+    'sentReports' | 'reports';
 // Type 2. QueryablePrimitives
 // 2.1 Profile primitives (i.e. your own account)
 export type UserProfileQueryablePrimitives = Omit<Profile, UserRelationshipList | 'status'> & {
@@ -42,7 +42,7 @@ export type UserAllPrimitives = UserProfileQueryablePrimitives & {
 };
 // type 4. Database shape
 export type UserDB = UserAllPrimitives &
-    Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports' | 'routines' | 'routinesCreated' | 'votes'> &
+    Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports' | 'routines' | 'routinesCreated'> &
 {
     roles: { role: Role }[],
     resources: { resource: Resource }[],
@@ -54,7 +54,6 @@ export type UserDB = UserAllPrimitives &
     starredStandards: { starred: Standard }[],
     starredTags: { starred: Tag }[],
     starredUsers: { starred: User }[],
-    _count: { starredBy: number }[],
 };
 
 //======================================================================================================================
@@ -534,7 +533,6 @@ export function UserModel(prisma?: PrismaType) {
         ...findByEmailer(prisma),
         ...findByIder<User, UserDB>(model, format.toDBUser, prisma),
         ...porter(prisma),
-        ...reporter(),
         ...userCreater(format.toDBUser, prisma),
         ...userSearcher(format.toDBUser, format.toGraphQLUser, sort, prisma),
         ...validater(prisma),

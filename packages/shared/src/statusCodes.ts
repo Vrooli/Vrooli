@@ -86,5 +86,9 @@ export const CODE = {
     ExportLimitReached: {
         code: 'EXPORT_LIMIT_REACHED',
         message: 'Account has exported too many times in a short period of time. Please wait at least 24 hours before trying again.'
+    },
+    BannedWord: {
+        code: 'BANNED_WORD',
+        message: 'You used a banned word. If you think this is a mistake, please contact us.'
     }
 }

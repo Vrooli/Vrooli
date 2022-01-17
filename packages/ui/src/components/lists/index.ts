@@ -10,3 +10,4 @@ export * from './SortMenu/SortMenu';
 export * from './StandardListItem/StandardListItem';
 export * from './StatsList/StatsList';
 export * from './TimeMenu/TimeMenu';
+export * from './UpvoteDownvote/UpvoteDownvote';

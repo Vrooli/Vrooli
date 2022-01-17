@@ -1,6 +1,9 @@
+import { CODE, ReportFor } from "@local/shared";
+import { CustomError } from "../error";
 import { Report, ReportInput } from "schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { creater, deleter, findByIder, FormatConverter, MODEL_TYPES, updater } from "./base";
+import { hasProfanity } from "../utils/censor";
+import { findByIder, FormatConverter, MODEL_TYPES } from "./base";
 import { CommentDB } from "./comment";
 import { OrganizationDB } from "./organization";
 import { ProjectDB } from "./project";
@@ -57,6 +60,84 @@ const formatter = (): FormatConverter<any, any> => ({
     toGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Report> => obj as any
 })
 
+const forMapper = {
+    [ReportFor.Comment]: 'comment',
+    [ReportFor.Organization]: 'organization',
+    [ReportFor.Project]: 'project',
+    [ReportFor.Routine]: 'routine',
+    [ReportFor.Standard]: 'standard',
+    [ReportFor.Tag]: 'tag',
+    [ReportFor.User]: 'user',
+}
+
+/**
+ * Handles the authorized adding, updating, and deleting of reports.
+ * Only users can add reports, and they can only do so once per object. 
+ * They can technically report their own objects, but why would they?
+ */
+ const reporter = (prisma?: PrismaType) => ({
+    async addReport(
+        userId: string, 
+        input: ReportInput,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!prisma || !input.reason || input.reason.length < 1) throw new CustomError(CODE.InvalidArgs);
+        // Check for censored words
+        if (hasProfanity(`${input.reason} | ${input.details}`)) throw new CustomError(CODE.BannedWord);
+        // Add report
+        return await prisma.report.create({
+            data: {
+                reason: input.reason,
+                details: input.details,
+                from: { connect: { id: userId } },
+                [forMapper[input.createdFor]]: input.forId,
+            }
+        })
+    },
+    async updateReport(
+        userId: string, 
+        input: ReportInput,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!prisma || !input.reason || input.reason.length < 1) throw new CustomError(CODE.InvalidArgs);
+        // Check for censored words
+        if (hasProfanity(`${input.reason} | ${input.details}`)) throw new CustomError(CODE.BannedWord);
+        // Find report
+        const report = await prisma.report.findFirst({
+            where: {
+                userId,
+                [forMapper[input.createdFor]]: input.forId,
+            }
+        })
+        if (!report) throw new CustomError(CODE.ErrorUnknown);
+        // Update report
+        return await prisma.report.update({
+            where: { id: report.id },
+            data: {
+                reason: input.reason,
+                details: input.details,
+            }
+        });
+    },
+    async deleteReport(userId: string, input: any): Promise<boolean> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Find report
+        const report = await prisma.report.findFirst({
+            where: {
+                userId,
+                [forMapper[input.createdFor]]: input.forId,
+            }
+        })
+        if (!report) throw new CustomError(CODE.ErrorUnknown);
+        // Delete report
+        await prisma.report.delete({
+            where: { id: report.id },
+        });
+        return true;
+    }
+})
+
 //==============================================================
 /* #endregion Custom Components */
 //==============================================================
@@ -73,10 +154,8 @@ export function ReportModel(prisma?: PrismaType) {
         prisma,
         model,
         ...format,
-        ...creater<ReportInput, Report, ReportDB>(model, format.toDB, prisma),
-        ...deleter(model, prisma),
+        ...reporter(prisma),
         ...findByIder<Report, ReportDB>(model, format.toDB, prisma),
-        ...updater<ReportInput, Report, ReportDB>(model, format.toDB, prisma),
     }
 }
 

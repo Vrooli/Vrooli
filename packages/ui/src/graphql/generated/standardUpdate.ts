@@ -16,7 +16,23 @@ export interface standardUpdate_standardUpdate_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
+
+export interface standardUpdate_standardUpdate_creator_Organization {
+  __typename: "Organization";
+  id: string;
+  name: string;
+}
+
+export interface standardUpdate_standardUpdate_creator_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type standardUpdate_standardUpdate_creator = standardUpdate_standardUpdate_creator_Organization | standardUpdate_standardUpdate_creator_User;
 
 export interface standardUpdate_standardUpdate {
   __typename: "Standard";
@@ -29,7 +45,10 @@ export interface standardUpdate_standardUpdate {
   isFile: boolean;
   created_at: any;
   tags: standardUpdate_standardUpdate_tags[];
+  creator: standardUpdate_standardUpdate_creator | null;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface standardUpdate {

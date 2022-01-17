@@ -3,7 +3,7 @@
 // import { Role } from "../schema/types";
 
 import { PrismaType } from "types";
-import { creater, deleter, FormatConverter, MODEL_TYPES, reporter, updater } from "./base";
+import { creater, deleter, FormatConverter, MODEL_TYPES, updater } from "./base";
 
 // But for this example we will manually define the types
 type Maybe<T> = T | null;
@@ -106,7 +106,6 @@ export function ExampleModel(prisma: PrismaType) {
         ...creater<ExampleInput, Example, ExampleDB>(model, format.toDB, prisma),
         ...updater<ExampleInput, Example, ExampleDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
-        ...reporter()
     }
 }
 

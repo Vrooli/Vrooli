@@ -169,6 +169,65 @@ export const addCountQueries = (obj: any, map: CountMap): any => {
 }
 
 /**
+ * Helper function for converting creator GraphQL field to Prisma createdByUser/createdByOrganization fields
+ */
+export const removeCreatorField = (modified: any): any => {
+    console.log('removeCreatorField', modified);
+    if (modified.creator) {
+        if (modified.creator.hasOwnProperty('username')) {
+            modified.createdByUser = modified.creator;
+        } else {
+            modified.createdByOrganization = modified.creator;
+        }
+        delete modified.creator;
+    }
+    return modified;
+}
+
+/**
+ * Helper function for Prisma createdByUser/createdByOrganization fields to GraphQL creator field
+ */
+ export const addCreatorField = (modified: any): any => {
+    if (modified.createdByUser) {
+        modified.creator = modified.createdByUser;
+        delete modified.createdByUser;
+    } else if (modified.createdByOrganization) {
+        modified.creator = modified.createdByOrganization;
+        delete modified.createdByOrganization;
+    }
+    return modified;
+}
+
+/**
+ * Helper function for converting owner GraphQL field to Prisma user/organization fields
+ */
+ export const removeOwnerField = (modified: any): any => {
+    if (modified.creator) {
+        if (modified.creator.hasOwnProperty('username')) {
+            modified.user = modified.creator;
+        } else {
+            modified.organization = modified.creator;
+        }
+        delete modified.creator;
+    }
+    return modified;
+}
+
+/**
+ * Helper function for Prisma user/organization fields to GraphQL owner field
+ */
+ export const addOwnerField = (modified: any): any => {
+    if (modified.user) {
+        modified.creator = modified.user;
+        delete modified.user;
+    } else if (modified.organization) {
+        modified.creator = modified.organization;
+        delete modified.organization;
+    }
+    return modified;
+}
+
+/**
  * Helper function for removing join tables between
  * many-to-many relationship parents and children
  * @param obj - DB-shaped object
@@ -347,18 +406,6 @@ export const deleter = (model: keyof PrismaType, prisma?: PrismaType) => ({
         if (!input.ids) throw new CustomError(CODE.InvalidArgs);
         // Access database
         return await (prisma[model] as BaseType).deleteMany({ where: { id: { in: input.ids } } });
-    }
-})
-
-/**
- * Compositional component for models which can be reported
- * @param state 
- * @returns 
- */
-export const reporter = () => ({
-    async report(input: ReportInput): Promise<boolean> {
-        if (!Boolean(input.id)) throw new CustomError(CODE.InvalidArgs);
-        throw new CustomError(CODE.NotImplemented);
     }
 })
 

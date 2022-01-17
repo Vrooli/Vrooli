@@ -1,6 +1,6 @@
 import { Organization, Project, Routine, Standard, Tag, TagCountInput, TagInput, TagSearchInput, TagSortBy, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, reporter, searcher, Sortable, updater } from "./base";
+import { addJoinTables, counter, creater, deleter, findByIder, FormatConverter, MODEL_TYPES, removeJoinTables, searcher, Sortable, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -8,7 +8,7 @@ import { addJoinTables, counter, creater, deleter, findByIder, FormatConverter, 
 
 // Type 1. RelationshipList
 export type TagRelationshipList = 'organizations' | 'projects' | 'routines' | 'standards' |
-    'starredBy' | 'votes';
+    'starredBy';
 // Type 2. QueryablePrimitives
 export type TagQueryablePrimitives = Omit<Tag, TagRelationshipList>;
 // Type 3. AllPrimitives
@@ -21,7 +21,6 @@ export type TagDB = TagAllPrimitives &
     routines: { tagged: Routine },
     standards: { tagged: Standard },
     starredBy: { user: User },
-    votes: { voter: User },
 };
 
 //======================================================================================================================
@@ -42,7 +41,6 @@ export type TagDB = TagAllPrimitives &
         routines: 'tagged',
         standards: 'tagged',
         starredBy: 'user',
-        votes: 'voter',
     };
     return {
         toDB: (obj: RecursivePartial<Tag>): RecursivePartial<TagDB> => addJoinTables(obj, joinMapper),
@@ -100,7 +98,6 @@ export function TagModel(prisma?: PrismaType) {
         ...creater<TagInput, Tag, TagDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
         ...findByIder<Tag, TagDB>(model, format.toDB, prisma),
-        ...reporter(),
         ...searcher<TagSortBy, TagSearchInput, Tag, TagDB>(model, format.toDB, format.toGraphQL, sort, prisma),
         ...updater<TagInput, Tag, TagDB>(model, format.toDB, prisma),
     }

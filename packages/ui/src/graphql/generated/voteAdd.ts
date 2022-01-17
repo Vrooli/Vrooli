@@ -10,9 +10,8 @@ import { VoteInput } from "./globalTypes";
 // ====================================================
 
 export interface voteAdd_voteAdd {
-  __typename: "Vote";
-  id: string | null;
-  isUpvote: boolean;
+  __typename: "Success";
+  success: boolean | null;
 }
 
 export interface voteAdd {

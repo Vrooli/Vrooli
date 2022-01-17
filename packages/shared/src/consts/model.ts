@@ -37,15 +37,6 @@ export const StandardType: { [x: string]: "String" | "Number" | "Boolean" | "Obj
 }
 export type StandardType = ValueOf<typeof StandardType>;
 
-export const TagVoteType = {
-    Organization: "Organization",
-    Project: "Project",
-    Resource: "Resource",
-    Routine: "Routine",
-    Standard: "Standard",
-}
-export type TagVoteType = ValueOf<typeof TagVoteType>;
-
 //==============================================================
 /* #endregion Database Enums*/
 //==============================================================

@@ -70,3 +70,10 @@ export interface ResourceListItemContextMenuProps {
     onDelete: (resource: Resource) => void;
     onMove: (resource: Resource) => void;
 }
+
+export interface UpvoteDownvoteProps {
+    votes: number; // Net score - can be negative
+    isUpvoted?: boolean; // If not passed, then there is neither an upvote nor a downvote
+    onVote: (isUpvote: boolean) => void;
+    onCancelVote: () => void;
+}

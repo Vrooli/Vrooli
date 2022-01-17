@@ -41,10 +41,12 @@ export const typeDef = gql`
         name: String!
         description: String
         stars: Int!
+        votes: Int!
+        isUpvoted: Boolean!
         resources: [Resource!]
         wallets: [Wallet!]
-        users: [User!]
-        organizations: [Organization!]
+        creator: Contributor
+        owner: Contributor
         starredBy: [User!]
         parent: Project
         forks: [Project!]!

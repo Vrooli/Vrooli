@@ -14,6 +14,8 @@ export interface inputFields_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface inputFields_standard {

@@ -16,6 +16,8 @@ export interface deepRoutineFields_inputs_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface deepRoutineFields_inputs_standard {
@@ -81,6 +83,8 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_t
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
@@ -93,6 +97,8 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
   isAutomatable: boolean | null;
   tags: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines {
@@ -137,14 +143,46 @@ export interface deepRoutineFields_nodes {
   data: deepRoutineFields_nodes_data | null;
 }
 
-export interface deepRoutineFields_organization {
+export interface deepRoutineFields_owner_Organization {
   __typename: "Organization";
   id: string;
   name: string;
 }
 
+export interface deepRoutineFields_owner_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type deepRoutineFields_owner = deepRoutineFields_owner_Organization | deepRoutineFields_owner_User;
+
+export interface deepRoutineFields_outputs_standard_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+  stars: number;
+  votes: number;
+  isUpvoted: boolean;
+}
+
+export interface deepRoutineFields_outputs_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  description: string | null;
+  isFile: boolean;
+  name: string;
+  schema: string;
+  tags: deepRoutineFields_outputs_standard_tags[];
+}
+
 export interface deepRoutineFields_outputs {
   __typename: "RoutineOutputItem";
+  id: string;
+  standard: deepRoutineFields_outputs_standard;
 }
 
 export interface deepRoutineFields_parent {
@@ -178,12 +216,8 @@ export interface deepRoutineFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
-}
-
-export interface deepRoutineFields_user {
-  __typename: "User";
-  id: string;
-  username: string | null;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface deepRoutineFields {
@@ -199,11 +233,10 @@ export interface deepRoutineFields {
   stars: number;
   inputs: deepRoutineFields_inputs[];
   nodes: deepRoutineFields_nodes[];
-  organization: deepRoutineFields_organization | null;
+  owner: deepRoutineFields_owner | null;
   outputs: deepRoutineFields_outputs[];
   parent: deepRoutineFields_parent | null;
   contextualResources: deepRoutineFields_contextualResources[];
   externalResources: deepRoutineFields_externalResources[];
   tags: deepRoutineFields_tags[];
-  user: deepRoutineFields_user | null;
 }

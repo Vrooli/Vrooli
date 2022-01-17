@@ -2,7 +2,7 @@ import { CODE, ResourceFor } from "@local/shared";
 import { PrismaSelect } from "@paljs/plugins";
 import { Organization, Project, Resource, ResourceCountInput, ResourceInput, ResourceSearchInput, ResourceSortBy, Routine, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { counter, deleter, findByIder, FormatConverter, MODEL_TYPES, reporter, searcher, Sortable } from "./base";
+import { counter, deleter, findByIder, FormatConverter, MODEL_TYPES, searcher, Sortable } from "./base";
 import { CustomError } from "../error";
 
 //======================================================================================================================
@@ -157,7 +157,6 @@ export function ResourceModel(prisma?: PrismaType) {
         ...creater(prisma),
         ...deleter(model, prisma),
         ...findByIder<Resource, ResourceDB>(model, format.toDB, prisma),
-        ...reporter(),
         ...searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceDB>(model, format.toDB, format.toGraphQL, sort, prisma),
         ...updater(prisma),
     }

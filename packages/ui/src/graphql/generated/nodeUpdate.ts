@@ -55,6 +55,8 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tag
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine {
@@ -67,6 +69,8 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine {
   isAutomatable: boolean | null;
   tags: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines {

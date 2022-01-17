@@ -3,21 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { TagVoteInput } from "./globalTypes";
+import { VoteRemoveInput } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: tagVote
+// GraphQL mutation operation: voteRemove
 // ====================================================
 
-export interface tagVote_tagVote {
+export interface voteRemove_voteRemove {
   __typename: "Success";
   success: boolean | null;
 }
 
-export interface tagVote {
-  tagVote: tagVote_tagVote;
+export interface voteRemove {
+  voteRemove: voteRemove_voteRemove;
 }
 
-export interface tagVoteVariables {
-  input: TagVoteInput;
+export interface voteRemoveVariables {
+  input: VoteRemoveInput;
 }

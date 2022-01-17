@@ -16,6 +16,8 @@ export interface routine_routine_inputs_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface routine_routine_inputs_standard {
@@ -81,6 +83,8 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tag
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
@@ -93,6 +97,8 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
   isAutomatable: boolean | null;
   tags: routine_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines {
@@ -137,14 +143,46 @@ export interface routine_routine_nodes {
   data: routine_routine_nodes_data | null;
 }
 
-export interface routine_routine_organization {
+export interface routine_routine_owner_Organization {
   __typename: "Organization";
   id: string;
   name: string;
 }
 
+export interface routine_routine_owner_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type routine_routine_owner = routine_routine_owner_Organization | routine_routine_owner_User;
+
+export interface routine_routine_outputs_standard_tags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+  stars: number;
+  votes: number;
+  isUpvoted: boolean;
+}
+
+export interface routine_routine_outputs_standard {
+  __typename: "Standard";
+  id: string;
+  default: string | null;
+  description: string | null;
+  isFile: boolean;
+  name: string;
+  schema: string;
+  tags: routine_routine_outputs_standard_tags[];
+}
+
 export interface routine_routine_outputs {
   __typename: "RoutineOutputItem";
+  id: string;
+  standard: routine_routine_outputs_standard;
 }
 
 export interface routine_routine_parent {
@@ -178,12 +216,8 @@ export interface routine_routine_tags {
   description: string | null;
   created_at: any;
   stars: number;
-}
-
-export interface routine_routine_user {
-  __typename: "User";
-  id: string;
-  username: string | null;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface routine_routine {
@@ -199,13 +233,12 @@ export interface routine_routine {
   stars: number;
   inputs: routine_routine_inputs[];
   nodes: routine_routine_nodes[];
-  organization: routine_routine_organization | null;
+  owner: routine_routine_owner | null;
   outputs: routine_routine_outputs[];
   parent: routine_routine_parent | null;
   contextualResources: routine_routine_contextualResources[];
   externalResources: routine_routine_externalResources[];
   tags: routine_routine_tags[];
-  user: routine_routine_user | null;
 }
 
 export interface routine {

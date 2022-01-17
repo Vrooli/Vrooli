@@ -2,8 +2,8 @@ import { CODE } from "@local/shared";
 import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
-import { Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
+import { Organization, Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
+import { addCountQueries, addCreatorField, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -18,13 +18,13 @@ export type StandardQueryablePrimitives = Omit<Standard, StandardRelationshipLis
 export type StandardAllPrimitives = StandardQueryablePrimitives;
 // type 4. Database shape
 export type StandardDB = StandardAllPrimitives &
-    Pick<Standard, 'reports' | 'comments'> &
+    Pick<Omit<Standard, 'creator'>, 'reports' | 'comments'> &
 {
+    user: User;
+    organization: Organization;
     tags: { tag: Tag }[],
     routineInputs: { routine: Routine }[],
     routineOutputs: { routine: Routine }[],
-    starredBy: { user: User }[],
-    _count: { starredBy: number }[],
 };
 
 //======================================================================================================================
@@ -72,26 +72,13 @@ const formatter = (): FormatConverter<Standard, StandardDB> => {
         toDB: (obj: RecursivePartial<Standard>): RecursivePartial<StandardDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
-            if (modified.creator) {
-                if (modified.creator.hasOwnProperty('username')) {
-                    modified.user = modified.creator;
-                } else {
-                    modified.organization = modified.creator;
-                }
-                delete modified.creator;
-            }
+            modified = removeCreatorField(modified);
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<StandardDB>): RecursivePartial<Standard> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
-            if (modified.user) {
-                modified.creator = modified.user;
-                delete modified.user;
-            } else if (modified.organization) {
-                modified.creator = modified.organization;
-                delete modified.organization;
-            }
+            modified = addCreatorField(modified);
             return modified;
         },
     }
@@ -177,7 +164,6 @@ export function StandardModel(prisma?: PrismaType) {
         ...creater<StandardInput, Standard, StandardDB>(model, format.toDB, prisma),
         ...deleter(model, prisma),
         ...findByIder<Standard, StandardDB>(model, format.toDB, prisma),
-        ...reporter(),
         ...standardCreater(format.toDB, prisma),
         ...standardSearcher(format.toDB, format.toGraphQL, sort, prisma),
     }

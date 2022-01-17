@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../types";
 import { Organization, OrganizationCountInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable } from "./base";
+import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
 import { CODE } from "@local/shared";
@@ -11,7 +11,7 @@ import { CODE } from "@local/shared";
 
 // Type 1. RelationshipList
 export type OrganizationRelationshipList = 'comments' | 'resources' | 'wallets' | 'projects' | 'starredBy' |
-    'routines' | 'routinesCreated' | 'tags' | 'reports';
+    'routines' | 'routinesCreated' | 'tags' | 'reports' | 'members';
 // Type 2. QueryablePrimitives
 export type OrganizationQueryablePrimitives = Omit<Organization, OrganizationRelationshipList>;
 // Type 3. AllPrimitives
@@ -24,7 +24,7 @@ export type OrganizationDB = OrganizationAllPrimitives &
     projects: { project: Project }[],
     starredBy: { user: User }[],
     tags: { tag: Tag }[],
-    _count: { starredBy: number }[],
+    members: { user: User }[],
 };
 
 //======================================================================================================================
@@ -155,7 +155,6 @@ export function OrganizationModel(prisma?: PrismaType) {
         ...counter<OrganizationCountInput>(model, prisma),
         ...deleter(model, prisma),
         ...findByIder<Organization, OrganizationDB>(model, format.toDB, prisma),
-        ...reporter(),
         ...organizationCreater(format.toDB, prisma),
         ...organizationSearcher(format.toDB, format.toGraphQL, sort, prisma),
     }

@@ -43,30 +43,19 @@ export const resolvers = {
     ReportFor: ReportFor,
     Mutation: {
         reportAdd: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            const dbModel = await ReportModel(prisma).create(input, info);
-            // Format object to GraphQL type
-            return ReportModel().toGraphQL(dbModel);
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            return await ReportModel(prisma).addReport(req.userId, input);
         },
         reportUpdate: async (_parent: undefined, { input }: IWrap<ReportInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report>> => {
-            // Must be logged in
+            // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            // Validate input
-            //TODO
-            // Update object
-            const dbModel = await ReportModel(prisma).update(input, info);
-            // Format to GraphQL type
-            return ReportModel().toGraphQL(dbModel);
+            return await ReportModel(prisma).updateReport(req.userId, input);
         },
         reportDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
+            // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            // Validate input
-            //TODO
-            // Delete and return result
-            const success = await ReportModel(prisma).delete(input);
+            const success = await ReportModel(prisma).deleteReport(req.userId, input);
             return { success };
         },
     }

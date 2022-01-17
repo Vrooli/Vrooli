@@ -1,6 +1,6 @@
-import { Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
+import { Organization, Resource, Routine, RoutineCountInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountQueries, addJoinTables, counter, creater, deleter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, reporter, searcher, selectHelper, Sortable, updater } from "./base";
+import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, deleter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
 import { CODE } from "@local/shared";
@@ -19,15 +19,18 @@ export type RoutineQueryablePrimitives = Omit<Routine, RoutineRelationshipList>;
 export type RoutineAllPrimitives = RoutineQueryablePrimitives;
 // type 4. Database shape
 export type RoutineDB = RoutineAllPrimitives &
-Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent' | 'project' | 'user' | 'organization' | 'createdByUser' | 'createdByOrganization'> &
+Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent' | 'project'> &
 {
+    user: User;
+    organization: Organization;
+    createdByUser: User;
+    createdByOrganization: Organization;
     contextualResources: { resource: Resource }[],
     externalResources: { resource: Resource }[],
     tags: { tag: Tag }[],
     starredBy: { user: User }[],
     forks: { fork: Routine }[],
     nodeLists: { list: Routine }[],
-    _count: { starredBy: number }[],
 };
 
 //======================================================================================================================
@@ -79,11 +82,15 @@ Pick<Routine, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent'
         toDB: (obj: RecursivePartial<Routine>): RecursivePartial<RoutineDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
+            modified = removeCreatorField(modified);
+            modified = removeOwnerField(modified);
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<RoutineDB>): RecursivePartial<Routine> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
+            modified = addCreatorField(modified);
+            modified = addOwnerField(modified);
             return modified;
         },
     }
@@ -165,7 +172,6 @@ export function RoutineModel(prisma?: PrismaType) {
         ...sort,
         ...counter<RoutineCountInput>(model, prisma),
         ...deleter(model, prisma),
-        ...reporter(),
         ...routineCreater(format.toDB, prisma),
         ...routineSearcher(format.toDB, format.toGraphQL, sort, prisma),
     }

@@ -16,6 +16,8 @@ export interface tag_tag {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface tag {

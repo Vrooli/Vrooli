@@ -16,7 +16,23 @@ export interface standardAdd_standardAdd_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
+
+export interface standardAdd_standardAdd_creator_Organization {
+  __typename: "Organization";
+  id: string;
+  name: string;
+}
+
+export interface standardAdd_standardAdd_creator_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type standardAdd_standardAdd_creator = standardAdd_standardAdd_creator_Organization | standardAdd_standardAdd_creator_User;
 
 export interface standardAdd_standardAdd {
   __typename: "Standard";
@@ -29,7 +45,10 @@ export interface standardAdd_standardAdd {
   isFile: boolean;
   created_at: any;
   tags: standardAdd_standardAdd_tags[];
+  creator: standardAdd_standardAdd_creator | null;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface standardAdd {

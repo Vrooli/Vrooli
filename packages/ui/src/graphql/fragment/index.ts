@@ -13,4 +13,3 @@ export * from './sessionFields';
 export * from './standardFields';
 export * from './tagFields';
 export * from './userFields';
-export * from './voteFields';

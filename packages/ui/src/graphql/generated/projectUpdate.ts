@@ -16,7 +16,23 @@ export interface projectUpdate_projectUpdate_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
+
+export interface projectUpdate_projectUpdate_owner_Organization {
+  __typename: "Organization";
+  id: string;
+  name: string;
+}
+
+export interface projectUpdate_projectUpdate_owner_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type projectUpdate_projectUpdate_owner = projectUpdate_projectUpdate_owner_Organization | projectUpdate_projectUpdate_owner_User;
 
 export interface projectUpdate_projectUpdate {
   __typename: "Project";
@@ -25,7 +41,10 @@ export interface projectUpdate_projectUpdate {
   description: string | null;
   created_at: any;
   tags: projectUpdate_projectUpdate_tags[];
+  owner: projectUpdate_projectUpdate_owner | null;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface projectUpdate {

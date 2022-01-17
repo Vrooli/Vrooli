@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
 const executeSeed = async (func: (prisma: PrismaType) => any, exitOnFail = false,) => {
     await func(prisma).catch((error: any) => {
         console.error(error);
-        process.exit(1);
+        if (exitOnFail) process.exit(1);
     }).finally(async () => {
         await prisma.$disconnect();
     })

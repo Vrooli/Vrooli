@@ -39,25 +39,17 @@ export type AutocompleteResult = {
 
 export type Comment = {
   __typename?: 'Comment';
+  commentedOn: CommentedOn;
   created_at: Scalars['Date'];
+  creator?: Maybe<Contributor>;
   id: Scalars['ID'];
-  organization?: Maybe<Organization>;
-  organizationId?: Maybe<Scalars['ID']>;
-  project?: Maybe<Project>;
-  projectId?: Maybe<Scalars['ID']>;
+  isUpvoted: Scalars['Boolean'];
   reports: Array<Report>;
-  resource?: Maybe<Resource>;
-  resourceId?: Maybe<Scalars['ID']>;
-  routine?: Maybe<Routine>;
-  routineId?: Maybe<Scalars['ID']>;
-  standard?: Maybe<Standard>;
-  standardId?: Maybe<Scalars['ID']>;
+  starredBy?: Maybe<Array<User>>;
   stars?: Maybe<Scalars['Int']>;
   text?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
-  user?: Maybe<User>;
-  userId?: Maybe<Scalars['ID']>;
-  vote?: Maybe<Scalars['Int']>;
+  votes?: Maybe<Scalars['Int']>;
 };
 
 export enum CommentFor {
@@ -75,11 +67,19 @@ export type CommentInput = {
   text?: InputMaybe<Scalars['String']>;
 };
 
+export type CommentedOn = Project | Routine | Standard;
+
 export type Contributor = Organization | User;
 
 export type Count = {
   __typename?: 'Count';
   count?: Maybe<Scalars['Int']>;
+};
+
+export type DeleteCommentInput = {
+  createdFor: CommentFor;
+  forId: Scalars['ID'];
+  id: Scalars['ID'];
 };
 
 export type DeleteManyInput = {
@@ -197,9 +197,8 @@ export type Mutation = {
   tagUpdate: Tag;
   userDeleteOne: Success;
   validateSession: Session;
-  voteAdd: Vote;
-  voteDeleteOne: Success;
-  voteUpdate: Vote;
+  voteAdd: Success;
+  voteRemove: Success;
   walletComplete: Session;
   walletInit: Scalars['String'];
   walletRemove: Success;
@@ -213,7 +212,7 @@ export type MutationCommentAddArgs = {
 
 
 export type MutationCommentDeleteOneArgs = {
-  input: DeleteOneInput;
+  input: DeleteCommentInput;
 };
 
 
@@ -397,13 +396,8 @@ export type MutationVoteAddArgs = {
 };
 
 
-export type MutationVoteDeleteOneArgs = {
-  input: DeleteOneInput;
-};
-
-
-export type MutationVoteUpdateArgs = {
-  input: VoteInput;
+export type MutationVoteRemoveArgs = {
+  input: VoteRemoveInput;
 };
 
 
@@ -706,7 +700,6 @@ export type Profile = {
   theme: Scalars['String'];
   updated_at: Scalars['Date'];
   username?: Maybe<Scalars['String']>;
-  votes: Array<Vote>;
   wallets: Array<Wallet>;
 };
 
@@ -720,11 +713,13 @@ export type Project = {
   __typename?: 'Project';
   comments: Array<Comment>;
   created_at: Scalars['Date'];
+  creator?: Maybe<Contributor>;
   description?: Maybe<Scalars['String']>;
   forks: Array<Project>;
   id: Scalars['ID'];
+  isUpvoted: Scalars['Boolean'];
   name: Scalars['String'];
-  organizations?: Maybe<Array<Organization>>;
+  owner?: Maybe<Contributor>;
   parent?: Maybe<Project>;
   reports: Array<Report>;
   resources?: Maybe<Array<Resource>>;
@@ -733,7 +728,7 @@ export type Project = {
   stars: Scalars['Int'];
   tags: Array<Tag>;
   updated_at: Scalars['Date'];
-  users?: Maybe<Array<User>>;
+  votes: Scalars['Int'];
   wallets?: Maybe<Array<Wallet>>;
 };
 
@@ -1080,9 +1075,8 @@ export type Routine = {
   __typename?: 'Routine';
   comments: Array<Comment>;
   contextualResources: Array<Resource>;
-  createdByOrganization?: Maybe<Organization>;
-  createdByUser?: Maybe<User>;
   created_at: Scalars['Date'];
+  creator?: Maybe<Contributor>;
   description?: Maybe<Scalars['String']>;
   externalResources: Array<Resource>;
   forks: Array<Routine>;
@@ -1090,10 +1084,11 @@ export type Routine = {
   inputs: Array<RoutineInputItem>;
   instructions?: Maybe<Scalars['String']>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
+  isUpvoted: Scalars['Boolean'];
   nodeLists: Array<NodeRoutineList>;
   nodes: Array<Node>;
-  organization?: Maybe<Organization>;
   outputs: Array<RoutineOutputItem>;
+  owner?: Maybe<Contributor>;
   parent?: Maybe<Routine>;
   project?: Maybe<Project>;
   reports: Array<Report>;
@@ -1102,8 +1097,8 @@ export type Routine = {
   tags: Array<Tag>;
   title?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
-  user?: Maybe<User>;
   version?: Maybe<Scalars['String']>;
+  votes: Scalars['Int'];
 };
 
 export type RoutineCountInput = {
@@ -1207,6 +1202,7 @@ export type Standard = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isFile: Scalars['Boolean'];
+  isUpvoted: Scalars['Boolean'];
   name: Scalars['String'];
   reports: Array<Report>;
   routineInputs: Array<Routine>;
@@ -1217,6 +1213,7 @@ export type Standard = {
   tags: Array<Tag>;
   type: StandardType;
   updated_at: Scalars['Date'];
+  votes: Scalars['Int'];
 };
 
 export type StandardCountInput = {
@@ -1314,10 +1311,12 @@ export type Tag = {
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  isUpvoted: Scalars['Boolean'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tag: Scalars['String'];
   updated_at: Scalars['Date'];
+  votes: Scalars['Int'];
 };
 
 export type TagCountInput = {
@@ -1362,13 +1361,6 @@ export enum TagSortBy {
   StarsAsc = 'StarsAsc',
   StarsDesc = 'StarsDesc'
 }
-
-export type TagVoteInput = {
-  id: Scalars['ID'];
-  isUpvote: Scalars['Boolean'];
-  objectId: Scalars['ID'];
-  objectType: Scalars['String'];
-};
 
 export type TimeFrame = {
   after?: InputMaybe<Scalars['Date']>;
@@ -1455,12 +1447,6 @@ export enum UserSortBy {
   StarsDesc = 'StarsDesc'
 }
 
-export type Vote = {
-  __typename?: 'Vote';
-  id?: Maybe<Scalars['ID']>;
-  isUpvote: Scalars['Boolean'];
-};
-
 export enum VoteFor {
   Comment = 'Comment',
   Project = 'Project',
@@ -1470,10 +1456,14 @@ export enum VoteFor {
 }
 
 export type VoteInput = {
-  createdFor: VoteFor;
   forId: Scalars['ID'];
-  id?: InputMaybe<Scalars['ID']>;
   isUpvote: Scalars['Boolean'];
+  voteFor: VoteFor;
+};
+
+export type VoteRemoveInput = {
+  forId: Scalars['ID'];
+  voteFor: VoteFor;
 };
 
 export type Wallet = {

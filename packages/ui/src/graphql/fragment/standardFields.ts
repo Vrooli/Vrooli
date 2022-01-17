@@ -18,6 +18,18 @@ export const standardFields = gql`
         tags {
             ...tagFields
         }
+        creator {
+            ... on Organization {
+                id
+                name
+            }
+            ... on User {
+                id
+                username
+            }
+        }
         stars
+        votes
+        isUpvoted
     }
 `

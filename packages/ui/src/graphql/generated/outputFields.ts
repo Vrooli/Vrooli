@@ -14,6 +14,8 @@ export interface outputFields_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface outputFields_standard {
@@ -28,7 +30,7 @@ export interface outputFields_standard {
 }
 
 export interface outputFields {
-  __typename: "RoutineInputItem";
+  __typename: "RoutineOutputItem";
   id: string;
   standard: outputFields_standard;
 }

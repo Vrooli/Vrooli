@@ -6,11 +6,31 @@ export const commentFields = gql`
         text
         created_at
         updated_at
-        userId
-        organizationId
-        projectId
-        resourceId
-        routineId
-        standardId
+        votes
+        isUpvoted
+        creator {
+            ... on Organization {
+                id
+                name
+            }
+            ... on User {
+                id
+                username
+            }
+        }
+        commentedOn {
+            ... on Project {
+                id
+                name
+            }
+            ... on Routine {
+                id
+                title
+            }
+            ... on Standard {
+                id
+                name
+            }
+        }
     }
 `

@@ -22,7 +22,23 @@ export interface standards_standards_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
+
+export interface standards_standards_edges_node_creator_Organization {
+  __typename: "Organization";
+  id: string;
+  name: string;
+}
+
+export interface standards_standards_edges_node_creator_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type standards_standards_edges_node_creator = standards_standards_edges_node_creator_Organization | standards_standards_edges_node_creator_User;
 
 export interface standards_standards_edges_node {
   __typename: "Standard";
@@ -35,7 +51,10 @@ export interface standards_standards_edges_node {
   isFile: boolean;
   created_at: any;
   tags: standards_standards_edges_node_tags[];
+  creator: standards_standards_edges_node_creator | null;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface standards_standards_edges {

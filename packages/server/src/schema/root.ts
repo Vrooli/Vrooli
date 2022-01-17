@@ -15,6 +15,10 @@ export const typeDef = gql`
     scalar Date
     scalar Upload
 
+    # Used for Projects, Standards, and Routines, since they can be created 
+    # by either a User or an Organization.
+    union Contributor = User | Organization
+
     # Used for filtering by date created/updated, as well as fetching metrics (e.g. monthly active users)
     input TimeFrame {
         after: Date

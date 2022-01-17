@@ -182,6 +182,12 @@ export interface CommentInput {
   forId: string;
 }
 
+export interface DeleteCommentInput {
+  id: string;
+  createdFor: CommentFor;
+  forId: string;
+}
+
 export interface DeleteManyInput {
   ids: string[];
 }
@@ -540,9 +546,13 @@ export interface UserSearchInput {
 }
 
 export interface VoteInput {
-  id?: string | null;
   isUpvote: boolean;
-  createdFor: VoteFor;
+  voteFor: VoteFor;
+  forId: string;
+}
+
+export interface VoteRemoveInput {
+  voteFor: VoteFor;
   forId: string;
 }
 

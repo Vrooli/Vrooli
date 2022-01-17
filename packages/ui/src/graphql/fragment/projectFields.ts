@@ -14,6 +14,18 @@ export const projectFields = gql`
         tags {
             ...tagFields
         }
+        owner {
+            ... on Organization {
+                id
+                name
+            }
+            ... on User {
+                id
+                username
+            }
+        }
         stars
+        votes
+        isUpvoted
     }
 `

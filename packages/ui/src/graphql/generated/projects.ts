@@ -22,7 +22,23 @@ export interface projects_projects_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
+
+export interface projects_projects_edges_node_owner_Organization {
+  __typename: "Organization";
+  id: string;
+  name: string;
+}
+
+export interface projects_projects_edges_node_owner_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type projects_projects_edges_node_owner = projects_projects_edges_node_owner_Organization | projects_projects_edges_node_owner_User;
 
 export interface projects_projects_edges_node {
   __typename: "Project";
@@ -31,7 +47,10 @@ export interface projects_projects_edges_node {
   description: string | null;
   created_at: any;
   tags: projects_projects_edges_node_tags[];
+  owner: projects_projects_edges_node_owner | null;
   stars: number;
+  votes: number;
+  isUpvoted: boolean;
 }
 
 export interface projects_projects_edges {

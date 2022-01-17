@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
 import { CODE, VoteFor } from '@local/shared';
 import { CustomError } from '../error';
-import { DeleteOneInput, Vote, VoteInput, Success } from './types';
-import { IWrap, RecursivePartial } from 'types';
+import { VoteInput, Success } from './types';
+import { IWrap } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { VoteModel } from '../models';
@@ -17,20 +17,19 @@ export const typeDef = gql`
     }   
 
     input VoteInput {
-        id: ID
         isUpvote: Boolean!
-        createdFor: VoteFor!
+        voteFor: VoteFor!
         forId: ID!
     }
 
-    type Vote {
-        id: ID
-        isUpvote: Boolean!
+    input VoteRemoveInput {
+        voteFor: VoteFor!
+        forId: ID!
     }
 
     extend type Mutation {
-        voteAdd(input: VoteInput!): Vote!
-        voteDeleteOne(input: DeleteOneInput!): Success!
+        voteAdd(input: VoteInput!): Success!
+        voteRemove(input: VoteRemoveInput!): Success!
     }
 `
 
@@ -39,24 +38,23 @@ export const resolvers = {
     Mutation: {
         /**
          * Adds a vote to an object. A user can only cast one vote per object. So if a user re-votes, 
-         * their previous vote is overruled.
+         * their previous vote is overruled. A user may vote on their own project/routine/etc.
          * @returns 
          */
-        voteAdd: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Vote>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            const dbModel = await VoteModel(prisma).create(input, info);
-            // Format object to GraphQL type
-            return VoteModel().toGraphQL(dbModel);
-        },
-        voteDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
+        voteAdd: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
+            // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            // Validate input
-            //TODO
-            // Delete and return result
-            const success = await VoteModel(prisma).delete(input);
+            const success = await VoteModel(prisma).castVote(req.userId, input);
+            return { success };
+        },
+        /**
+         * Removes a vote from an object
+         * @returns 
+         */
+        voteRemove: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            const success = await VoteModel(prisma).removeVote(req.userId, input);
             return { success };
         },
     }
