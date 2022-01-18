@@ -16,7 +16,7 @@ export interface routine_routine_inputs_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -83,7 +83,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tag
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -97,7 +97,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
   isAutomatable: boolean | null;
   tags: routine_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -164,7 +164,7 @@ export interface routine_routine_outputs_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -216,7 +216,7 @@ export interface routine_routine_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

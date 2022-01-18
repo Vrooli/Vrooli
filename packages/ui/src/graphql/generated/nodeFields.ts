@@ -55,7 +55,7 @@ export interface nodeFields_data_NodeRoutineList_routines_routine_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -69,7 +69,7 @@ export interface nodeFields_data_NodeRoutineList_routines_routine {
   isAutomatable: boolean | null;
   tags: nodeFields_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

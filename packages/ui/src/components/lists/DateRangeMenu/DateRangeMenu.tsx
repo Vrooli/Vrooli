@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Popover, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Popover, Stack, TextField, Typography } from "@mui/material";
 import { DateRangeMenuProps } from "../types";
 import { LocalizationProvider, MobileDatePicker } from '@mui/lab';
 import AdapterDateFns from '@mui/lab/AdapterDateFns';
@@ -26,29 +26,35 @@ export const DateRangeMenu = ({
             onClose={onClose}
             disableScrollLock={true}
         >
-            <Typography sx={{ ...centeredText }}>Select date range</Typography>
+            <Typography p={1} sx={{
+                ...centeredText,
+                background: (t) => t.palette.primary.dark,
+                color: (t) => t.palette.primary.contrastText,
+            }}>Select date range</Typography>
             <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <Stack direction="column">
-                    <MobileDatePicker
-                        label="Start date"
-                        inputFormat="dd/MM/yyyy"
-                        value={after}
-                        onChange={handleAfterChange}
-                        renderInput={(params) => <TextField {...params} />}
-                    />
-                    <MobileDatePicker
-                        label="End date"
-                        inputFormat="dd/MM/yyyy"
-                        value={before}
-                        onChange={handleBeforeChange}
-                        renderInput={(params) => <TextField {...params} />}
-                    />
-                    <Button
-                        type="submit"
-                        fullWidth
-                        onClick={() => { onSubmit(after, before); onClose() }}
-                    >Go</Button>
-                </Stack>
+                <Box p={2}>
+                    <Stack direction="column">
+                        <MobileDatePicker
+                            label="Start date"
+                            inputFormat="dd/MM/yyyy"
+                            value={after}
+                            onChange={handleAfterChange}
+                            renderInput={(params) => <TextField {...params} sx={{ marginBottom: 1 }} />}
+                        />
+                        <MobileDatePicker
+                            label="End date"
+                            inputFormat="dd/MM/yyyy"
+                            value={before}
+                            onChange={handleBeforeChange}
+                            renderInput={(params) => <TextField {...params} sx={{ marginBottom: 1 }} />}
+                        />
+                        <Button
+                            type="submit"
+                            fullWidth
+                            onClick={() => { onSubmit(after, before); onClose() }}
+                        >Go</Button>
+                    </Stack>
+                </Box>
             </LocalizationProvider>
         </Popover>
     )

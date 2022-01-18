@@ -32,6 +32,7 @@ export const typeDef = gql`
         description: String
         instructions: String
         isAutomatable: Boolean
+        organizationId: ID
         inputs: [RoutineInputItemInput!]
         outputs: [RoutineOutputItemInput!]
     }
@@ -137,14 +138,15 @@ export const typeDef = gql`
 export const resolvers = {
     RoutineSortBy: RoutineSortBy,
     Query: {
-        routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            throw new CustomError(CODE.NotImplemented);
+        routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
+            const data = await RoutineModel(prisma).findRoutine(req.userId ? req.userId : null, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
-        routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            // Create query for specified user
-            const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
-            // return search query
-            return await RoutineModel(prisma).search({...userQuery,}, input, info);
+        routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
+            const data = await RoutineModel(prisma).searchRoutines({}, req.userId ?? null, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
         routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
             // Return count query
@@ -153,30 +155,25 @@ export const resolvers = {
     },
     Mutation: {
         routineAdd: async (_parent: undefined, { input }: IWrap<RoutineInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO add extra restrictions
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const dbModel = await RoutineModel(prisma).create(input as any, info);
-            // Format object to GraphQL type
-            if (dbModel) return RoutineModel().toGraphQL(dbModel);
-            throw new CustomError(CODE.ErrorUnknown);
+            const created = await RoutineModel(prisma).addRoutine(req.userId, input, info);
+            if (!created) throw new CustomError(CODE.ErrorUnknown);
+            return created;
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO add extra restrictions
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            //const dbModel = await RoutineModel(prisma).update(input, info);
-            // Format to GraphQL type
-            //return RoutineModel().toGraphQL(dbModel);
-            throw new CustomError(CODE.NotImplemented);
+            const updated = await RoutineModel(prisma).updateRoutine(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
         },
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO add extra restrictions
-            const success = await RoutineModel(prisma).delete(input);
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            const success = await RoutineModel(prisma).deleteRoutine(req.userId, input);
             return { success };
         },
     }

@@ -7,7 +7,7 @@ import { autocompleteQuery } from 'graphql/query';
 import { ActorListItem, FeedList, OrganizationListItem, ProjectListItem, RoutineListItem, AutocompleteSearchBar, StandardListItem } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
+import { HomePageProps } from '../types';
 
 const ObjectType = {
     Organization: 'Organization',
@@ -32,7 +32,9 @@ const linkMap = {
  * Otherwise, each list shows popular items. Each list has a "See more" button, 
  * which opens a full search page for that object type.
  */
-export const HomePage = () => {
+export const HomePage = ({
+    session
+}: HomePageProps) => {
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>('');
     const updateSearch = useCallback((newValue: any) => { console.log('update search'); setSearchString(newValue) }, []);
@@ -112,22 +114,52 @@ export const HomePage = () => {
             switch (objectType) {
                 case ObjectType.Organization:
                     listFeedItems = organizations.map(o => (
-                        <OrganizationListItem key={`feed-list-item-${o.id}`} data={o} isStarred={false} isOwn={false} onClick={() => { }} onStarClick={() => { }} />
+                        <OrganizationListItem 
+                            key={`feed-list-item-${o.id}`} 
+                            data={o} 
+                            isStarred={false} 
+                            isOwn={false} 
+                            onClick={() => { }}
+                            onStarClick={() => { }} 
+                        />
                     ))
                     break;
                 case ObjectType.Project:
                     listFeedItems = projects.map(o => (
-                        <ProjectListItem key={`feed-list-item-${o.id}`} data={o} isStarred={false} isOwn={false} onClick={() => { }} onStarClick={() => { }} />
+                        <ProjectListItem 
+                            key={`feed-list-item-${o.id}`} 
+                            session={session}
+                            data={o} isStarred={false} 
+                            isOwn={false} 
+                            onClick={() => { }} 
+                            onStarClick={() => { }} 
+                        />
                     ))
                     break;
                 case ObjectType.Routine:
                     listFeedItems = routines.map(o => (
-                        <RoutineListItem key={`feed-list-item-${o.id}`} data={o} isStarred={false} isOwn={false} onClick={() => { }} onStarClick={() => { }} />
+                        <RoutineListItem 
+                            key={`feed-list-item-${o.id}`} 
+                            session={session}
+                            data={o} 
+                            isStarred={false} 
+                            isOwn={false} 
+                            onClick={() => { }} 
+                            onStarClick={() => { }} 
+                        />
                     ))
                     break;
                 case ObjectType.Standard:
                     listFeedItems = standards.map(o => (
-                        <StandardListItem key={`feed-list-item-${o.id}`} data={o} isStarred={false} isOwn={false} onClick={() => { }} onStarClick={() => { }} />
+                        <StandardListItem 
+                            key={`feed-list-item-${o.id}`} 
+                            session={session}
+                            data={o} 
+                            isStarred={false} 
+                            isOwn={false} 
+                            onClick={() => { }} 
+                            onStarClick={() => { }} 
+                        />
                     ))
                     break;
                 case ObjectType.User:

@@ -22,7 +22,7 @@ export interface organizations_organizations_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

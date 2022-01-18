@@ -16,7 +16,7 @@ export interface standardFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -47,6 +47,6 @@ export interface standardFields {
   tags: standardFields_tags[];
   creator: standardFields_creator | null;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }

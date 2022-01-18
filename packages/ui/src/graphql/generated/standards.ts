@@ -22,7 +22,7 @@ export interface standards_standards_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -53,7 +53,7 @@ export interface standards_standards_edges_node {
   tags: standards_standards_edges_node_tags[];
   creator: standards_standards_edges_node_creator | null;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

@@ -22,7 +22,7 @@ export interface projects_projects_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -49,7 +49,7 @@ export interface projects_projects_edges_node {
   tags: projects_projects_edges_node_tags[];
   owner: projects_projects_edges_node_owner | null;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

@@ -3,15 +3,19 @@ import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/mat
 import { StandardListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS, VoteFor } from '@local/shared';
 import {
     Star as IsStarredIcon,
     StarBorder as IsNotStarredIcon,
 } from '@mui/icons-material';
 import { useLocation } from 'wouter';
 import { UpvoteDownvote } from '..';
+import { useMutation } from '@apollo/client';
+import { voteMutation } from 'graphql/mutation';
+import { vote } from 'graphql/generated/vote';
 
 export function StandardListItem({
+    session,
     data,
     isStarred = false,
     isOwn = false,
@@ -19,6 +23,7 @@ export function StandardListItem({
     onStarClick = () => { },
 }: StandardListItemProps) {
     const [, setLocation] = useLocation();
+    const [vote, { loading }] = useMutation<vote>(voteMutation);
 
     const handleClick = useCallback(() => {
         // If onClick provided, call if
@@ -33,6 +38,17 @@ export function StandardListItem({
         // Call the onStarClick callback
         onStarClick(data.id ?? '', isStarred)
     }, [onStarClick, data.id, isStarred]);
+
+    const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
+        // Prevent propagation of normal click event
+        e.stopPropagation();
+        // Send vote mutation
+        vote({ variables: { input: {
+            isUpvote,
+            voteFor: VoteFor.Project,
+            forId: data.id
+        } } });
+    }, [data])
 
     const starIcon = useMemo(() => {
         const Icon = isStarred ? IsStarredIcon : IsNotStarredIcon;
@@ -59,14 +75,21 @@ export function StandardListItem({
             >
                 <ListItemButton component="div" onClick={handleClick}>
                     <UpvoteDownvote
-                        votes={data.votes}
+                        session={session}
+                        score={data.score}
                         isUpvoted={data.isUpvoted}
-                        onVote={() => { }}
+                        onVote={handleVote}
                     />
-                    <ListItemText
-                        primary={data.name}
-                        sx={{ ...multiLineEllipsis(2) }}
-                    />
+                    <Stack direction="column" spacing={1} pl={2} sx={{width: '-webkit-fill-available'}}>
+                        <ListItemText
+                            primary={data.name}
+                            sx={{ ...multiLineEllipsis(1) }}
+                        />
+                        <ListItemText
+                            primary={data.description}
+                            sx={{ ...multiLineEllipsis(2) }}
+                        />
+                    </Stack>
                     <Stack
                         direction="row"
                         spacing={1}

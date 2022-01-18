@@ -16,7 +16,7 @@ export interface organizationUpdate_organizationUpdate_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

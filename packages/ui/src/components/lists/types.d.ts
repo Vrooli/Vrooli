@@ -1,4 +1,4 @@
-import { Organization, Project, Resource, Routine, Standard, User } from 'types';
+import { Organization, Project, Resource, Routine, Session, Standard, User } from 'types';
 
 export interface ObjectListItemProps {
     isStarred: boolean;
@@ -16,14 +16,17 @@ export interface OrganizationListItemProps extends ObjectListItemProps {
 }
 
 export interface ProjectListItemProps extends ObjectListItemProps {
+    session: Session;
     data: Partial<Project>;
 }
 
 export interface RoutineListItemProps extends ObjectListItemProps {
+    session: Session;
     data: Partial<Routine>;
 }
 
 export interface StandardListItemProps extends ObjectListItemProps {
+    session: Session;
     data: Partial<Standard>;
 }
 
@@ -72,7 +75,8 @@ export interface ResourceListItemContextMenuProps {
 }
 
 export interface UpvoteDownvoteProps {
-    votes?: number; // Net score - can be negative
+    session: Session;
+    score?: number; // Net score - can be negative
     isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
     onVote: (event: any, isUpvote: boolean | null) => void;
 }

@@ -69,8 +69,9 @@ const voter = (prisma?: PrismaType) => ({
         // Check if vote exists
         const vote = await prisma.vote.findFirst({ where: {
             userId,
-            [forMapper[input.voteFor]]: input.forId
+            [`${forMapper[input.voteFor]}Id`]: input.forId
         }})
+        console.log('existing vote', vote)
         // If vote already existed
         if (vote) {
             // If vote is the same as the one we're trying to cast, skip
@@ -79,17 +80,19 @@ const voter = (prisma?: PrismaType) => ({
             if (input.isUpvote === null) {
                 // Delete vote
                 await prisma.vote.delete({ where: { id: vote.id }})
-                return true;
-            }
+            } 
             // Otherwise, update the vote
-            await prisma.vote.update({
-                where: { id: vote.id },
-                data: { isUpvote: input.isUpvote }
-            })
+            else {
+                await prisma.vote.update({
+                    where: { id: vote.id },
+                    data: { isUpvote: input.isUpvote }
+                })
+            }
             // Update the score
             const oldVoteCount = vote.isUpvote ? 1 : vote.isUpvote === null ? 0 : -1;
             const newVoteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
             const deltaVoteCount = newVoteCount - oldVoteCount;
+            console.log('deltaVoteCount', deltaVoteCount)
             await prismaFor.update({
                 where: { id: input.forId },
                 data: { score: votingFor.score + deltaVoteCount }
@@ -105,7 +108,7 @@ const voter = (prisma?: PrismaType) => ({
                 data: {
                     userId,
                     isUpvote: input.isUpvote,
-                    [forMapper[input.voteFor]]: { connect: { id: input.forId } }
+                    [`${forMapper[input.voteFor]}Id`]: input.forId
                 }
             })
             // Update the score

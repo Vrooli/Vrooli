@@ -213,12 +213,14 @@ export const resolvers = {
                     theme: 'light',
                 }
             }
+            console.log('verifying by id', req.userId);
             // Otherwise, check if session can be verified from userId
             const userData = await UserModel(prisma).findById(
                 { id: req.userId ?? '' },
                 { id: true, status: true, theme: true, roles: { title: true } }
             );
-            if (userData) return UserModel().toSession(userData);
+            console.log('userData', userData);
+            if (userData) return UserModel(prisma).toSession(userData);
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Session);
             throw new CustomError(CODE.ErrorUnknown);
@@ -317,6 +319,7 @@ export const resolvers = {
             }
             // Add session token to return payload
             await generateSessionToken(res, session);
+            console.log('walletcomplete', session)
             return session;
         },
         walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: any, _info: GraphQLResolveInfo): Promise<Success> => {

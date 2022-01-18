@@ -47,7 +47,7 @@ export interface commentFields {
   text: string | null;
   created_at: any;
   updated_at: any;
-  votes: number | null;
+  score: number | null;
   isUpvoted: boolean;
   creator: commentFields_creator | null;
   commentedOn: commentFields_commentedOn;

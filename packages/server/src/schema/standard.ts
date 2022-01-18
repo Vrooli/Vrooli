@@ -43,6 +43,7 @@ export const typeDef = gql`
         schema: String
         default: String
         isFile: Boolean
+        organizationId: ID
         tags: [TagInput!]
     }
 
@@ -108,8 +109,7 @@ export const typeDef = gql`
 
     extend type Mutation {
         standardAdd(input: StandardInput!): Standard!
-        standardUpdate(input: StandardInput!): Standard!
-        standardDeleteMany(input: DeleteManyInput!): Count!
+        standardDeleteOne(input: DeleteOneInput!): Success!
     }
 `
 
@@ -117,17 +117,15 @@ export const resolvers = {
     StandardType: StandardType,
     StandardSortBy: StandardSortBy,
     Query: {
-        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
-            // Query database
-            const dbModel = await StandardModel(prisma).findById(input, info);
-            // Format data
-            return dbModel ? StandardModel().toGraphQL(dbModel) : null;
+        standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
+            const data = await StandardModel(prisma).findStandard(req.userId ? req.userId : null, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
-        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            // Create query for specified user
-            const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
-            // return search query
-            return await StandardModel(prisma).search({...userQuery,}, input, info);
+        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
+            const data = await StandardModel(prisma).searchStandards({}, req.userId ?? null, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
         standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
             // Return count query
@@ -140,37 +138,22 @@ export const resolvers = {
          * @returns Standard object if successful
          */
         standardAdd: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO add more restrictions
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const dbModel = await StandardModel(prisma).create(input as any, info);
-            // Format object to GraphQL type
-            if (dbModel) return StandardModel().toGraphQL(dbModel);
-            throw new CustomError(CODE.ErrorUnknown);
+            const created = await StandardModel(prisma).addStandard(req.userId, input, info);
+            if (!created) throw new CustomError(CODE.ErrorUnknown);
+            return created;
         },
         /**
-         * Update standards you've created
+         * Delete a standard you've created. Other standards must go through a reporting system
          * @returns 
          */
-        standardUpdate: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // Update object
-            //const dbModel = await StandardModel(prisma).update(input, info);
-            // Format to GraphQL type
-            //return StandardModel().toGraphQL(dbModel);
-            throw new CustomError(CODE.NotImplemented);
-        },
-        /**
-         * Delete standards you've created. Other standards must go through a reporting system
-         * @returns 
-         */
-        standardDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO add more restrictions
-            return await StandardModel(prisma).deleteMany(input);
+        standardDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            const success = await StandardModel(prisma).deleteStandard(req.userId, input);
+            return { success };
         },
     }
 }

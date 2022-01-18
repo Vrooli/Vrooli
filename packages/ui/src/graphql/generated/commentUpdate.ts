@@ -49,7 +49,7 @@ export interface commentUpdate_commentUpdate {
   text: string | null;
   created_at: any;
   updated_at: any;
-  votes: number | null;
+  score: number | null;
   isUpvoted: boolean;
   creator: commentUpdate_commentUpdate_creator | null;
   commentedOn: commentUpdate_commentUpdate_commentedOn;

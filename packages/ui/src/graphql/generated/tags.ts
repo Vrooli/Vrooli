@@ -22,7 +22,7 @@ export interface tags_tags_edges_node {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

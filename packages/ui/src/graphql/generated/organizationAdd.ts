@@ -16,7 +16,7 @@ export interface organizationAdd_organizationAdd_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

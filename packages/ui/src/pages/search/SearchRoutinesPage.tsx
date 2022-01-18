@@ -6,10 +6,13 @@ import { RoutineDeep as Routine } from "types";
 import { labelledSortOptions } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { LabelledSortOption } from "utils";
+import { SearchRoutinesPageProps } from "./types";
 
 const SORT_OPTIONS: LabelledSortOption<RoutineSortBy>[] = labelledSortOptions(RoutineSortBy);
 
-export const SearchRoutinesPage = () => {
+export const SearchRoutinesPage = ({
+    session
+}: SearchRoutinesPageProps) => {
     // Handles dialog when selecting a search result
     const [selected, setSelected] = useState<Routine | undefined>(undefined);
     const selectedDialogOpen = Boolean(selected);
@@ -23,6 +26,7 @@ export const SearchRoutinesPage = () => {
     const listItemFactory = (node: Routine, index: number) => (
         <RoutineListItem
             key={`routine-list-item-${index}`}
+            session={session}
             data={node}
             isStarred={false}
             isOwn={false}

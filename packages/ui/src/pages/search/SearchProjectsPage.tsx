@@ -6,10 +6,13 @@ import { Project } from "types";
 import { labelledSortOptions } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { LabelledSortOption } from "utils";
+import { SearchProjectsPageProps } from "./types";
 
 const SORT_OPTIONS: LabelledSortOption<ProjectSortBy>[] = labelledSortOptions(ProjectSortBy);
 
-export const SearchProjectsPage = () => {
+export const SearchProjectsPage = ({
+    session
+}: SearchProjectsPageProps) => {
     // Handles dialog when selecting a search result
     const [selected, setSelected] = useState<Project | undefined>(undefined);
     const selectedDialogOpen = Boolean(selected);
@@ -23,6 +26,7 @@ export const SearchProjectsPage = () => {
     const listItemFactory = (node: Project, index: number) => (
         <ProjectListItem
             key={`project-list-item-${index}`}
+            session={session}
             data={node}
             isStarred={false}
             isOwn={false}

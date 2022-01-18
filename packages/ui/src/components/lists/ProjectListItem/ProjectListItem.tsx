@@ -15,6 +15,7 @@ import { vote } from 'graphql/generated/vote';
 import { useMutation } from '@apollo/client';
 
 export function ProjectListItem({
+    session,
     data,
     isStarred = false,
     isOwn = false,
@@ -42,11 +43,15 @@ export function ProjectListItem({
         // Prevent propagation of normal click event
         e.stopPropagation();
         // Send vote mutation
-        vote({ variables: { input: {
-            isUpvote,
-            voteFor: VoteFor.Project,
-            forId: data.id
-        } } });
+        vote({
+            variables: {
+                input: {
+                    isUpvote,
+                    voteFor: VoteFor.Project,
+                    forId: data.id
+                }
+            }
+        });
     }, [data])
 
     const starIcon = useMemo(() => {
@@ -72,16 +77,23 @@ export function ProjectListItem({
                     display: 'flex',
                 }}
             >
-                <UpvoteDownvote
-                    votes={data.votes}
-                    isUpvoted={data.isUpvoted}
-                    onVote={handleVote}
-                />
                 <ListItemButton component="div" onClick={handleClick}>
-                    <ListItemText
-                        primary={data.name}
-                        sx={{ ...multiLineEllipsis(2) }}
+                    <UpvoteDownvote
+                        session={session}
+                        score={data.score}
+                        isUpvoted={data.isUpvoted}
+                        onVote={handleVote}
                     />
+                    <Stack direction="column" spacing={1} pl={2} sx={{width: '-webkit-fill-available'}}>
+                        <ListItemText
+                            primary={data.name}
+                            sx={{ ...multiLineEllipsis(1) }}
+                        />
+                        <ListItemText
+                            primary={data.description}
+                            sx={{ ...multiLineEllipsis(2) }}
+                        />
+                    </Stack>
                     <Stack
                         direction="row"
                         spacing={1}

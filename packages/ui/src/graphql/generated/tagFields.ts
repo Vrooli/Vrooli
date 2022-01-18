@@ -14,6 +14,6 @@ export interface tagFields {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }

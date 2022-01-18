@@ -65,6 +65,7 @@ const basicToken = (): BasicToken => ({
  * @returns 
  */
 export async function generateSessionToken(res: Response, session: RecursivePartial<Session>): Promise<undefined> {
+    console.log('generateSessionToken', session);
     const tokenContents: SessionToken = {
         ...basicToken(),
         userId: session.id || undefined,

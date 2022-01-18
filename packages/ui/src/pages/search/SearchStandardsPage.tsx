@@ -6,10 +6,13 @@ import { Standard } from "types";
 import { labelledSortOptions } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { LabelledSortOption } from "utils";
+import { SearchStandardsPageProps } from "./types";
 
 const SORT_OPTIONS: LabelledSortOption<StandardSortBy>[] = labelledSortOptions(StandardSortBy);
 
-export const SearchStandardsPage = () => {
+export const SearchStandardsPage = ({
+    session
+}: SearchStandardsPageProps) => {
     // Handles dialog when selecting a search result
     const [selected, setSelected] = useState<Standard | undefined>(undefined);
     const selectedDialogOpen = Boolean(selected);
@@ -23,6 +26,7 @@ export const SearchStandardsPage = () => {
     const listItemFactory = (node: Standard, index: number) => (
         <StandardListItem
             key={`standard-list-item-${index}`}
+            session={session}
             data={node}
             isStarred={false}
             isOwn={false}

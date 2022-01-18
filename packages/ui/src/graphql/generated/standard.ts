@@ -16,7 +16,7 @@ export interface standard_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -27,7 +27,7 @@ export interface standard_standard_creator_Organization_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -64,7 +64,7 @@ export interface standard_standard {
   tags: standard_standard_tags[];
   creator: standard_standard_creator | null;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

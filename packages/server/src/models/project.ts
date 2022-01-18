@@ -80,8 +80,6 @@ const formatter = (): FormatConverter<Project, ProjectDB> => {
     }
     return {
         toDB: (obj: RecursivePartial<Project>): RecursivePartial<ProjectDB> => {
-            console.log('project todb', obj);
-            console.log('project owner', obj.owner);
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
@@ -119,8 +117,8 @@ const sorter = (): Sortable<ProjectSortBy> => ({
             [ProjectSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
             [ProjectSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
             [ProjectSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
-            [ProjectSortBy.VotesAsc]: { votes: { _count: 'asc' } },
-            [ProjectSortBy.VotesDesc]: { votes: { _count: 'desc' } },
+            [ProjectSortBy.VotesAsc]: { score: 'asc' },
+            [ProjectSortBy.VotesDesc]: { score: 'desc' },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
@@ -181,9 +179,10 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         // Otherwise, query votes for all search results in one query
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
         const isUpvotedArray = await prisma.vote.findMany({ where: { userId, projectId: { in: resultIds } } });
-        console.log('isUpvotedArray', isUpvotedArray);
+        console.log('isUpvotedArray', isUpvotedArray)
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
-            const isUpvoted = isUpvotedArray.find(({ id }) => id === node.id)?.isUpvote ?? null;
+            console.log('ids', node.id, isUpvotedArray.map(({ projectId }) => projectId));
+            const isUpvoted = isUpvotedArray.find(({ projectId }) => projectId === node.id)?.isUpvote ?? null;
             return { cursor, node: { ...node, isUpvoted } };
         });
         return searchResults;
@@ -204,9 +203,17 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
             // Make sure the user is an admin of the organization
             const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-            projectData = { ...projectData, organization: { connect: { id: input.organizationId } } };
+            projectData = { 
+                ...projectData, 
+                organization: { connect: { id: input.organizationId } },
+                createdByOrganization: { connect: { id: input.organizationId } },
+            };
         } else {
-            projectData = { ...projectData, user: { connect: { id: userId } } };
+            projectData = { 
+                ...projectData, 
+                user: { connect: { id: userId } },
+                createdByUser: { connect: { id: userId } },
+            };
         }
         // TODO resources
         // Create project

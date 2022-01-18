@@ -14,7 +14,7 @@ export interface projectFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -41,6 +41,6 @@ export interface projectFields {
   tags: projectFields_tags[];
   owner: projectFields_owner | null;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }

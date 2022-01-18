@@ -1,9 +1,11 @@
-import { Organization, Resource, Routine, RoutineCountInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
+import { FindByIdInput, Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, deleter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
 import { CODE } from "@local/shared";
+import { hasProfanity } from "../utils/censor";
+import { OrganizationModel } from "./organization";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -19,7 +21,7 @@ export type RoutineQueryablePrimitives = Omit<Routine, RoutineRelationshipList>;
 export type RoutineAllPrimitives = RoutineQueryablePrimitives;
 // type 4. Database shape
 export type RoutineDB = RoutineAllPrimitives &
-Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent' | 'project'> &
+    Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent' | 'project'> &
 {
     user: User;
     organization: Organization;
@@ -45,9 +47,9 @@ Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inp
  * Custom component for creating routine. 
  * NOTE: Data should be in Prisma shape, not GraphQL
  */
- const routineCreater = (toDB: FormatConverter<Routine, RoutineDB>['toDB'], prisma?: PrismaType) => ({
+const routineCreater = (toDB: FormatConverter<Routine, RoutineDB>['toDB'], prisma?: PrismaType) => ({
     async create(
-        data: any, 
+        data: any,
         info: GraphQLResolveInfo | null = null,
     ): Promise<RecursivePartial<RoutineDB> | null> {
         // Check for valid arguments
@@ -64,9 +66,182 @@ Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inp
 })
 
 /**
+ * Handles the authorized adding, updating, and deleting of routines.
+ */
+const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<RoutineSortBy>, prisma?: PrismaType) => ({
+    async findRoutine(
+        userId: string | null,
+        input: FindByIdInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Create selector
+        const select = selectHelper<Routine, RoutineDB>(info, formatter().toDB);
+        // Access database
+        let routine = await prisma.routine.findUnique({ where: { id: input.id }, ...select });
+        // Return routine with "isUpvoted" field. This must be queried separately.
+        if (!userId || !routine) return routine;
+        const vote = await prisma.vote.findFirst({ where: { userId, routineId: routine.id } });
+        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
+        return { ...routine, isUpvoted };
+    },
+    async searchRoutines(
+        where: { [x: string]: any },
+        userId: string | null,
+        input: RoutineSearchInput,
+        info: InfoType = null,
+    ): Promise<PaginatedSearchResult> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Create where clauses
+        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
+        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
+        const parentIdQuery = input.parentId ? { forks: { some: { forkId: input.parentId } } } : {};
+        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
+        // Search
+        const search = searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineDB>(MODEL_TYPES.Routine, format.toDB, format.toGraphQL, sort, prisma);
+        let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where }, input, info);
+        // Compute "isUpvoted" field for each routine
+        // If userId not provided, then "isUpvoted" is null
+        if (!userId) {
+            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null } }));
+            return searchResults;
+        }
+        // Otherwise, query votes for all search results in one query
+        const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
+        const isUpvotedArray = await prisma.vote.findMany({ where: { userId, routineId: { in: resultIds } } });
+        console.log('isUpvotedArray', isUpvotedArray)
+        searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
+            console.log('ids', node.id, isUpvotedArray.map(({ routineId }) => routineId));
+            const isUpvoted = isUpvotedArray.find(({ routineId }) => routineId === node.id)?.isUpvote ?? null;
+            return { cursor, node: { ...node, isUpvoted } };
+        });
+        return searchResults;
+    },
+    async addRoutine(
+        userId: string,
+        input: RoutineInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!prisma || !input.title || input.title.length < 1) throw new CustomError(CODE.InvalidArgs);
+        // Check for censored words
+        if (hasProfanity(input.title) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
+        // Create routine data
+        let routineData: { [x: string]: any } = {
+            name: input.title,
+            description: input.description,
+            instructions: input.instructions,
+            version: input.version,
+            isAutomatable: input.isAutomatable,
+        };
+        // Associate with either organization or user
+        if (input.organizationId) {
+            // Make sure the user is an admin of the organization
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+            if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+            routineData = { 
+                ...routineData, 
+                organization: { connect: { id: input.organizationId } },
+                createdByOrganization: { connect: { id: input.organizationId } },
+            };
+        } else {
+            routineData = { 
+                ...routineData, 
+                user: { connect: { id: userId } },
+                createdByUser: { connect: { id: userId } },
+            };
+        }
+        // TODO inputs
+        // TODO outputs
+        // TODO resources
+        // Create routine
+        const routine = await prisma.routine.create({
+            data: routineData as any,
+            ...selectHelper<Routine, RoutineDB>(info, format.toDB)
+        })
+        // Return routine with "isUpvoted" field. Will be false in this case.
+        return { ...routine, isUpvoted: false };
+    },
+    async updateRoutine(
+        userId: string,
+        input: RoutineInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!prisma || !input.title || input.title.length < 1) throw new CustomError(CODE.InvalidArgs);
+        // Check for censored words
+        if (hasProfanity(input.title) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
+        // Create routine data
+        let routineData: { [x: string]: any } = {
+            name: input.title,
+            description: input.description,
+            instructions: input.instructions,
+            version: input.version,
+            isAutomatable: input.isAutomatable,
+        };
+        // Associate with either organization or user
+        if (input.organizationId) {
+            // Make sure the user is an admin of the organization
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+            if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+            routineData = { ...routineData, organization: { connect: { id: input.organizationId } } };
+        } else {
+            routineData = { ...routineData, user: { connect: { id: userId } } };
+        }
+        // TODO inputs
+        // TODO outputs
+        // TODO resources
+        // Find routine
+        let routine = await prisma.routine.findFirst({
+            where: {
+                OR: [
+                    { organizationId: input.organizationId },
+                    { userId },
+                ]
+            }
+        })
+        if (!routine) throw new CustomError(CODE.ErrorUnknown);
+        // Update routine
+        routine = await prisma.routine.update({
+            where: { id: routine.id },
+            data: routine as any,
+            ...selectHelper<Routine, RoutineDB>(info, format.toDB)
+        });
+        // Return routine with "isUpvoted" field. This must be queried separately.
+        const vote = await prisma.vote.findFirst({ where: { userId, routineId: routine.id } });
+        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
+        return { ...routine, isUpvoted };
+    },
+    async deleteRoutine(userId: string, input: any): Promise<boolean> {
+        // Check for valid arguments
+        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+        // Find routine
+        const routine = await prisma.routine.findFirst({
+            where: {
+                OR: [
+                    { organizationId: input.organizationId },
+                    { userId },
+                ]
+            }
+        })
+        if (!routine) throw new CustomError(CODE.ErrorUnknown);
+        // Make sure the user is an admin of the organization
+        const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+        if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+        // Delete comment
+        await prisma.routine.delete({
+            where: { id: routine.id },
+        });
+        return true;
+    }
+})
+
+/**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Routine, RoutineDB> => {
+const formatter = (): FormatConverter<Routine, RoutineDB> => {
     const joinMapper = {
         contextualResources: 'resource',
         externalResources: 'resource',
@@ -101,7 +276,7 @@ Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inp
 /**
  * Component for search filters
  */
- const sorter = (): Sortable<RoutineSortBy> => ({
+const sorter = (): Sortable<RoutineSortBy> => ({
     defaultSort: RoutineSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
@@ -117,8 +292,8 @@ Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inp
             [RoutineSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
             [RoutineSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
             [RoutineSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
-            [RoutineSortBy.VotesAsc]: { votes: { _count: 'asc' } },
-            [RoutineSortBy.VotesDesc]: { votes: { _count: 'desc' } },
+            [RoutineSortBy.VotesAsc]: { score: 'asc' },
+            [RoutineSortBy.VotesDesc]: { score: 'desc' },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
@@ -131,26 +306,6 @@ Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inp
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
-    }
-})
-
-/**
- * Component for searching
- */
- export const routineSearcher = (
-    toDB: FormatConverter<Routine, RoutineDB>['toDB'],
-    toGraphQL: FormatConverter<Routine, RoutineDB>['toGraphQL'],
-    sorter: Sortable<any>, 
-    prisma?: PrismaType) => ({
-    async search(where: { [x: string]: any }, input: RoutineSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
-        // One-to-one search queries
-        const userIdQuery = input.userId ? { user: { id: input.userId } } : {};
-        const organizationIdQuery = input.organizationId ? { organization: { id: input.organizationId } } : {};
-        // One-to-many search queries
-        const parentIdQuery = input.parentId ? { forks: { some: { forkId: input.parentId } } } : {};
-        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const search = searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineDB>(MODEL_TYPES.Routine, toDB, toGraphQL, sorter, prisma);
-        return search.search({...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where}, input, info);
     }
 })
 
@@ -175,7 +330,7 @@ export function RoutineModel(prisma?: PrismaType) {
         ...counter<RoutineCountInput>(model, prisma),
         ...deleter(model, prisma),
         ...routineCreater(format.toDB, prisma),
-        ...routineSearcher(format.toDB, format.toGraphQL, sort, prisma),
+        ...routiner(format, sort, prisma),
     }
 }
 

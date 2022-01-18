@@ -150,6 +150,7 @@ const validater = (prisma?: PrismaType) => ({
      * Creates session object from user
      */
     toSession(user: RecursivePartial<UserDB>): RecursivePartial<Session> {
+        console.log('user toSession', user);
         return {
             id: user.id ?? '',
             theme: user.theme ?? 'light',

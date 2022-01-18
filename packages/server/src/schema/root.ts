@@ -195,27 +195,31 @@ export const resolvers = {
                 }
             )).edges.map(({ node }: any) => node);
             // Query routines
-            const routines = (await RoutineModel(prisma).search({
-                //...starredByQuery,
-            }, {
-                ...input,
-                sortBy: RoutineSortBy.StarsDesc
-            }, {
-                id: true,
-                title: true,
-                stars: true
-            })).edges.map(({ node }: any) => node);
+            const routines = (await RoutineModel(prisma).searchRoutines(
+                {
+                    //...starredByQuery,
+                },
+                req.userId ?? null,
+                { ...input, sortBy: RoutineSortBy.StarsDesc },
+                {
+                    id: true,
+                    title: true,
+                    stars: true
+                }
+            )).edges.map(({ node }: any) => node);
             // Query standards
-            const standards = (await StandardModel(prisma).search({
-                //...starredByQuery,
-            }, {
-                ...input,
-                sortBy: StandardSortBy.StarsDesc
-            }, {
-                id: true,
-                name: true,
-                stars: true
-            })).edges.map(({ node }: any) => node);
+            const standards = (await StandardModel(prisma).searchStandards(
+                {
+                    //...starredByQuery,
+                },
+                req.userId ?? null,
+                { ...input, sortBy: StandardSortBy.StarsDesc },
+                {
+                    id: true,
+                    name: true,
+                    stars: true
+                }
+            )).edges.map(({ node }: any) => node);
             // Query users
             const users = (await UserModel(prisma).search({
                 //...starredByQuery,

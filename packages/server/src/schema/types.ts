@@ -45,7 +45,7 @@ export type Comment = {
   id: Scalars['ID'];
   isUpvoted: Scalars['Boolean'];
   reports: Array<Report>;
-  score?: Maybe<Scalars['Int']>;
+  votes?: Maybe<Scalars['Int']>;
   starredBy?: Maybe<Array<User>>;
   stars?: Maybe<Scalars['Int']>;
   text?: Maybe<Scalars['String']>;
@@ -1113,6 +1113,7 @@ export type RoutineInput = {
   instructions?: InputMaybe<Scalars['String']>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   outputs?: InputMaybe<Array<RoutineOutputItemInput>>;
+  organizationId: InputMaybe<Scalars['ID']>;
   title?: InputMaybe<Scalars['String']>;
   version?: InputMaybe<Scalars['String']>;
 };
@@ -1229,6 +1230,7 @@ export type StandardInput = {
   name?: InputMaybe<Scalars['String']>;
   schema?: InputMaybe<Scalars['String']>;
   tags?: InputMaybe<Array<TagInput>>;
+  organizationId?: InputMaybe<Scalars['ID']>;
   type?: InputMaybe<StandardType>;
 };
 

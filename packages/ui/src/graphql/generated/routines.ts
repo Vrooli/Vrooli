@@ -22,7 +22,7 @@ export interface routines_routines_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -36,7 +36,7 @@ export interface routines_routines_edges_node {
   isAutomatable: boolean | null;
   tags: routines_routines_edges_node_tags[];
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

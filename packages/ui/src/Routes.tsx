@@ -52,7 +52,7 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* Customizable pages available to logged in users */}
                 <Route path={LINKS.Home}>
                     <Page title={title('Home')} {...props}>
-                        <HomePage />
+                        <HomePage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={LINKS.Learn} >
@@ -85,17 +85,17 @@ export const AllRoutes = (props: CommonProps) => {
                 </Route>
                 <Route path={`${LINKS.SearchProjects}/:id?`}>
                     <Page title={title('Projects Search')} {...props}>
-                        <SearchProjectsPage />
+                        <SearchProjectsPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={`${LINKS.SearchRoutines}/:id?`}>
                     <Page title={title('Routines Search')} {...props}>
-                        <SearchRoutinesPage />
+                        <SearchRoutinesPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={`${LINKS.SearchStandards}/:id?`}>
                     <Page title={title('Standards Search')} {...props}>
-                        <SearchStandardsPage />
+                        <SearchStandardsPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 {/* ========= #endregion Search Routes ========= */}

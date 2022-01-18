@@ -16,7 +16,7 @@ export interface routineUpdate_routineUpdate_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -30,7 +30,7 @@ export interface routineUpdate_routineUpdate {
   isAutomatable: boolean | null;
   tags: routineUpdate_routineUpdate_tags[];
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 

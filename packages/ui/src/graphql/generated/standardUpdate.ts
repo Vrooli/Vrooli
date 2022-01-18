@@ -16,7 +16,7 @@ export interface standardUpdate_standardUpdate_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
@@ -47,7 +47,7 @@ export interface standardUpdate_standardUpdate {
   tags: standardUpdate_standardUpdate_tags[];
   creator: standardUpdate_standardUpdate_creator | null;
   stars: number;
-  votes: number;
+  score: number;
   isUpvoted: boolean;
 }
 
