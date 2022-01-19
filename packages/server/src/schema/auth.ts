@@ -11,7 +11,7 @@ import { IWrap, RecursivePartial } from '../types';
 import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
-import { UserModel } from '../models';
+import { UserModel, userSessioner } from '../models';
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -35,6 +35,7 @@ export const typeDef = gql`
         theme: String!
         marketingEmails: Boolean!
         password: String!
+        confirmPassword: String!
     }
 
     input EmailRequestPasswordChangeInput {
@@ -54,7 +55,8 @@ export const typeDef = gql`
 
     input WalletCompleteInput {
         publicAddress: String!
-        signedMessage: String!
+        key: String!
+        signature: String!
     }
 
     type Session {
@@ -116,21 +118,30 @@ export const resolvers = {
             // Validate input format
             const validateError = await validateArgs(emailSignUpSchema, input);
             if (validateError) throw validateError;
+            if (input?.password !== input?.confirmPassword) throw new CustomError(CODE.InvalidArgs, 'Passwords do not match');
             // Find user role to give to new user
-            const actorRole = await prisma.role.findUnique({ where: { title: ROLES.Actor } });
-            if (!actorRole) throw new CustomError(CODE.ErrorUnknown);
+            const roles = await prisma.role.findMany({ select: { id: true, title: true } });
+            const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
+            if (!actorRoleId) throw new CustomError(CODE.ErrorUnknown);
             // Create user object
             const user = await UserModel(prisma).create({
                 username: input.username,
                 password: UserModel(prisma).hashPassword(input.password),
                 theme: input.theme,
                 status: AccountStatus.Unlocked,
-                emails: [{ emailAddress: input.email }],
-                roles: [{ role: actorRole }]
+                emails: {
+                    create: [
+                        { emailAddress: input.email },
+                    ]
+                },
+                roles: {
+                    create: [{ role: { connect: { id: actorRoleId } } }]
+                }
             });
             if (!user) throw new CustomError(CODE.ErrorUnknown);
             // Create session from user object
             const session = UserModel(prisma).toSession(user);
+            console.log('session', session);
             // Set up session token
             await generateSessionToken(res, session);
             // Send verification email
@@ -162,7 +173,7 @@ export const resolvers = {
                     resetPasswordCode: true,
                     lastResetPasswordReqestAttempt: true,
                     emails: { emailAddress: true },
-                    roles: { title: true } 
+                    roles: { title: true }
                 }
             );
             if (!user) throw new CustomError(CODE.ErrorUnknown);
@@ -183,7 +194,7 @@ export const resolvers = {
                 }
             })
             // Return session
-            return UserModel().toSession(user);
+            return userSessioner().toSession(user);
         },
         guestLogIn: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Create session
@@ -197,11 +208,11 @@ export const resolvers = {
         },
         logOut: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             res.clearCookie(COOKIE.Session);
-            return { success: true};
+            return { success: true };
         },
         validateSession: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // If session is expired
-            if (!Array.isArray(req.roles) || req.roles.length === 0) {
+            if (!req.userId || !Array.isArray(req.roles) || req.roles.length === 0) {
                 res.clearCookie(COOKIE.Session);
                 throw new CustomError(CODE.SessionExpired);
             }
@@ -216,7 +227,7 @@ export const resolvers = {
             console.log('verifying by id', req.userId);
             // Otherwise, check if session can be verified from userId
             const userData = await UserModel(prisma).findById(
-                { id: req.userId ?? '' },
+                { id: req.userId },
                 { id: true, status: true, theme: true, roles: { title: true } }
             );
             console.log('userData', userData);
@@ -225,16 +236,13 @@ export const resolvers = {
             res.clearCookie(COOKIE.Session);
             throw new CustomError(CODE.ErrorUnknown);
         },
-        // Start handshake for establishing trust between backend and user wallet
-        // Returns nonce
+        /**
+         * Starts handshake for establishing trust between backend and user wallet
+         * @returns Nonce that wallet must sign and send to walletComplete endpoint
+         */
         walletInit: async (_parent: undefined, { input }: IWrap<WalletInitInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<string> => {
-            let userData;
-            // If not signed in, create new user row
-            if (!req.userId) userData = await prisma.user.create({ data: {} });
-            // Otherwise, find user data using id in session token 
-            else userData = await prisma.user.findUnique({ where: { id: req.userId } });
-            if (!userData) throw new CustomError(CODE.ErrorUnknown);
-
+            // Generate nonce for handshake
+            const nonce = await generateNonce(input.nonceDescription as string | undefined);
             // Find existing wallet data in database
             let walletData = await prisma.wallet.findUnique({
                 where: { publicAddress: input.publicAddress },
@@ -244,10 +252,26 @@ export const resolvers = {
                     userId: true,
                 }
             });
-            // If wallet data didn't exist, create
+            // If wallet exists, update with new nonce
+            if (walletData) {
+                console.log('walletData exists', walletData);
+                await prisma.wallet.update({
+                    where: { id: walletData.id },
+                    data: {
+                        nonce: nonce,
+                        nonceCreationTime: new Date().toISOString(),
+                    }
+                })
+            }
+            // If wallet data doesn't exist, create
             if (!walletData) {
+                console.log('creating wallet', input.publicAddress);
                 walletData = await prisma.wallet.create({
-                    data: { publicAddress: input.publicAddress },
+                    data: { 
+                        publicAddress: input.publicAddress,
+                        nonce: nonce,
+                        nonceCreationTime: new Date().toISOString(),
+                    },
                     select: {
                         id: true,
                         verified: true,
@@ -255,24 +279,7 @@ export const resolvers = {
                     }
                 })
             }
-
-            // If wallet is either: (1) unverified; or (2) already verified with user, update wallet with nonce and user id
-            if (!walletData.verified || walletData.userId === userData.id) {
-                const nonce = await generateNonce(input.nonceDescription as string | undefined);
-                await prisma.wallet.update({
-                    where: { id: walletData.id },
-                    data: {
-                        nonce: nonce,
-                        nonceCreationTime: new Date().toISOString(),
-                        userId: userData.id
-                    }
-                })
-                return nonce;
-            }
-            // If wallet is verified by another account
-            else {
-                throw new CustomError(CODE.NotYourWallet);
-            }
+            return nonce;
         },
         // Verify that signed message from user wallet has been signed by the correct public address
         walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, res }: any, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
@@ -285,22 +292,36 @@ export const resolvers = {
                     nonceCreationTime: true,
                     userId: true,
                     user: {
-                        select: {
-                            theme: true
-                        }
+                        select: { id: true, theme: true }
                     }
                 }
             });
-
-            // Verify wallet data
+            //TODO waiting on github issue to be resolved
+            console.log('walletcomplete walletdata', walletData, input.publicAddress);
+            console.log('attempt420', verifySignedMessage(input.publicAddress, walletData.nonce, input.signature));
+            // If wallet doesn't exist, return error
             if (!walletData) throw new CustomError(CODE.InvalidArgs);
-            if (!walletData.userId) throw new CustomError(CODE.ErrorUnknown);
+            // If nonce expired, return error
             if (!walletData.nonce || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
-
             // Verify that message was signed by wallet address
-            const walletVerified = verifySignedMessage(input.publicAddress, walletData.nonce, input.signedMessage);
+            const walletVerified = false;//verifySignedMessage(input.publicAddress, walletData.nonce, input.signature);
             if (!walletVerified) throw new CustomError(CODE.Unauthorized);
-
+            let userData = walletData.user;
+            // If user doesn't exist, create new user
+            if (!userData?.userId) {
+                const roles = await prisma.role.findMany({ select: { id: true, title: true } });
+                console.log('ROLESSS!', roles);
+                const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
+                console.log('actorRoleId', actorRoleId)
+                userData = await prisma.user.create({
+                    data: {
+                        roles: {
+                            create: [{ role: { connect: { id: actorRoleId } } }]
+                        }
+                    },
+                    select: { id: true, theme: true }
+                });
+            }
             // Update wallet and remove nonce data
             await prisma.wallet.update({
                 where: { id: walletData.id },
@@ -313,9 +334,9 @@ export const resolvers = {
             })
             // Create session token
             const session = {
-                id: walletData.userId,
+                id: userData.id,
                 roles: [ROLES.Actor],
-                theme: walletData.user?.theme ?? 'light',
+                theme: userData.theme ?? 'light',
             }
             // Add session token to return payload
             await generateSessionToken(res, session);
