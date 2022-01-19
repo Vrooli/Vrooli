@@ -43,9 +43,9 @@ export type Comment = {
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
   id: Scalars['ID'];
-  isUpvoted: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
   reports: Array<Report>;
-  votes?: Maybe<Scalars['Int']>;
+  score?: Maybe<Scalars['Int']>;
   starredBy?: Maybe<Array<User>>;
   stars?: Maybe<Scalars['Int']>;
   text?: Maybe<Scalars['String']>;
@@ -129,6 +129,7 @@ export type EmailSignUpInput = {
   email: Scalars['String'];
   marketingEmails: Scalars['Boolean'];
   password: Scalars['String'];
+  confirmPassword: Scalars['String'];
   theme: Scalars['String'];
   username: Scalars['String'];
 };
@@ -190,8 +191,7 @@ export type Mutation = {
   routineDeleteOne: Success;
   routineUpdate: Routine;
   standardAdd: Standard;
-  standardDeleteMany: Count;
-  standardUpdate: Standard;
+  standardDeleteOne: Success;
   tagAdd: Tag;
   tagDeleteMany: Count;
   tagUpdate: Tag;
@@ -360,13 +360,8 @@ export type MutationStandardAddArgs = {
 };
 
 
-export type MutationStandardDeleteManyArgs = {
-  input: DeleteManyInput;
-};
-
-
-export type MutationStandardUpdateArgs = {
-  input: StandardInput;
+export type MutationStandardDeleteOneArgs = {
+  input: DeleteOneInput;
 };
 
 
@@ -711,7 +706,7 @@ export type Project = {
   description?: Maybe<Scalars['String']>;
   forks: Array<Project>;
   id: Scalars['ID'];
-  isUpvoted: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
   name: Scalars['String'];
   owner?: Maybe<Contributor>;
   parent?: Maybe<Project>;
@@ -741,9 +736,8 @@ export type ProjectInput = {
   description?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
   name: Scalars['String'];
-  organizationId: InputMaybe<Scalars['ID']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
   resources?: InputMaybe<Array<ResourceInput>>;
-  users?: InputMaybe<Array<UserInput>>;
 };
 
 export type ProjectSearchInput = {
@@ -1078,7 +1072,7 @@ export type Routine = {
   inputs: Array<RoutineInputItem>;
   instructions?: Maybe<Scalars['String']>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
-  isUpvoted: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
   nodeLists: Array<NodeRoutineList>;
   nodes: Array<Node>;
   outputs: Array<RoutineOutputItem>;
@@ -1112,8 +1106,8 @@ export type RoutineInput = {
   inputs?: InputMaybe<Array<RoutineInputItemInput>>;
   instructions?: InputMaybe<Scalars['String']>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
   outputs?: InputMaybe<Array<RoutineOutputItemInput>>;
-  organizationId: InputMaybe<Scalars['ID']>;
   title?: InputMaybe<Scalars['String']>;
   version?: InputMaybe<Scalars['String']>;
 };
@@ -1197,7 +1191,7 @@ export type Standard = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isFile: Scalars['Boolean'];
-  isUpvoted: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
   name: Scalars['String'];
   reports: Array<Report>;
   routineInputs: Array<Routine>;
@@ -1228,9 +1222,9 @@ export type StandardInput = {
   id?: InputMaybe<Scalars['ID']>;
   isFile?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
   schema?: InputMaybe<Scalars['String']>;
   tags?: InputMaybe<Array<TagInput>>;
-  organizationId?: InputMaybe<Scalars['ID']>;
   type?: InputMaybe<StandardType>;
 };
 
@@ -1307,7 +1301,7 @@ export type Tag = {
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  isUpvoted: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
@@ -1472,8 +1466,9 @@ export type Wallet = {
 };
 
 export type WalletCompleteInput = {
+  key: Scalars['String'];
   publicAddress: Scalars['String'];
-  signedMessage: Scalars['String'];
+  signature: Scalars['String'];
 };
 
 export type WalletInitInput = {

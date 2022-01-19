@@ -2,12 +2,13 @@ import { SxProps, Theme } from '@mui/material';
 import { CSSProperties } from '@mui/styles';
 
 export const formPaper: SxProps = {
-    width: '100%',
-    marginTop: 3
+    marginTop: 3,
+    background: 'transparent',
+    boxShadow: 'none',
 } as CSSProperties;
 
 export const formSubmit: SxProps = {
-    margin: '0 auto',
+    margin: '16px auto',
 } as CSSProperties;
 
 export const formNavLink = (t: Theme): SxProps => ({

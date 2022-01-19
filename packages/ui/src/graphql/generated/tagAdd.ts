@@ -17,7 +17,7 @@ export interface tagAdd_tagAdd {
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface tagAdd {

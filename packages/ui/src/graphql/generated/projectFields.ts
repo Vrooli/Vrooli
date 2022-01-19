@@ -15,7 +15,7 @@ export interface projectFields_tags {
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface projectFields_owner_Organization {
@@ -42,5 +42,5 @@ export interface projectFields {
   owner: projectFields_owner | null;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }

@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, ResourceFor, ResourceSortBy, ResourceUsedFor } from '@local/shared';
 import { CustomError } from '../error';
-import { ResourceModel } from '../models';
+import { resourceFormatter, ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
 import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceInput, ResourceSearchInput, Success } from './types';
 import { Context } from '../context';
@@ -115,7 +115,7 @@ export const resolvers = {
             // Query database
             const dbModel = await ResourceModel(prisma).findById(input, info);
             // Format data
-            return dbModel ? ResourceModel().toGraphQL(dbModel) : null;
+            return dbModel ? resourceFormatter().toGraphQL(dbModel) : null;
         },
         resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>[]> => {
             // Create query for specified object
@@ -136,7 +136,7 @@ export const resolvers = {
             // Create object
             const dbModel = await ResourceModel(prisma).create(input, info);
             // Format object to GraphQL type
-            return ResourceModel().toGraphQL(dbModel);
+            return resourceFormatter().toGraphQL(dbModel);
         },
         resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in
@@ -144,7 +144,7 @@ export const resolvers = {
             // Update object
             const dbModel = await ResourceModel(prisma).update(input, info);
             // Format to GraphQL type
-            return ResourceModel().toGraphQL(dbModel);
+            return resourceFormatter().toGraphQL(dbModel);
         },
         resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must be logged in

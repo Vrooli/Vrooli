@@ -19,10 +19,10 @@ export const UpvoteDownvote = ({
         // If the score and internal score match, return the score
         if (internalIsUpvoted === isUpvoted) return scoreNum;
         // Otherwise, determine score based on internal state
-        if (isUpvoted === true && internalIsUpvoted === null || 
-            isUpvoted === null && internalIsUpvoted === false) return scoreNum - 1;
-        if (isUpvoted === false && internalIsUpvoted === null ||
-            isUpvoted === null && internalIsUpvoted === true) return scoreNum + 1;
+        if ((isUpvoted === true && internalIsUpvoted === null) || 
+            (isUpvoted === null && internalIsUpvoted === false)) return scoreNum - 1;
+        if ((isUpvoted === false && internalIsUpvoted === null) ||
+            (isUpvoted === null && internalIsUpvoted === true)) return scoreNum + 1;
         return scoreNum;
     }, [internalIsUpvoted, isUpvoted, score]);
 

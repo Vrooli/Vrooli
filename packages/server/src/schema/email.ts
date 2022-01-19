@@ -4,7 +4,7 @@ import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
 import { Count, DeleteManyInput, Email, EmailInput } from './types';
 import { Context } from '../context';
-import { EmailModel } from '../models';
+import { emailFormatter, EmailModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
@@ -44,7 +44,7 @@ export const resolvers = {
             // Create object
             const dbModel = await EmailModel(prisma).create(input, info);
             // Format object to GraphQL type
-            return EmailModel().toGraphQL(dbModel);
+            return emailFormatter().toGraphQL(dbModel);
         },
         /**
          * Update an existing email address that is associated with your account.
@@ -57,7 +57,7 @@ export const resolvers = {
             // Update object
             const dbModel = await EmailModel(prisma).update(input, info);
             // Format to GraphQL type
-            return EmailModel().toGraphQL(dbModel);
+            return emailFormatter().toGraphQL(dbModel);
         },
         emailDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must deleting your own

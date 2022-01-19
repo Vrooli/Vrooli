@@ -1,9 +1,8 @@
-import { CODE, ResourceFor } from "@local/shared";
+import { ResourceFor } from "@local/shared";
 import { PrismaSelect } from "@paljs/plugins";
 import { Organization, Project, Resource, ResourceCountInput, ResourceInput, ResourceSearchInput, ResourceSortBy, Routine, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { counter, deleter, findByIder, FormatConverter, MODEL_TYPES, searcher, Sortable } from "./base";
-import { CustomError } from "../error";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -46,24 +45,23 @@ const applyMap = {
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Resource, ResourceDB> => ({
+export const resourceFormatter = (): FormatConverter<Resource, ResourceDB> => ({
     toDB: (obj: RecursivePartial<Resource>): RecursivePartial<ResourceDB> => (obj as any), //TODO
     toGraphQL: (obj: RecursivePartial<ResourceDB>): RecursivePartial<Resource> => (obj as any) //TODO
 })
+
 /**
  * Custom compositional component for creating resources
  * @param state 
  * @returns 
  */
-const creater = (prisma?: PrismaType) => ({
+export const resourceCreater = (prisma: PrismaType) => ({
     /**
     * Applies a resource object to an actor, project, organization, or routine
     * @param resource 
     * @returns
     */
     async applyToObject(resource: any, createdFor: keyof typeof applyMap, forId: string): Promise<any> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         return await (prisma[applyMap[createdFor] as keyof PrismaType] as any).create({
             data: {
                 forId,
@@ -72,8 +70,6 @@ const creater = (prisma?: PrismaType) => ({
         })
     },
     async create(data: ResourceInput, info: any): Promise<RecursivePartial<ResourceDB>> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Filter out for and forId, since they are not part of the resource object
         const { createdFor, forId, ...resourceData } = data;
         // Create base object
@@ -90,10 +86,8 @@ const creater = (prisma?: PrismaType) => ({
  * @param state 
  * @returns 
  */
-const updater = (prisma?: PrismaType) => ({
+const resourceUpdater = (prisma: PrismaType) => ({
     async update(data: ResourceInput, info: any): Promise<ResourceDB> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Filter out for and forId, since they are not part of the resource object
         const { createdFor, forId, ...resourceData } = data;
         // Check if resource needs to be associated with another object instead
@@ -110,7 +104,7 @@ const updater = (prisma?: PrismaType) => ({
 /**
  * Component for search filters
  */
-const sorter = (): Sortable<ResourceSortBy> => ({
+export const resourceSorter = (): Sortable<ResourceSortBy> => ({
     defaultSort: ResourceSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
@@ -143,10 +137,10 @@ const sorter = (): Sortable<ResourceSortBy> => ({
 /* #region Model */
 //==============================================================
 
-export function ResourceModel(prisma?: PrismaType) {
+export function ResourceModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Resource;
-    const format = formatter();
-    const sort = sorter();
+    const format = resourceFormatter();
+    const sort = resourceSorter();
 
     return {
         model,
@@ -154,11 +148,11 @@ export function ResourceModel(prisma?: PrismaType) {
         ...format,
         ...sort,
         ...counter<ResourceCountInput>(model, prisma),
-        ...creater(prisma),
         ...deleter(model, prisma),
         ...findByIder<Resource, ResourceDB>(model, format.toDB, prisma),
+        ...resourceCreater(prisma),
+        ...resourceUpdater(prisma),
         ...searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceDB>(model, format.toDB, format.toGraphQL, sort, prisma),
-        ...updater(prisma),
     }
 }
 

@@ -80,7 +80,7 @@ Pick<Example, 'children2'> &
 // Second, define the converter component.
 // This converts between the model as it is stored in the database, and how it is represented in the GraphQL schema.
 // Typically this is a flattening of join tables, but it could be anything.
-const formatter = (): FormatConverter<Example, any> => ({
+const exampleFormatter = (): FormatConverter<Example, any> => ({
     toDB: (obj: any): any => ({ ...obj }),
     toGraphQL: (obj: any): any => ({ ...obj })
 })
@@ -96,7 +96,7 @@ const formatter = (): FormatConverter<Example, any> => ({
 // Last, we define the model component.
 export function ExampleModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Comment; // This would be MODEL_TYPES.Example, if it was real
-    const format = formatter();
+    const format = exampleFormatter();
 
     // the return contains every composition function that applies to this model
     return {

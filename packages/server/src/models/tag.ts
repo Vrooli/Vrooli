@@ -34,7 +34,7 @@ export type TagDB = TagAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Tag, TagDB> => {
+ export const tagFormatter = (): FormatConverter<Tag, TagDB> => {
     const joinMapper = {
         organizations: 'tagged',
         projects: 'tagged',
@@ -51,7 +51,7 @@ export type TagDB = TagAllPrimitives &
 /**
  * Component for search filters
  */
- const sorter = (): Sortable<TagSortBy> => ({
+ export const tagSorter = (): Sortable<TagSortBy> => ({
     defaultSort: TagSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
@@ -84,10 +84,10 @@ export type TagDB = TagAllPrimitives &
 /* #region Model */
 //==============================================================
 
-export function TagModel(prisma?: PrismaType) {
+export function TagModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Tag;
-    const format = formatter();
-    const sort = sorter();
+    const format = tagFormatter();
+    const sort = tagSorter();
 
     return {
         prisma,

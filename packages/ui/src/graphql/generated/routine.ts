@@ -17,7 +17,7 @@ export interface routine_routine_inputs_standard_tags {
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface routine_routine_inputs_standard {
@@ -84,7 +84,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tag
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
@@ -98,7 +98,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
   tags: routine_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines {
@@ -165,7 +165,7 @@ export interface routine_routine_outputs_standard_tags {
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface routine_routine_outputs_standard {
@@ -217,7 +217,7 @@ export interface routine_routine_tags {
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface routine_routine {
@@ -231,6 +231,7 @@ export interface routine_routine {
   updated_at: any;
   version: string | null;
   stars: number;
+  score: number;
   inputs: routine_routine_inputs[];
   nodes: routine_routine_nodes[];
   owner: routine_routine_owner | null;

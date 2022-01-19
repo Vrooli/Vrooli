@@ -47,7 +47,7 @@ export type NodeDB = NodeAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Node, NodeDB> => ({
+export const nodeFormatter = (): FormatConverter<Node, NodeDB> => ({
     toDB: (obj: RecursivePartial<Node>): RecursivePartial<NodeDB> => ({ ...obj }), //TODO
     toGraphQL: (obj: RecursivePartial<NodeDB>): RecursivePartial<Node> => ({ ...obj }) //TODO must at least convert previous and next to ids
 })
@@ -57,40 +57,39 @@ const formatter = (): FormatConverter<Node, NodeDB> => ({
  * @param state 
  * @returns 
  */
-const creater = (prisma?: PrismaType) => ({
+const nodeCreater = (prisma: PrismaType) => ({
     async createCombineHelper(data: any): Promise<{ dataCombineId: string }> {
-        const row = await prisma?.node_combine.create({ data });
+        const row = await prisma.node_combine.create({ data });
         return { dataCombineId: row?.id ?? '' };
     },
     async createDecisionHelper(data: any): Promise<{ dataDecisionId: string }> {
-        const row = await prisma?.node_decision.create({ data });
+        const row = await prisma.node_decision.create({ data });
         return { dataDecisionId: row?.id ?? '' };
     },
     async createEndHelper(data: any): Promise<{ dataEndId: string }> {
-        const row = await prisma?.node_end.create({ data });
+        const row = await prisma.node_end.create({ data });
         return { dataEndId: row?.id ?? '' };
     },
     async createLoopHelper(data: any): Promise<{ dataLoopId: string }> {
-        const row = await prisma?.node_loop.create({ data });
+        const row = await prisma.node_loop.create({ data });
         return { dataLoopId: row?.id ?? '' };
     },
     async createRoutineListHelper(data: any): Promise<{ dataRoutineListId: string }> {
-        const row = await prisma?.node_routine_list.create({ data });
+        const row = await prisma.node_routine_list.create({ data });
         return { dataRoutineListId: row?.id ?? '' };
     },
     async createRedirectHelper(data: any): Promise<{ dataRedirectId: string }> {
-        const row = await prisma?.node_redirect.create({ data });
+        const row = await prisma.node_redirect.create({ data });
         return { dataRedirectId: row?.id ?? '' };
     },
     async createStartHelper(data: any): Promise<{ dataStartId: string }> {
-        const row = await prisma?.node_start.create({ data });
+        const row = await prisma.node_start.create({ data });
         return { dataStartId: row?.id ?? '' };
     },
     async create(data: NodeInput, info: any): Promise<NodeDB> {
         // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        if (!data.routineId) throw new CustomError(CODE.InvalidArgs, 'Routine ID not specified')
-        if (!data.type) throw new CustomError(CODE.InvalidArgs, 'Node type not specified')
+        if (!data.routineId) throw new CustomError(CODE.InternalError, 'Routine ID not specified')
+        if (!data.type) throw new CustomError(CODE.InternalError, 'Node type not specified')
         // Check if routine has reached max nodes
         const nodeCount = await prisma.routine.findUnique({
             where: { id: data.routineId },
@@ -132,16 +131,16 @@ const creater = (prisma?: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function NodeModel(prisma?: PrismaType) {
+export function NodeModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Node;
-    const format = formatter();
+    const format = nodeFormatter();
 
     return {
         prisma,
         model,
         ...format,
         ...findByIder<Node, NodeDB>(model, format.toDB, prisma),
-        ...creater(prisma),
+        ...nodeCreater(prisma),
         ...updater<NodeInput, Node, NodeDB>(model, format.toDB, prisma),
         ...deleter(model, prisma)
     }

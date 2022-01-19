@@ -30,7 +30,7 @@ Pick<Email, 'user'>;
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<any, any>  => ({
+ export const emailFormatter = (): FormatConverter<any, any>  => ({
     toDB: (obj: any): any => ({ ...obj}),
     toGraphQL: (obj: any): any => ({ ...obj })
 })
@@ -43,9 +43,9 @@ Pick<Email, 'user'>;
 /* #region Model */
 //==============================================================
 
-export function EmailModel(prisma?: PrismaType) {
+export function EmailModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Email;
-    const format = formatter();
+    const format = emailFormatter();
     
     return {
         prisma,

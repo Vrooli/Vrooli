@@ -57,10 +57,8 @@ const forMapper = {
  * A user may vote on their own project/routine/etc.
  * @returns True if cast correctly (even if skipped because of duplicate)
  */
-const voter = (prisma?: PrismaType) => ({
+const voter = (prisma: PrismaType) => ({
     async vote(userId: string, input: VoteInput): Promise<boolean> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Define prisma type for voted-on object
         const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as BaseType);
         // Check if object being voted on exists
@@ -130,7 +128,7 @@ const voter = (prisma?: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function VoteModel(prisma?: PrismaType) {
+export function VoteModel(prisma: PrismaType) {
     return {
         prisma,
         ...voter(prisma),

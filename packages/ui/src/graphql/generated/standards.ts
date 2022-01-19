@@ -23,7 +23,7 @@ export interface standards_standards_edges_node_tags {
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface standards_standards_edges_node_creator_Organization {
@@ -54,7 +54,7 @@ export interface standards_standards_edges_node {
   creator: standards_standards_edges_node_creator | null;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface standards_standards_edges {

@@ -3,7 +3,7 @@ import { CODE, StandardSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, Success } from './types';
+import { DeleteManyInput, FindByIdInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, Success } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';

@@ -4,7 +4,7 @@ import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, Success } from './types';
 import { Context } from '../context';
-import { OrganizationModel } from '../models';
+import { organizationFormatter, OrganizationModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
@@ -110,7 +110,7 @@ export const resolvers = {
             // Query database
             const dbModel = await OrganizationModel(prisma).findById(input, info);
             // Format data
-            return dbModel ? OrganizationModel().toGraphQL(dbModel) : null;
+            return dbModel ? organizationFormatter().toGraphQL(dbModel) : null;
         },
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
             // Return search query
@@ -129,7 +129,7 @@ export const resolvers = {
             // Create object
             const dbModel = await OrganizationModel(prisma).create(input as any, info);
             // Format object to GraphQL type
-            if (dbModel) return OrganizationModel().toGraphQL(dbModel);
+            if (dbModel) return organizationFormatter().toGraphQL(dbModel);
             throw new CustomError(CODE.ErrorUnknown);
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
@@ -139,7 +139,7 @@ export const resolvers = {
             // Update object
             //const dbModel = await OrganizationModel(prisma).update(input, info);
             // Format to GraphQL type
-            //return OrganizationModel().toGraphQL(dbModel);
+            //return organizationFormatter().toGraphQL(dbModel);
             throw new CustomError(CODE.NotImplemented);
         },
         organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {

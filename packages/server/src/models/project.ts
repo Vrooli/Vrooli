@@ -45,13 +45,11 @@ export type ProjectDB = ProjectAllPrimitives &
  * Custom component for creating project. 
  * NOTE: Data should be in Prisma shape, not GraphQL
  */
-const projectCreater = (toDB: FormatConverter<Project, ProjectDB>['toDB'], prisma?: PrismaType) => ({
+const projectCreater = (toDB: FormatConverter<Project, ProjectDB>['toDB'], prisma: PrismaType) => ({
     async create(
         data: any,
         info: GraphQLResolveInfo | null = null,
     ): Promise<RecursivePartial<ProjectDB> | null> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Remove any relationships should not be created/connected in this operation
         data = keepOnly(data, ['resources', 'parent', 'tags']);
         // Perform additional checks
@@ -66,7 +64,7 @@ const projectCreater = (toDB: FormatConverter<Project, ProjectDB>['toDB'], prism
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Project, ProjectDB> => {
+export const projectFormatter = (): FormatConverter<Project, ProjectDB> => {
     const joinMapper = {
         resources: 'resource',
         tags: 'tag',
@@ -101,7 +99,7 @@ const formatter = (): FormatConverter<Project, ProjectDB> => {
 /**
  * Component for search filters
  */
-const sorter = (): Sortable<ProjectSortBy> => ({
+export const projectSorter = (): Sortable<ProjectSortBy> => ({
     defaultSort: ProjectSortBy.DateUpdatedDesc,
     getSortQuery: (sortBy: string): any => {
         return {
@@ -136,16 +134,14 @@ const sorter = (): Sortable<ProjectSortBy> => ({
 /**
  * Handles the authorized adding, updating, and deleting of projects.
  */
-const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<ProjectSortBy>, prisma?: PrismaType) => ({
+const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<ProjectSortBy>, prisma: PrismaType) => ({
     async findProject(
         userId: string | null,
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector
-        const select = selectHelper<Project, ProjectDB>(info, formatter().toDB);
+        const select = selectHelper<Project, ProjectDB>(info, projectFormatter().toDB);
         // Access database
         let project = await prisma.project.findUnique({ where: { id: input.id }, ...select });
         // Return project with "isUpvoted" field. This must be queried separately.
@@ -160,8 +156,6 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         input: ProjectSearchInput,
         info: InfoType = null,
     ): Promise<PaginatedSearchResult> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create where clauses
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
@@ -193,7 +187,7 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!prisma || !input.name || input.name.length < 1) throw new CustomError(CODE.InvalidArgs);
+        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
         if (hasProfanity(input.name) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
         // Create project data
@@ -230,7 +224,7 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!prisma || !input.name || input.name.length < 1) throw new CustomError(CODE.InvalidArgs);
+        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
         if (hasProfanity(input.name) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
         // Create project data
@@ -267,8 +261,6 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         return { ...project, isUpvoted };
     },
     async deleteProject(userId: string, input: any): Promise<boolean> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Find project
         const project = await prisma.project.findFirst({
             where: {
@@ -298,10 +290,10 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
 /* #region Model */
 //==============================================================
 
-export function ProjectModel(prisma?: PrismaType) {
+export function ProjectModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Project;
-    const format = formatter();
-    const sort = sorter();
+    const format = projectFormatter();
+    const sort = projectSorter();
 
     return {
         prisma,

@@ -75,13 +75,13 @@ const forMapper = {
  * Only users can add reports, and they can only do so once per object. 
  * They can technically report their own objects, but why would they?
  */
- const reporter = (prisma?: PrismaType) => ({
+ const reporter = (prisma: PrismaType) => ({
     async addReport(
         userId: string, 
         input: ReportInput,
     ): Promise<any> {
         // Check for valid arguments
-        if (!prisma || !input.reason || input.reason.length < 1) throw new CustomError(CODE.InvalidArgs);
+        if (!input.reason || input.reason.length < 1) throw new CustomError(CODE.InternalError, 'Reason must be provided');
         // Check for censored words
         if (hasProfanity(`${input.reason} | ${input.details}`)) throw new CustomError(CODE.BannedWord);
         // Add report
@@ -99,7 +99,7 @@ const forMapper = {
         input: ReportInput,
     ): Promise<any> {
         // Check for valid arguments
-        if (!prisma || !input.reason || input.reason.length < 1) throw new CustomError(CODE.InvalidArgs);
+        if (!input.reason || input.reason.length < 1) throw new CustomError(CODE.InternalError, 'Reason must be provided');
         // Check for censored words
         if (hasProfanity(`${input.reason} | ${input.details}`)) throw new CustomError(CODE.BannedWord);
         // Find report
@@ -120,8 +120,6 @@ const forMapper = {
         });
     },
     async deleteReport(userId: string, input: any): Promise<boolean> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Find report
         const report = await prisma.report.findFirst({
             where: {
@@ -146,7 +144,7 @@ const forMapper = {
 /* #region Model */
 //==============================================================
 
-export function ReportModel(prisma?: PrismaType) {
+export function ReportModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Report;
     const format = formatter();
 

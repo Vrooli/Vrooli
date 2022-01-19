@@ -132,7 +132,6 @@ export const StartPage = ({
             sx={{
                 padding: '1em',
                 paddingTop: '20vh',
-                border: '2px solid brown',
                 minHeight: '100vh', //Fullscreen
             }}
         >

@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, TagSortBy } from '@local/shared';
 import { CustomError } from '../error';
-import { TagModel } from '../models';
+import { tagFormatter, TagModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagInput, TagSearchInput } from './types';
 import { Context } from '../context';
@@ -84,7 +84,7 @@ export const resolvers = {
             // Query database
             const dbModel = await TagModel(prisma).findById(input, info);
             // Format data
-            return dbModel ? TagModel().toGraphQL(dbModel) : null;
+            return dbModel ? tagFormatter().toGraphQL(dbModel) : null;
         },
         tags: async (_parent: undefined, { input }: IWrap<TagSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
             // Create query for specified user
@@ -109,7 +109,7 @@ export const resolvers = {
             // Create object
             const dbModel = await TagModel(prisma).create(input, info);
             // Format object to GraphQL type
-            return TagModel().toGraphQL(dbModel);
+            return tagFormatter().toGraphQL(dbModel);
         },
         /**
          * Update tags you've created
@@ -122,7 +122,7 @@ export const resolvers = {
             // Update object
             const dbModel = await TagModel(prisma).update(input, info);
             // Format to GraphQL type
-            return TagModel().toGraphQL(dbModel);
+            return tagFormatter().toGraphQL(dbModel);
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system

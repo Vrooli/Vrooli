@@ -74,7 +74,7 @@ export const SignUpForm = ({
         <Paper sx={{ ...formPaper }}>
             <form onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12}>
                         <TextField
                             fullWidth
                             autoFocus

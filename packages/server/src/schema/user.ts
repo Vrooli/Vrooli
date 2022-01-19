@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, UserSortBy } from '@local/shared';
 import { CustomError } from '../error';
-import { UserModel } from '../models';
+import { userFormatter, UserModel } from '../models';
 import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
@@ -139,13 +139,13 @@ export const resolvers = {
             // Query database
             const dbModel = await UserModel(prisma).findById({ id: req.userId ?? '' }, info);
             // Format data
-            return dbModel ? UserModel().toGraphQLProfile(dbModel) : null;
+            return dbModel ? userFormatter().toGraphQLProfile(dbModel) : null;
         },
         user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<any> | null> => {
             // Query database
             const dbModel = await UserModel(prisma).findById({ id: input.id }, info);
             // Format data
-            return dbModel ? UserModel().toGraphQLUser(dbModel) : null;
+            return dbModel ? userFormatter().toGraphQLProfile(dbModel) : null;
         },
         users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
             // return search query
@@ -167,7 +167,7 @@ export const resolvers = {
             // Update user TODO
             // let dbModel = await UserModel(prisma).upsert(input.data as any, info);
             // Format data
-            //return dbModel ? UserModel().toGraphQLProfile(dbModel) : null;
+            //return dbModel ? userFormatter().toGraphQLProfile(dbModel) : null;
             throw new CustomError(CODE.NotImplemented);
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<Success> => {

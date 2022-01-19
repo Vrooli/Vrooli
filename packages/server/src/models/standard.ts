@@ -41,13 +41,11 @@ export type StandardDB = StandardAllPrimitives &
  * Custom component for creating standard. 
  * NOTE: Data should be in Prisma shape, not GraphQL
  */
-const standardCreater = (toDB: FormatConverter<Standard, StandardDB>['toDB'], prisma?: PrismaType) => ({
+const standardCreater = (toDB: FormatConverter<Standard, StandardDB>['toDB'], prisma: PrismaType) => ({
     async create(
         data: any,
         info: GraphQLResolveInfo | null = null,
     ): Promise<RecursivePartial<StandardDB> | null> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Remove any relationships should not be created/connected in this operation
         data = keepOnly(data, ['user', 'organization', 'tags']);
         // Perform additional checks
@@ -124,14 +122,12 @@ const sorter = (): Sortable<StandardSortBy> => ({
 /**
  * Handles the authorized adding, updating, and deleting of standards.
  */
-const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortable<StandardSortBy>, prisma?: PrismaType) => ({
+const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortable<StandardSortBy>, prisma: PrismaType) => ({
     async findStandard(
         userId: string | null,
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector
         const select = selectHelper<Standard, StandardDB>(info, formatter().toDB);
         // Access database
@@ -148,8 +144,6 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         input: StandardSearchInput,
         info: InfoType = null,
     ): Promise<PaginatedSearchResult> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create where clauses
         const userIdQuery = input.userId ? { userId: input.userId } : {};
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : {};
@@ -186,7 +180,7 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!prisma || !input.name || input.name.length < 1) throw new CustomError(CODE.InvalidArgs);
+        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
         if (hasProfanity(input.name) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
         // Create standard data
@@ -223,8 +217,6 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         return { ...standard, isUpvoted: false };
     },
     async deleteStandard(userId: string, input: any): Promise<boolean> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Find standard
         const standard = await prisma.standard.findFirst({
             where: {
@@ -254,7 +246,7 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
 /* #region Model */
 //==============================================================
 
-export function StandardModel(prisma?: PrismaType) {
+export function StandardModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Standard;
     const format = formatter();
     const sort = sorter();

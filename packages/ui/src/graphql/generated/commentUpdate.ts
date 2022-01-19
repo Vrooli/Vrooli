@@ -50,7 +50,7 @@ export interface commentUpdate_commentUpdate {
   created_at: any;
   updated_at: any;
   score: number | null;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
   creator: commentUpdate_commentUpdate_creator | null;
   commentedOn: commentUpdate_commentUpdate_commentedOn;
 }

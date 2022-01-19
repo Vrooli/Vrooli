@@ -47,13 +47,11 @@ export type RoutineDB = RoutineAllPrimitives &
  * Custom component for creating routine. 
  * NOTE: Data should be in Prisma shape, not GraphQL
  */
-const routineCreater = (toDB: FormatConverter<Routine, RoutineDB>['toDB'], prisma?: PrismaType) => ({
+const routineCreater = (toDB: FormatConverter<Routine, RoutineDB>['toDB'], prisma: PrismaType) => ({
     async create(
         data: any,
         info: GraphQLResolveInfo | null = null,
     ): Promise<RecursivePartial<RoutineDB> | null> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Remove any relationships should not be created/connected in this operation
         data = keepOnly(data, ['inputs', 'outputs', 'nodes', 'contextualResources', 'externalResources', 'tags', 'users', 'organizations', 'parent']);
         // Perform additional checks
@@ -68,14 +66,12 @@ const routineCreater = (toDB: FormatConverter<Routine, RoutineDB>['toDB'], prism
 /**
  * Handles the authorized adding, updating, and deleting of routines.
  */
-const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<RoutineSortBy>, prisma?: PrismaType) => ({
+const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<RoutineSortBy>, prisma: PrismaType) => ({
     async findRoutine(
         userId: string | null,
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector
         const select = selectHelper<Routine, RoutineDB>(info, formatter().toDB);
         // Access database
@@ -92,8 +88,6 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         input: RoutineSearchInput,
         info: InfoType = null,
     ): Promise<PaginatedSearchResult> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create where clauses
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
@@ -125,7 +119,7 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!prisma || !input.title || input.title.length < 1) throw new CustomError(CODE.InvalidArgs);
+        if (!input.title || input.title.length < 1) throw new CustomError(CODE.InternalError, 'Title is too short');
         // Check for censored words
         if (hasProfanity(input.title) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
         // Create routine data
@@ -170,7 +164,7 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!prisma || !input.title || input.title.length < 1) throw new CustomError(CODE.InvalidArgs);
+        if (!input.title || input.title.length < 1) throw new CustomError(CODE.InternalError, 'Title is too short');
         // Check for censored words
         if (hasProfanity(input.title) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
         // Create routine data
@@ -215,8 +209,6 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         return { ...routine, isUpvoted };
     },
     async deleteRoutine(userId: string, input: any): Promise<boolean> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Find routine
         const routine = await prisma.routine.findFirst({
             where: {
@@ -317,7 +309,7 @@ const sorter = (): Sortable<RoutineSortBy> => ({
 /* #region Model */
 //==============================================================
 
-export function RoutineModel(prisma?: PrismaType) {
+export function RoutineModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Routine;
     const format = formatter();
     const sort = sorter();

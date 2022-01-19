@@ -17,7 +17,7 @@ export interface project_project_tags {
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface project_project_owner_Organization {
@@ -44,7 +44,7 @@ export interface project_project {
   owner: project_project_owner | null;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface project {

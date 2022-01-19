@@ -13,6 +13,7 @@ export async function mock(prisma: PrismaType) {
     // Find existing roles
     const roles = await prisma.role.findMany({ select: { id: true, title: true } });
     const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
+    console.log('actorRoleId', actorRoleId);
 
     //==============================================================
     /* #region Create users */

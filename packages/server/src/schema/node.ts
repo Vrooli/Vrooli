@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, NodeType } from '@local/shared';
 import { CustomError } from '../error';
-import { NodeModel } from '../models';
+import { nodeFormatter, NodeModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, Node, NodeInput, Success } from './types';
 import { Context } from '../context';
@@ -188,7 +188,7 @@ export const resolvers = {
             // Create object
             const dbModel = await NodeModel(prisma).create(input, info);
             // Format object to GraphQL type
-            return NodeModel().toGraphQL(dbModel);
+            return nodeFormatter().toGraphQL(dbModel);
         },
         nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             // Must be logged in
@@ -196,7 +196,7 @@ export const resolvers = {
             // Update object
             const dbModel = await NodeModel(prisma).update(input, info);
             // Format to GraphQL type
-            return NodeModel().toGraphQL(dbModel);
+            return nodeFormatter().toGraphQL(dbModel);
         },
         nodeDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in

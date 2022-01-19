@@ -340,12 +340,11 @@ export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: Fo
  * @param state 
  * @returns 
  */
-export const findByIder = <GraphQLModel, FullDBModel>(model: keyof PrismaType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], prisma?: PrismaType) => ({
+export const findByIder = <GraphQLModel, FullDBModel>(model: keyof PrismaType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], prisma: PrismaType) => ({
     async findById(input: FindByIdInput, info: InfoType): Promise<RecursivePartial<FullDBModel> | null> {
         console.log('FIND BY ID', Boolean(prisma), input)
         // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        if (!input.id) throw new CustomError(CODE.InvalidArgs);
+        if (!input.id) throw new CustomError(CODE.InternalError, 'No ID provided');
         // Create selector
         const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
         // Access database
@@ -359,10 +358,8 @@ export const findByIder = <GraphQLModel, FullDBModel>(model: keyof PrismaType, t
  * @param state 
  * @returns 
  */
-export const creater = <ModelInput, GraphQLModel, FullDBModel>(model: keyof PrismaType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], prisma?: PrismaType) => ({
+export const creater = <ModelInput, GraphQLModel, FullDBModel>(model: keyof PrismaType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], prisma: PrismaType) => ({
     async create(input: ModelInput, info: InfoType): Promise<RecursivePartial<FullDBModel>> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create selector
         const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
         // Access database
@@ -378,11 +375,10 @@ export const creater = <ModelInput, GraphQLModel, FullDBModel>(model: keyof Pris
 export const updater = <ModelInput extends UpdateInterface, GraphQLModel, FullDBModel>(
     model: keyof PrismaType,
     toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'],
-    prisma?: PrismaType) => ({
+    prisma: PrismaType) => ({
         async update(input: ModelInput, info: InfoType): Promise<RecursivePartial<FullDBModel>> {
             // Check for valid arguments
-            if (!prisma) throw new CustomError(CODE.InvalidArgs);
-            if (!input.id) throw new CustomError(CODE.InvalidArgs);
+            if (!input.id) throw new CustomError(CODE.InternalError, 'No ID provided');
             // Create selector
             const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
             // Access database
@@ -397,20 +393,18 @@ export const updater = <ModelInput extends UpdateInterface, GraphQLModel, FullDB
  * @param state 
  * @returns 
  */
-export const deleter = (model: keyof PrismaType, prisma?: PrismaType) => ({
+export const deleter = (model: keyof PrismaType, prisma: PrismaType) => ({
     // Delete a single object
     async delete(input: DeleteOneInput): Promise<boolean> {
         // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        if (!input.id) throw new CustomError(CODE.InvalidArgs);
+        if (!input.id) throw new CustomError(CODE.InternalError, 'No ID provided');
         // Access database
         return await (prisma[model] as BaseType).delete({ where: { id: input.id } }) as unknown as boolean;
     },
     // Delete many objects
     async deleteMany(input: DeleteManyInput): Promise<Count> {
         // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
-        if (!input.ids) throw new CustomError(CODE.InvalidArgs);
+        if (!input.ids) throw new CustomError(CODE.InternalError, 'No IDs provided');
         // Access database
         return await (prisma[model] as BaseType).deleteMany({ where: { id: { in: input.ids } } });
     }
@@ -426,7 +420,7 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
     toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'],
     toGraphQL: FormatConverter<GraphQLModel, FullDBModel>['toGraphQL'],
     sorter: Sortable<any>,
-    prisma?: PrismaType) => ({
+    prisma: PrismaType) => ({
         /**
          * Cursor-based search. Supports pagination, sorting, and filtering by string.
          * @param where Additional where clauses to apply to the search
@@ -437,8 +431,6 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
             const boop = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
             console.log('SEARCH BOIII', boop)
             console.log('SEARCH BOIII _COUNT', boop._count)
-            // Check for valid arguments
-            if (!prisma) throw new CustomError(CODE.InvalidArgs);
             // Create selector
             const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
             // Create query for specified ids
@@ -522,7 +514,7 @@ export const timeFrameToPrisma = (fieldName: string, time?: TimeFrame | null | u
  * @param state 
  * @returns 
  */
-export const counter = <CountInput extends CountInputBase>(model: keyof PrismaModels, prisma?: PrismaType) => ({
+export const counter = <CountInput extends CountInputBase>(model: keyof PrismaModels, prisma: PrismaType) => ({
     /**
      * Counts the number of objects in the database, optionally filtered by a where clauses
      * @param where Additional where clauses, in addition to the createdMetric and updatedMetric passed into input
@@ -530,8 +522,6 @@ export const counter = <CountInput extends CountInputBase>(model: keyof PrismaMo
      * @returns The number of matching objects
      */
     async count(where: { [x: string]: any }, input: CountInput): Promise<number> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Create query for created metric
         const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
         // Create query for created metric
@@ -562,8 +552,6 @@ export const counter = <CountInput extends CountInputBase>(model: keyof PrismaMo
 //     prisma: PrismaType,
 //     childData: Child,
 //     parentId?: string | null): Promise<Child> {
-//     // Check arguments
-//     if (!prisma) throw new CustomError(CODE.InvalidArgs);
 //     // Remove the relationship's relationship data, as it is handled on a case-by-case basis for security reasons
 //     const childPrimitives = onlyPrimitives(childData);
 //     let result;
@@ -606,8 +594,6 @@ export const counter = <CountInput extends CountInputBase>(model: keyof PrismaMo
 //     prisma: PrismaType,
 //     joinData: { [x: string]: any },
 // ): Promise<Child> {
-//     // Check arguments
-//     if (!prisma) throw new CustomError(CODE.InvalidArgs);
 //     // Remove the relationship's relationship data, as it is handled on a case-by-case basis for security reasons
 //     const joinPrimitives = onlyPrimitives(joinData);
 //     if (!joinPrimitives[parentIdFieldName] || !joinPrimitives[childIdFieldName]) throw new CustomError(CODE.InvalidArgs);

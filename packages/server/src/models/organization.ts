@@ -39,13 +39,11 @@ export type OrganizationDB = OrganizationAllPrimitives &
  * Custom component for creating organization. 
  * NOTE: Data should be in Prisma shape, not GraphQL
  */
- const organizationCreater = (toDB: FormatConverter<Organization, OrganizationDB>['toDB'], prisma?: PrismaType) => ({
+ const organizationCreater = (toDB: FormatConverter<Organization, OrganizationDB>['toDB'], prisma: PrismaType) => ({
     async create(
         data: any, 
         info: GraphQLResolveInfo | null = null,
     ): Promise<RecursivePartial<OrganizationDB> | null> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Remove any relationships should not be created/connected in this operation
         data = keepOnly(data, ['resources', 'tags', 'members', 'projects']);
         // Perform additional checks
@@ -57,9 +55,8 @@ export type OrganizationDB = OrganizationAllPrimitives &
     }
 })
 
-const memberCheck = (prisma?: PrismaType) => ({
+const memberCheck = (prisma: PrismaType) => ({
     async isOwnerOrAdmin (userId: string, organizationId: string): Promise<boolean> {
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         const memberData = await prisma.organization_users.findFirst({ 
             where: {
                 organization: { id: organizationId },
@@ -75,7 +72,7 @@ const memberCheck = (prisma?: PrismaType) => ({
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Organization, OrganizationDB> => {
+ export const organizationFormatter = (): FormatConverter<Organization, OrganizationDB> => {
     const joinMapper = {
         resources: 'resource',
         projects: 'project',
@@ -102,7 +99,7 @@ const memberCheck = (prisma?: PrismaType) => ({
 /**
  * Component for search filters
  */
-const sorter = (): Sortable<OrganizationSortBy> => ({
+export const organizationSorter = (): Sortable<OrganizationSortBy> => ({
     defaultSort: OrganizationSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
@@ -135,7 +132,7 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
     toDB: FormatConverter<Organization, OrganizationDB>['toDB'],
     toGraphQL: FormatConverter<Organization, OrganizationDB>['toGraphQL'],
     sorter: Sortable<any>, 
-    prisma?: PrismaType) => ({
+    prisma: PrismaType) => ({
     async search(where: { [x: string]: any }, input: OrganizationSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
         // Many-to-many search queries
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
@@ -157,10 +154,10 @@ const sorter = (): Sortable<OrganizationSortBy> => ({
 /* #region Model */
 //==============================================================
 
-export function OrganizationModel(prisma?: PrismaType) {
+export function OrganizationModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Organization;
-    const format = formatter();
-    const sort = sorter();
+    const format = organizationFormatter();
+    const sort = organizationSorter();
 
     return {
         prisma,

@@ -1,7 +1,7 @@
 import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, Email } from "../schema/types";
 import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, getRelationshipData, InfoType, JoinMap, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
-import { AccountStatus, CODE } from '@local/shared';
+import { AccountStatus, CODE, ROLES } from '@local/shared';
 import bcrypt from 'bcrypt';
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
 import { GraphQLResolveInfo } from "graphql";
@@ -79,7 +79,7 @@ export type UserFormatConverter = {
  * Component for formatting between graphql and prisma types
  * Users are unique in that they have multiple GraphQL views (your own profile vs. other users)
  */
-const formatter = (): UserFormatConverter => {
+export const userFormatter = (): UserFormatConverter => {
     const joinMapper = {
         roles: 'role',
         resources: 'resource',
@@ -116,7 +116,7 @@ const formatter = (): UserFormatConverter => {
 /**
  * Component for search filters
  */
-const sorter = (): Sortable<UserSortBy> => ({
+export const userSorter = (): Sortable<UserSortBy> => ({
     defaultSort: UserSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
@@ -141,22 +141,28 @@ const sorter = (): Sortable<UserSortBy> => ({
 })
 
 /**
- * Custom component for email/password validation
- * @param state 
- * @returns 
+ * Component for creating sessions
  */
-const validater = (prisma?: PrismaType) => ({
+export const userSessioner = () => ({
     /**
      * Creates session object from user
      */
-    toSession(user: RecursivePartial<UserDB>): RecursivePartial<Session> {
+    toSession(user: RecursivePartial<UserDB>): Session {
         console.log('user toSession', user);
         return {
             id: user.id ?? '',
             theme: user.theme ?? 'light',
-            roles: user.roles ? user.roles.map(r => (r?.role as RecursivePartial<Role>)?.title ?? undefined) : []
+            roles: [ROLES.Actor],
         }
-    },
+    }
+})
+
+/**
+ * Custom component for email/password validation
+ * @param state 
+ * @returns 
+ */
+const validater = (prisma: PrismaType) => ({
     /**
      * Generates a URL-safe code for account confirmations and password resets
      * @returns Hashed and salted code, with invalid characters removed
@@ -210,25 +216,21 @@ const validater = (prisma?: PrismaType) => ({
      * @returns Session data
      */
     async logIn(password: string, user: any): Promise<Session | null> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
         // If account is not deleted or hard-locked, and lockout duration has passed
         if (!unable_to_reset.includes(user.status) && Date.now() - new Date(user.lastLoginAttempt).getTime() > SOFT_LOCKOUT_DURATION) {
-            console.log('returning with reset log in');
-            return await prisma.user.update({
+            // Reset log in fail counter
+            await prisma.user.update({
                 where: { id: user.id },
                 data: { logInAttempts: 0 },
-                select: {
-                    theme: true,
-                    roles: { select: { role: { select: { title: true } } } }
-                }
-            }) as any;
+            });
         }
+        // If account is deleted or hard-locked, throw error
+        if (unable_to_reset.includes(user.status)) throw new CustomError(CODE.BadCredentials);
         // If password is valid
         if (this.validatePassword(password, user)) {
-            return await prisma.user.update({
+            const userData = await prisma.user.update({
                 where: { id: user.id },
                 data: {
                     logInAttempts: 0,
@@ -241,7 +243,8 @@ const validater = (prisma?: PrismaType) => ({
                     theme: true,
                     roles: { select: { role: { select: { title: true } } } }
                 }
-            }) as any;
+            });
+            return userSessioner().toSession(userData);
         }
         // If password is invalid
         let new_status: any = AccountStatus.Unlocked;
@@ -262,8 +265,6 @@ const validater = (prisma?: PrismaType) => ({
      * @param user User object
      */
     async setupPasswordReset(user: any): Promise<boolean> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Generate new code
         const resetPasswordCode = this.generateCode();
         // Store code and request time in user row
@@ -283,15 +284,13 @@ const validater = (prisma?: PrismaType) => ({
     * @param user User object
     */
     async setupVerificationCode(emailAddress: string): Promise<void> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Generate new code
         const verificationCode = this.generateCode();
         // Store code and request time in email row
         const email = await prisma.email.update({
             where: { emailAddress },
             data: { verificationCode, lastVerificationCodeRequestAttempt: new Date().toISOString() },
-            select: { userId: true}
+            select: { userId: true }
         })
         // If email is not associated with a user, throw error
         if (!email.userId) throw new CustomError(CODE.ErrorUnknown, 'Email not associated with a user');
@@ -307,8 +306,6 @@ const validater = (prisma?: PrismaType) => ({
      * @returns Updated user object
      */
     async validateVerificationCode(emailAddress: string, userId: string, code: string): Promise<boolean> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Find email data
         const email: any = prisma.email.findUnique({
             where: { emailAddress },
@@ -353,15 +350,13 @@ const validater = (prisma?: PrismaType) => ({
  * @param state 
  * @returns 
  */
-const findByEmailer = (prisma?: PrismaType) => ({
+const findByEmailer = (prisma: PrismaType) => ({
     /**
      * Find a user by email address
      * @param email The user's email address
      * @returns A user object without relationships
      */
-    async findByEmail(emailAddress: string): Promise<{user: UserAllPrimitives, email: EmailAllPrimitives}> {
-        // Check arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
+    async findByEmail(emailAddress: string): Promise<{ user: UserAllPrimitives, email: EmailAllPrimitives }> {
         if (!emailAddress) throw new CustomError(CODE.BadCredentials);
         // Validate email address
         const email = await prisma.email.findUnique({ where: { emailAddress } });
@@ -377,13 +372,11 @@ const findByEmailer = (prisma?: PrismaType) => ({
  * Custom component for creating users. 
  * NOTE: Data should be in Prisma shape, not GraphQL
  */
- const userCreater = (toDB: FormatConverter<User, UserDB>['toDB'], prisma?: PrismaType) => ({
+const userCreater = (toDB: FormatConverter<User, UserDB>['toDB'], prisma: PrismaType) => ({
     async create(
-        data: any, 
+        data: any,
         info: GraphQLResolveInfo | null = null,
     ): Promise<RecursivePartial<UserDB> | null> {
-        // Check for valid arguments
-        if (!prisma || !data.username) throw new CustomError(CODE.InvalidArgs);
         // Remove any relationships should not be created/connected in this operation
         data = keepOnly(data, ['roles', 'emails', 'resources', 'hiddenTags', 'starredTags']);
         // Check for valid emails
@@ -406,65 +399,12 @@ const findByEmailer = (prisma?: PrismaType) => ({
     }
 })
 
-// /**
-//  * Custom component for upserting users.
-//  * Contains an overall upsert, as well as one for each relationship
-//  */
-// const userUpserter = (toDB: FormatConverter<User, UserDB>['toDB'], prisma?: PrismaType) => ({
-//     async upsert(data: UpsertUserInput, info: GraphQLResolveInfo | null = null): Promise<RecursivePartial<UserDB> | null> {
-//         // Check for valid arguments
-//         if (!prisma || !data.username) throw new CustomError(CODE.InvalidArgs);
-//         // Remove relationship data, as they are handled on a case-by-case basis
-//         let cleanedData = onlyPrimitives(data);
-
-
-//         const user = await prisma.user.upsert({
-//             where: { id: cleanedData.id },
-//         })
-
-
-//         // Upsert user
-//         let user;
-//         if (!data.id) {
-//             // Check for valid username
-//             //TODO
-//             // Make sure username isn't in use
-//             if (await prisma.user.findUnique({ where: { username: data.username } })) throw new CustomError(CODE.UsernameInUse);
-//             user = await prisma.user.create({ data: cleanedData })
-//         } else {
-//             user = await prisma.user.update({
-//                 where: { id: data.id },
-//                 data: cleanedData
-//             })
-//         }
-//         // Upsert emails
-//         for (const email of (data.emails ?? [])) {
-//             // Fetch all existing 
-//             // Check if child is allowed to be added
-//             if (!email.id) {
-//                 const emailExists = await prisma.email.findUnique({ where: { emailAddress: email.emailAddress } });
-//                 if (emailExists && emailExists.id !== email.id) throw new CustomError(CODE.EmailInUse);
-//             }
-//             // Add child
-//             await upsertOneToManyRelationship(MODEL_TYPES.Email, 'userId', prisma, email, user.id);
-//         }
-//         // Upsert roles
-//         for (const role of (data.roles ?? [])) {
-//             if (!role.id) continue;
-//             const joinData = { userId: user.id, roleId: role.id };
-//             await upsertManyToManyRelationship('user_roles', 'user_roles_userid_roleid_unique', 'userId', 'roleId', prisma, joinData);
-//         }
-//         // Query database
-//         return await prisma.user.findUnique({ where: { id: user.id }, ...selectHelper<User, UserDB>(info, toDB) }) as RecursivePartial<UserDB> | null;
-//     }
-// })
-
 /**
  * Custom component for importing/exporting data from Vrooli
  * @param state 
  * @returns 
  */
-const porter = (prisma?: PrismaType) => ({
+const porter = (prisma: PrismaType) => ({
     /**
      * Import JSON data to Vrooli. Useful if uploading data created offline, or if
      * you're switching from a competitor to Vrooli. :)
@@ -479,8 +419,6 @@ const porter = (prisma?: PrismaType) => ({
      * @param id 
      */
     async exportData(id: string): Promise<string> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Find user
         const user = await prisma.user.findUnique({ where: { id }, select: { numExports: true, lastExport: true } });
         if (!user) throw new CustomError(CODE.ErrorUnknown);
@@ -493,23 +431,23 @@ const porter = (prisma?: PrismaType) => ({
 /**
  * Component for searching
  */
- export const userSearcher = (
+export const userSearcher = (
     toDB: FormatConverter<User, UserDB>['toDB'],
     toGraphQL: FormatConverter<User, UserDB>['toGraphQL'],
-    sorter: Sortable<any>, 
-    prisma?: PrismaType) => ({
-    async search(where: { [x: string]: any }, input: UserSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
-        // Many-to-many search queries
-        const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
-        const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-        // One-to-many search queries
-        const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
-        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-        const search = searcher<UserSortBy, UserSearchInput, User, UserDB>(MODEL_TYPES.User, toDB, toGraphQL, sorter, prisma);
-        return search.search({...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery, ...where}, input, info);
-    }
-})
+    sorter: Sortable<any>,
+    prisma: PrismaType) => ({
+        async search(where: { [x: string]: any }, input: UserSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
+            // Many-to-many search queries
+            const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
+            const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
+            // One-to-many search queries
+            const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
+            const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
+            const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
+            const search = searcher<UserSortBy, UserSearchInput, User, UserDB>(MODEL_TYPES.User, toDB, toGraphQL, sorter, prisma);
+            return search.search({ ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery, ...where }, input, info);
+        }
+    })
 
 //==============================================================
 /* #endregion Custom Components */
@@ -519,10 +457,10 @@ const porter = (prisma?: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function UserModel(prisma?: PrismaType) {
+export function UserModel(prisma: PrismaType) {
     const model = MODEL_TYPES.User;
-    const format = formatter();
-    const sort = sorter();
+    const format = userFormatter();
+    const sort = userSorter();
 
     return {
         prisma,
@@ -534,6 +472,7 @@ export function UserModel(prisma?: PrismaType) {
         ...findByEmailer(prisma),
         ...findByIder<User, UserDB>(model, format.toDBUser, prisma),
         ...porter(prisma),
+        ...userSessioner(),
         ...userCreater(format.toDBUser, prisma),
         ...userSearcher(format.toDBUser, format.toGraphQLUser, sort, prisma),
         ...validater(prisma),

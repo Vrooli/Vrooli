@@ -56,7 +56,7 @@ export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine_tags {
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine {
@@ -70,7 +70,7 @@ export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine {
   tags: nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines {

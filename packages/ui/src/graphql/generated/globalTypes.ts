@@ -351,8 +351,7 @@ export interface ProjectInput {
   id?: string | null;
   name: string;
   description?: string | null;
-  organizations?: OrganizationInput[] | null;
-  users?: UserInput[] | null;
+  organizationId?: string | null;
   resources?: ResourceInput[] | null;
 }
 
@@ -426,6 +425,7 @@ export interface RoutineInput {
   description?: string | null;
   instructions?: string | null;
   isAutomatable?: boolean | null;
+  organizationId?: string | null;
   inputs?: RoutineInputItemInput[] | null;
   outputs?: RoutineOutputItemInput[] | null;
 }
@@ -469,6 +469,7 @@ export interface StandardInput {
   schema?: string | null;
   default?: string | null;
   isFile?: boolean | null;
+  organizationId?: string | null;
   tags?: TagInput[] | null;
 }
 
@@ -553,7 +554,8 @@ export interface VoteInput {
 
 export interface WalletCompleteInput {
   publicAddress: string;
-  signedMessage: string;
+  key: string;
+  signature: string;
 }
 
 export interface WalletInitInput {

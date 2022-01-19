@@ -15,5 +15,5 @@ export interface tagFields {
   created_at: any;
   stars: number;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }

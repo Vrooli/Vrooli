@@ -47,7 +47,7 @@ export type RoleDB = RoleAllPrimitives &
 /* #region Model */
 //==============================================================
 
-export function RoleModel(prisma?: PrismaType) {
+export function RoleModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Role;
     const format = formatter();
 

@@ -101,14 +101,14 @@ const forMapper = {
  * Only users can add comments, and they can do so multiple times on 
  * the same object.
  */
-const commenter = (prisma?: PrismaType) => ({
+const commenter = (prisma: PrismaType) => ({
     async addComment(
         userId: string, 
         input: CommentInput,
         info: GraphQLResolveInfo | null = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!prisma || !input.text || input.text.length < 1) throw new CustomError(CODE.InvalidArgs);
+        if (!input.text || input.text.length < 1) throw new CustomError(CODE.InternalError, 'Text is too short');
         // Check for censored words
         if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
         // Add comment
@@ -129,7 +129,7 @@ const commenter = (prisma?: PrismaType) => ({
         info: GraphQLResolveInfo | null = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!prisma || !input.text || input.text.length < 1) throw new CustomError(CODE.InvalidArgs);
+        if (!input.text || input.text.length < 1) throw new CustomError(CODE.InternalError, 'Text too short');
         // Check for censored words
         if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
         // Find comment
@@ -154,8 +154,6 @@ const commenter = (prisma?: PrismaType) => ({
         return { ...comment, isUpvoted };
     },
     async deleteComment(userId: string, input: any): Promise<boolean> {
-        // Check for valid arguments
-        if (!prisma) throw new CustomError(CODE.InvalidArgs);
         // Find comment
         const comment = await prisma.comment.findFirst({
             where: {
@@ -180,7 +178,7 @@ const commenter = (prisma?: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export function CommentModel(prisma?: PrismaType) {
+export function CommentModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Comment;
     const format = formatter();
 
