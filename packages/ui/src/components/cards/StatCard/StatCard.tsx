@@ -6,7 +6,6 @@ import {
 import { BarGraph, Dimensions } from 'components';
 import { useEffect, useRef, useState } from 'react';
 import { cardRoot } from '../styles';
-import { centeredText } from 'styles';
 import { StatCardProps } from '../types';
 
 export const StatCard = ({
@@ -37,8 +36,8 @@ export const StatCard = ({
                 <Typography
                     variant="h6"
                     component="h2"
+                    textAlign="center"
                     sx={{
-                        ...centeredText,
                         marginBottom: '10px'
                     }}
                 >{title}</Typography>

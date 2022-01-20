@@ -3,6 +3,7 @@ import { CSSProperties, useMemo } from 'react';
 import { StartNodeProps } from '../types';
 import { nodeLabel } from '../styles';
 import { containerShadow, noSelect } from 'styles';
+import { NodeWidth } from '../..';
 
 export const StartNode = ({
     node,
@@ -23,8 +24,8 @@ export const StartNode = ({
         </Typography>
     ) : null, [labelVisible, label]);
 
-    const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
+    const nodeSize = useMemo(() => `${NodeWidth.Start * scale}px`, [scale]);
+    const fontSize = useMemo(() => `min(${NodeWidth.Start * scale / 5}px, 2em)`, [scale]);
 
     return (
         <Tooltip placement={'top'} title={label ?? ''}>

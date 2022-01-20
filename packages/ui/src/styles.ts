@@ -9,10 +9,6 @@ export const centeredDiv: SxProps = {
     justifyContent: 'center',
     alignItems: 'center'
 } as CSSProperties;
-
-export const centeredText: SxProps = {
-    textAlign: 'center',
-} as CSSProperties;
 //==============================================================
 /* #endregion Centering */
 //==============================================================

@@ -12,8 +12,6 @@ import { AllRoutes } from 'Routes';
 import { Box, CssBaseline, CircularProgress } from '@mui/material';
 import { StyledEngineProvider, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import { DndProvider } from 'react-dnd';
 import { useMutation } from '@apollo/client';
 import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
@@ -123,7 +121,7 @@ export function App() {
             setSession(response?.data?.validateSession as Session);
         }).catch((response) => {
             if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
-            console.log('sessing sesssion c oh no')
+            console.log('sessing sesssion c oh no', response)
             // If not logged in as guest and failed to log in as user, set empty object
             if (!session) setSession({})
         })
@@ -151,36 +149,34 @@ export function App() {
         <StyledEngineProvider injectFirst>
             <CssBaseline />
             <ThemeProvider theme={theme}>
-                <DndProvider backend={HTML5Backend}>
-                    <div id="App">
-                        <main
-                            id="page-container"
-                            style={{
-                                background: theme.palette.background.default,
-                                color: theme.palette.background.textPrimary,
-                            }}
-                        >
-                            <Box id="content-wrap" className={classes.contentWrap} sx={{background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)'}}>
-                                <Navbar userRoles={session?.roles ?? []} />
-                                {loading ?
-                                    <div className={classes.spinner}>
-                                        <CircularProgress size={100} />
-                                    </div>
-                                    : null}
-                                <AlertDialog />
-                                <Snack />
-                                <AllRoutes
-                                    session={session}
-                                    sessionChecked={session !== undefined}
-                                    onSessionUpdate={checkSession}
-                                    userRoles={session?.roles ?? []}
-                                />
-                            </Box>
-                            <BottomNav userRoles={session?.roles ?? []} />
-                            <Footer />
-                        </main>
-                    </div>
-                </DndProvider>
+                <div id="App">
+                    <main
+                        id="page-container"
+                        style={{
+                            background: theme.palette.background.default,
+                            color: theme.palette.background.textPrimary,
+                        }}
+                    >
+                        <Box id="content-wrap" className={classes.contentWrap} sx={{ background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)' }}>
+                            <Navbar userRoles={session?.roles ?? []} />
+                            {loading ?
+                                <div className={classes.spinner}>
+                                    <CircularProgress size={100} />
+                                </div>
+                                : null}
+                            <AlertDialog />
+                            <Snack />
+                            <AllRoutes
+                                session={session}
+                                sessionChecked={session !== undefined}
+                                onSessionUpdate={checkSession}
+                                userRoles={session?.roles ?? []}
+                            />
+                        </Box>
+                        <BottomNav userRoles={session?.roles ?? []} />
+                        <Footer />
+                    </main>
+                </div>
             </ThemeProvider>
         </StyledEngineProvider>
     );

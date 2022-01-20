@@ -81,15 +81,7 @@ export const ShareDialog = ({
                 >
                     <Typography variant="body1" sx={{padding: 1}}>{inviteLink}</Typography>
                 </Box>
-                {
-                    copied ? (
-                        <Box sx={{
-                            marginBottom: 1,
-                        }}>
-                            🎉Copied!🎉
-                        </Box>
-                    ) : null
-                }
+                {copied ? (<Box mb={1}>🎉Copied!🎉</Box>) : null}
             </Box>
         </Dialog>
     )

@@ -1,7 +1,7 @@
 import { makeStyles } from '@mui/styles';
-import { Button, Grid, Slider, Stack, Theme, Typography } from '@mui/material';
-import { CombineNodeData, DecisionNodeData, DecisionNodeDataDecision, NodeData, NodeType, OrchestrationData } from '@local/shared';
-import { NodeGraphContainer, NodeGraphColumn } from 'components';
+import { Box, Button, Grid, IconButton, Slider, Stack, TextField, Theme, Tooltip, Typography } from '@mui/material';
+import { NodeType, OrchestrationData } from '@local/shared';
+import { NodeGraphContainer } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
@@ -10,6 +10,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
 import { Pubs } from 'utils';
 import {
+    Close as CloseIcon,
     Done as DoneIcon,
     Edit as EditIcon,
     Restore as RestoreIcon,
@@ -245,9 +246,6 @@ const useStyles = makeStyles((theme: Theme) => ({
         minHeight: '100%',
         paddingTop: '10vh'
     },
-    title: {
-        textAlign: 'center',
-    },
     // Horizontal scrolling container
     graphContainer: {
         height: '75vh',
@@ -259,10 +257,6 @@ const useStyles = makeStyles((theme: Theme) => ({
         // alignItems: 'center',
         // alignContent: 'center',
     },
-    optionsContainer: {
-        height: '15vh',
-        padding: theme.spacing(2),
-    },
 }));
 
 export const RoutineOrchestratorPage = () => {
@@ -273,11 +267,16 @@ export const RoutineOrchestratorPage = () => {
     const [changedRoutine, setChangedRoutine] = useState<RoutineDeep | null>(null);
     // Routine mutator
     const [routineUpdate, { loading }] = useMutation<any>(routineUpdateMutation);
+    // The routine's status (valid/invalid)
+    const [isValid, setIsValid] = useState<boolean>(false);
     // The routine's title
     const [title, setTitle] = useState<string>('');
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const [isEditing, setIsEditing] = useState<boolean>(false);
+    // Used for editing the title of the routine
+    const [titleActive, setTitleActive] = useState<boolean>(false);
+    const toggleTitle = useCallback(() => setTitleActive(a => !a), []);
 
     useEffect(() => {
         setTitle(routineData?.routine?.title ?? '');
@@ -321,8 +320,115 @@ export const RoutineOrchestratorPage = () => {
         setChangedRoutine(routine);
     }, [routine])
 
+    /**
+     * Displays metadata about the routine orchestration.
+     * On the left is a status indicator, which lets you know if the routine is valid or not.
+     * In the middle is the title of the routine. Once clicked, the information bar converts to 
+     * a text input field, which allows you to edit the title of the routine.
+     * To the right is a button to switch to the metadata view/edit component. You can view/edit the 
+     * title, descriptions, instructions, inputs, outputs, tags, etc.
+     */
+    const informationBar = useMemo(() => {
+        const title = titleActive ? (
+            <>
+            {/* Component for editing title */}
+            <TextField
+                onClick={toggleTitle}
+                autoFocus
+                id="title"
+                name="title"
+                autoComplete="routine-title"
+                label="Title"
+                value={routine?.title ?? ''}
+                onChange={() => { }}
+                helperText="Enter a title..."
+                sx={{ cursor: 'pointer' }}
+            />
+            {/* Buttons for saving/cancelling edit */}
+            <IconButton aria-label="save-title" onClick={() => {}} color="secondary">
+                <DoneIcon />
+            </IconButton>
+            <IconButton aria-label="cancel-title-change" onClick={() => {}} color="secondary">
+                <CloseIcon />
+            </IconButton>
+            </>
+        ) : (
+            <>
+            {/* Component for viewing routine title */}
+            <Typography
+                onClick={toggleTitle}
+                component="h2"
+                variant="h4"
+                textAlign="center"
+                sx={{ cursor: 'pointer' }}
+            >{data.title}</Typography>
+            {/* Component for editing routine title. Can also click on routine name to edit */}
+            <IconButton aria-label="change-title" onClick={() => {}} color="secondary">
+                <EditIcon />
+            </IconButton>
+            </>
+        );
+        return (
+            <Stack direction="row" spacing={2} justifyContent="space-between" width="100%">
+                {/* Status indicator */}
+                <Tooltip title={isValid ? "Routine is valid" : "Routine is invalid"}>
+                    <Box sx={{
+                        borderRadius: 1,
+                        padding: 0.5,
+                        border: `2px solid ${isValid ? '#' : '#'}`,
+                        color: isValid ? '#' : '#'
+                    }}>{isValid ? 'Valid' : 'Invalid'}</Box>
+                </Tooltip>
+                {/* Routine title label/TextField and action buttons */}
+                {title}
+                {/*  */}
+            </Stack>
+        )
+    }, [isValid])
+
+    const titleObject = useMemo(() => {
+        const obj = titleActive ? (
+            <TextField
+                onClick={toggleTitle}
+                autoFocus
+                id="title"
+                name="title"
+                autoComplete="routine-title"
+                label="Title"
+                value={routine?.title ?? ''}
+                onChange={() => { }}
+                helperText="Enter a title..."
+                sx={{ cursor: 'pointer' }}
+            />
+        ) : (
+            <Typography
+                onClick={toggleTitle}
+                component="h2"
+                variant="h4"
+                textAlign="center"
+                sx={{ cursor: 'pointer' }}
+            >{data.title}</Typography>
+        );
+        return (
+            <Tooltip title={titleActive ? 'Click to confirm' : 'Edit title'}>
+                {obj}
+            </Tooltip>
+        )
+    }, [titleActive]);
+
     let options = useMemo(() => (
-        <Grid className={classes.optionsContainer} container spacing={1}>
+        <Grid
+            container
+            spacing={3}
+            sx={{
+                height: '8vh',
+                padding: 2,
+                background: (t) => t.palette.primary.light,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+            }}
+        >
             {
                 isEditing ?
                     (
@@ -335,6 +441,7 @@ export const RoutineOrchestratorPage = () => {
                                     defaultValue={1}
                                     step={0.01}
                                     value={scale}
+                                    color="secondary"
                                     valueLabelDisplay="auto"
                                     onChange={handleScaleChange} />
                             </Grid>
@@ -381,11 +488,16 @@ export const RoutineOrchestratorPage = () => {
                     )
             }
         </Grid >
-    ), [changedRoutine, classes.optionsContainer, isEditing, loading, revertChanges, routine, scale, startEditing, updateRoutine])
+    ), [changedRoutine, isEditing, loading, revertChanges, routine, scale, startEditing, updateRoutine])
 
     return (
         <div className={classes.root}>
-            <Typography component="h2" variant="h4" className={classes.title}>{data.title}</Typography>
+            {/* Information bar */}
+            <Stack direction="row" spacing={2} width="100%" height="10vh">
+
+                {/* Title, which can be clicked to edit */}
+                {titleObject}
+            </Stack>
             <div className={classes.graphContainer}>
                 <NodeGraphContainer
                     scale={scale}

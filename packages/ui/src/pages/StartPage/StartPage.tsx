@@ -29,7 +29,6 @@ import {
 import { guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { centeredText } from 'styles';
 import helpMarkdown from './startHelp.md';
 
 const buttonProps: SxProps = {
@@ -142,7 +141,7 @@ export const StartPage = ({
                     paddingTop: { xs: '5vh', sm: '20vh' },
                 }}
             >
-                <Box sx={{...centeredText}}>
+                <Box textAlign="center">
                     <Typography 
                         variant="h6"
                         sx={{
@@ -176,7 +175,7 @@ export const StartPage = ({
                         color: 'white',
                     }}
                 >
-                    <Typography variant="h6" sx={{ ...centeredText }}>{formTitle}</Typography>
+                    <Typography variant="h6" textAlign="center">{formTitle}</Typography>
                 </Box>
                 <Box sx={{ padding: 1 }}>
                     <Form

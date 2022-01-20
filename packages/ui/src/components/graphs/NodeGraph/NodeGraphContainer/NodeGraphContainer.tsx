@@ -8,7 +8,6 @@ import { NodeGraphProps, NodePos } from '../types';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
-        border: '1px solid purple',
         cursor: 'move',
         minWidth: '100%',
         minHeight: '100%',
@@ -60,7 +59,9 @@ export const NodeGraphContainer = ({
         }
     }, [])
 
-    // Dictionary of node data and their columns
+    /**
+     * Dictionary of node data and their columns
+     */
     const nodeDataMap: { [id: string]: NodePos } = useMemo(() => {
         // Position map for calculating node positions
         let posMap: { [id: string]: NodePos } = {};
@@ -161,6 +162,8 @@ export const NodeGraphContainer = ({
             isEditable={isEditable}
             scale={scale}
             labelVisible={labelVisible}
+            onDrag={() => {}}
+            onDrop={() => {}}
         />)
     }, [isEditable, labelVisible, nodeDataMap, scale]);
 

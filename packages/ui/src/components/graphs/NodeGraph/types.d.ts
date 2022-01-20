@@ -1,4 +1,5 @@
 import { NodeData } from '@local/shared';
+import { BoxProps } from '@mui/material';
 
 /**
  * Describes the data and general position of a node in the graph. 
@@ -43,6 +44,26 @@ export interface NodeGraphColumnProps {
     labelVisible?: boolean;
     columnNumber: number;
     nodes: NodeData[];
+    /**
+     * Dimensions of the entire graph, for determining if a node has been dragged too far.
+     */
+    graphDimensions?: { width: number, height: number };
+    /**
+     * Top-left position of each cell. Used with dragPos to determine if a cell should be highlighted
+     */
+    cellPositions?: { x: number, y: number }[];
+    /**
+     * Data of current node being dragged, if any
+     */
+    dragData?: { x: number, y: number, type: NodeData['type'] };
+    /**
+     * Callback for dragging node
+     */
+     onDrag: (nodeId: string, position: { x: number, y: number }) => void;
+     /**
+      * Callback for dropped node
+      */
+     onDrop: (nodeId: string, position: { x: number, y: number }) => void;
 }
 
 export interface NodeGraphEdgeProps {
@@ -51,4 +72,35 @@ export interface NodeGraphEdgeProps {
     isEditable?: boolean;
     scale?: number,
     onAdd: any,
+}
+
+export interface NodeGraphCellProps extends BoxProps {
+    /**
+     * Specified if the cell is allowed to be dragged
+     */
+    draggable?: boolean;
+    /**
+     * Specifies if the cell accepts drop events
+     */
+    droppable?: boolean;
+    /**
+     * Specifies if a dragged node is over this cell
+     */
+    dragIsOver: boolean;
+    /**
+     * ID of node in this cell. Used for drag events
+     */
+    nodeId: string;
+    /**
+     * Callback for dragging node
+     */
+    onDrag: (nodeId: string, position: { x: number, y: number }) => void;
+    /**
+     * Callback for dropped node
+     */
+    onDrop: (nodeId: string, position: { x: number, y: number }) => void;
+    /**
+     * The node
+     */
+    children: React.JSX;
 }

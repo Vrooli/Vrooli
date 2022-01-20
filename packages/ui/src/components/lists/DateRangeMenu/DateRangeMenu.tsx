@@ -3,7 +3,6 @@ import { Box, Button, Popover, Stack, TextField, Typography } from "@mui/materia
 import { DateRangeMenuProps } from "../types";
 import { LocalizationProvider, MobileDatePicker } from '@mui/lab';
 import AdapterDateFns from '@mui/lab/AdapterDateFns';
-import { centeredText } from 'styles';
 
 export const DateRangeMenu = ({
     anchorEl,
@@ -26,8 +25,7 @@ export const DateRangeMenu = ({
             onClose={onClose}
             disableScrollLock={true}
         >
-            <Typography p={1} sx={{
-                ...centeredText,
+            <Typography textAlign="center" p={1} sx={{
                 background: (t) => t.palette.primary.dark,
                 color: (t) => t.palette.primary.contrastText,
             }}>Select date range</Typography>

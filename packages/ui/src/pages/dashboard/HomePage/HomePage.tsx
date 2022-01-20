@@ -1,6 +1,6 @@
 import { Box, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { centeredDiv, centeredText } from 'styles';
+import { centeredDiv } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
 import { useQuery } from '@apollo/client';
 import { autocompleteQuery } from 'graphql/query';
@@ -185,7 +185,7 @@ export const HomePage = ({
         <Box id="page">
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '30vh' } }}>
-                <Typography component="h1" variant="h2" sx={{ ...centeredText }}>What would you like to do?</Typography>
+                <Typography component="h1" variant="h2" textAlign="center">What would you like to do?</Typography>
                 {/* ========= #region Custom SearchBar ========= */}
                 <AutocompleteSearchBar
                     id="main-search"

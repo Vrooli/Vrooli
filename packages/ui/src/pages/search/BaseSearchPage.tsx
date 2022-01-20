@@ -2,7 +2,7 @@ import { useQuery } from "@apollo/client";
 import { Box, Button, Grid, List, Tooltip, Typography } from "@mui/material";
 import { AutocompleteSearchBar, SearchBreadcrumbs, SortMenu, TimeMenu } from "components";
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
-import { centeredText, containerShadow, centeredDiv } from "styles";
+import { containerShadow, centeredDiv } from "styles";
 import { BaseSearchPageProps, SearchQueryVariablesInput } from "./types";
 import {
     AccessTime as TimeIcon,
@@ -182,7 +182,7 @@ export function BaseSearchPage<DataType, SortBy, Query, QueryVariables extends S
                 onClose={handleTimeClose}
             />
             <SearchBreadcrumbs sx={{ ...centeredDiv, color: (t) => t.palette.secondary.dark }} />
-            <Typography component="h2" variant="h4" sx={{ ...centeredText, paddingTop: 2 }}>{title}</Typography>
+            <Typography component="h2" variant="h4" textAlign="center" sx={{ paddingTop: 2 }}>{title}</Typography>
             <Grid container spacing={2} margin="auto" width="min(100%, 600px)">
                 <Grid item xs={12} sm={8}>
                     <AutocompleteSearchBar

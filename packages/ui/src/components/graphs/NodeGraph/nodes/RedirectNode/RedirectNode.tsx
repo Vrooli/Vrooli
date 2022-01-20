@@ -2,7 +2,7 @@ import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { RedirectNodeProps } from '../types';
 import { UTurnLeft as RedirectIcon } from '@mui/icons-material';
-import { NodeContextMenu } from '../..';
+import { NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 
@@ -11,6 +11,7 @@ export const RedirectNode = ({
     scale = 1,
     label = 'Redirect',
     labelVisible = true,
+    dragIsOver,
 }: RedirectNodeProps) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);
@@ -32,8 +33,8 @@ export const RedirectNode = ({
         </Typography>
     ) : null, [labelVisible, label]);
 
-    const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
+    const nodeSize = useMemo(() => `${NodeWidth.Redirect * scale}px`, [scale]);
+    const fontSize = useMemo(() => `min(${NodeWidth.Redirect * scale / 5}px, 2em)`, [scale]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -46,7 +47,7 @@ export const RedirectNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box>
+        <Box className="handle" sx={{opacity: dragIsOver ? 0.5 : 1}}>
             {dialog}
             <NodeContextMenu
                 id={contextId}

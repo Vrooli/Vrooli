@@ -14,7 +14,6 @@ import {
     Typography
 } from '@mui/material'
 import { Dropzone, Selector } from 'components'
-import { centeredText } from 'styles'
 import { DropzoneProps, SelectorProps } from 'components/inputs/types'
 import { CheckboxProps, FieldData, InputType, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
 
@@ -56,7 +55,7 @@ export const toDropzone = (
     const props = data.props as DropzoneProps;
     return (
         <Stack direction="column" spacing={1}>
-            <Typography variant="h5" sx={{ ...centeredText }}>{data.label}</Typography>
+            <Typography variant="h5" textAlign="center">{data.label}</Typography>
             <Dropzone
                 acceptedFileTypes={props.acceptedFileTypes}
                 dropzoneText={props.dropzoneText}

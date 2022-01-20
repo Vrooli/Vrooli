@@ -3,7 +3,7 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListProps } from '../types';
-import { centeredText, containerShadow } from 'styles';
+import { containerShadow } from 'styles';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
 
@@ -87,7 +87,7 @@ export const ResourceList = ({
                 onEdit={() => { }}
                 onMove={() => { }}
             />
-            <Typography component="h2" variant="h4" sx={{ ...centeredText }}>{title}</Typography>
+            <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>
             <Tooltip placement="bottom" title="Relevant clicks. Click a card to modify, or drag in a new link to add">
                 <Box
                     sx={{

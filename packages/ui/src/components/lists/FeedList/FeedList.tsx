@@ -1,7 +1,7 @@
 // Used to display popular/search results of a particular object type
 import { Box, Link, List, Tooltip, Typography } from '@mui/material';
 import { FeedListProps } from '../types';
-import { centeredText, clickSize, containerShadow } from 'styles';
+import { clickSize, containerShadow } from 'styles';
 import { useCallback } from 'react';
 
 export function FeedList({
@@ -23,7 +23,7 @@ export function FeedList({
                 },
             }}
         >
-            <Typography component="h2" variant="h4" sx={{ ...centeredText }}>{title}</Typography>
+            <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>
             <Tooltip placement="bottom" title="Press to see more">
                 <Box
                     sx={{

@@ -2,7 +2,7 @@ import { Box, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, useCallback, useMemo, useState } from 'react';
 import { CombineNodeProps } from '../types';
 import { ArrowRightIcon } from 'assets/img';
-import { NodeContextMenu } from '../..';
+import { NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 
@@ -11,6 +11,7 @@ export const CombineNode = ({
     scale = 1,
     label = 'Combine',
     labelVisible = true,
+    dragIsOver,
 }: CombineNodeProps) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);
@@ -39,11 +40,11 @@ export const CombineNode = ({
         </Typography>
     ) : null, [labelVisible, label]);
 
-    const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
+    const nodeSize = useMemo(() => `${NodeWidth.Combine * scale}px`, [scale]);
+    const fontSize = useMemo(() => `min(${NodeWidth.Combine * scale / 5}px, 2em)`, [scale]);
 
     return (
-        <Box>
+        <Box className="handle" sx={{ opacity: dragIsOver ? 0.5 : 1 }}>
             {dialog}
             <NodeContextMenu
                 id={contextId}

@@ -2,7 +2,6 @@ import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { useCallback, useState } from 'react';
 import { StatsList } from 'components';
 import SwipeableViews from 'react-swipeable-views';
-import { centeredText } from 'styles';
 
 interface TabPanelProps {
     children?: React.ReactNode[] | React.ReactNode;
@@ -56,8 +55,8 @@ export const StatsPage = () => {
     // Below, it displays bar charts for each of the stats.
     const createTab = useCallback((index: number) => (
         <TabPanel value={index} index={index}>
-            <Typography component="h1" variant="h3" sx={{ ...centeredText }}>Quick Overview</Typography>
-            <Typography component="h1" variant="h3" sx={{ ...centeredText }}>The Pretty Pictures</Typography>
+            <Typography component="h1" variant="h3" textAlign="center">Quick Overview</Typography>
+            <Typography component="h1" variant="h3" textAlign="center">The Pretty Pictures</Typography>
             <StatsList data={[{}, {}, {}, {}, {}, {}]} />
         </TabPanel>
     ), [])

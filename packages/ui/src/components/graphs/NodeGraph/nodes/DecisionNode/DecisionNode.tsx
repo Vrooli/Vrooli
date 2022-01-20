@@ -1,7 +1,7 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { DecisionNodeProps } from '../types';
-import { NodeContextMenu } from '../..';
+import { NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect, textShadow } from 'styles';
 
@@ -11,6 +11,7 @@ export const DecisionNode = ({
     label = 'Continue?',
     text = 'Would you like to continue?',
     labelVisible = true,
+    dragIsOver,
 }: DecisionNodeProps) => {
 
     const labelObject = useMemo(() => labelVisible ? (
@@ -22,8 +23,8 @@ export const DecisionNode = ({
         >{label}</Typography>
     ) : null, [labelVisible, label]);
 
-    const nodeSize = useMemo(() => `${100 * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
+    const nodeSize = useMemo(() => `${NodeWidth.Decision * scale}px`, [scale]);
+    const fontSize = useMemo(() => `min(${NodeWidth.Decision * scale / 5}px, 2em)`, [scale]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -36,7 +37,7 @@ export const DecisionNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box>
+        <Box className="handle" sx={{opacity: dragIsOver ? 0.5 : 1}}>
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}

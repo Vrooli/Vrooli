@@ -31,6 +31,13 @@ export interface EditableProps {
 }
 
 /**
+ * Props for nodes that can be dragged
+ */
+export interface DraggableProps {
+    dragIsOver: boolean;
+}
+
+/**
  * Props for the "Add Node" button (has node in its name, but not actually a node)
  */
 export interface AddNodeProps extends ScaleProps, EditableProps {
@@ -41,14 +48,14 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
 /**
  * Props for the Combine node
  */
-export interface CombineNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
+export interface CombineNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
     
 }
 
 /**
  * Props for the Decision node
  */
-export interface DecisionNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
+export interface DecisionNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
     text?: string;
 }
 
@@ -62,21 +69,21 @@ export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, 
 /**
  * Props for the Loop node
  */
-export interface LoopNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
+export interface LoopNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
 
 }
 
 /**
  * Props for the Redirect node
  */
-export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
+export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
 
 }
 
 /**
  * Props for the Routine List node
  */
-export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
+export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
     onAdd: (data: RoutineListNodeItemData) => void;
 }
 

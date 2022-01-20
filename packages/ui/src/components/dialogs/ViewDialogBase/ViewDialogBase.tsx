@@ -17,7 +17,6 @@ import {
 import { UpTransition } from 'components';
 import { CSSProperties, useMemo } from 'react';
 import { ViewDialogBaseProps } from '../types';
-import { centeredText } from 'styles';
 
 /**
  * Dialog for displaying any "Add" form
@@ -94,7 +93,7 @@ export const ViewDialogBase = ({
                         <CloseIcon />
                     </IconButton>
                     <Grid container spacing={0}>
-                        <Grid item xs={12} sx={{ ...centeredText }}>
+                        <Grid item xs={12} textAlign="center">
                             <Typography variant="h5">
                                 {title}
                             </Typography>

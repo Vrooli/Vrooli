@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { HelpButton } from 'components';
 import { useMemo } from 'react';
-import { centeredText, noSelect } from 'styles';
+import { noSelect } from 'styles';
 import { ListMenuProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 
@@ -83,8 +83,8 @@ export const ListMenu = ({
             >
                 <Typography
                     variant="h6"
+                    textAlign="center"
                     sx={{
-                        ...centeredText,
                         width: '-webkit-fill-available',
                         color: (t) => t.palette.primary.contrastText,
                     }}

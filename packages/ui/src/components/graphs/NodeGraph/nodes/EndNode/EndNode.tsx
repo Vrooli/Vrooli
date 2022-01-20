@@ -1,7 +1,7 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
-import { NodeContextMenu } from '../..';
+import { NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 
@@ -25,9 +25,9 @@ export const EndNode = ({
         </Typography>
     ) : null, [labelVisible, label]);
 
-    const outerCircleSize = useMemo(() => `${100 * scale}px`, [scale]);
-    const innerCircleSize = useMemo(() => `${100 * scale / 1.5}px`, [scale]);
-    const fontSize = useMemo(() => `min(${100 * scale / 5}px, 2em)`, [scale]);
+    const outerCircleSize = useMemo(() => `${NodeWidth.End * scale}px`, [scale]);
+    const innerCircleSize = useMemo(() => `${NodeWidth.End * scale / 1.5}px`, [scale]);
+    const fontSize = useMemo(() => `min(${NodeWidth.End * scale / 5}px, 2em)`, [scale]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);

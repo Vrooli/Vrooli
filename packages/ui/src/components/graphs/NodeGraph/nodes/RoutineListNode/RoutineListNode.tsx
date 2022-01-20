@@ -8,7 +8,7 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
+import { CSSProperties, MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { RoutineSubnode } from '..';
 import {
@@ -18,8 +18,8 @@ import {
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { RoutineListNodeData } from '@local/shared';
-import { NodeContextMenu } from '../..';
-import { 
+import { NodeContextMenu, NodeWidth } from '../..';
+import {
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
     routineNodeListOptions,
@@ -33,13 +33,21 @@ export const RoutineListNode = ({
     labelVisible = true,
     isEditable = true,
     onAdd = () => { },
+    dragIsOver,
 }: RoutineListNodeProps) => {
     const [collapseOpen, setCollapseOpen] = useState(false);
     const toggleCollapse = () => setCollapseOpen(curr => !curr);
 
-    const nodeSize = useMemo(() => `${350 * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${350 * scale / 5}px, 2em)`, [scale]);
-    const addSize = useMemo(() => `${350 * scale / 8}px`, [scale]);
+    const nodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
+    const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
+    const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
+
+    /**
+     * Pass up size of node to parent
+     */
+    useEffect(() => {
+
+    }, [collapseOpen])
 
     const addRoutine = () => {
         console.log('ADD ROUTINE CALLED')
@@ -151,7 +159,7 @@ export const RoutineListNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box
+        <Box className="handle"
             sx={{
                 width: nodeSize,
                 fontSize: fontSize,
@@ -161,6 +169,7 @@ export const RoutineListNode = ({
                 backgroundColor: (t) => t.palette.background.paper,
                 color: (t) => t.palette.background.textPrimary,
                 boxShadow: '0px 0px 12px gray',
+                opacity: dragIsOver ? 0.5 : 1,
             }}
         >
             <NodeContextMenu
@@ -201,6 +210,7 @@ export const RoutineListNode = ({
             </Tooltip>
             {optionsCollapse}
             <Collapse
+            
                 in={collapseOpen}
                 sx={{
                     padding: collapseOpen ? '0.5em' : '0'

@@ -1,9 +1,11 @@
 import { makeStyles } from '@mui/styles';
 import { Stack, Theme } from '@mui/material';
 import { useMemo } from 'react';
-import { NodeGraphColumnProps } from '../types';
+import { NodeGraphCellProps, NodeGraphColumnProps } from '../types';
 import { NodeType } from '@local/shared';
 import { CombineNode, DecisionNode, EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
+import { NodeGraphCell } from '../NodeGraphCell/NodeGraphCell';
+import { NodeWidth } from '..';
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -22,41 +24,79 @@ export const NodeGraphColumn = ({
     nodes,
     labelVisible,
     isEditable,
+    graphDimensions,
+    cellPositions,
+    dragData,
+    onDrag,
+    onDrop,
 }: NodeGraphColumnProps) => {
     const classes = useStyles();
-    const padding = useMemo(() => `${scale*25}px`, [scale]);
+    const padding = useMemo(() => `${scale * 25}px`, [scale]);
 
+    /**
+     * Create a node component for the given node data. 
+     * Each node is wrapped in a cell that accepts drag and drop. 
+     */
     const nodeList = useMemo(() => nodes?.map((node, index) => {
-        const commonProps = {
+        // Calculate dragIsOver;
+        let dragIsOver = false;
+        if (graphDimensions && dragData && cellPositions && cellPositions.length > index) {
+            // Find current cell position
+            const cellTopLeft = cellPositions[index];
+            // Half the width of the node being dragged
+            const midway = NodeWidth[dragData.type] * scale / 2;
+            // If node is at least halfway into the cell, it is dragIsOver
+            if (dragData.x > (cellTopLeft.x - midway) && // Drag is past the left wall threshold
+                dragData.x < (cellTopLeft.x + midway) && // Drag is not past the right wall threshold
+                dragData.y > cellTopLeft.y && // Drag is past the top wall threshold
+                (cellPositions.length > index + 1) ? dragData.y < cellPositions[index + 1].y : dragData.y < graphDimensions.height && // Drag is not past the bottom wall threshold (or overall graph height)
+                dragData.x < graphDimensions.width && // Drag is not outside the overall graph width
+                dragData.y > 0 && // Drag is not above the overall graph
+                dragData.x > 0) { // Drag is not to the left of the overall graph
+                dragIsOver = true;
+            }
+        }
+        // Common cell props
+        const cellProps: { key: string } & Omit<NodeGraphCellProps, 'children'> = {
             key: `node-${columnNumber}-${index}`,
+            nodeId: node.id,
+            draggable: ![NodeType.Start, NodeType.End].includes(node.type),
+            droppable: columnNumber !== 0,
+            dragIsOver,
+            onDrag,
+            onDrop,
+        }
+        // Common node props
+        const nodeProps = {
             node,
             scale,
             label: node?.title,
             labelVisible,
             isEditable
         }
+        // Determine node to display based on node type
         switch (node.type) {
             case NodeType.Combine:
-                return <CombineNode {...commonProps} />;
+                return <NodeGraphCell {...cellProps}><CombineNode {...nodeProps} dragIsOver={dragIsOver} /></NodeGraphCell>;
             case NodeType.Decision:
-                return <DecisionNode {...commonProps} />;
+                return <NodeGraphCell {...cellProps}><DecisionNode {...nodeProps} dragIsOver={dragIsOver} /></NodeGraphCell>;
             case NodeType.End:
-                return <EndNode {...commonProps} />;
+                return <NodeGraphCell {...cellProps}><EndNode {...nodeProps} /></NodeGraphCell>;
             case NodeType.Loop:
-                return <LoopNode {...commonProps} />;
+                return <NodeGraphCell {...cellProps}><LoopNode {...nodeProps} dragIsOver={dragIsOver} /></NodeGraphCell>;
             case NodeType.RoutineList:
-                return <RoutineListNode {...commonProps} onAdd={() => {}} />;
+                return <NodeGraphCell {...cellProps}><RoutineListNode {...nodeProps} dragIsOver={dragIsOver} onAdd={() => {}} /></NodeGraphCell>;
             case NodeType.Redirect:
-                return <RedirectNode {...commonProps} />;
+                return <NodeGraphCell {...cellProps}><RedirectNode {...nodeProps} dragIsOver={dragIsOver} /></NodeGraphCell>;
             case NodeType.Start:
-                return <StartNode {...commonProps} />;
+                return <NodeGraphCell {...cellProps}><StartNode {...nodeProps} /></NodeGraphCell>;
             default:
                 return null;
         }
-    }) ?? [], [columnNumber, isEditable, labelVisible, nodes, scale])
+    }) ?? [], [nodes, scale, columnNumber, labelVisible, isEditable, graphDimensions, cellPositions, dragData, onDrag, onDrop]);
 
     return (
-        <Stack id={id} spacing={10} direction="column" className={classes.root} style={{padding}}>
+        <Stack id={id} spacing={10} direction="column" className={classes.root} style={{ padding }}>
             {nodeList}
         </Stack>
     )
