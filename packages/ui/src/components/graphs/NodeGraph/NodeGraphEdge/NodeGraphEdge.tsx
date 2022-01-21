@@ -1,26 +1,28 @@
-import { makeStyles } from '@mui/styles';
-import { Theme } from '@mui/material';
 import { NodeGraphEdgeProps } from '../types';
-
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {
-
-    },
-}));
 
 // Displays a line between two nodes.
 // If in editing mode, an "Add Node" button appears on the line. 
 // This button always appears inbetween two node columns, to avoid collisions with nodes.
 export const NodeGraphEdge = ({
-    from,
-    to,
+    start,
+    end,
     isEditable = true,
-    scale = 1,
     onAdd,
 }: NodeGraphEdgeProps) => {
-    const classes = useStyles();
+    console.log('node edge', start, end)
+
+    // Determines 
+    const dimensions = {
+        width: end.x - start.x,
+        height: end.y - start.y,
+    }
 
     return (
-        <div className={classes.root}>TODO</div>
+        <svg 
+            {...dimensions} 
+            style={{zIndex:2}}
+        >
+            <line x1="0" y1="0" x2={dimensions.width} y2={dimensions.height} stroke="black"/>
+        </svg>
     )
 }

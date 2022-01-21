@@ -35,19 +35,23 @@ export const RoutineListNode = ({
     onAdd = () => { },
     dragIsOver,
 }: RoutineListNodeProps) => {
-    const [collapseOpen, setCollapseOpen] = useState(false);
-    const toggleCollapse = () => setCollapseOpen(curr => !curr);
+    // True if node is being dragged. Used to cancel onClick event
+    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const dragStart = useCallback((e: MouseEvent) => {
+        setIsDragging(true);
+    }, []);
+    const dragEnd = useCallback((e: MouseEvent) => {
+        setTimeout(() => setIsDragging(false), 100, this)
+    }, []);
+
+    const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
+    const toggleCollapse = useCallback(() => {
+        if (!isDragging) setCollapseOpen(curr => !curr)
+    }, [isDragging]);
 
     const nodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
     const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
-
-    /**
-     * Pass up size of node to parent
-     */
-    useEffect(() => {
-
-    }, [collapseOpen])
 
     const addRoutine = () => {
         console.log('ADD ROUTINE CALLED')
@@ -186,6 +190,8 @@ export const RoutineListNode = ({
             <Tooltip placement={'top'} title={label ?? 'Routine List'}>
                 <Container
                     onClick={toggleCollapse}
+                    onDragStart={dragStart}
+                    onDragEnd={dragEnd}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
                     sx={{

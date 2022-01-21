@@ -27,7 +27,6 @@ export const ListMenu = ({
     console.log('anchorEl', anchorEl);
 
     const items = useMemo(() => data?.map(({ label, value, Icon, helpData }, index) => {
-        console.log('in list dialog item', { label, value, Icon, helpData })
         const itemText = <ListItemText primary={label} />;
         const itemIcon = Icon ? (
             <ListItemIcon>

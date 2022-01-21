@@ -1,6 +1,7 @@
 import { DialogProps, MenuProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
+import { ReportFor } from '@local/shared';
 
 export interface AlertDialogProps extends DialogProps {};
 
@@ -50,4 +51,12 @@ export interface ViewDialogBaseProps extends DialogProps {
 export interface ShareDialogProps extends DialogProps {
     open: boolean;
     onClose: () => any;
+}
+
+export interface ReportDialogProps extends DialogProps {
+    open: boolean;
+    onClose: () => any;
+    title?: string;
+    reportFor: ReportFor;
+    forId: string;
 }

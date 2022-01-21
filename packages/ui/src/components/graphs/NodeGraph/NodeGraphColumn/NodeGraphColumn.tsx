@@ -1,21 +1,10 @@
-import { makeStyles } from '@mui/styles';
-import { Stack, Theme } from '@mui/material';
+import { Stack } from '@mui/material';
 import { useMemo } from 'react';
 import { NodeGraphCellProps, NodeGraphColumnProps } from '../types';
 import { NodeType } from '@local/shared';
 import { CombineNode, DecisionNode, EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
 import { NodeGraphCell } from '../NodeGraphCell/NodeGraphCell';
 import { NodeWidth } from '..';
-
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {
-        position: 'relative',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'transparent',
-    },
-}));
 
 export const NodeGraphColumn = ({
     id,
@@ -27,10 +16,12 @@ export const NodeGraphColumn = ({
     graphDimensions,
     cellPositions,
     dragData,
+    isDragging,
+    onDragStart,
     onDrag,
     onDrop,
+    onResize,
 }: NodeGraphColumnProps) => {
-    const classes = useStyles();
     const padding = useMemo(() => `${scale * 25}px`, [scale]);
 
     /**
@@ -62,9 +53,12 @@ export const NodeGraphColumn = ({
             nodeId: node.id,
             draggable: ![NodeType.Start, NodeType.End].includes(node.type),
             droppable: columnNumber !== 0,
+            isDragging,
             dragIsOver,
+            onDragStart,
             onDrag,
             onDrop,
+            onResize
         }
         // Common node props
         const nodeProps = {
@@ -93,10 +87,20 @@ export const NodeGraphColumn = ({
             default:
                 return null;
         }
-    }) ?? [], [nodes, scale, columnNumber, labelVisible, isEditable, graphDimensions, cellPositions, dragData, onDrag, onDrop]);
+    }) ?? [], [nodes, scale, columnNumber, labelVisible, isEditable, graphDimensions, cellPositions, dragData, isDragging, onDragStart, onDrag, onDrop, onResize]);
 
     return (
-        <Stack id={id} spacing={10} direction="column" className={classes.root} style={{ padding }}>
+        <Stack 
+            id={id} 
+            spacing={10} 
+            direction="column" 
+            padding={padding}
+            position="relative"
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            sx={{backgroundColor: 'transparent'}}
+        >
             {nodeList}
         </Stack>
     )

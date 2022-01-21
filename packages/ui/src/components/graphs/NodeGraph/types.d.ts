@@ -57,20 +57,31 @@ export interface NodeGraphColumnProps {
      */
     dragData?: { x: number, y: number, type: NodeData['type'] };
     /**
+     * Indicates if ANY node is currently being dragged, not necessarily in this column
+     */
+    isDragging: boolean;
+    /**
+     * Callback for the start of a node drag
+     */
+     onDragStart: (nodeId: string, position: { x: number, y: number }) => void;
+    /**
      * Callback for dragging node
      */
-     onDrag: (nodeId: string, position: { x: number, y: number }) => void;
-     /**
-      * Callback for dropped node
-      */
-     onDrop: (nodeId: string, position: { x: number, y: number }) => void;
+    onDrag: (nodeId: string, position: { x: number, y: number }) => void;
+    /**
+     * Callback for dropped node
+     */
+    onDrop: (nodeId: string, position: { x: number, y: number }) => void;
+    /**
+    * Callback for cell resize
+    */
+    onResize: (nodeId: string, dimensions: { width: number, height: number }) => void;
 }
 
 export interface NodeGraphEdgeProps {
-    from: NodePos,
-    to: NodePos,
+    start: { x: number, y: number };
+    end: { x: number, y: number };
     isEditable?: boolean;
-    scale?: number,
     onAdd: any,
 }
 
@@ -84,6 +95,10 @@ export interface NodeGraphCellProps extends BoxProps {
      */
     droppable?: boolean;
     /**
+     * Indicates if ANY node is currently being dragged, not necessarily in this cell
+     */
+     isDragging: boolean;
+    /**
      * Specifies if a dragged node is over this cell
      */
     dragIsOver: boolean;
@@ -92,6 +107,10 @@ export interface NodeGraphCellProps extends BoxProps {
      */
     nodeId: string;
     /**
+     * Callback for the start of a node drag
+     */
+     onDragStart: (nodeId: string, position: { x: number, y: number }) => void;
+    /**
      * Callback for dragging node
      */
     onDrag: (nodeId: string, position: { x: number, y: number }) => void;
@@ -99,6 +118,10 @@ export interface NodeGraphCellProps extends BoxProps {
      * Callback for dropped node
      */
     onDrop: (nodeId: string, position: { x: number, y: number }) => void;
+    /**
+     * Callback for cell resize
+     */
+    onResize: (nodeId: string, dimensions: { width: number, height: number }) => void;
     /**
      * The node
      */
