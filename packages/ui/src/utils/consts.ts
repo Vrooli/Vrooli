@@ -9,6 +9,7 @@ export const Pubs = {
     BurgerMenuOpen: "burgerMenuOpen",
     ArrowMenuOpen: "arrowMenuOpen",
     Theme: "theme",
+    NodeDrag: "NodeDrag",
 }
 export type Pubs = ValueOf<typeof Pubs>;
 

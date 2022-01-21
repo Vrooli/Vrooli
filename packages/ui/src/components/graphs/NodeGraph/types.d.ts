@@ -45,22 +45,6 @@ export interface NodeGraphColumnProps {
     columnNumber: number;
     nodes: NodeData[];
     /**
-     * Dimensions of the entire graph, for determining if a node has been dragged too far.
-     */
-    graphDimensions?: { width: number, height: number };
-    /**
-     * Top-left position of each cell. Used with dragPos to determine if a cell should be highlighted
-     */
-    cellPositions?: { x: number, y: number }[];
-    /**
-     * Data of current node being dragged, if any
-     */
-    dragData?: { x: number, y: number, type: NodeData['type'] };
-    /**
-     * Indicates if ANY node is currently being dragged, not necessarily in this column
-     */
-    isDragging: boolean;
-    /**
      * Callback for the start of a node drag
      */
      onDragStart: (nodeId: string, position: { x: number, y: number }) => void;
@@ -90,18 +74,6 @@ export interface NodeGraphCellProps extends BoxProps {
      * Specified if the cell is allowed to be dragged
      */
     draggable?: boolean;
-    /**
-     * Specifies if the cell accepts drop events
-     */
-    droppable?: boolean;
-    /**
-     * Indicates if ANY node is currently being dragged, not necessarily in this cell
-     */
-     isDragging: boolean;
-    /**
-     * Specifies if a dragged node is over this cell
-     */
-    dragIsOver: boolean;
     /**
      * ID of node in this cell. Used for drag events
      */

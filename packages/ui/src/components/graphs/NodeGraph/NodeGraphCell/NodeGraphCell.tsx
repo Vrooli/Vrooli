@@ -1,8 +1,9 @@
 import { NodeGraphCellProps } from '../types';
 import { Box } from '@mui/material';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Draggable from 'react-draggable';
 import Measure from 'react-measure';
+import { Pubs } from 'utils';
 
 /**
  * Wraps node with drag and drop functionality. This can be disabled for certain nodes.
@@ -10,9 +11,6 @@ import Measure from 'react-measure';
  */
 export const NodeGraphCell = ({
     draggable = true,
-    droppable = true,
-    isDragging,
-    dragIsOver,
     nodeId,
     children,
     onDragStart,
@@ -20,23 +18,24 @@ export const NodeGraphCell = ({
     onDrop,
     onResize,
 }: NodeGraphCellProps) => {
+
     // True if this node is being dragged
-    const [thisNodeDragging, setThisNodeDragging] = useState<boolean>(false);
+    const [isDragging, setIsDragging] = useState<boolean>(false);
 
-    const background = useMemo(() => {
-        console.log('calculating background', isDragging);
-        // If this node is being dragged, or nothing is being dragged (i.e. default)
-        if (!isDragging || thisNodeDragging) return 'transparent';
-        // Background if a node is being dragged, but not over this cell
-        if (!dragIsOver) return "#a7ec9a";
-        // Background if a node is being dragged over this cell, but dropping is disabled
-        if (!droppable) return "#e93e0a";
-        // Background if a node is being dragged over this cell, and dropping is enabled
-        return "#3cd41f";
-    }, [dragIsOver, droppable, isDragging, thisNodeDragging]);
+    // Subscribe to drag over
+    useEffect(() => {
+        let snackSub = PubSub.subscribe(Pubs.NodeDrag, (_, data) => {
+            if (data.nodeId === nodeId) {
+                setIsDragging(true);
+            } else if (isDragging) {
+                setIsDragging(false);
+            }
+        });
+        return () => { PubSub.unsubscribe(snackSub) };
+    }, [isDragging])
 
-    const handleResize = useCallback(({ width, height }: any) => {
-        onResize(nodeId, { width, height });
+    const handleResize = useCallback(({ bounds }: any) => {
+        onResize(nodeId, { width: bounds.width, height: bounds.height });
     }, [nodeId, onResize])
 
     /**
@@ -53,15 +52,13 @@ export const NodeGraphCell = ({
     }, [draggable]);
 
     const handleDrag = useCallback((e: any, data: any) => {
-        if (!thisNodeDragging) setThisNodeDragging(true);
         // Determine current drag position
         const { x, y } = data;
         // Pass drag event up, so other cells can determine if they are dragged over
         onDrag(nodeId, { x, y });
-    }, [thisNodeDragging, nodeId, onDrag]);
+    }, [nodeId, onDrag]);
 
     const handleDrop = useCallback((e: any, data: any) => {
-        setThisNodeDragging(false);
         // Determine current drag position
         const { x, y } = data;
         // Pass drop event up
@@ -89,8 +86,8 @@ export const NodeGraphCell = ({
                         justifyContent={"center"}
                         alignItems={"center"}
                         sx={{ 
-                            background,
-                            zIndex: thisNodeDragging ? 10 : 5,
+                            zIndex: isDragging ? 10 : 5,
+                            opacity: isDragging ? 0.5 : 1
                         }}
                     >
                         {children}

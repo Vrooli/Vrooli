@@ -33,7 +33,6 @@ export const RoutineListNode = ({
     labelVisible = true,
     isEditable = true,
     onAdd = () => { },
-    dragIsOver,
 }: RoutineListNodeProps) => {
     // True if node is being dragged. Used to cancel onClick event
     const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -173,7 +172,6 @@ export const RoutineListNode = ({
                 backgroundColor: (t) => t.palette.background.paper,
                 color: (t) => t.palette.background.textPrimary,
                 boxShadow: '0px 0px 12px gray',
-                opacity: dragIsOver ? 0.5 : 1,
             }}
         >
             <NodeContextMenu

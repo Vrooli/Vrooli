@@ -31,13 +31,6 @@ export interface EditableProps {
 }
 
 /**
- * Props for nodes that can be dragged
- */
-export interface DraggableProps {
-    dragIsOver: boolean;
-}
-
-/**
  * Props for the "Add Node" button (has node in its name, but not actually a node)
  */
 export interface AddNodeProps extends ScaleProps, EditableProps {

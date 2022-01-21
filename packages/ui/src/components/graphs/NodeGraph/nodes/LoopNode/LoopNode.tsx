@@ -11,7 +11,6 @@ export const LoopNode = ({
     scale = 1,
     label = 'Loop',
     labelVisible = true,
-    dragIsOver,
 }: LoopNodeProps) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);
@@ -46,7 +45,7 @@ export const LoopNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box className="handle" sx={{opacity: dragIsOver ? 0.5 : 1}}>
+        <Box className="handle">
             {dialog}
             <NodeContextMenu
                 id={contextId}

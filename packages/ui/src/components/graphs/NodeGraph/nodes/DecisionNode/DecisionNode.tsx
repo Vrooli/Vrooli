@@ -11,7 +11,6 @@ export const DecisionNode = ({
     label = 'Continue?',
     text = 'Would you like to continue?',
     labelVisible = true,
-    dragIsOver,
 }: DecisionNodeProps) => {
 
     const labelObject = useMemo(() => labelVisible ? (
@@ -37,7 +36,7 @@ export const DecisionNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box className="handle" sx={{opacity: dragIsOver ? 0.5 : 1}}>
+        <Box className="handle">
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}

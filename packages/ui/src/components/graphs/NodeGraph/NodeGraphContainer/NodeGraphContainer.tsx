@@ -38,56 +38,57 @@ export const NodeGraphContainer = ({
     const [cellDimensions, setCellDimensions] = useState<{ [x: string]: Dimensions }>({});
     // ID of node currently being dragged
     const [draggingId, setDraggingId] = useState<string | undefined>(undefined);
-    // ID of node currently being dragged over
-    const [draggingOverId, setDraggingOverId] = useState<string | undefined>(undefined);
-    // Position of node currently being dragged
-    const [draggingPosition, setDraggingPosition] = useState<Positions | undefined>(undefined);
 
     /**
      * Updates dimensions of a node cell
      */
     const onCellResize = useCallback((nodeId: string, { width, height }: Dimensions) => {
+        console.log('onCellResize', nodeId, { width, height });
         setCellDimensions(dimensions => ({ ...dimensions, [nodeId]: { width, height } }));
     }, []);
 
     const handleDragStart = useCallback((nodeId: string, { x, y }: Positions) => {
         console.log('DRAG START', nodeId, x, y);
         setDraggingId(nodeId);
+        PubSub.publish(Pubs.NodeDrag, { nodeId });
     }, []);
 
     const handleDrag = useCallback((nodeId: string, { x, y }: Positions) => {
         console.log('DRAG', nodeId, x, y);
-        // x and y define the top left of the node being dragged.
-        // We need to calculate the center of the node
-        const center = {
-            x: x + (cellDimensions[nodeId].width ?? 0) / 2,
-            y: y + (cellDimensions[nodeId].height ?? 0) / 2,
-        };
-        setDraggingPosition(center);
-        // Check if the node being dragged is over another node
-        for (const [id, position] of Object.entries(cellPositions)) {
-            if (id !== nodeId) {
-                if (center.x > position.x && // Drag is past the left wall threshold
-                    center.x < (cellDimensions[id].width ?? 0) && // Drag is not past the right wall threshold
-                    center.y > position.y && // Drag is past the top wall threshold
-                    center.y < (cellDimensions[id].height ?? 0) // Drag is not past the bottom wall threshold
-                ) {
-                    setDraggingOverId(id);
-                    return;
-                }
-            }
-        }
-    }, [cellPositions, cellDimensions]);
+        
+    }, []);
 
     /**
      * Makes sure drop is valid, then updates order of nodes
      */
     const handleDragStop = useCallback((nodeId: string, { x, y }: Positions) => {
         setDraggingId(undefined);
-        setDraggingOverId(undefined);
-        setDraggingPosition(undefined);
-        //TODO
-    }, []);
+        PubSub.publish(Pubs.NodeDrag, { nodeId: undefined });
+        if (!nodes || nodes.length === 0) return;
+        // x and y define the top left of the node that was dropped
+        // We need to calculate the center of the node, to determine if it was dropped 
+        // in a valid position
+        const center = {
+            x: x + (cellDimensions[nodeId]?.width ?? 0) / 2,
+            y: y + (cellDimensions[nodeId]?.height ?? 0) / 2,
+        };
+        // Check if the node being dragged is over another node
+        for (const node of nodes) {
+            // Can't drop on itself or a start/end node
+            if (nodeId !== nodeId && node.type !== NodeType.Start && node.type !== NodeType.End) {
+                const position = cellPositions[node.id];
+                if (center.x > position.x && // Drag is past the left wall threshold
+                    center.x < (cellDimensions[node.id]?.width ?? 0) && // Drag is not past the right wall threshold
+                    center.y > position.y && // Drag is past the top wall threshold
+                    center.y < (cellDimensions[node.id]?.height ?? 0) // Drag is not past the bottom wall threshold
+                ) {
+                    // TODO reorder nodes
+                    return;
+                }
+            }
+        }
+        //TODO put the node back where it was if invalid, or center if valid
+    }, [nodes, cellPositions, cellDimensions]);
 
     // Set event listeners for click-and-drag functionality
     useEffect(() => {
@@ -122,7 +123,7 @@ export const NodeGraphContainer = ({
             window.removeEventListener('mouseup', onMouseUp);
             window.removeEventListener('mousemove', onMouseMove);
         }
-    }, [])
+    }, []);
 
     /**
      * Dictionary of node data and their columns
@@ -225,12 +226,12 @@ export const NodeGraphContainer = ({
     /**
      * Creates dictionary of cell positions
      */
-    const cellPositionsMap: { [id: string]: Positions } = useMemo(() => {
+     useEffect(() => {
         // Create map of cell positions
         let posMap: { [id: string]: Positions } = {};
         // If cell dimensions haven't been calculated yet, return empty map
         const columnItemCount = columnData.map(col => col.length).reduce((a, b) => a + b, 0);
-        if (Object.keys(cellDimensions).length !== columnItemCount) return posMap;
+        if (Object.keys(cellDimensions).length !== columnItemCount) return;
         // Holds x position of current column
         let x = 0;
         // Loop through column data
@@ -253,8 +254,8 @@ export const NodeGraphContainer = ({
             // Increment x position by widest node in column + spacing between node cells
             x += widestWidth + 50;
         }
-        return posMap;
-    }, [cellDimensions, columnData]);
+        setCellPositions(posMap);
+    }, [columnData, cellDimensions]);
 
     /**
      * Edges displayed between nodes. If editing, the midpoint of an edge
@@ -263,18 +264,20 @@ export const NodeGraphContainer = ({
     const edges = useMemo(() => {
         // If data required to render edges is not yet available
         if (!nodes ||
-            Object.keys(nodes).length !== Object.keys(cellPositionsMap).length ||
+            Object.keys(nodes).length !== Object.keys(cellPositions).length ||
             Object.keys(nodes).length !== Object.keys(cellDimensions).length) return [];
         return nodes.map(node => {
+            console.log('in edge node loop', node)
             if (!node.previous || !node.next) return null;
+            console.log(cellPositions[node.previous], cellDimensions[node.previous])
             // Center of cells the edge is attached to
             const startPos: Positions = {
-                x: cellPositionsMap[node.previous].x + cellDimensions[node.previous].width / 2,
-                y: cellPositionsMap[node.previous].y + cellDimensions[node.previous].height / 2,
+                x: cellPositions[node.previous].x + cellDimensions[node.previous].width / 2,
+                y: cellPositions[node.previous].y + cellDimensions[node.previous].height / 2,
             }
             const endPos: Positions = {
-                x: cellPositionsMap[node.next].x + cellDimensions[node.next].width / 2,
-                y: cellPositionsMap[node.next].y + cellDimensions[node.next].height / 2,
+                x: cellPositions[node.next].x + cellDimensions[node.next].width / 2,
+                y: cellPositions[node.next].y + cellDimensions[node.next].height / 2,
             }
             return <NodeGraphEdge
                 key={`edge-${node.id}`}
@@ -284,7 +287,7 @@ export const NodeGraphContainer = ({
                 onAdd={() => { }}
             />
         })
-    }, [cellPositionsMap, cellDimensions, isEditable, nodes]);
+    }, [nodes, cellPositions, cellDimensions, isEditable]);
 
     /**
      * Highlight the areas of the graph that a node can be dropped into
@@ -294,7 +297,7 @@ export const NodeGraphContainer = ({
         if (!draggingId) return [];
         // If data required to render highlights is not yet available
         if (!nodes ||
-            Object.keys(nodes).length !== Object.keys(cellPositionsMap).length ||
+            Object.keys(nodes).length !== Object.keys(cellPositions).length ||
             Object.keys(nodes).length !== Object.keys(cellDimensions).length) return [];
         return nodes.map(node => {
             // Cannot drop onto a start or end node
@@ -303,14 +306,20 @@ export const NodeGraphContainer = ({
                 position="absolute"
                 zIndex={1}
                 key={`highlight-${node.id}`}
-                left={cellPositionsMap[node.id].x}
-                right={cellPositionsMap[node.id].y}
+                left={cellPositions[node.id].x}
+                right={cellPositions[node.id].y}
                 width={cellDimensions[node.id].width}
                 height={cellDimensions[node.id].height}
-                sx={{ background: "rgba(0, 0, 0, 0.1)" }}
+                sx={{
+                    background: "#6ef04e",
+                    '&:hover': {
+                        filter: `brightness(120%)`,
+                        transition: 'filter 0.2s',
+                    },
+                }}
             />
         })
-    }, [cellPositionsMap, cellDimensions, draggingId, nodes]);
+    }, [draggingId, nodes, cellPositions, cellDimensions]);
 
     /**
      * Node column objects
@@ -324,13 +333,12 @@ export const NodeGraphContainer = ({
             isEditable={isEditable}
             scale={scale}
             labelVisible={labelVisible}
-            isDragging={isDragging}
             onDragStart={handleDragStart}
             onDrag={handleDrag}
             onDrop={handleDragStop}
             onResize={onCellResize}
         />)
-    }, [columnData, isDragging, isEditable, labelVisible, scale, onCellResize]);
+    }, [columnData, isEditable, scale, labelVisible, handleDragStart, handleDrag, handleDragStop, onCellResize]);
 
     return (
         <div id="graph-root" className={classes.root}>

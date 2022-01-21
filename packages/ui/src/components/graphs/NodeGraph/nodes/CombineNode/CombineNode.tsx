@@ -11,7 +11,6 @@ export const CombineNode = ({
     scale = 1,
     label = 'Combine',
     labelVisible = true,
-    dragIsOver,
 }: CombineNodeProps) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);
@@ -44,7 +43,7 @@ export const CombineNode = ({
     const fontSize = useMemo(() => `min(${NodeWidth.Combine * scale / 5}px, 2em)`, [scale]);
 
     return (
-        <Box className="handle" sx={{ opacity: dragIsOver ? 0.5 : 1 }}>
+        <Box className="handle">
             {dialog}
             <NodeContextMenu
                 id={contextId}

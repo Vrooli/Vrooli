@@ -11,7 +11,6 @@ export const RedirectNode = ({
     scale = 1,
     label = 'Redirect',
     labelVisible = true,
-    dragIsOver,
 }: RedirectNodeProps) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);
@@ -47,7 +46,7 @@ export const RedirectNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box className="handle" sx={{opacity: dragIsOver ? 0.5 : 1}}>
+        <Box className="handle">
             {dialog}
             <NodeContextMenu
                 id={contextId}
