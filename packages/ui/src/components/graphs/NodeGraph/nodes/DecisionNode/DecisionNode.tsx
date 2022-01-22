@@ -4,6 +4,7 @@ import { DecisionNodeProps } from '../types';
 import { NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect, textShadow } from 'styles';
+import { DraggableNode } from '../';
 
 export const DecisionNode = ({
     node,
@@ -36,7 +37,7 @@ export const DecisionNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box className="handle">
+        <DraggableNode nodeId={node.id}>
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
@@ -50,6 +51,7 @@ export const DecisionNode = ({
             />
             <Tooltip placement={'top'} title={text}>
                 <Box
+                    className="handle"
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
                     onClick={() => { }}
@@ -92,6 +94,6 @@ export const DecisionNode = ({
                     {labelObject}
                 </Box>
             </Tooltip>
-        </Box>
+        </DraggableNode>
     )
 }

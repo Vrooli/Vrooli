@@ -45,18 +45,6 @@ export interface NodeGraphColumnProps {
     columnNumber: number;
     nodes: NodeData[];
     /**
-     * Callback for the start of a node drag
-     */
-     onDragStart: (nodeId: string, position: { x: number, y: number }) => void;
-    /**
-     * Callback for dragging node
-     */
-    onDrag: (nodeId: string, position: { x: number, y: number }) => void;
-    /**
-     * Callback for dropped node
-     */
-    onDrop: (nodeId: string, position: { x: number, y: number }) => void;
-    /**
     * Callback for cell resize
     */
     onResize: (nodeId: string, dimensions: { width: number, height: number }) => void;
@@ -67,35 +55,4 @@ export interface NodeGraphEdgeProps {
     end: { x: number, y: number };
     isEditable?: boolean;
     onAdd: any,
-}
-
-export interface NodeGraphCellProps extends BoxProps {
-    /**
-     * Specified if the cell is allowed to be dragged
-     */
-    draggable?: boolean;
-    /**
-     * ID of node in this cell. Used for drag events
-     */
-    nodeId: string;
-    /**
-     * Callback for the start of a node drag
-     */
-     onDragStart: (nodeId: string, position: { x: number, y: number }) => void;
-    /**
-     * Callback for dragging node
-     */
-    onDrag: (nodeId: string, position: { x: number, y: number }) => void;
-    /**
-     * Callback for dropped node
-     */
-    onDrop: (nodeId: string, position: { x: number, y: number }) => void;
-    /**
-     * Callback for cell resize
-     */
-    onResize: (nodeId: string, dimensions: { width: number, height: number }) => void;
-    /**
-     * The node
-     */
-    children: React.JSX;
 }

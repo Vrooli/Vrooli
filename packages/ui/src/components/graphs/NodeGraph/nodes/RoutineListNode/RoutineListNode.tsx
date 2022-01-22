@@ -1,5 +1,4 @@
 import {
-    Box,
     Checkbox,
     Collapse,
     Container,
@@ -8,9 +7,9 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { CSSProperties, MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, MouseEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
-import { RoutineSubnode } from '..';
+import { DraggableNode, RoutineSubnode } from '..';
 import {
     Add as AddIcon,
     Close as DeleteIcon,
@@ -25,6 +24,7 @@ import {
     routineNodeListOptions,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
+import Measure from 'react-measure';
 
 export const RoutineListNode = ({
     node,
@@ -33,24 +33,41 @@ export const RoutineListNode = ({
     labelVisible = true,
     isEditable = true,
     onAdd = () => { },
+    onResize,
 }: RoutineListNodeProps) => {
-    // True if node is being dragged. Used to cancel onClick event
-    const [isDragging, setIsDragging] = useState<boolean>(false);
-    const dragStart = useCallback((e: MouseEvent) => {
-        setIsDragging(true);
-    }, []);
-    const dragEnd = useCallback((e: MouseEvent) => {
-        setTimeout(() => setIsDragging(false), 100, this)
-    }, []);
-
+    // Stores position of click/touch start, to cancel click event if drag occurs
+    const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
+    // Stores if touch event was a drag
+    const touchIsDrag = useRef(false);
     const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
-    const toggleCollapse = useCallback(() => {
-        if (!isDragging) setCollapseOpen(curr => !curr)
-    }, [isDragging]);
+
+    const handleTouchMove = useCallback((e: any) => {
+        touchIsDrag.current = true;
+    }, []);
+    const handleTouchEnd = useCallback((e: any) => {
+        if (!touchIsDrag.current) {
+            setCollapseOpen(curr => !curr)
+        }
+        touchIsDrag.current = false;
+    }, []);
+    const handleMouseDown = useCallback((e: any) => {
+        clickStartPosition.current = { x: e.pageX, y: e.pageY };
+    }, []);
+    const handleMouseUp = useCallback((e: any) => {
+        const { x, y } = clickStartPosition.current;
+        const { pageX, pageY } = e;
+        if (Math.abs(pageX - x) < 5 && Math.abs(pageY - y) < 5) {
+            setCollapseOpen(curr => !curr)
+        }
+    }, []);
 
     const nodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
     const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
+
+    const handleResize = useCallback(({ bounds }: any) => {
+        onResize(node.id, { width: bounds.width, height: bounds.height });
+    }, [node.id, onResize])
 
     const addRoutine = () => {
         console.log('ADD ROUTINE CALLED')
@@ -162,67 +179,75 @@ export const RoutineListNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box className="handle"
-            sx={{
-                width: nodeSize,
-                fontSize: fontSize,
-                position: 'relative',
-                display: 'block',
-                borderRadius: '12px',
-                backgroundColor: (t) => t.palette.background.paper,
-                color: (t) => t.palette.background.textPrimary,
-                boxShadow: '0px 0px 12px gray',
-            }}
+        <Measure
+            bounds
+            onResize={handleResize}
         >
-            <NodeContextMenu
-                id={contextId}
-                anchorEl={contextAnchor}
-                node={node}
-                onClose={closeContext}
-                onAddBefore={() => { }}
-                onAddAfter={() => { }}
-                onDelete={() => { }}
-                onEdit={() => { }}
-                onMove={() => { }}
-            />
-            <Tooltip placement={'top'} title={label ?? 'Routine List'}>
-                <Container
-                    onClick={toggleCollapse}
-                    onDragStart={dragStart}
-                    onDragEnd={dragEnd}
-                    aria-owns={contextOpen ? contextId : undefined}
-                    onContextMenu={openContext}
+            {({ measureRef }) => (
+                <DraggableNode className="handle" nodeId={node.id}
                     sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        borderRadius: '12px 12px 0 0',
-                        backgroundColor: (t) => t.palette.primary.dark,
-                        color: (t) => t.palette.primary.contrastText,
-                        padding: '0.1em',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        '&:hover': {
-                            filter: `brightness(120%)`,
-                            transition: 'filter 0.2s',
-                        },
+                        width: nodeSize,
+                        fontSize: fontSize,
+                        position: 'relative',
+                        display: 'block',
+                        borderRadius: '12px',
+                        backgroundColor: (t) => t.palette.background.paper,
+                        color: (t) => t.palette.background.textPrimary,
+                        boxShadow: '0px 0px 12px gray',
                     }}
                 >
-                    {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    {labelObject}
-                    {isEditable ? <DeleteIcon /> : null}
-                </Container>
-            </Tooltip>
-            {optionsCollapse}
-            <Collapse
-            
-                in={collapseOpen}
-                sx={{
-                    padding: collapseOpen ? '0.5em' : '0'
-                }}
-            >
-                {routines}
-                {addButton}
-            </Collapse>
-        </Box>
+                    <NodeContextMenu
+                        id={contextId}
+                        anchorEl={contextAnchor}
+                        node={node}
+                        onClose={closeContext}
+                        onAddBefore={() => { }}
+                        onAddAfter={() => { }}
+                        onDelete={() => { }}
+                        onEdit={() => { }}
+                        onMove={() => { }}
+                    />
+                    <Tooltip placement={'top'} title={label ?? 'Routine List'}>
+                        <Container
+                            ref={measureRef}
+                            onMouseDown={handleMouseDown}
+                            onMouseUp={handleMouseUp}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                            aria-owns={contextOpen ? contextId : undefined}
+                            onContextMenu={openContext}
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                borderRadius: '12px 12px 0 0',
+                                backgroundColor: (t) => t.palette.primary.dark,
+                                color: (t) => t.palette.primary.contrastText,
+                                padding: '0.1em',
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                '&:hover': {
+                                    filter: `brightness(120%)`,
+                                    transition: 'filter 0.2s',
+                                },
+                            }}
+                        >
+                            {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                            {labelObject}
+                            {isEditable ? <DeleteIcon /> : null}
+                        </Container>
+                    </Tooltip>
+                    {optionsCollapse}
+                    <Collapse
+                        in={collapseOpen}
+                        sx={{
+                            padding: collapseOpen ? '0.5em' : '0'
+                        }}
+                    >
+                        {routines}
+                        {addButton}
+                    </Collapse>
+                </DraggableNode>
+            )}
+        </Measure>
     )
 }

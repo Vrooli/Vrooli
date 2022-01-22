@@ -79,7 +79,8 @@ export const deepRoutineFields = gql`
                     description
                     isOptional
                     routine {
-                        ...routineFields
+                        id
+                        title
                     }
                 }
             }

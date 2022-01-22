@@ -1,20 +1,10 @@
-import { makeStyles } from '@mui/styles';
-import { Box, Stack, Theme } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { CombineNodeData, DecisionNodeData, DecisionNodeDataDecision, NodeData, NodeType } from '@local/shared';
 import { NodeGraphColumn, NodeGraphEdge } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pubs } from 'utils';
 import { NodeGraphProps, NodePos } from '../types';
-
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {
-        cursor: 'move',
-        minWidth: '100%',
-        minHeight: '100%',
-        overflowX: 'scroll',
-        overflowY: 'scroll',
-    }
-}));
+import { NodeWidth } from '..';
 
 type Positions = {
     x: number;
@@ -32,11 +22,10 @@ export const NodeGraphContainer = ({
     labelVisible = true,
     nodes,
 }: NodeGraphProps) => {
-    const classes = useStyles();
     // Stores positions and sizes of node cells, which can be used to calculate dragIsOver
     const [cellPositions, setCellPositions] = useState<{ [x: string]: Positions }>({});
     const [cellDimensions, setCellDimensions] = useState<{ [x: string]: Dimensions }>({});
-    // ID of node currently being dragged
+    // Position that drag started
     const [draggingId, setDraggingId] = useState<string | undefined>(undefined);
 
     /**
@@ -47,15 +36,8 @@ export const NodeGraphContainer = ({
         setCellDimensions(dimensions => ({ ...dimensions, [nodeId]: { width, height } }));
     }, []);
 
-    const handleDragStart = useCallback((nodeId: string, { x, y }: Positions) => {
-        console.log('DRAG START', nodeId, x, y);
+    const handleDragStart = useCallback((nodeId: string) => {
         setDraggingId(nodeId);
-        PubSub.publish(Pubs.NodeDrag, { nodeId });
-    }, []);
-
-    const handleDrag = useCallback((nodeId: string, { x, y }: Positions) => {
-        console.log('DRAG', nodeId, x, y);
-        
     }, []);
 
     /**
@@ -90,7 +72,9 @@ export const NodeGraphContainer = ({
         //TODO put the node back where it was if invalid, or center if valid
     }, [nodes, cellPositions, cellDimensions]);
 
-    // Set event listeners for click-and-drag functionality
+    // Set listeners for:
+    // - click-and-drag background
+    // - drag-and-drop nodes
     useEffect(() => {
         // Mouse drag state
         let touched = false;
@@ -98,9 +82,11 @@ export const NodeGraphContainer = ({
         // Only drag if not pressing a node or edge
         const onMouseDown = (ev: MouseEvent) => {
             const targetId = (ev.target as any)?.id;
-            if (!targetId || !targetId.startsWith('node-column')) return;
-            touched = true;
-            lastPosition = { x: ev.clientX, y: ev.clientY };
+            if (!targetId) return;
+            if (targetId.startsWith('node-column') || targetId === 'graph-root') {
+                touched = true;
+                lastPosition = { x: ev.clientX, y: ev.clientY };
+            }
         }
         const onMouseUp = (ev: MouseEvent) => {
             touched = false;
@@ -117,13 +103,23 @@ export const NodeGraphContainer = ({
         window.addEventListener('mousedown', onMouseDown);
         window.addEventListener('mouseup', onMouseUp);
         window.addEventListener('mousemove', onMouseMove);
+        // Add PubSub subscribers
+        let dragStartSub = PubSub.subscribe(Pubs.NodeDrag, (_, data) => {
+            handleDragStart(data.nodeId);
+        });
+        let dragDropSub = PubSub.subscribe(Pubs.NodeDrop, (_, data) => {
+            handleDragStop(data.nodeId, data.position);
+        });
         return () => {
             // Remove event listeners
             window.removeEventListener('mousedown', onMouseDown);
             window.removeEventListener('mouseup', onMouseUp);
             window.removeEventListener('mousemove', onMouseMove);
+            // Remove PubSub subscribers
+            PubSub.unsubscribe(dragStartSub);
+            PubSub.unsubscribe(dragDropSub);
         }
-    }, []);
+    }, [handleDragStart, handleDragStop]);
 
     /**
      * Dictionary of node data and their columns
@@ -201,6 +197,26 @@ export const NodeGraphContainer = ({
     }, [nodes]);
 
     /**
+     * Updates known node dimensions. 
+     * Can't make this useMemo because RoutineListNodes can change size
+     */
+    useEffect(() => {
+        let dimMap: { [x: string]: Dimensions } = {};
+        if (!nodes) {
+            setCellDimensions(dimMap);
+            return;
+        }
+        for (let i = 0; i < nodes.length; i++) {
+            const curr = nodes[i];
+            dimMap[curr.id] = {
+                width: NodeWidth[curr.type] * scale,
+                height: NodeWidth[nodes[i].type] * scale, //TODO: fix this
+            }
+        }
+        setCellDimensions(dimMap);
+    }, [nodes, scale]);
+
+    /**
      * Node data map converted to a 2D array of columns
      */
     const columnData = useMemo(() => {
@@ -226,7 +242,7 @@ export const NodeGraphContainer = ({
     /**
      * Creates dictionary of cell positions
      */
-     useEffect(() => {
+    useEffect(() => {
         // Create map of cell positions
         let posMap: { [id: string]: Positions } = {};
         // If cell dimensions haven't been calculated yet, return empty map
@@ -234,10 +250,28 @@ export const NodeGraphContainer = ({
         if (Object.keys(cellDimensions).length !== columnItemCount) return;
         // Holds x position of current column
         let x = 0;
-        // Loop through column data
+        // First loop through to determine column heights. This is needed so
+        // column nodes can be centered vertically
+        let maxHeight = 0;
+        let columnHeights: number[] = [];
+        for (let i = 0; i < columnData.length; i++) {
+            const curr = columnData[i];
+            // Calculate height of current column
+            let height = 0;
+            for (let j = 0; j < curr.length; j++) {
+                height += cellDimensions[curr[j].id].height;
+            }
+            // Add height to list
+            columnHeights.push(height);
+            // If height is larger than current max, update max
+            if (height > maxHeight) maxHeight = height;
+        }
+        // Now loop through again to calculate cell positions
         for (let i = 0; i < columnData.length; i++) {
             // Holds y position of current node
-            let y = 0;
+            // Since column needs to be centered vertically, the y position
+            // starts halfway between the largest column height and the current column height
+            let y = (maxHeight - columnHeights[i]) / 2;
             // Holds widest node in current column
             let widestWidth = 0;
             // Loop through nodes in current column
@@ -269,7 +303,6 @@ export const NodeGraphContainer = ({
         return nodes.map(node => {
             console.log('in edge node loop', node)
             if (!node.previous || !node.next) return null;
-            console.log(cellPositions[node.previous], cellDimensions[node.previous])
             // Center of cells the edge is attached to
             const startPos: Positions = {
                 x: cellPositions[node.previous].x + cellDimensions[node.previous].width / 2,
@@ -279,6 +312,7 @@ export const NodeGraphContainer = ({
                 x: cellPositions[node.next].x + cellDimensions[node.next].width / 2,
                 y: cellPositions[node.next].y + cellDimensions[node.next].height / 2,
             }
+            console.log('start/end', startPos, endPos)
             return <NodeGraphEdge
                 key={`edge-${node.id}`}
                 start={startPos}
@@ -333,22 +367,26 @@ export const NodeGraphContainer = ({
             isEditable={isEditable}
             scale={scale}
             labelVisible={labelVisible}
-            onDragStart={handleDragStart}
-            onDrag={handleDrag}
-            onDrop={handleDragStop}
             onResize={onCellResize}
         />)
-    }, [columnData, isEditable, scale, labelVisible, handleDragStart, handleDrag, handleDragStop, onCellResize]);
+    }, [columnData, isEditable, scale, labelVisible, onCellResize]);
 
     return (
-        <div id="graph-root" className={classes.root}>
+        <Box id="graph-root" position="relative" sx={{
+            cursor: 'move',
+            minWidth: '100%',
+            minHeight: '100%',
+            overflowX: 'scroll',
+            overflowY: 'scroll',
+        }}>
+            {/* Edges */}
+            {edges}
+            {/* Highlighted squares to indicate valid drop areas */}
+            {highlights}
             {/* Nodes */}
             <Stack spacing={0} direction="row">
                 {columns}
             </Stack>
-            {/* Edges */}
-            {edges}
-            {highlights}
-        </div>
+        </Box>
     )
 };

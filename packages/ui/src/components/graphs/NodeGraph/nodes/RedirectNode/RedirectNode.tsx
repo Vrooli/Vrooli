@@ -1,10 +1,11 @@
-import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { IconButton, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { RedirectNodeProps } from '../types';
 import { UTurnLeft as RedirectIcon } from '@mui/icons-material';
 import { NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
+import { DraggableNode } from '../';
 
 export const RedirectNode = ({
     node,
@@ -46,7 +47,7 @@ export const RedirectNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box className="handle">
+        <DraggableNode nodeId={node.id}>
             {dialog}
             <NodeContextMenu
                 id={contextId}
@@ -61,6 +62,7 @@ export const RedirectNode = ({
             />
             <Tooltip placement={'top'} title='Redirect'>
                 <IconButton
+                    className="handle"
                     onClick={openDialog}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
@@ -94,6 +96,6 @@ export const RedirectNode = ({
                     {labelObject}
                 </IconButton>
             </Tooltip>
-        </Box>
+        </DraggableNode>
     )
 }

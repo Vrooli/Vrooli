@@ -1,5 +1,6 @@
 import { NodeData, NodeType } from "@local/shared";
 import { NodeData, RoutineListNodeItemData } from '@local/shared';
+import { BoxProps } from '@mui/material';
 
 /**
  * Props for all nodes (besides the Add node)
@@ -42,7 +43,7 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
  * Props for the Combine node
  */
 export interface CombineNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    
+
 }
 
 /**
@@ -78,6 +79,10 @@ export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledPr
  */
 export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
     onAdd: (data: RoutineListNodeItemData) => void;
+    /**
+     * Callback for cell resize
+     */
+     onResize: (nodeId: string, dimensions: { width: number, height: number }) => void;
 }
 
 /**
@@ -92,4 +97,16 @@ export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, Editable
  */
 export interface StartNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
 
+}
+
+export interface DraggableNodeProps extends BoxProps {
+    /**
+     * Specified if the cell is allowed to be dragged
+     */
+    draggable?: boolean;
+    /**
+     * ID of node in this cell. Used for drag events
+     */
+    nodeId: string;
+    children: React.JSX;
 }

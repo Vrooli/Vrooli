@@ -5,6 +5,7 @@ import { ArrowRightIcon } from 'assets/img';
 import { NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
+import { DraggableNode } from '../';
 
 export const CombineNode = ({
     node,
@@ -43,7 +44,7 @@ export const CombineNode = ({
     const fontSize = useMemo(() => `min(${NodeWidth.Combine * scale / 5}px, 2em)`, [scale]);
 
     return (
-        <Box className="handle">
+        <DraggableNode nodeId={node.id}>
             {dialog}
             <NodeContextMenu
                 id={contextId}
@@ -58,6 +59,7 @@ export const CombineNode = ({
             />
             <Tooltip placement={'top'} title='Combine'>
                 <Box
+                    className="handle"
                     aria-owns={contextOpen ? contextId : undefined}
                     sx={{
                         width: nodeSize,
@@ -84,6 +86,6 @@ export const CombineNode = ({
                     {labelObject}
                 </Box>
             </Tooltip>
-        </Box>
+        </DraggableNode>
     )
 }

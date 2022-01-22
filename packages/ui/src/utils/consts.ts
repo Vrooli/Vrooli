@@ -10,6 +10,8 @@ export const Pubs = {
     ArrowMenuOpen: "arrowMenuOpen",
     Theme: "theme",
     NodeDrag: "NodeDrag",
+    NodeDrop: "NodeDrop",
+    NodeSetPosition: "NodeSetPosition",
 }
 export type Pubs = ValueOf<typeof Pubs>;
 

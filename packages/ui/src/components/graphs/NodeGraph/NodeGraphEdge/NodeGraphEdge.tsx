@@ -9,8 +9,6 @@ export const NodeGraphEdge = ({
     isEditable = true,
     onAdd,
 }: NodeGraphEdgeProps) => {
-    console.log('node edge', start, end)
-
     // Determines 
     const dimensions = {
         width: Math.abs(end.x - start.x),
@@ -22,9 +20,13 @@ export const NodeGraphEdge = ({
             width={dimensions.width}
             // Extra height to make sure straight lines are drawn
             height={dimensions.height + 2} 
-            style={{zIndex:2}}
+            style={{ 
+                zIndex:2, 
+                position: "absolute",
+                transform: `translate(${Math.min(start.x, end.x)}px,${Math.min(start.y, end.y)}px)`,
+            }}
         >
-            <line x1="0" y1="0" x2={dimensions.width} y2={dimensions.height} stroke="black"/>
+            <line x1="0" y1="0" x2={dimensions.width} y2={dimensions.height} stroke="black" strokeWidth={3}/>
         </svg>
     )
 }

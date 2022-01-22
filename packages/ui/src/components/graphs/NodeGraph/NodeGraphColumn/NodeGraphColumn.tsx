@@ -1,9 +1,8 @@
 import { Stack } from '@mui/material';
 import { useMemo } from 'react';
-import { NodeGraphCellProps, NodeGraphColumnProps } from '../types';
+import { NodeGraphColumnProps } from '../types';
 import { NodeType } from '@local/shared';
 import { CombineNode, DecisionNode, EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
-import { NodeGraphCell } from '../NodeGraphCell/NodeGraphCell';
 
 export const NodeGraphColumn = ({
     id,
@@ -12,9 +11,6 @@ export const NodeGraphColumn = ({
     nodes,
     labelVisible,
     isEditable,
-    onDragStart,
-    onDrag,
-    onDrop,
     onResize,
 }: NodeGraphColumnProps) => {
     const padding = useMemo(() => `${scale * 25}px`, [scale]);
@@ -24,18 +20,9 @@ export const NodeGraphColumn = ({
      * Each node is wrapped in a cell that accepts drag and drop. 
      */
     const nodeList = useMemo(() => nodes?.map((node, index) => {
-        // Common cell props
-        const cellProps: { key: string } & Omit<NodeGraphCellProps, 'children'> = {
-            key: `node-${columnNumber}-${index}`,
-            nodeId: node.id,
-            draggable: ![NodeType.Start, NodeType.End].includes(node.type),
-            onDragStart,
-            onDrag,
-            onDrop,
-            onResize
-        }
         // Common node props
         const nodeProps = {
+            key: `node-${columnNumber}-${index}`,
             node,
             scale,
             label: node?.title,
@@ -45,35 +32,35 @@ export const NodeGraphColumn = ({
         // Determine node to display based on node type
         switch (node.type) {
             case NodeType.Combine:
-                return <NodeGraphCell {...cellProps}><CombineNode {...nodeProps} /></NodeGraphCell>;
+                return <CombineNode {...nodeProps} />
             case NodeType.Decision:
-                return <NodeGraphCell {...cellProps}><DecisionNode {...nodeProps} /></NodeGraphCell>;
+                return <DecisionNode {...nodeProps} />
             case NodeType.End:
-                return <NodeGraphCell {...cellProps}><EndNode {...nodeProps} /></NodeGraphCell>;
+                return <EndNode {...nodeProps} />
             case NodeType.Loop:
-                return <NodeGraphCell {...cellProps}><LoopNode {...nodeProps} /></NodeGraphCell>;
+                return <LoopNode {...nodeProps} />
             case NodeType.RoutineList:
-                return <NodeGraphCell {...cellProps}><RoutineListNode {...nodeProps} onAdd={() => {}} /></NodeGraphCell>;
+                return <RoutineListNode {...nodeProps} onAdd={() => { }} onResize={onResize} />
             case NodeType.Redirect:
-                return <NodeGraphCell {...cellProps}><RedirectNode {...nodeProps} /></NodeGraphCell>;
+                return <RedirectNode {...nodeProps} />
             case NodeType.Start:
-                return <NodeGraphCell {...cellProps}><StartNode {...nodeProps} /></NodeGraphCell>;
+                return <StartNode {...nodeProps} />
             default:
                 return null;
         }
-    }) ?? [], [nodes, scale, labelVisible, isEditable]);
+    }) ?? [], [nodes, scale, labelVisible, isEditable, onResize]);
 
     return (
-        <Stack 
-            id={id} 
-            spacing={10} 
-            direction="column" 
+        <Stack
+            id={id}
+            spacing={10}
+            direction="column"
             padding={padding}
             position="relative"
             display="flex"
             justifyContent="center"
             alignItems="center"
-            sx={{backgroundColor: 'transparent'}}
+            sx={{ backgroundColor: 'transparent' }}
         >
             {nodeList}
         </Stack>

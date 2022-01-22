@@ -1,10 +1,11 @@
-import { Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { IconButton, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { LoopNodeProps } from '../types';
 import { Loop as LoopIcon } from '@mui/icons-material';
 import { NodeContextMenu, NodeWidth } from '../..';
 import { containerShadow, noSelect } from 'styles';
 import { nodeLabel } from '../styles';
+import { DraggableNode } from '../';
 
 export const LoopNode = ({
     node,
@@ -45,7 +46,7 @@ export const LoopNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box className="handle">
+        <DraggableNode nodeId={node.id}>
             {dialog}
             <NodeContextMenu
                 id={contextId}
@@ -60,6 +61,7 @@ export const LoopNode = ({
             />
             <Tooltip placement={'top'} title={label ?? ''}>
                 <IconButton
+                    className="handle"
                     onClick={openDialog}
                     aria-owns={Boolean(contextAnchor) ? contextId : undefined}
                     onContextMenu={openContext}
@@ -93,6 +95,6 @@ export const LoopNode = ({
                     {labelObject}
                 </IconButton>
             </Tooltip>
-        </Box>
+        </DraggableNode>
     )
 }
