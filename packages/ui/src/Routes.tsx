@@ -75,12 +75,12 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #region Search Routes ========= */}
                 <Route path={`${LINKS.SearchUsers}/:id?`}>
                     <Page title={title('Users Search')} {...props}>
-                        <SearchActorsPage />
+                        <SearchActorsPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={`${LINKS.SearchOrganizations}/:id?`}>
                     <Page title={title('Organizations Search')} {...props}>
-                        <SearchOrganizationsPage />
+                        <SearchOrganizationsPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={`${LINKS.SearchProjects}/:id?`}>

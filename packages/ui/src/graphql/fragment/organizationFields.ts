@@ -15,5 +15,6 @@ export const organizationFields = gql`
             ...tagFields
         }
         stars
+        isStarred
     }
 `

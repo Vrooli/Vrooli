@@ -55,8 +55,7 @@ export const resolvers = {
         reportDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            const success = await ReportModel(prisma).deleteReport(req.userId, input);
-            return { success };
+            return await ReportModel(prisma).deleteReport(req.userId, input);
         },
     }
 }

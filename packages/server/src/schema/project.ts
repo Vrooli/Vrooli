@@ -40,6 +40,7 @@ export const typeDef = gql`
         name: String!
         description: String
         stars: Int!
+        isStarred: Boolean
         score: Int!
         isUpvoted: Boolean
         resources: [Resource!]
@@ -114,7 +115,6 @@ export const resolvers = {
             return data;
         },
         projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            // Return count query
             return await ProjectModel(prisma).count({}, input);
         },
     },
@@ -138,8 +138,7 @@ export const resolvers = {
         projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            const success = await ProjectModel(prisma).deleteProject(req.userId, input);
-            return { success };
+            return await ProjectModel(prisma).deleteProject(req.userId, input);
         },
     }
 }

@@ -13,6 +13,7 @@ import * as Resource from './resource';
 import * as Role from './role';
 import * as Routine from './routine';
 import * as Standard from './standard';
+import * as Star from './star';
 import * as Tag from './tag';
 import * as User from './user';
 import * as Vote from './vote';
@@ -20,7 +21,7 @@ import * as Vote from './vote';
 const models = [
     Root, Auth, Comment, Email, Feedback, Node,
     Organization, Project, Report, Resource, Role,
-    Routine, Standard, Tag, User, Vote
+    Routine, Standard, Star, Tag, User, Vote
 ]
 
 export const schema = makeExecutableSchema({

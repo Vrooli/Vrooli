@@ -2,7 +2,7 @@ import { CODE } from "@local/shared";
 import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
-import { FindByIdInput, Organization, Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Tag, User } from "../schema/types";
+import { DeleteOneInput, FindByIdInput, Organization, Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Success, Tag, User } from "../schema/types";
 import { addCountQueries, addCreatorField, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
@@ -73,8 +73,9 @@ const formatter = (): FormatConverter<Standard, StandardDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
-            // Remove isUpvoted, as it is calculated in its own query
+            // Remove isUpvoted and isStarred, as these are calculated in their own queries
             if (modified.isUpvoted) delete modified.isUpvoted;
+            if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<StandardDB>): RecursivePartial<Standard> => {
@@ -124,7 +125,7 @@ const sorter = (): Sortable<StandardSortBy> => ({
  */
 const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortable<StandardSortBy>, prisma: PrismaType) => ({
     async findStandard(
-        userId: string | null,
+        userId: string | null, // Of the user making the request, not the standard
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
@@ -132,11 +133,13 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         const select = selectHelper<Standard, StandardDB>(info, formatter().toDB);
         // Access database
         let standard = await prisma.standard.findUnique({ where: { id: input.id }, ...select });
-        // Return standard with "isUpvoted" field. This must be queried separately.
+        // Return standard with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!userId || !standard) return standard;
         const vote = await prisma.vote.findFirst({ where: { userId, standardId: standard.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        return { ...standard, isUpvoted };
+        const star = await prisma.star.findFirst({ where: { byId: userId, standardId: standard.id } });
+        const isStarred = Boolean(star) ?? false;
+        return { ...standard, isUpvoted, isStarred };
     },
     async searchStandards(
         where: { [x: string]: any },
@@ -157,8 +160,8 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         // Search
         const search = searcher<StandardSortBy, StandardSearchInput, Standard, StandardDB>(MODEL_TYPES.Standard, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...reportIdQuery, ...routineIdQuery, ...where }, input, info);
-        // Compute "isUpvoted" field for each standard
-        // If userId not provided, then "isUpvoted" is null
+        // Compute "isUpvoted" and "isStarred" field for each standard
+        // If userId not provided, then "isUpvoted" is null and "isStarred" is false
         if (!userId) {
             searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null } }));
             return searchResults;
@@ -166,11 +169,13 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         // Otherwise, query votes for all search results in one query
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
         const isUpvotedArray = await prisma.vote.findMany({ where: { userId, standardId: { in: resultIds } } });
+        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, standardId: { in: resultIds } } });
         console.log('isUpvotedArray', isUpvotedArray)
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
             console.log('ids', node.id, isUpvotedArray.map(({ standardId }) => standardId));
             const isUpvoted = isUpvotedArray.find(({ standardId }) => standardId === node.id)?.isUpvote ?? null;
-            return { cursor, node: { ...node, isUpvoted } };
+            const isStarred = Boolean(isStarredArray.find(({ standardId }) => standardId === node.id));
+            return { cursor, node: { ...node, isUpvoted, isStarred } };
         });
         return searchResults;
     },
@@ -195,7 +200,7 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         // Associate with either organization or user
         if (input.organizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             standardData = { 
                 ...standardData, 
@@ -213,28 +218,31 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
             data: standardData as any,
             ...selectHelper<Standard, StandardDB>(info, format.toDB)
         })
-        // Return standard with "isUpvoted" field. Will be false in this case.
-        return { ...standard, isUpvoted: false };
+        // Return standard with "isUpvoted" and "isStarred" fields. These will be their default values.
+        return { ...standard, isUpvoted: null, isStarred: false };
     },
-    async deleteStandard(userId: string, input: any): Promise<boolean> {
-        // Find standard
+    async deleteStandard(userId: string, input: DeleteOneInput): Promise<Success> {
+        // Find
         const standard = await prisma.standard.findFirst({
-            where: {
-                OR: [
-                    { createdByOrganizationId: input.organizationId },
-                    { createdByUserId: userId },
-                ]
+            where: { id: input.id },
+            select: {
+                id: true,
+                createdByUserId: true,
+                createdByOrganizationId: true,
             }
         })
-        if (!standard) throw new CustomError(CODE.ErrorUnknown);
-        // Make sure the user is an admin of the standard
-        const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.standardId, userId);
-        if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-        // Delete standard
+        if (!standard) throw new CustomError(CODE.NotFound, "Standard not found");
+        // Check if user is authorized
+        let authorized = userId === standard.createdByUserId;
+        if (!authorized && standard.createdByOrganizationId) {
+            authorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, standard.createdByOrganizationId);
+        }
+        if (!authorized) throw new CustomError(CODE.Unauthorized);
+        // Delete
         await prisma.standard.delete({
             where: { id: standard.id },
         });
-        return true;
+        return { success: true };
     }
 })
 

@@ -16,6 +16,7 @@ export interface organization_organization_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -28,6 +29,7 @@ export interface organization_organization {
   created_at: any;
   tags: organization_organization_tags[];
   stars: number;
+  isStarred: boolean | null;
 }
 
 export interface organization {

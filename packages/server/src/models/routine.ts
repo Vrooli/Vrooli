@@ -1,4 +1,4 @@
-import { FindByIdInput, Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Tag, User } from "../schema/types";
+import { DeleteOneInput, FindByIdInput, Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Success, Tag, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, deleter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { GraphQLResolveInfo } from "graphql";
@@ -68,7 +68,7 @@ const routineCreater = (toDB: FormatConverter<Routine, RoutineDB>['toDB'], prism
  */
 const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<RoutineSortBy>, prisma: PrismaType) => ({
     async findRoutine(
-        userId: string | null,
+        userId: string | null, // Of the user making the request, not the routine
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
@@ -76,11 +76,13 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         const select = selectHelper<Routine, RoutineDB>(info, formatter().toDB);
         // Access database
         let routine = await prisma.routine.findUnique({ where: { id: input.id }, ...select });
-        // Return routine with "isUpvoted" field. This must be queried separately.
+        // Return routine with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!userId || !routine) return routine;
         const vote = await prisma.vote.findFirst({ where: { userId, routineId: routine.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        return { ...routine, isUpvoted };
+        const star = await prisma.star.findFirst({ where: { byId: userId, routineId: routine.id } });
+        const isStarred = Boolean(star) ?? false;
+        return { ...routine, isUpvoted, isStarred };
     },
     async searchRoutines(
         where: { [x: string]: any },
@@ -96,20 +98,23 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         // Search
         const search = searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineDB>(MODEL_TYPES.Routine, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where }, input, info);
-        // Compute "isUpvoted" field for each routine
-        // If userId not provided, then "isUpvoted" is null
+        // Compute "isUpvoted" and "isStarred" field for each routine
+        // If userId not provided, then "isUpvoted" is null and "isStarred" is false
         if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null } }));
+            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null, isStarred: false } }));
             return searchResults;
         }
         // Otherwise, query votes for all search results in one query
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
         const isUpvotedArray = await prisma.vote.findMany({ where: { userId, routineId: { in: resultIds } } });
+        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, routineId: { in: resultIds } } });
         console.log('isUpvotedArray', isUpvotedArray)
+        console.log('isStarredArray', isStarredArray)
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
             console.log('ids', node.id, isUpvotedArray.map(({ routineId }) => routineId));
             const isUpvoted = isUpvotedArray.find(({ routineId }) => routineId === node.id)?.isUpvote ?? null;
-            return { cursor, node: { ...node, isUpvoted } };
+            const isStarred = Boolean(isStarredArray.find(({ routineId }) => routineId === node.id));
+            return { cursor, node: { ...node, isUpvoted, isStarred } };
         });
         return searchResults;
     },
@@ -133,7 +138,7 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         // Associate with either organization or user
         if (input.organizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             routineData = { 
                 ...routineData, 
@@ -155,8 +160,8 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
             data: routineData as any,
             ...selectHelper<Routine, RoutineDB>(info, format.toDB)
         })
-        // Return routine with "isUpvoted" field. Will be false in this case.
-        return { ...routine, isUpvoted: false };
+        // Return routine with "isUpvoted" and "isStarred" fields. These will be their default values.
+        return { ...routine, isUpvoted: null, isStarred: false };
     },
     async updateRoutine(
         userId: string,
@@ -164,6 +169,7 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
+        if (!input.id) throw new CustomError(CODE.InternalError, 'No routine id provided');
         if (!input.title || input.title.length < 1) throw new CustomError(CODE.InternalError, 'Title is too short');
         // Check for censored words
         if (hasProfanity(input.title) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
@@ -175,10 +181,10 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
             version: input.version,
             isAutomatable: input.isAutomatable,
         };
-        // Associate with either organization or user
+        // Associate with either organization or user. This will remove the association with the other.
         if (input.organizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             routineData = { ...routineData, organization: { connect: { id: input.organizationId } } };
         } else {
@@ -190,9 +196,12 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         // Find routine
         let routine = await prisma.routine.findFirst({
             where: {
-                OR: [
-                    { organizationId: input.organizationId },
-                    { userId },
+                AND: [
+                    { id: input.id },
+                    { OR: [
+                        { organizationId: input.organizationId },
+                        { userId },
+                    ] }
                 ]
             }
         })
@@ -203,30 +212,35 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
             data: routine as any,
             ...selectHelper<Routine, RoutineDB>(info, format.toDB)
         });
-        // Return routine with "isUpvoted" field. This must be queried separately.
+        // Return routine with "isUpvoted" and "isStarred" field. These must be queried separately.
         const vote = await prisma.vote.findFirst({ where: { userId, routineId: routine.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        return { ...routine, isUpvoted };
+        const star = await prisma.star.findFirst({ where: { byId: userId, routineId: routine.id } });
+        const isStarred = Boolean(star) ?? false;
+        return { ...routine, isUpvoted, isStarred };
     },
-    async deleteRoutine(userId: string, input: any): Promise<boolean> {
-        // Find routine
+    async deleteRoutine(userId: string, input: DeleteOneInput): Promise<Success> {
+        // Find
         const routine = await prisma.routine.findFirst({
-            where: {
-                OR: [
-                    { organizationId: input.organizationId },
-                    { userId },
-                ]
+            where: { id: input.id },
+            select: {
+                id: true,
+                userId: true,
+                organizationId: true,
             }
         })
-        if (!routine) throw new CustomError(CODE.ErrorUnknown);
-        // Make sure the user is an admin of the organization
-        const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
-        if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-        // Delete comment
+        if (!routine) throw new CustomError(CODE.NotFound, "Routine not found");
+        // Check if user is authorized
+        let authorized = userId === routine.userId;
+        if (!authorized && routine.organizationId) {
+            authorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, routine.organizationId);
+        }
+        if (!authorized) throw new CustomError(CODE.Unauthorized);
+        // Delete
         await prisma.routine.delete({
             where: { id: routine.id },
         });
-        return true;
+        return { success: true };
     }
 })
 
@@ -242,22 +256,18 @@ const formatter = (): FormatConverter<Routine, RoutineDB> => {
         forks: 'fork',
         nodeLists: 'list',
     };
-    const countMapper = {
-        stars: 'starredBy',
-    }
     return {
         toDB: (obj: RecursivePartial<Routine>): RecursivePartial<RoutineDB> => {
             let modified = addJoinTables(obj, joinMapper);
-            modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
             modified = removeOwnerField(modified);
-            // Remove isUpvoted, as it is calculated in its own query
+            // Remove isUpvoted and isStarred, as they are calculated in their own queries
             if (modified.isUpvoted) delete modified.isUpvoted;
+            if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<RoutineDB>): RecursivePartial<Routine> => {
             let modified = removeJoinTables(obj, joinMapper);
-            modified = removeCountQueries(modified, countMapper);
             modified = addCreatorField(modified);
             modified = addOwnerField(modified);
             return modified;

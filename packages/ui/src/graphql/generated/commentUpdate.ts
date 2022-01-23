@@ -51,6 +51,7 @@ export interface commentUpdate_commentUpdate {
   updated_at: any;
   score: number | null;
   isUpvoted: boolean | null;
+  isStarred: boolean | null;
   creator: commentUpdate_commentUpdate_creator | null;
   commentedOn: commentUpdate_commentUpdate_commentedOn;
 }

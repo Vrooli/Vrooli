@@ -47,6 +47,7 @@ export const typeDef = gql`
         instructions: String
         isAutomatable: Boolean
         stars: Int!
+        isStarred: Boolean
         score: Int!
         isUpvoted: Boolean
         inputs: [RoutineInputItem!]!
@@ -173,8 +174,7 @@ export const resolvers = {
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            const success = await RoutineModel(prisma).deleteRoutine(req.userId, input);
-            return { success };
+            return await RoutineModel(prisma).deleteRoutine(req.userId, input);
         },
     }
 }

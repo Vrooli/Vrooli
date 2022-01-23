@@ -22,37 +22,27 @@ datasource db {
 //==============================================================
 
 model comment {
-    id             String          @id @default(uuid()) @db.Uuid
-    text           String          @db.VarChar(128)
-    created_at     DateTime        @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime        @default(now()) @db.Timestamptz(6)
+    id             String        @id @default(uuid()) @db.Uuid
+    text           String        @db.VarChar(128)
+    created_at     DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime      @default(now()) @db.Timestamptz(6)
     // Comment created by one of these foreign ids
-    userId         String?         @db.Uuid
-    organizationId String?         @db.Uuid
+    userId         String?       @db.Uuid
+    organizationId String?       @db.Uuid
     // Comment posted to an object with this foreign id
-    projectId      String?         @db.Uuid
-    routineId      String?         @db.Uuid
-    standardId     String?         @db.Uuid
-    user           user?           @relation(fields: [userId], references: [id])
-    organization   organization?   @relation(fields: [organizationId], references: [id])
-    project        project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    routine        routine?        @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    standard       standard?       @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    projectId      String?       @db.Uuid
+    routineId      String?       @db.Uuid
+    standardId     String?       @db.Uuid
+    user           user?         @relation(fields: [userId], references: [id])
+    organization   organization? @relation(fields: [organizationId], references: [id])
+    project        project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    routine        routine?      @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    standard       standard?     @relation(fields: [standardId], references: [id], onDelete: Cascade)
     reports        report[]
-    stars          comment_stars[]
-    score          Int             @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
-    votes          vote[]          @relation("vote_comment")
-}
-
-// Many to many relationship between comments and users who starred them
-model comment_stars {
-    id        String  @id @default(uuid()) @db.Uuid
-    starredId String  @db.Uuid
-    userId    String  @db.Uuid
-    starred   comment @relation(fields: [starredId], references: [id], onDelete: Cascade)
-    user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([starredId, userId], name: "comment_stars_starredid_userid_unique")
+    stars          Int           @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy      star[]        @relation("star_comment")
+    score          Int           @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    votes          vote[]        @relation("vote_comment")
 }
 
 //==============================================================
@@ -252,7 +242,8 @@ model organization {
     wallets         wallet[]
     projects        project[]                @relation("project_organization_owner") // Projects the organization can contorl
     projectsCreated project[]                @relation("project_organization_creator") // Projects the organization created, but cannot necessarily control
-    starredBy       organization_stars[]
+    stars           Int                      @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy       star[]                   @relation("star_organization")
     routines        routine[]                @relation("routine_organization_owner") // Routines the organization can control
     routinesCreated routine[]                @relation("routine_organization_creator") // Routines the organization created, but cannot necessarily control
     tags            organization_tags[] // Categorical tags set by creators or community-voted
@@ -269,17 +260,6 @@ model organization_resources {
     resource     resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
     @@unique([forId, resourceId], name: "organization_resources_forid_resourceid_unique")
-}
-
-// Many to many relationship between organizations and users who starred them
-model organization_stars {
-    id        String       @id @default(uuid()) @db.Uuid
-    starredId String       @db.Uuid
-    userId    String       @db.Uuid
-    starred   organization @relation(fields: [starredId], references: [id], onDelete: Cascade)
-    user      user         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([starredId, userId], name: "organization_stars_starredid_userid_unique")
 }
 
 // Many-to-many relationship between organizations and tags
@@ -331,7 +311,8 @@ model project {
     createdByOrganization   organization?       @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
     resources               project_resources[]
     wallets                 wallet[]
-    starredBy               project_stars[]
+    stars                   Int                 @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy               star[]              @relation("star_project")
     parent                  project_forks?      @relation("project_parent")
     forks                   project_forks[]     @relation("project_fork")
     reports                 report[]
@@ -362,17 +343,6 @@ model project_resources {
     resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
     @@unique([forId, resourceId], name: "project_resources_forid_resourceid_unique")
-}
-
-// Many to many relationship between projects and users who starred them
-model project_stars {
-    id        String  @id @default(uuid()) @db.Uuid
-    starredId String  @db.Uuid
-    userId    String  @db.Uuid
-    starred   project @relation(fields: [starredId], references: [id], onDelete: Cascade)
-    user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([starredId, userId], name: "project_stars_starredid_userid_unique")
 }
 
 // Many-to-many relationship between projects and tags
@@ -508,7 +478,8 @@ model routine {
     contextualResources     routine_resources_contextual[] // Resources to provide context to the routine
     externalResources       routine_resources_external[] // Resources for completing steps outside of Vrooli
     tags                    routine_tags[] // Categorical tags set by creators or community-voted
-    starredBy               routine_stars[] // Users who starred the routine
+    stars                   Int                            @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy               star[]                         @relation("star_routine")
     parent                  routine_forks?                 @relation("routine_parent")
     forks                   routine_forks[]                @relation("routine_fork")
     nodeLists               node_routine_list_item[] // Routine list nodes the routine is a part of
@@ -575,17 +546,6 @@ model routine_output {
     standard    standard @relation(fields: [standardId], references: [id], onDelete: Cascade)
 }
 
-// Many to many relationship between routines and users who starred them
-model routine_stars {
-    id        String  @id @default(uuid()) @db.Uuid
-    starredId String  @db.Uuid
-    userId    String  @db.Uuid
-    starred   routine @relation(fields: [starredId], references: [id], onDelete: Cascade)
-    user      user    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([starredId, userId], name: "routine_stars_starredid_userid_unique")
-}
-
 // Many-to-many relationship between routines and tags
 model routine_tags {
     id       String  @id @default(uuid()) @db.Uuid
@@ -624,22 +584,12 @@ model standard {
     // TODO add relationships to routines that use this standard
     routineInputs           routine_input[]
     routineOutputs          routine_output[]
-    starredBy               standard_stars[] // Users who starred the standard
+    stars                   Int              @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy               star[]           @relation("star_standard")
     reports                 report[]
     comments                comment[]
     score                   Int              @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     votes                   vote[]           @relation("vote_standard")
-}
-
-// Many to many relationship between standards and users who starred them
-model standard_stars {
-    id        String   @id @default(uuid()) @db.Uuid
-    starredId String   @db.Uuid
-    userId    String   @db.Uuid
-    starred   standard @relation(fields: [starredId], references: [id], onDelete: Cascade)
-    user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([starredId, userId], name: "standard_stars_starredid_userid_unique")
 }
 
 // Many-to-many relationship between standards and tags
@@ -658,6 +608,38 @@ model standard_tags {
 //==============================================================
 
 //==============================================================
+// #region Star
+//==============================================================
+// Objects can only by a user, not an organization.
+// If a user wants to promote another's work, they can put it in a resource list.
+// Votes can be applied to comments, projects, routines, standards, and tags.
+//==============================================================
+
+model star {
+    id             String        @id @default(uuid()) @db.Uuid
+    byId           String        @db.Uuid // ID of user who voted
+    commentId      String?       @db.Uuid
+    organizationId String?       @db.Uuid
+    projectId      String?       @db.Uuid
+    routineId      String?       @db.Uuid
+    standardId     String?       @db.Uuid
+    tagId          String?       @db.Uuid
+    userId         String?       @db.Uuid // ID of user being starred
+    by             user          @relation("star_by", fields: [byId], references: [id])
+    comment        comment?      @relation("star_comment", fields: [commentId], references: [id])
+    organization   organization? @relation("star_organization", fields: [organizationId], references: [id])
+    project        project?      @relation("star_project", fields: [projectId], references: [id], onDelete: Cascade)
+    routine        routine?      @relation("star_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    standard       standard?     @relation("star_standard", fields: [standardId], references: [id], onDelete: Cascade)
+    tag            tag?          @relation("star_tag", fields: [tagId], references: [id], onDelete: Cascade)
+    user           user?         @relation("star_user", fields: [userId], references: [id])
+}
+
+//==============================================================
+// #endregion Vote
+//==============================================================
+
+//==============================================================
 // #region Tag
 //==============================================================
 
@@ -673,7 +655,8 @@ model tag {
     routines      routine_tags[]
     standards     standard_tags[]
     hiddenBy      user_tag_hidden[] // Users who are hiding the tag
-    starredBy     user_tag_stars[] // Users who starred the tag
+    stars         Int                 @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy     star[]              @relation("star_tag")
     score         Int                 @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     votes         vote[]              @relation("vote_tag")
     reports       report[]
@@ -717,15 +700,10 @@ model user {
     projectsCreated                project[]            @relation("project_user_creator") // Projects that the user created, but cannot necessarily control
     routines                       routine[]            @relation("routine_user_owner") // Routines the user can control
     routinesCreated                routine[]            @relation("routine_user_creator") // Routines the user created, but cannot necessarily control
-    starredComments                comment_stars[]
-    starredProjects                project_stars[]
-    starredOrganizations           organization_stars[]
-    starredRoutines                routine_stars[]
-    starredStandards               standard_stars[]
+    stars                          Int                  @default(0) // Count of all stars the user has RECEIVED, not given. Makes queries easier than counting the relationship every time
+    starredBy                      star[]               @relation("star_user")
+    starred                        star[]               @relation("star_by")
     hiddenTags                     user_tag_hidden[]
-    starredTags                    user_tag_stars[]
-    starredUsers                   user_stars[]         @relation("user_star_starred")
-    starredBy                      user_stars[]         @relation("user_star_user")
     sentReports                    report[]             @relation("report_from")
     reports                        report[]
     votes                          vote[]               @relation("vote_user") // Votes the user has cast, NOT votes the user has received (since users can't be voted on)
@@ -753,17 +731,6 @@ model user_roles {
     @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
 }
 
-// Many to many relationship between users and users who starred them
-model user_stars {
-    id        String @id @default(uuid()) @db.Uuid
-    starredId String @db.Uuid
-    userId    String @db.Uuid
-    starred   user   @relation("user_star_starred", fields: [starredId], references: [id], onDelete: Cascade)
-    user      user   @relation("user_star_user", fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([starredId, userId], name: "tag_stars_starredid_userid_unique")
-}
-
 // Many to many relationship between users and tags they have hidden/blurred
 model user_tag_hidden {
     id     String  @id @default(uuid()) @db.Uuid
@@ -774,17 +741,6 @@ model user_tag_hidden {
     tag    tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
     @@unique([userId, tagId], name: "user_tags_hidden_userid_tagid_unique")
-}
-
-// Many to many relationship between users and tags they have starred (will show up in customized feeds)
-model user_tag_stars {
-    id        String @id @default(uuid()) @db.Uuid
-    starredId String @db.Uuid
-    userId    String @db.Uuid
-    starred   tag    @relation(fields: [starredId], references: [id], onDelete: Cascade)
-    user      user   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([starredId, userId], name: "user_tag_stars_starredid_userid_unique")
 }
 
 //==============================================================

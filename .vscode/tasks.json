@@ -1,0 +1,27 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Docker",
+            "type": "shell",
+            "command": "docker-compose up --build --force-recreate -d",
+        },
+        {
+            "label": "Stop Docker",
+            "type": "shell",
+            "command": "docker-compose down"
+        },
+        // {
+        //     "label": "Start Chrome on Windows",
+        //     "type": "shell",
+        //     "command": "start chrome http://localhost:3000"
+        // },
+        // {
+        //     "label": "Start Chrome on Mac",
+        //     "type": "shell",
+        //     "command": "open -a \"Google Chrome\" http://localhost:3000"
+        // }
+    ]
+}

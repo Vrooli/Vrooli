@@ -43,7 +43,6 @@ export const UpvoteDownvote = ({
     }, [internalIsUpvoted, session.id, onVote]);
 
     const upvoteColor = useMemo(() => {
-        console.log('upvoteColor', internalIsUpvoted, isUpvoted);
         if (!session.id) return "rgb(189 189 189)";
         if (internalIsUpvoted === true) return "#34c38b";
         return "#687074";

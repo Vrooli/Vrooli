@@ -140,6 +140,16 @@ export enum StandardType {
   Url = "Url",
 }
 
+export enum StarFor {
+  Comment = "Comment",
+  Organization = "Organization",
+  Project = "Project",
+  Routine = "Routine",
+  Standard = "Standard",
+  Tag = "Tag",
+  User = "User",
+}
+
 export enum TagSortBy {
   AlphabeticalAsc = "AlphabeticalAsc",
   AlphabeticalDesc = "AlphabeticalDesc",
@@ -226,6 +236,7 @@ export interface EmailSignUpInput {
   theme: string;
   marketingEmails: boolean;
   password: string;
+  confirmPassword: string;
 }
 
 export interface FeedbackInput {
@@ -485,6 +496,12 @@ export interface StandardSearchInput {
   updatedTimeFrame?: TimeFrame | null;
   after?: string | null;
   take?: number | null;
+}
+
+export interface StarInput {
+  isStar: boolean;
+  starFor: StarFor;
+  forId: string;
 }
 
 export interface TagCountInput {

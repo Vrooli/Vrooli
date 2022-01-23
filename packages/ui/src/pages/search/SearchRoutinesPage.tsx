@@ -28,10 +28,8 @@ export const SearchRoutinesPage = ({
             key={`routine-list-item-${index}`}
             session={session}
             data={node}
-            isStarred={false}
             isOwn={false}
             onClick={(selected: Routine) => setSelected(selected)}
-            onStarClick={() => { }}
         />)
 
     return (

@@ -16,6 +16,7 @@ export interface routineAdd_routineAdd_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -30,6 +31,7 @@ export interface routineAdd_routineAdd {
   isAutomatable: boolean | null;
   tags: routineAdd_routineAdd_tags[];
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }

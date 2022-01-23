@@ -171,16 +171,20 @@ export const resolvers = {
             //const MinimumStars = 1; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             //const starredByQuery = { starredBy: { gte: MinimumStars } }; TODO for now, Prisma does not offer this type of sorting. See https://github.com/prisma/prisma/issues/8935. Instead, returning if any stars exist.
             // Query organizations
-            const organizations = (await OrganizationModel(prisma).search({
-                //...starredByQuery,
-            }, {
-                ...input,
-                sortBy: OrganizationSortBy.StarsDesc
-            }, {
-                id: true,
-                name: true,
-                stars: true
-            })).edges.map(({ node }: any) => node);
+            const organizations = (await OrganizationModel(prisma).searchOrganizations(
+                {
+                    //...starredByQuery,
+                },
+                req.userId ?? null,
+                {
+                    ...input,
+                    sortBy: OrganizationSortBy.StarsDesc
+                },
+                {
+                    id: true,
+                    name: true,
+                    stars: true,
+                })).edges.map(({ node }: any) => node);
             // Query projects
             const projects = (await ProjectModel(prisma).searchProjects(
                 {
@@ -191,7 +195,8 @@ export const resolvers = {
                 {
                     id: true,
                     name: true,
-                    stars: true
+                    stars: true,
+                    score: true,
                 }
             )).edges.map(({ node }: any) => node);
             // Query routines
@@ -204,7 +209,8 @@ export const resolvers = {
                 {
                     id: true,
                     title: true,
-                    stars: true
+                    stars: true,
+                    score: true,
                 }
             )).edges.map(({ node }: any) => node);
             // Query standards
@@ -217,7 +223,8 @@ export const resolvers = {
                 {
                     id: true,
                     name: true,
-                    stars: true
+                    stars: true,
+                    score: true,
                 }
             )).edges.map(({ node }: any) => node);
             // Query users
@@ -229,7 +236,7 @@ export const resolvers = {
             }, {
                 id: true,
                 username: true,
-                stars: true
+                stars: true,
             })).edges.map(({ node }: any) => node);
             return {
                 organizations,

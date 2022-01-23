@@ -34,6 +34,7 @@ export * from './routineUpdate';
 export * from './standardAdd';
 export * from './profileUpdate';
 export * from './standardDeleteOne';
+export * from './star';
 export * from './tagAdd';
 export * from './tagDeleteMany';
 export * from './tagUpdate';

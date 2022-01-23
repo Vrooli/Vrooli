@@ -6,10 +6,13 @@ import { User } from "types";
 import { labelledSortOptions } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { LabelledSortOption } from "utils";
+import { SearchActorsPageProps } from "./types";
 
 const SORT_OPTIONS: LabelledSortOption<UserSortBy>[] = labelledSortOptions(UserSortBy);
 
-export const SearchActorsPage = () => {
+export const SearchActorsPage = ({
+    session
+}: SearchActorsPageProps) => {
     // Handles dialog when selecting a search result
     const [selected, setSelected] = useState<User | undefined>(undefined);
     const selectedDialogOpen = Boolean(selected);
@@ -23,11 +26,10 @@ export const SearchActorsPage = () => {
     const listItemFactory = (node: User, index: number) => (
         <ActorListItem
             key={`actor-list-item-${index}`}
+            session={session}
             data={node}
-            isStarred={false}
             isOwn={false}
             onClick={(selected: User) => setSelected(selected)}
-            onStarClick={() => { }}
         />)
 
     return (

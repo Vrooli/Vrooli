@@ -22,11 +22,6 @@ export const typeDef = gql`
         forId: ID!
     }
 
-    input VoteRemoveInput {
-        voteFor: VoteFor!
-        forId: ID!
-    }
-
     extend type Mutation {
         vote(input: VoteInput!): Success!
     }

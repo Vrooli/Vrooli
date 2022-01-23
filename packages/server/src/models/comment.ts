@@ -1,12 +1,12 @@
 import { CODE, CommentFor } from "@local/shared";
 import { CustomError } from "../error";
-import { Comment, CommentInput } from "schema/types";
+import { Comment, CommentInput, DeleteOneInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCountQueries, addCreatorField, addJoinTables, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeCreatorField, removeJoinTables, selectHelper } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { GraphQLResolveInfo } from "graphql";
 import { UserDB } from "./user";
-import { OrganizationDB } from "./organization";
+import { OrganizationDB, OrganizationModel } from "./organization";
 import { ProjectDB } from "./project";
 import { RoutineDB } from "./routine";
 import { StandardDB } from "./standard";
@@ -56,8 +56,9 @@ const formatter = (): FormatConverter<Comment, CommentDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
-            // Remove isUpvoted, as it is calculated in its own query
+            // Remove isUpvoted and isStarred, as they are calculated in their own queries
             if (modified.isUpvoted) delete modified.isUpvoted;
+            if (modified.isStarred) delete modified.isStarred;
             console.log('comment toDB', modified);
             // if (modified.commentedOn) {
             //     if (modified.creator.hasOwnProperty('username')) {
@@ -103,7 +104,7 @@ const forMapper = {
  */
 const commenter = (prisma: PrismaType) => ({
     async addComment(
-        userId: string, 
+        userId: string,
         input: CommentInput,
         info: GraphQLResolveInfo | null = null,
     ): Promise<any> {
@@ -120,11 +121,11 @@ const commenter = (prisma: PrismaType) => ({
             },
             ...selectHelper<Comment, CommentDB>(info, formatter().toDB)
         });
-        // Return comment with "isUpvoted" field. Will be false in this case.
-        return { ...comment, isUpvoted: false };
+        // Return comment with "isUpvoted" and "isStarred" fields. These will be their default values.
+        return { ...comment, isUpvoted: null, isStarred: false };
     },
     async updateComment(
-        userId: string, 
+        userId: string,
         input: CommentInput,
         info: GraphQLResolveInfo | null = null,
     ): Promise<any> {
@@ -139,7 +140,7 @@ const commenter = (prisma: PrismaType) => ({
                 [forMapper[input.createdFor]]: input.forId,
             }
         })
-        if (!comment) throw new CustomError(CODE.ErrorUnknown);
+        if (!comment) throw new CustomError(CODE.NotFound, "Comment not found");
         // Update comment
         comment = await prisma.comment.update({
             where: { id: comment.id },
@@ -148,25 +149,35 @@ const commenter = (prisma: PrismaType) => ({
             },
             ...selectHelper<Comment, CommentDB>(info, formatter().toDB)
         });
-        // Return comment with "isUpvoted" field. This must be queried separately.
+        // Return comment with "isUpvoted" and "isStarred" fields. These must be queried separately.
         const vote = await prisma.vote.findFirst({ where: { userId, commentId: comment.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        return { ...comment, isUpvoted };
+        const star = await prisma.star.findFirst({ where: { byId: userId, commentId: comment.id } });
+        const isStarred = Boolean(star) ?? false;
+        return { ...comment, isUpvoted, isStarred };
     },
-    async deleteComment(userId: string, input: any): Promise<boolean> {
-        // Find comment
+    async deleteComment(userId: string, input: DeleteOneInput): Promise<Success> {
+        // Find
         const comment = await prisma.comment.findFirst({
-            where: {
-                userId,
-                [forMapper[input.createdFor]]: input.forId,
+            where: { id: input.id },
+            select: {
+                id: true,
+                userId: true,
+                organizationId: true,
             }
         })
-        if (!comment) throw new CustomError(CODE.ErrorUnknown);
-        // Delete comment
+        if (!comment) throw new CustomError(CODE.NotFound, "Comment not found");
+        // Check if user is authorized
+        let authorized = userId === comment.userId;
+        if (!authorized && comment.organizationId) {
+            authorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, comment.organizationId);
+        }
+        if (!authorized) throw new CustomError(CODE.Unauthorized);
+        // Delete
         await prisma.comment.delete({
             where: { id: comment.id },
         });
-        return true;
+        return { success: true };
     }
 })
 

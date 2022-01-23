@@ -34,6 +34,7 @@ export const typeDef = gql`
         commentedOn: CommentedOn!
         reports: [Report!]!
         stars: Int
+        isStarred: Boolean
         starredBy: [User!]
         score: Int
         isUpvoted: Boolean
@@ -75,8 +76,7 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Delete object
-            const success = await CommentModel(prisma).deleteComment(req.userId, input);
-            return { success }
+            return await CommentModel(prisma).deleteComment(req.userId, input);
         },
     }
 }

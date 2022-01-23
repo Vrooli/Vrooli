@@ -15,24 +15,28 @@ export function FeedList({
         <Box
             onClick={handleContainerClick}
             sx={{
-                transition: 'filter 1s scale 1s ease-in-out',
+                ...containerShadow,
+                borderRadius: '8px',
+                background: (t) => t.palette.background.default,
+                minHeight: 'min(300px, 25vh)',
+                transition: 'scale filter 1s scale 1s ease-in-out',
                 cursor: 'pointer',
                 '&:hover': {
-                    transform: 'scale(1.05)',
+                    transform: 'scale(1.02)',
                     filter: `brightness(105%)`,
                 },
             }}
         >
-            <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>
+            <Box sx={{ 
+                background: (t) => t.palette.primary.dark, 
+                color: (t) => t.palette.primary.contrastText,
+                borderRadius: '8px 8px 0 0',
+                padding: 0.5,
+            }}>
+                <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>
+            </Box>
             <Tooltip placement="bottom" title="Press to see more">
-                <Box
-                    sx={{
-                        ...containerShadow,
-                        borderRadius: '8px',
-                        background: (t) => t.palette.background.default,
-                        minHeight: 'min(300px, 25vh)'
-                    }}
-                >
+                <Box>
                     <List>
                         {children}
                     </List>

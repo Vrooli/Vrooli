@@ -8,6 +8,7 @@ export const commentFields = gql`
         updated_at
         score
         isUpvoted
+        isStarred
         creator {
             ... on Organization {
                 id

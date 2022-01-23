@@ -22,6 +22,7 @@ export interface projects_projects_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -49,6 +50,7 @@ export interface projects_projects_edges_node {
   tags: projects_projects_edges_node_tags[];
   owner: projects_projects_edges_node_owner | null;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }

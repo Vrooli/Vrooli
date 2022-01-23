@@ -16,6 +16,7 @@ export interface deepRoutineFields_inputs_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -83,6 +84,7 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_t
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -97,6 +99,7 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
   isAutomatable: boolean | null;
   tags: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -164,6 +167,7 @@ export interface deepRoutineFields_outputs_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -216,6 +220,7 @@ export interface deepRoutineFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -232,6 +237,8 @@ export interface deepRoutineFields {
   version: string | null;
   stars: number;
   score: number;
+  isUpvoted: boolean | null;
+  isStarred: boolean | null;
   inputs: deepRoutineFields_inputs[];
   nodes: deepRoutineFields_nodes[];
   owner: deepRoutineFields_owner | null;

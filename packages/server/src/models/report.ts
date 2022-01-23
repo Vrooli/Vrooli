@@ -1,6 +1,6 @@
 import { CODE, ReportFor } from "@local/shared";
 import { CustomError } from "../error";
-import { Report, ReportInput } from "schema/types";
+import { DeleteOneInput, Report, ReportInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { hasProfanity } from "../utils/censor";
 import { findByIder, FormatConverter, MODEL_TYPES } from "./base";
@@ -99,12 +99,14 @@ const forMapper = {
         input: ReportInput,
     ): Promise<any> {
         // Check for valid arguments
+        if (!input.id) throw new CustomError(CODE.InternalError, 'No report id provided');
         if (!input.reason || input.reason.length < 1) throw new CustomError(CODE.InternalError, 'Reason must be provided');
         // Check for censored words
         if (hasProfanity(`${input.reason} | ${input.details}`)) throw new CustomError(CODE.BannedWord);
         // Find report
         const report = await prisma.report.findFirst({
             where: {
+                id: input.id,
                 userId,
                 [forMapper[input.createdFor]]: input.forId,
             }
@@ -119,20 +121,16 @@ const forMapper = {
             }
         });
     },
-    async deleteReport(userId: string, input: any): Promise<boolean> {
-        // Find report
-        const report = await prisma.report.findFirst({
+    async deleteReport(userId: string, input: DeleteOneInput): Promise<Success> {
+        const result = await prisma.report.deleteMany({
             where: {
-                userId,
-                [forMapper[input.createdFor]]: input.forId,
+                AND: [
+                    { id: input.id },
+                    { userId },
+                ]
             }
         })
-        if (!report) throw new CustomError(CODE.ErrorUnknown);
-        // Delete report
-        await prisma.report.delete({
-            where: { id: report.id },
-        });
-        return true;
+        return { success: Boolean(result.count) };
     }
 })
 

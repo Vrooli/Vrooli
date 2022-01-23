@@ -28,14 +28,16 @@ export interface BaseSearchPageProps<DataType, SortBy> {
     onPopupButtonClick?: () => void; // Called when the popup button is clicked
 }
 
-export interface SearchProjectsPageProps {
+export interface SearchPageBaseProps {
     session: Session;
 }
 
-export interface SearchRoutinesPageProps {
-    session: Session;
-}
+export interface SearchActorsPageProps extends SearchPageBaseProps {}
 
-export interface SearchStandardsPageProps {
-    session: Session;
-}
+export interface SearchOrganizationsPageProps extends SearchPageBaseProps {}
+
+export interface SearchProjectsPageProps extends SearchPageBaseProps {}
+
+export interface SearchRoutinesPageProps extends SearchPageBaseProps {}
+
+export interface SearchStandardsPageProps extends SearchPageBaseProps {}

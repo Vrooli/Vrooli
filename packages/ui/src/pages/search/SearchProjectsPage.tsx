@@ -28,10 +28,8 @@ export const SearchProjectsPage = ({
             key={`project-list-item-${index}`}
             session={session}
             data={node}
-            isStarred={false}
             isOwn={false}
             onClick={(selected: Project) => setSelected(selected)}
-            onStarClick={() => { }}
         />)
 
     return (

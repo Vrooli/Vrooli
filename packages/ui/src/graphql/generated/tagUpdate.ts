@@ -16,6 +16,7 @@ export interface tagUpdate_tagUpdate {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }

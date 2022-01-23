@@ -111,6 +111,8 @@ export const deepRoutineFields = gql`
         version
         stars
         score
+        isUpvoted
+        isStarred
         inputs {
             ...inputFields
         }

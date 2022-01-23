@@ -7,6 +7,7 @@ export const tagFields = gql`
         description
         created_at
         stars
+        isStarred
         score
         isUpvoted
     }

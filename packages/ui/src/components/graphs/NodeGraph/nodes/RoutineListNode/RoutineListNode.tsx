@@ -218,6 +218,7 @@ export const RoutineListNode = ({
                             onContextMenu={openContext}
                             sx={{
                                 display: 'flex',
+                                height: '48px', // Lighthouse SEO requirement
                                 alignItems: 'center',
                                 borderRadius: '12px 12px 0 0',
                                 backgroundColor: (t) => t.palette.primary.dark,

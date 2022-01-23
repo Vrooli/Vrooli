@@ -12,5 +12,6 @@ export interface userFields {
   id: string;
   username: string | null;
   stars: number;
+  isStarred: boolean | null;
   bio: string | null;
 }

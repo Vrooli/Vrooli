@@ -1,6 +1,6 @@
 import { Box, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { centeredDiv } from 'styles';
+import { centeredDiv, containerShadow } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
 import { useQuery } from '@apollo/client';
 import { autocompleteQuery } from 'graphql/query';
@@ -45,20 +45,25 @@ export const HomePage = ({
 
     const { routines, projects, organizations, standards, users } = useMemo(() => {
         if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
+        console.log('calculating routines, projects, organizations, standards, users...', data);
         const { routines, projects, organizations, standards, users } = data.autocomplete;
+        console.log('routine, project, organization, standard, user', routines, projects, organizations, standards, users);
         return { routines, projects, organizations, standards, users };
     }, [data]);
 
     const autocompleteOptions = useMemo(() => {
         if (!data) return [];
+        console.log('calculating autocomplete options', data)
         const routines = data.autocomplete.routines.map(r => ({ title: r.title, id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
         const projects = data.autocomplete.projects.map(p => ({ title: p.name, id: p.id, stars: p.stars, objectType: ObjectType.Project }));
         const organizations = data.autocomplete.organizations.map(o => ({ title: o.name, id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
         const standards = data.autocomplete.standards.map(s => ({ title: s.name, id: s.id, stars: s.stars, objectType: ObjectType.Standard }));
         const users = data.autocomplete.users.map(u => ({ title: u.username, id: u.id, stars: u.stars, objectType: ObjectType.User }));
-        return [...routines, ...projects, ...organizations, ...standards, ...users].sort((a: any, b: any) => {
+        const options = [...routines, ...projects, ...organizations, ...standards, ...users].sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
+        console.log('calculated autocomplete options', options);
+        return options;
     }, [data]);
 
     /**
@@ -108,63 +113,63 @@ export const HomePage = ({
     }, [searchString]);
 
     const feeds = useMemo(() => {
+        console.log('updating feeds');
         let listFeeds: JSX.Element[] = [];
         for (const objectType of feedOrder) {
             let listFeedItems: JSX.Element[] = [];
             switch (objectType) {
                 case ObjectType.Organization:
                     listFeedItems = organizations.map(o => (
-                        <OrganizationListItem 
-                            key={`feed-list-item-${o.id}`} 
-                            data={o} 
-                            isStarred={false} 
-                            isOwn={false} 
+                        <OrganizationListItem
+                            key={`feed-list-item-${o.id}`}
+                            session={session}
+                            data={o}
+                            isOwn={false}
                             onClick={() => { }}
-                            onStarClick={() => { }} 
                         />
                     ))
                     break;
                 case ObjectType.Project:
                     listFeedItems = projects.map(o => (
-                        <ProjectListItem 
-                            key={`feed-list-item-${o.id}`} 
+                        <ProjectListItem
+                            key={`feed-list-item-${o.id}`}
                             session={session}
-                            data={o} isStarred={false} 
-                            isOwn={false} 
-                            onClick={() => { }} 
-                            onStarClick={() => { }} 
+                            data={o}
+                            isOwn={false}
+                            onClick={() => { }}
                         />
                     ))
                     break;
                 case ObjectType.Routine:
                     listFeedItems = routines.map(o => (
-                        <RoutineListItem 
-                            key={`feed-list-item-${o.id}`} 
+                        <RoutineListItem
+                            key={`feed-list-item-${o.id}`}
                             session={session}
-                            data={o} 
-                            isStarred={false} 
-                            isOwn={false} 
-                            onClick={() => { }} 
-                            onStarClick={() => { }} 
+                            data={o}
+                            isOwn={false}
+                            onClick={() => { }}
                         />
                     ))
                     break;
                 case ObjectType.Standard:
                     listFeedItems = standards.map(o => (
-                        <StandardListItem 
-                            key={`feed-list-item-${o.id}`} 
+                        <StandardListItem
+                            key={`feed-list-item-${o.id}`}
                             session={session}
-                            data={o} 
-                            isStarred={false} 
-                            isOwn={false} 
-                            onClick={() => { }} 
-                            onStarClick={() => { }} 
+                            data={o}
+                            isOwn={false}
+                            onClick={() => { }}
                         />
                     ))
                     break;
                 case ObjectType.User:
                     listFeedItems = users.map(o => (
-                        <ActorListItem key={`feed-list-item-${o.id}`} data={o} isStarred={false} isOwn={false} onClick={() => { }} onStarClick={() => { }} />
+                        <ActorListItem 
+                            key={`feed-list-item-${o.id}`} 
+                            session={session} 
+                            data={o} 
+                            isOwn={false} 
+                        />
                     ))
                     break;
             }
@@ -179,7 +184,7 @@ export const HomePage = ({
             ))
         }
         return listFeeds;
-    }, [feedOrder, searchString])
+    }, [feedOrder, organizations, projects, routines, standards, users, openSearch]);
 
     return (
         <Box id="page">
@@ -206,18 +211,33 @@ export const HomePage = ({
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 {feeds}
-            </Stack>
-            {/* FAQ */}
-            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '40px', paddingBottom: '40px' }}>
-                <Typography component="h2" variant="h3">FAQ</Typography>
-                <Typography variant="h5">What is This?</Typography>
-                <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
+                {/* FAQ */}
+                <Box
+                    sx={{
+                        ...containerShadow,
+                        borderRadius: '8px',
+                        background: (t) => t.palette.background.default,
+                    }}
+                >
+                    <Box sx={{
+                        background: (t) => t.palette.primary.dark,
+                        color: (t) => t.palette.primary.contrastText,
+                        borderRadius: '8px 8px 0 0',
+                        padding: 0.5,
+                    }}>
+                        <Typography component="h2" variant="h4" textAlign="center">FAQ</Typography>
+                    </Box>
+                    <Stack spacing={2} direction="column" sx={{ ...centeredDiv, padding: 2 }}>
+                        <Typography variant="h5">What is This?</Typography>
+                        <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
 
-                <Typography variant="h5">What can I do?</Typography>
-                <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
+                        <Typography variant="h5">What can I do?</Typography>
+                        <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
 
-                <Typography variant="h5">How does it work?</Typography>
-                <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
+                        <Typography variant="h5">How does it work?</Typography>
+                        <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
+                    </Stack>
+                </Box>
             </Stack>
         </Box>
     )

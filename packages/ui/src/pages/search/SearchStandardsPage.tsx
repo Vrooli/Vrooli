@@ -28,10 +28,8 @@ export const SearchStandardsPage = ({
             key={`standard-list-item-${index}`}
             session={session}
             data={node}
-            isStarred={false}
             isOwn={false}
             onClick={(selected: Standard) => setSelected(selected)}
-            onStarClick={() => { }}
         />)
 
     return (

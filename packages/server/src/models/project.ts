@@ -2,7 +2,7 @@ import { CODE, MemberRole } from "@local/shared";
 import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
-import { FindByIdInput, Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Tag, User } from "../schema/types";
+import { DeleteOneInput, FindByIdInput, Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Success, Tag, User } from "../schema/types";
 import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, creater, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
@@ -82,8 +82,9 @@ export const projectFormatter = (): FormatConverter<Project, ProjectDB> => {
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
             modified = removeOwnerField(modified);
-            // Remove isUpvoted, as it is calculated in its own query
+            // Remove isUpvoted and isStarred, as they are calculated in their own queries
             if (modified.isUpvoted) delete modified.isUpvoted;
+            if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<ProjectDB>): RecursivePartial<Project> => {
@@ -136,7 +137,7 @@ export const projectSorter = (): Sortable<ProjectSortBy> => ({
  */
 const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<ProjectSortBy>, prisma: PrismaType) => ({
     async findProject(
-        userId: string | null,
+        userId: string | null, // Of the user making the request, not the project
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
@@ -144,11 +145,13 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         const select = selectHelper<Project, ProjectDB>(info, projectFormatter().toDB);
         // Access database
         let project = await prisma.project.findUnique({ where: { id: input.id }, ...select });
-        // Return project with "isUpvoted" field. This must be queried separately.
+        // Return project with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!userId || !project) return project;
         const vote = await prisma.vote.findFirst({ where: { userId, projectId: project.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        return { ...project, isUpvoted };
+        const star = await prisma.star.findFirst({ where: { byId: userId, projectId: project.id } });
+        const isStarred = Boolean(star) ?? false;
+        return { ...project, isUpvoted, isStarred };
     },
     async searchProjects(
         where: { [x: string]: any },
@@ -164,20 +167,24 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         // Search
         const search = searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectDB>(MODEL_TYPES.Project, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where }, input, info);
-        // Compute "isUpvoted" field for each project
-        // If userId not provided, then "isUpvoted" is null
+        // Compute "isUpvoted" and "isStarred" fields for each project
+        // If userId not provided, then "isUpvoted" is null and "isStarred" is false
         if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null } }));
+            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null, isStarred: false } }));
             return searchResults;
         }
         // Otherwise, query votes for all search results in one query
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
         const isUpvotedArray = await prisma.vote.findMany({ where: { userId, projectId: { in: resultIds } } });
-        console.log('isUpvotedArray', isUpvotedArray)
+        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, projectId: { in: resultIds } } });
+        console.log('isUpvotedArray', isUpvotedArray);
+        console.log('isStarredArray', isStarredArray);
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
             console.log('ids', node.id, isUpvotedArray.map(({ projectId }) => projectId));
             const isUpvoted = isUpvotedArray.find(({ projectId }) => projectId === node.id)?.isUpvote ?? null;
-            return { cursor, node: { ...node, isUpvoted } };
+            const isStarred = Boolean(isStarredArray.find(({ projectId }) => projectId === node.id));   
+            console.log('isStarred', isStarred, );
+            return { cursor, node: { ...node, isUpvoted, isStarred } };
         });
         return searchResults;
     },
@@ -195,7 +202,7 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         // Associate with either organization or user
         if (input.organizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             projectData = { 
                 ...projectData, 
@@ -215,8 +222,8 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
             data: projectData as any,
             ...selectHelper<Project, ProjectDB>(info, format.toDB)
         })
-        // Return project with "isUpvoted" field. Will be false in this case.
-        return { ...project, isUpvoted: false };
+        // Return project with "isUpvoted" and "isStarred" fields. These will be their default values.
+        return { ...project, isUpvoted: null, isStarred: false };
     },
     async updateProject(
         userId: string,
@@ -224,27 +231,31 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
+        if (!input.id) throw new CustomError(CODE.InternalError, 'No project id provided');
         if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
         if (hasProfanity(input.name) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
         // Create project data
         let projectData: { [x: string]: any } = { name: input.name, description: input.description ?? '' };
-        // Associate with either organization or user
+        // Associate with either organization or user. This will remove the association with the other.
         if (input.organizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-            projectData = { ...projectData, organization: { connect: { id: input.organizationId } } };
+            projectData = { ...projectData, organization: { connect: { id: input.organizationId } }, userId: null };
         } else {
-            projectData = { ...projectData, user: { connect: { id: userId } } };
+            projectData = { ...projectData, user: { connect: { id: userId } }, organizationId: null };
         }
         // TODO resources
         // Find project
         let project = await prisma.project.findFirst({
             where: {
-                OR: [
-                    { organizationId: input.organizationId },
-                    { userId },
+                AND: [
+                    { id: input.id },
+                    { OR: [
+                        { organizationId: input.organizationId },
+                        { userId },
+                    ] }
                 ]
             }
         })
@@ -255,30 +266,35 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
             data: projectData as any,
             ...selectHelper<Project, ProjectDB>(info, format.toDB)
         });
-        // Return project with "isUpvoted" field. This must be queried separately.
+        // Return project with "isUpvoted" and "isStarred" fields. These must be queried separately.
         const vote = await prisma.vote.findFirst({ where: { userId, projectId: project.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        return { ...project, isUpvoted };
+        const star = await prisma.star.findFirst({ where: { byId: userId, projectId: project.id } });
+        const isStarred = Boolean(star) ?? false;
+        return { ...project, isUpvoted, isStarred };
     },
-    async deleteProject(userId: string, input: any): Promise<boolean> {
-        // Find project
+    async deleteProject(userId: string, input: DeleteOneInput): Promise<Success> {
+        // Find
         const project = await prisma.project.findFirst({
-            where: {
-                OR: [
-                    { organizationId: input.organizationId },
-                    { userId },
-                ]
+            where: { id: input.id },
+            select: {
+                id: true,
+                userId: true,
+                organizationId: true,
             }
         })
-        if (!project) throw new CustomError(CODE.ErrorUnknown);
-        // Make sure the user is an admin of the organization
-        const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(input.organizationId, userId);
-        if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-        // Delete comment
+        if (!project) throw new CustomError(CODE.NotFound, "Project not found");
+        // Check if user is authorized
+        let authorized = userId === project.userId;
+        if (!authorized && project.organizationId) {
+            authorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, project.organizationId);
+        }
+        if (!authorized) throw new CustomError(CODE.Unauthorized);
+        // Delete
         await prisma.project.delete({
             where: { id: project.id },
         });
-        return true;
+        return { success: true };
     }
 })
 

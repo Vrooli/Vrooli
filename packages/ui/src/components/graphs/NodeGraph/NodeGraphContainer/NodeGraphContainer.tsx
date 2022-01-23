@@ -210,7 +210,9 @@ export const NodeGraphContainer = ({
             const curr = nodes[i];
             dimMap[curr.id] = {
                 width: NodeWidth[curr.type] * scale,
-                height: NodeWidth[nodes[i].type] * scale, //TODO: fix this
+                // Routine Lists, unless opened, are 45 pixels tall. Every other node has the same 
+                // height as its width.
+                height: curr.type === NodeType.RoutineList ? 45 : NodeWidth[nodes[i].type] * scale,
             }
         }
         setCellDimensions(dimMap);
@@ -249,23 +251,31 @@ export const NodeGraphContainer = ({
         const columnItemCount = columnData.map(col => col.length).reduce((a, b) => a + b, 0);
         if (Object.keys(cellDimensions).length !== columnItemCount) return;
         // Holds x position of current column
-        let x = 0;
+        let x = 25; // Accounts for left padding
         // First loop through to determine column heights. This is needed so
         // column nodes can be centered vertically
         let maxHeight = 0;
         let columnHeights: number[] = [];
         for (let i = 0; i < columnData.length; i++) {
+            console.log('calculating cell positions: in column', columnData[i]);
             const curr = columnData[i];
             // Calculate height of current column
             let height = 0;
             for (let j = 0; j < curr.length; j++) {
+                console.log('calculating height of cell in column', curr[j].id, cellDimensions[curr[j].id]);
+                // Every node besides the first has a top margin, to separate them from the previous node.
+                // The margin is 10 times the Stack spacing in NodeGraphColumn. We hardcode this here, since 
+                // the spacing is not configurable
+                if (j > 0) height += 100;
                 height += cellDimensions[curr[j].id].height;
             }
+            console.log('column height', height);
             // Add height to list
             columnHeights.push(height);
             // If height is larger than current max, update max
             if (height > maxHeight) maxHeight = height;
         }
+        console.log('final maxheight', maxHeight);
         // Now loop through again to calculate cell positions
         for (let i = 0; i < columnData.length; i++) {
             // Holds y position of current node
@@ -288,6 +298,7 @@ export const NodeGraphContainer = ({
             // Increment x position by widest node in column + spacing between node cells
             x += widestWidth + 50;
         }
+        console.log('final cell positions', posMap);
         setCellPositions(posMap);
     }, [columnData, cellDimensions]);
 
@@ -300,9 +311,12 @@ export const NodeGraphContainer = ({
         if (!nodes ||
             Object.keys(nodes).length !== Object.keys(cellPositions).length ||
             Object.keys(nodes).length !== Object.keys(cellDimensions).length) return [];
+        console.log('calculating edges', nodes);
         return nodes.map(node => {
-            console.log('in edge node loop', node)
             if (!node.previous || !node.next) return null;
+            console.log('creating edge for:', node)
+            console.log('previous', nodes.find(n => n.id === node.previous));
+            console.log('next', nodes.find(n => n.id === node.next));
             // Center of cells the edge is attached to
             const startPos: Positions = {
                 x: cellPositions[node.previous].x + cellDimensions[node.previous].width / 2,
@@ -333,17 +347,21 @@ export const NodeGraphContainer = ({
         if (!nodes ||
             Object.keys(nodes).length !== Object.keys(cellPositions).length ||
             Object.keys(nodes).length !== Object.keys(cellDimensions).length) return [];
+        console.log('creating highlights', nodes);
         return nodes.map(node => {
             // Cannot drop onto a start or end node
             if (node.type === NodeType.Start || node.type === NodeType.End) return null;
+            console.log('creating highlight for:', node)
+            console.log('position', cellPositions[node.id]);
+            console.log('dimension', cellDimensions[node.id]);
             return <Box
                 position="absolute"
                 zIndex={1}
                 key={`highlight-${node.id}`}
-                left={cellPositions[node.id].x}
-                right={cellPositions[node.id].y}
-                width={cellDimensions[node.id].width}
-                height={cellDimensions[node.id].height}
+                left={cellPositions[node.id].x - 10}
+                top={cellPositions[node.id].y - 10}
+                width={cellDimensions[node.id].width + 20}
+                height={cellDimensions[node.id].height + 20}
                 sx={{
                     background: "#6ef04e",
                     '&:hover': {
@@ -384,7 +402,7 @@ export const NodeGraphContainer = ({
             {/* Highlighted squares to indicate valid drop areas */}
             {highlights}
             {/* Nodes */}
-            <Stack spacing={0} direction="row">
+            <Stack spacing={0} direction="row" zIndex={5}>
                 {columns}
             </Stack>
         </Box>

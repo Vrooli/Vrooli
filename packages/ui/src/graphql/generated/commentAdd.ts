@@ -51,6 +51,7 @@ export interface commentAdd_commentAdd {
   updated_at: any;
   score: number | null;
   isUpvoted: boolean | null;
+  isStarred: boolean | null;
   creator: commentAdd_commentAdd_creator | null;
   commentedOn: commentAdd_commentAdd_commentedOn;
 }

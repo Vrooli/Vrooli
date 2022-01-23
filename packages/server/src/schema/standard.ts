@@ -3,7 +3,7 @@ import { CODE, StandardSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteManyInput, FindByIdInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, Success } from './types';
+import { DeleteManyInput, DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, Success } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
@@ -58,6 +58,7 @@ export const typeDef = gql`
         default: String
         isFile: Boolean!
         stars: Int!
+        isStarred: Boolean
         score: Int!
         isUpvoted: Boolean
         creator: Contributor
@@ -149,11 +150,10 @@ export const resolvers = {
          * Delete a standard you've created. Other standards must go through a reporting system
          * @returns 
          */
-        standardDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
+        standardDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
-            const success = await StandardModel(prisma).deleteStandard(req.userId, input);
-            return { success };
+            return await StandardModel(prisma).deleteStandard(req.userId, input);
         },
     }
 }

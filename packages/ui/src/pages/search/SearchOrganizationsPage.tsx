@@ -6,10 +6,13 @@ import { Organization } from "types";
 import { labelledSortOptions } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { LabelledSortOption } from "utils";
+import { SearchOrganizationsPageProps } from "./types";
 
 const SORT_OPTIONS: LabelledSortOption<OrganizationSortBy>[] = labelledSortOptions(OrganizationSortBy);
 
-export const SearchOrganizationsPage = () => {
+export const SearchOrganizationsPage = ({
+    session
+}: SearchOrganizationsPageProps) => {
     // Handles dialog when selecting a search result
     const [selected, setSelected] = useState<Organization | undefined>(undefined);
     const selectedDialogOpen = Boolean(selected);
@@ -23,11 +26,10 @@ export const SearchOrganizationsPage = () => {
     const listItemFactory = (node: Organization, index: number) => (
         <OrganizationListItem
             key={`organization-list-item-${index}`}
+            session={session}
             data={node}
-            isStarred={false}
             isOwn={false}
             onClick={(selected: Organization) => setSelected(selected)}
-            onStarClick={() => { }}
         />)
 
     return (

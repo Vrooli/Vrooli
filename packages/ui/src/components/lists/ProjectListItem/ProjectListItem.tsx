@@ -1,43 +1,33 @@
 // Used to display popular/search results of a particular object type
-import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { ProjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
-import { useCallback, useMemo } from 'react';
-import { APP_LINKS, VoteFor } from '@local/shared';
-import {
-    Star as IsStarredIcon,
-    StarBorder as IsNotStarredIcon,
-} from '@mui/icons-material';
+import { useCallback } from 'react';
+import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { UpvoteDownvote } from 'components';
-import { voteMutation } from 'graphql/mutation';
+import { StarButton, UpvoteDownvote } from 'components';
+import { starMutation, voteMutation } from 'graphql/mutation';
 import { vote } from 'graphql/generated/vote';
 import { useMutation } from '@apollo/client';
+import { star } from 'graphql/generated/star';
 
 export function ProjectListItem({
     session,
     data,
-    isStarred = false,
     isOwn = false,
     onClick,
-    onStarClick = () => { },
 }: ProjectListItemProps) {
     const [, setLocation] = useLocation();
-    const [vote, { loading }] = useMutation<vote>(voteMutation);
+    const [vote] = useMutation<vote>(voteMutation);
+    const [star] = useMutation<star>(starMutation);
+    console.log('projectlistitem', data);
 
     const handleClick = useCallback(() => {
         // If onClick provided, call if
         if (onClick) onClick(data);
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Project}/${data.id}`)
-    }, [onClick, data, setLocation]);
-
-    const handleStarClick = useCallback((e: any) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        // Call the onStarClick callback
-        onStarClick(data.id ?? '', isStarred)
-    }, [onStarClick, data.id, isStarred]);
+    }, [onClick, setLocation, data]);
 
     const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
         // Prevent propagation of normal click event
@@ -52,21 +42,22 @@ export function ProjectListItem({
                 }
             }
         });
-    }, [data])
+    }, [data.id, vote]);
 
-    const starIcon = useMemo(() => {
-        const Icon = isStarred ? IsStarredIcon : IsNotStarredIcon;
-        let tooltip: string;
-        if (isOwn) tooltip = 'Cannot favorite yourself 💩';
-        else if (isStarred) tooltip = 'Remove project from favorites';
-        else tooltip = 'Love this project? Give it a star!';
-
-        return (
-            <Tooltip placement="left" title={tooltip}>
-                <Icon onClick={handleStarClick} sx={{ fill: '#ffac3a', cursor: isOwn ? 'default' : 'pointer' }} />
-            </Tooltip>
-        )
-    }, [isOwn, isStarred, handleStarClick]);
+    const handleStar = useCallback((e: any, isStar: boolean) => {
+        // Prevent propagation of normal click event
+        e.stopPropagation();
+        // Send star mutation
+        star({
+            variables: {
+                input: {
+                    isStar,
+                    starFor: StarFor.Project,
+                    forId: data.id
+                }
+            }
+        });
+    }, [data.id, star]);
 
     return (
         <Tooltip placement="top" title="View details">
@@ -84,7 +75,7 @@ export function ProjectListItem({
                         isUpvoted={data.isUpvoted}
                         onVote={handleVote}
                     />
-                    <Stack direction="column" spacing={1} pl={2} sx={{width: '-webkit-fill-available'}}>
+                    <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         <ListItemText
                             primary={data.name}
                             sx={{ ...multiLineEllipsis(1) }}
@@ -94,20 +85,12 @@ export function ProjectListItem({
                             sx={{ ...multiLineEllipsis(2) }}
                         />
                     </Stack>
-                    <Stack
-                        direction="row"
-                        spacing={1}
-                        sx={{
-                            marginRight: 0,
-                            maxWidth: '25%',
-                        }}
-                    >
-                        {starIcon}
-                        <ListItemText
-                            primary={data.stars}
-                            sx={{ ...multiLineEllipsis(1) }}
-                        />
-                    </Stack>
+                    <StarButton
+                        session={session}
+                        isStar={data.isStarred}
+                        stars={data.stars}
+                        onStar={handleStar}
+                    />
                 </ListItemButton>
             </ListItem>
         </Tooltip>

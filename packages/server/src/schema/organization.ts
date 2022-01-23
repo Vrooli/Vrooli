@@ -39,6 +39,7 @@ export const typeDef = gql`
         name: String!
         bio: String
         stars: Int!
+        isStarred: Boolean
         comments: [Comment!]!
         resources: [Resource!]!
         projects: [Project!]!
@@ -106,48 +107,41 @@ export const resolvers = {
     OrganizationSortBy: OrganizationSortBy,
     MemberRole: MemberRole,
     Query: {
-        organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
-            // Query database
-            const dbModel = await OrganizationModel(prisma).findById(input, info);
-            // Format data
-            return dbModel ? organizationFormatter().toGraphQL(dbModel) : null;
+        organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
+            const data = await OrganizationModel(prisma).findOrganization(req.userId ? req.userId : null, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
-        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            // Return search query
-            return await OrganizationModel(prisma).search({}, input, info);
+        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
+            const data = await OrganizationModel(prisma).searchOrganizations({}, req.userId ?? null, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
         organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            // Return count query
             return await OrganizationModel(prisma).count({}, input);
         },
     },
     Mutation: {
         organizationAdd: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO add extra restrictions
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const dbModel = await OrganizationModel(prisma).create(input as any, info);
-            // Format object to GraphQL type
-            if (dbModel) return organizationFormatter().toGraphQL(dbModel);
-            throw new CustomError(CODE.ErrorUnknown);
+            const created = await OrganizationModel(prisma).addOrganization(req.userId, input, info);
+            if (!created) throw new CustomError(CODE.ErrorUnknown);
+            return created;
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO must be updating your own
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            //const dbModel = await OrganizationModel(prisma).update(input, info);
-            // Format to GraphQL type
-            //return organizationFormatter().toGraphQL(dbModel);
-            throw new CustomError(CODE.NotImplemented);
+            const updated = await OrganizationModel(prisma).updateOrganization(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
         },
         organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO must be deleting your own
-            const success = await OrganizationModel(prisma).delete(input);
-            return { success };
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            return await OrganizationModel(prisma).deleteOrganization(req.userId, input);
         },
     }
 }

@@ -8,6 +8,7 @@ export * from './ResourceListItemContextMenu/ResourceListItemContextMenu';
 export * from './RoutineListItem/RoutineListItem';
 export * from './SortMenu/SortMenu';
 export * from './StandardListItem/StandardListItem';
+export * from './StarButton/StarButton';
 export * from './StatsList/StatsList';
 export * from './TimeMenu/TimeMenu';
 export * from './UpvoteDownvote/UpvoteDownvote';

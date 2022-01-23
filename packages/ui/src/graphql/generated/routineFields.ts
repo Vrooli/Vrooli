@@ -14,6 +14,7 @@ export interface routineFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -28,6 +29,7 @@ export interface routineFields {
   isAutomatable: boolean | null;
   tags: routineFields_tags[];
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }

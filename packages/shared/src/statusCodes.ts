@@ -55,6 +55,10 @@ export const CODE = {
         code: 'NONE_EXPIRED',
         message: 'Nonce has expired. Please restart the sign in process (and complete it quicker this time :)'
     },
+    NotFound: {
+        code: 'NOT_FOUND',
+        message: 'Error: Resource not found'
+    },
     NotImplemented: {
         code: 'NOT_IMPLEMENTED',
         message: 'Error: This has not been implemented yet. Please be patient :)'

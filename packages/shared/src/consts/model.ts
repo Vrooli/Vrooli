@@ -279,3 +279,14 @@ export const VoteFor = {
     Tag: "Tag",
 }
 export type VoteFor = ValueOf<typeof VoteFor>;
+
+export const StarFor = {
+    Comment: "Comment",
+    Organization: "Organization",
+    Project: "Project",
+    Routine: "Routine",
+    Standard: "Standard",
+    Tag: "Tag",
+    User: "User",
+}
+export type StarFor = ValueOf<typeof StarFor>;

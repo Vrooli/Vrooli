@@ -22,6 +22,7 @@ export interface organizations_organizations_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -34,6 +35,7 @@ export interface organizations_organizations_edges_node {
   created_at: any;
   tags: organizations_organizations_edges_node_tags[];
   stars: number;
+  isStarred: boolean | null;
 }
 
 export interface organizations_organizations_edges {

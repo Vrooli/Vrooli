@@ -1,10 +1,9 @@
 import { Organization, Project, Resource, Routine, Session, Standard, User } from 'types';
 
 export interface ObjectListItemProps {
-    isStarred: boolean;
+    session: Session;
     isOwn: boolean;
     onClick?: (data: any) => void; // Full data passed back, to display while more details load
-    onStarClick: (id: string, removing: boolean) => void;
 }
 
 export interface ActorListItemProps extends ObjectListItemProps {
@@ -16,17 +15,14 @@ export interface OrganizationListItemProps extends ObjectListItemProps {
 }
 
 export interface ProjectListItemProps extends ObjectListItemProps {
-    session: Session;
     data: Partial<Project>;
 }
 
 export interface RoutineListItemProps extends ObjectListItemProps {
-    session: Session;
     data: Partial<Routine>;
 }
 
 export interface StandardListItemProps extends ObjectListItemProps {
-    session: Session;
     data: Partial<Standard>;
 }
 
@@ -79,4 +75,11 @@ export interface UpvoteDownvoteProps {
     score?: number; // Net score - can be negative
     isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
     onVote: (event: any, isUpvote: boolean | null) => void;
+}
+
+export interface StarButtonProps {
+    session: Session;
+    isStar?: boolean | null; // Defaults to false
+    stars?: number | null; // Defaults to 0
+    onStar: (event: any, isStar: boolean) => void;
 }

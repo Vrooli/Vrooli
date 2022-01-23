@@ -16,6 +16,7 @@ export interface standard_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -27,6 +28,7 @@ export interface standard_standard_creator_Organization_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -39,6 +41,7 @@ export interface standard_standard_creator_Organization {
   created_at: any;
   tags: standard_standard_creator_Organization_tags[];
   stars: number;
+  isStarred: boolean | null;
 }
 
 export interface standard_standard_creator_User {
@@ -46,6 +49,7 @@ export interface standard_standard_creator_User {
   id: string;
   username: string | null;
   stars: number;
+  isStarred: boolean | null;
   bio: string | null;
 }
 
@@ -64,6 +68,7 @@ export interface standard_standard {
   tags: standard_standard_tags[];
   creator: standard_standard_creator | null;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }

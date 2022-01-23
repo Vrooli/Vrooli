@@ -43,6 +43,7 @@ export type Comment = {
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
   id: Scalars['ID'];
+  isStarred?: Maybe<Scalars['Boolean']>;
   isUpvoted?: Maybe<Scalars['Boolean']>;
   reports: Array<Report>;
   score?: Maybe<Scalars['Int']>;
@@ -126,10 +127,10 @@ export type EmailResetPasswordInput = {
 };
 
 export type EmailSignUpInput = {
+  confirmPassword: Scalars['String'];
   email: Scalars['String'];
   marketingEmails: Scalars['Boolean'];
   password: Scalars['String'];
-  confirmPassword: Scalars['String'];
   theme: Scalars['String'];
   username: Scalars['String'];
 };
@@ -192,6 +193,7 @@ export type Mutation = {
   routineUpdate: Routine;
   standardAdd: Standard;
   standardDeleteOne: Success;
+  star: Success;
   tagAdd: Tag;
   tagDeleteMany: Count;
   tagUpdate: Tag;
@@ -362,6 +364,11 @@ export type MutationStandardAddArgs = {
 
 export type MutationStandardDeleteOneArgs = {
   input: DeleteOneInput;
+};
+
+
+export type MutationStarArgs = {
+  input: StarInput;
 };
 
 
@@ -593,6 +600,7 @@ export type Organization = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  isStarred?: Maybe<Scalars['Boolean']>;
   members: Array<Member>;
   name: Scalars['String'];
   projects: Array<Project>;
@@ -706,6 +714,7 @@ export type Project = {
   description?: Maybe<Scalars['String']>;
   forks: Array<Project>;
   id: Scalars['ID'];
+  isStarred?: Maybe<Scalars['Boolean']>;
   isUpvoted?: Maybe<Scalars['Boolean']>;
   name: Scalars['String'];
   owner?: Maybe<Contributor>;
@@ -1072,6 +1081,7 @@ export type Routine = {
   inputs: Array<RoutineInputItem>;
   instructions?: Maybe<Scalars['String']>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
+  isStarred?: Maybe<Scalars['Boolean']>;
   isUpvoted?: Maybe<Scalars['Boolean']>;
   nodeLists: Array<NodeRoutineList>;
   nodes: Array<Node>;
@@ -1191,6 +1201,7 @@ export type Standard = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isFile: Scalars['Boolean'];
+  isStarred?: Maybe<Scalars['Boolean']>;
   isUpvoted?: Maybe<Scalars['Boolean']>;
   name: Scalars['String'];
   reports: Array<Report>;
@@ -1273,6 +1284,22 @@ export enum StandardType {
   Url = 'Url'
 }
 
+export enum StarFor {
+  Comment = 'Comment',
+  Organization = 'Organization',
+  Project = 'Project',
+  Routine = 'Routine',
+  Standard = 'Standard',
+  Tag = 'Tag',
+  User = 'User'
+}
+
+export type StarInput = {
+  forId: Scalars['ID'];
+  isStar: Scalars['Boolean'];
+  starFor: StarFor;
+};
+
 export type StatisticsResult = {
   __typename?: 'StatisticsResult';
   allTime: StatisticsTimeFrame;
@@ -1301,6 +1328,7 @@ export type Tag = {
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  isStarred?: Maybe<Scalars['Boolean']>;
   isUpvoted?: Maybe<Scalars['Boolean']>;
   score: Scalars['Int'];
   starredBy: Array<User>;
@@ -1363,6 +1391,7 @@ export type User = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  isStarred?: Maybe<Scalars['Boolean']>;
   projects: Array<Project>;
   reports: Array<Report>;
   resources: Array<Resource>;
@@ -1448,11 +1477,6 @@ export enum VoteFor {
 export type VoteInput = {
   forId: Scalars['ID'];
   isUpvote?: InputMaybe<Scalars['Boolean']>;
-  voteFor: VoteFor;
-};
-
-export type VoteRemoveInput = {
-  forId: Scalars['ID'];
   voteFor: VoteFor;
 };
 

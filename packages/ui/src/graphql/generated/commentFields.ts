@@ -49,6 +49,7 @@ export interface commentFields {
   updated_at: any;
   score: number | null;
   isUpvoted: boolean | null;
+  isStarred: boolean | null;
   creator: commentFields_creator | null;
   commentedOn: commentFields_commentedOn;
 }

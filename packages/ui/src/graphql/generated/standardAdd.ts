@@ -16,6 +16,7 @@ export interface standardAdd_standardAdd_tags {
   description: string | null;
   created_at: any;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -47,6 +48,7 @@ export interface standardAdd_standardAdd {
   tags: standardAdd_standardAdd_tags[];
   creator: standardAdd_standardAdd_creator | null;
   stars: number;
+  isStarred: boolean | null;
   score: number;
   isUpvoted: boolean | null;
 }

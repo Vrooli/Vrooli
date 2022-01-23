@@ -25,6 +25,7 @@ export const projectFields = gql`
             }
         }
         stars
+        isStarred
         score
         isUpvoted
     }
