@@ -19,7 +19,9 @@ export function OrganizationListItem({
     const [, setLocation] = useLocation();
     const [star] = useMutation<star>(starMutation);
 
-    const handleClick = useCallback(() => {
+    const handleClick = useCallback((e: any) => {
+        // Prevent propagation
+        e.stopPropagation();
         // If onClick provided, call it
         if (onClick) onClick(data);
         // Otherwise, navigate to the object's page

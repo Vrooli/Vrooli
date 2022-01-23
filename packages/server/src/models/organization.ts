@@ -204,7 +204,7 @@ export type OrganizationDB = OrganizationAllPrimitives &
         toDB: (obj: RecursivePartial<Organization>): RecursivePartial<OrganizationDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
-            // Remove isStarred, as it is calculated in its own queries
+            // Remove isStarred, as it is calculated in its own query
             if (modified.isStarred) delete modified.isStarred;
             return modified;
         },

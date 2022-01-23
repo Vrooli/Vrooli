@@ -32,15 +32,13 @@ const BreadcrumbsBase = ({
         <Breadcrumbs
             sx={{
                 ...sx,
-                '& .MuiBreadcrumbs-root': {
-                    cursor: 'pointer'
-                },
                 '& .MuiBreadcrumbs-li > a': {
                     color: sx?.color || 'inherit',
                     minHeight: '48px', // Lighthouse recommends this for SEO, as it is more clickable
                     display: 'flex',
                     flexDirection: 'row',
                     alignItems: 'center',
+                    cursor: 'pointer'
                 }
             }}
             separator={separator}

@@ -41,7 +41,7 @@ export const HomePage = ({
     // Search query removes words that start with a '!'. These are used for sorting results.
     const { data, refetch } = useQuery<autocomplete, autocompleteVariables>(autocompleteQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
-    useEffect(() => { console.log('refetching...'); refetch() }, [refetch, searchString]);
+    useEffect(() => { console.log('refetching...', session); refetch() }, [refetch, searchString]);
 
     const { routines, projects, organizations, standards, users } = useMemo(() => {
         if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
@@ -88,7 +88,6 @@ export const HomePage = ({
 
     // Opens correct search page
     const openSearch = useCallback((linkBase: string, id?: string) => {
-        console.log('OPEN SEARCH', linkBase, id)
         return setLocation(id ? `${linkBase}/${id}` : linkBase);
     }, [])
 
@@ -125,20 +124,20 @@ export const HomePage = ({
                             session={session}
                             data={o}
                             isOwn={false}
-                            onClick={() => { }}
+                            onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))
                     break;
                 case ObjectType.Project:
-                    listFeedItems = projects.map(o => (
+                    listFeedItems = projects.map(o => {console.log('p', o); return (
                         <ProjectListItem
                             key={`feed-list-item-${o.id}`}
                             session={session}
                             data={o}
                             isOwn={false}
-                            onClick={() => { }}
+                            onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
-                    ))
+                    )})
                     break;
                 case ObjectType.Routine:
                     listFeedItems = routines.map(o => (
@@ -147,7 +146,7 @@ export const HomePage = ({
                             session={session}
                             data={o}
                             isOwn={false}
-                            onClick={() => { }}
+                            onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -158,7 +157,7 @@ export const HomePage = ({
                             session={session}
                             data={o}
                             isOwn={false}
-                            onClick={() => { }}
+                            onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -169,6 +168,7 @@ export const HomePage = ({
                             session={session} 
                             data={o} 
                             isOwn={false} 
+                            onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))
                     break;

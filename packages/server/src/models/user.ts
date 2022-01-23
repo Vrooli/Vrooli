@@ -102,6 +102,8 @@ export const userFormatter = (): UserFormatConverter => {
         toDBUser: (obj: RecursivePartial<User>): RecursivePartial<UserDB> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
+            // Remove isStarred, as it is calculated in its own query
+            if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
         toGraphQLProfile: (obj: RecursivePartial<UserDB>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),

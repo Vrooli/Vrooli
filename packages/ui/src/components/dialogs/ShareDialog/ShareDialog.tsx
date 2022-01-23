@@ -1,12 +1,14 @@
 import { APP_LINKS } from '@local/shared';
-import { Box, Dialog, DialogTitle, List, ListItem, Typography } from '@mui/material';
-import { useState } from 'react';
+import { Box, Button, Dialog, Stack, Typography } from '@mui/material';
 import { ShareDialogProps } from '../types';
-import { 
-    EmailIcon,
-    LinkedinIcon,
-    TwitterIcon,
-} from 'assets/img';
+import {
+    ContentCopy as CopyIcon,
+    Email as EmailIcon,
+    LinkedIn as LinkedInIcon,
+    Twitter as TwitterIcon
+} from '@mui/icons-material';
+import { Pubs } from 'utils';
+import { useState } from 'react';
 
 // Invite link
 const inviteLink = `https://vrooli.com/${APP_LINKS.Start}`;
@@ -14,35 +16,33 @@ const inviteLink = `https://vrooli.com/${APP_LINKS.Start}`;
 const postTitle = 'Vrooli - Visual Work Routines';
 // Invite message for social media posts
 const postText = `The future of work in a decentralized world. ${inviteLink}`;
-// Social media share options
-// In the form of [icon, label, link]
-const shareOptions: Array<[any, string, string]> = [
-    [EmailIcon, 'Email', `mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`],
-    [TwitterIcon, 'Twitter', `https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`],
-    [LinkedinIcon, 'LinkedIn', `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`],
-]
 
-const shareListItems = shareOptions.map(([Icon, label, link]) => (
-    <ListItem
-        key={`share-list-item-${label}`}
-        onClick={() => window.open(link, '_blank', 'noopener,noreferrer')}
-    >
-        <Box display="flex" alignItems="center">
-            <Icon style={{width: '30px', height: '30px', fill: '#0b2684'}} />
-            <Typography variant="body2">{label}</Typography>
-        </Box>
-    </ListItem>
-))
+const buttonProps = {
+    height: "48px",
+    background: "white",
+    color: "black",
+    borderRadius: "10px",
+    width: "20em",
+    display: "flex",
+    marginBottom: "5px",
+    transition: "0.3s ease-in-out",
+    '&:hover': {
+        filter: `brightness(120%)`,
+        color: 'white',
+        border: '1px solid white',
+    }
+}
 
 export const ShareDialog = ({
     open,
     onClose
 }: ShareDialogProps) => {
-    const [copied, setCopied] = useState(false);
-
+    const [copied, setCopied] = useState<boolean>(false);
+    const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
     const copyInviteLink = () => {
         navigator.clipboard.writeText(inviteLink);
         setCopied(true);
+        setTimeout(() => setCopied(false), 5000);
     }
 
     return (
@@ -51,37 +51,45 @@ export const ShareDialog = ({
             open={open}
             sx={{
                 zIndex: 10000,
-                width: 'min(500px, 100vw)',
-                textAlign: 'center',
-                overflow: 'hidden',
+                '& .MuiDialogContent-root': {
+                    overflow: 'hidden',
+                    borderRadius: 2,
+                    boxShadow: "0 0 35px 0 rgba(0,0,0,0.5)",
+                    textAlign: "center",
+                    padding: "1em",
+                },
             }}
         >
-            <DialogTitle sx={{ background: (t) => t.palette.primary.light }}>
-                Invite
-            </DialogTitle>
-            <Box sx={{ padding: 2 }}>
-                <Typography variant="h5">Socials</Typography>
-                <List>
-                    {shareListItems}
-                </List>
-                <Typography variant="h5">Copy Link</Typography>
-                <Box
-                    onClick={copyInviteLink}
-                    sx={{
-                        border: '1px solid',
-                        borderRadius: '12px',
-                        borderColor: copied ? '#33e433' : 'black',
-                        color: copied ? '#33e433' : 'black',
-                        height: '1.5em',
-                        textAlign: 'center',
-                        verticalAlign: 'middle',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                    }}
-                >
-                    <Typography variant="body1" sx={{padding: 1}}>{inviteLink}</Typography>
-                </Box>
-                {copied ? (<Box mb={1}>🎉Copied!🎉</Box>) : null}
+            <Box sx={{ 
+                padding: 2, 
+                background: copied ? "#0e650b" : "#072781", 
+                color: 'white',
+                transition: 'background 0.2s ease-in-out',
+            }}>
+                <Typography variant="h4" component="h1" mb={1}>Spread the Word 🌍</Typography>
+                <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
+                    <Button 
+                        onClick={copyInviteLink} 
+                        startIcon={<CopyIcon />}
+                        sx={{ ...buttonProps, marginBottom: 0 }}
+                    >Copy link</Button>
+                    <Button 
+                        onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`)} 
+                        startIcon={<EmailIcon />}
+                        sx={{ ...buttonProps }}
+                    >Share by email</Button>
+                    <Button 
+                        onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`)}
+                        startIcon={<TwitterIcon />} 
+                        sx={{ ...buttonProps }}
+                    >Tweet about us</Button>
+                    <Button 
+                        onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`)} 
+                        startIcon={<LinkedInIcon />}
+                        sx={{ ...buttonProps }}
+                    >Post on LinkedIn</Button>
+                </Stack>
+                { copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1}>🎉 Copied! 🎉</Typography> : null}
             </Box>
         </Dialog>
     )

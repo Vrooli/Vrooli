@@ -9,11 +9,10 @@ export function FeedList({
     onClick,
     children,
 }: FeedListProps) {
-    const handleContainerClick = useCallback(() => onClick(), [onClick]);
+    const handleSeeMoreClick = useCallback(() => onClick(), [onClick]);
 
     return (
         <Box
-            onClick={handleContainerClick}
             sx={{
                 ...containerShadow,
                 borderRadius: '8px',
@@ -40,7 +39,7 @@ export function FeedList({
                     <List>
                         {children}
                     </List>
-                    <Link onClick={handleContainerClick}>
+                    <Link onClick={handleSeeMoreClick}>
                         <Typography
                             sx={{
                                 ...clickSize,
