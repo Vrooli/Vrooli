@@ -125,7 +125,7 @@ const sorter = (): Sortable<StandardSortBy> => ({
  */
 const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortable<StandardSortBy>, prisma: PrismaType) => ({
     async findStandard(
-        userId: string | null, // Of the user making the request, not the standard
+        userId: string | null | undefined, // Of the user making the request, not the standard
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
@@ -134,7 +134,8 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         // Access database
         let standard = await prisma.standard.findUnique({ where: { id: input.id }, ...select });
         // Return standard with "isUpvoted" and "isStarred" fields. These must be queried separately.
-        if (!userId || !standard) return standard;
+        if (!standard) throw new CustomError(CODE.InternalError, 'Standard not found');
+        if (!userId) return { ...standard, isUpvoted: false, isStarred: false };
         const vote = await prisma.vote.findFirst({ where: { userId, standardId: standard.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
         const star = await prisma.star.findFirst({ where: { byId: userId, standardId: standard.id } });
@@ -143,7 +144,7 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
     },
     async searchStandards(
         where: { [x: string]: any },
-        userId: string | null,
+        userId: string | null | undefined,
         input: StandardSearchInput,
         info: InfoType = null,
     ): Promise<PaginatedSearchResult> {
@@ -187,7 +188,7 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         // Check for valid arguments
         if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
-        if (hasProfanity(input.name) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create standard data
         let standardData: { [x: string]: any } = {
             name: input.name,

@@ -43,9 +43,11 @@ export const RoutineView = ({
 }: RoutineViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [match, params] = useRoute(`${APP_LINKS.Routine}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Routine}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/:id`);
+    const id: string = params?.id ?? params2?.id ?? '';
     // Fetch data
-    const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id: params?.id ?? '' } } });
+    const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const routine = useMemo(() => data?.routine, [data]);
 
     const [searchString, setSearchString] = useState<string>('');

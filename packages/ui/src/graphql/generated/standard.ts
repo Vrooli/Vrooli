@@ -17,8 +17,6 @@ export interface standard_standard_tags {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface standard_standard_creator_Organization_tags {
@@ -29,8 +27,6 @@ export interface standard_standard_creator_Organization_tags {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface standard_standard_creator_Organization {

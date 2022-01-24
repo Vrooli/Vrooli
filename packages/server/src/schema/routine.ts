@@ -140,12 +140,12 @@ export const resolvers = {
     RoutineSortBy: RoutineSortBy,
     Query: {
         routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            const data = await RoutineModel(prisma).findRoutine(req.userId ? req.userId : null, input, info);
+            const data = await RoutineModel(prisma).findRoutine(req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
         routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            const data = await RoutineModel(prisma).searchRoutines({}, req.userId ?? null, input, info);
+            const data = await RoutineModel(prisma).searchRoutines({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },

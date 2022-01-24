@@ -43,9 +43,11 @@ export const StandardView = ({
 }: StandardViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [match, params] = useRoute(`${APP_LINKS.Standard}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Standard}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/:id`);
+    const id: string = params?.id ?? params2?.id ?? '';
     // Fetch data
-    const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id: params?.id ?? '' } } });
+    const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id } } });
     const standard = useMemo(() => data?.standard, [data]);
 
     // More menu

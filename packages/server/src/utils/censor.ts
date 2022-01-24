@@ -8,8 +8,8 @@ const profanityRegex = new RegExp(profanity.join('|'), 'gi');
  * @param text The text which may contain bad words
  * @returns True if any bad words were found
  */
-export const hasProfanity = (text: string): boolean => {
-    return text.search(profanityRegex) !== -1;
+export const hasProfanity = (...text: (string | null | undefined)[]): boolean => {
+    return text.some(t => t !== null && t !== undefined && t.search(profanityRegex) !== -1);
 }
 
 /**

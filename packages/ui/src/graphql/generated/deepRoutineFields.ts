@@ -17,8 +17,6 @@ export interface deepRoutineFields_inputs_standard_tags {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface deepRoutineFields_inputs_standard {
@@ -85,8 +83,6 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_t
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
@@ -168,8 +164,6 @@ export interface deepRoutineFields_outputs_standard_tags {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface deepRoutineFields_outputs_standard {
@@ -221,8 +215,6 @@ export interface deepRoutineFields_tags {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface deepRoutineFields {

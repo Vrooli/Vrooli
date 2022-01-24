@@ -83,7 +83,7 @@ const forMapper = {
         // Check for valid arguments
         if (!input.reason || input.reason.length < 1) throw new CustomError(CODE.InternalError, 'Reason must be provided');
         // Check for censored words
-        if (hasProfanity(`${input.reason} | ${input.details}`)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.reason, input.details)) throw new CustomError(CODE.BannedWord);
         // Add report
         return await prisma.report.create({
             data: {
@@ -102,7 +102,7 @@ const forMapper = {
         if (!input.id) throw new CustomError(CODE.InternalError, 'No report id provided');
         if (!input.reason || input.reason.length < 1) throw new CustomError(CODE.InternalError, 'Reason must be provided');
         // Check for censored words
-        if (hasProfanity(`${input.reason} | ${input.details}`)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.reason, input.details)) throw new CustomError(CODE.BannedWord);
         // Find report
         const report = await prisma.report.findFirst({
             where: {

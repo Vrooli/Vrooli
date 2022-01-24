@@ -23,8 +23,6 @@ export interface organizations_organizations_edges_node_tags {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface organizations_organizations_edges_node {

@@ -1,4 +1,4 @@
-import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, Email } from "../schema/types";
+import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, Email, UserDeleteInput, FindByIdInput, ProfileUpdateInput } from "../schema/types";
 import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, getRelationshipData, InfoType, JoinMap, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { AccountStatus, CODE, ROLES } from '@local/shared';
@@ -6,7 +6,7 @@ import bcrypt from 'bcrypt';
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "../types";
-import { EmailAllPrimitives } from "./email";
+import { hasProfanity } from "../utils/censor";
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
 const HASHING_ROUNDS = 8;
@@ -348,29 +348,6 @@ const validater = (prisma: PrismaType) => ({
 })
 
 /**
- * Customer component for finding users by email
- * @param state 
- * @returns 
- */
-const findByEmailer = (prisma: PrismaType) => ({
-    /**
-     * Find a user by email address
-     * @param email The user's email address
-     * @returns A user object without relationships
-     */
-    async findByEmail(emailAddress: string): Promise<{ user: UserAllPrimitives, email: EmailAllPrimitives }> {
-        if (!emailAddress) throw new CustomError(CODE.BadCredentials);
-        // Validate email address
-        const email = await prisma.email.findUnique({ where: { emailAddress } });
-        if (!email) throw new CustomError(CODE.BadCredentials);
-        // Find user
-        let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
-        if (!user) throw new CustomError(CODE.ErrorUnknown);
-        return { user, email }
-    }
-})
-
-/**
  * Custom component for creating users. 
  * NOTE: Data should be in Prisma shape, not GraphQL
  */
@@ -431,25 +408,105 @@ const porter = (prisma: PrismaType) => ({
 })
 
 /**
- * Component for searching
- */
-export const userSearcher = (
-    toDB: FormatConverter<User, UserDB>['toDB'],
-    toGraphQL: FormatConverter<User, UserDB>['toGraphQL'],
-    sorter: Sortable<any>,
-    prisma: PrismaType) => ({
-        async search(where: { [x: string]: any }, input: UserSearchInput, info: InfoType): Promise<PaginatedSearchResult> {
-            // Many-to-many search queries
-            const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
-            const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-            // One-to-many search queries
-            const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
-            const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-            const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-            const search = searcher<UserSortBy, UserSearchInput, User, UserDB>(MODEL_TYPES.User, toDB, toGraphQL, sorter, prisma);
-            return search.search({ ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery, ...where }, input, info);
+* Handles the authorized adding, searching, updating, and deleting of users.
+*/
+const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma: PrismaType) => ({
+    async findUser(
+        userId: string | null | undefined, // Of the user making the request, not the requested user
+        input: FindByIdInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Create selector. Make sure not to select private data
+        const select = selectHelper<User, UserDB>(info, format.toDBUser);
+        // Access database
+        let user = await prisma.user.findUnique({ where: { id: input.id }, ...select });
+        // Return user with "isStarred" field. This must be queried separately.
+        // If the user is querying themselves, 
+        if (!user) throw new CustomError(CODE.InternalError, 'User not found');
+        if (!userId || userId === user.id) return { ...user, isStarred: false };
+        const star = await prisma.star.findFirst({ where: { byId: userId, userId: user.id } });
+        const isStarred = Boolean(star) ?? false;
+        return { ...user, isStarred };
+    },
+    async findProfile(
+        userId: string,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Create selector. Make sure not to select private data
+        const select = selectHelper<Profile, UserDB>(info, format.toDBProfile);
+        // Access database
+        let user = await prisma.user.findUnique({ where: { id: userId }, ...select });
+        // Return user with "isStarred" field. This will be false, since the user is querying themselves
+        return { ...user, isStarred: false };
+    },
+    async searchUsers(
+        where: { [x: string]: any },
+        userId: string | null | undefined,
+        input: UserSearchInput,
+        info: InfoType = null,
+    ): Promise<PaginatedSearchResult> {
+        // Many-to-many search queries
+        const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
+        const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
+        // One-to-many search queries
+        const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
+        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
+        const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
+        // Search
+        const search = searcher<UserSortBy, UserSearchInput, User, UserDB>(MODEL_TYPES.User, format.toDBUser, format.toGraphQLUser, sort, prisma);
+        let searchResults = await search.search({ ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery, ...where }, input, info);
+        // Compute "isStarred" field for each user
+        // If userId not provided, then "isStarred" is false
+        if (!userId) {
+            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isStarred: false } }));
+            return searchResults;
         }
-    })
+        // Otherwise, query votes for all search results in one query
+        const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
+        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, userId: { in: resultIds } } });
+        console.log('isStarredArray', isStarredArray);
+        searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
+            const isStarred = Boolean(isStarredArray.find(({ userId }) => userId === node.id));
+            return { cursor, node: { ...node, isStarred } };
+        });
+        return searchResults;
+    },
+    async updateProfile(
+        userId: string,
+        input: ProfileUpdateInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!input.username || input.username.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
+        // Check for correct password
+        let user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new CustomError(CODE.InternalError, 'User not found');
+        if (!UserModel(prisma).validatePassword(input.currentPassword, user)) throw new CustomError(CODE.BadCredentials);
+        // Check for censored words
+        if (hasProfanity(input.username, input.bio)) throw new CustomError(CODE.BannedWord);
+        // Create user data
+        let userData: { [x: string]: any } = { username: input.username, bio: input.bio, theme: input.theme };
+        // TODO emails
+        // Update user
+        user = await prisma.user.update({
+            where: { id: userId },
+            data: userData,
+            ...selectHelper<Profile, UserDB>(info, format.toDBProfile)
+        });
+        // Return user with "isStarred" field. This will return false, since the user cannot star themselves
+        return { ...user, isStarred: false };
+    },
+    async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
+        // Check for correct password
+        let user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new CustomError(CODE.InternalError, 'User not found');
+        if (!UserModel(prisma).validatePassword(input.password, user)) throw new CustomError(CODE.BadCredentials);
+        await prisma.user.delete({
+            where: { id: userId }
+        })
+        return { success: true };
+    },
+})
 
 //==============================================================
 /* #endregion Custom Components */
@@ -470,13 +527,10 @@ export function UserModel(prisma: PrismaType) {
         ...format,
         ...sort,
         ...counter<UserCountInput>(model, prisma),
-        ...deleter(model, prisma),
-        ...findByEmailer(prisma),
-        ...findByIder<User, UserDB>(model, format.toDBUser, prisma),
         ...porter(prisma),
         ...userSessioner(),
         ...userCreater(format.toDBUser, prisma),
-        ...userSearcher(format.toDBUser, format.toGraphQLUser, sort, prisma),
+        ...userer(format, sort, prisma),
         ...validater(prisma),
     }
 }

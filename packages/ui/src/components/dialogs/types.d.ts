@@ -2,6 +2,7 @@ import { DialogProps, MenuProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
+import { Session } from 'types';
 
 export interface AlertDialogProps extends DialogProps {};
 
@@ -47,6 +48,13 @@ export interface ViewDialogBaseProps extends DialogProps {
     onClose?: () => any; // Callback when closing dialog
     children: JSX.Element | JSX.Element[];
 };
+
+export interface SelectInterestsDialogProps extends DialogProps {
+    session: Session;
+    open: boolean;
+    onClose: () => any;
+    showHidden?: boolean; // Show section for tags to hide
+}
 
 export interface ShareDialogProps extends DialogProps {
     open: boolean;

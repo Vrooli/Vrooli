@@ -7,7 +7,6 @@ import {
     LinkedIn as LinkedInIcon,
     Twitter as TwitterIcon
 } from '@mui/icons-material';
-import { Pubs } from 'utils';
 import { useState } from 'react';
 
 // Invite link

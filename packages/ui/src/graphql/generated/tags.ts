@@ -23,8 +23,6 @@ export interface tags_tags_edges_node {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface tags_tags_edges {

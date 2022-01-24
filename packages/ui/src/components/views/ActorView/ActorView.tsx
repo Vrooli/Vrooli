@@ -55,9 +55,11 @@ export const ActorView = ({
 }: ActorViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [match, params] = useRoute(`${APP_LINKS.Profile}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Profile}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchUsers}/:id`);
+    const id: string = params?.id ?? params2?.id ?? '';
     // Fetch data
-    const { data, loading } = useQuery<user>(userQuery, { variables: { input: { id: params?.id ?? '' } } });
+    const { data, loading } = useQuery<user>(userQuery, { variables: { input: { id } } });
     const user = useMemo(() => data?.user, [data]);
 
     const [selection, setSelection] = useState<SearchSelections>(SearchSelections.Routines);

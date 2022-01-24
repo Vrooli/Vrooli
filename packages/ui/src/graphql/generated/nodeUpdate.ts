@@ -56,8 +56,6 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine_tag
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine {

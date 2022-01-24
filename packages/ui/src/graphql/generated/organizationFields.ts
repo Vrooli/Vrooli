@@ -15,8 +15,6 @@ export interface organizationFields_tags {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface organizationFields {

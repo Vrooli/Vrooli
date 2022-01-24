@@ -137,16 +137,17 @@ export const projectSorter = (): Sortable<ProjectSortBy> => ({
  */
 const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<ProjectSortBy>, prisma: PrismaType) => ({
     async findProject(
-        userId: string | null, // Of the user making the request, not the project
+        userId: string | null | undefined, // Of the user making the request, not the project
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
         // Create selector
-        const select = selectHelper<Project, ProjectDB>(info, projectFormatter().toDB);
+        const select = selectHelper<Project, ProjectDB>(info, format.toDB);
         // Access database
         let project = await prisma.project.findUnique({ where: { id: input.id }, ...select });
         // Return project with "isUpvoted" and "isStarred" fields. These must be queried separately.
-        if (!userId || !project) return project;
+        if (!project) throw new CustomError(CODE.InternalError, 'Project not found');
+        if (!userId) return { ...project, isUpvoted: false, isStarred: false };
         const vote = await prisma.vote.findFirst({ where: { userId, projectId: project.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
         const star = await prisma.star.findFirst({ where: { byId: userId, projectId: project.id } });
@@ -155,7 +156,7 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
     },
     async searchProjects(
         where: { [x: string]: any },
-        userId: string | null,
+        userId: string | null | undefined,
         input: ProjectSearchInput,
         info: InfoType = null,
     ): Promise<PaginatedSearchResult> {
@@ -196,7 +197,7 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         // Check for valid arguments
         if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
-        if (hasProfanity(input.name) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create project data
         let projectData: { [x: string]: any } = { name: input.name, description: input.description ?? '' };
         // Associate with either organization or user
@@ -234,7 +235,7 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         if (!input.id) throw new CustomError(CODE.InternalError, 'No project id provided');
         if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
-        if (hasProfanity(input.name) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create project data
         let projectData: { [x: string]: any } = { name: input.name, description: input.description ?? '' };
         // Associate with either organization or user. This will remove the association with the other.

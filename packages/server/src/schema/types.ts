@@ -701,9 +701,12 @@ export type Profile = {
 };
 
 export type ProfileUpdateInput = {
+  bio?: InputMaybe<Scalars['String']>;
   currentPassword: Scalars['String'];
-  data: UserInput;
+  emails?: InputMaybe<Array<EmailInput>>;
   newPassword?: InputMaybe<Scalars['String']>;
+  theme?: InputMaybe<Scalars['String']>;
+  username?: InputMaybe<Scalars['String']>;
 };
 
 export type Project = {
@@ -1329,8 +1332,6 @@ export type Tag = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isStarred?: Maybe<Scalars['Boolean']>;
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tag: Scalars['String'];
@@ -1349,18 +1350,21 @@ export type TagEdge = {
 };
 
 export type TagInput = {
+  description?: InputMaybe<Scalars['String']>;
   id?: InputMaybe<Scalars['ID']>;
+  tag: Scalars['String'];
 };
 
 export type TagSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  hidden?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  myTags?: InputMaybe<Scalars['Boolean']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<TagSortBy>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export type TagSearchResult = {
@@ -1409,7 +1413,6 @@ export type UserCountInput = {
 };
 
 export type UserDeleteInput = {
-  id: Scalars['ID'];
   password: Scalars['String'];
 };
 
@@ -1417,15 +1420,6 @@ export type UserEdge = {
   __typename?: 'UserEdge';
   cursor: Scalars['String'];
   node: User;
-};
-
-export type UserInput = {
-  bio?: InputMaybe<Scalars['String']>;
-  emails?: InputMaybe<Array<EmailInput>>;
-  id?: InputMaybe<Scalars['ID']>;
-  status?: InputMaybe<AccountStatus>;
-  theme?: InputMaybe<Scalars['String']>;
-  username?: InputMaybe<Scalars['String']>;
 };
 
 export type UserRole = {

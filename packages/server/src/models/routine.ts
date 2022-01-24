@@ -68,7 +68,7 @@ const routineCreater = (toDB: FormatConverter<Routine, RoutineDB>['toDB'], prism
  */
 const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<RoutineSortBy>, prisma: PrismaType) => ({
     async findRoutine(
-        userId: string | null, // Of the user making the request, not the routine
+        userId: string | null | undefined, // Of the user making the request, not the routine
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
@@ -77,7 +77,8 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         // Access database
         let routine = await prisma.routine.findUnique({ where: { id: input.id }, ...select });
         // Return routine with "isUpvoted" and "isStarred" fields. These must be queried separately.
-        if (!userId || !routine) return routine;
+        if (!routine) throw new CustomError(CODE.InternalError, 'Routine not found');
+        if (!userId) return { ...routine, isUpvoted: false, isStarred: false };
         const vote = await prisma.vote.findFirst({ where: { userId, routineId: routine.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
         const star = await prisma.star.findFirst({ where: { byId: userId, routineId: routine.id } });
@@ -86,7 +87,7 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
     },
     async searchRoutines(
         where: { [x: string]: any },
-        userId: string | null,
+        userId: string | null | undefined,
         input: RoutineSearchInput,
         info: InfoType = null,
     ): Promise<PaginatedSearchResult> {
@@ -126,7 +127,7 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         // Check for valid arguments
         if (!input.title || input.title.length < 1) throw new CustomError(CODE.InternalError, 'Title is too short');
         // Check for censored words
-        if (hasProfanity(input.title) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Create routine data
         let routineData: { [x: string]: any } = {
             name: input.title,
@@ -172,7 +173,7 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         if (!input.id) throw new CustomError(CODE.InternalError, 'No routine id provided');
         if (!input.title || input.title.length < 1) throw new CustomError(CODE.InternalError, 'Title is too short');
         // Check for censored words
-        if (hasProfanity(input.title) || hasProfanity(input.description ?? '')) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Create routine data
         let routineData: { [x: string]: any } = {
             name: input.title,

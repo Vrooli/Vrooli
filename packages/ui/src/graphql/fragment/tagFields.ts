@@ -8,7 +8,5 @@ export const tagFields = gql`
         created_at
         stars
         isStarred
-        score
-        isUpvoted
     }
 `

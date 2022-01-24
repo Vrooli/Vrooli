@@ -41,23 +41,24 @@ export type OrganizationDB = OrganizationAllPrimitives &
  */
  const organizationer = (format: FormatConverter<Organization, OrganizationDB>, sort: Sortable<OrganizationSortBy>, prisma: PrismaType) => ({
     async findOrganization(
-        userId: string | null, // Of the user making the request, not the organization
+        userId: string | null | undefined, // Of the user making the request, not the organization
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<any> {
         // Create selector
-        const select = selectHelper<Organization, OrganizationDB>(info, organizationFormatter().toDB);
+        const select = selectHelper<Organization, OrganizationDB>(info, format.toDB);
         // Access database
         let organization = await prisma.organization.findUnique({ where: { id: input.id }, ...select });
         // Return organization with "isStarred" field. This must be queried separately.
-        if (!userId || !organization) return organization;
+        if (!organization) throw new CustomError(CODE.InternalError, 'Organization not found');
+        if (!userId) return { ...organization, isStarred: false };
         const star = await prisma.star.findFirst({ where: { byId: userId, organizationId: organization.id } });
         const isStarred = Boolean(star) ?? false;
         return { ...organization, isStarred };
     },
     async searchOrganizations(
         where: { [x: string]: any },
-        userId: string | null,
+        userId: string | null | undefined,
         input: OrganizationSearchInput,
         info: InfoType = null,
     ): Promise<PaginatedSearchResult> {
@@ -74,7 +75,7 @@ export type OrganizationDB = OrganizationAllPrimitives &
         // Compute "isStarred" fields for each organization
         // If userId not provided, then "isStarred" is false
         if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null, isStarred: false } }));
+            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isStarred: false } }));
             return searchResults;
         }
         // Otherwise, query votes for all search results in one query
@@ -95,7 +96,7 @@ export type OrganizationDB = OrganizationAllPrimitives &
         // Check for valid arguments
         if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
-        if (hasProfanity(input.name) || hasProfanity(input.name ?? '') || hasProfanity(input.bio ?? '')) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
         let organizationData: { [x: string]: any } = { name: input.name, bio: input.bio };
         // Add user as member
@@ -118,7 +119,7 @@ export type OrganizationDB = OrganizationAllPrimitives &
         if (!input.id) throw new CustomError(CODE.InternalError, 'No organization id provided');
         if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
-        if (hasProfanity(input.name) || hasProfanity(input.name ?? '') || hasProfanity(input.bio ?? '')) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
         let organizationData: { [x: string]: any } = { name: input.name, bio: input.bio };
         // Add user as member

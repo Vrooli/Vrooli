@@ -19,15 +19,6 @@ export const typeDef = gql`
         StarsDesc
     }
 
-    input UserInput {
-        id: ID
-        username: String
-        bio: String
-        emails: [EmailInput!]
-        theme: String
-        status: AccountStatus
-    }
-
     # User information available for you own account
     type Profile {
         id: ID!
@@ -76,13 +67,15 @@ export const typeDef = gql`
     }
 
     input ProfileUpdateInput {
-        data: UserInput!
+        username: String
+        bio: String
+        emails: [EmailInput!]
+        theme: String
         currentPassword: String!
         newPassword: String
     }
 
     input UserDeleteInput {
-        id: ID!
         password: String!
     }
 
@@ -137,50 +130,39 @@ export const resolvers = {
     UserSortBy: UserSortBy,
     Query: {
         profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<any> | null> => {
-            // Query database
-            const dbModel = await UserModel(prisma).findById({ id: req.userId ?? '' }, info);
-            // Format data
-            return dbModel ? userFormatter().toGraphQLProfile(dbModel) : null;
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            const data = await UserModel(prisma).findProfile(req.userId, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
-        user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<any> | null> => {
-            // Query database
-            const dbModel = await UserModel(prisma).findById({ id: input.id }, info);
-            // Format data
-            return dbModel ? userFormatter().toGraphQLProfile(dbModel) : null;
+        user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<any> | null> => {
+            const data = await UserModel(prisma).findUser(req.userId, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
-        users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            // return search query
-            return await UserModel(prisma).search({}, input, info);
+        users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
+            const data = await UserModel(prisma).searchUsers({}, req.userId, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
         usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            // Return count query
             return await UserModel(prisma).count({}, input);
         },
     },
     Mutation: {
         profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            // Must be updating your own
-            if (req.userId !== input.data.id) throw new CustomError(CODE.Unauthorized);
-            // Check for correct password
-            let user = await prisma.user.findUnique({ where: { id: input.data.id } });
-            if (!user) throw new CustomError(CODE.InvalidArgs);
-            if (!UserModel(prisma).validatePassword(input.currentPassword, user)) throw new CustomError(CODE.BadCredentials);
-            // Update user TODO
-            // let dbModel = await UserModel(prisma).upsert(input.data as any, info);
-            // Format data
-            //return dbModel ? userFormatter().toGraphQLProfile(dbModel) : null;
-            throw new CustomError(CODE.NotImplemented);
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            // Update object
+            const updated = await UserModel(prisma).updateProfile(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be deleting your own
-            if (req.userId !== input.id) throw new CustomError(CODE.Unauthorized);
-            // Check for correct password
-            let user = await prisma.user.findUnique({ where: { id: input.id } });
-            if (!user) throw new CustomError(CODE.InvalidArgs);
-            if (!UserModel(prisma).validatePassword(input.password, user)) throw new CustomError(CODE.BadCredentials);
-            // Delete user
-            const success = await UserModel(prisma).delete(user.id);
-            return { success }
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            return await UserModel(prisma).deleteProfile(req.userId, input);
         },
         /**
          * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).

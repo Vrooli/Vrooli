@@ -12,6 +12,7 @@ import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput,
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
 import { UserModel, userSessioner } from '../models';
+import { hasProfanity } from '../utils/censor';
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -94,8 +95,12 @@ export const resolvers = {
             // Validate arguments with schema
             const validateError = await validateArgs(emailLogInSchema, input);
             if (validateError) throw validateError;
-            // Get user
-            let { user, email } = await UserModel(prisma).findByEmail(input?.email as string);
+            // Validate email address
+            const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
+            if (!email) throw new CustomError(CODE.BadCredentials);
+            // Find user
+            let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
+            if (!user) throw new CustomError(CODE.InternalError, 'User not found');
             // Check for password in database, if doesn't exist, send a password reset link
             if (!Boolean(user.password)) {
                 await UserModel(prisma).setupPasswordReset(user);
@@ -123,6 +128,16 @@ export const resolvers = {
             const roles = await prisma.role.findMany({ select: { id: true, title: true } });
             const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
             if (!actorRoleId) throw new CustomError(CODE.ErrorUnknown);
+            // Check for valid username
+            if (!input.username || input.username.length < 1) throw new CustomError(CODE.InvalidArgs, 'Username too short');
+            // Check for censored words
+            if (hasProfanity(input.username)) throw new CustomError(CODE.BannedWord);
+            // Check if email exists
+            const existingEmail = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
+            if (existingEmail) throw new CustomError(CODE.EmailInUse);
+            // Check if username exists
+            let existingUser = await prisma.user.findUnique({ where: { username: input.username } });
+            if (!existingUser) throw new CustomError(CODE.UsernameInUse);
             // Create user object
             const user = await UserModel(prisma).create({
                 username: input.username,
@@ -153,8 +168,12 @@ export const resolvers = {
             // Validate input format
             const validateError = await validateArgs(emailRequestPasswordChangeSchema, input);
             if (validateError) throw validateError;
-            // Find user in database
-            const user = await UserModel(prisma).findByEmail(input.email);
+            // Validate email address
+            const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
+            if (!email) throw new CustomError(CODE.BadCredentials);
+            // Find user
+            let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
+            if (!user) throw new CustomError(CODE.InternalError, 'User not found');
             // Generate and send password reset code
             const success = await UserModel(prisma).setupPasswordReset(user);
             return { success };
@@ -163,27 +182,27 @@ export const resolvers = {
             // Validate input format
             const validateError = await validateArgs(passwordSchema, input.newPassword);
             if (validateError) throw validateError;
-            // Find user in database
-            let user = await UserModel(prisma).findById(
-                { id: input.id },
-                {
+            // Find user
+            let user = await prisma.user.findUnique({
+                where: { id: input.id },
+                select: {
                     id: true,
                     status: true,
                     theme: true,
                     resetPasswordCode: true,
                     lastResetPasswordReqestAttempt: true,
-                    emails: { emailAddress: true },
-                    roles: { title: true }
+                    emails: { select: { emailAddress: true } },
+                    roles: { select: { role: { select: { title: true } } } }
                 }
-            );
+            });
             if (!user) throw new CustomError(CODE.ErrorUnknown);
-            // // If code is invalid TODO fix this
-            // if (!UserModel(prisma).validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
-            //     // Generate and send new code
-            //     await UserModel(prisma).setupPasswordReset(user);
-            //     // Return error
-            //     throw new CustomError(CODE.InvalidResetCode);
-            // }
+            // If code is invalid
+            if (!UserModel(prisma).validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
+                // Generate and send new code
+                await UserModel(prisma).setupPasswordReset(user);
+                // Return error
+                throw new CustomError(CODE.InvalidResetCode);
+            }
             // Remove request data from user, and set new password
             await prisma.user.update({
                 where: { id: user.id as unknown as string },
@@ -226,10 +245,15 @@ export const resolvers = {
             }
             console.log('verifying by id', req.userId);
             // Otherwise, check if session can be verified from userId
-            const userData = await UserModel(prisma).findById(
-                { id: req.userId },
-                { id: true, status: true, theme: true, roles: { title: true } }
-            );
+            const userData = await prisma.user.findUnique({
+                where: { id: req.userId },
+                select: {
+                    id: true,
+                    status: true,
+                    theme: true,
+                    roles: { select: { role: { select: { title: true } } } }
+                }
+            });
             console.log('userData', userData);
             if (userData) return UserModel(prisma).toSession(userData);
             // If user data failed to fetch, clear session and return error
@@ -267,7 +291,7 @@ export const resolvers = {
             if (!walletData) {
                 console.log('creating wallet', input.publicAddress);
                 walletData = await prisma.wallet.create({
-                    data: { 
+                    data: {
                         publicAddress: input.publicAddress,
                         nonce: nonce,
                         nonceCreationTime: new Date().toISOString(),

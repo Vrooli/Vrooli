@@ -168,14 +168,12 @@ export const resolvers = {
          */
         autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
             console.log('Autocomplete input', input);
-            //const MinimumStars = 1; // Minimum stars required to show up in autocomplete results. Will increase in the future.
-            //const starredByQuery = { starredBy: { gte: MinimumStars } }; TODO for now, Prisma does not offer this type of sorting. See https://github.com/prisma/prisma/issues/8935. Instead, returning if any stars exist.
+            const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
+            const starsQuery = { stars: { gte: MinimumStars } }
             // Query organizations
             const organizations = (await OrganizationModel(prisma).searchOrganizations(
-                {
-                    //...starredByQuery,
-                },
-                req.userId ?? null,
+                { ...starsQuery },
+                req.userId,
                 {
                     ...input,
                     sortBy: OrganizationSortBy.StarsDesc
@@ -187,10 +185,8 @@ export const resolvers = {
                 })).edges.map(({ node }: any) => node);
             // Query projects
             const projects = (await ProjectModel(prisma).searchProjects(
-                {
-                    //...starredByQuery,
-                },
-                req.userId ?? null,
+                { ...starsQuery },
+                req.userId,
                 { ...input, sortBy: ProjectSortBy.StarsDesc },
                 {
                     id: true,
@@ -201,10 +197,8 @@ export const resolvers = {
             )).edges.map(({ node }: any) => node);
             // Query routines
             const routines = (await RoutineModel(prisma).searchRoutines(
-                {
-                    //...starredByQuery,
-                },
-                req.userId ?? null,
+                { ...starsQuery },
+                req.userId,
                 { ...input, sortBy: RoutineSortBy.StarsDesc },
                 {
                     id: true,
@@ -215,10 +209,8 @@ export const resolvers = {
             )).edges.map(({ node }: any) => node);
             // Query standards
             const standards = (await StandardModel(prisma).searchStandards(
-                {
-                    //...starredByQuery,
-                },
-                req.userId ?? null,
+                { ...starsQuery },
+                req.userId,
                 { ...input, sortBy: StandardSortBy.StarsDesc },
                 {
                     id: true,
@@ -228,16 +220,19 @@ export const resolvers = {
                 }
             )).edges.map(({ node }: any) => node);
             // Query users
-            const users = (await UserModel(prisma).search({
-                //...starredByQuery,
-            }, {
-                ...input,
-                sortBy: UserSortBy.StarsDesc
-            }, {
-                id: true,
-                username: true,
-                stars: true,
-            })).edges.map(({ node }: any) => node);
+            const users = (await UserModel(prisma).searchUsers(
+                { ...starsQuery },
+                req.userId,
+                {
+                    ...input,
+                    sortBy: UserSortBy.StarsDesc
+                },
+                {
+                    id: true,
+                    username: true,
+                    stars: true,
+                }
+            )).edges.map(({ node }: any) => node);
             return {
                 organizations,
                 projects,

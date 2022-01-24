@@ -105,12 +105,12 @@ export const resolvers = {
     ProjectSortBy: ProjectSortBy,
     Query: {
         project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
-            const data = await ProjectModel(prisma).findProject(req.userId ? req.userId : null, input, info);
+            const data = await ProjectModel(prisma).findProject(req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
         projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            const data = await ProjectModel(prisma).searchProjects({}, req.userId ?? null, input, info);
+            const data = await ProjectModel(prisma).searchProjects({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },

@@ -108,12 +108,12 @@ export const resolvers = {
     MemberRole: MemberRole,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
-            const data = await OrganizationModel(prisma).findOrganization(req.userId ? req.userId : null, input, info);
+            const data = await OrganizationModel(prisma).findOrganization(req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            const data = await OrganizationModel(prisma).searchOrganizations({}, req.userId ?? null, input, info);
+            const data = await OrganizationModel(prisma).searchOrganizations({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },

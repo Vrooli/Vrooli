@@ -1,4 +1,4 @@
-import { InputProps } from '@mui/material';
+import { InputProps, SelectProps } from '@mui/material';
 import { ChangeEvent } from 'react';
 
 export interface DropzoneProps {
@@ -31,7 +31,7 @@ export interface AutocompleteSearchBarProps extends SearchBarProps {
     debounce?: number;
 }
 
-export interface SelectorProps {
+export interface SelectorProps extends SelectProps {
     options: any[];
     getOptionLabel?: (option: any) => string;
     selected: any;

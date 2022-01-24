@@ -17,8 +17,6 @@ export interface standardFields_tags {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface standardFields_creator_Organization {

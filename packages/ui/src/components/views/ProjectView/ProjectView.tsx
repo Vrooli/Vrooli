@@ -45,9 +45,11 @@ export const ProjectView = ({
 }: ProjectViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [match, params] = useRoute(`${APP_LINKS.Project}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Project}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/:id`);
+    const id: string = params?.id ?? params2?.id ?? '';
     // Fetch data
-    const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id: params?.id ?? '' } } });
+    const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
     const project = useMemo(() => data?.project, [data]);
 
     const [searchString, setSearchString] = useState<string>('');

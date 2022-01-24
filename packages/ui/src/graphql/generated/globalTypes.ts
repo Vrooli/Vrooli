@@ -7,13 +7,6 @@
 // START Enums and Input Objects
 //==============================================================
 
-export enum AccountStatus {
-  Deleted = "Deleted",
-  HardLocked = "HardLocked",
-  SoftLocked = "SoftLocked",
-  Unlocked = "Unlocked",
-}
-
 export enum CommentFor {
   Organization = "Organization",
   Project = "Project",
@@ -348,7 +341,10 @@ export interface OrganizationSearchInput {
 }
 
 export interface ProfileUpdateInput {
-  data: UserInput;
+  username?: string | null;
+  bio?: string | null;
+  emails?: EmailInput[] | null;
+  theme?: string | null;
   currentPassword: string;
   newPassword?: string | null;
 }
@@ -511,10 +507,13 @@ export interface TagCountInput {
 
 export interface TagInput {
   id?: string | null;
+  tag: string;
+  description?: string | null;
 }
 
 export interface TagSearchInput {
-  userId?: string | null;
+  myTags?: boolean | null;
+  hidden?: boolean | null;
   ids?: string[] | null;
   sortBy?: TagSortBy | null;
   searchString?: string | null;
@@ -535,17 +534,7 @@ export interface UserCountInput {
 }
 
 export interface UserDeleteInput {
-  id: string;
   password: string;
-}
-
-export interface UserInput {
-  id?: string | null;
-  username?: string | null;
-  bio?: string | null;
-  emails?: EmailInput[] | null;
-  theme?: string | null;
-  status?: AccountStatus | null;
 }
 
 export interface UserSearchInput {

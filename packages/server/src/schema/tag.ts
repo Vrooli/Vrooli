@@ -3,7 +3,7 @@ import { CODE, TagSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { tagFormatter, TagModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagInput, TagSearchInput } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagInput, TagSearchInput, TagSearchResult } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -21,6 +21,8 @@ export const typeDef = gql`
 
     input TagInput {
         id: ID
+        tag: String!
+        description: String
     }
 
     type Tag {
@@ -31,13 +33,12 @@ export const typeDef = gql`
         updated_at: Date!
         stars: Int!
         isStarred: Boolean
-        score: Int!
-        isUpvoted: Boolean
         starredBy: [User!]!
     }
 
     input TagSearchInput {
-        userId: ID
+        myTags: Boolean
+        hidden: Boolean
         ids: [ID!]
         sortBy: TagSortBy
         searchString: String
@@ -81,20 +82,17 @@ export const typeDef = gql`
 export const resolvers = {
     TagSortBy: TagSortBy,
     Query: {
-        tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag> | null> => {
-            // Query database
-            const dbModel = await TagModel(prisma).findById(input, info);
-            // Format data
-            return dbModel ? tagFormatter().toGraphQL(dbModel) : null;
+        tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag> | null> => {
+            const data = await TagModel(prisma).findTag(req.userId, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
-        tags: async (_parent: undefined, { input }: IWrap<TagSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            // Create query for specified user
-            const userQuery = input.userId ? { user: { id: input.userId } } : undefined;
-            // return search query
-            return await TagModel(prisma).search({...userQuery,}, input, info);
+        tags: async (_parent: undefined, { input }: IWrap<TagSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<TagSearchResult> => {
+            const data = await TagModel(prisma).searchTags({}, req.userId, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
         tagsCount: async (_parent: undefined, { input }: IWrap<TagCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            // Return count query
             return await TagModel(prisma).count({}, input);
         },
     },
@@ -104,36 +102,33 @@ export const resolvers = {
          * @returns Tag object if successful
          */
         tagAdd: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO add more restrictions
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const dbModel = await TagModel(prisma).create(input, info);
-            // Format object to GraphQL type
-            return tagFormatter().toGraphQL(dbModel);
+            const created = await TagModel(prisma).addTag(req.userId, input, info);
+            if (!created) throw new CustomError(CODE.ErrorUnknown);
+            return created;
         },
         /**
          * Update tags you've created
          * @returns 
          */
         tagUpdate: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO add more restrictions
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const dbModel = await TagModel(prisma).update(input, info);
-            // Format to GraphQL type
-            return tagFormatter().toGraphQL(dbModel);
+            const updated = await TagModel(prisma).updateTag(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system
          * @returns 
          */
         tagDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            // TODO add more restrictions
-            return await TagModel(prisma).deleteMany(input);
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            return await TagModel(prisma).deleteTags(req.userId, input);
         },
     }
 }

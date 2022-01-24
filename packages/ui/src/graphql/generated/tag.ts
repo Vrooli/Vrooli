@@ -17,8 +17,6 @@ export interface tag_tag {
   created_at: any;
   stars: number;
   isStarred: boolean | null;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface tag {

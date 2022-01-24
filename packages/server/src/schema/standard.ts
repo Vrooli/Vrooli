@@ -119,12 +119,12 @@ export const resolvers = {
     StandardSortBy: StandardSortBy,
     Query: {
         standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
-            const data = await StandardModel(prisma).findStandard(req.userId ? req.userId : null, input, info);
+            const data = await StandardModel(prisma).findStandard(req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
         standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
-            const data = await StandardModel(prisma).searchStandards({}, req.userId ?? null, input, info);
+            const data = await StandardModel(prisma).searchStandards({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
