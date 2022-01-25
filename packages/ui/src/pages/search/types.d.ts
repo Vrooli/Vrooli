@@ -5,14 +5,6 @@ export interface SearchQueryVariables {
     input: UserSearchInput;
 }
 
-export interface SearchQueryVariablesInput<SortBy> {
-    ids?: string[] | null;
-    sortBy?: SortBy | null;
-    searchString?: string | null;
-    after?: string | null;
-    take?: number | null;
-}
-
 export interface BaseSearchPageProps<DataType, SortBy> {
     title?: string | null;
     searchPlaceholder?: string;

@@ -11,3 +11,9 @@ export type HamburgerProps = Pick<CommonProps, 'userRoles'>
 export type NavbarProps = Pick<CommonProps, 'userRoles'>
 
 export type NavListProps = Pick<CommonProps, 'userRoles'>
+
+export interface TabPanelProps {
+    children?: React.ReactNode[] | React.ReactNode;
+    index: number;
+    value: number;
+}

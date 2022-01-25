@@ -1,21 +1,23 @@
 // Used to display popular/search results of a particular object type
-import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { ListItem, ListItemButton, ListItemText, Tooltip } from '@mui/material';
 import { ActorListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback } from 'react';
-import { APP_LINKS, StarFor } from '@local/shared';
+import { APP_LINKS, StarFor, UserSortBy } from '@local/shared';
 import { useLocation } from 'wouter';
 import { useMutation } from '@apollo/client';
 import { star } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
 import { StarButton } from '..';
+import { LabelledSortOption, labelledSortOptions } from 'utils';
+import { User } from 'types';
 
-export function ActorListItem({
+export const ActorListItem = ({
     session,
     data,
     isOwn = false,
     onClick,
-}: ActorListItemProps) {
+}: ActorListItemProps) => {
     const [, setLocation] = useLocation();
     const [star] = useMutation<star>(starMutation);
 
@@ -55,14 +57,18 @@ export function ActorListItem({
                         primary={data.username}
                         sx={{ ...multiLineEllipsis(2) }}
                     />
-                    <StarButton
+                    {isOwn ? null : <StarButton
                         session={session}
                         isStar={data.isStarred}
                         stars={data.stars}
                         onStar={handleStar}
-                    />
+                    /> }
                 </ListItemButton>
             </ListItem>
         </Tooltip>
     )
 }
+
+export const ActorSortOptions: LabelledSortOption<UserSortBy>[] = labelledSortOptions(UserSortBy);
+export const actorDefaultSortOption = ActorSortOptions[1];
+export const actorOptionLabel = (o: User) => o.username ?? '';

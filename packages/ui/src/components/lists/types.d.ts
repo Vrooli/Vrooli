@@ -83,3 +83,23 @@ export interface StarButtonProps {
     stars?: number | null; // Defaults to 0
     onStar: (event: any, isStar: boolean) => void;
 }
+
+export interface SearchQueryVariablesInput<SortBy> {
+    ids?: string[] | null;
+    sortBy?: SortBy | null;
+    searchString?: string | null;
+    after?: string | null;
+    take?: number | null;
+}
+
+export interface SearchListProps<DataType, SortBy> {
+    searchPlaceholder?: string;
+    sortOptions: SearchSortBy<SortBy>[];
+    defaultSortOption: SearchSortBy<SortBy>;
+    query: DocumentNode;
+    take?: number; // Number of items to fetch per page
+    listItemFactory: (node: DataType, index: number) => JSX.Element;
+    getOptionLabel: (option: any) => string;
+    onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
+    onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
+}

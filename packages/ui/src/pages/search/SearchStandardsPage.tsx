@@ -1,22 +1,37 @@
-import { StandardSortBy } from "@local/shared";
-import { StandardListItem, StandardView, ShareDialog, ViewDialogBase } from "components";
+import { StandardListItem, StandardView, ShareDialog, ViewDialogBase, StandardSortOptions, standardDefaultSortOption, standardOptionLabel } from "components";
 import { standardsQuery } from "graphql/query";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Standard } from "types";
-import { labelledSortOptions } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
-import { LabelledSortOption } from "utils";
 import { SearchStandardsPageProps } from "./types";
-
-const SORT_OPTIONS: LabelledSortOption<StandardSortBy>[] = labelledSortOptions(StandardSortBy);
+import { useLocation, useRoute } from "wouter";
+import { APP_LINKS } from "@local/shared";
 
 export const SearchStandardsPage = ({
     session
 }: SearchStandardsPageProps) => {
+    const [, setLocation] = useLocation();
+    const [match, params] = useRoute(`${APP_LINKS.SearchStandards}/:id`);
     // Handles dialog when selecting a search result
     const [selected, setSelected] = useState<Standard | undefined>(undefined);
-    const selectedDialogOpen = Boolean(selected);
-    const handleSelectedDialogClose = useCallback(() => setSelected(undefined), []);
+    const selectedDialogOpen = Boolean(match || selected);
+    const handleSelected = useCallback((selected: Standard) => {
+        setSelected(selected);
+        setLocation(`${APP_LINKS.SearchStandards}/${selected.id}`);
+    }, [setLocation]);
+    const handleSelectedDialogClose = useCallback(() => {
+        setSelected(undefined);
+        // If selected data exists, then we know we can go back to the previous page
+        if (selected) window.history.back();
+        // Otherwise the user must have entered the page directly, so we can navigate to the search page
+        else setLocation(APP_LINKS.SearchStandards);
+    }, [setLocation, selected]);
+
+    const partialData = useMemo(() => {
+        if (selected) return selected;
+        if (params?.id) return { id: params.id };
+        return undefined;
+    }, [params, selected]);
 
     // Handles dialog for the button that appears after scrolling a certain distance
     const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
@@ -42,18 +57,18 @@ export const SearchStandardsPage = ({
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
-                <StandardView partialData={selected} />
+                <StandardView partialData={partialData} />
             </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage
                 title="Search Standards"
                 searchPlaceholder="Search..."
-                sortOptions={SORT_OPTIONS}
-                defaultSortOption={SORT_OPTIONS[1]}
+                sortOptions={StandardSortOptions}
+                defaultSortOption={standardDefaultSortOption}
                 query={standardsQuery}
                 listItemFactory={listItemFactory}
                 getOptionLabel={(o: any) => o.name}
-                onObjectSelect={(selected: Standard) => setSelected(selected)}
+                onObjectSelect={standardOptionLabel}
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={handleSurpriseDialogOpen}

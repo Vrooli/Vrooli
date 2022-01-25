@@ -12,7 +12,7 @@ export default {
 // Define templates for enabling control over props
 const EmptyTemplate: Story<Props> = (args) => <Component {...args} />;
 const ActorTemplate: Story<Props> = (args) => (<Component {...args}>
-    <ActorView />
+    <ActorView session={{}} />
 </Component>);
 const OrganizationTemplate: Story<Props> = (args) => (<Component {...args}>
     <OrganizationView />

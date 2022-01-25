@@ -3,13 +3,15 @@ import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/mat
 import { StandardListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback } from 'react';
-import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, StandardSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, UpvoteDownvote } from '..';
 import { useMutation } from '@apollo/client';
 import { starMutation, voteMutation } from 'graphql/mutation';
 import { vote } from 'graphql/generated/vote';
 import { star } from 'graphql/generated/star';
+import { LabelledSortOption, labelledSortOptions } from 'utils';
+import { Standard } from 'types';
 
 export function StandardListItem({
     session,
@@ -91,3 +93,7 @@ export function StandardListItem({
         </Tooltip>
     )
 }
+
+export const StandardSortOptions: LabelledSortOption<StandardSortBy>[] = labelledSortOptions(StandardSortBy);
+export const standardDefaultSortOption = StandardSortOptions[1];
+export const standardOptionLabel = (o: Standard) => o.name ?? '';

@@ -1,6 +1,7 @@
-import { Organization, Project, Routine, Standard, User } from "types";
+import { Organization, Project, Routine, Session, Standard, User } from "types";
 
 export interface ActorViewProps {
+    session: Session;
     /**
      * Any data about the object which is already known, 
      * such as its name. Can be displayed while fetching the full object

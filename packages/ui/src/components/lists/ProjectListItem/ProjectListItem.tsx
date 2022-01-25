@@ -3,13 +3,15 @@ import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/mat
 import { ProjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback } from 'react';
-import { APP_LINKS, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, ProjectSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, UpvoteDownvote } from 'components';
 import { starMutation, voteMutation } from 'graphql/mutation';
 import { vote } from 'graphql/generated/vote';
 import { useMutation } from '@apollo/client';
 import { star } from 'graphql/generated/star';
+import { LabelledSortOption, labelledSortOptions } from 'utils';
+import { Project } from 'types';
 
 export function ProjectListItem({
     session,
@@ -96,3 +98,7 @@ export function ProjectListItem({
         </Tooltip>
     )
 }
+
+export const ProjectSortOptions: LabelledSortOption<ProjectSortBy>[] = labelledSortOptions(ProjectSortBy);
+export const projectDefaultSortOption = ProjectSortOptions[1];
+export const projectOptionLabel = (o: Project) => o.name ?? '';

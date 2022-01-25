@@ -6,6 +6,7 @@ export * from './ProjectListItem/ProjectListItem';
 export * from './ResourceList/ResourceList';
 export * from './ResourceListItemContextMenu/ResourceListItemContextMenu';
 export * from './RoutineListItem/RoutineListItem';
+export * from './SearchList/SearchList';
 export * from './SortMenu/SortMenu';
 export * from './StandardListItem/StandardListItem';
 export * from './StarButton/StarButton';

@@ -3,12 +3,14 @@ import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/mat
 import { OrganizationListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback } from 'react';
-import { APP_LINKS, StarFor } from '@local/shared';
+import { APP_LINKS, OrganizationSortBy, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { useMutation } from '@apollo/client';
 import { star } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
 import { StarButton } from '..';
+import { LabelledSortOption, labelledSortOptions } from 'utils';
+import { Organization } from 'types';
 
 export function OrganizationListItem({
     session,
@@ -68,3 +70,7 @@ export function OrganizationListItem({
         </Tooltip>
     )
 }
+
+export const OrganizationSortOptions: LabelledSortOption<OrganizationSortBy>[] = labelledSortOptions(OrganizationSortBy);
+export const organizationDefaultSortOption = OrganizationSortOptions[1];
+export const organizationOptionLabel = (o: Organization) => o.name ?? '';
