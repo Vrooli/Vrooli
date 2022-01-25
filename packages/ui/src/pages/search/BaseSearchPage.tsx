@@ -1,16 +1,17 @@
 import { APP_LINKS } from "@local/shared";
-import { Box, Button, Tab, Tabs, Tooltip, Typography } from "@mui/material";
+import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { SearchList } from "components";
-import { CSSProperties, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from "wouter";
 import { BaseSearchPageProps } from "./types";
+import { Add as AddIcon } from '@mui/icons-material';
 
 const tabOptions = [
-    ['Organizations', APP_LINKS.SearchOrganizations], 
-    ['Projects', APP_LINKS.SearchProjects], 
-    ['Routines', APP_LINKS.SearchRoutines], 
-    ['Standards', APP_LINKS.SearchStandards], 
+    ['Organizations', APP_LINKS.SearchOrganizations],
+    ['Projects', APP_LINKS.SearchProjects],
+    ['Routines', APP_LINKS.SearchRoutines],
+    ['Standards', APP_LINKS.SearchStandards],
     ['Users', APP_LINKS.SearchUsers],
 ];
 
@@ -24,6 +25,8 @@ export function BaseSearchPage<DataType, SortBy>({
     listItemFactory,
     getOptionLabel,
     onObjectSelect,
+    showAddButton = true,
+    onAddClick = () => {},
     popupButtonText,
     popupButtonTooltip = "Couldn't find what you were looking for? Try creating your own!",
     onPopupButtonClick,
@@ -51,14 +54,14 @@ export function BaseSearchPage<DataType, SortBy>({
                     size="large"
                     sx={{
                         zIndex: 100,
-                        minidth: 'min(100%, 200px)',
+                        minWidth: 'min(100%, 200px)',
                         height: '48px',
                         borderRadius: 3,
                         position: 'fixed',
                         bottom: '5em',
                         transform: popupButton ? 'translateY(0)' : 'translateY(10em)',
                         transition: 'transform 1s ease-in-out',
-                    } as CSSProperties}
+                    }}
                 >
                     {popupButtonText}
                 </Button>
@@ -78,7 +81,7 @@ export function BaseSearchPage<DataType, SortBy>({
                 scrollButtons="auto"
                 allowScrollButtonsMobile
                 aria-label="search-type-tabs"
-                sx={{ 
+                sx={{
                     marginBottom: 2,
                     '& .MuiTabs-flexContainer': {
                         justifyContent: 'space-between',
@@ -95,7 +98,14 @@ export function BaseSearchPage<DataType, SortBy>({
                     />
                 ))}
             </Tabs>
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ paddingTop: 2 }}>{title}</Typography>
+            <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
+                <Typography component="h2" variant="h4">{title}</Typography>
+                { showAddButton ? <Tooltip title="Add new" placement="top">
+                    <IconButton size="large" onClick={onAddClick} sx={{padding: 1}}>
+                        <AddIcon color="primary" sx={{width: '1.5em', height: '1.5em'}} />
+                    </IconButton>
+                </Tooltip> : null }
+            </Stack>
             <SearchList
                 searchPlaceholder={searchPlaceholder}
                 sortOptions={sortOptions}
@@ -108,6 +118,6 @@ export function BaseSearchPage<DataType, SortBy>({
                 onScrolledFar={handleScrolledFar}
             />
             {popupButtonContainer}
-        </Box>
+        </Box >
     )
 }

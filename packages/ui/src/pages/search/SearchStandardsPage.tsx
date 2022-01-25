@@ -61,7 +61,7 @@ export const SearchStandardsPage = ({
             </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage
-                title="Search Standards"
+                title="Standards"
                 searchPlaceholder="Search..."
                 sortOptions={StandardSortOptions}
                 defaultSortOption={standardDefaultSortOption}
@@ -69,6 +69,8 @@ export const SearchStandardsPage = ({
                 listItemFactory={listItemFactory}
                 getOptionLabel={(o: any) => o.name}
                 onObjectSelect={standardOptionLabel}
+                showAddButton={true}
+                onAddClick={() => {}}
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={handleSurpriseDialogOpen}

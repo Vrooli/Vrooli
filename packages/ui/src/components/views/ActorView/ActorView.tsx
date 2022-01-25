@@ -256,9 +256,9 @@ export const ActorView = ({
                 }} />
             </Box>
             <Tooltip title="See all options">
-                <IconButton 
-                    aria-label="More" 
-                    size="small" 
+                <IconButton
+                    aria-label="More"
+                    size="small"
                     onClick={openMoreMenu}
                     sx={{
                         display: 'block',
@@ -273,20 +273,20 @@ export const ActorView = ({
                 {
                     isOwn ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
+                            <Typography variant="h4" textAlign="center">{user?.username ?? partialData?.username}</Typography>
                             <Tooltip title="Edit profile">
                                 <IconButton
                                     aria-label="Edit profile"
                                     size="small"
                                     onClick={() => setLocation(`${APP_LINKS.Profile}/${id}/edit`)}
                                 >
-                                    <EditIcon color="primary"/>
+                                    <EditIcon color="primary" />
                                 </IconButton>
                             </Tooltip>
-                            <Typography variant="h4" textAlign="center">{user?.username ?? partialData?.username}</Typography>
                         </Stack>
                     ) : (
                         <Typography variant="h4" textAlign="center">{user?.username ?? partialData?.username}</Typography>
-                        
+
                     )
                 }
                 <Typography variant="body1" sx={{ color: "#00831e" }}>{user?.created_at ? `🕔 Joined ${new Date(user.created_at).toDateString()}` : ''}</Typography>
@@ -302,13 +302,13 @@ export const ActorView = ({
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
-                    { !isOwn ? <StarButton
+                    {!isOwn ? <StarButton
                         session={session}
                         isStar={user?.isStarred ?? false}
                         stars={user?.stars ?? 0}
                         onStar={handleStar}
                         tooltipPlacement="bottom"
-                    /> : null }
+                    /> : null}
                 </Stack>
             </Stack>
         </Box>

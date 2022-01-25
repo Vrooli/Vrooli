@@ -62,7 +62,7 @@ export const SearchActorsPage = ({
             </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage
-                title="Search Actors"
+                title="Users"
                 searchPlaceholder="Search by username..."
                 sortOptions={ActorSortOptions}
                 defaultSortOption={actorDefaultSortOption}
@@ -70,6 +70,7 @@ export const SearchActorsPage = ({
                 listItemFactory={listItemFactory}
                 getOptionLabel={actorOptionLabel}
                 onObjectSelect={handleSelected}
+                showAddButton={false}
                 popupButtonText="Invite"
                 popupButtonTooltip="Can't find who you're looking for? Invite them😊"
                 onPopupButtonClick={handleSurpriseDialogOpen}

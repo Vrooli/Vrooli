@@ -61,7 +61,7 @@ export const SearchOrganizationsPage = ({
             </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage
-                title="Search Organizations"
+                title="Organizations"
                 searchPlaceholder="Search..."
                 sortOptions={OrganizationSortOptions}
                 defaultSortOption={organizationDefaultSortOption}
@@ -69,6 +69,8 @@ export const SearchOrganizationsPage = ({
                 listItemFactory={listItemFactory}
                 getOptionLabel={(o: any) => o.name}
                 onObjectSelect={organizationOptionLabel}
+                showAddButton={true}
+                onAddClick={() => {}}
                 popupButtonText="Invite"
                 popupButtonTooltip="Can't find who you're looking for? Invite them😊"
                 onPopupButtonClick={handleSurpriseDialogOpen}

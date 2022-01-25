@@ -63,7 +63,7 @@ export const SearchRoutinesPage = ({
             </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage
-                title="Search Routines"
+                title="Routines"
                 searchPlaceholder="Search..."
                 sortOptions={ProjectSortOptions}
                 defaultSortOption={projectDefaultSortOption}
@@ -71,6 +71,8 @@ export const SearchRoutinesPage = ({
                 listItemFactory={listItemFactory}
                 getOptionLabel={(o: any) => o.name}
                 onObjectSelect={projectOptionLabel}
+                showAddButton={true}
+                onAddClick={() => {}}
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={handleSurpriseDialogOpen}
