@@ -45,15 +45,12 @@ export const HomePage = ({
 
     const { routines, projects, organizations, standards, users } = useMemo(() => {
         if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
-        console.log('calculating routines, projects, organizations, standards, users...', data);
         const { routines, projects, organizations, standards, users } = data.autocomplete;
-        console.log('routine, project, organization, standard, user', routines, projects, organizations, standards, users);
         return { routines, projects, organizations, standards, users };
     }, [data]);
 
     const autocompleteOptions = useMemo(() => {
         if (!data) return [];
-        console.log('calculating autocomplete options', data)
         const routines = data.autocomplete.routines.map(r => ({ title: r.title, id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
         const projects = data.autocomplete.projects.map(p => ({ title: p.name, id: p.id, stars: p.stars, objectType: ObjectType.Project }));
         const organizations = data.autocomplete.organizations.map(o => ({ title: o.name, id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
@@ -62,7 +59,6 @@ export const HomePage = ({
         const options = [...routines, ...projects, ...organizations, ...standards, ...users].sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
-        console.log('calculated autocomplete options', options);
         return options;
     }, [data]);
 
@@ -70,6 +66,7 @@ export const HomePage = ({
      * When an autocomplete item is selected, navigate to object
      */
     const onInputSelect = useCallback((_e: any, newValue: any) => {
+        console.log('onInputSelect', newValue);
         if (!newValue) return;
         // Determine object from selected label
         const selectedItem = autocompleteOptions.find(o => `${o.title} | ${o.objectType}` === newValue);
@@ -77,8 +74,6 @@ export const HomePage = ({
         console.log('selectedItem', selectedItem);
         return openSearch(linkMap[selectedItem.objectType], selectedItem.id);
     }, [autocompleteOptions]);
-
-    console.log('AUTOCOMPLETE', autocompleteOptions, searchString.replaceAll(/![^\s]{1,}/g, ''))
 
     // Feed title is Popular when no search
     const getFeedTitle = useCallback((objectName: string) => {

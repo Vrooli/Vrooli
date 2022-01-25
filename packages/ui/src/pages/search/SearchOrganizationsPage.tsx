@@ -53,7 +53,7 @@ export const SearchOrganizationsPage = ({
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
             <ViewDialogBase
-                title={selected?.name ?? "Organization"}
+                title='View Organization'
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >

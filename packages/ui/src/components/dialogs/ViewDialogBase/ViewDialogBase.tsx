@@ -5,10 +5,14 @@ import {
     Dialog,
     Grid,
     IconButton,
+    Stack,
     Toolbar,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import {
+    ChevronLeft as ChevronLeftIcon,
+    ChevronRight as ChevronRightIcon,
     Close as CloseIcon,
     Edit as EditIcon,
     Restore as RestoreIcon,
@@ -32,6 +36,10 @@ export const ViewDialogBase = ({
     onRevert,
     onClose,
     children,
+    hasPrevious,
+    hasNext,
+    onPrevious,
+    onNext,
 }: ViewDialogBaseProps) => {
 
     const options = useMemo(() => {
@@ -39,7 +47,7 @@ export const ViewDialogBase = ({
         let availableOptions: Array<[string, any, any]> = [];
         if (isEditing) {
             availableOptions.push(
-                ['Revert', RestoreIcon, onRevert], 
+                ['Revert', RestoreIcon, onRevert],
                 ['Save', UpdateIcon, onSave]
             );
         }
@@ -92,23 +100,36 @@ export const ViewDialogBase = ({
                     <IconButton edge="start" color="inherit" onClick={onClose} aria-label="close">
                         <CloseIcon />
                     </IconButton>
-                    <Grid container spacing={0}>
-                        <Grid item xs={12} textAlign="center">
+                    <Box sx={{ width: '100%', alignItems: 'center' }}>
+                        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                            {hasPrevious && (
+                                <Tooltip title="Previous" placement="bottom">
+                                    <IconButton size="large" onClick={onPrevious} aria-label="previous">
+                                        <ChevronLeftIcon sx={{ fill: 'white' }} />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
                             <Typography variant="h5">
                                 {title}
                             </Typography>
-                        </Grid>
-                    </Grid>
+                            {hasNext && (
+                                <Tooltip title="Next" placement="bottom">
+                                    <IconButton size="large" onClick={onNext} aria-label="next">
+                                        <ChevronRightIcon sx={{ fill: 'white' }} />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+                        </Stack>
+                    </Box>
                 </Toolbar>
             </AppBar>
             <Box
                 sx={{
                     background: (t) => t.palette.background.default,
                     flex: 'auto',
-                    padding: 1,
+                    padding: 0,
                     paddingBottom: '15vh',
                     width: '100%',
-                    marginTop: 3,
                 }}
             >
                 {children}

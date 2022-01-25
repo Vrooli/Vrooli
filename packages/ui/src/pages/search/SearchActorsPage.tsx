@@ -20,6 +20,7 @@ export const SearchActorsPage = ({
         setLocation(`${APP_LINKS.SearchUsers}/${selected.id}`);
     }, [setLocation]);
     const handleSelectedDialogClose = useCallback(() => {
+        console.log("handleSelectedDialogClose");
         setSelected(undefined);
         // If selected data exists, then we know we can go back to the previous page
         if (selected) window.history.back();
@@ -53,7 +54,7 @@ export const SearchActorsPage = ({
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
             <ViewDialogBase
-                title={selected?.username ?? "User"}
+                title='View User'
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >

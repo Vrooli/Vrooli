@@ -93,7 +93,7 @@ export const RoutineView = ({
             width={'min(500px, 100vw)'}
             borderRadius={2}
             ml='auto'
-            mr='ato'
+            mr='auto'
             mt={8}
             bgcolor={(t) => t.palette.background.paper}
             sx={{ ...containerShadow }}

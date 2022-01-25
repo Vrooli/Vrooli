@@ -82,12 +82,12 @@ export function RoutineListItem({
                             sx={{ ...multiLineEllipsis(2) }}
                         />
                     </Stack>
-                    <StarButton
+                    { isOwn ? null : <StarButton
                         session={session}
                         isStar={data.isStarred}
                         stars={data.stars}
                         onStar={handleStar}
-                    />
+                    /> }
                 </ListItemButton>
             </ListItem>
         </Tooltip>

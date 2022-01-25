@@ -82,6 +82,7 @@ export interface StarButtonProps {
     isStar?: boolean | null; // Defaults to false
     stars?: number | null; // Defaults to 0
     onStar: (event: any, isStar: boolean) => void;
+    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 
 export interface SearchQueryVariablesInput<SortBy> {

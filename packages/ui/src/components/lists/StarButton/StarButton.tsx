@@ -12,6 +12,7 @@ export const StarButton = ({
     isStar = false,
     stars = 0,
     onStar,
+    tooltipPlacement = "left"
 }: StarButtonProps) => {
     // Used to respond to user clicks immediately, without having 
     // to wait for the mutation to complete
@@ -41,10 +42,9 @@ export const StarButton = ({
             spacing={1}
             sx={{
                 marginRight: 0,
-                maxWidth: '25%',
             }}
         >
-            <Tooltip placement="left" title={tooltip}>
+            <Tooltip placement={tooltipPlacement} title={tooltip}>
                 <Icon onClick={handleClick} sx={{ fill: color, cursor: session?.id ? 'pointer' : 'default' }} />
             </Tooltip>
             <ListItemText

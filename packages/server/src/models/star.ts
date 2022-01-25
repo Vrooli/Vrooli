@@ -63,8 +63,10 @@ const forMapper = {
  */
 const starrer = (prisma: PrismaType) => ({
     async star(userId: string, input: StarInput): Promise<boolean> {
+        console.log('going to star', input)
         // Define prisma type for object being starred
         const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as BaseType);
+        console.log('prismaFor', prismaFor)
         // Check if object being starred exists
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
         if (!starringFor) throw new CustomError(CODE.ErrorUnknown);

@@ -55,7 +55,7 @@ export const SearchRoutinesPage = ({
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
             <ViewDialogBase
-                title={selected?.title ?? "Routine"}
+                title='View Routine'
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >

@@ -84,7 +84,6 @@ export const AddDialogBase = ({
                     padding: 1,
                     paddingBottom: '15vh',
                     width: '100%',
-                    marginTop: 3,
                 }}
             >
                 {children}

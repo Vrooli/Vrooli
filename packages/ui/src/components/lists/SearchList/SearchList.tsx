@@ -133,7 +133,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 ...containerShadow,
                 borderRadius: '8px',
                 marginTop: 2,
-                background: (t) => t.palette.background.default,
+                background: (t) => t.palette.background.paper,
             }}
         >
             <List>

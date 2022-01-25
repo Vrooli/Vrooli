@@ -94,14 +94,10 @@ export const userFormatter = (): UserFormatConverter => {
         votedComments: 'voted',
         votedByTag: 'tag',
     };
-    const countMapper = {
-        stars: 'starredBy',
-    }
     return {
         toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<UserDB> => addJoinTables(obj, joinMapper),
         toDBUser: (obj: RecursivePartial<User>): RecursivePartial<UserDB> => {
             let modified = addJoinTables(obj, joinMapper);
-            modified = addCountQueries(modified, countMapper);
             // Remove isStarred, as it is calculated in its own query
             if (modified.isStarred) delete modified.isStarred;
             return modified;
@@ -109,7 +105,6 @@ export const userFormatter = (): UserFormatConverter => {
         toGraphQLProfile: (obj: RecursivePartial<UserDB>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),
         toGraphQLUser: (obj: RecursivePartial<UserDB>): RecursivePartial<User> => {
             let modified = removeJoinTables(obj, joinMapper);
-            modified = removeCountQueries(modified, countMapper);
             return modified;
         },
     }

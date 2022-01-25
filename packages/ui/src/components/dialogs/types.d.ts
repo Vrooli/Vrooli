@@ -46,6 +46,10 @@ export interface ViewDialogBaseProps extends DialogProps {
     onSave?: () => any; // Callback when saving changes
     onRevert?: () => any; // Callback when reverting changes
     onClose?: () => any; // Callback when closing dialog
+    hasPrevious?: boolean;
+    hasNext?: boolean;
+    onPrevious?: () => any;
+    onNext?: () => any;
     children: JSX.Element | JSX.Element[];
 };
 

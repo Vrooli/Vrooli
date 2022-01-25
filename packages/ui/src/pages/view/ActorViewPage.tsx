@@ -148,7 +148,7 @@ export const ActorViewPage = () => {
             width={'min(500px, 100vw)'}
             borderRadius={2}
             ml='auto'
-            mr='ato'
+            mr='auto'
             mt={8}
             bgcolor={(t) => t.palette.background.paper}
             sx={{ ...containerShadow }}
@@ -164,7 +164,7 @@ export const ActorViewPage = () => {
                 justifyContent='center'
                 alignItems='center'
                 left='50%'
-                top='max(-50px, -12vw)'
+                top='min(80px, 12vw)'
                 sx={{ transform: 'translateX(-50%)' }}
             >
                 <PersonIcon sx={{

@@ -31,7 +31,6 @@ export function BaseSearchPage<DataType, SortBy>({
     const [, setLocation] = useLocation();
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
-        console.log('bbop', window.location.pathname);
         const tabIndex = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
         return tabIndex >= 0 ? tabIndex : 0;
     });

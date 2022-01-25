@@ -11,6 +11,7 @@ export interface userFields {
   __typename: "User";
   id: string;
   username: string | null;
+  created_at: any;
   stars: number;
   isStarred: boolean | null;
   bio: string | null;

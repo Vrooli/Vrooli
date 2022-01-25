@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, UserSortBy } from '@local/shared';
 import { CustomError } from '../error';
-import { userFormatter, UserModel } from '../models';
+import { UserModel } from '../models';
 import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
