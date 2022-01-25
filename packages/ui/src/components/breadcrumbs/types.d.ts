@@ -9,5 +9,3 @@ export interface BreadcrumbsBaseProps {
 export type CopyrightBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>
 
 export type PolicyBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>
-
-export type SearchBreadcrumbsProps = Omit<BreadcrumbsBaseProps, 'paths' | 'ariaLabel'>

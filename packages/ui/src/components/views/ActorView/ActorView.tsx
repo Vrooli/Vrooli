@@ -262,7 +262,12 @@ export const ActorView = ({
                 scrollButtons="auto"
                 allowScrollButtonsMobile
                 aria-label="site-statistics-tabs"
-                sx={{ marginBottom: 2 }}
+                sx={{ 
+                    marginBottom: 2,
+                    '& .MuiTabs-flexContainer': {
+                        justifyContent: 'space-between',
+                    },
+                }}
             >
                 {tabLabels.map((label, index) => (
                     <Tab

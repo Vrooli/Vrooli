@@ -33,7 +33,6 @@ export const StatsPage = () => {
                     '& .MuiTabs-flexContainer': {
                         justifyContent: 'space-between',
                     },
-                    justifyContent:"space-between"
                 }}
             >
                 {tabLabels.map((label, index) => (
