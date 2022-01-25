@@ -16,10 +16,11 @@ export interface FormDialogProps {
 }
 
 export interface ListMenuItemData {
-    label: string;
-    value: string;
-    Icon?: SvgIconComponent;
-    helpData?: HelpButtonProps;
+    label: string; // Text to display
+    value: string; // Value to pass back
+    Icon?: SvgIconComponent; // Icon to display
+    iconColor?: string; // Color of icon, if different than text
+    helpData?: HelpButtonProps; // If set, displays help button with data
 }
 export interface ListMenuProps {
     id: string;

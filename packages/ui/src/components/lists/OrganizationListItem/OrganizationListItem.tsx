@@ -96,7 +96,7 @@ export function OrganizationListItem({
                         />
                         <ListItemText
                             primary={data.bio}
-                            sx={{ ...multiLineEllipsis(2) }}
+                            sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                     </Stack>
                     {isOwn ? null : <StarButton

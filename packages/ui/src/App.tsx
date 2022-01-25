@@ -20,11 +20,10 @@ import hotkeys from 'hotkeys-js';
 
 const useStyles = makeStyles(() => ({
     "@global": {
-        html: {
-            overflowX: 'hidden',
-        },
         body: {
             backgroundColor: 'black',
+            overflowX: 'hidden',
+            overflowY: 'auto',
         },
         '#page': {
             minWidth: '100%',

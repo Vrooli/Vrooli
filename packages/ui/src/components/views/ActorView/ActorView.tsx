@@ -7,11 +7,13 @@ import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, userQ
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
+    DeleteForever as DeleteForeverIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
     ReportProblem as ReportIcon,
     Share as ShareIcon,
+    Star as StarFilledIcon,
     StarOutline as StarOutlineIcon,
     SvgIconComponent
 } from "@mui/icons-material";
@@ -26,23 +28,23 @@ import { star } from 'graphql/generated/star';
 
 const tabLabels = ['Resources', 'Organizations', 'Projects', 'Routines', 'Standards'];
 
+// All available actions
 enum Actions {
+    Delete = "Delete",
     Donate = "Donate",
     Report = "Report",
     Share = "Share",
     Star = "Star",
+    Unstar = "Unstar",
 }
-const moreOptionsMap: { [x: string]: [string, SvgIconComponent] } = ({
-    [Actions.Star]: ['Favorite', StarOutlineIcon],
-    [Actions.Share]: ['Share', ShareIcon],
-    [Actions.Donate]: ['Donate', DonateIcon],
-    [Actions.Report]: ['Delete', ReportIcon],
+const allOptionsMap: { [x: string]: [string, SvgIconComponent, string] } = ({
+    [Actions.Star]: ['Favorite', StarOutlineIcon, "#cbae30"],
+    [Actions.Unstar]: ['Unfavorite', StarFilledIcon, "#cbae30"],
+    [Actions.Donate]: ['Donate', DonateIcon, "default"],
+    [Actions.Share]: ['Share', ShareIcon, "default"],
+    [Actions.Report]: ['Report', ReportIcon, "default"],
+    [Actions.Delete]: ['Delete', DeleteForeverIcon, "default"],
 })
-const moreOptions: ListMenuItemData[] = Object.keys(moreOptionsMap).map(o => ({
-    label: moreOptionsMap[o][0],
-    value: o,
-    Icon: moreOptionsMap[o][1]
-}));
 
 export const ActorView = ({
     session,
@@ -75,6 +77,29 @@ export const ActorView = ({
             }
         });
     }, [user?.id, star]);
+
+    // Determine options available to object, in order
+    const moreOptions = useMemo(() => {
+        // Initialize
+        let options: [string, SvgIconComponent, string][] = [];
+        if (user && session && !isOwn) {
+            options.push(user.isStarred ? allOptionsMap[Actions.Unstar] : allOptionsMap[Actions.Star]);
+        }
+        options.push(allOptionsMap[Actions.Donate], allOptionsMap[Actions.Share])
+        if (session?.id) {
+            options.push(allOptionsMap[Actions.Report]);
+        }
+        if (isOwn) {
+            options.push(allOptionsMap[Actions.Delete]);
+        }
+        // Convert options to ListMenuItemData
+        return options.map(o => ({
+            label: o[0],
+            value: o[0],
+            Icon: o[1],
+            iconColor: o[2],
+        }));
+    }, [session, user])
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);

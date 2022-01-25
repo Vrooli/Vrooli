@@ -26,11 +26,11 @@ export const ListMenu = ({
 
     console.log('anchorEl', anchorEl);
 
-    const items = useMemo(() => data?.map(({ label, value, Icon, helpData }, index) => {
+    const items = useMemo(() => data?.map(({ label, value, Icon, iconColor, helpData }, index) => {
         const itemText = <ListItemText primary={label} />;
         const itemIcon = Icon ? (
             <ListItemIcon>
-                <Icon />
+                <Icon sx={{ fill: iconColor || 'default' }}/>
             </ListItemIcon>
         ) : null;
         const helpIcon = helpData ? (
@@ -77,6 +77,7 @@ export const ListMenu = ({
                     ...noSelect,
                     display: 'flex', 
                     alignItems: 'center',
+                    padding: 1,
                     background: (t) => t.palette.primary.dark 
                 }}
             >
@@ -94,11 +95,7 @@ export const ListMenu = ({
                     edge="end"
                     onClick={(e) => { console.log('on close', e); onClose() }}
                 >
-                    <CloseIcon
-                        sx={{
-                            fill: (t) => t.palette.primary.contrastText,
-                        }}
-                    />
+                    <CloseIcon sx={{fill: (t) => t.palette.primary.contrastText}}/>
                 </IconButton>
             </Box>
             <List>
