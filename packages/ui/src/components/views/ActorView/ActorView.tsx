@@ -18,7 +18,6 @@ import {
     SvgIconComponent
 } from "@mui/icons-material";
 import { ListMenu, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
-import { ListMenuItemData } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { ActorViewProps } from "../types";
 import { LabelledSortOption } from "utils";
@@ -53,9 +52,12 @@ export const ActorView = ({
     const [star] = useMutation<star>(starMutation);
     const [, setLocation] = useLocation();
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Profile}/:id`);
+    const [isProfile, params] = useRoute(`${APP_LINKS.Profile}`);
     const [, params2] = useRoute(`${APP_LINKS.SearchUsers}/:id`);
-    const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
+    const id: string = useMemo(() => {
+        if (isProfile) return session?.id ?? '';
+        return params2?.id ?? ';'
+    }, [params, params2]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
     const { data, loading } = useQuery<user>(userQuery, { variables: { input: { id } } });
@@ -228,6 +230,7 @@ export const ActorView = ({
     const overviewComponent = useMemo(() => (
         <Box
             width={'min(500px, 100vw)'}
+            position="relative"
             borderRadius={2}
             ml='auto'
             mr='auto'
@@ -246,7 +249,7 @@ export const ActorView = ({
                 justifyContent='center'
                 alignItems='center'
                 left='50%'
-                top='70px'
+                top="-55px"
                 sx={{ transform: 'translateX(-50%)' }}
             >
                 <PersonIcon sx={{

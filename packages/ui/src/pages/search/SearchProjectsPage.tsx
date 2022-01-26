@@ -57,7 +57,7 @@ export const SearchProjectsPage = ({
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
-                <ProjectView partialData={partialData} />
+                <ProjectView session={session} partialData={partialData} />
             </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage

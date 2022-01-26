@@ -1,24 +1,22 @@
 import {
-    Card,
-    CardActionArea,
-    CardContent,
-    CardMedia,
+    Box,
+    Stack,
     Tooltip,
     Typography
 } from '@mui/material';
 import { openLink } from 'utils';
-import { NoImageWithTextIcon } from 'assets/img';
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { readOpenGraphQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { useLocation } from 'wouter';
 import { ResourceCardProps } from '../types';
-import { cardContent, cardRoot } from '../styles';
+import { cardRoot } from '../styles';
 import { multiLineEllipsis } from 'styles';
 import { readOpenGraph, readOpenGraphVariables } from 'graphql/generated/readOpenGraph';
 
 export const ResourceCard = ({
     data,
+    Icon,
     onClick,
     onRightClick,
 }: ResourceCardProps) => {
@@ -26,54 +24,60 @@ export const ResourceCard = ({
     const [getOpenGraphData, { data: queryResult }] = useLazyQuery<readOpenGraph, readOpenGraphVariables>(readOpenGraphQuery);
     const queryData = useMemo(() => queryResult?.readOpenGraph, [queryResult]);
     const title = useMemo(() => data?.title ?? queryData?.title, [data, queryData]);
-    const url = useMemo(() => data?.link ?? queryData?.site, [data, queryData]);
+
+    const handleClick = useCallback((event: any) => {
+        if (onClick) onClick(data);
+        else if (data.link) openLink(setLocation, data.link);
+    }, [onClick, data]);
+    const handleRightClick = useCallback((event: any) => {
+        if (onRightClick) onRightClick(event, data);
+    }, [onRightClick, data]);
 
     useEffect(() => {
-        if (data.link) {
+        if (data.link && !data.title) {
             getOpenGraphData({ variables: { input: { url: data.link } } })
         }
     }, [getOpenGraphData, data])
 
-    const display = useMemo(() => {
-        if (!data || !data.displayUrl) {
-            return <NoImageWithTextIcon style={{ aspectRatio: '1' }} />
-        }
-        return (
-            <CardMedia
-                component="img"
-                src={data.displayUrl}
-                sx={{ aspectRatio: '1' }}
-                alt={`Image from ${data.link ?? data.title}`}
-                title={data.title ?? data.link}
-            />
-        )
-    }, [data])
+    // const display = useMemo(() => {
+    //     if (!data || !data.displayUrl) {
+    //         return <NoImageWithTextIcon style={{ aspectRatio: '1' }} />
+    //     }
+    //     return (
+    //         <CardMedia
+    //             component="img"
+    //             src={data.displayUrl}
+    //             sx={{ aspectRatio: '1' }}
+    //             alt={`Image from ${data.link ?? data.title}`}
+    //             title={data.title ?? data.link}
+    //         />
+    //     )
+    // }, [data])
 
     return (
         <Tooltip placement="top" title={data?.description ?? queryData?.description ?? ''}>
-            <Card
-                onClick={() => {return;openLink(setLocation, url)}}
-                onContextMenu={(e) => onRightClick(e, data)}
+            <Box
+                onClick={handleClick}
+                onContextMenu={handleRightClick}
                 sx={{
                     ...cardRoot,
-                    width: 'max(50px, 15vh)',
-                    height: '100%',
+                    padding: 1,
+                    width: '120px',
+                    minWidth: '120px',
                 }}
             >
-                <CardActionArea>
-                    {display}
-                    <CardContent sx={{ ...cardContent }}>
-                        <Typography
-                            gutterBottom
-                            variant="body1"
-                            component="h3"
-                            sx={{ ...multiLineEllipsis(2) }}
-                        >
-                            {title}
-                        </Typography>
-                    </CardContent>
-                </CardActionArea>
-            </Card>
+                <Stack direction="column" justifyContent="center" alignItems="center">
+                    <Icon sx={{ fill: 'white' }} />
+                    <Typography
+                        gutterBottom
+                        variant="body2"
+                        component="h3"
+                        sx={{ ...multiLineEllipsis(3) }}
+                    >
+                        {title}
+                    </Typography>
+                </Stack>
+            </Box>
         </Tooltip>
     )
 }

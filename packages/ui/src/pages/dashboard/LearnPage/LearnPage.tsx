@@ -1,5 +1,5 @@
 import { Box, Typography } from '@mui/material';
-import { ResourceList } from 'components';
+import { ResourceListHorizontal } from 'components';
 
 export const LearnPage = ({
 
@@ -7,7 +7,7 @@ export const LearnPage = ({
     return (
         <Box id="page">
             <Typography component="h1" variant="h3" textAlign="center">Learn Dashboard</Typography>
-            <ResourceList />
+            <ResourceListHorizontal />
         </Box>
     )
 }

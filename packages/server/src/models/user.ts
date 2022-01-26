@@ -415,13 +415,13 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         const select = selectHelper<User, UserDB>(info, format.toDBUser);
         // Access database
         let user = await prisma.user.findUnique({ where: { id: input.id }, ...select });
-        // Return user with "isStarred" field. This must be queried separately.
+        // Return user with "isStarred" and "isOwn" fields
         // If the user is querying themselves, 
         if (!user) throw new CustomError(CODE.InternalError, 'User not found');
         if (!userId || userId === user.id) return { ...user, isStarred: false };
         const star = await prisma.star.findFirst({ where: { byId: userId, userId: user.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...user, isStarred };
+        return { ...user, isStarred, isOwn: userId === user.id };
     },
     async findProfile(
         userId: string,
@@ -431,8 +431,8 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         const select = selectHelper<Profile, UserDB>(info, format.toDBProfile);
         // Access database
         let user = await prisma.user.findUnique({ where: { id: userId }, ...select });
-        // Return user with "isStarred" field. This will be false, since the user is querying themselves
-        return { ...user, isStarred: false };
+        // Return user with "isStarred" and "isOwn" fields. This "isStarred" will be false, since the user is querying themselves
+        return { ...user, isStarred: false, isOwn: true };
     },
     async searchUsers(
         where: { [x: string]: any },
@@ -462,7 +462,7 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         console.log('isStarredArray', isStarredArray);
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
             const isStarred = Boolean(isStarredArray.find(({ userId }) => userId === node.id));
-            return { cursor, node: { ...node, isStarred } };
+            return { cursor, node: { ...node, isStarred, isOwn: node.id === userId } };
         });
         return searchResults;
     },
@@ -489,7 +489,7 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
             ...selectHelper<Profile, UserDB>(info, format.toDBProfile)
         });
         // Return user with "isStarred" field. This will return false, since the user cannot star themselves
-        return { ...user, isStarred: false };
+        return { ...user, isStarred: false, isOwn: true };
     },
     async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
         // Check for correct password

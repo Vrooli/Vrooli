@@ -49,7 +49,12 @@ export interface FeedListProps {
     children: JSX.Element[];
 }
 
-export interface ResourceListProps {
+export interface ResourceListHorizontalProps {
+    title?: string;
+    canEdit?: boolean;
+}
+
+export interface ResourceListVerticalProps {
     title?: string;
     canEdit?: boolean;
 }

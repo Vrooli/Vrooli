@@ -119,27 +119,27 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
                 <Route path={`${LINKS.Profile}/:id?`}>
                     <Page title={title('Profile')} {...props}>
-                        <ActorViewPage />
+                        <ActorViewPage session={props.session ?? {}}/>
                     </Page>
                 </Route>
                 <Route path={`${LINKS.Organization}/:id?`}>
                     <Page title={title('Organization')} {...props}>
-                        <OrganizationViewPage />
+                        <OrganizationViewPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={`${LINKS.Project}/:id?`}>
                     <Page title={title('Project')} {...props}>
-                        <ProjectViewPage />
+                        <ProjectViewPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={`${LINKS.Routine}/:id?`}>
                     <Page title={title('Routine')} {...props}>
-                        <RoutineViewPage />
+                        <RoutineViewPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={`${LINKS.Standard}/:id?`}>
                     <Page title={title('Standard')} {...props}>
-                        <StandardViewPage />
+                        <StandardViewPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 {/* =========  #endregion ========= */}

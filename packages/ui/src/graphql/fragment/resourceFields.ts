@@ -6,6 +6,6 @@ export const resourceFields = gql`
         title
         description
         link
-        displayUrl
+        usedFor
     }
 `

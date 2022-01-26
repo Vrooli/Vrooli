@@ -1,42 +1,20 @@
 import { Organization, Project, Routine, Session, Standard, User } from "types";
 
-export interface ActorViewProps {
+export interface ViewProps<T> {
     session: Session;
     /**
      * Any data about the object which is already known, 
      * such as its name. Can be displayed while fetching the full object
      */
-    partialData?: Partial<User>;
+    partialData?: Partial<T>;
 }
 
-export interface OrganizationViewProps {
-    /**
-     * Any data about the object which is already known, 
-     * such as its name. Can be displayed while fetching the full object
-     */
-    partialData?: Partial<Organization>;
-}
+export interface ActorViewProps extends ViewProps<User> {}
 
-export interface ProjectViewProps {
-    /**
-     * Any data about the object which is already known, 
-     * such as its name. Can be displayed while fetching the full object
-     */
-    partialData?: Partial<Project>;
-}
+export interface OrganizationViewProps extends ViewProps<Organization> {}
 
-export interface RoutineViewProps {
-    /**
-     * Any data about the object which is already known, 
-     * such as its name. Can be displayed while fetching the full object
-     */
-    partialData?: Partial<Routine>;
-}
+export interface ProjectViewProps extends ViewProps<Project> {}
 
-export interface StandardViewProps {
-    /**
-     * Any data about the object which is already known, 
-     * such as its name. Can be displayed while fetching the full object
-     */
-    partialData?: Partial<Standard>;
-}
+export interface RoutineViewProps extends ViewProps<Routine> {}
+
+export interface StandardViewProps extends ViewProps<Standard> {}

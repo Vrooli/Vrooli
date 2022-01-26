@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType } from "./globalTypes";
+import { NodeType, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: deepRoutineFields
@@ -195,7 +195,7 @@ export interface deepRoutineFields_contextualResources {
   title: string;
   description: string | null;
   link: string;
-  displayUrl: string | null;
+  usedFor: ResourceUsedFor;
 }
 
 export interface deepRoutineFields_externalResources {
@@ -204,7 +204,7 @@ export interface deepRoutineFields_externalResources {
   title: string;
   description: string | null;
   link: string;
-  displayUrl: string | null;
+  usedFor: ResourceUsedFor;
 }
 
 export interface deepRoutineFields_tags {

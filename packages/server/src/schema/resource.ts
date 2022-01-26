@@ -38,10 +38,9 @@ export const typeDef = gql`
 
     input ResourceInput {
         id: ID
-        title: String!
+        title: String
         description: String
         link: String!
-        displayUrl: String
         usedFor: ResourceUsedFor
         createdFor: ResourceFor!
         forId: ID!
@@ -54,7 +53,6 @@ export const typeDef = gql`
         title: String!
         description: String
         link: String!
-        displayUrl: String
         usedFor: ResourceUsedFor!
         organization_resources: [Organization!]!
         project_resources: [Project!]!

@@ -1,122 +1,202 @@
-import { Box, Grid, IconButton, Stack, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS } from "@local/shared";
-import { useQuery, useLazyQuery } from "@apollo/client";
+import { APP_LINKS, StarFor } from "@local/shared";
+import { useMutation, useQuery } from "@apollo/client";
 import { organization } from "graphql/generated/organization";
-import { organizationQuery, usersQuery, projectsQuery, routinesQuery, standardsQuery } from "graphql/query";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
+    DeleteForever as DeleteForeverIcon,
+    Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
     ReportProblem as ReportIcon,
     Share as ShareIcon,
-    Star as StarIcon,
+    Star as StarFilledIcon,
     StarOutline as StarOutlineIcon,
     SvgIconComponent
 } from "@mui/icons-material";
-import { ListMenu, ResourceList, SearchBar, Selector } from "components";
-import { ListMenuItemData } from "components/dialogs/types";
+import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, ListMenu, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
-import { users, usersVariables } from "graphql/generated/users";
-import { projects, projectsVariables } from "graphql/generated/projects";
-import { routines, routinesVariables } from "graphql/generated/routines";
-import { standards, standardsVariables } from "graphql/generated/standards";
 import { OrganizationViewProps } from "../types";
+import { LabelledSortOption } from "utils";
+import { User, Project, RoutineDeep, Standard } from "types";
+import { starMutation } from "graphql/mutation";
+import { star } from 'graphql/generated/star';
 
+const tabLabels = ['Resources', 'Members', 'Projects', 'Routines', 'Standards'];
+
+// All available actions
 enum Actions {
+    Delete = "Delete",
     Donate = "Donate",
     Report = "Report",
     Share = "Share",
     Star = "Star",
+    Unstar = "Unstar",
 }
-const moreOptionsMap: { [x: string]: [string, SvgIconComponent] } = ({
-    [Actions.Star]: ['Favorite', StarOutlineIcon],
-    [Actions.Share]: ['Share', ShareIcon],
-    [Actions.Donate]: ['Donate', DonateIcon],
-    [Actions.Report]: ['Delete', ReportIcon],
+const allOptionsMap: { [x: string]: [string, SvgIconComponent, string] } = ({
+    [Actions.Star]: ['Favorite', StarOutlineIcon, "#cbae30"],
+    [Actions.Unstar]: ['Unfavorite', StarFilledIcon, "#cbae30"],
+    [Actions.Donate]: ['Donate', DonateIcon, "default"],
+    [Actions.Share]: ['Share', ShareIcon, "default"],
+    [Actions.Report]: ['Report', ReportIcon, "default"],
+    [Actions.Delete]: ['Delete', DeleteForeverIcon, "default"],
 })
-const moreOptions: ListMenuItemData[] = Object.keys(moreOptionsMap).map(o => ({
-    label: moreOptionsMap[o][0],
-    value: o,
-    Icon: moreOptionsMap[o][1]
-}));
-
-enum SearchSelections {
-    Users = "Users",
-    Projects = "Projects",
-    Routines = "Routines",
-    Standards = "Standards",
-}
-const selectOptions = Object.keys(SearchSelections);
 
 export const OrganizationView = ({
+    session,
     partialData,
 }: OrganizationViewProps) => {
+    const [star] = useMutation<star>(starMutation);
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
     const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });
     const organization = useMemo(() => data?.organization, [data]);
+    const isOwn: boolean = useMemo(() => true, [organization]); // TODO organization.isOwn
 
-    const [selection, setSelection] = useState<SearchSelections>(SearchSelections.Routines);
-    const makeSelection = useCallback((e) => setSelection(e.target.value), []);
-    const [searchString, setSearchString] = useState<string>('');
-    const updateSearch = useCallback((newValue: any) => setSearchString(newValue), []);
-    // Which query is called depends on the selector
-    const [getUsers, { data: usersData }] = useLazyQuery<users, usersVariables>(usersQuery, { variables: { input: { searchString, organizationId: params?.id ?? ''  } } });
-    const [getProjects, { data: projectsData }] = useLazyQuery<projects, projectsVariables>(projectsQuery, { variables: { input: { searchString, organizationId: params?.id ?? ''  } } });
-    const [getRoutines, { data: routinesData }] = useLazyQuery<routines, routinesVariables>(routinesQuery, { variables: { input: { searchString, organizationId: params?.id ?? ''  } } });
-    const [getStandards, { data: standardsData }] = useLazyQuery<standards, standardsVariables>(standardsQuery, { variables: { input: { searchString, organizationId: params?.id ?? ''  } } });
-    useEffect(() => { 
-        console.log('refetching...'); 
-        switch (selection) {
-            case SearchSelections.Users:
-                getUsers();
-                break;
-            case SearchSelections.Projects:
-                getProjects();
-                break;
-            case SearchSelections.Routines:
-                getRoutines();
-                break;
-            case SearchSelections.Standards:
-                getStandards();
-                break;
+    // Star object
+    const handleStar = useCallback((e: any, isStar: boolean) => {
+        // Prevent propagation of normal click event
+        e.stopPropagation();
+        console.log('going to star', organization, isStar);
+        // Send star mutation
+        star({
+            variables: {
+                input: {
+                    isStar,
+                    starFor: StarFor.Organization,
+                    forId: organization?.id ?? ''
+                }
+            }
+        });
+    }, [organization?.id, star]);
+
+    // Determine options available to object, in order
+    const moreOptions = useMemo(() => {
+        // Initialize
+        let options: [string, SvgIconComponent, string][] = [];
+        if (organization && session && !isOwn) {
+            options.push(organization.isStarred ? allOptionsMap[Actions.Unstar] : allOptionsMap[Actions.Star]);
         }
-    }, [searchString]);
-    const [placeholder, searchData, onSearchSelect] = useMemo(() => {
-        const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`) ;
-        switch (selection) {
-            case SearchSelections.Users:
+        options.push(allOptionsMap[Actions.Donate], allOptionsMap[Actions.Share])
+        if (session?.id) {
+            options.push(allOptionsMap[Actions.Report]);
+        }
+        if (isOwn) {
+            options.push(allOptionsMap[Actions.Delete]);
+        }
+        // Convert options to ListMenuItemData
+        return options.map(o => ({
+            label: o[0],
+            value: o[0],
+            Icon: o[1],
+            iconColor: o[2],
+        }));
+    }, [session, organization])
+
+    // Handle tabs
+    const [tabIndex, setTabIndex] = useState<number>(0);
+    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
+
+    // Create search data
+    const [
+        placeholder,
+        sortOptions,
+        defaultSortOption,
+        sortOptionLabel,
+        searchQuery,
+        onSearchSelect,
+        searchItemFactory,
+    ] = useMemo<[string, LabelledSortOption<any>[], { label: string, value: any }, (o: any) => string, any, (objectData: any) => void, (node: any, index: number) => JSX.Element]>(() => {
+        const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
+        // The first tab doesn't have search results, as it is the organization's set resources
+        switch (tabIndex) {
+            case 1:
                 return [
-                    "Search organization's members...", 
-                    usersData?.users, 
-                    (_e, newValue) => openLink(APP_LINKS.Organization, newValue.id)
+                    "Search orgnization's members...",
+                    ActorSortOptions,
+                    actorDefaultSortOption,
+                    actorOptionLabel,
+                    usersQuery,
+                    (newValue) => openLink(APP_LINKS.Profile, newValue.id),
+                    (node: User, index: number) => (
+                        <ActorListItem
+                            key={`member-list-item-${index}`}
+                            session={session}
+                            data={node}
+                            isOwn={false}
+                            onClick={(selected: User) => openLink(APP_LINKS.Profile, selected.id)}
+                        />)
                 ];
-            case SearchSelections.Projects:
+            case 2:
                 return [
-                    "Search organization's projects...", 
-                    projectsData?.projects, 
-                    (_e, newValue) => openLink(APP_LINKS.Project, newValue.id)
+                    "Search organization's projects...",
+                    ProjectSortOptions,
+                    projectDefaultSortOption,
+                    projectOptionLabel,
+                    projectsQuery,
+                    (newValue) => openLink(APP_LINKS.Project, newValue.id),
+                    (node: Project, index: number) => (
+                        <ProjectListItem
+                            key={`project-list-item-${index}`}
+                            session={session}
+                            data={node}
+                            isOwn={false}
+                            onClick={(selected: Project) => openLink(APP_LINKS.Project, selected.id)}
+                        />)
                 ];
-            case SearchSelections.Routines:
+            case 3:
                 return [
-                    "Search organization's routines...", 
-                    routinesData?.routines, 
-                    (_e, newValue) => openLink(APP_LINKS.Routine, newValue.id)
+                    "Search organization's routines...",
+                    RoutineSortOptions,
+                    routineDefaultSortOption,
+                    routineOptionLabel,
+                    routinesQuery,
+                    (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    (node: RoutineDeep, index: number) => (
+                        <RoutineListItem
+                            key={`routine-list-item-${index}`}
+                            session={session}
+                            data={node}
+                            isOwn={false}
+                            onClick={(selected: RoutineDeep) => openLink(APP_LINKS.Routine, selected.id)}
+                        />)
                 ];
-            case SearchSelections.Standards:
+            case 4:
                 return [
-                    "Search organization's standards...", 
-                    standardsData?.standards, 
-                    (_e, newValue) => openLink(APP_LINKS.Standard, newValue.id)
+                    "Search organization's standards...",
+                    StandardSortOptions,
+                    standardDefaultSortOption,
+                    standardOptionLabel,
+                    standardsQuery,
+                    (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    (node: Standard, index: number) => (
+                        <StandardListItem
+                            key={`standard-list-item-${index}`}
+                            session={session}
+                            data={node}
+                            isOwn={false}
+                            onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
+                        />)
+                ];
+            default:
+                return [
+                    '',
+                    [],
+                    { label: '', value: null },
+                    () => '',
+                    null,
+                    () => { },
+                    () => (<></>)
                 ];
         }
-    }, [selection]);
+    }, [tabIndex]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -147,10 +227,11 @@ export const OrganizationView = ({
     const overviewComponent = useMemo(() => (
         <Box
             width={'min(500px, 100vw)'}
+            position="relative"
             borderRadius={2}
             ml='auto'
             mr='auto'
-            mt={8}
+            mt={3}
             bgcolor={(t) => t.palette.background.paper}
             sx={{ ...containerShadow }}
         >
@@ -165,7 +246,7 @@ export const OrganizationView = ({
                 justifyContent='center'
                 alignItems='center'
                 left='50%'
-                top='max(-50px, -12vw)'
+                top="-55px"
                 sx={{ transform: 'translateX(-50%)' }}
             >
                 <PersonIcon sx={{
@@ -174,36 +255,64 @@ export const OrganizationView = ({
                     height: '80%',
                 }} />
             </Box>
-            <Stack direction="row" padding={1}>
-                <Tooltip title="Favorite organization">
-                    <IconButton aria-label="Favorite" size="small">
-                        <StarOutlineIcon onClick={() => { }} />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title="See all options">
-                    <IconButton aria-label="More" size="small" edge="end">
-                        <EllipsisIcon onClick={openMoreMenu} />
-                    </IconButton>
-                </Tooltip>
-            </Stack>
-            <Stack direction="column" spacing={1} mt={5}>
-                <Typography variant="h4" textAlign="center">{organization?.name ?? partialData?.name}</Typography>
-                <Typography variant="body1" sx={{ color: (organization?.bio || partialData?.bio) ? 'black' : 'gray' }}>{organization?.bio ?? partialData?.bio ?? 'No bio set'}</Typography>
-                <Stack direction="row" spacing={4} alignItems="center">
+            <Tooltip title="See all options">
+                <IconButton
+                    aria-label="More"
+                    size="small"
+                    onClick={openMoreMenu}
+                    sx={{
+                        display: 'block',
+                        marginLeft: 'auto',
+                        marginRight: 1,
+                    }}
+                >
+                    <EllipsisIcon />
+                </IconButton>
+            </Tooltip>
+            <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
+                {
+                    isOwn ? (
+                        <Stack direction="row" alignItems="center" justifyContent="center">
+                            <Typography variant="h4" textAlign="center">{organization?.name ?? partialData?.name}</Typography>
+                            <Tooltip title="Edit organization">
+                                <IconButton
+                                    aria-label="Edit organization"
+                                    size="small"
+                                    onClick={() => setLocation(`${APP_LINKS.Organization}/${id}/edit`)}
+                                >
+                                    <EditIcon color="primary" />
+                                </IconButton>
+                            </Tooltip>
+                        </Stack>
+                    ) : (
+                        <Typography variant="h4" textAlign="center">{organization?.name ?? partialData?.name}</Typography>
+
+                    )
+                }
+                <Typography variant="body1" sx={{ color: "#00831e" }}>{organization?.created_at ? `🕔 Joined ${new Date(organization.created_at).toDateString()}` : ''}</Typography>
+                <Typography variant="body1" sx={{ color: organization?.bio ? 'black' : 'gray' }}>{organization?.bio ?? partialData?.bio ?? 'No bio set'}</Typography>
+                <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small">
-                            <DonateIcon onClick={() => { }} />
+                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
+                            <DonateIcon />
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small">
-                            <ShareIcon onClick={() => { }} />
+                        <IconButton aria-label="Share" size="small" onClick={() => { }}>
+                            <ShareIcon />
                         </IconButton>
                     </Tooltip>
+                    {!isOwn ? <StarButton
+                        session={session}
+                        isStar={organization?.isStarred ?? false}
+                        stars={organization?.stars ?? 0}
+                        onStar={handleStar}
+                        tooltipPlacement="bottom"
+                    /> : null}
                 </Stack>
             </Stack>
         </Box>
-    ), [organization])
+    ), [organization, partialData, isOwn, handleStar]);
 
     return (
         <>
@@ -211,37 +320,60 @@ export const OrganizationView = ({
             <ListMenu
                 id={moreMenuId}
                 anchorEl={moreMenuAnchor}
-                title='Organization options'
+                title='Organization Options'
                 data={moreOptions}
                 onSelect={onMoreMenuSelect}
                 onClose={closeMoreMenu}
             />
-            {overviewComponent}
-            {/* Resources pinned by the organization, not you */}
-            <ResourceList />
+            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+                {overviewComponent}
+            </Box>
             {/* View routines, members, standards, and projects associated with this organization */}
-            <Grid container spacing={2}>
-                <Grid item xs={12} sm={8}>
-                    <SearchBar
-                        id="organization-search-bar"
-                        placeholder={placeholder}
-                        value={searchString}
-                        onChange={updateSearch}
-                        sx={{ width: 'min(100%, 600px)' }}
-                    />
-                </Grid>
-                <Grid item xs={6} sm={2}>
-                    <Selector
-                        options={selectOptions}
-                        getOptionLabel={(o) => o}
-                        selected={selection}
-                        handleChange={makeSelection}
-                        fullWidth
-                        inputAriaLabel="organization-search-selector"
-                        label=""
-                    />
-                </Grid>
-            </Grid>
+            <Box>
+                <Tabs
+                    value={tabIndex}
+                    onChange={handleTabChange}
+                    indicatorColor="secondary"
+                    textColor="inherit"
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    allowScrollButtonsMobile
+                    aria-label="site-statistics-tabs"
+                    sx={{
+                        marginBottom: 1,
+                        '& .MuiTabs-flexContainer': {
+                            justifyContent: 'space-between',
+                        },
+                    }}
+                >
+                    {tabLabels.map((label, index) => (
+                        <Tab
+                            key={index}
+                            id={`profile-tab-${index}`}
+                            {...{ 'aria-controls': `profile-tabpanel-${index}` }}
+                            label={<span style={{ color: index === 0 ? '#8e6b00' : 'default' }}>{label}</span>}
+                        />
+                    ))}
+                </Tabs>
+                <Box p={2}>
+                    {
+                        tabIndex === 0 ? (
+                            <></>
+                        ) : (
+                            <SearchList
+                                searchPlaceholder={placeholder}
+                                sortOptions={sortOptions}
+                                defaultSortOption={defaultSortOption}
+                                query={searchQuery}
+                                take={20}
+                                listItemFactory={searchItemFactory}
+                                getOptionLabel={sortOptionLabel}
+                                onObjectSelect={onSearchSelect}
+                            />
+                        )
+                    }
+                </Box>
+            </Box>
         </>
     )
 }

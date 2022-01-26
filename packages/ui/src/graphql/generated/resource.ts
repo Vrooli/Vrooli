@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput } from "./globalTypes";
+import { FindByIdInput, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: resource
@@ -12,10 +12,10 @@ import { FindByIdInput } from "./globalTypes";
 export interface resource_resource {
   __typename: "Resource";
   id: string;
-  title: string;
+  title: string | null;
   description: string | null;
   link: string;
-  displayUrl: string | null;
+  usedFor: ResourceUsedFor;
 }
 
 export interface resource {

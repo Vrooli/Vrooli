@@ -976,7 +976,6 @@ export type Resource = {
   __typename?: 'Resource';
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
-  displayUrl?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   link: Scalars['String'];
   organization_resources: Array<Organization>;
@@ -1011,7 +1010,6 @@ export enum ResourceFor {
 export type ResourceInput = {
   createdFor: ResourceFor;
   description?: InputMaybe<Scalars['String']>;
-  displayUrl?: InputMaybe<Scalars['String']>;
   forId: Scalars['ID'];
   id?: InputMaybe<Scalars['ID']>;
   link: Scalars['String'];

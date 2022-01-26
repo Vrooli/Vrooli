@@ -15,16 +15,16 @@ const ActorTemplate: Story<Props> = (args) => (<Component {...args}>
     <ActorView session={{}} />
 </Component>);
 const OrganizationTemplate: Story<Props> = (args) => (<Component {...args}>
-    <OrganizationView />
+    <OrganizationView session={{}} />
 </Component>);
 const ProjectTemplate: Story<Props> = (args) => (<Component {...args}>
-    <ProjectView />
+    <ProjectView session={{}} />
 </Component>);
 const RoutineTemplate: Story<Props> = (args) => (<Component {...args}>
-    <RoutineView />
+    <RoutineView session={{}} />
 </Component>);
 const StandardTemplate: Story<Props> = (args) => (<Component {...args}>
-    <StandardView />
+    <StandardView session={{}} />
 </Component>);
 
 // Export stories

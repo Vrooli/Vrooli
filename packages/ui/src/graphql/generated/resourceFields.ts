@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { ResourceUsedFor } from "./globalTypes";
+
 // ====================================================
 // GraphQL fragment: resourceFields
 // ====================================================
@@ -13,5 +15,5 @@ export interface resourceFields {
   title: string;
   description: string | null;
   link: string;
-  displayUrl: string | null;
+  usedFor: ResourceUsedFor;
 }

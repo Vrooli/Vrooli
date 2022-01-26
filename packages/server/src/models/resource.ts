@@ -123,7 +123,6 @@ export const resourceSorter = (): Sortable<ResourceSortBy> => ({
                 { title: { ...insensitive } },
                 { description: { ...insensitive } },
                 { link: { ...insensitive } },
-                { displayUrl: { ...insensitive } },
             ]
         })
     }

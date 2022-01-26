@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, NodeType } from "./globalTypes";
+import { FindByIdInput, NodeType, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routine
@@ -195,7 +195,7 @@ export interface routine_routine_contextualResources {
   title: string;
   description: string | null;
   link: string;
-  displayUrl: string | null;
+  usedFor: ResourceUsedFor;
 }
 
 export interface routine_routine_externalResources {
@@ -204,7 +204,7 @@ export interface routine_routine_externalResources {
   title: string;
   description: string | null;
   link: string;
-  displayUrl: string | null;
+  usedFor: ResourceUsedFor;
 }
 
 export interface routine_routine_tags {

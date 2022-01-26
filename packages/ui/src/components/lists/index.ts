@@ -3,7 +3,7 @@ export * from './DateRangeMenu/DateRangeMenu';
 export * from './FeedList/FeedList';
 export * from './OrganizationListItem/OrganizationListItem';
 export * from './ProjectListItem/ProjectListItem';
-export * from './ResourceList/ResourceList';
+export * from './ResourceListHorizontal/ResourceListHorizontal';
 export * from './ResourceListItemContextMenu/ResourceListItemContextMenu';
 export * from './RoutineListItem/RoutineListItem';
 export * from './SearchList/SearchList';

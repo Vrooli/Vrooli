@@ -24,6 +24,7 @@ export interface ProjectCardProps {
 
 export interface ResourceCardProps {
     data: Resource;
+    Icon: React.JSXElement;
     onClick: (data: Resource) => void;
     onRightClick: (ev: any, data: Resource) => void;
 }

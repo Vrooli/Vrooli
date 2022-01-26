@@ -4,7 +4,7 @@ import {
     ExitToApp as LogOutIcon,
     Home as HomeIcon,
     PersonAdd as RegisterIcon,
-    PlayCircle as DevelopIcon,
+    Handyman as DevelopIcon,
     School as LearnIcon,
     Science as ResearchIcon,
 } from '@mui/icons-material';

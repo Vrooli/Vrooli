@@ -15,7 +15,7 @@ import {
     StarOutline as StarOutlineIcon,
     SvgIconComponent
 } from "@mui/icons-material";
-import { ListMenu, ResourceList, SearchBar } from "components";
+import { ListMenu, SearchBar } from "components";
 import { ListMenuItemData } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { StandardViewProps } from "../types";

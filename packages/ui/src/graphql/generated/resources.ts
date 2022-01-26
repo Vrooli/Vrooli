@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ResourceSearchInput } from "./globalTypes";
+import { ResourceSearchInput, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: resources
@@ -21,7 +21,7 @@ export interface resources_resources_edges_node {
   title: string;
   description: string | null;
   link: string;
-  displayUrl: string | null;
+  usedFor: ResourceUsedFor;
 }
 
 export interface resources_resources_edges {

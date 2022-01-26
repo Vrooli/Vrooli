@@ -59,7 +59,7 @@ export const SearchRoutinesPage = ({
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
-                <RoutineView partialData={partialData} />
+                <RoutineView session={session} partialData={partialData} />
             </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage

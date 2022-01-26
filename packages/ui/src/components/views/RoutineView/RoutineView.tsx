@@ -15,7 +15,7 @@ import {
     StarOutline as StarOutlineIcon,
     SvgIconComponent
 } from "@mui/icons-material";
-import { ListMenu, ResourceList, SearchBar } from "components";
+import { ListMenu, SearchBar } from "components";
 import { ListMenuItemData } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { RoutineViewProps } from "../types";
@@ -161,8 +161,6 @@ export const RoutineView = ({
                 onClose={closeMoreMenu}
             />
             {overviewComponent}
-            {/* Resources pinned by the routine owners, not you */}
-            <ResourceList />
             {/* View routine contributors */}
             <Typography variant="h4" textAlign="center">Contributors</Typography>
             <Grid container spacing={2}>

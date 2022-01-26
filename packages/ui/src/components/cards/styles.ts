@@ -9,6 +9,10 @@ export const cardRoot: SxProps = {
     margin: 0,
     cursor: 'pointer',
     maxWidth: '500px',
+    '&:hover': {
+        filter: `brightness(120%)`,
+        transition: 'filter 0.2s',
+    },
 }
 
 export const cardContent: SxProps = {

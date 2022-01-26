@@ -57,7 +57,7 @@ export const SearchOrganizationsPage = ({
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
-                <OrganizationView partialData={partialData} />
+                <OrganizationView session={session} partialData={partialData} />
             </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage

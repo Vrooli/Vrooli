@@ -57,7 +57,7 @@ export const SearchStandardsPage = ({
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
-                <StandardView partialData={partialData} />
+                <StandardView session={session} partialData={partialData} />
             </ViewDialogBase>
             {/* Search component */}
             <BaseSearchPage
