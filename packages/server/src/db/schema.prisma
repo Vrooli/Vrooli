@@ -567,8 +567,9 @@ model routine_tags {
 // Data standard for a routine input or output
 model standard {
     id                      String           @id @default(uuid()) @db.Uuid
-    name                    String           @default("") @db.VarChar(128)
-    description             String?          @default("") @db.VarChar(1024)
+    name                    String           @db.VarChar(128)
+    version                 String           @db.VarChar(128)
+    description             String?          @db.VarChar(1024)
     type                    StandardType
     schema                  String           @db.VarChar(1024) // JSON object describing the shape of the data
     default                 String?          @db.VarChar(1024) // Default value
@@ -589,6 +590,10 @@ model standard {
     comments                comment[]
     score                   Int              @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     votes                   vote[]           @relation("vote_standard")
+
+    // A user or organization cannot update a standard once it has been published (except for its description and tags).
+    // Therefore, it must create the standard with a new version number.
+    @@unique([createdByUserId, createdByOrganizationId, name, version], name: "standard_createdByUserId_createdByOrganizationId_name_version_unique")
 }
 
 // Many-to-many relationship between standards and tags

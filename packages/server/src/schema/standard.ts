@@ -110,6 +110,7 @@ export const typeDef = gql`
 
     extend type Mutation {
         standardAdd(input: StandardInput!): Standard!
+        standardUpdate(input: StandardInput!): Standard!
         standardDeleteOne(input: DeleteOneInput!): Success!
     }
 `
@@ -145,6 +146,21 @@ export const resolvers = {
             const created = await StandardModel(prisma).addStandard(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
+        },
+        /**
+         * Update a standard you created.
+         * NOTE: You can only update the description and tags. If you need to update 
+         * the other fields, you must either create a new standard (could be the same but with an updated
+         * version number) or delete the old one and create a new one.
+         * @returns Standard object if successful
+         */
+        standardUpdate: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            // Update object
+            const updated = await StandardModel(prisma).updateStandard(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
         },
         /**
          * Delete a standard you've created. Other standards must go through a reporting system

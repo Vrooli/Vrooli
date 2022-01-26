@@ -193,6 +193,7 @@ export type Mutation = {
   routineUpdate: Routine;
   standardAdd: Standard;
   standardDeleteOne: Success;
+  standardUpdate: Standard;
   star: Success;
   tagAdd: Tag;
   tagDeleteMany: Count;
@@ -364,6 +365,11 @@ export type MutationStandardAddArgs = {
 
 export type MutationStandardDeleteOneArgs = {
   input: DeleteOneInput;
+};
+
+
+export type MutationStandardUpdateArgs = {
+  input: StandardInput;
 };
 
 
@@ -600,6 +606,7 @@ export type Organization = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  isAdmin: Scalars['Boolean'];
   isStarred?: Maybe<Scalars['Boolean']>;
   members: Array<Member>;
   name: Scalars['String'];
@@ -1013,7 +1020,7 @@ export type ResourceInput = {
   forId: Scalars['ID'];
   id?: InputMaybe<Scalars['ID']>;
   link: Scalars['String'];
-  title: Scalars['String'];
+  title?: InputMaybe<Scalars['String']>;
   usedFor?: InputMaybe<ResourceUsedFor>;
 };
 
@@ -1393,6 +1400,7 @@ export type User = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  isOwn: Scalars['Boolean'];
   isStarred?: Maybe<Scalars['Boolean']>;
   projects: Array<Project>;
   reports: Array<Report>;

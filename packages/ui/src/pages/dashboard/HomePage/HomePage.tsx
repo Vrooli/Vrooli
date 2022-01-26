@@ -8,6 +8,8 @@ import { ActorListItem, FeedList, OrganizationListItem, ProjectListItem, Routine
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
+import Markdown from 'markdown-to-jsx';
+import faqMarkdown from './faq.md';
 
 const ObjectType = {
     Organization: 'Organization',
@@ -181,6 +183,16 @@ export const HomePage = ({
         return listFeeds;
     }, [feedOrder, organizations, projects, routines, standards, users, openSearch]);
 
+    // Parse FAQ markdown from .md file
+    const [faqText, setFaqText] = useState<string>('');
+    useEffect(() => {
+        fetch(faqMarkdown)
+            .then((response) => response.text())
+            .then((text) => {
+                setFaqText(text);
+            });
+    }, []);
+
     return (
         <Box id="page">
             {/* Prompt stack */}
@@ -212,6 +224,12 @@ export const HomePage = ({
                         ...containerShadow,
                         borderRadius: '8px',
                         background: (t) => t.palette.background.default,
+
+                        '& h2': {
+                            fontSize: '2rem',
+                            fontWeight: '500',
+                            textAlign: 'center',
+                        },
                     }}
                 >
                     <Box sx={{
@@ -222,16 +240,7 @@ export const HomePage = ({
                     }}>
                         <Typography component="h2" variant="h4" textAlign="center">FAQ</Typography>
                     </Box>
-                    <Stack spacing={2} direction="column" sx={{ ...centeredDiv, padding: 2 }}>
-                        <Typography variant="h5">What is This?</Typography>
-                        <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
-
-                        <Typography variant="h5">What can I do?</Typography>
-                        <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
-
-                        <Typography variant="h5">How does it work?</Typography>
-                        <Typography variant="body1">Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero doloremque totam dolorum inventore incidunt sit, laboriosam ut facilis asperiores laborum optio minus sapiente atque nobis, quas, possimus pariatur quam adipisci.</Typography>
-                    </Stack>
+                    <Box pl={2} pr={2}><Markdown>{faqText}</Markdown></Box>
                 </Box>
             </Stack>
         </Box>

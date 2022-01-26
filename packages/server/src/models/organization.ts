@@ -54,7 +54,8 @@ export type OrganizationDB = OrganizationAllPrimitives &
         if (!userId) return { ...organization, isStarred: false };
         const star = await prisma.star.findFirst({ where: { byId: userId, organizationId: organization.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...organization, isStarred };
+        const isAdmin = await this.isOwnerOrAdmin(userId, organization.id);
+        return { ...organization, isStarred, isAdmin };
     },
     async searchOrganizations(
         where: { [x: string]: any },
@@ -75,16 +76,22 @@ export type OrganizationDB = OrganizationAllPrimitives &
         // Compute "isStarred" fields for each organization
         // If userId not provided, then "isStarred" is false
         if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isStarred: false } }));
+            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isStarred: false, isAdmin: false } }));
             return searchResults;
         }
         // Otherwise, query votes for all search results in one query
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
         const isStarredArray = await prisma.star.findMany({ where: { byId: userId, organizationId: { in: resultIds } } });
+        const isAdminArray = await prisma.organization_users.findMany({ where: { 
+            organizationId: { in: resultIds },
+            user: { id: userId },
+            role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+        } });
         console.log('isStarredArray', isStarredArray);
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
             const isStarred = Boolean(isStarredArray.find(({ organizationId }) => organizationId === node.id));   
-            return { cursor, node: { ...node, isStarred } };
+            const isAdmin = Boolean(isAdminArray.find(({ organizationId }) => organizationId === node.id));
+            return { cursor, node: { ...node, isStarred, isAdmin } };
         });
         return searchResults;
     },
@@ -108,7 +115,7 @@ export type OrganizationDB = OrganizationAllPrimitives &
             ...selectHelper<Organization, OrganizationDB>(info, format.toDB)
         })
         // Return organization with "isStarred" field. This will be its default values.
-        return { ...organization, isStarred: false };
+        return { ...organization, isStarred: false, isAdmin: true };
     },
     async updateOrganization(
         userId: string,
@@ -144,7 +151,7 @@ export type OrganizationDB = OrganizationAllPrimitives &
         // Return organization with "isStarred" field. This must be queried separately.
         const star = await prisma.star.findFirst({ where: { byId: userId, organizationId: organization.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...organization, isStarred };
+        return { ...organization, isStarred, isAdmin: true };
     },
     async deleteOrganization(userId: string, input: DeleteOneInput): Promise<Success> {
         // Make sure the user is an admin of this organization
@@ -163,7 +170,6 @@ export type OrganizationDB = OrganizationAllPrimitives &
                 role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
             }
         });
-        console.log('member data', memberData);
         return Boolean(memberData);
     }
 })

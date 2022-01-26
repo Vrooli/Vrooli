@@ -399,10 +399,9 @@ export interface ResourceCountInput {
 
 export interface ResourceInput {
   id?: string | null;
-  title: string;
+  title?: string | null;
   description?: string | null;
   link: string;
-  displayUrl?: string | null;
   usedFor?: ResourceUsedFor | null;
   createdFor: ResourceFor;
   forId: string;

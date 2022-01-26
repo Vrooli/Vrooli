@@ -164,7 +164,7 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         // Compute "isUpvoted" and "isStarred" field for each standard
         // If userId not provided, then "isUpvoted" is null and "isStarred" is false
         if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null } }));
+            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null, isStarred: null } }));
             return searchResults;
         }
         // Otherwise, query votes for all search results in one query
@@ -221,6 +221,47 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         })
         // Return standard with "isUpvoted" and "isStarred" fields. These will be their default values.
         return { ...standard, isUpvoted: null, isStarred: false };
+    },
+    async updateStandard(
+        userId: string,
+        input: StandardInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Check for valid arguments
+        if (!input.id) throw new CustomError(CODE.InternalError, 'No standard id provided');
+        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
+        // Check for censored words
+        if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
+        // Create standard data
+        let standardData: { [x: string]: any } = { description: input.description };
+        // Check if authorized to update
+        let standard = await prisma.standard.findUnique({
+            where: { id: input.id },
+            select: {
+                id: true,
+                createdByUserId: true,
+                createdByOrganizationId: true,
+            }
+        });
+        if (!standard) throw new CustomError(CODE.NotFound, 'Standard not found');
+        if (standard.createdByUserId && standard.createdByUserId !== userId) throw new CustomError(CODE.Unauthorized);
+        if (standard.createdByOrganizationId) {
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, standard.createdByOrganizationId);
+            if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+        }
+        // TODO tags
+        // Update standard
+        standard = await prisma.standard.update({
+            where: { id: standard.id },
+            data: standardData as any,
+            ...selectHelper<Standard, StandardDB>(info, format.toDB)
+        });
+        // Return standard with "isUpvoted" and "isStarred" fields. These must be queried separately.
+        const vote = await prisma.vote.findFirst({ where: { userId, standardId: standard.id } });
+        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
+        const star = await prisma.star.findFirst({ where: { byId: userId, standardId: standard.id } });
+        const isStarred = Boolean(star) ?? false;
+        return { ...standard, isUpvoted, isStarred };
     },
     async deleteStandard(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
