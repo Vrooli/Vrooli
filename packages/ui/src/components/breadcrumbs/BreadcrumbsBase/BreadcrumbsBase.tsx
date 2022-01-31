@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { openLink } from 'utils/openLink';
 
-const BreadcrumbsBase = ({
+export const BreadcrumbsBase = ({
     paths,
     separator = '|',
     ariaLabel = 'breadcrumb',
@@ -48,5 +48,3 @@ const BreadcrumbsBase = ({
         </Breadcrumbs>
     );
 }
-
-export { BreadcrumbsBase };

@@ -45,13 +45,7 @@ const useStyles = makeStyles((theme: Theme) => ({
         borderRadius: 0,
         borderBottom: `1px solid ${theme.palette.primary.dark}`,
         justifyContent: 'end',
-        direction: 'rtl',
-    },
-    facebook: {
-        fill: '#ffffff', //'#43609C', // UCLA blue
-    },
-    instagram: {
-        fill: '#ffffff', // '#F77737',
+        flexDirection: 'row-reverse',
     },
 }));
 
@@ -112,6 +106,7 @@ export const Hamburger = ({
                         display: 'block',
                         marginLeft: 'auto',
                         marginRight: 'auto',
+                        marginTop: 'auto',
                     }}
                 />
             </SwipeableDrawer>

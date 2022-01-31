@@ -9,12 +9,7 @@ import {
     Grid, 
     Tooltip,
 } from '@mui/material';
-import {
-    Email as EmailIcon,
-    GitHub as GitHubIcon,
-    Twitter as TwitterIcon,
-    SvgIconComponent,
-} from '@mui/icons-material';
+import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
 import { CopyrightBreadcrumbs } from 'components';
 import { useLocation } from 'wouter';
 import { openLink } from 'utils';
@@ -22,9 +17,9 @@ import { openLink } from 'utils';
 export const Footer = () => {
     const [, setLocation] = useLocation();
 
-    const contactLinks: Array<[string, string, string, string, SvgIconComponent]> = [
+    const contactLinks: Array<[string, string, string, string, any]> = [
         ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
-        ['contact-email', 'Have a question or feedback? Email us!', EMAIL.Link, 'Email Us', EmailIcon],
+        ['contact-discord', 'Have a question or feedback? Post it on our Discord!', SOCIALS.Discord, 'Join our Discord', DiscordIcon],
         ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],
     ]
 
@@ -61,7 +56,7 @@ export const Footer = () => {
                             <Tooltip key={key} title={tooltip} placement="left">
                                 <ListItemButton aria-label={label} onClick={() => openLink(setLocation, src)}>
                                     <ListItemIcon>
-                                        <Icon sx={{fill: (t) => t.palette.primary.contrastText}} ></Icon>
+                                        <Icon fill="white" />
                                     </ListItemIcon>
                                     <ListItemText primary={text} />
                                 </ListItemButton>

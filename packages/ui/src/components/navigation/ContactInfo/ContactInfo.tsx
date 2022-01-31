@@ -6,11 +6,7 @@ import {
     Theme, 
     Tooltip 
 } from '@mui/material';
-import { 
-    Email as EmailIcon,
-    GitHub as GitHubIcon,
-    Twitter as TwitterIcon,
-} from '@mui/icons-material';
+import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
 import { makeStyles } from '@mui/styles';
 import { ContactInfoProps } from '../types';
 
@@ -34,10 +30,6 @@ const useStyles = makeStyles((theme: Theme) => ({
         color: theme.palette.primary.contrastText,
         overflowWrap: 'anywhere',
     },
-    iconButton: {
-        background: theme.palette.secondary.main,
-        fill: theme.palette.secondary.contrastText,
-    },
 }));
 
 export const ContactInfo = ({
@@ -53,18 +45,18 @@ export const ContactInfo = ({
 
     const contactInfo = [
         ['Find us on Twitter', 'Twitter', SOCIALS.Twitter, TwitterIcon],
-        ['Email Us', 'Email', EMAIL.Link, EmailIcon],
+        ['Join our Discord', 'Discord', SOCIALS.Discord, DiscordIcon],
         ['Source code', 'Code', SOCIALS.GitHub, GitHubIcon],
     ]
 
     return (
         <div style={{ minWidth: 'fit-content', height: 'fit-content'}} {...props}>
             <BottomNavigation className={classes.nav} showLabels>
-                {contactInfo.map(([tooltip, label, link, Icon]) => (
-                    <Tooltip title={tooltip} placement="top">
+                {contactInfo.map(([tooltip, label, link, Icon], index: number) => (
+                    <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
                         <BottomNavigationAction className={classes.navAction} label={label} onClick={(e) => openLink(e, link)} icon={
-                            <IconButton className={classes.iconButton}>
-                                <Icon />
+                            <IconButton sx={{background: (t) => t.palette.secondary.main}}>
+                                <Icon fill="#1e581f"/>
                             </IconButton>
                         } />
                     </Tooltip>

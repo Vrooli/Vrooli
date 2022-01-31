@@ -9,8 +9,7 @@ import {
 import PubSub from 'pubsub-js';
 import { Pubs, themes } from 'utils';
 import { AllRoutes } from 'Routes';
-import { Box, CssBaseline, CircularProgress } from '@mui/material';
-import { StyledEngineProvider, ThemeProvider } from '@mui/material';
+import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useMutation } from '@apollo/client';
 import { validateSessionMutation } from 'graphql/mutation';

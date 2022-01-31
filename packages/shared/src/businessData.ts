@@ -8,6 +8,7 @@ export const SUPPORT_EMAIL = {
     Link: 'mailto:support@info.vrooli.com'
 }
 export const SOCIALS = {
+    Discord: 'https://discord.gg/kgxfyxVY',
     GitHub: 'https://github.com/MattHalloran/Vrooli',
     Twitter: 'https://twitter.com/VrooliOfficial'
 }
