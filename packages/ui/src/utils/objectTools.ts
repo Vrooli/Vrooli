@@ -1,20 +1,5 @@
 // Functions for manipulating state objects
 
-export const addToObject = (object, key, value) => {
-    return {...object, [key]: value};
-}
-
-export const updateObject = (object, key, value) => {
-    if (JSON.stringify(object.key) === JSON.stringify(value)) return object;
-    return {...object, [key]: value};
-}
-
-export const deleteObjectKey = (object, key) => {
-    let copy = {...object};
-    delete copy[key];
-    return copy;
-}
-
 // Grabs data from an object using dot notation (ex: 'parent.child.property')
 export const valueFromDot = (object, notation) => {
     function index(object, i) { return object[i] }
@@ -40,3 +25,11 @@ export function convertToDot(obj, parent = [], keyValue = {}) {
   }
   return keyValue;
 }
+
+/**
+ * Compares an object against its updates. Returns fields that have changed.
+ * For non-primitive values, splits field into 4 parts:
+ * - connections - existing objects which are being newly connected to the object (e.g. adding an existing standard to a routine input)
+ * - disconnections - existing objects which are being disconnected from the object (e.g. removing a standard from a routine input)
+ * - updates - existing objects which are being updated (e.g. changing a standard's name)
+ */

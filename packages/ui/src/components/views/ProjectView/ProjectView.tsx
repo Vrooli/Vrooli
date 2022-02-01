@@ -1,70 +1,189 @@
-import { Box, Grid, IconButton, Stack, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS } from "@local/shared";
-import { useQuery, useLazyQuery } from "@apollo/client";
+import { APP_LINKS, StarFor, VoteFor } from "@local/shared";
+import { useMutation, useQuery } from "@apollo/client";
 import { project } from "graphql/generated/project";
-import { usersQuery, organizationsQuery, projectQuery } from "graphql/query";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
+    DeleteForever as DeleteForeverIcon,
+    Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
     ReportProblem as ReportIcon,
     Share as ShareIcon,
-    Star as StarIcon,
+    Star as StarFilledIcon,
     StarOutline as StarOutlineIcon,
-    SvgIconComponent
+    SvgIconComponent,
+    ThumbUp as UpvoteIcon,
+    ThumbDown as DownvoteIcon,
 } from "@mui/icons-material";
-import { ListMenu, SearchBar } from "components";
-import { ListMenuItemData } from "components/dialogs/types";
+import { ListMenu, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
-import { users, usersVariables } from "graphql/generated/users";
-import { organizations, organizationsVariables } from "graphql/generated/organizations";
+import { LabelledSortOption } from "utils";
+import { RoutineDeep, Standard } from "types";
+import { starMutation, voteMutation } from "graphql/mutation";
+import { star } from 'graphql/generated/star';
+import { vote } from "graphql/generated/vote";
 
+const tabLabels = ['Resources', 'Routines', 'Standards'];
+
+// All available actions
 enum Actions {
+    Delete = "Delete",
     Donate = "Donate",
+    Downvote = "Downvote",
     Report = "Report",
     Share = "Share",
     Star = "Star",
+    Unstar = "Unstar",
+    Upvote = "Upvote",
 }
-const moreOptionsMap: { [x: string]: [string, SvgIconComponent] } = ({
-    [Actions.Star]: ['Favorite', StarOutlineIcon],
-    [Actions.Share]: ['Share', ShareIcon],
-    [Actions.Donate]: ['Donate', DonateIcon],
-    [Actions.Report]: ['Delete', ReportIcon],
+const allOptionsMap: { [x: string]: [string, SvgIconComponent, string] } = ({
+    [Actions.Upvote]: ["Upvote", UpvoteIcon, "#34c38b"],
+    [Actions.Downvote]: ["Downvote", DownvoteIcon, "#af2929"],
+    [Actions.Star]: ['Favorite', StarOutlineIcon, "#cbae30"],
+    [Actions.Unstar]: ['Unfavorite', StarFilledIcon, "#cbae30"],
+    [Actions.Donate]: ['Donate', DonateIcon, "default"],
+    [Actions.Share]: ['Share', ShareIcon, "default"],
+    [Actions.Report]: ['Report', ReportIcon, "default"],
+    [Actions.Delete]: ['Delete', DeleteForeverIcon, "default"],
 })
-const moreOptions: ListMenuItemData[] = Object.keys(moreOptionsMap).map(o => ({
-    label: moreOptionsMap[o][0],
-    value: o,
-    Icon: moreOptionsMap[o][1]
-}));
 
 export const ProjectView = ({
+    session,
     partialData,
 }: ProjectViewProps) => {
+    const [star] = useMutation<star>(starMutation);
+    const [vote] = useMutation<vote>(voteMutation);
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Project}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
     const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
     const project = useMemo(() => data?.project, [data]);
+    const isOwn: boolean = useMemo(() => true, [project]); // TODO project.isOwn
 
-    const [searchString, setSearchString] = useState<string>('');
-    const updateSearch = useCallback((newValue: any) => setSearchString(newValue), []);
-    const [getUsers, { data: usersData }] = useLazyQuery<users, usersVariables>(usersQuery, { variables: { input: { searchString, projectId: params?.id ?? '' } } });
-    const [getOrganizations, { data: organizationsData }] = useLazyQuery<organizations, organizationsVariables>(organizationsQuery, { variables: { input: { searchString, projectId: params?.id ?? '' } } });
-    useEffect(() => {
-        console.log('refetching...');
-        getUsers();
-        getOrganizations();
-    }, [searchString]);
-    const usersSearchData = useMemo(() => usersData?.users ?? [], [usersData]);
-    const organizationsSearchData = useMemo(() => organizationsData?.organizations ?? [], [organizationsData]);
-    const onUserSelect = (_e, newValue) => setLocation(`${APP_LINKS.Profile}/${newValue.id}`);
-    const onOrganizationSelect = (_e, newValue) => setLocation(`${APP_LINKS.Organization}/${newValue.id}`);
+    // Star object
+    const handleStar = useCallback((e: any, isStar: boolean) => {
+        // Prevent propagation of normal click event
+        e.stopPropagation();
+        console.log('going to star', project, isStar);
+        // Send star mutation
+        star({
+            variables: {
+                input: {
+                    isStar,
+                    starFor: StarFor.Project,
+                    forId: project?.id ?? ''
+                }
+            }
+        });
+    }, [project?.id, star]);
+
+    // Vote object
+    const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
+        // Prevent propagation of normal click event
+        e.stopPropagation();
+        // Send vote mutation
+        vote({ variables: { input: {
+            isUpvote,
+            voteFor: VoteFor.Project,
+            forId: project?.id ?? ''
+        } } });
+    }, [project?.id, vote]);
+
+    // Determine options available to object, in order
+    const moreOptions = useMemo(() => {
+        // Initialize
+        let options: [string, SvgIconComponent, string][] = [];
+        if (project && session && !isOwn) {
+            options.push(project.isUpvoted ? allOptionsMap[Actions.Downvote] : allOptionsMap[Actions.Upvote]);
+            options.push(project.isStarred ? allOptionsMap[Actions.Unstar] : allOptionsMap[Actions.Star]);
+        }
+        options.push(allOptionsMap[Actions.Donate], allOptionsMap[Actions.Share])
+        if (session?.id) {
+            options.push(allOptionsMap[Actions.Report]);
+        }
+        if (isOwn) {
+            options.push(allOptionsMap[Actions.Delete]);
+        }
+        // Convert options to ListMenuItemData
+        return options.map(o => ({
+            label: o[0],
+            value: o[0],
+            Icon: o[1],
+            iconColor: o[2],
+        }));
+    }, [session, project])
+
+    // Handle tabs
+    const [tabIndex, setTabIndex] = useState<number>(0);
+    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
+
+    // Create search data
+    const [
+        placeholder,
+        sortOptions,
+        defaultSortOption,
+        sortOptionLabel,
+        searchQuery,
+        onSearchSelect,
+        searchItemFactory,
+    ] = useMemo<[string, LabelledSortOption<any>[], { label: string, value: any }, (o: any) => string, any, (objectData: any) => void, (node: any, index: number) => JSX.Element]>(() => {
+        const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
+        // The first tab doesn't have search results, as it is the project's set resources
+        switch (tabIndex) {
+            case 1:
+                return [
+                    "Search project's routines...",
+                    RoutineSortOptions,
+                    routineDefaultSortOption,
+                    routineOptionLabel,
+                    routinesQuery,
+                    (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    (node: RoutineDeep, index: number) => (
+                        <RoutineListItem
+                            key={`routine-list-item-${index}`}
+                            session={session}
+                            data={node}
+                            isOwn={false}
+                            onClick={(selected: RoutineDeep) => openLink(APP_LINKS.Routine, selected.id)}
+                        />)
+                ];
+            case 2:
+                return [
+                    "Search project's standards...",
+                    StandardSortOptions,
+                    standardDefaultSortOption,
+                    standardOptionLabel,
+                    standardsQuery,
+                    (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    (node: Standard, index: number) => (
+                        <StandardListItem
+                            key={`standard-list-item-${index}`}
+                            session={session}
+                            data={node}
+                            isOwn={false}
+                            onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
+                        />)
+                ];
+            default:
+                return [
+                    '',
+                    [],
+                    { label: '', value: null },
+                    () => '',
+                    null,
+                    () => { },
+                    () => (<></>)
+                ];
+        }
+    }, [tabIndex]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -95,10 +214,11 @@ export const ProjectView = ({
     const overviewComponent = useMemo(() => (
         <Box
             width={'min(500px, 100vw)'}
+            position="relative"
             borderRadius={2}
             ml='auto'
             mr='auto'
-            mt={8}
+            mt={3}
             bgcolor={(t) => t.palette.background.paper}
             sx={{ ...containerShadow }}
         >
@@ -113,7 +233,7 @@ export const ProjectView = ({
                 justifyContent='center'
                 alignItems='center'
                 left='50%'
-                top='max(-50px, -12vw)'
+                top="-55px"
                 sx={{ transform: 'translateX(-50%)' }}
             >
                 <PersonIcon sx={{
@@ -122,36 +242,64 @@ export const ProjectView = ({
                     height: '80%',
                 }} />
             </Box>
-            <Stack direction="row" padding={1}>
-                <Tooltip title="Favorite organization">
-                    <IconButton aria-label="Favorite" size="small">
-                        <StarOutlineIcon onClick={() => { }} />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title="See all options">
-                    <IconButton aria-label="More" size="small" edge="end">
-                        <EllipsisIcon onClick={openMoreMenu} />
-                    </IconButton>
-                </Tooltip>
-            </Stack>
-            <Stack direction="column" spacing={1} mt={5}>
-                <Typography variant="h4" textAlign="center">{project?.name ?? partialData?.name}</Typography>
-                <Typography variant="body1" sx={{ color: (project?.description || partialData?.description) ? 'black' : 'gray' }}>{project?.description ?? partialData?.description ?? 'No description set'}</Typography>
-                <Stack direction="row" spacing={4} alignItems="center">
+            <Tooltip title="See all options">
+                <IconButton
+                    aria-label="More"
+                    size="small"
+                    onClick={openMoreMenu}
+                    sx={{
+                        display: 'block',
+                        marginLeft: 'auto',
+                        marginRight: 1,
+                    }}
+                >
+                    <EllipsisIcon />
+                </IconButton>
+            </Tooltip>
+            <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
+                {
+                    isOwn ? (
+                        <Stack direction="row" alignItems="center" justifyContent="center">
+                            <Typography variant="h4" textAlign="center">{project?.name ?? partialData?.name}</Typography>
+                            <Tooltip title="Edit project">
+                                <IconButton
+                                    aria-label="Edit project"
+                                    size="small"
+                                    onClick={() => setLocation(`${APP_LINKS.Project}/${id}/edit`)}
+                                >
+                                    <EditIcon color="primary" />
+                                </IconButton>
+                            </Tooltip>
+                        </Stack>
+                    ) : (
+                        <Typography variant="h4" textAlign="center">{project?.name ?? partialData?.name}</Typography>
+
+                    )
+                }
+                <Typography variant="body1" sx={{ color: "#00831e" }}>{project?.created_at ? `🕔 Created ${new Date(project.created_at).toDateString()}` : ''}</Typography>
+                <Typography variant="body1" sx={{ color: project?.description ? 'black' : 'gray' }}>{project?.description ?? partialData?.description ?? 'No description set'}</Typography>
+                <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
-                        <IconButton aria-label="Donate" size="small">
-                            <DonateIcon onClick={() => { }} />
+                        <IconButton aria-label="Donate" size="small" onClick={() => { }}>
+                            <DonateIcon />
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small">
-                            <ShareIcon onClick={() => { }} />
+                        <IconButton aria-label="Share" size="small" onClick={() => { }}>
+                            <ShareIcon />
                         </IconButton>
                     </Tooltip>
+                    {!isOwn ? <StarButton
+                        session={session}
+                        isStar={project?.isStarred ?? false}
+                        stars={project?.stars ?? 0}
+                        onStar={handleStar}
+                        tooltipPlacement="bottom"
+                    /> : null}
                 </Stack>
             </Stack>
         </Box>
-    ), [project])
+    ), [project, partialData, isOwn, handleStar]);
 
     return (
         <>
@@ -159,25 +307,60 @@ export const ProjectView = ({
             <ListMenu
                 id={moreMenuId}
                 anchorEl={moreMenuAnchor}
-                title='Project options'
+                title='Project Options'
                 data={moreOptions}
                 onSelect={onMoreMenuSelect}
                 onClose={closeMoreMenu}
             />
-            {overviewComponent}
-            {/* View project contributors */}
-            <Typography variant="h4" textAlign="center">Contributors</Typography>
-            <Grid container spacing={2}>
-                <Grid item xs={12}>
-                    <SearchBar
-                        id="project-search-bar"
-                        placeholder="Search project's contributors..."
-                        value={searchString}
-                        onChange={updateSearch}
-                        sx={{ width: 'min(100%, 600px)' }}
-                    />
-                </Grid>
-            </Grid>
+            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+                {overviewComponent}
+            </Box>
+            {/* View routines and standards associated with this project */}
+            <Box>
+                <Tabs
+                    value={tabIndex}
+                    onChange={handleTabChange}
+                    indicatorColor="secondary"
+                    textColor="inherit"
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    allowScrollButtonsMobile
+                    aria-label="site-statistics-tabs"
+                    sx={{
+                        marginBottom: 1,
+                        '& .MuiTabs-flexContainer': {
+                            justifyContent: 'space-between',
+                        },
+                    }}
+                >
+                    {tabLabels.map((label, index) => (
+                        <Tab
+                            key={index}
+                            id={`profile-tab-${index}`}
+                            {...{ 'aria-controls': `profile-tabpanel-${index}` }}
+                            label={<span style={{ color: index === 0 ? '#8e6b00' : 'default' }}>{label}</span>}
+                        />
+                    ))}
+                </Tabs>
+                <Box p={2}>
+                    {
+                        tabIndex === 0 ? (
+                            <></>
+                        ) : (
+                            <SearchList
+                                searchPlaceholder={placeholder}
+                                sortOptions={sortOptions}
+                                defaultSortOption={defaultSortOption}
+                                query={searchQuery}
+                                take={20}
+                                listItemFactory={searchItemFactory}
+                                getOptionLabel={sortOptionLabel}
+                                onObjectSelect={onSearchSelect}
+                            />
+                        )
+                    }
+                </Box>
+            </Box>
         </>
     )
 }
