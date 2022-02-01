@@ -76,7 +76,7 @@ export const typeDef = gql`
     type RoutineInputItem {
         id: ID!
         routine: Routine!
-        standard: Standard!
+        standard: Standard
     }
 
     input RoutineOutputItemInput {
@@ -88,7 +88,7 @@ export const typeDef = gql`
     type RoutineOutputItem {
         id: ID!
         routine: Routine!
-        standard: Standard!
+        standard: Standard
     }
 
     input RoutineSearchInput {

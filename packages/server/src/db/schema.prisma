@@ -182,6 +182,12 @@ model node_loop {
     node node[]
 }
 
+// Data for redirect nodes (in addition to fields defined by node table) TODO complete
+model node_redirect {
+    id   String @id @default(uuid()) @db.Uuid
+    node node[]
+}
+
 // Data for routine list nodes (in addition to fields defined by node table) TODO complete
 model node_routine_list {
     id         String                   @id @default(uuid()) @db.Uuid
@@ -194,21 +200,15 @@ model node_routine_list {
 // Many-to-many relationship between routine lists and routines
 model node_routine_list_item {
     id          String            @id @default(uuid()) @db.Uuid
-    title       String?           @db.VarChar(128) // Optional title to override routine title
     description String?           @db.VarChar(1024) // Optional description to override routine description
     isOptional  Boolean           @default(false)
+    title       String?           @db.VarChar(128) // Optional title to override routine title
     listId      String            @db.Uuid
     routineId   String            @db.Uuid
     list        node_routine_list @relation(fields: [listId], references: [id], onDelete: Cascade)
     routine     routine           @relation(fields: [routineId], references: [id], onDelete: Cascade)
 
     @@unique([listId, routineId], name: "node_routine_list_item_listid_routineid_unique")
-}
-
-// Data for redirect nodes (in addition to fields defined by node table) TODO complete
-model node_redirect {
-    id   String @id @default(uuid()) @db.Uuid
-    node node[]
 }
 
 // Data for start nodes (in addition to fields defined by node table)
@@ -502,13 +502,13 @@ model routine_forks {
 // Data for a routine input
 model routine_input {
     id          String   @id @default(uuid()) @db.Uuid
-    name        String?  @db.VarChar(128) // Optional name to override standard's name
     description String?  @db.VarChar(2048) // Optional description to override standard's description
     isRequired  Boolean  @default(true) // Indicates if the input is required to run the routine
+    name        String?  @db.VarChar(128) // Optional name to override standard's name
     routineId   String   @db.Uuid
-    standardId  String   @db.Uuid
+    standardId  String?   @db.Uuid
     routine     routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    standard    standard @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    standard    standard? @relation(fields: [standardId], references: [id], onDelete: Cascade)
 }
 
 // Many-to-many relationship between routines and contextual resources
