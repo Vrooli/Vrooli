@@ -3,7 +3,7 @@ import { CODE, ResourceFor, ResourceSortBy, ResourceUsedFor } from '@local/share
 import { CustomError } from '../error';
 import { resourceFormatter, ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceInput, ResourceSearchInput, Success } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -36,29 +36,33 @@ export const typeDef = gql`
         Tutorial
     }
 
-    input ResourceInput {
-        id: ID
-        title: String
+    input ResourceAddInput {
+        createdFor: ResourceFor!
+        createdForId: ID!
         description: String
         link: String!
+        title: String
         usedFor: ResourceUsedFor
-        createdFor: ResourceFor!
-        forId: ID!
     }
-
+    input ResourceUpdateInput {
+        id: ID!
+        createdFor: ResourceFor
+        createdForId: ID
+        description: String
+        link: String
+        title: String
+        usedFor: ResourceUsedFor
+    }
     type Resource {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        title: String!
+        createdFor: ResourceFor!
+        createdForId: ID!
         description: String
         link: String!
-        usedFor: ResourceUsedFor!
-        organization_resources: [Organization!]!
-        project_resources: [Project!]!
-        routine_resources_contextual: [Routine!]!
-        routine_resources_external: [Routine!]!
-        user_resources: [User!]!
+        title: String!
+        usedFor: ResourceUsedFor
     }
 
     input ResourceSearchInput {
@@ -98,8 +102,8 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        resourceAdd(input: ResourceInput!): Resource!
-        resourceUpdate(input: ResourceInput!): Resource!
+        resourceAdd(input: ResourceAddInput!): Resource!
+        resourceUpdate(input: ResourceUpdateInput!): Resource!
         resourceDeleteMany(input: DeleteManyInput!): Count!
     }
 `
@@ -128,7 +132,7 @@ export const resolvers = {
         },
     },
     Mutation: {
-        resourceAdd: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
+        resourceAdd: async (_parent: undefined, { input }: IWrap<ResourceAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // Create object
@@ -136,7 +140,7 @@ export const resolvers = {
             // Format object to GraphQL type
             return resourceFormatter().toGraphQL(dbModel);
         },
-        resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
+        resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // Update object

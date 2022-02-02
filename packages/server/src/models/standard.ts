@@ -1,9 +1,9 @@
-import { CODE } from "@local/shared";
+import { CODE, standardAdd, standardUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
-import { DeleteOneInput, FindByIdInput, Organization, Routine, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardSortBy, Success, Tag, User } from "../schema/types";
-import { addCountQueries, addCreatorField, addJoinTables, counter, creater, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { DeleteOneInput, FindByIdInput, Organization, Routine, Standard, StandardCountInput, StandardAddInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Success, Tag, User } from "../schema/types";
+import { addCountQueries, addCreatorField, addJoinTables, counter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 
@@ -182,11 +182,11 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
     },
     async addStandard(
         userId: string,
-        input: StandardInput,
+        input: StandardAddInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
+        standardAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create standard data
@@ -199,13 +199,13 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
             type: input.type
         };
         // Associate with either organization or user
-        if (input.organizationId) {
+        if (input.createdByOrganizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             standardData = { 
                 ...standardData, 
-                createdByOrganization: { connect: { id: input.organizationId } },
+                createdByOrganization: { connect: { id: input.createdByOrganizationId } },
             };
         } else {
             standardData = { 
@@ -224,14 +224,12 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
     },
     async updateStandard(
         userId: string,
-        input: StandardInput,
+        input: StandardUpdateInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
+        standardUpdate.validateSync(input, { abortEarly: false });
         if (!input.id) throw new CustomError(CODE.InternalError, 'No standard id provided');
-        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
-        // Check for censored words
-        if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create standard data
         let standardData: { [x: string]: any } = { description: input.description };
         // Check if authorized to update

@@ -2,9 +2,9 @@ import { gql } from 'apollo-server-express';
 import { CODE, MemberRole, OrganizationSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationAddInput, OrganizationUpdateInput, OrganizationSearchInput, Success } from './types';
 import { Context } from '../context';
-import { organizationFormatter, OrganizationModel } from '../models';
+import { OrganizationModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
@@ -25,32 +25,51 @@ export const typeDef = gql`
         Owner
     }
 
-    input OrganizationInput {
-        id: ID
-        name: String!
+    input OrganizationAddInput {
         bio: String
-        resources: [ResourceInput!]
+        name: String!
+        membersConnect: [ID!]
+        resourcesConnect: [ID!]
+        resourcesAdd: [ResourceAddInput!]
+        tagsConnect: [ID!]
+        tagsAdd: [TagAddInput!]
     }
-
+    input OrganizationUpdateInput {
+        id: ID!
+        bio: String
+        name: String
+        membersConnect: [ID!]
+        membersDisconnect: [ID!]
+        resourcesConnect: [ID!]
+        resourcesDisconnect: [ID!]
+        resourcesDelete: [ID!]
+        resourcesAdd: [ResourceAddInput!]
+        resourcesUpdate: [ResourceUpdateInput!]
+        tagsConnect: [ID!]
+        tagsDisconnect: [ID!]
+        tagsDelete: [ID!]
+        tagsAdd: [TagAddInput!]
+        tagsUpdate: [TagUpdateInput!]
+    }
     type Organization {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        name: String!
         bio: String
+        name: String!
         stars: Int!
         isStarred: Boolean
         isAdmin: Boolean!
         comments: [Comment!]!
-        resources: [Resource!]!
+        members: [Member!]!
         projects: [Project!]!
-        wallets: [Wallet!]!
-        starredBy: [User!]!
+        reports: [Report!]!
+        resources: [Resource!]!
         routines: [Routine!]!
         routinesCreated: [Routine!]!
+        starredBy: [User!]!
         tags: [Tag!]!
-        reports: [Report!]!
-        members: [Member!]!
+        wallets: [Wallet!]!
     }
 
     type Member {
@@ -98,8 +117,8 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        organizationAdd(input: OrganizationInput!): Organization!
-        organizationUpdate(input: OrganizationInput!): Organization!
+        organizationAdd(input: OrganizationAddInput!): Organization!
+        organizationUpdate(input: OrganizationUpdateInput!): Organization!
         organizationDeleteOne(input: DeleteOneInput): Success!
     }
 `
@@ -123,7 +142,7 @@ export const resolvers = {
         },
     },
     Mutation: {
-        organizationAdd: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
+        organizationAdd: async (_parent: undefined, { input }: IWrap<OrganizationAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
@@ -131,7 +150,7 @@ export const resolvers = {
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
-        organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
+        organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object

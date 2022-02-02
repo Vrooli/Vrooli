@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, RoutineSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineAddInput, RoutineUpdateInput, RoutineSearchInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { RoutineModel } from '../models';
@@ -25,68 +25,134 @@ export const typeDef = gql`
         VotesDesc
     }
 
-    input RoutineInput {
-        id: ID
-        version: String
-        title: String
+    input RoutineAddInput {
         description: String
         instructions: String
         isAutomatable: Boolean
-        organizationId: ID
-        inputs: [RoutineInputItemInput!]
-        outputs: [RoutineOutputItemInput!]
+        title: String!
+        version: String
+        parentId: ID
+        createdByUserId: ID
+        createdByOrganizationId: ID
+        nodesConnect: [ID!]
+        nodesAdd: [NodeAddInput!]
+        inputsAdd: [InputItemAddInput!]
+        outputsAdd: [OutputItemAddInput!]
+        resourcesContextualConnect: [ID!]
+        resourcesContextualAdd: [ResourceAddInput!]
+        resourcesExternalConnect: [ID!]
+        resourcesExternalAdd: [ResourceAddInput!]
+        tagsConnect: [ID!]
+        tagsAdd: [TagAddInput!]
     }
-
+    input RoutineUpdateInput {
+        id: ID!
+        description: String
+        instructions: String
+        isAutomatable: Boolean
+        title: String
+        version: String
+        parentId: ID
+        userId: ID
+        organizationId: ID
+        nodesConnect: [ID!]
+        nodesDisconnect: [ID!]
+        nodesDelete: [ID!]
+        nodesAdd: [NodeAddInput!]
+        nodesUpdate: [NodeUpdateInput!]
+        inputsAdd: [InputItemAddInput!]
+        inputsUpdate: [InputItemUpdateInput!]
+        inputsDelete: [ID!]
+        outputsAdd: [OutputItemAddInput!]
+        outputsUpdate: [OutputItemUpdateInput!]
+        outputsDelete: [ID!]
+        resourcesContextualConnect: [ID!]
+        resourcesContextualDisconnect: [ID!]
+        resourcesContextualDelete: [ID!]
+        resourcesContextualAdd: [ResourceAddInput!]
+        resourcesContextualUpdate: [ResourceUpdateInput!]
+        resourcesExternalConnect: [ID!]
+        resourcesExternalDisconnect: [ID!]
+        resourcesExternalDelete: [ID!]
+        resourcesExternalAdd: [ResourceAddInput!]
+        resourcesExternalUpdate: [ResourceUpdateInput!]
+        tagsConnect: [ID!]
+        tagsDisconnect: [ID!]
+        tagsDelete: [ID!]
+        tagsAdd: [TagAddInput!]
+        tagsUpdate: [TagUpdateInput!]
+    }
     type Routine {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        version: String
-        title: String
         description: String
         instructions: String
         isAutomatable: Boolean
-        stars: Int!
         isStarred: Boolean
-        score: Int!
         isUpvoted: Boolean
-        inputs: [RoutineInputItem!]!
-        outputs: [RoutineOutputItem!]!
-        nodes: [Node!]!
-        contextualResources: [Resource!]!
-        externalResources: [Resource!]!
-        project: Project
-        tags: [Tag!]!
-        owner: Contributor
-        creator: Contributor
-        starredBy: [User!]!
-        parent: Routine
-        forks: [Routine!]!
-        nodeLists: [NodeRoutineList!]!
-        reports: [Report!]!
+        score: Int!
+        stars: Int!
+        title: String
+        version: String
         comments: [Comment!]!
+        contextualResources: [Resource!]!
+        creator: Contributor
+        externalResources: [Resource!]!
+        forks: [Routine!]!
+        inputs: [InputItem!]!
+        nodeLists: [NodeRoutineList!]!
+        nodes: [Node!]!
+        outputs: [OutputItem!]!
+        owner: Contributor
+        parent: Routine
+        project: Project
+        reports: [Report!]!
+        starredBy: [User!]!
+        tags: [Tag!]!
     }
 
-    input RoutineInputItemInput {
-        id: ID
-        routineId: ID!
-        standardId: ID
+    input InputItemAddInput {
+        description: String
+        isRequired: Boolean
+        name: String
+        standardConnect: ID
+        standardAdd: StandardAddInput
     }
-
-    type RoutineInputItem {
+    input InputItemUpdateInput {
         id: ID!
+        description: String
+        isRequired: Boolean
+        name: String
+        standardConnect: ID
+        standardAdd: StandardAddInput
+    }
+    type InputItem {
+        id: ID!
+        description: String
+        isRequired: Boolean
+        name: String
         routine: Routine!
         standard: Standard
     }
 
-    input RoutineOutputItemInput {
-        id: ID
-        routineId: ID!
-        standardId: ID
+    input OutputItemAddInput {
+        description: String
+        name: String
+        standardConnect: ID
+        standardAdd: StandardAddInput
     }
-
-    type RoutineOutputItem {
+    input OutputItemUpdateInput {
         id: ID!
+        description: String
+        name: String
+        standardConnect: ID
+        standardAdd: StandardAddInput
+    }
+    type OutputItem {
+        id: ID!
+        description: String
+        name: String
         routine: Routine!
         standard: Standard
     }
@@ -130,8 +196,8 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        routineAdd(input: RoutineInput!): Routine!
-        routineUpdate(input: RoutineInput!): Routine!
+        routineAdd(input: RoutineAddInput!): Routine!
+        routineUpdate(input: RoutineUpdateInput!): Routine!
         routineDeleteOne(input: DeleteOneInput!): Success!
     }
 `
@@ -155,7 +221,7 @@ export const resolvers = {
         },
     },
     Mutation: {
-        routineAdd: async (_parent: undefined, { input }: IWrap<RoutineInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
+        routineAdd: async (_parent: undefined, { input }: IWrap<RoutineAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
@@ -163,7 +229,7 @@ export const resolvers = {
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
-        routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
+        routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object

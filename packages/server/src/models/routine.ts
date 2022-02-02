@@ -1,9 +1,9 @@
-import { DeleteOneInput, FindByIdInput, Organization, Resource, Routine, RoutineCountInput, RoutineInput, RoutineSearchInput, RoutineSortBy, Success, Tag, User } from "../schema/types";
+import { DeleteOneInput, FindByIdInput, Organization, Resource, Routine, RoutineCountInput, RoutineAddInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Success, Tag, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, deleter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
+import { addCreatorField, addJoinTables, addOwnerField, counter, deleter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
-import { CODE } from "@local/shared";
+import { CODE, routineAdd, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 
@@ -121,11 +121,11 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
     },
     async addRoutine(
         userId: string,
-        input: RoutineInput,
+        input: RoutineAddInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!input.title || input.title.length < 1) throw new CustomError(CODE.InternalError, 'Title is too short');
+        routineAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Create routine data
@@ -137,14 +137,14 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
             isAutomatable: input.isAutomatable,
         };
         // Associate with either organization or user
-        if (input.organizationId) {
+        if (input.createdByOrganizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             routineData = { 
                 ...routineData, 
-                organization: { connect: { id: input.organizationId } },
-                createdByOrganization: { connect: { id: input.organizationId } },
+                organization: { connect: { id: input.createdByOrganizationId } },
+                createdByOrganization: { connect: { id: input.createdByOrganizationId } },
             };
         } else {
             routineData = { 
@@ -166,12 +166,11 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
     },
     async updateRoutine(
         userId: string,
-        input: RoutineInput,
+        input: RoutineUpdateInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!input.id) throw new CustomError(CODE.InternalError, 'No routine id provided');
-        if (!input.title || input.title.length < 1) throw new CustomError(CODE.InternalError, 'Title is too short');
+        routineUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Create routine data

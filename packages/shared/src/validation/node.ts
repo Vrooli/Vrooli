@@ -11,11 +11,11 @@ const condition = yup.string().max(2048).optional();
 const type = yup.string().oneOf(Object.values(NodeType)).optional();
 const wasSuccessful = yup.boolean().optional();
 
-const dataCombineAdd = yup.object().shape({
+const nodeCombineAdd = yup.object().shape({
     from: idArray.required(),
     toId: id,
 })
-const dataCombineUpdate = yup.object().shape({
+const nodeCombineUpdate = yup.object().shape({
     id: id.required(),
     from: idArray,
     toId: id,
@@ -43,49 +43,49 @@ const decisionsUpdate = yup.array().of(yup.object().shape({
     whenUpdate,
     whenDelete: idArray,
 }).required()).optional();
-const dataDecisionAdd = yup.object().shape({
+const nodeDecisionAdd = yup.object().shape({
     decisionsAdd: decisionsAdd.required(),
 })
-const dataDecisionUpdate = yup.object().shape({
+const nodeDecisionUpdate = yup.object().shape({
     id: id.required(),
     decisionsAdd,
     decisionsUpdate,
     decisionsDelete: idArray,
 })
 
-const dataEndAdd = yup.object().shape({
+const nodeEndAdd = yup.object().shape({
     wasSuccessful,
 })
-const dataEndUpdate = yup.object().shape({
+const nodeEndUpdate = yup.object().shape({
     id: id.required(),
     wasSuccessful,
 })
 
 // TODO define
-const dataLoopAdd = yup.object().shape({
+const nodeLoopAdd = yup.object().shape({
     id,
 })
 // TODO define
-const dataLoopUpdate = yup.object().shape({
+const nodeLoopUpdate = yup.object().shape({
     id: id.required(),
 })
 
 // TODO define
-const dataRedirectAdd = yup.object().shape({
+const nodeRedirectAdd = yup.object().shape({
     id,
 })
 // TODO define
-const dataRedirectUpdate = yup.object().shape({
+const nodeRedirectUpdate = yup.object().shape({
     id: id.required(),
 })
 
-const dataRoutineListItemsAdd = yup.array().of(yup.object().shape({
+const nodeRoutineListItemsAdd = yup.array().of(yup.object().shape({
     description,
     title,
     // Cannot add a routine directly from a node, as this causes a cyclic dependency
     routineConnect: id,
 }).required()).optional();
-const dataRoutineListItemsUpdate = yup.array().of(yup.object().shape({
+const nodeRoutineListItemsUpdate = yup.array().of(yup.object().shape({
     id: id.required(),
     description,
     title,
@@ -94,43 +94,43 @@ const dataRoutineListItemsUpdate = yup.array().of(yup.object().shape({
     routineDisconnect: id,
     routineDelete: id,
 }).required()).optional();
-const dataRoutineListAdd = yup.object().shape({
+const nodeRoutineListAdd = yup.object().shape({
     isOrdered: yup.boolean().optional(),
     isOptional: yup.boolean().optional(),
     routinesConnect: idArray,
-    routinesAdd: dataRoutineListItemsAdd,
+    routinesAdd: nodeRoutineListItemsAdd,
 })
-const dataRoutineListUpdate = yup.object().shape({
+const nodeRoutineListUpdate = yup.object().shape({
     id: id.required(),
     isOrdered: yup.boolean().optional(),
     isOptional: yup.boolean().optional(),
     routinesConnect: idArray,
     routinesDisconnect: idArray,
     routinesDelete: idArray,
-    routinesAdd: dataRoutineListItemsAdd,
-    routinesUpdate: dataRoutineListItemsUpdate,
+    routinesAdd: nodeRoutineListItemsAdd,
+    routinesUpdate: nodeRoutineListItemsUpdate,
 })
 
 // Meant to be empty
-const dataStartAdd = yup.object().shape({
+const nodeStartAdd = yup.object().shape({
 })
-const dataStartUpdate = yup.object().shape({
+const nodeStartUpdate = yup.object().shape({
 })
 
 export const nodeAdd = yup.object().shape({
-    id,
     description,
     title: title.required(),
     type: type.required(),
-    dataCombineAdd,
-    dataDecisionAdd,
-    dataEndAdd,
-    dataLoopAdd,
-    dataRedirectAdd,
-    dataRoutineListAdd,
-    dataStartAdd,
+    nodeCombineAdd,
+    nodeDecisionAdd,
+    nodeEndAdd,
+    nodeLoopAdd,
+    nodeRedirectAdd,
+    nodeRoutineListAdd,
+    nodeStartAdd,
     nextId: id,
     previousId: id,
+    routineId: id.required(),
 })
 /**
  * A node always contains one data type. Since this is known, there is no need 
@@ -141,22 +141,23 @@ export const nodeUpdate = yup.object().shape({
     description,
     title,
     type,
-    dataCombineAdd,
-    dataCombineUpdate,
-    dataDecisionAdd,
-    dataDecisionUpdate,
-    dataEndAdd,
-    dataEndUpdate,
-    dataLoopAdd,
-    dataLoopUpdate,
-    dataRedirectAdd,
-    dataRedirectUpdate,
-    dataRoutineListAdd,
-    dataRoutineListUpdate,
-    dataStartAdd,
-    dataStartUpdate,
+    nodeCombineAdd,
+    nodeCombineUpdate,
+    nodeDecisionAdd,
+    nodeDecisionUpdate,
+    nodeEndAdd,
+    nodeEndUpdate,
+    nodeLoopAdd,
+    nodeLoopUpdate,
+    nodeRedirectAdd,
+    nodeRedirectUpdate,
+    nodeRoutineListAdd,
+    nodeRoutineListUpdate,
+    nodeStartAdd,
+    nodeStartUpdate,
     nextId: id,
     previousId: id,
+    routineId: id,
 })
 
 export const nodesAdd = yup.array().of(nodeAdd.required()).optional();

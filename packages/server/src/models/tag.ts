@@ -1,8 +1,8 @@
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, Organization, Project, Routine, Standard, Success, Tag, TagCountInput, TagInput, TagSearchInput, TagSortBy, User } from "../schema/types";
+import { Count, DeleteManyInput, FindByIdInput, Organization, Project, Routine, Standard, Tag, TagCountInput, TagAddInput, TagUpdateInput, TagSearchInput, TagSortBy, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addJoinTables, counter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
-import { CODE } from "@local/shared";
+import { CODE, tagAdd, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 
 //======================================================================================================================
@@ -151,11 +151,11 @@ export type TagDB = TagAllPrimitives &
     },
     async addTag(
         userId: string,
-        input: TagInput,
+        input: TagAddInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!input.tag || input.tag.length < 1) throw new CustomError(CODE.InternalError, 'Tag too short');
+        tagAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.tag, input.description)) throw new CustomError(CODE.BannedWord);
         // Create tag data
@@ -170,11 +170,11 @@ export type TagDB = TagAllPrimitives &
     },
     async updateTag(
         userId: string,
-        input: TagInput,
+        input: TagUpdateInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!input.tag || input.tag.length < 1) throw new CustomError(CODE.InternalError, 'Tag too short');
+        tagUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.tag, input.description)) throw new CustomError(CODE.BannedWord);
         // Create tag data

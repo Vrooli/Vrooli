@@ -231,35 +231,24 @@ model node_start {
 //==============================================================
 
 model organization {
-    id              String                   @id @default(uuid()) @db.Uuid
-    created_at      DateTime                 @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime                 @default(now()) @db.Timestamptz(6)
-    bio             String?                  @db.VarChar(2048)
-    name            String                   @db.VarChar(128)
-    stars           Int                      @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    id              String               @id @default(uuid()) @db.Uuid
+    created_at      DateTime             @default(now()) @db.Timestamptz(6)
+    updated_at      DateTime             @default(now()) @db.Timestamptz(6)
+    bio             String?              @db.VarChar(2048)
+    name            String               @db.VarChar(128)
+    stars           Int                  @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
     comments        comment[]
     members         organization_users[]
-    projects        project[]                @relation("project_organization_owner") // Projects the organization can contorl
-    projectsCreated project[]                @relation("project_organization_creator") // Projects the organization created, but cannot necessarily control
+    projects        project[]            @relation("project_organization_owner") // Projects the organization can contorl
+    projectsCreated project[]            @relation("project_organization_creator") // Projects the organization created, but cannot necessarily control
     reports         report[]
-    resources       organization_resources[] // Links displayed on the organization's page
-    routines        routine[]                @relation("routine_organization_owner") // Routines the organization can control
-    routinesCreated routine[]                @relation("routine_organization_creator") // Routines the organization created, but cannot necessarily control
+    resources       resource[]           @relation("resource_organization") // Links displayed on the organization's page
+    routines        routine[]            @relation("routine_organization_owner") // Routines the organization can control
+    routinesCreated routine[]            @relation("routine_organization_creator") // Routines the organization created, but cannot necessarily control
     standards       standard[]
-    starredBy       star[]                   @relation("star_organization")
+    starredBy       star[]               @relation("star_organization")
     tags            organization_tags[] // Categorical tags set by creators or community-voted
     wallets         wallet[]
-}
-
-// Many-to-many relationship between organizations and resources
-model organization_resources {
-    id           String       @id @default(uuid()) @db.Uuid
-    forId        String       @db.Uuid
-    resourceId   String       @db.Uuid
-    organization organization @relation(fields: [forId], references: [id], onDelete: Cascade)
-    resource     resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-    @@unique([forId, resourceId], name: "organization_resources_forid_resourceid_unique")
 }
 
 // Many-to-many relationship between organizations and tags
@@ -296,30 +285,30 @@ model organization_users {
 // A project is "owned" by an organization and/or user,
 // and it can be "starred" by many users
 model project {
-    id                      String              @id @default(uuid()) @db.Uuid
-    created_at              DateTime            @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime            @default(now()) @db.Timestamptz(6)
-    description             String?             @db.VarChar(2048)
-    name                    String              @db.VarChar(128)
-    score                   Int                 @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
-    stars                   Int                 @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
-    createdByUserId         String?             @db.Uuid // User who created this
-    createdByOrganizationId String?             @db.Uuid // Organization who created this
-    userId                  String?             @db.Uuid // User who can edit this
-    organizationId          String?             @db.Uuid // Organization who can edit this
-    createdByUser           user?               @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
-    createdByOrganization   organization?       @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-    user                    user?               @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
-    organization            organization?       @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+    id                      String          @id @default(uuid()) @db.Uuid
+    created_at              DateTime        @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime        @default(now()) @db.Timestamptz(6)
+    description             String?         @db.VarChar(2048)
+    name                    String          @db.VarChar(128)
+    score                   Int             @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    stars                   Int             @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    createdByUserId         String?         @db.Uuid // User who created this
+    createdByOrganizationId String?         @db.Uuid // Organization who created this
+    userId                  String?         @db.Uuid // User who can edit this
+    organizationId          String?         @db.Uuid // Organization who can edit this
+    createdByUser           user?           @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+    createdByOrganization   organization?   @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+    user                    user?           @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+    organization            organization?   @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
     comments                comment[]
-    forks                   project_forks[]     @relation("project_fork")
-    parent                  project_forks?      @relation("project_parent")
+    forks                   project_forks[] @relation("project_fork")
+    parent                  project_forks?  @relation("project_parent")
     reports                 report[]
-    resources               project_resources[]
+    resources               resource[]      @relation("resource_project")
     routines                routine[] // Routines created by this project
-    starredBy               star[]              @relation("star_project")
+    starredBy               star[]          @relation("star_project")
     tags                    project_tags[] // Categorical tags set by creators or community-voted
-    votes                   vote[]              @relation("vote_project")
+    votes                   vote[]          @relation("vote_project")
     wallets                 wallet[]
 }
 
@@ -332,17 +321,6 @@ model project_forks {
     fork     project @relation("project_fork", fields: [forkId], references: [id], onDelete: Cascade)
 
     @@unique([parentId, forkId], name: "project_forks_parentid_forkid_unique")
-}
-
-// Many-to-many relationship between projects and resources
-model project_resources {
-    id         String   @id @default(uuid()) @db.Uuid
-    forId      String   @db.Uuid
-    resourceId String   @db.Uuid
-    project    project  @relation(fields: [forId], references: [id], onDelete: Cascade)
-    resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-    @@unique([forId, resourceId], name: "project_resources_forid_resourceid_unique")
 }
 
 // Many-to-many relationship between projects and tags
@@ -374,7 +352,6 @@ model report {
     commentId      String?       @db.Uuid
     organizationId String?       @db.Uuid
     projectId      String?       @db.Uuid
-    resourceId     String?       @db.Uuid
     routineId      String?       @db.Uuid
     standardId     String?       @db.Uuid
     tagId          String?       @db.Uuid
@@ -406,18 +383,23 @@ model report {
 //==============================================================
 
 model resource {
-    id                           String                         @id @default(uuid()) @db.Uuid
-    created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
-    updated_at                   DateTime                       @default(now()) @db.Timestamptz(6)
-    title                        String?                        @db.VarChar(128)
-    description                  String?                        @db.VarChar(2048)
-    link                         String                         @db.VarChar(1024) // The actual link
-    usedFor                      ResourceUsedFor                @default(Context)
-    organization_resources       organization_resources[]
-    project_resources            project_resources[]
-    routine_resources_contextual routine_resources_contextual[]
-    routine_resources_external   routine_resources_external[]
-    user_resources               user_resources[]
+    id                  String          @id @default(uuid()) @db.Uuid
+    created_at          DateTime        @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime        @default(now()) @db.Timestamptz(6)
+    title               String?         @db.VarChar(128)
+    description         String?         @db.VarChar(2048)
+    link                String          @db.VarChar(1024) // The actual link
+    usedFor             ResourceUsedFor @default(Context)
+    organizationId      String?         @db.Uuid
+    projectId           String?         @db.Uuid
+    routineContextualId String?         @db.Uuid
+    routineExternalId   String?         @db.Uuid
+    userId              String?         @db.Uuid
+    organization        organization?   @relation("resource_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    project             project?        @relation("resource_project", fields: [projectId], references: [id], onDelete: Cascade)
+    routineContextual   routine?        @relation("resource_contextual_routine", fields: [routineContextualId], references: [id], onDelete: Cascade)
+    routineExternal     routine?        @relation("resource_external_routine", fields: [routineExternalId], references: [id], onDelete: Cascade)
+    user                user?           @relation("resource_user", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 //==============================================================
@@ -453,39 +435,39 @@ model role {
 //==============================================================
 
 model routine {
-    id                      String                         @id @default(uuid()) @db.Uuid
-    created_at              DateTime                       @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime                       @default(now()) @db.Timestamptz(6)
-    description             String                         @db.VarChar(2048)
-    instructions            String                         @db.VarChar(8192) // Plaintext or markdown instructions
-    isAutomatable           Boolean                        @default(false) // Indicates if the routine can be run automatically, if all conditions are met
-    title                   String                         @db.VarChar(128)
-    version                 String                         @default("1.0.0") @db.VarChar(16) // Arbitrary version number
-    createdByUserId         String?                        @db.Uuid // User who created this routine
-    createdByOrganizationId String?                        @db.Uuid // Organization who created this routine
-    userId                  String?                        @db.Uuid // User who can edit this routine
-    organizationId          String?                        @db.Uuid // Organization who can edit this routine
-    projectId               String?                        @db.Uuid // Project this routine belongs to, if any
-    createdByUser           user?                          @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
-    createdByOrganization   organization?                  @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-    user                    user?                          @relation("routine_user_owner", fields: [userId], references: [id], onDelete: Cascade)
-    organization            organization?                  @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
-    project                 project?                       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    id                      String                   @id @default(uuid()) @db.Uuid
+    created_at              DateTime                 @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
+    description             String                   @db.VarChar(2048)
+    instructions            String                   @db.VarChar(8192) // Plaintext or markdown instructions
+    isAutomatable           Boolean                  @default(false) // Indicates if the routine can be run automatically, if all conditions are met
+    title                   String                   @db.VarChar(128)
+    version                 String                   @default("1.0.0") @db.VarChar(16) // Arbitrary version number
+    createdByUserId         String?                  @db.Uuid // User who created this routine
+    createdByOrganizationId String?                  @db.Uuid // Organization who created this routine
+    userId                  String?                  @db.Uuid // User who can edit this routine
+    organizationId          String?                  @db.Uuid // Organization who can edit this routine
+    projectId               String?                  @db.Uuid // Project this routine belongs to, if any
+    createdByUser           user?                    @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+    createdByOrganization   organization?            @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+    user                    user?                    @relation("routine_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+    organization            organization?            @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+    project                 project?                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
     inputs                  routine_input[]
     outputs                 routine_output[]
     nodes                   node[] // Defines an orchestration (i.e. routine is made up of subroutines)
-    contextualResources     routine_resources_contextual[] // Resources to provide context to the routine
-    externalResources       routine_resources_external[] // Resources for completing steps outside of Vrooli
+    contextualResources     resource[]               @relation("resource_contextual_routine") // Resources to provide context to the routine
+    externalResources       resource[]               @relation("resource_external_routine") // Resources for completing steps outside of Vrooli
     tags                    routine_tags[] // Categorical tags set by creators or community-voted
-    stars                   Int                            @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
-    starredBy               star[]                         @relation("star_routine")
-    parent                  routine_forks?                 @relation("routine_parent")
-    forks                   routine_forks[]                @relation("routine_fork")
+    stars                   Int                      @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy               star[]                   @relation("star_routine")
+    parent                  routine_forks?           @relation("routine_parent")
+    forks                   routine_forks[]          @relation("routine_fork")
     nodeLists               node_routine_list_item[] // Routine list nodes the routine is a part of
     reports                 report[]
     comments                comment[]
-    score                   Int                            @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
-    votes                   vote[]                         @relation("vote_routine")
+    score                   Int                      @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    votes                   vote[]                   @relation("vote_routine")
 }
 
 // One to many relationship between a routine and routines forked from it
@@ -501,36 +483,14 @@ model routine_forks {
 
 // Data for a routine input
 model routine_input {
-    id          String   @id @default(uuid()) @db.Uuid
-    description String?  @db.VarChar(2048) // Optional description to override standard's description
-    isRequired  Boolean  @default(true) // Indicates if the input is required to run the routine
-    name        String?  @db.VarChar(128) // Optional name to override standard's name
-    routineId   String   @db.Uuid
+    id          String    @id @default(uuid()) @db.Uuid
+    description String?   @db.VarChar(2048) // Optional description to override standard's description
+    isRequired  Boolean   @default(true) // Indicates if the input is required to run the routine
+    name        String?   @db.VarChar(128) // Optional name to override standard's name
+    routineId   String    @db.Uuid
     standardId  String?   @db.Uuid
-    routine     routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    routine     routine   @relation(fields: [routineId], references: [id], onDelete: Cascade)
     standard    standard? @relation(fields: [standardId], references: [id], onDelete: Cascade)
-}
-
-// Many-to-many relationship between routines and contextual resources
-model routine_resources_contextual {
-    id         String   @id @default(uuid()) @db.Uuid
-    forId      String   @db.Uuid
-    resourceId String   @db.Uuid
-    routine    routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
-    resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-    @@unique([forId, resourceId], name: "routine_resources_contextual_forid_resourceid_unique")
-}
-
-// Many-to-many relationship between routines and external resources
-model routine_resources_external {
-    id         String   @id @default(uuid()) @db.Uuid
-    forId      String   @db.Uuid
-    resourceId String   @db.Uuid
-    routine    routine  @relation(fields: [forId], references: [id], onDelete: Cascade)
-    resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-    @@unique([forId, resourceId], name: "routine_resources_external_forid_resourceid_unique")
 }
 
 // Data for a routine output
@@ -538,7 +498,6 @@ model routine_output {
     id          String   @id @default(uuid()) @db.Uuid
     name        String?  @db.VarChar(128) // Optional name to override standard's name
     description String?  @db.VarChar(2048) // Optional description to override standard's description
-    isRequired  Boolean  @default(true) // Indicates if the output is required to run the routine
     routineId   String   @db.Uuid
     standardId  String   @db.Uuid
     routine     routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -575,7 +534,7 @@ model standard {
     name                    String           @db.VarChar(128)
     schema                  String           @db.VarChar(8192) // JSON object describing the shape of the data
     type                    StandardType
-    version                 String           @db.VarChar(128)
+    version                 String           @default("1.0.0") @db.VarChar(16) // Arbitrary version number
     createdByUserId         String?          @db.Uuid // User who created the standard, if exists (could have been created anonymously or by an organization)
     createdByOrganizationId String?          @db.Uuid // Organization who created the standard, if exists (could have been created anonymously or by a user)
     createdByUser           user?            @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
@@ -699,7 +658,7 @@ model user {
     wallets                        wallet[]
     standards                      standard[]
     tags                           tag[]
-    resources                      user_resources[] // Resources associated with user profile
+    resources                      resource[]           @relation("resource_user") // Resources associated with user profile
     organizations                  organization_users[] // Projects the user is a member of
     projects                       project[]            @relation("project_user_owner") // Projects that the user can control
     projectsCreated                project[]            @relation("project_user_creator") // Projects that the user created, but cannot necessarily control
@@ -712,17 +671,6 @@ model user {
     sentReports                    report[]             @relation("report_from")
     reports                        report[]
     votes                          vote[]               @relation("vote_user") // Votes the user has cast, NOT votes the user has received (since users can't be voted on)
-}
-
-// Many-to-many relationship between user and resources
-model user_resources {
-    id         String   @id @default(uuid()) @db.Uuid
-    forId      String   @db.Uuid
-    resourceId String   @db.Uuid
-    user       user     @relation(fields: [forId], references: [id], onDelete: Cascade)
-    resource   resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-    @@unique([forId, resourceId], name: "user_resources_forid_resourceid_unique")
 }
 
 // Joining table to apply roles to user

@@ -28,14 +28,8 @@ export const standardAdd = yup.object().shape({
  * Information required when updating a routine
  */
 export const standardUpdate = yup.object().shape({
-    default: standardDefault,
     description,
-    isFile: yup.boolean().optional(),
     makingAnonymous: yup.boolean().optional(), // If you want the standard to be made anonymous
-    name: name.required(),
-    schema,
-    type,
-    version,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
     tagsDelete: idArray,

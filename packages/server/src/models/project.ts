@@ -1,9 +1,9 @@
-import { CODE, MemberRole } from "@local/shared";
+import { CODE, MemberRole, projectAdd, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
-import { DeleteOneInput, FindByIdInput, Organization, Project, ProjectCountInput, ProjectInput, ProjectSearchInput, ProjectSortBy, Resource, Success, Tag, User } from "../schema/types";
-import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, creater, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
+import { DeleteOneInput, FindByIdInput, Organization, Project, ProjectCountInput, ProjectAddInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Resource, Success, Tag, User } from "../schema/types";
+import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 
@@ -191,24 +191,24 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
     },
     async addProject(
         userId: string,
-        input: ProjectInput,
+        input: ProjectAddInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
+        projectAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create project data
         let projectData: { [x: string]: any } = { name: input.name, description: input.description ?? '' };
         // Associate with either organization or user
-        if (input.organizationId) {
+        if (input.createdByOrganizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
+            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             projectData = { 
                 ...projectData, 
-                organization: { connect: { id: input.organizationId } },
-                createdByOrganization: { connect: { id: input.organizationId } },
+                organization: { connect: { id: input.createdByOrganizationId } },
+                createdByOrganization: { connect: { id: input.createdByOrganizationId } },
             };
         } else {
             projectData = { 
@@ -228,12 +228,11 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
     },
     async updateProject(
         userId: string,
-        input: ProjectInput,
+        input: ProjectUpdateInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!input.id) throw new CustomError(CODE.InternalError, 'No project id provided');
-        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
+        projectUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create project data

@@ -1,11 +1,14 @@
 import { description, id, title } from './base';
 import * as yup from 'yup';
-import { ResourceFor } from '../consts';
+import { ResourceFor, ResourceUsedFor } from '../consts';
 
+const createdFor = yup.string().oneOf(Object.values(ResourceFor)).optional();
 const link = yup.string().max(1024).optional();
-const usedFor = yup.string().oneOf(Object.values(ResourceFor)).optional();
+const usedFor = yup.string().oneOf(Object.values(ResourceUsedFor)).optional();
 
 export const resourceAdd = yup.object().shape({
+    createdFor: createdFor.required(),
+    createdForId: id.required(),
     description,
     link: link.required(),
     title,
@@ -14,6 +17,8 @@ export const resourceAdd = yup.object().shape({
 
 export const resourceUpdate = yup.object().shape({
     id: id.required(),
+    createdFor,
+    createdForId: id,
     description,
     link,
     title,

@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, ProjectSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Project, ProjectInput, ProjectSearchInput, Success, ProjectCountInput } from './types';
+import { DeleteOneInput, FindByIdInput, Project, ProjectAddInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput } from './types';
 import { Context } from '../context';
 import { ProjectModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -25,35 +25,56 @@ export const typeDef = gql`
         VotesDesc
     }
 
-    input ProjectInput {
-        id: ID
-        name: String!
+    input ProjectAddInput {
         description: String
-        organizationId: ID
-        resources: [ResourceInput!]
+        name: String!
+        parentId: ID
+        createdByUserId: ID
+        createdByOrganizationId: ID
+        resourcesConnect: [ID!]
+        resourcesAdd: [ResourceAddInput!]
+        tagsConnect: [ID!]
+        tagsAdd: [TagAddInput!]
     }
-
+    input ProjectUpdateInput {
+        id: ID!
+        description: String
+        name: String
+        parentId: ID
+        userId: ID
+        organizationId: ID
+        resourcesConnect: [ID!]
+        resourcesDisconnect: [ID!]
+        resourcesDelete: [ID!]
+        resourcesAdd: [ResourceAddInput!]
+        resourcesUpdate: [ResourceUpdateInput!]
+        tagsConnect: [ID!]
+        tagsDisconnect: [ID!]
+        tagsDelete: [ID!]
+        tagsAdd: [TagAddInput!]
+        tagsUpdate: [TagUpdateInput!]
+    }
     type Project {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        name: String!
         description: String
+        name: String!
         stars: Int!
         isStarred: Boolean
         score: Int!
         isUpvoted: Boolean
-        resources: [Resource!]
-        wallets: [Wallet!]
-        creator: Contributor
-        owner: Contributor
-        starredBy: [User!]
-        parent: Project
-        forks: [Project!]!
-        tags: [Tag!]!
-        reports: [Report!]!
         comments: [Comment!]!
+        creator: Contributor
+        forks: [Project!]!
+        owner: Contributor
+        parent: Project
+        reports: [Report!]!
+        resources: [Resource!]
         routines: [Routine!]!
+        starredBy: [User!]
+        tags: [Tag!]!
+        wallets: [Wallet!]
     }
 
     input ProjectSearchInput {
@@ -95,8 +116,8 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        projectAdd(input: ProjectInput!): Project!
-        projectUpdate(input: ProjectInput!): Project!
+        projectAdd(input: ProjectAddInput!): Project!
+        projectUpdate(input: ProjectUpdateInput!): Project!
         projectDeleteOne(input: DeleteOneInput!): Success!
     }
 `
@@ -119,7 +140,7 @@ export const resolvers = {
         },
     },
     Mutation: {
-        projectAdd: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
+        projectAdd: async (_parent: undefined, { input }: IWrap<ProjectAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
@@ -127,7 +148,7 @@ export const resolvers = {
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
-        projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
+        projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object

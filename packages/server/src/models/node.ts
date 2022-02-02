@@ -1,8 +1,8 @@
-import { Node, NodeDecisionItem, NodeInput } from "schema/types";
+import { Node, NodeDecisionItem, NodeAddInput, NodeUpdateInput } from "schema/types";
 import { deleter, findByIder, FormatConverter, MODEL_TYPES, updater } from "./base";
 import { PrismaSelect } from "@paljs/plugins";
 import { CustomError } from "../error";
-import { CODE, NodeType } from "@local/shared";
+import { CODE, nodeAdd, NodeType } from "@local/shared";
 import { onlyPrimitives } from "../utils";
 import { PrismaType, RecursivePartial } from "types";
 
@@ -86,10 +86,9 @@ const nodeCreater = (prisma: PrismaType) => ({
         const row = await prisma.node_start.create({ data });
         return { dataStartId: row?.id ?? '' };
     },
-    async create(data: NodeInput, info: any): Promise<NodeDB> {
+    async create(data: NodeAddInput, info: any): Promise<NodeDB> {
         // Check for valid arguments
-        if (!data.routineId) throw new CustomError(CODE.InternalError, 'Routine ID not specified')
-        if (!data.type) throw new CustomError(CODE.InternalError, 'Node type not specified')
+        nodeAdd.validateSync(data, { abortEarly: false });
         // Check if routine has reached max nodes
         const nodeCount = await prisma.routine.findUnique({
             where: { id: data.routineId },
@@ -109,7 +108,7 @@ const nodeCreater = (prisma: PrismaType) => ({
             [NodeType.Redirect]: [this.createRedirectHelper, 'redirectData'],
             [NodeType.Start]: [this.createStartHelper, 'startData'],
         }
-        const mapResult: [any, keyof NodeInput] = typeMapper[data.type];
+        const mapResult: [any, keyof NodeAddInput] = typeMapper[data.type as NodeType];
         // Create type-specific data
         const typeData = await mapResult[0](data[mapResult[1]]);
         // Create base node object
@@ -141,7 +140,7 @@ export function NodeModel(prisma: PrismaType) {
         ...format,
         ...findByIder<Node, NodeDB>(model, format.toDB, prisma),
         ...nodeCreater(prisma),
-        ...updater<NodeInput, Node, NodeDB>(model, format.toDB, prisma),
+        ...updater<NodeUpdateInput, Node, NodeDB>(model, format.toDB, prisma),
         ...deleter(model, prisma)
     }
 }

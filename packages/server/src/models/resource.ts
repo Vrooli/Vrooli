@@ -1,6 +1,6 @@
-import { ResourceFor } from "@local/shared";
+import { resourceAdd, ResourceFor, resourceUpdate } from "@local/shared";
 import { PrismaSelect } from "@paljs/plugins";
-import { Organization, Project, Resource, ResourceCountInput, ResourceInput, ResourceSearchInput, ResourceSortBy, Routine, User } from "../schema/types";
+import { Organization, Project, Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Routine, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { counter, deleter, findByIder, FormatConverter, MODEL_TYPES, searcher, Sortable } from "./base";
 
@@ -33,13 +33,13 @@ export type ResourceDB = ResourceAllPrimitives &
 /* #region Custom Components */
 //==============================================================
 
-// Maps routine apply types to the correct prisma join tables
-const applyMap = {
-    [ResourceFor.Organization]: 'organizationResources',
-    [ResourceFor.Project]: 'projectResources',
-    [ResourceFor.RoutineContextual]: 'routineResourcesContextual',
-    [ResourceFor.RoutineExternal]: 'routineResourcesExternal',
-    [ResourceFor.User]: 'userResources',
+// Maps resource for type to correct fiel
+const forMap = {
+    [ResourceFor.Organization]: 'organizationId',
+    [ResourceFor.Project]: 'projectId',
+    [ResourceFor.RoutineContextual]: 'routineContextualId',
+    [ResourceFor.RoutineExternal]: 'routineExternalId',
+    [ResourceFor.User]: 'userId',
 }
 
 /**
@@ -56,26 +56,16 @@ export const resourceFormatter = (): FormatConverter<Resource, ResourceDB> => ({
  * @returns 
  */
 export const resourceCreater = (prisma: PrismaType) => ({
-    /**
-    * Applies a resource object to an actor, project, organization, or routine
-    * @param resource 
-    * @returns
-    */
-    async applyToObject(resource: any, createdFor: keyof typeof applyMap, forId: string): Promise<any> {
-        return await (prisma[applyMap[createdFor] as keyof PrismaType] as any).create({
-            data: {
-                forId,
-                resourceId: resource.id
-            }
-        })
-    },
-    async create(data: ResourceInput, info: any): Promise<RecursivePartial<ResourceDB>> {
+    async create(data: ResourceAddInput, info: any): Promise<RecursivePartial<ResourceDB>> {
+        // TODO authorize user
+        // Check for valid arguments
+        resourceAdd.validateSync(data, { abortEarly: false });
         // Filter out for and forId, since they are not part of the resource object
-        const { createdFor, forId, ...resourceData } = data;
-        // Create base object
-        const resource = await prisma.resource.create({ data: resourceData as any });
-        // Create join object
-        await this.applyToObject(resource, createdFor, forId);
+        const { createdFor, createdForId, ...resourceData } = data;
+        // Map forId to correct field
+        const createData = { ...resourceData, [forMap[createdFor]]: createdForId }
+        // Create
+        const resource = await prisma.resource.create({ data: createData as any });
         // Return query
         return await prisma.resource.findFirst({ where: { id: resource.id }, ...(new PrismaSelect(info).value) }) as any;
     }
@@ -87,15 +77,26 @@ export const resourceCreater = (prisma: PrismaType) => ({
  * @returns 
  */
 const resourceUpdater = (prisma: PrismaType) => ({
-    async update(data: ResourceInput, info: any): Promise<ResourceDB> {
+    async update(data: ResourceUpdateInput, info: any): Promise<ResourceDB> {
+        // TODO authorize user
+        // Check for valid arguments
+        resourceUpdate.validateSync(data, { abortEarly: false });
         // Filter out for and forId, since they are not part of the resource object
-        const { createdFor, forId, ...resourceData } = data;
-        // Check if resource needs to be associated with another object instead
-        //TODO
-        // Update base object and return query
+        const { createdFor, createdForId, ...resourceData } = data;
+        // Map forId to correct field, and remove any old associations
+        const updateData = (Boolean(createdFor) && Boolean(createdForId)) ? { 
+            ...resourceData, 
+            organizationId: null,
+            projectId: null,
+            routineContextualId: null,
+            routineExternalId: null,
+            userId: null,
+            [forMap[createdFor as any]]: createdForId 
+        } : resourceData;
+        // Update resource
         return await prisma.resource.update({
             where: { id: data.id },
-            data: resourceData,
+            data: updateData,
             ...(new PrismaSelect(info).value)
         }) as any;
     }

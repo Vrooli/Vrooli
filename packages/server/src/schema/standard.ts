@@ -3,7 +3,7 @@ import { CODE, StandardSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteManyInput, DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardUpdateInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardAddInput, StandardUpdateInput, StandardSearchInput, Success } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
@@ -35,46 +35,50 @@ export const typeDef = gql`
         VotesDesc
     }
 
-    input StandardInput {
-        id: ID
-        name: String
-        description: String
-        type: StandardType
-        schema: String
+    input StandardAddInput {
         default: String
+        description: String
         isFile: Boolean
-        organizationId: ID
-        tags: [TagInput!]
+        name: String!
+        schema: String
+        type: StandardType
+        version: String
+        createdByUserId: ID
+        createdByOrganizationId: ID
+        tagsConnect: [ID!]
+        tagsAdd: [TagAddInput!]
     }
-
     input StandardUpdateInput {
         id: ID
         description: String
         makeAnonymous: Boolean
-        tags: [TagInput!]
+        tagsConnect: [ID!]
+        tagsDisconnect: [ID!]
+        tagsDelete: [ID!]
+        tagsAdd: [TagAddInput!]
+        tagsUpdate: [TagUpdateInput!]
     }
-
     type Standard {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        name: String!
-        description: String
-        type: StandardType!
-        schema: String!
         default: String
+        description: String
+        name: String!
         isFile: Boolean!
-        stars: Int!
         isStarred: Boolean
-        score: Int!
         isUpvoted: Boolean
+        schema: String!
+        score: Int!
+        stars: Int!
+        type: StandardType!
+        comments: [Comment!]!
         creator: Contributor
-        tags: [Tag!]!
+        reports: [Report!]!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!
         starredBy: [User!]!
-        reports: [Report!]!
-        comments: [Comment!]!
+        tags: [Tag!]!
     }
 
     input StandardSearchInput {
@@ -116,7 +120,7 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        standardAdd(input: StandardInput!): Standard!
+        standardAdd(input: StandardAddInput!): Standard!
         standardUpdate(input: StandardUpdateInput!): Standard!
         standardDeleteOne(input: DeleteOneInput!): Success!
     }
@@ -146,7 +150,7 @@ export const resolvers = {
          * Add a new standard
          * @returns Standard object if successful
          */
-        standardAdd: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+        standardAdd: async (_parent: undefined, { input }: IWrap<StandardAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object

@@ -1,9 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { CODE, TagSortBy } from '@local/shared';
 import { CustomError } from '../error';
-import { tagFormatter, TagModel } from '../models';
+import { TagModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagInput, TagSearchInput, TagSearchResult } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagAddInput, TagUpdateInput, TagSearchInput, TagSearchResult } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -19,10 +19,15 @@ export const typeDef = gql`
         StarsDesc
     }
 
-    input TagInput {
-        id: ID
-        tag: String!
+    input TagAddInput {
+        anonymous: Boolean
         description: String
+        tag: String!
+    }
+    input TagUpdateInput {
+        anonymous: Boolean
+        description: String
+        tag: String
     }
 
     type Tag {
@@ -73,8 +78,8 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        tagAdd(input: TagInput!): Tag!
-        tagUpdate(input: TagInput!): Tag!
+        tagAdd(input: TagAddInput!): Tag!
+        tagUpdate(input: TagUpdateInput!): Tag!
         tagDeleteMany(input: DeleteManyInput!): Count!
     }
 `
@@ -101,7 +106,7 @@ export const resolvers = {
          * Add a new tag. Must be unique.
          * @returns Tag object if successful
          */
-        tagAdd: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
+        tagAdd: async (_parent: undefined, { input }: IWrap<TagAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
@@ -113,7 +118,7 @@ export const resolvers = {
          * Update tags you've created
          * @returns 
          */
-        tagUpdate: async (_parent: undefined, { input }: IWrap<TagInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
+        tagUpdate: async (_parent: undefined, { input }: IWrap<TagUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object

@@ -3,7 +3,7 @@ import { CODE, NodeType } from '@local/shared';
 import { CustomError } from '../error';
 import { nodeFormatter, NodeModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, Node, NodeInput, Success } from './types';
+import { DeleteOneInput, Node, NodeAddInput, NodeUpdateInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -20,21 +20,44 @@ export const typeDef = gql`
 
     union NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList | NodeRedirect | NodeStart
 
-    input NodeInput {
-        id: ID
-        routineId: ID
-        title: String
+    input NodeAddInput {
         description: String
+        title: String
         type: NodeType
-        combineData: NodeCombineInput
-        decisionData: NodeDecisionInput
-        endData: NodeEndInput
-        loopData: NodeLoopInput
-        routineListData: NodeRoutineListInput
-        redirectData: NodeRedirectInput
-        startData: NodeStartInput
+        nodeCombineAdd: NodeCombineAddInput
+        nodeDecisionAdd: NodeDecisionAddInput
+        nodeEndAdd: NodeEndAddInput
+        nodeLoopAdd: NodeLoopAddInput
+        nodeRedirectAdd: NodeRoutineListAddInput
+        nodeRoutineListAdd: NodeRedirectAddInput
+        nodeStartAdd: NodeStartAddInput
+        previousId: ID
+        nextId: ID
+        routineId: ID!
     }
-
+    input NodeUpdateInput {
+        id: ID!
+        description: String
+        title: String
+        type: NodeType
+        nodeCombineAdd: NodeCombineAddInput
+        nodeCombineUpdate: NodeCombineUpdateInput
+        nodeDecisionAdd: NodeDecisionAddInput
+        nodeDecisionUpdate: NodeDecisionUpdateInput
+        nodeEndAdd: NodeEndAddInput
+        nodeEndUpdate: NodeEndUpdateInput
+        nodeLoopAdd: NodeLoopAddInput
+        nodeLoopUpdate: NodeLoopUpdateInput
+        nodeRedirectAdd: NodeRoutineListAddInput
+        nodeRedirectUpdate: NodeRoutineListUpdateInput
+        nodeRoutineListAdd: NodeRedirectAddInput
+        nodeRoutineListUpdate: NodeRedirectUpdateInput
+        nodeStartAdd: NodeStartAddInput
+        nodeStartUpdate: NodeStartUpdateInput
+        previousId: ID
+        nextId: ID
+        routineId: ID
+    }
     type Node {
         id: ID!
         created_at: Date!
@@ -54,122 +77,153 @@ export const typeDef = gql`
         DecisionItem: [NodeDecisionItem!]!
     }
 
-    input NodeCombineInput {
-        id: ID
-        from: [ID!]
-        to: ID
+    input NodeCombineAddInput {
+        from: [ID!]!
+        toId: ID
     }
-
+    input NodeCombineUpdateInput {
+        id: ID!
+        from: [ID!]
+        toId: ID
+    }
     type NodeCombine {
         id: ID!
         from: [ID!]!
-        to: ID!
+        toId: ID!
     }
 
-    input NodeDecisionInput {
-        id: ID
-        decisions: [NodeDecisionItemInput!]!
+    input NodeDecisionAddInput {
+        decisionsAdd: [NodeDecisionItemAddInput!]!
     }
-
+    input NodeDecisionUpdateInput {
+        id: ID!
+        decisionsAdd: [NodeDecisionItemAddInput!]
+        decisionsUpdate: [NodeDecisionItemUpdateInput!]
+        decisionsDelete: [ID!]
+    }
     type NodeDecision {
         id: ID!
         decisions: [NodeDecisionItem!]!
     }
-
-    input NodeDecisionItemInput {
-        id: ID
-        title: String
+    input NodeDecisionItemAddInput {
         description: String
+        title: String!
+        whenAdd: [NodeDecisionItemWhenAddInput!]!
         toId: ID
-        when: [NodeDecisionItemCaseInput]
     }
-
+    input NodeDecisionItemUpdateInput {
+        id: ID!
+        description: String
+        title: String
+        whenAdd: [NodeDecisionItemWhenAddInput!]
+        whenUpdate: [NodeDecisionItemWhenUpdateInput!]
+        whenDelete: [ID!]
+        toId: ID
+    }
     type NodeDecisionItem {
         id: ID!
-        title: String!
         description: String
+        title: String!
+        when: [NodeDecisionItemWhen!]!
         toId: ID
-        when: [NodeDecisionItemCase]!
+    } 
+    input NodeDecisionItemWhenAddInput {
+        condition: String!
     }
-
-    input NodeDecisionItemCaseInput {
-        id: ID
+    input NodeDecisionItemWhenUpdateInput {
+        id: ID!
         condition: String
     }
-
-    type NodeDecisionItemCase {
+    type NodeDecisionItemWhen {
         id: ID!
         condition: String!
     }
 
-    input NodeEndInput {
-        id: ID
+    input NodeEndAddInput {
         wasSuccessful: Boolean
     }
-
+    input NodeEndUpdateInput {
+        id: ID!
+        wasSuccessful: Boolean
+    }
     type NodeEnd {
         id: ID!
         wasSuccessful: Boolean!
     }
 
-    input NodeLoopInput {
+    input NodeLoopAddInput {
         id: ID
     }
-
+    input NodeLoopUpdateInput {
+        id: ID
+    }
     type NodeLoop {
         id: ID!
     }
 
-    input NodeRoutineListInput {
+    input NodeRedirectAddInput {
         id: ID
-        isOrdered: Boolean
-        isOptional: Boolean
-        routines: [NodeRoutineListItemInput!]!
+    }
+    input NodeRedirectUpdateInput {
+        id: ID
+    }
+    type NodeRedirect {
+        id: ID!
     }
 
+    input NodeRoutineListAddInput {
+        isOrdered: Boolean
+        isOptional: Boolean
+        routinesConnect: [ID!]
+        routinesAdd: [NodeRoutineListItemAddInput!]
+    }
+    input NodeRoutineListUpdateInput {
+        id: ID!
+        isOrdered: Boolean
+        isOptional: Boolean
+        routinesConnect: [ID!]
+        routinesDisconnect: [ID!]
+        routinesDelete: [ID!]
+        routinesAdd: [NodeRoutineListItemAddInput!]
+        routinesUpdate: [NodeRoutineListItemUpdateInput!]
+    }
     type NodeRoutineList {
         id: ID!
         isOrdered: Boolean!
         isOptional: Boolean!
         routines: [NodeRoutineListItem!]!
     }
-
-    input NodeRoutineListItemInput {
-        id: ID
-        title: String
+    input NodeRoutineListItemAddInput {
         description: String
-        isOptional: Boolean
-        listId: ID
-        routineId: ID
+        title: String
+        routineConnect: ID!
     }
-
+    input NodeRoutineListItemUpdateInput {
+        id: ID!
+        description: String
+        title: String
+        routineConnect: ID
+    }
     type NodeRoutineListItem {
         id: ID!
-        title: String!
         description: String
-        isOptional: Boolean!
-        routine: Routine
+        title: String
+        routine: Routine!
     }
 
-    input NodeRedirectInput {
-        id: ID
+    input NodeStartAddInput {
+        _blank: String
     }
-
-    type NodeRedirect {
+    input NodeStartUpdateInput {
         id: ID!
     }
-
-    input NodeStartInput {
-        id: ID
-    }
-
     type NodeStart {
         id: ID!
     }
 
     extend type Mutation {
-        nodeAdd(input: NodeInput!): Node!
-        nodeUpdate(input: NodeInput!): Node!
+        nodeAdd(input: NodeAddInput!): Node!
+        nodeUpdate(input: NodeUpdateInput!): Node!
         nodeDeleteOne(input: DeleteOneInput!): Success!
     }
 `
@@ -182,7 +236,7 @@ export const resolvers = {
          * Note that the order of a routine (i.e. previous, next) cannot be updated with this mutation. 
          * @returns Updated node
          */
-        nodeAdd: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
+        nodeAdd: async (_parent: undefined, { input }: IWrap<NodeAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // Create object
@@ -190,7 +244,7 @@ export const resolvers = {
             // Format object to GraphQL type
             return nodeFormatter().toGraphQL(dbModel);
         },
-        nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
+        nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             // Must be logged in
             if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
             // Update object

@@ -10,16 +10,31 @@ const isRequired = yup.boolean().optional();
 const instructions = yup.string().max(8192).optional();
 const version = yup.string().max(16).optional();
 
-const inputOutputAdd = yup.object().shape({
+const inputAdd = yup.object().shape({
     description,
     isRequired,
     name,
     standardConnect: id,
     standardAdd,
 })
-const inputOutputUpdate = yup.object().shape({
+const inputUpdate = yup.object().shape({
     description,
     isRequired,
+    name,
+    // There is purposely no option to delete or update a standard from here
+    standardConnect: id,
+    standardDisconnect: id,
+    standardAdd,
+})
+
+const outputAdd = yup.object().shape({
+    description,
+    name,
+    standardConnect: id,
+    standardAdd,
+})
+const outputUpdate = yup.object().shape({
+    description,
     name,
     // There is purposely no option to delete or update a standard from here
     standardConnect: id,
@@ -41,8 +56,8 @@ export const routineAdd = yup.object().shape({
     createdByOrganizationId: id, // If associating with an organization you are an admin of, the organization's id
     nodesConnect: idArray,
     nodesAdd,
-    inputsAdd: inputOutputAdd.optional(),
-    outputsAdd: inputOutputAdd.optional(),
+    inputsAdd: inputAdd.optional(),
+    outputsAdd: outputAdd.optional(),
     resourcesContextualConnect: idArray,
     resourcesContextualAdd: resourcesAdd,
     resourcesExternalConnect: idArray,
@@ -69,11 +84,11 @@ export const routineUpdate = yup.object().shape({
     nodesAdd,
     nodesUpdate,
     inputsDelete: idArray,
-    inputsAdd: inputOutputAdd,
-    inputsUpdate: inputOutputUpdate,
+    inputsAdd: inputAdd,
+    inputsUpdate: inputUpdate,
     outputsDelete: idArray,
-    outpusAdd: inputOutputAdd,
-    outputsUpdate: inputOutputUpdate,
+    outpusAdd: outputAdd,
+    outputsUpdate: outputUpdate,
     resourcesContextualConnect: idArray,
     resourcesContextualDisconnect: idArray,
     resourcesContextualDelete: idArray,

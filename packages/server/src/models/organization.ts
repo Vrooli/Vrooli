@@ -1,9 +1,9 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Success, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, deleter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationAddInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Success, Tag, User } from "../schema/types";
+import { addCountQueries, addJoinTables, counter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
-import { CODE, MemberRole } from "@local/shared";
+import { CODE, MemberRole, organizationAdd, organizationUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 
 //======================================================================================================================
@@ -97,11 +97,11 @@ export type OrganizationDB = OrganizationAllPrimitives &
     },
     async addOrganization(
         userId: string,
-        input: OrganizationInput,
+        input: OrganizationAddInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
+        organizationAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
@@ -119,12 +119,11 @@ export type OrganizationDB = OrganizationAllPrimitives &
     },
     async updateOrganization(
         userId: string,
-        input: OrganizationInput,
+        input: OrganizationUpdateInput,
         info: InfoType = null,
     ): Promise<any> {
         // Check for valid arguments
-        if (!input.id) throw new CustomError(CODE.InternalError, 'No organization id provided');
-        if (!input.name || input.name.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
+        organizationUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
@@ -136,7 +135,7 @@ export type OrganizationDB = OrganizationAllPrimitives &
         let organization = await prisma.organization.findFirst({
             where: {
                 AND: [
-                    { id: input.id },
+                    { id: input.id ?? '' },
                     { members: { some: { id: userId } } },
                 ]
             }
