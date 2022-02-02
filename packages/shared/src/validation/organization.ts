@@ -1,4 +1,6 @@
-import { bio, idArray, name, resourcesAdd, resourcesUpdate, tagsAdd, tagsUpdate } from './';
+import { bio, idArray, name } from './base';
+import { resourcesAdd, resourcesUpdate } from './resource';
+import { tagsAdd, tagsUpdate } from './tag';
 import * as yup from 'yup';
 
 /**

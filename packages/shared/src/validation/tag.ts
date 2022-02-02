@@ -1,4 +1,4 @@
-import { description, id } from './';
+import { description, id } from './base';
 import * as yup from 'yup';
 
 const anonymous = yup.boolean().optional(); // Determines if the user will be credited for the tag

@@ -1,4 +1,4 @@
-import { description, idArray, id, title } from './';
+import { description, idArray, id, title } from './base';
 import * as yup from 'yup';
 import { AccountStatus } from '../consts';
 

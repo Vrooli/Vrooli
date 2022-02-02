@@ -92,6 +92,7 @@ export const ProfileForm = () => {
                                     autoComplete="username"
                                     label="Username"
                                     value={formik.values.username}
+                                    onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
                                     error={formik.touched.username && Boolean(formik.errors.username)}
                                     helperText={formik.touched.username && formik.errors.username}
@@ -105,6 +106,7 @@ export const ProfileForm = () => {
                                     autoComplete="email"
                                     label="Email Address"
                                     value={formik.values.email}
+                                    onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
                                     error={formik.touched.email && Boolean(formik.errors.email)}
                                     helperText={formik.touched.email && formik.errors.email}
@@ -117,6 +119,7 @@ export const ProfileForm = () => {
                                         name="theme"
                                         aria-label="theme-check"
                                         value={formik.values.theme}
+                                        onBlur={formik.handleBlur}
                                         onChange={setTheme}
                                     >
                                         <FormControlLabel value="light" control={<Radio />} label="Light ☀️" />
@@ -134,6 +137,7 @@ export const ProfileForm = () => {
                                             value="accountEmails"
                                             color="secondary"
                                             checked={formik.values.accountEmails}
+                                            onBlur={formik.handleBlur}
                                             onChange={formik.handleChange}
                                         />
                                     }
@@ -149,6 +153,7 @@ export const ProfileForm = () => {
                                             value="businessEmails"
                                             color="secondary"
                                             checked={formik.values.businessEmails}
+                                            onBlur={formik.handleBlur}
                                             onChange={formik.handleChange}
                                         />
                                     }
@@ -168,6 +173,7 @@ export const ProfileForm = () => {
                                     autoComplete="password"
                                     label="Current Password"
                                     value={formik.values.currentPassword}
+                                    onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
                                     error={formik.touched.currentPassword && Boolean(formik.errors.currentPassword)}
                                     helperText={formik.touched.currentPassword && formik.errors.currentPassword}
@@ -182,6 +188,7 @@ export const ProfileForm = () => {
                                     autoComplete="new-password"
                                     label="New Password"
                                     value={formik.values.newPassword}
+                                    onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
                                     error={formik.touched.newPassword && Boolean(formik.errors.newPassword)}
                                     helperText={formik.touched.newPassword && formik.errors.newPassword}
@@ -196,6 +203,7 @@ export const ProfileForm = () => {
                                     autoComplete="new-password"
                                     label="Confirm New Password"
                                     value={formik.values.newPasswordConfirmation}
+                                    onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
                                     error={formik.touched.newPasswordConfirmation && Boolean(formik.errors.newPasswordConfirmation)}
                                     helperText={formik.touched.newPasswordConfirmation && formik.errors.newPasswordConfirmation}

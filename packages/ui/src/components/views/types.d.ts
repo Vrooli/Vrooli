@@ -16,8 +16,7 @@ export interface ViewProps<T> {
     partialData?: Partial<T>;
 }
 
-export interface ActorAddProps extends AddProps<User> {}
-export interface ActorUpdateProps extends UpdateProps<User> {}
+export interface ProfileUpdateProps extends UpdateProps<User> {}
 export interface ActorViewProps extends ViewProps<User> {}
 
 export interface OrganizationAddProps extends AddProps<Organization> {}

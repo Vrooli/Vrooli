@@ -1,4 +1,8 @@
-import { description, idArray, id, name, nodesAdd, nodesUpdate, resourcesAdd, resourcesUpdate, standardAdd, tagsAdd, tagsUpdate, title } from './';
+import { description, idArray, id, name, title } from './base';
+import { nodesAdd, nodesUpdate } from './node';
+import { resourcesAdd, resourcesUpdate } from './resource';
+import { standardAdd } from './standard';
+import { tagsAdd, tagsUpdate } from './tag';
 import * as yup from 'yup';
 
 const isAutomatable = yup.boolean().optional();

@@ -1,4 +1,5 @@
-import { description, idArray, id, name, tagsAdd, tagsUpdate } from './';
+import { description, idArray, id, name, version } from './base';
+import { tagsAdd, tagsUpdate } from './tag';
 import * as yup from 'yup';
 import { StandardType } from '../consts';
 
@@ -16,6 +17,7 @@ export const standardAdd = yup.object().shape({
     name: name.required(),
     schema,
     type,
+    version,
     createdByUserId: id, // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id, // If associating with an organization you are an admin of, the organization's id
     tagsConnect: idArray,
@@ -33,6 +35,7 @@ export const standardUpdate = yup.object().shape({
     name: name.required(),
     schema,
     type,
+    version,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
     tagsDelete: idArray,

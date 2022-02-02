@@ -3,7 +3,7 @@
  * several variations. Nonetheless, they are handled in the same way - connect, 
  * disconnect, delete, add, and update
  */
-import { description, idArray, id, title } from './';
+import { description, idArray, id, title } from './base';
 import * as yup from 'yup';
 import { NodeType } from '../consts';
 

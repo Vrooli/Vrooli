@@ -1247,6 +1247,13 @@ export type StandardInput = {
   type?: InputMaybe<StandardType>;
 };
 
+export type StandardUpdateInput = {
+    id?: InputMaybe<Scalars['ID']>;
+    description?: InputMaybe<Scalars['String']>;
+    tags?: InputMaybe<Array<TagInput>>;
+    makeAnonymous?: boolean;
+  };
+
 export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;

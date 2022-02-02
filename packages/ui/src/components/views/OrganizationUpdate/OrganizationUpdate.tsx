@@ -1,5 +1,5 @@
 import { Grid, TextField } from "@mui/material"
-import { useLocation, useRoute } from "wouter";
+import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
 import { organization } from "graphql/generated/organization";
@@ -8,7 +8,7 @@ import { useMemo } from "react";
 import { OrganizationUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import PubSub from 'pubsub-js';
-import { organizationAdd as schema } from '@local/shared';
+import { organizationUpdate as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";
@@ -17,14 +17,13 @@ export const OrganizationUpdate = ({
     id,
     onUpdated
 }: OrganizationUpdateProps) => {
-    const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/:id/edit`);
     // Fetch existing data
     const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id: params?.id ?? id ?? '' } } });
     const organization = useMemo(() => data?.organization, [data]);
 
-    // Update organization
+    // Handle update
     const [mutation] = useMutation<organization>(organizationUpdateMutation);
     const formik = useFormik({
         initialValues: {
@@ -32,7 +31,7 @@ export const OrganizationUpdate = ({
             bio: '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: schema,
+        validationSchema,
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
@@ -55,6 +54,7 @@ export const OrganizationUpdate = ({
                         name="name"
                         label="Name"
                         value={formik.values.name}
+                        onBlur={formik.handleBlur}
                         onChange={formik.handleChange}
                         error={formik.touched.name && Boolean(formik.errors.name)}
                         helperText={formik.touched.name && formik.errors.name}
@@ -69,6 +69,7 @@ export const OrganizationUpdate = ({
                         multiline
                         minRows={4}
                         value={formik.values.bio}
+                        onBlur={formik.handleBlur}
                         onChange={formik.handleChange}
                         error={formik.touched.bio && Boolean(formik.errors.bio)}
                         helperText={formik.touched.bio && formik.errors.bio}

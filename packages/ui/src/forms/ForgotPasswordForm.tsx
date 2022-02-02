@@ -57,6 +57,7 @@ export const ForgotPasswordForm = ({
                             autoComplete="email"
                             label="Email Address"
                             value={formik.values.email}
+                            onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
                             error={formik.touched.email && Boolean(formik.errors.email)}
                             helperText={formik.touched.email && formik.errors.email}

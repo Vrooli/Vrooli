@@ -3,7 +3,7 @@ import { CODE, StandardSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteManyInput, DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, Success } from './types';
+import { DeleteManyInput, DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardInput, StandardSearchInput, StandardUpdateInput, Success } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
@@ -44,6 +44,13 @@ export const typeDef = gql`
         default: String
         isFile: Boolean
         organizationId: ID
+        tags: [TagInput!]
+    }
+
+    input StandardUpdateInput {
+        id: ID
+        description: String
+        makeAnonymous: Boolean
         tags: [TagInput!]
     }
 
@@ -110,7 +117,7 @@ export const typeDef = gql`
 
     extend type Mutation {
         standardAdd(input: StandardInput!): Standard!
-        standardUpdate(input: StandardInput!): Standard!
+        standardUpdate(input: StandardUpdateInput!): Standard!
         standardDeleteOne(input: DeleteOneInput!): Success!
     }
 `
@@ -154,7 +161,7 @@ export const resolvers = {
          * version number) or delete the old one and create a new one.
          * @returns Standard object if successful
          */
-        standardUpdate: async (_parent: undefined, { input }: IWrap<StandardInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+        standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in with an account
             if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object

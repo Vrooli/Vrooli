@@ -36,6 +36,7 @@ export const toCheckbox = (
                     value={data.fieldName}
                     color={props.color}
                     checked={formik.values[data.fieldName]}
+                    onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
                 />
             }
@@ -87,6 +88,7 @@ export const toRadio = (
                 name="radio-buttons-group"
                 row={props.row}
                 value={formik.values[data.fieldName]}
+                onBlur={formik.handleBlur}
                 onChange={formik.handleChange}
             >
                 {
@@ -120,6 +122,7 @@ export const toSelector = (
             options={props.options}
             getOptionLabel={props.getOptionLabel}
             selected={formik.values[data.fieldName]}
+            onBlur={formik.handleBlur}
             handleChange={formik.handleChange}
             fullWidth
             multiple={props.multiple}
@@ -149,6 +152,7 @@ export const toSlider = (
             step={props.step}
             valueLabelDisplay={props.valueLabelDisplay}
             value={formik.values[data.fieldName]}
+            onBlur={formik.handleBlur}
             onChange={formik.handleChange}
         />
     );
@@ -198,6 +202,7 @@ export const toTextField = (
             autoComplete={props.autoComplete}
             label={data.label}
             value={formik.values[data.fieldName]}
+            onBlur={formik.handleBlur}
             onChange={formik.handleChange}
             error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
             helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}

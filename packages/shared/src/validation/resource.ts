@@ -1,4 +1,4 @@
-import { description, id, title } from './';
+import { description, id, title } from './base';
 import * as yup from 'yup';
 import { ResourceFor } from '../consts';
 
