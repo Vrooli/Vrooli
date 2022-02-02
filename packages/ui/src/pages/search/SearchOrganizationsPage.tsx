@@ -1,5 +1,6 @@
 import { APP_LINKS } from "@local/shared";
 import { AddDialogBase, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, OrganizationView, ShareDialog, ViewDialogBase } from "components";
+import { OrganizationAdd } from "components/views/OrganizationAdd/OrganizationAdd";
 import { organizationsQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
 import { Organization } from "types";
@@ -75,7 +76,7 @@ export const SearchOrganizationsPage = ({
                 onClose={handleAddDialogClose}
                 onSubmit={handleAddDialogSubmit}
             >
-                <OrganizationModify />
+                <OrganizationAdd onAdded={() => {}} />
             </AddDialogBase>
             {/* Search component */}
             <BaseSearchPage

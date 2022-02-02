@@ -1,48 +1,45 @@
-import { Grid, Grid, TextField } from "@mui/material"
+import { Grid, TextField } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
 import { organization } from "graphql/generated/organization";
 import { organizationQuery } from "graphql/query";
 import { useMemo } from "react";
-import { OrganizationModifyProps } from "../types";
+import { OrganizationUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import PubSub from 'pubsub-js';
-import { CODE, updateOrganizationSchema } from '@local/shared';
+import { organizationAdd as schema } from '@local/shared';
 import { useFormik } from 'formik';
+import { organizationUpdateMutation } from "graphql/mutation";
+import { formatForUpdate, Pubs } from "utils";
 
-export const OrganizationModify = ({
-    partialData,
-}: OrganizationModifyProps) => {
+export const OrganizationUpdate = ({
+    id,
+    onUpdated
+}: OrganizationUpdateProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/:id/edit`);
     // Fetch existing data
-    const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id: params?.id ?? '' } } });
+    const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id: params?.id ?? id ?? '' } } });
     const organization = useMemo(() => data?.organization, [data]);
 
     // Update organization
-    const [updateOrganization] = useMutation<organization>(updateOrganizationMutation, { variables: { input: { id: params?.id ?? '' } } });
+    const [mutation] = useMutation<organization>(organizationUpdateMutation);
     const formik = useFormik({
         initialValues: {
             name: '',
             bio: '',
         },
-        validationSchema: emailLogInSchema,
+        enableReinitialize: true, // Needed because existing data is obtained from async fetch
+        validationSchema: schema,
         onSubmit: (values) => {
             mutationWrapper({
-                mutation: emailLogIn,
-                input: { ...values, verificationCode: code },
-                successCondition: (response) => response.data.emailLogIn !== null,
-                onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); setLocation(APP_LINKS.Home) },
+                mutation,
+                input: formatForUpdate(organization, values),
+                onSuccess: (response) => { onUpdated(response.data.organizationUpdate) },
                 onError: (response) => {
-                    if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
-                        PubSub.publish(Pubs.AlertDialog, {
-                            message: 'Before signing in, please follow the link sent to your email to change your password.',
-                            firstButtonText: 'OK',
-                            firstButtonClicked: () => setLocation(APP_LINKS.Home),
-                        });
-                    }
+                    PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
                 }
             })
         },
@@ -56,7 +53,6 @@ export const OrganizationModify = ({
                         fullWidth
                         id="name"
                         name="name"
-                        autoComplete="organization-name"
                         label="Name"
                         value={formik.values.name}
                         onChange={formik.handleChange}
