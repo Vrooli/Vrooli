@@ -1,6 +1,6 @@
 import { Email, EmailInput } from "schema/types";
 import { PrismaType } from "types";
-import { creater, deleter, findByIder, FormatConverter, MODEL_TYPES, updater } from "./base";
+import { creater, deleter, FormatConverter, MODEL_TYPES, updater } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -51,7 +51,6 @@ export function EmailModel(prisma: PrismaType) {
         prisma,
         model,
         ...format,
-        ...findByIder<Email, EmailDB>(model, format.toDB, prisma),
         ...creater<EmailInput, Email, EmailDB>(model, format.toDB, prisma),
         ...updater<EmailInput, Email, EmailDB>(model, format.toDB, prisma),
         ...deleter(model, prisma)

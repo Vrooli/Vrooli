@@ -3,7 +3,7 @@ import { CustomError } from "../error";
 import { DeleteOneInput, Report, ReportInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { hasProfanity } from "../utils/censor";
-import { findByIder, FormatConverter, MODEL_TYPES } from "./base";
+import { FormatConverter, MODEL_TYPES } from "./base";
 import { CommentDB } from "./comment";
 import { OrganizationDB } from "./organization";
 import { ProjectDB } from "./project";
@@ -151,7 +151,6 @@ export function ReportModel(prisma: PrismaType) {
         model,
         ...format,
         ...reporter(prisma),
-        ...findByIder<Report, ReportDB>(model, format.toDB, prisma),
     }
 }
 

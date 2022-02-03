@@ -6,7 +6,7 @@ import { PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
 import graphqlFields from 'graphql-fields';
-import pkg from 'lodash';
+import pkg, { filter } from 'lodash';
 const { isObject } = pkg;
 
 
@@ -191,7 +191,7 @@ export const removeCreatorField = (modified: any): any => {
 /**
  * Helper function for Prisma createdByUser/createdByOrganization fields to GraphQL creator field
  */
- export const addCreatorField = (modified: any): any => {
+export const addCreatorField = (modified: any): any => {
     if (modified.createdByUser?.id) {
         modified.creator = modified.createdByUser;
     } else if (modified.createdByOrganization?.id) {
@@ -205,7 +205,7 @@ export const removeCreatorField = (modified: any): any => {
 /**
  * Helper function for converting owner GraphQL field to Prisma user/organization fields
  */
- export const removeOwnerField = (modified: any): any => {
+export const removeOwnerField = (modified: any): any => {
     if (modified.owner) {
         modified.user = {
             id: true,
@@ -223,7 +223,7 @@ export const removeCreatorField = (modified: any): any => {
 /**
  * Helper function for Prisma user/organization fields to GraphQL owner field
  */
- export const addOwnerField = (modified: any): any => {
+export const addOwnerField = (modified: any): any => {
     if (modified.user?.id) {
         modified.owner = modified.user;
     } else if (modified.organization?.id) {
@@ -334,23 +334,6 @@ export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: Fo
     select = removeTypenames(select);
     return padSelect(select);
 }
-
-/**
- * Compositional component for models which can be queried by ID
- * @param state 
- * @returns 
- */
-export const findByIder = <GraphQLModel, FullDBModel>(model: keyof PrismaType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'], prisma: PrismaType) => ({
-    async findById(input: FindByIdInput, info: InfoType): Promise<RecursivePartial<FullDBModel> | null> {
-        console.log('FIND BY ID', Boolean(prisma), input)
-        // Check for valid arguments
-        if (!input.id) throw new CustomError(CODE.InternalError, 'No ID provided');
-        // Create selector
-        const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
-        // Access database
-        return await (prisma[model] as BaseType).findUnique({ where: { id: input.id }, ...select }) as unknown as Partial<FullDBModel> | null;
-    }
-})
 
 /**
  * Compositional component for models which can be created directly from an input
@@ -744,7 +727,7 @@ export const removeFields = (
     if (!isObject(data)) {
         return data;
     }
-    let result: {[x: string]: any} = {}
+    let result: { [x: string]: any } = {}
     let found = false;
     Object.keys(data).forEach(key => {
         const curr = (data as any)[key];
@@ -772,4 +755,92 @@ export const getRelationshipData = (
     // Remove prisma operations. We want only the data!
     const shapedValue = removeFields(value, ['connect', 'create'])
     return Array.isArray(shapedValue) ? shapedValue : [];
+}
+
+/**
+ * Filters excluded fields from an object
+ * @param data The object to filter
+ * @param excludes The fields to exclude
+ */
+const filterFields = (data: { [x: string]: any }, excludes: string[]): { [x: string]: any } => {
+    // Create result object
+    let converted: { [x: string]: any } = {};
+    // Loop through object's keys
+    Object.keys(data).forEach((key) => {
+        // If key is not in excludes, add to result
+        if (!excludes.some(e => e === key)) {
+            converted[key] = data[key];
+        }
+    });
+    return converted;
+}
+
+/**
+ * Helper method to shape Prisma connect, disconnect, create, update, and delete data
+ * Examples:
+ *  - '123' => [{ id: '123' }]
+ *  - { id: '123' } => [{ id: '123' }]
+ *  - { name: 'John' } => [{ name: 'John' }]
+ *  - ['123', '456'] => [{ id: '123' }, { id: '456' }]
+ * @param data The data to shape
+ * @param excludes The fields to exclude from the shape
+ */
+const shapeRelationshipData = (data: any, excludes: string[] = []): any => {
+    if (Array.isArray(data)) {
+        return data.map(e => {
+            if (isObject(e)) {
+                return filterFields(e, excludes);
+            } else {
+                return { id: e };
+            }
+        });
+    } else if (isObject(data)) {
+        return [filterFields(data, excludes)];
+    } else {
+        return [{ id: data }];
+    }
+}
+
+/**
+ * Converts an add or update's data to proper Prisma format. 
+ * NOTE1: Must authenticate before calling this function!
+ * NOTE2: Only goes one layer deep. You must handle grandchildren, great-grandchildren, etc. yourself
+ * ex: { childConnect: [...], childCreate: [...], childDelete: [...] } => 
+ *     { child: { connect: [...], create: [...], deleteMany: [...] } }
+ * @param data The data to convert
+ * @param relationshipName The name of the relationship to convert (since data may contain irrelevant fields)
+ * @param isAdd True if data is being converted for an add operation. This limits the prisma operations to only "connect" and "create"
+ * @param exclues Fields to exclude from the conversion
+ * @param softDelete True if deletes should be converted to soft deletes
+ */
+export const relationshipToPrisma = (
+    data: { [x: string]: any },
+    relationshipName: string,
+    isAdd: boolean,
+    excludes: string[] = [],
+    softDelete: boolean = false): { [x: string]: { 
+        connect?: { [x: string]: any }[],
+        disconnect?: { [x: string]: any }[],
+        delete?: { [x: string]: any }[],
+        create?: { [x: string]: any }[],
+        update?: { [x: string]: any }[],
+    } } => {
+    // Determine valid operations
+    const ops = isAdd ? ['Connect', 'Create'] : ['Connect', 'Disconnect', 'Delete', 'Create', 'Update'];
+    // Create result object
+    let converted: { [x: string]: any } = {};
+    // Loop through object's keys
+    for (const [key, value] of Object.entries(data)) {
+        // Skip if not matching relationship or not a valid operation
+        if (!key.startsWith(relationshipName) || !ops.some(o => key.endsWith(o))) continue;
+        // Determine operation
+        const currOp = key.replace(relationshipName, '');
+        // TODO handle soft delete
+        // Add operation to result object
+        converted[relationshipName] = {
+            ...converted[relationshipName],
+            [currOp.toLowerCase()]: shapeRelationshipData(value, excludes),
+        }
+    };
+    return converted;
 }

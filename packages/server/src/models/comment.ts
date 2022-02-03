@@ -2,7 +2,7 @@ import { CODE, CommentFor } from "@local/shared";
 import { CustomError } from "../error";
 import { Comment, CommentInput, DeleteOneInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountQueries, addCreatorField, addJoinTables, findByIder, FormatConverter, MODEL_TYPES, removeCountQueries, removeCreatorField, removeJoinTables, selectHelper } from "./base";
+import { addCountQueries, addCreatorField, addJoinTables, FormatConverter, MODEL_TYPES, removeCountQueries, removeCreatorField, removeJoinTables, selectHelper } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { GraphQLResolveInfo } from "graphql";
 import { UserDB } from "./user";
@@ -198,7 +198,6 @@ export function CommentModel(prisma: PrismaType) {
         model,
         ...format,
         ...commenter(prisma),
-        ...findByIder<Comment, CommentDB>(model, format.toDB, prisma),
     }
 }
 

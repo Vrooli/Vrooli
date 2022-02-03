@@ -1,8 +1,9 @@
-import { resourceAdd, ResourceFor, resourceUpdate } from "@local/shared";
-import { PrismaSelect } from "@paljs/plugins";
-import { Organization, Project, Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Routine, User } from "../schema/types";
+import { CODE, resourceAdd, ResourceFor, resourceUpdate } from "@local/shared";
+import { Organization, Project, Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Routine, User, DeleteManyInput, Count, FindByIdInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { counter, deleter, findByIder, FormatConverter, MODEL_TYPES, searcher, Sortable } from "./base";
+import { counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, searcher, selectHelper, Sortable } from "./base";
+import { hasProfanity } from "../utils/censor";
+import { CustomError } from "../error";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -33,7 +34,7 @@ export type ResourceDB = ResourceAllPrimitives &
 /* #region Custom Components */
 //==============================================================
 
-// Maps resource for type to correct fiel
+// Maps resource for type to correct field
 const forMap = {
     [ResourceFor.Organization]: 'organizationId',
     [ResourceFor.Project]: 'projectId',
@@ -51,54 +52,121 @@ export const resourceFormatter = (): FormatConverter<Resource, ResourceDB> => ({
 })
 
 /**
- * Custom compositional component for creating resources
- * @param state 
- * @returns 
+ * Handles the authorized adding, updating, and deleting of resources.
  */
-export const resourceCreater = (prisma: PrismaType) => ({
-    async create(data: ResourceAddInput, info: any): Promise<RecursivePartial<ResourceDB>> {
+const resourcer = (format: FormatConverter<Resource, ResourceDB>, sort: Sortable<ResourceSortBy>, prisma: PrismaType) => ({
+    /**
+     * Add, update, or remove a resource relationship from an organization, project, routine, or user
+     */
+    async relationshipBuilder(
+        userId: string | null,
+        input: { [x: string]: any },
+        isAdd: boolean = true,
+    ): Promise<any> {
+        // Convert input to Prisma shape, excluding "createdFor" and "createdForId" fields
+        // Also remove anything that's not an create, update, or delete, as connect/disconnect
+        // are not supported by resources (since they can only be applied to one object, and 
+        // it's not worth developing a way to transfer them between objects)
+        let formattedInput = relationshipToPrisma(input, 'resources', isAdd, ['createdFor', 'createdForId'], false);
+        delete formattedInput.connect;
+        delete formattedInput.disconnect;
+        // Validate create
+        if (Array.isArray(formattedInput.create)) {
+            for (const resource of formattedInput.create) {
+                // Check for valid arguments
+                resourceAdd.omit(['createdFor', 'createdForId']).validateSync(input, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(resource.title, resource.description)) throw new CustomError(CODE.BannedWord);
+            }
+        }
+        // Validate update
+        if (Array.isArray(formattedInput.update)) {
+            for (const resource of formattedInput.update) {
+                // Check for valid arguments
+                resourceUpdate.omit(['createdFor', 'createdForId']).validateSync(input, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(resource.title, resource.description)) throw new CustomError(CODE.BannedWord);
+            }
+        }
+        return formattedInput;
+    },
+    async findResource(
+        userId: string | null | undefined, // Of the user making the request, not the organization
+        input: FindByIdInput,
+        info: InfoType = null,
+    ): Promise<any> {
+        // Create selector
+        const select = selectHelper<Resource, ResourceDB>(info, format.toDB);
+        // Access database
+        let resource = await prisma.resource.findUnique({ where: { id: input.id }, ...select });
+        return resource;
+    },
+    async searchResources(
+        where: { [x: string]: any },
+        userId: string | null | undefined,
+        input: ResourceSearchInput,
+        info: InfoType = null,
+    ): Promise<PaginatedSearchResult> {
+        const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
+        // Search
+        const search = searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceDB>(MODEL_TYPES.Resource, format.toDB, format.toGraphQL, sort, prisma);
+        let searchResults = await search.search({ ...forQuery, ...where }, input, info);
+        return searchResults;
+    },
+    async addResource(
+        userId: string,
+        input: ResourceAddInput,
+        info: InfoType = null,
+    ): Promise<any> {
         // TODO authorize user
         // Check for valid arguments
-        resourceAdd.validateSync(data, { abortEarly: false });
+        resourceAdd.validateSync(input, { abortEarly: false });
+        // Check for censored words
+        if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Filter out for and forId, since they are not part of the resource object
-        const { createdFor, createdForId, ...resourceData } = data;
+        const { createdFor, createdForId, ...resourceData } = input;
         // Map forId to correct field
-        const createData = { ...resourceData, [forMap[createdFor]]: createdForId }
+        const data = { ...resourceData, [forMap[createdFor]]: createdForId }
         // Create
-        const resource = await prisma.resource.create({ data: createData as any });
+        const resource = await prisma.resource.create({ data: data as any });
         // Return query
-        return await prisma.resource.findFirst({ where: { id: resource.id }, ...(new PrismaSelect(info).value) }) as any;
-    }
-})
-
-/**
- * Custom compositional component for updating resources
- * @param state 
- * @returns 
- */
-const resourceUpdater = (prisma: PrismaType) => ({
-    async update(data: ResourceUpdateInput, info: any): Promise<ResourceDB> {
+        return await prisma.resource.findFirst({ where: { id: resource.id }, ...selectHelper<Resource, ResourceDB>(info, format.toDB) }) as any;
+    },
+    async updateResource(
+        userId: string,
+        input: ResourceUpdateInput,
+        info: InfoType = null,
+    ): Promise<any> {
         // TODO authorize user
         // Check for valid arguments
-        resourceUpdate.validateSync(data, { abortEarly: false });
+        resourceUpdate.validateSync(input, { abortEarly: false });
+        // Check for censored words
+        if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Filter out for and forId, since they are not part of the resource object
-        const { createdFor, createdForId, ...resourceData } = data;
+        const { createdFor, createdForId, ...resourceData } = input;
         // Map forId to correct field, and remove any old associations
-        const updateData = (Boolean(createdFor) && Boolean(createdForId)) ? { 
-            ...resourceData, 
+        const data = (Boolean(createdFor) && Boolean(createdForId)) ? {
+            ...resourceData,
             organizationId: null,
             projectId: null,
             routineContextualId: null,
             routineExternalId: null,
             userId: null,
-            [forMap[createdFor as any]]: createdForId 
+            [forMap[createdFor as any]]: createdForId
         } : resourceData;
         // Update resource
         return await prisma.resource.update({
-            where: { id: data.id },
-            data: updateData,
-            ...(new PrismaSelect(info).value)
+            where: { id: input.id },
+            data,
+            ...selectHelper<Resource, ResourceDB>(info, format.toDB)
         }) as any;
+    },
+    async deleteResources(userId: string, input: DeleteManyInput): Promise<Count> {
+        // TODO authorize user
+        // Delete
+        return await prisma.resource.deleteMany({
+            where: { id: { in: input.ids } },
+        });
     }
 })
 
@@ -148,11 +216,7 @@ export function ResourceModel(prisma: PrismaType) {
         ...format,
         ...sort,
         ...counter<ResourceCountInput>(model, prisma),
-        ...deleter(model, prisma),
-        ...findByIder<Resource, ResourceDB>(model, format.toDB, prisma),
-        ...resourceCreater(prisma),
-        ...resourceUpdater(prisma),
-        ...searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceDB>(model, format.toDB, format.toGraphQL, sort, prisma),
+        ...resourcer(format, sort, prisma),
     }
 }
 

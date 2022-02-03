@@ -1,10 +1,11 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationAddInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Routine, Success, Tag, User } from "../schema/types";
-import { addCountQueries, addJoinTables, counter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationAddInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Project, Resource, Success, Tag, User } from "../schema/types";
+import { addCountQueries, addJoinTables, counter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
 import { CODE, MemberRole, organizationAdd, organizationUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
+import { ResourceModel } from "./resource";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -108,10 +109,12 @@ export type OrganizationDB = OrganizationAllPrimitives &
         let organizationData: { [x: string]: any } = { name: input.name, bio: input.bio };
         // Add user as member
         organizationData.members = { connect: { id: userId } };
-        // TODO resources
+        // Handle resources
+        const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, true);
+        if (resourceData) organizationData.resources = resourceData;
         // Create organization
         const organization = await prisma.organization.create({
-            data: organizationData as any,
+            data: organizationData,
             ...selectHelper<Organization, OrganizationDB>(info, format.toDB)
         })
         // Return organization with "isStarred" field. This will be its default values.
@@ -128,9 +131,12 @@ export type OrganizationDB = OrganizationAllPrimitives &
         if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
         let organizationData: { [x: string]: any } = { name: input.name, bio: input.bio };
-        // Add user as member
-        organizationData.members = { connect: { id: userId } };
-        // TODO resources
+        // Check if user is allowed to update
+        const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.id ?? '');
+        if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+        // Handle resources
+        const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, false);
+        if (resourceData) organizationData.resources = resourceData;
         // Find organization
         let organization = await prisma.organization.findFirst({
             where: {
@@ -270,7 +276,6 @@ export function OrganizationModel(prisma: PrismaType) {
         ...format,
         ...sort,
         ...counter<OrganizationCountInput>(model, prisma),
-        ...findByIder<Organization, OrganizationDB>(model, format.toDB, prisma),
         ...organizationer(format, sort, prisma),
         ...organizationCreater(format.toDB, prisma),
     }

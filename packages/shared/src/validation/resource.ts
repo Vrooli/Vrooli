@@ -25,5 +25,7 @@ export const resourceUpdate = yup.object().shape({
     usedFor,
 })
 
-export const resourcesAdd = yup.array().of(resourceAdd.required()).optional();
-export const resourcesUpdate = yup.array().of(resourceUpdate.required()).optional();
+// Resources added/updated through relationships don't need createdFor and createdForId,
+// as the relationship handles that
+export const resourcesAdd = yup.array().of(resourceAdd.omit(['createdFor', 'createdForId']).required()).optional();
+export const resourcesUpdate = yup.array().of(resourceUpdate.omit(['createdFor', 'createdForId']).required()).optional();

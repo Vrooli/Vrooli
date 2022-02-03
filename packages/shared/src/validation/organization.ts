@@ -12,7 +12,6 @@ export const organizationAdd = yup.object().shape({
     name: name.required(),
     // You are automatically added as an admin. IDs you add here will be requested to be added as a member
     membersConnect: idArray,
-    resourcesConnect: idArray,
     resourcesAdd,
     tagsConnect: idArray,
     tagsAdd,
@@ -26,8 +25,6 @@ export const organizationUpdate = yup.object().shape({
     name,
     membersConnect: idArray,
     membersDisconnect: idArray,
-    resourcesConnect: idArray,
-    resourcesDisconnect: idArray,
     resourcesDelete: idArray,
     resourcesAdd,
     resourcesUpdate,

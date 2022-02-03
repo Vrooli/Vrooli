@@ -1,11 +1,12 @@
-import { CODE, MemberRole, projectAdd, projectUpdate } from "@local/shared";
+import { CODE, projectAdd, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
 import { DeleteOneInput, FindByIdInput, Organization, Project, ProjectCountInput, ProjectAddInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Resource, Success, Tag, User } from "../schema/types";
-import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, findByIder, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
+import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
+import { ResourceModel } from "./resource";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -217,7 +218,9 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
                 createdByUser: { connect: { id: userId } },
             };
         }
-        // TODO resources
+        // Handle resources
+        const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, true);
+        if (resourceData) projectData.resources = resourceData;
         // Create project
         const project = await prisma.project.create({
             data: projectData as any,
@@ -246,7 +249,9 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         } else {
             projectData = { ...projectData, user: { connect: { id: userId } }, organizationId: null };
         }
-        // TODO resources
+        // Handle resources
+        const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, false);
+        if (resourceData) projectData.resources = resourceData;
         // Find project
         let project = await prisma.project.findFirst({
             where: {
@@ -317,7 +322,6 @@ export function ProjectModel(prisma: PrismaType) {
         ...format,
         ...sort,
         ...counter<ProjectCountInput>(model, prisma),
-        ...findByIder<Project, ProjectDB>(model, format.toDB, prisma),
         ...projecter(format, sort, prisma),
         ...projectCreater(format.toDB, prisma),
     }

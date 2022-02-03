@@ -6,6 +6,7 @@ import { CustomError } from "../error";
 import { CODE, routineAdd, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
+import { ResourceModel } from "./resource";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -141,21 +142,25 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
             // Make sure the user is an admin of the organization
             const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-            routineData = { 
-                ...routineData, 
+            routineData = {
+                ...routineData,
                 organization: { connect: { id: input.createdByOrganizationId } },
                 createdByOrganization: { connect: { id: input.createdByOrganizationId } },
             };
         } else {
-            routineData = { 
-                ...routineData, 
+            routineData = {
+                ...routineData,
                 user: { connect: { id: userId } },
                 createdByUser: { connect: { id: userId } },
             };
         }
         // TODO inputs
         // TODO outputs
-        // TODO resources
+        // Handle contextual/external resources
+        const resourceContextualData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesContextualAdd }, true);
+        if (resourceContextualData) routineData.contextualResources = resourceContextualData;
+        const resourceExternalData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesExternalAdd }, true);
+        if (resourceExternalData) routineData.externalResources = resourceExternalData;
         // Create routine
         const routine = await prisma.routine.create({
             data: routineData as any,
@@ -192,16 +197,22 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         }
         // TODO inputs
         // TODO outputs
-        // TODO resources
+        // Handle contextual/external resources
+        const resourceContextualData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesContextualAdd }, false);
+        if (resourceContextualData) routineData.contextualResources = resourceContextualData;
+        const resourceExternalData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesExternalAdd }, false);
+        if (resourceExternalData) routineData.externalResources = resourceExternalData;
         // Find routine
         let routine = await prisma.routine.findFirst({
             where: {
                 AND: [
                     { id: input.id },
-                    { OR: [
-                        { organizationId: input.organizationId },
-                        { userId },
-                    ] }
+                    {
+                        OR: [
+                            { organizationId: input.organizationId },
+                            { userId },
+                        ]
+                    }
                 ]
             }
         })

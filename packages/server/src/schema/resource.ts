@@ -1,9 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { CODE, ResourceFor, ResourceSortBy, ResourceUsedFor } from '@local/shared';
 import { CustomError } from '../error';
-import { resourceFormatter, ResourceModel } from '../models';
+import { ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, Success } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -113,45 +113,41 @@ export const resolvers = {
     ResourceSortBy: ResourceSortBy,
     ResourceUsedFor: ResourceUsedFor,
     Query: {
-        resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
-            // Query database
-            const dbModel = await ResourceModel(prisma).findById(input, info);
-            // Format data
-            return dbModel ? resourceFormatter().toGraphQL(dbModel) : null;
+        resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
+            const data = await ResourceModel(prisma).findResource(req.userId, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
-        resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>[]> => {
-            // Create query for specified object
-            //const forQuery = (input.forId && input.forType) ? { user: { id: input.userId } } : undefined; TODO
-            // return search query
-            //return await ResourceModel(prisma).search({...forQuery,}, input, info);
-            throw new CustomError(CODE.NotImplemented);
+        resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ResourceSearchResult> => {
+            const data = await ResourceModel(prisma).searchResources({}, req.userId, input, info);
+            if (!data) throw new CustomError(CODE.ErrorUnknown);
+            return data;
         },
         resourcesCount: async (_parent: undefined, { input }: IWrap<ResourceCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            // Return count query
             return await ResourceModel(prisma).count({}, input);
         },
     },
     Mutation: {
         resourceAdd: async (_parent: undefined, { input }: IWrap<ResourceAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const dbModel = await ResourceModel(prisma).create(input, info);
-            // Format object to GraphQL type
-            return resourceFormatter().toGraphQL(dbModel);
+            const created = await ResourceModel(prisma).addResource(req.userId, input, info);
+            if (!created) throw new CustomError(CODE.ErrorUnknown);
+            return created;
         },
         resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const dbModel = await ResourceModel(prisma).update(input, info);
-            // Format to GraphQL type
-            return resourceFormatter().toGraphQL(dbModel);
+            const updated = await ResourceModel(prisma).updateResource(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
         },
         resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            return await ResourceModel(prisma).deleteMany(input);
+            // Must be logged in with an account
+            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            return await ResourceModel(prisma).deleteResources(req.userId, input);
         },
     }
 }

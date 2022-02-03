@@ -1,6 +1,6 @@
 import { RecursivePartial, PrismaType } from "types";
 import { Role, User } from "../schema/types";
-import { FormatConverter, addJoinTables, removeJoinTables, MODEL_TYPES, findByIder } from "./base";
+import { FormatConverter, addJoinTables, removeJoinTables, MODEL_TYPES } from "./base";
 
 //======================================================================================================================
 /* #region Type Definitions */
@@ -55,7 +55,6 @@ export function RoleModel(prisma: PrismaType) {
         prisma,
         model,
         ...format,
-        ...findByIder<Role, RoleDB>(model, format.toDB, prisma),
         ...formatter(),
     }
 }

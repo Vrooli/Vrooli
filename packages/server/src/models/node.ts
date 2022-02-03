@@ -1,5 +1,5 @@
 import { Node, NodeDecisionItem, NodeAddInput, NodeUpdateInput } from "schema/types";
-import { deleter, findByIder, FormatConverter, MODEL_TYPES, updater } from "./base";
+import { deleter, FormatConverter, MODEL_TYPES, updater } from "./base";
 import { PrismaSelect } from "@paljs/plugins";
 import { CustomError } from "../error";
 import { CODE, nodeAdd, NodeType } from "@local/shared";
@@ -138,7 +138,6 @@ export function NodeModel(prisma: PrismaType) {
         prisma,
         model,
         ...format,
-        ...findByIder<Node, NodeDB>(model, format.toDB, prisma),
         ...nodeCreater(prisma),
         ...updater<NodeUpdateInput, Node, NodeDB>(model, format.toDB, prisma),
         ...deleter(model, prisma)

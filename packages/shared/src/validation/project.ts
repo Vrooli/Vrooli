@@ -12,7 +12,6 @@ export const projectAdd = yup.object().shape({
     parentId: id, // If forked, the parent's id
     createdByUserId: id, // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id, // If associating with an organization you are an admin of, the organization's id
-    resourcesConnect: idArray,
     resourcesAdd,
     tagsConnect: idArray,
     tagsAdd,
@@ -26,8 +25,6 @@ export const projectUpdate = yup.object().shape({
     name,
     userId: id, // Allows you to request transfer ownership of the project
     organizationId: id, // Allows you to request transfer ownership of the project
-    resourcesConnect: idArray,
-    resourcesDisconnect: idArray,
     resourcesDelete: idArray,
     resourcesAdd,
     resourcesUpdate,

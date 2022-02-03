@@ -31,7 +31,6 @@ export const typeDef = gql`
         parentId: ID
         createdByUserId: ID
         createdByOrganizationId: ID
-        resourcesConnect: [ID!]
         resourcesAdd: [ResourceAddInput!]
         tagsConnect: [ID!]
         tagsAdd: [TagAddInput!]
@@ -43,8 +42,6 @@ export const typeDef = gql`
         parentId: ID
         userId: ID
         organizationId: ID
-        resourcesConnect: [ID!]
-        resourcesDisconnect: [ID!]
         resourcesDelete: [ID!]
         resourcesAdd: [ResourceAddInput!]
         resourcesUpdate: [ResourceUpdateInput!]

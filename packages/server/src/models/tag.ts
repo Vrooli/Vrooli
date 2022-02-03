@@ -1,6 +1,6 @@
 import { Count, DeleteManyInput, FindByIdInput, Organization, Project, Routine, Standard, Tag, TagCountInput, TagAddInput, TagUpdateInput, TagSearchInput, TagSortBy, User } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTables, counter, findByIder, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { addJoinTables, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { CODE, tagAdd, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -223,7 +223,6 @@ export function TagModel(prisma: PrismaType) {
         ...format,
         ...sort,
         ...counter<TagCountInput>(model, prisma),
-        ...findByIder<Tag, TagDB>(model, format.toDB, prisma),
         ...tagger(format, sort, prisma),
     }
 }

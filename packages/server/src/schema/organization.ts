@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, MemberRole, OrganizationSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationAddInput, OrganizationUpdateInput, OrganizationSearchInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationAddInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult } from './types';
 import { Context } from '../context';
 import { OrganizationModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -28,8 +28,6 @@ export const typeDef = gql`
     input OrganizationAddInput {
         bio: String
         name: String!
-        membersConnect: [ID!]
-        resourcesConnect: [ID!]
         resourcesAdd: [ResourceAddInput!]
         tagsConnect: [ID!]
         tagsAdd: [TagAddInput!]
@@ -40,8 +38,6 @@ export const typeDef = gql`
         name: String
         membersConnect: [ID!]
         membersDisconnect: [ID!]
-        resourcesConnect: [ID!]
-        resourcesDisconnect: [ID!]
         resourcesDelete: [ID!]
         resourcesAdd: [ResourceAddInput!]
         resourcesUpdate: [ResourceUpdateInput!]
@@ -132,7 +128,7 @@ export const resolvers = {
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
-        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
+        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
             const data = await OrganizationModel(prisma).searchOrganizations({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
