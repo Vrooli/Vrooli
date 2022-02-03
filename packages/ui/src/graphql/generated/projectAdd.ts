@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectInput } from "./globalTypes";
+import { ProjectAddInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: projectAdd
@@ -52,5 +52,5 @@ export interface projectAdd {
 }
 
 export interface projectAddVariables {
-  input: ProjectInput;
+  input: ProjectAddInput;
 }

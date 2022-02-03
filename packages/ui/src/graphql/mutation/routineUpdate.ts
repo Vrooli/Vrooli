@@ -3,7 +3,7 @@ import { routineFields } from 'graphql/fragment';
 
 export const routineUpdateMutation = gql`
     ${routineFields}
-    mutation routineUpdate($input: RoutineInput!) {
+    mutation routineUpdate($input: RoutineUpdateInput!) {
         routineUpdate(input: $input) {
             ...routineFields
         }

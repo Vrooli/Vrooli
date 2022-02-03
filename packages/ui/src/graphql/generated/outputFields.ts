@@ -29,7 +29,7 @@ export interface outputFields_standard {
 }
 
 export interface outputFields {
-  __typename: "RoutineOutputItem";
+  __typename: "OutputItem";
   id: string;
-  standard: outputFields_standard;
+  standard: outputFields_standard | null;
 }

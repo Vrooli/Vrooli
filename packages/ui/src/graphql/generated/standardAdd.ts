@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardInput, StandardType } from "./globalTypes";
+import { StandardAddInput, StandardType } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: standardAdd
@@ -56,5 +56,5 @@ export interface standardAdd {
 }
 
 export interface standardAddVariables {
-  input: StandardInput;
+  input: StandardAddInput;
 }

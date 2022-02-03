@@ -1,34 +1,10 @@
 import { CODE, resourceAdd, ResourceFor, resourceUpdate } from "@local/shared";
-import { Organization, Project, Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Routine, User, DeleteManyInput, Count, FindByIdInput } from "../schema/types";
+import { Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, DeleteManyInput, Count, FindByIdInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { CustomError } from "../error";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type ResourceRelationshipList = 'organization_resources' | 'project_resources' | 'routine_resources_contextual' |
-    'routine_resources_external' | 'user_resources';
-// Type 2. QueryablePrimitives
-export type ResourceQueryablePrimitives = Omit<Resource, ResourceRelationshipList>;
-// Type 3. AllPrimitives
-export type ResourceAllPrimitives = ResourceQueryablePrimitives;
-// type 4. Database shape
-export type ResourceDB = ResourceAllPrimitives &
-{
-    organization_resources: { organization: Organization },
-    project_resources: { project: Project },
-    routine_resources_contextual: { routine: Routine },
-    routine_resources_external: { routine: Routine },
-    user_resources: { user: User },
-};
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { resource } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -46,15 +22,15 @@ const forMap = {
 /**
  * Component for formatting between graphql and prisma types
  */
-export const resourceFormatter = (): FormatConverter<Resource, ResourceDB> => ({
-    toDB: (obj: RecursivePartial<Resource>): RecursivePartial<ResourceDB> => (obj as any), //TODO
-    toGraphQL: (obj: RecursivePartial<ResourceDB>): RecursivePartial<Resource> => (obj as any) //TODO
+export const resourceFormatter = (): FormatConverter<Resource, resource> => ({
+    toDB: (obj: RecursivePartial<Resource>): RecursivePartial<resource> => (obj as any), //TODO
+    toGraphQL: (obj: RecursivePartial<resource>): RecursivePartial<Resource> => (obj as any) //TODO
 })
 
 /**
  * Handles the authorized adding, updating, and deleting of resources.
  */
-const resourcer = (format: FormatConverter<Resource, ResourceDB>, sort: Sortable<ResourceSortBy>, prisma: PrismaType) => ({
+const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<ResourceSortBy>, prisma: PrismaType) => ({
     /**
      * Add, update, or remove a resource relationship from an organization, project, routine, or user
      */
@@ -94,12 +70,12 @@ const resourcer = (format: FormatConverter<Resource, ResourceDB>, sort: Sortable
         userId: string | null | undefined, // Of the user making the request, not the organization
         input: FindByIdInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Resource> | null> {
         // Create selector
-        const select = selectHelper<Resource, ResourceDB>(info, format.toDB);
+        const select = selectHelper<Resource, resource>(info, format.toDB);
         // Access database
-        let resource = await prisma.resource.findUnique({ where: { id: input.id }, ...select });
-        return resource;
+        const resource = await prisma.resource.findUnique({ where: { id: input.id }, ...select });
+        return resource ? format.toGraphQL(resource) : null;
     },
     async searchResources(
         where: { [x: string]: any },
@@ -109,7 +85,7 @@ const resourcer = (format: FormatConverter<Resource, ResourceDB>, sort: Sortable
     ): Promise<PaginatedSearchResult> {
         const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
         // Search
-        const search = searcher<ResourceSortBy, ResourceSearchInput, Resource, ResourceDB>(MODEL_TYPES.Resource, format.toDB, format.toGraphQL, sort, prisma);
+        const search = searcher<ResourceSortBy, ResourceSearchInput, Resource, resource>(MODEL_TYPES.Resource, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...forQuery, ...where }, input, info);
         return searchResults;
     },
@@ -117,7 +93,7 @@ const resourcer = (format: FormatConverter<Resource, ResourceDB>, sort: Sortable
         userId: string,
         input: ResourceAddInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Resource>> {
         // TODO authorize user
         // Check for valid arguments
         resourceAdd.validateSync(input, { abortEarly: false });
@@ -130,13 +106,13 @@ const resourcer = (format: FormatConverter<Resource, ResourceDB>, sort: Sortable
         // Create
         const resource = await prisma.resource.create({ data: data as any });
         // Return query
-        return await prisma.resource.findFirst({ where: { id: resource.id }, ...selectHelper<Resource, ResourceDB>(info, format.toDB) }) as any;
+        return await prisma.resource.findFirst({ where: { id: resource.id }, ...selectHelper<Resource, resource>(info, format.toDB) }) as any;
     },
     async updateResource(
         userId: string,
         input: ResourceUpdateInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Resource>> {
         // TODO authorize user
         // Check for valid arguments
         resourceUpdate.validateSync(input, { abortEarly: false });
@@ -158,7 +134,7 @@ const resourcer = (format: FormatConverter<Resource, ResourceDB>, sort: Sortable
         return await prisma.resource.update({
             where: { id: input.id },
             data,
-            ...selectHelper<Resource, ResourceDB>(info, format.toDB)
+            ...selectHelper<Resource, resource>(info, format.toDB)
         }) as any;
     },
     async deleteResources(userId: string, input: DeleteManyInput): Promise<Count> {

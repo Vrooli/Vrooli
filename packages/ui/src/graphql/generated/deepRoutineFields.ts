@@ -31,20 +31,20 @@ export interface deepRoutineFields_inputs_standard {
 }
 
 export interface deepRoutineFields_inputs {
-  __typename: "RoutineInputItem";
+  __typename: "InputItem";
   id: string;
-  standard: deepRoutineFields_inputs_standard;
+  standard: deepRoutineFields_inputs_standard | null;
 }
 
 export interface deepRoutineFields_nodes_data_NodeCombine {
   __typename: "NodeCombine";
   id: string;
   from: string[];
-  to: string;
+  toId: string;
 }
 
 export interface deepRoutineFields_nodes_data_NodeDecision_decisions_when {
-  __typename: "NodeDecisionItemCase";
+  __typename: "NodeDecisionItemWhen";
   id: string;
   condition: string;
 }
@@ -55,7 +55,7 @@ export interface deepRoutineFields_nodes_data_NodeDecision_decisions {
   description: string | null;
   title: string;
   toId: string | null;
-  when: (deepRoutineFields_nodes_data_NodeDecision_decisions_when | null)[];
+  when: deepRoutineFields_nodes_data_NodeDecision_decisions_when[];
 }
 
 export interface deepRoutineFields_nodes_data_NodeDecision {
@@ -103,10 +103,10 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
-  title: string;
+  title: string | null;
   description: string | null;
   isOptional: boolean;
-  routine: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine | null;
+  routine: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList {
@@ -178,9 +178,9 @@ export interface deepRoutineFields_outputs_standard {
 }
 
 export interface deepRoutineFields_outputs {
-  __typename: "RoutineOutputItem";
+  __typename: "OutputItem";
   id: string;
-  standard: deepRoutineFields_outputs_standard;
+  standard: deepRoutineFields_outputs_standard | null;
 }
 
 export interface deepRoutineFields_parent {
@@ -195,7 +195,7 @@ export interface deepRoutineFields_contextualResources {
   title: string;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor;
+  usedFor: ResourceUsedFor | null;
 }
 
 export interface deepRoutineFields_externalResources {
@@ -204,7 +204,7 @@ export interface deepRoutineFields_externalResources {
   title: string;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor;
+  usedFor: ResourceUsedFor | null;
 }
 
 export interface deepRoutineFields_tags {

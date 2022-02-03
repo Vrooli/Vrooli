@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, ProjectSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Project, ProjectAddInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput } from './types';
+import { DeleteOneInput, FindByIdInput, Project, ProjectAddInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult } from './types';
 import { Context } from '../context';
 import { ProjectModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -127,7 +127,7 @@ export const resolvers = {
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
-        projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
+        projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
             const data = await ProjectModel(prisma).searchProjects({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
@@ -139,7 +139,7 @@ export const resolvers = {
     Mutation: {
         projectAdd: async (_parent: undefined, { input }: IWrap<ProjectAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
             const created = await ProjectModel(prisma).addProject(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
@@ -147,7 +147,7 @@ export const resolvers = {
         },
         projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
             const updated = await ProjectModel(prisma).updateProject(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
@@ -155,7 +155,7 @@ export const resolvers = {
         },
         projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             return await ProjectModel(prisma).deleteProject(req.userId, input);
         },
     }

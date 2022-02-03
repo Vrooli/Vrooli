@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { TagInput } from "./globalTypes";
+import { TagAddInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: tagAdd
@@ -24,5 +24,5 @@ export interface tagAdd {
 }
 
 export interface tagAddVariables {
-  input: TagInput;
+  input: TagAddInput;
 }

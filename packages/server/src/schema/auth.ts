@@ -11,7 +11,7 @@ import { IWrap, RecursivePartial } from '../types';
 import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
-import { UserModel, userSessioner } from '../models';
+import { EmailModel, UserModel, userSessioner } from '../models';
 import { hasProfanity } from '../utils/censor';
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -93,8 +93,7 @@ export const resolvers = {
     Mutation: {
         emailLogIn: async (_parent: undefined, { input }: IWrap<EmailLogInInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Session> => {
             // Validate arguments with schema
-            const validateError = await validateArgs(emailLogInSchema, input);
-            if (validateError) throw validateError;
+            emailLogInSchema.validateSync(input, { abortEarly: false });
             // Validate email address
             const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
             if (!email) throw new CustomError(CODE.BadCredentials);
@@ -121,8 +120,7 @@ export const resolvers = {
         },
         emailSignUp: async (_parent: undefined, { input }: IWrap<EmailSignUpInput>, { prisma, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Validate input format
-            const validateError = await validateArgs(emailSignUpSchema, input);
-            if (validateError) throw validateError;
+            emailSignUpSchema.validateSync(input, { abortEarly: false });
             if (input?.password !== input?.confirmPassword) throw new CustomError(CODE.InvalidArgs, 'Passwords do not match');
             // Find user role to give to new user
             const roles = await prisma.role.findMany({ select: { id: true, title: true } });
@@ -139,18 +137,20 @@ export const resolvers = {
             let existingUser = await prisma.user.findUnique({ where: { username: input.username } });
             if (!existingUser) throw new CustomError(CODE.UsernameInUse);
             // Create user object
-            const user = await UserModel(prisma).create({
-                username: input.username,
-                password: UserModel(prisma).hashPassword(input.password),
-                theme: input.theme,
-                status: AccountStatus.Unlocked,
-                emails: {
-                    create: [
-                        { emailAddress: input.email },
-                    ]
-                },
-                roles: {
-                    create: [{ role: { connect: { id: actorRoleId } } }]
+            const user = await prisma.user.create({
+                data: {
+                    username: input.username,
+                    password: UserModel(prisma).hashPassword(input.password),
+                    theme: input.theme,
+                    status: AccountStatus.Unlocked,
+                    emails: {
+                        create: [
+                            { emailAddress: input.email },
+                        ]
+                    },
+                    roles: {
+                        create: [{ role: { connect: { id: actorRoleId } } }]
+                    }
                 }
             });
             if (!user) throw new CustomError(CODE.ErrorUnknown);
@@ -166,8 +166,7 @@ export const resolvers = {
         },
         emailRequestPasswordChange: async (_parent: undefined, { input }: IWrap<EmailRequestPasswordChangeInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Validate input format
-            const validateError = await validateArgs(emailRequestPasswordChangeSchema, input);
-            if (validateError) throw validateError;
+            emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
             // Validate email address
             const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
             if (!email) throw new CustomError(CODE.BadCredentials);
@@ -180,8 +179,7 @@ export const resolvers = {
         },
         emailResetPassword: async (_parent: undefined, { input }: IWrap<EmailResetPasswordInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Validate input format
-            const validateError = await validateArgs(passwordSchema, input.newPassword);
-            if (validateError) throw validateError;
+            passwordSchema.validateSync(input.newPassword, { abortEarly: false });
             // Find user
             let user = await prisma.user.findUnique({
                 where: { id: input.id },
@@ -264,7 +262,7 @@ export const resolvers = {
          * Starts handshake for establishing trust between backend and user wallet
          * @returns Nonce that wallet must sign and send to walletComplete endpoint
          */
-        walletInit: async (_parent: undefined, { input }: IWrap<WalletInitInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<string> => {
+        walletInit: async (_parent: undefined, { input }: IWrap<WalletInitInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<string> => {
             // Generate nonce for handshake
             const nonce = await generateNonce(input.nonceDescription as string | undefined);
             // Find existing wallet data in database
@@ -306,7 +304,7 @@ export const resolvers = {
             return nonce;
         },
         // Verify that signed message from user wallet has been signed by the correct public address
-        walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, res }: any, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
+        walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, res }: Context, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Find wallet with public address
             const walletData = await prisma.wallet.findUnique({
                 where: { publicAddress: input.publicAddress },
@@ -322,17 +320,17 @@ export const resolvers = {
             });
             //TODO waiting on github issue to be resolved
             console.log('walletcomplete walletdata', walletData, input.publicAddress);
-            console.log('attempt420', verifySignedMessage(input.publicAddress, walletData.nonce, input.signature));
+            console.log('attempt420', verifySignedMessage(input.publicAddress, walletData?.nonce ?? '', input.signature));
             // If wallet doesn't exist, return error
             if (!walletData) throw new CustomError(CODE.InvalidArgs);
             // If nonce expired, return error
-            if (!walletData.nonce || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
+            if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
             // Verify that message was signed by wallet address
             const walletVerified = false;//verifySignedMessage(input.publicAddress, walletData.nonce, input.signature);
             if (!walletVerified) throw new CustomError(CODE.Unauthorized);
             let userData = walletData.user;
             // If user doesn't exist, create new user
-            if (!userData?.userId) {
+            if (!userData?.id) {
                 const roles = await prisma.role.findMany({ select: { id: true, title: true } });
                 console.log('ROLESSS!', roles);
                 const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
@@ -367,11 +365,11 @@ export const resolvers = {
             console.log('walletcomplete', session)
             return session;
         },
-        walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: any, _info: GraphQLResolveInfo): Promise<Success> => {
+        walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // TODO Must deleting your own
             // TODO must keep at least one wallet per user
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // Must be logged in with an account
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             throw new CustomError(CODE.NotImplemented);
         },
     }

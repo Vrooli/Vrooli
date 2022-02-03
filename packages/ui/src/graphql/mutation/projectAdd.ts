@@ -3,7 +3,7 @@ import { projectFields } from 'graphql/fragment';
 
 export const projectAddMutation = gql`
     ${projectFields}
-    mutation projectAdd($input: ProjectInput!) {
+    mutation projectAdd($input: ProjectAddInput!) {
         projectAdd(input: $input) {
             ...projectFields
         }

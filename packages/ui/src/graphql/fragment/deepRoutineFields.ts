@@ -6,7 +6,7 @@ export const deepRoutineFields = gql`
         description
         tag
     }
-    fragment inputFields on RoutineInputItem {
+    fragment inputFields on InputItem {
         id
         standard {
             id
@@ -20,7 +20,7 @@ export const deepRoutineFields = gql`
             }
         }
     }
-    fragment outputFields on RoutineOutputItem {
+    fragment outputFields on OutputItem {
         id
         standard {
             id

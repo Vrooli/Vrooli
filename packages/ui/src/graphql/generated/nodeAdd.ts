@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeInput, NodeType } from "./globalTypes";
+import { NodeAddInput, NodeType } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: nodeAdd
@@ -13,11 +13,11 @@ export interface nodeAdd_nodeAdd_data_NodeCombine {
   __typename: "NodeCombine";
   id: string;
   from: string[];
-  to: string;
+  toId: string;
 }
 
 export interface nodeAdd_nodeAdd_data_NodeDecision_decisions_when {
-  __typename: "NodeDecisionItemCase";
+  __typename: "NodeDecisionItemWhen";
   id: string;
   condition: string;
 }
@@ -28,7 +28,7 @@ export interface nodeAdd_nodeAdd_data_NodeDecision_decisions {
   description: string | null;
   title: string;
   toId: string | null;
-  when: (nodeAdd_nodeAdd_data_NodeDecision_decisions_when | null)[];
+  when: nodeAdd_nodeAdd_data_NodeDecision_decisions_when[];
 }
 
 export interface nodeAdd_nodeAdd_data_NodeDecision {
@@ -76,10 +76,10 @@ export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine {
 export interface nodeAdd_nodeAdd_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
-  title: string;
+  title: string | null;
   description: string | null;
   isOptional: boolean;
-  routine: nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine | null;
+  routine: nodeAdd_nodeAdd_data_NodeRoutineList_routines_routine;
 }
 
 export interface nodeAdd_nodeAdd_data_NodeRoutineList {
@@ -120,5 +120,5 @@ export interface nodeAdd {
 }
 
 export interface nodeAddVariables {
-  input: NodeInput;
+  input: NodeAddInput;
 }

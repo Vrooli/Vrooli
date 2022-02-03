@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, UserSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { UserModel } from '../models';
-import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput } from './types';
+import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput, UserSearchResult, User } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -19,6 +19,8 @@ export const typeDef = gql`
         StarsDesc
     }
 
+    union Stars = Comment | Organization | Project | Routine | Standard | Tag
+
     # User information available for you own account
     type Profile {
         id: ID!
@@ -34,15 +36,10 @@ export const typeDef = gql`
         wallets: [Wallet!]!
         resources: [Resource!]!
         projects: [Project!]!
+        projectsCreated: [Project!]!
         routines: [Routine!]!
         routinesCreated: [Routine!]!
-        starredComments: [Comment!]!
-        starredProjects: [Project!]!
-        starredOrganizations: [Organization!]!
-        starredRoutines: [Routine!]!
-        starredStandards: [Standard!]!
-        starredTags: [Tag!]!
-        starredUsers: [User!]!
+        stars: [Stars!]!
         starredBy: [User!]!
         sentReports: [Report!]!
         reports: [Report!]!
@@ -70,7 +67,7 @@ export const typeDef = gql`
     input ProfileUpdateInput {
         username: String
         bio: String
-        emails: [EmailInput!]
+        emails: [EmailUpdateInput!]
         theme: String
         currentPassword: String!
         newPassword: String
@@ -130,19 +127,19 @@ export const typeDef = gql`
 export const resolvers = {
     UserSortBy: UserSortBy,
     Query: {
-        profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<any> | null> => {
+        profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             const data = await UserModel(prisma).findProfile(req.userId, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
-        user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<any> | null> => {
+        user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
             const data = await UserModel(prisma).findUser(req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
-        users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
+        users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
             const data = await UserModel(prisma).searchUsers({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
@@ -154,15 +151,15 @@ export const resolvers = {
     Mutation: {
         profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
             const updated = await UserModel(prisma).updateProfile(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
-        userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req }: any, _info: GraphQLResolveInfo): Promise<Success> => {
+        userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             return await UserModel(prisma).deleteProfile(req.userId, input);
         },
         /**
@@ -172,7 +169,7 @@ export const resolvers = {
          */
         exportData: async (_parent: undefined, _args: undefined, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<string> => {
             // Must be logged in
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             return await UserModel(prisma).exportData(req.userId);
         }
     }

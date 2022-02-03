@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { EmailInput } from "./globalTypes";
+import { EmailUpdateInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: emailUpdate
@@ -22,5 +22,5 @@ export interface emailUpdate {
 }
 
 export interface emailUpdateVariables {
-  input: EmailInput;
+  input: EmailUpdateInput;
 }

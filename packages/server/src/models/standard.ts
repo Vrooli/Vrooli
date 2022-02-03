@@ -1,66 +1,20 @@
 import { CODE, standardAdd, standardUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
-import { DeleteOneInput, FindByIdInput, Organization, Routine, Standard, StandardCountInput, StandardAddInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Success, Tag, User } from "../schema/types";
-import { addCountQueries, addCreatorField, addJoinTables, counter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardAddInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Success } from "../schema/types";
+import { addCountQueries, addCreatorField, addJoinTables, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type StandardRelationshipList = 'tags' | 'routineInputs' | 'routineOutputs' | 'starredBy' |
-    'reports' | 'comments';
-// Type 2. QueryablePrimitives
-export type StandardQueryablePrimitives = Omit<Standard, StandardRelationshipList>;
-// Type 3. AllPrimitives
-export type StandardAllPrimitives = StandardQueryablePrimitives;
-// type 4. Database shape
-export type StandardDB = StandardAllPrimitives &
-    Pick<Omit<Standard, 'creator'>, 'reports' | 'comments'> &
-{
-    user: User;
-    organization: Organization;
-    tags: { tag: Tag }[],
-    routineInputs: { routine: Routine }[],
-    routineOutputs: { routine: Routine }[],
-};
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { standard } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
 /**
- * Custom component for creating standard. 
- * NOTE: Data should be in Prisma shape, not GraphQL
- */
-const standardCreater = (toDB: FormatConverter<Standard, StandardDB>['toDB'], prisma: PrismaType) => ({
-    async create(
-        data: any,
-        info: GraphQLResolveInfo | null = null,
-    ): Promise<RecursivePartial<StandardDB> | null> {
-        // Remove any relationships should not be created/connected in this operation
-        data = keepOnly(data, ['user', 'organization', 'tags']);
-        // Perform additional checks
-        // TODO
-        // Create
-        const { id } = await prisma.standard.create({ data });
-        // Query database
-        return await prisma.standard.findUnique({ where: { id }, ...selectHelper<Standard, StandardDB>(info, toDB) }) as RecursivePartial<StandardDB> | null;
-    }
-})
-
-/**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Standard, StandardDB> => {
+const formatter = (): FormatConverter<Standard, standard> => {
     const joinMapper = {
         tags: 'tag',
         starredBy: 'user',
@@ -69,7 +23,7 @@ const formatter = (): FormatConverter<Standard, StandardDB> => {
         stars: 'starredBy',
     }
     return {
-        toDB: (obj: RecursivePartial<Standard>): RecursivePartial<StandardDB> => {
+        toDB: (obj: RecursivePartial<Standard>): RecursivePartial<standard> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
@@ -78,7 +32,7 @@ const formatter = (): FormatConverter<Standard, StandardDB> => {
             if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
-        toGraphQL: (obj: RecursivePartial<StandardDB>): RecursivePartial<Standard> => {
+        toGraphQL: (obj: RecursivePartial<standard>): RecursivePartial<Standard> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
             modified = addCreatorField(modified);
@@ -123,24 +77,24 @@ const sorter = (): Sortable<StandardSortBy> => ({
 /**
  * Handles the authorized adding, updating, and deleting of standards.
  */
-const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortable<StandardSortBy>, prisma: PrismaType) => ({
+const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<StandardSortBy>, prisma: PrismaType) => ({
     async findStandard(
         userId: string | null | undefined, // Of the user making the request, not the standard
         input: FindByIdInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Standard> | null> {
         // Create selector
-        const select = selectHelper<Standard, StandardDB>(info, formatter().toDB);
+        const select = selectHelper<Standard, standard>(info, formatter().toDB);
         // Access database
         let standard = await prisma.standard.findUnique({ where: { id: input.id }, ...select });
         // Return standard with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!standard) throw new CustomError(CODE.InternalError, 'Standard not found');
-        if (!userId) return { ...standard, isUpvoted: false, isStarred: false };
+        if (!userId) return { ...format.toGraphQL(standard), isUpvoted: false, isStarred: false };
         const vote = await prisma.vote.findFirst({ where: { userId, standardId: standard.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
         const star = await prisma.star.findFirst({ where: { byId: userId, standardId: standard.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...standard, isUpvoted, isStarred };
+        return { ...format.toGraphQL(standard), isUpvoted, isStarred };
     },
     async searchStandards(
         where: { [x: string]: any },
@@ -159,7 +113,7 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
             ]
         } : {};
         // Search
-        const search = searcher<StandardSortBy, StandardSearchInput, Standard, StandardDB>(MODEL_TYPES.Standard, format.toDB, format.toGraphQL, sort, prisma);
+        const search = searcher<StandardSortBy, StandardSearchInput, Standard, standard>(MODEL_TYPES.Standard, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...reportIdQuery, ...routineIdQuery, ...where }, input, info);
         // Compute "isUpvoted" and "isStarred" field for each standard
         // If userId not provided, then "isUpvoted" is null and "isStarred" is false
@@ -184,7 +138,7 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
         userId: string,
         input: StandardAddInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Standard>> {
         // Check for valid arguments
         standardAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
@@ -213,20 +167,20 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
                 createdByUser: { connect: { id: userId } },
             };
         }
-        // TODO tags
+        // Handle tags TODO
         // Create standard
         const standard = await prisma.standard.create({
             data: standardData as any,
-            ...selectHelper<Standard, StandardDB>(info, format.toDB)
+            ...selectHelper<Standard, standard>(info, format.toDB)
         })
         // Return standard with "isUpvoted" and "isStarred" fields. These will be their default values.
-        return { ...standard, isUpvoted: null, isStarred: false };
+        return { ...format.toGraphQL(standard), isUpvoted: null, isStarred: false };
     },
     async updateStandard(
         userId: string,
         input: StandardUpdateInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Standard>> {
         // Check for valid arguments
         standardUpdate.validateSync(input, { abortEarly: false });
         if (!input.id) throw new CustomError(CODE.InternalError, 'No standard id provided');
@@ -247,12 +201,12 @@ const standarder = (format: FormatConverter<Standard, StandardDB>, sort: Sortabl
             const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, standard.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
         }
-        // TODO tags
+        // Handle tags TODO
         // Update standard
         standard = await prisma.standard.update({
             where: { id: standard.id },
             data: standardData as any,
-            ...selectHelper<Standard, StandardDB>(info, format.toDB)
+            ...selectHelper<Standard, standard>(info, format.toDB)
         });
         // Return standard with "isUpvoted" and "isStarred" fields. These must be queried separately.
         const vote = await prisma.vote.findFirst({ where: { userId, standardId: standard.id } });
@@ -305,7 +259,6 @@ export function StandardModel(prisma: PrismaType) {
         ...format,
         ...sort,
         ...counter<StandardCountInput>(model, prisma),
-        ...standardCreater(format.toDB, prisma),
         ...standarder(format, sort, prisma),
     }
 }

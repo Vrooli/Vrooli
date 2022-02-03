@@ -3,7 +3,7 @@ import { commentFields } from 'graphql/fragment';
 
 export const commentAddMutation = gql`
     ${commentFields}
-    mutation commentAdd($input: CommentInput!) {
+    mutation commentAdd($input: CommentAddInput!) {
         commentAdd(input: $input) {
             ...commentFields
         }

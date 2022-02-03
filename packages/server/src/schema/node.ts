@@ -195,18 +195,21 @@ export const typeDef = gql`
     }
     input NodeRoutineListItemAddInput {
         description: String
+        isOptional: Boolean
         title: String
         routineConnect: ID!
     }
     input NodeRoutineListItemUpdateInput {
         id: ID!
         description: String
+        isOptional: Boolean
         title: String
         routineConnect: ID
     }
     type NodeRoutineListItem {
         id: ID!
         description: String
+        isOptional: Boolean!
         title: String
         routine: Routine!
     }
@@ -237,26 +240,25 @@ export const resolvers = {
          * @returns Updated node
          */
         nodeAdd: async (_parent: undefined, { input }: IWrap<NodeAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // Must be logged in with an account
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const dbModel = await NodeModel(prisma).create(input, info);
-            // Format object to GraphQL type
-            return nodeFormatter().toGraphQL(dbModel);
+            const created = await NodeModel(prisma).addNode(req.userId, input, info);
+            if (!created) throw new CustomError(CODE.ErrorUnknown);
+            return created;
         },
         nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
+            // Must be logged in with an account
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const dbModel = await NodeModel(prisma).update(input, info);
-            // Format to GraphQL type
-            return nodeFormatter().toGraphQL(dbModel);
+            const updated = await NodeModel(prisma).updateNode(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
         },
         nodeDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in
-            if (!req.isLoggedIn) throw new CustomError(CODE.Unauthorized);
-            const success = await NodeModel(prisma).delete(input);
-            return { success };
+            // Must be logged in with an account
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
+            return await NodeModel(prisma).deleteNode(req.userId, input);
         }
     }
 }

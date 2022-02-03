@@ -15,5 +15,5 @@ export interface resourceFields {
   title: string;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor;
+  usedFor: ResourceUsedFor | null;
 }

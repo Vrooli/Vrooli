@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RoutineInput } from "./globalTypes";
+import { RoutineUpdateInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: routineUpdate
@@ -39,5 +39,5 @@ export interface routineUpdate {
 }
 
 export interface routineUpdateVariables {
-  input: RoutineInput;
+  input: RoutineUpdateInput;
 }

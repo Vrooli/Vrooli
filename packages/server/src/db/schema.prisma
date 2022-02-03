@@ -95,23 +95,23 @@ model node {
     description       String?              @db.VarChar(2048)
     title             String               @default("Name Me") @db.VarChar(128)
     type              NodeType
-    dataCombineId     String?              @db.Uuid
-    dataDecisionId    String?              @db.Uuid
-    dataEndId         String?              @db.Uuid
-    dataLoopId        String?              @db.Uuid
-    dataRoutineListId String?              @db.Uuid
-    dataRedirectId    String?              @db.Uuid
-    dataStartId       String?              @db.Uuid
+    nodeCombineId     String?              @db.Uuid
+    nodeDecisionId    String?              @db.Uuid
+    nodeEndId         String?              @db.Uuid
+    nodeLoopId        String?              @db.Uuid
+    nodeRoutineListId String?              @db.Uuid
+    nodeRedirectId    String?              @db.Uuid
+    nodeStartId       String?              @db.Uuid
     previousId        String?              @db.Uuid
     nextId            String?              @db.Uuid
     routineId         String               @db.Uuid
-    dataCombine       node_combine?        @relation(fields: [dataCombineId], references: [id], onDelete: Cascade)
-    dataDecision      node_decision?       @relation(fields: [dataDecisionId], references: [id], onDelete: Cascade)
-    dataEnd           node_end?            @relation(fields: [dataEndId], references: [id], onDelete: Cascade)
-    dataLoop          node_loop?           @relation(fields: [dataLoopId], references: [id], onDelete: Cascade)
-    dataRoutineList   node_routine_list?   @relation(fields: [dataRoutineListId], references: [id], onDelete: Cascade)
-    dataRedirect      node_redirect?       @relation(fields: [dataRedirectId], references: [id], onDelete: Cascade)
-    dataStart         node_start?          @relation(fields: [dataStartId], references: [id], onDelete: Cascade)
+    nodeCombine       node_combine?        @relation(fields: [nodeCombineId], references: [id], onDelete: Cascade)
+    nodeDecision      node_decision?       @relation(fields: [nodeDecisionId], references: [id], onDelete: Cascade)
+    nodeEnd           node_end?            @relation(fields: [nodeEndId], references: [id], onDelete: Cascade)
+    nodeLoop          node_loop?           @relation(fields: [nodeLoopId], references: [id], onDelete: Cascade)
+    nodeRoutineList   node_routine_list?   @relation(fields: [nodeRoutineListId], references: [id], onDelete: Cascade)
+    nodeRedirect      node_redirect?       @relation(fields: [nodeRedirectId], references: [id], onDelete: Cascade)
+    nodeStart         node_start?          @relation(fields: [nodeStartId], references: [id], onDelete: Cascade)
     previous          node?                @relation("node_previous", fields: [previousId], references: [id], onDelete: SetNull)
     next              node?                @relation("node_next", fields: [nextId], references: [id], onDelete: SetNull)
     routine           routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -296,13 +296,14 @@ model project {
     createdByOrganizationId String?         @db.Uuid // Organization who created this
     userId                  String?         @db.Uuid // User who can edit this
     organizationId          String?         @db.Uuid // Organization who can edit this
+    parentId                String?         @db.Uuid // Parent project, if any
     createdByUser           user?           @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
     createdByOrganization   organization?   @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
     user                    user?           @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
     organization            organization?   @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
     comments                comment[]
-    forks                   project_forks[] @relation("project_fork")
-    parent                  project_forks?  @relation("project_parent")
+    forks                   project[]                @relation("project_fork")
+    parent                  project?                 @relation("project_fork", fields: [parentId], references: [id], onDelete: SetNull)
     reports                 report[]
     resources               resource[]      @relation("resource_project")
     routines                routine[] // Routines created by this project
@@ -310,17 +311,6 @@ model project {
     tags                    project_tags[] // Categorical tags set by creators or community-voted
     votes                   vote[]          @relation("vote_project")
     wallets                 wallet[]
-}
-
-// One to many relationship between a project and projects forked from it
-model project_forks {
-    id       String  @id @default(uuid()) @db.Uuid
-    parentId String  @unique @db.Uuid
-    forkId   String  @db.Uuid
-    parent   project @relation("project_parent", fields: [parentId], references: [id])
-    fork     project @relation("project_fork", fields: [forkId], references: [id], onDelete: Cascade)
-
-    @@unique([parentId, forkId], name: "project_forks_parentid_forkid_unique")
 }
 
 // Many-to-many relationship between projects and tags
@@ -447,6 +437,7 @@ model routine {
     createdByOrganizationId String?                  @db.Uuid // Organization who created this routine
     userId                  String?                  @db.Uuid // User who can edit this routine
     organizationId          String?                  @db.Uuid // Organization who can edit this routine
+    parentId                String?                  @db.Uuid // Parent routine, if any
     projectId               String?                  @db.Uuid // Project this routine belongs to, if any
     createdByUser           user?                    @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
     createdByOrganization   organization?            @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
@@ -458,27 +449,16 @@ model routine {
     nodes                   node[] // Defines an orchestration (i.e. routine is made up of subroutines)
     contextualResources     resource[]               @relation("resource_contextual_routine") // Resources to provide context to the routine
     externalResources       resource[]               @relation("resource_external_routine") // Resources for completing steps outside of Vrooli
+    forks                   routine[]                @relation("routine_fork")
+    parent                  routine?                 @relation("routine_fork", fields: [parentId], references: [id], onDelete: SetNull)
     tags                    routine_tags[] // Categorical tags set by creators or community-voted
     stars                   Int                      @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
     starredBy               star[]                   @relation("star_routine")
-    parent                  routine_forks?           @relation("routine_parent")
-    forks                   routine_forks[]          @relation("routine_fork")
     nodeLists               node_routine_list_item[] // Routine list nodes the routine is a part of
     reports                 report[]
     comments                comment[]
     score                   Int                      @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     votes                   vote[]                   @relation("vote_routine")
-}
-
-// One to many relationship between a routine and routines forked from it
-model routine_forks {
-    id       String  @id @default(uuid()) @db.Uuid
-    parentId String  @unique @db.Uuid
-    forkId   String  @db.Uuid
-    parent   routine @relation("routine_parent", fields: [parentId], references: [id])
-    fork     routine @relation("routine_fork", fields: [forkId], references: [id], onDelete: Cascade)
-
-    @@unique([parentId, forkId], name: "routine_forks_parentid_forkid_unique")
 }
 
 // Data for a routine input
@@ -657,7 +637,7 @@ model user {
     emails                         email[]
     wallets                        wallet[]
     standards                      standard[]
-    tags                           tag[]
+    tags                           tag[] // Tags the user CREATED - not tags applied to the user's profile
     resources                      resource[]           @relation("resource_user") // Resources associated with user profile
     organizations                  organization_users[] // Projects the user is a member of
     projects                       project[]            @relation("project_user_owner") // Projects that the user can control

@@ -1,46 +1,8 @@
 import { CODE, StarFor } from "@local/shared";
 import { CustomError } from "../error";
 import { StarInput } from "schema/types";
-import { PrismaType, RecursivePartial } from "../types";
-import { BaseType, FormatConverter, MODEL_TYPES } from "./base";
-import { UserDB } from "./user";
-import { CommentDB, OrganizationDB, ProjectDB, RoutineDB, StandardDB, TagDB } from "../models";
-import { comment } from "@prisma/client";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type StarRelationshipList = 'comment' | 'organization' | 'project' | 'routine' | 'standard' | 'starredUser' | 'tag' | 'user';
-// Type 2. QueryablePrimitives
-export type StarQueryablePrimitives = {};
-// Type 3. AllPrimitives
-export type StarAllPrimitives = StarQueryablePrimitives & {
-    id: string;
-    userId: string;
-    commentId?: string;
-    projectId?: string;
-    routineId?: string;
-    standardId?: string;
-    tagId?: string;
-    starredUserId?: string;
-};
-// type 4. Database shape
-export type StarDB = StarAllPrimitives & {
-    user: UserDB;
-    comment?: CommentDB;
-    organization?: OrganizationDB;
-    project?: ProjectDB;
-    routine?: RoutineDB;
-    standard?: StandardDB;
-    tag?: TagDB;
-    starredUser?: UserDB;
-}
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { PrismaType } from "../types";
+import { BaseType } from "./base";
 
 //==============================================================
 /* #region Custom Components */

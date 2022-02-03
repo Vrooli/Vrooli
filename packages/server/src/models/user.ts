@@ -1,12 +1,12 @@
-import { Session, User, Role, Comment, Resource, Project, Organization, Routine, Standard, Tag, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, UserDeleteInput, FindByIdInput, ProfileUpdateInput } from "../schema/types";
-import { addJoinTables, counter, FormatConverter, getRelationshipData, InfoType, JoinMap, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { Session, User, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, UserDeleteInput, FindByIdInput, ProfileUpdateInput } from "../schema/types";
+import { addJoinTables, counter, InfoType, JoinMap, MODEL_TYPES, PaginatedSearchResult, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { AccountStatus, CODE, ROLES } from '@local/shared';
 import bcrypt from 'bcrypt';
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
-import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "../types";
 import { hasProfanity } from "../utils/censor";
+import { user } from "@prisma/client";
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
 const HASHING_ROUNDS = 8;
@@ -15,50 +15,6 @@ const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 10;
 const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000;
 const EXPORT_LIMIT = 3;
 const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type UserRelationshipList = 'comments' | 'roles' | 'emails' | 'wallets' | 'resources' |
-    'projects' | 'routines' | 'routinesCreated' | 'starredBy' | 'starredComments' | 'starredProjects' | 'starredOrganizations' |
-    'starredRoutines' | 'starredStandards' | 'starredTags' | 'starredUsers' |
-    'sentReports' | 'reports';
-// Type 2. QueryablePrimitives
-// 2.1 Profile primitives (i.e. your own account)
-export type UserProfileQueryablePrimitives = Omit<Profile, UserRelationshipList | 'status'> & {
-    status: AccountStatus;
-}
-// 2.2 User primitives (i.e. other users)
-export type UserQueryablePrimitives = Omit<User, UserRelationshipList>;
-// Type 3. AllPrimitives
-export type UserAllPrimitives = UserProfileQueryablePrimitives & {
-    password: string | null,
-    logInAttempts: number,
-    lastLoginAttempt: Date,
-    numExports: number,
-    lastExport: Date | null,
-};
-// type 4. Database shape
-export type UserDB = UserAllPrimitives &
-    Pick<Profile, 'comments' | 'emails' | 'wallets' | 'sentReports' | 'reports' | 'routines' | 'routinesCreated'> &
-{
-    roles: { role: Role }[],
-    resources: { resource: Resource }[],
-    projects: { project: Project }[],
-    starredComments: { starred: Comment }[],
-    starredProjects: { starred: Project }[],
-    starredOrganizations: { starred: Organization }[],
-    starredRoutines: { starred: Routine }[],
-    starredStandards: { starred: Standard }[],
-    starredTags: { starred: Tag }[],
-    starredUsers: { starred: User }[],
-};
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
 
 //==============================================================
 /* #region Custom Components */
@@ -69,10 +25,10 @@ export type UserDB = UserAllPrimitives &
  */
 export type UserFormatConverter = {
     joinMapper?: JoinMap;
-    toDBProfile: (obj: RecursivePartial<Profile>) => RecursivePartial<UserDB>;
-    toDBUser: (obj: RecursivePartial<User>) => RecursivePartial<UserDB>;
-    toGraphQLProfile: (obj: RecursivePartial<UserDB>) => RecursivePartial<Profile>;
-    toGraphQLUser: (obj: RecursivePartial<UserDB>) => RecursivePartial<User>;
+    toDBProfile: (obj: RecursivePartial<Profile>) => RecursivePartial<user>;
+    toDBUser: (obj: RecursivePartial<User>) => RecursivePartial<user>;
+    toGraphQLProfile: (obj: RecursivePartial<user>) => RecursivePartial<Profile>;
+    toGraphQLUser: (obj: RecursivePartial<user>) => RecursivePartial<User>;
 }
 
 /**
@@ -82,28 +38,17 @@ export type UserFormatConverter = {
 export const userFormatter = (): UserFormatConverter => {
     const joinMapper = {
         roles: 'role',
-        resources: 'resource',
-        projects: 'project',
-        starredComments: 'starred',
-        starredProjects: 'starred',
-        starredOrganizations: 'starred',
-        starredRoutines: 'starred',
-        starredStandards: 'starred',
-        starredTags: 'starred',
-        starredUsers: 'starred',
-        votedComments: 'voted',
-        votedByTag: 'tag',
     };
     return {
-        toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<UserDB> => addJoinTables(obj, joinMapper),
-        toDBUser: (obj: RecursivePartial<User>): RecursivePartial<UserDB> => {
+        toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<user> => addJoinTables(obj, joinMapper),
+        toDBUser: (obj: RecursivePartial<User>): RecursivePartial<user> => {
             let modified = addJoinTables(obj, joinMapper);
             // Remove isStarred, as it is calculated in its own query
             if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
-        toGraphQLProfile: (obj: RecursivePartial<UserDB>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),
-        toGraphQLUser: (obj: RecursivePartial<UserDB>): RecursivePartial<User> => {
+        toGraphQLProfile: (obj: RecursivePartial<user>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),
+        toGraphQLUser: (obj: RecursivePartial<user>): RecursivePartial<User> => {
             let modified = removeJoinTables(obj, joinMapper);
             return modified;
         },
@@ -144,7 +89,7 @@ export const userSessioner = () => ({
     /**
      * Creates session object from user
      */
-    toSession(user: RecursivePartial<UserDB>): Session {
+    toSession(user: RecursivePartial<user>): Session {
         console.log('user toSession', user);
         return {
             id: user.id ?? '',
@@ -343,37 +288,6 @@ const validater = (prisma: PrismaType) => ({
 })
 
 /**
- * Custom component for creating users. 
- * NOTE: Data should be in Prisma shape, not GraphQL
- */
-const userCreater = (toDB: FormatConverter<User, UserDB>['toDB'], prisma: PrismaType) => ({
-    async create(
-        data: any,
-        info: GraphQLResolveInfo | null = null,
-    ): Promise<RecursivePartial<UserDB> | null> {
-        // Remove any relationships should not be created/connected in this operation
-        data = keepOnly(data, ['roles', 'emails', 'resources', 'hiddenTags', 'starredTags']);
-        // Check for valid emails
-        for (const email of getRelationshipData(data, 'emails')) {
-            if (!email) continue;
-            const emailExists = await prisma.email.findUnique({ where: { emailAddress: email.emailAddress } });
-            if (emailExists && emailExists.id !== email.id) throw new CustomError(CODE.EmailInUse);
-        }
-        // Make sure roles have valid ids
-        for (const role of getRelationshipData(data, 'roles')) {
-            if (!role?.role) continue;
-            if (!role.role.id) throw new CustomError(CODE.InvalidArgs);
-            const roleExists = await prisma.role.findUnique({ where: { id: role.role.id } });
-            if (!roleExists) throw new CustomError(CODE.InvalidArgs);
-        }
-        // Create
-        const { id } = await prisma.user.create({ data });
-        // Query database
-        return await prisma.user.findUnique({ where: { id }, ...selectHelper<User, UserDB>(info, toDB) }) as RecursivePartial<UserDB> | null;
-    }
-})
-
-/**
  * Custom component for importing/exporting data from Vrooli
  * @param state 
  * @returns 
@@ -410,29 +324,29 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         userId: string | null | undefined, // Of the user making the request, not the requested user
         input: FindByIdInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<User> | null> {
         // Create selector. Make sure not to select private data
-        const select = selectHelper<User, UserDB>(info, format.toDBUser);
+        const select = selectHelper<User, user>(info, format.toDBUser);
         // Access database
         let user = await prisma.user.findUnique({ where: { id: input.id }, ...select });
         // Return user with "isStarred" and "isOwn" fields
         // If the user is querying themselves, 
         if (!user) throw new CustomError(CODE.InternalError, 'User not found');
-        if (!userId || userId === user.id) return { ...user, isStarred: false };
+        if (!userId || userId === user.id) return { ...format.toGraphQLUser(user), isStarred: false };
         const star = await prisma.star.findFirst({ where: { byId: userId, userId: user.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...user, isStarred, isOwn: userId === user.id };
+        return { ...format.toGraphQLUser(user), isStarred, isOwn: userId === user.id };
     },
     async findProfile(
         userId: string,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Profile> | null> {
         // Create selector. Make sure not to select private data
-        const select = selectHelper<Profile, UserDB>(info, format.toDBProfile);
+        const select = selectHelper<Profile, user>(info, format.toDBProfile);
         // Access database
-        let user = await prisma.user.findUnique({ where: { id: userId }, ...select });
+        const user = await prisma.user.findUnique({ where: { id: userId }, ...select });
         // Return user with "isStarred" and "isOwn" fields. This "isStarred" will be false, since the user is querying themselves
-        return { ...user, isStarred: false, isOwn: true };
+        return user ? format.toGraphQLProfile(user) : null;
     },
     async searchUsers(
         where: { [x: string]: any },
@@ -448,7 +362,7 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
         // Search
-        const search = searcher<UserSortBy, UserSearchInput, User, UserDB>(MODEL_TYPES.User, format.toDBUser, format.toGraphQLUser, sort, prisma);
+        const search = searcher<UserSortBy, UserSearchInput, User, user>(MODEL_TYPES.User, format.toDBUser, format.toGraphQLUser, sort, prisma);
         let searchResults = await search.search({ ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery, ...where }, input, info);
         // Compute "isStarred" field for each user
         // If userId not provided, then "isStarred" is false
@@ -470,7 +384,7 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         userId: string,
         input: ProfileUpdateInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Profile>> {
         // Check for valid arguments
         if (!input.username || input.username.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for correct password
@@ -486,10 +400,10 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         user = await prisma.user.update({
             where: { id: userId },
             data: userData,
-            ...selectHelper<Profile, UserDB>(info, format.toDBProfile)
+            ...selectHelper<Profile, user>(info, format.toDBProfile)
         });
         // Return user with "isStarred" field. This will return false, since the user cannot star themselves
-        return { ...user, isStarred: false, isOwn: true };
+        return format.toGraphQLProfile(user)
     },
     async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
         // Check for correct password
@@ -524,7 +438,6 @@ export function UserModel(prisma: PrismaType) {
         ...counter<UserCountInput>(model, prisma),
         ...porter(prisma),
         ...userSessioner(),
-        ...userCreater(format.toDBUser, prisma),
         ...userer(format, sort, prisma),
         ...validater(prisma),
     }

@@ -1,73 +1,23 @@
-import { CODE, ReportFor } from "@local/shared";
+import { CODE, reportAdd, ReportFor, reportUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { DeleteOneInput, Report, ReportInput, Success } from "../schema/types";
+import { DeleteOneInput, Report, ReportAddInput, ReportUpdateInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { hasProfanity } from "../utils/censor";
-import { FormatConverter, MODEL_TYPES } from "./base";
-import { CommentDB } from "./comment";
-import { OrganizationDB } from "./organization";
-import { ProjectDB } from "./project";
-import { RoutineDB } from "./routine";
-import { StandardDB } from "./standard";
-import { TagDB } from "./tag";
-import { UserDB } from "./user";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type ReportRelationshipList = 'from' | 'comment' | 'organization' |
-    'project' | 'routine' | 'standard' | 'tag' | 'user';
-// Type 2. QueryablePrimitives
-export type ReportQueryablePrimitives = Omit<Report, ReportRelationshipList>;
-// Type 3. AllPrimitives
-export type ReportAllPrimitives = ReportQueryablePrimitives & {
-    fromId: string;
-    commentId: string;
-    organizationId: string;
-    projectId: string;
-    routineId: string;
-    standardId: string;
-    tagId: string;
-    userId: string;
-}
-// type 4. Database shape
-export type ReportDB = ReportAllPrimitives & {
-    from: UserDB,
-    comment: CommentDB,
-    organization: OrganizationDB,
-    project: ProjectDB,
-    routine: RoutineDB,
-    standard: StandardDB,
-    tag: TagDB,
-    user: UserDB,
-}
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { MODEL_TYPES } from "./base";
+import { report } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-/**
- * Component for formatting between graphql and prisma types
- */
-const formatter = (): FormatConverter<any, any> => ({
-    toDB: (obj: RecursivePartial<Report>): RecursivePartial<any> => obj as any,
-    toGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Report> => obj as any
-})
-
 const forMapper = {
-    [ReportFor.Comment]: 'comment',
-    [ReportFor.Organization]: 'organization',
-    [ReportFor.Project]: 'project',
-    [ReportFor.Routine]: 'routine',
-    [ReportFor.Standard]: 'standard',
-    [ReportFor.Tag]: 'tag',
-    [ReportFor.User]: 'user',
+    [ReportFor.Comment]: 'commentId',
+    [ReportFor.Organization]: 'organizationId',
+    [ReportFor.Project]: 'projectId',
+    [ReportFor.Routine]: 'routineId',
+    [ReportFor.Standard]: 'standardId',
+    [ReportFor.Tag]: 'tagId',
+    [ReportFor.User]: 'userId',
 }
 
 /**
@@ -78,10 +28,10 @@ const forMapper = {
  const reporter = (prisma: PrismaType) => ({
     async addReport(
         userId: string, 
-        input: ReportInput,
-    ): Promise<any> {
+        input: ReportAddInput,
+    ): Promise<RecursivePartial<Report>> {
         // Check for valid arguments
-        if (!input.reason || input.reason.length < 1) throw new CustomError(CODE.InternalError, 'Reason must be provided');
+        reportAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.reason, input.details)) throw new CustomError(CODE.BannedWord);
         // Add report
@@ -90,17 +40,16 @@ const forMapper = {
                 reason: input.reason,
                 details: input.details,
                 from: { connect: { id: userId } },
-                [forMapper[input.createdFor]]: input.forId,
+                [forMapper[input.createdFor]]: input.createdForId,
             }
         })
     },
     async updateReport(
         userId: string, 
-        input: ReportInput,
-    ): Promise<any> {
+        input: ReportUpdateInput,
+    ): Promise<RecursivePartial<Report>> {
         // Check for valid arguments
-        if (!input.id) throw new CustomError(CODE.InternalError, 'No report id provided');
-        if (!input.reason || input.reason.length < 1) throw new CustomError(CODE.InternalError, 'Reason must be provided');
+        reportUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.reason, input.details)) throw new CustomError(CODE.BannedWord);
         // Find report
@@ -108,7 +57,6 @@ const forMapper = {
             where: {
                 id: input.id,
                 userId,
-                [forMapper[input.createdFor]]: input.forId,
             }
         })
         if (!report) throw new CustomError(CODE.ErrorUnknown);
@@ -116,7 +64,7 @@ const forMapper = {
         return await prisma.report.update({
             where: { id: report.id },
             data: {
-                reason: input.reason,
+                reason: input.reason ?? undefined,
                 details: input.details,
             }
         });
@@ -144,12 +92,10 @@ const forMapper = {
 
 export function ReportModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Report;
-    const format = formatter();
 
     return {
         prisma,
         model,
-        ...format,
         ...reporter(prisma),
     }
 }

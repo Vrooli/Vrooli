@@ -3,7 +3,7 @@ import { standardFields } from 'graphql/fragment';
 
 export const standardAddMutation = gql`
     ${standardFields}
-    mutation standardAdd($input: StandardInput!) {
+    mutation standardAdd($input: StandardAddInput!) {
         standardAdd(input: $input) {
             ...standardFields
         }

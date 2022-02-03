@@ -1,84 +1,32 @@
 import { CODE, projectAdd, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { GraphQLResolveInfo } from "graphql";
 import { PrismaType, RecursivePartial } from "types";
-import { DeleteOneInput, FindByIdInput, Organization, Project, ProjectCountInput, ProjectAddInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Resource, Success, Tag, User } from "../schema/types";
-import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
+import { DeleteOneInput, FindByIdInput, Project, ProjectCountInput, ProjectAddInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Success } from "../schema/types";
+import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type ProjectRelationshipList = 'resources' | 'wallets' | 'user' | 'organization' | 'createdByUser' | 'createdByOrganization' | 'starredBy' |
-    'parent' | 'forks' | 'reports' | 'tags' | 'comments' | 'routines';
-// Type 2. QueryablePrimitives
-export type ProjectQueryablePrimitives = Omit<Project, ProjectRelationshipList>;
-// Type 3. AllPrimitives
-export type ProjectAllPrimitives = ProjectQueryablePrimitives;
-// type 4. Database shape
-export type ProjectDB = ProjectAllPrimitives &
-    Pick<Omit<Project, 'creator' | 'owner'>, 'wallets' | 'reports' | 'comments' | 'routines'> &
-{
-    user: User;
-    organization: Organization;
-    createdByUser: User;
-    createdByOrganization: Organization;
-    resources: { resource: Resource }[],
-    starredBy: { user: User }[],
-    parent: { project: Project }[],
-    forks: { project: Project }[],
-    tags: { tag: Tag }[],
-};
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { project } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
 /**
- * Custom component for creating project. 
- * NOTE: Data should be in Prisma shape, not GraphQL
- */
-const projectCreater = (toDB: FormatConverter<Project, ProjectDB>['toDB'], prisma: PrismaType) => ({
-    async create(
-        data: any,
-        info: GraphQLResolveInfo | null = null,
-    ): Promise<RecursivePartial<ProjectDB> | null> {
-        // Remove any relationships should not be created/connected in this operation
-        data = keepOnly(data, ['resources', 'parent', 'tags']);
-        // Perform additional checks
-        // TODO
-        // Create
-        const { id } = await prisma.project.create({ data });
-        // Query database
-        return await prisma.user.findUnique({ where: { id }, ...selectHelper<Project, ProjectDB>(info, toDB) }) as RecursivePartial<ProjectDB> | null;
-    }
-})
-
-/**
  * Component for formatting between graphql and prisma types
  */
-export const projectFormatter = (): FormatConverter<Project, ProjectDB> => {
+export const projectFormatter = (): FormatConverter<Project, project> => {
     const joinMapper = {
-        resources: 'resource',
         tags: 'tag',
         users: 'user',
         organizations: 'organization',
         starredBy: 'user',
-        forks: 'fork',
     };
     const countMapper = {
         stars: 'starredBy',
     }
     return {
-        toDB: (obj: RecursivePartial<Project>): RecursivePartial<ProjectDB> => {
+        toDB: (obj: RecursivePartial<Project>): RecursivePartial<project> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
@@ -88,7 +36,7 @@ export const projectFormatter = (): FormatConverter<Project, ProjectDB> => {
             if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
-        toGraphQL: (obj: RecursivePartial<ProjectDB>): RecursivePartial<Project> => {
+        toGraphQL: (obj: RecursivePartial<project>): RecursivePartial<Project> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
             modified = addCreatorField(modified);
@@ -136,24 +84,24 @@ export const projectSorter = (): Sortable<ProjectSortBy> => ({
 /**
  * Handles the authorized adding, updating, and deleting of projects.
  */
-const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<ProjectSortBy>, prisma: PrismaType) => ({
+const projecter = (format: FormatConverter<Project, project>, sort: Sortable<ProjectSortBy>, prisma: PrismaType) => ({
     async findProject(
         userId: string | null | undefined, // Of the user making the request, not the project
         input: FindByIdInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Project> | null> {
         // Create selector
-        const select = selectHelper<Project, ProjectDB>(info, format.toDB);
+        const select = selectHelper<Project, project>(info, format.toDB);
         // Access database
         let project = await prisma.project.findUnique({ where: { id: input.id }, ...select });
         // Return project with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!project) throw new CustomError(CODE.InternalError, 'Project not found');
-        if (!userId) return { ...project, isUpvoted: false, isStarred: false };
+        if (!userId) return { ...format.toGraphQL(project), isUpvoted: false, isStarred: false };
         const vote = await prisma.vote.findFirst({ where: { userId, projectId: project.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
         const star = await prisma.star.findFirst({ where: { byId: userId, projectId: project.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...project, isUpvoted, isStarred };
+        return { ...format.toGraphQL(project), isUpvoted, isStarred };
     },
     async searchProjects(
         where: { [x: string]: any },
@@ -164,10 +112,10 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         // Create where clauses
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
-        const parentIdQuery = input.parentId ? { forks: { some: { forkId: input.parentId } } } : {};
+        const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         // Search
-        const search = searcher<ProjectSortBy, ProjectSearchInput, Project, ProjectDB>(MODEL_TYPES.Project, format.toDB, format.toGraphQL, sort, prisma);
+        const search = searcher<ProjectSortBy, ProjectSearchInput, Project, project>(MODEL_TYPES.Project, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where }, input, info);
         // Compute "isUpvoted" and "isStarred" fields for each project
         // If userId not provided, then "isUpvoted" is null and "isStarred" is false
@@ -194,13 +142,13 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         userId: string,
         input: ProjectAddInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Project>> {
         // Check for valid arguments
         projectAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create project data
-        let projectData: { [x: string]: any } = { name: input.name, description: input.description ?? '' };
+        let projectData: { [x: string]: any } = { name: input.name, description: input.description, parentId: input.parentId };
         // Associate with either organization or user
         if (input.createdByOrganizationId) {
             // Make sure the user is an admin of the organization
@@ -221,25 +169,26 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         // Handle resources
         const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, true);
         if (resourceData) projectData.resources = resourceData;
+        // Handle tags TODO
         // Create project
         const project = await prisma.project.create({
             data: projectData as any,
-            ...selectHelper<Project, ProjectDB>(info, format.toDB)
+            ...selectHelper<Project, project>(info, format.toDB)
         })
         // Return project with "isUpvoted" and "isStarred" fields. These will be their default values.
-        return { ...project, isUpvoted: null, isStarred: false };
+        return { ...format.toGraphQL(project), isUpvoted: null, isStarred: false };
     },
     async updateProject(
         userId: string,
         input: ProjectUpdateInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Project>> {
         // Check for valid arguments
         projectUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create project data
-        let projectData: { [x: string]: any } = { name: input.name, description: input.description ?? '' };
+        let projectData: { [x: string]: any } = { name: input.name, description: input.description, parentId: input.parentId };
         // Associate with either organization or user. This will remove the association with the other.
         if (input.organizationId) {
             // Make sure the user is an admin of the organization
@@ -252,6 +201,7 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         // Handle resources
         const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, false);
         if (resourceData) projectData.resources = resourceData;
+        // Handle tags TODO
         // Find project
         let project = await prisma.project.findFirst({
             where: {
@@ -269,14 +219,14 @@ const projecter = (format: FormatConverter<Project, ProjectDB>, sort: Sortable<P
         project = await prisma.project.update({
             where: { id: project.id },
             data: projectData as any,
-            ...selectHelper<Project, ProjectDB>(info, format.toDB)
+            ...selectHelper<Project, project>(info, format.toDB)
         });
         // Return project with "isUpvoted" and "isStarred" fields. These must be queried separately.
         const vote = await prisma.vote.findFirst({ where: { userId, projectId: project.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
         const star = await prisma.star.findFirst({ where: { byId: userId, projectId: project.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...project, isUpvoted, isStarred };
+        return { ...format.toGraphQL(project), isUpvoted, isStarred };
     },
     async deleteProject(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
@@ -323,7 +273,6 @@ export function ProjectModel(prisma: PrismaType) {
         ...sort,
         ...counter<ProjectCountInput>(model, prisma),
         ...projecter(format, sort, prisma),
-        ...projectCreater(format.toDB, prisma),
     }
 }
 

@@ -1,41 +1,12 @@
-import { CODE, CommentFor } from "@local/shared";
+import { CODE, commentAdd, CommentFor, commentUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { Comment, CommentInput, DeleteOneInput, Success } from "../schema/types";
+import { Comment, CommentAddInput, CommentUpdateInput, DeleteOneInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCountQueries, addCreatorField, addJoinTables, FormatConverter, MODEL_TYPES, removeCountQueries, removeCreatorField, removeJoinTables, selectHelper } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { GraphQLResolveInfo } from "graphql";
-import { UserDB } from "./user";
-import { OrganizationDB, OrganizationModel } from "./organization";
-import { ProjectDB } from "./project";
-import { RoutineDB } from "./routine";
-import { StandardDB } from "./standard";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type CommentRelationshipList = 'user' | 'organization' | 'project' |
-    'routine' | 'standard' | 'reports' | 'stars';
-// Type 2. QueryablePrimitives
-export type CommentQueryablePrimitives = Omit<Comment, CommentRelationshipList>;
-// Type 3. AllPrimitives
-export type CommentAllPrimitives = CommentQueryablePrimitives;
-// type 4. Database shape
-export type CommentDB = CommentAllPrimitives &
-{
-    user: UserDB,
-    organization: OrganizationDB,
-    project: ProjectDB,
-    routine: RoutineDB,
-    standard: StandardDB,
-    stars: number,
-};
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { OrganizationModel } from "./organization";
+import { comment } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -44,7 +15,7 @@ export type CommentDB = CommentAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Comment, CommentDB> => {
+const formatter = (): FormatConverter<Comment, comment> => {
     const joinMapper = {
         starredBy: 'user',
     };
@@ -52,7 +23,7 @@ const formatter = (): FormatConverter<Comment, CommentDB> => {
         stars: 'starredBy',
     }
     return {
-        toDB: (obj: RecursivePartial<Comment>): RecursivePartial<CommentDB> => {
+        toDB: (obj: RecursivePartial<Comment>): RecursivePartial<comment> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
@@ -70,7 +41,7 @@ const formatter = (): FormatConverter<Comment, CommentDB> => {
             // }
             return modified;
         },
-        toGraphQL: (obj: RecursivePartial<CommentDB>): RecursivePartial<Comment> => {
+        toGraphQL: (obj: RecursivePartial<comment>): RecursivePartial<Comment> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
             modified = addCreatorField(modified);
@@ -92,9 +63,9 @@ const formatter = (): FormatConverter<Comment, CommentDB> => {
 }
 
 const forMapper = {
-    [CommentFor.Project]: 'project',
-    [CommentFor.Routine]: 'routine',
-    [CommentFor.Standard]: 'standard',
+    [CommentFor.Project]: 'projectId',
+    [CommentFor.Routine]: 'routineId',
+    [CommentFor.Standard]: 'standardId',
 }
 
 /**
@@ -102,14 +73,14 @@ const forMapper = {
  * Only users can add comments, and they can do so multiple times on 
  * the same object.
  */
-const commenter = (prisma: PrismaType) => ({
+const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType) => ({
     async addComment(
         userId: string,
-        input: CommentInput,
+        input: CommentAddInput,
         info: GraphQLResolveInfo | null = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Comment>> {
         // Check for valid arguments
-        if (!input.text || input.text.length < 1) throw new CustomError(CODE.InternalError, 'Text is too short');
+        commentAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
         // Add comment
@@ -119,27 +90,22 @@ const commenter = (prisma: PrismaType) => ({
                 userId,
                 [forMapper[input.createdFor]]: input.forId,
             },
-            ...selectHelper<Comment, CommentDB>(info, formatter().toDB)
+            ...selectHelper<CommentAddInput | CommentUpdateInput, comment>(info, formatter().toDB)
         });
         // Return comment with "isUpvoted" and "isStarred" fields. These will be their default values.
-        return { ...comment, isUpvoted: null, isStarred: false };
+        return { ...format.toGraphQL(comment), isUpvoted: null, isStarred: false };
     },
     async updateComment(
         userId: string,
-        input: CommentInput,
+        input: CommentUpdateInput,
         info: GraphQLResolveInfo | null = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Comment>> {
         // Check for valid arguments
-        if (!input.text || input.text.length < 1) throw new CustomError(CODE.InternalError, 'Text too short');
+        commentUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
         // Find comment
-        let comment = await prisma.comment.findFirst({
-            where: {
-                userId,
-                [forMapper[input.createdFor]]: input.forId,
-            }
-        })
+        let comment = await prisma.comment.findUnique({ where: { id: input.id } });
         if (!comment) throw new CustomError(CODE.NotFound, "Comment not found");
         // Update comment
         comment = await prisma.comment.update({
@@ -147,14 +113,14 @@ const commenter = (prisma: PrismaType) => ({
             data: {
                 text: input.text,
             },
-            ...selectHelper<Comment, CommentDB>(info, formatter().toDB)
+            ...selectHelper<CommentAddInput | CommentUpdateInput, comment>(info, formatter().toDB)
         });
         // Return comment with "isUpvoted" and "isStarred" fields. These must be queried separately.
         const vote = await prisma.vote.findFirst({ where: { userId, commentId: comment.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
         const star = await prisma.star.findFirst({ where: { byId: userId, commentId: comment.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...comment, isUpvoted, isStarred };
+        return { ...format.toGraphQL(comment), isUpvoted, isStarred };
     },
     async deleteComment(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
@@ -197,7 +163,7 @@ export function CommentModel(prisma: PrismaType) {
         prisma,
         model,
         ...format,
-        ...commenter(prisma),
+        ...commenter(format, prisma),
     }
 }
 

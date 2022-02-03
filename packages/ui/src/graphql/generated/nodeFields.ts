@@ -13,11 +13,11 @@ export interface nodeFields_data_NodeCombine {
   __typename: "NodeCombine";
   id: string;
   from: string[];
-  to: string;
+  toId: string;
 }
 
 export interface nodeFields_data_NodeDecision_decisions_when {
-  __typename: "NodeDecisionItemCase";
+  __typename: "NodeDecisionItemWhen";
   id: string;
   condition: string;
 }
@@ -28,7 +28,7 @@ export interface nodeFields_data_NodeDecision_decisions {
   description: string | null;
   title: string;
   toId: string | null;
-  when: (nodeFields_data_NodeDecision_decisions_when | null)[];
+  when: nodeFields_data_NodeDecision_decisions_when[];
 }
 
 export interface nodeFields_data_NodeDecision {
@@ -76,10 +76,10 @@ export interface nodeFields_data_NodeRoutineList_routines_routine {
 export interface nodeFields_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
-  title: string;
+  title: string | null;
   description: string | null;
   isOptional: boolean;
-  routine: nodeFields_data_NodeRoutineList_routines_routine | null;
+  routine: nodeFields_data_NodeRoutineList_routines_routine;
 }
 
 export interface nodeFields_data_NodeRoutineList {

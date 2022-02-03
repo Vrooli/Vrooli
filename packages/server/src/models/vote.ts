@@ -1,44 +1,8 @@
 import { CODE, VoteFor } from "@local/shared";
 import { CustomError } from "../error";
 import { VoteInput } from "schema/types";
-import { PrismaType, RecursivePartial } from "../types";
-import { BaseType, FormatConverter, MODEL_TYPES } from "./base";
-import { UserDB } from "./user";
-import { CommentDB, ProjectDB, RoutineDB, StandardDB, TagDB } from "../models";
-import { comment } from "@prisma/client";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type VoteRelationshipList = 'comment' | 'project' | 'routine' | 'standard' | 'tag' | 'user';
-// Type 2. QueryablePrimitives
-export type VoteQueryablePrimitives = {};
-// Type 3. AllPrimitives
-export type VoteAllPrimitives = VoteQueryablePrimitives & {
-    id: string;
-    isUpvote: boolean;
-    userId: string;
-    commentId?: string;
-    projectId?: string;
-    routineId?: string;
-    standardId?: string;
-    tagId?: string;
-};
-// type 4. Database shape
-export type VoteDB = VoteAllPrimitives & {
-    user: UserDB;
-    comment?: CommentDB;
-    project?: ProjectDB;
-    routine?: RoutineDB;
-    standard?: StandardDB;
-    tag?: TagDB;
-}
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { PrismaType } from "../types";
+import { BaseType } from "./base";
 
 //==============================================================
 /* #region Custom Components */

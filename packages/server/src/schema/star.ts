@@ -38,7 +38,7 @@ export const resolvers = {
          */
         star: async (_parent: undefined, { input }: IWrap<StarInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             const success = await StarModel(prisma).star(req.userId, input);
             return { success };
         },

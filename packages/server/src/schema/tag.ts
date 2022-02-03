@@ -108,7 +108,7 @@ export const resolvers = {
          */
         tagAdd: async (_parent: undefined, { input }: IWrap<TagAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
             const created = await TagModel(prisma).addTag(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
@@ -120,7 +120,7 @@ export const resolvers = {
          */
         tagUpdate: async (_parent: undefined, { input }: IWrap<TagUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
             const updated = await TagModel(prisma).updateTag(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
@@ -132,7 +132,7 @@ export const resolvers = {
          */
         tagDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             return await TagModel(prisma).deleteTags(req.userId, input);
         },
     }

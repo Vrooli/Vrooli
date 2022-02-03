@@ -8,6 +8,7 @@ import * as yup from 'yup';
 import { NodeType } from '../consts';
 
 const condition = yup.string().max(2048).optional();
+const isOptional = yup.boolean().optional();
 const type = yup.string().oneOf(Object.values(NodeType)).optional();
 const wasSuccessful = yup.boolean().optional();
 
@@ -82,12 +83,14 @@ const nodeRedirectUpdate = yup.object().shape({
 const nodeRoutineListItemsAdd = yup.array().of(yup.object().shape({
     description,
     title,
+    isOptional,
     // Cannot add a routine directly from a node, as this causes a cyclic dependency
     routineConnect: id,
 }).required()).optional();
 const nodeRoutineListItemsUpdate = yup.array().of(yup.object().shape({
     id: id.required(),
     description,
+    isOptional,
     title,
     // Cannot add or update a routine directly from a node, as this causes a cyclic dependency
     routineConnect: id,

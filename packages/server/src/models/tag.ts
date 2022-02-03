@@ -1,34 +1,10 @@
-import { Count, DeleteManyInput, FindByIdInput, Organization, Project, Routine, Standard, Tag, TagCountInput, TagAddInput, TagUpdateInput, TagSearchInput, TagSortBy, User } from "../schema/types";
+import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagAddInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addJoinTables, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { CODE, tagAdd, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type TagRelationshipList = 'organizations' | 'projects' | 'routines' | 'standards' |
-    'starredBy';
-// Type 2. QueryablePrimitives
-export type TagQueryablePrimitives = Omit<Tag, TagRelationshipList>;
-// Type 3. AllPrimitives
-export type TagAllPrimitives = TagQueryablePrimitives;
-// type 4. Database shape
-export type TagDB = TagAllPrimitives &
-{
-    organizations: { tagged: Organization },
-    projects: { tagged: Project },
-    routines: { tagged: Routine },
-    standards: { tagged: Standard },
-    starredBy: { user: User },
-};
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { tag } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -37,7 +13,7 @@ export type TagDB = TagAllPrimitives &
 /**
  * Component for formatting between graphql and prisma types
  */
- export const tagFormatter = (): FormatConverter<Tag, TagDB> => {
+ export const tagFormatter = (): FormatConverter<Tag, tag> => {
     const joinMapper = {
         organizations: 'tagged',
         projects: 'tagged',
@@ -46,13 +22,13 @@ export type TagDB = TagAllPrimitives &
         starredBy: 'user',
     };
     return {
-        toDB: (obj: RecursivePartial<Tag>): RecursivePartial<TagDB> => {
+        toDB: (obj: RecursivePartial<Tag>): RecursivePartial<tag> => {
             let modified = addJoinTables(obj, joinMapper)
             // Remove isStarred, as it is calculated in its own query
             if (modified.isStarred) delete modified.isStarred;
             return modified
         },
-        toGraphQL: (obj: RecursivePartial<TagDB>): RecursivePartial<Tag> => removeJoinTables(obj, joinMapper)
+        toGraphQL: (obj: RecursivePartial<tag>): RecursivePartial<Tag> => removeJoinTables(obj, joinMapper)
     }
 }
 
@@ -87,22 +63,22 @@ export type TagDB = TagAllPrimitives &
 /**
  * Handles the authorized adding, updating, and deleting of tags.
  */
- const tagger = (format: FormatConverter<Tag, TagDB>, sort: Sortable<TagSortBy>, prisma: PrismaType) => ({
+ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, prisma: PrismaType) => ({
     async findTag(
         userId: string | null | undefined, // Of the user making the request, not the tag's creator
         input: FindByIdInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Tag> | null> {
         // Create selector
-        const select = selectHelper<Tag, TagDB>(info, format.toDB);
+        const select = selectHelper<Tag, tag>(info, format.toDB);
         // Access database
         let tag = await prisma.tag.findUnique({ where: { id: input.id }, ...select });
         // Return tag with "isStarred" field. This must be queried separately.
         if (!tag) throw new CustomError(CODE.InternalError, 'Tag not found');
-        if (!userId) return { ...tag, isStarred: false };
+        if (!userId) return { ...format.toGraphQL(tag), isStarred: false };
         const star = await prisma.star.findFirst({ where: { byId: userId, tagId: tag.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...tag, isStarred };
+        return { ...format.toGraphQL(tag), isStarred };
     },
     async searchTags(
         where: { [x: string]: any },
@@ -130,7 +106,7 @@ export type TagDB = TagAllPrimitives &
             })).map(s => s.tagId).filter(s => s !== null) as string[]
         }
         // Search
-        const search = searcher<TagSortBy, TagSearchInput, Tag, TagDB>(MODEL_TYPES.Tag, format.toDB, format.toGraphQL, sort, prisma);
+        const search = searcher<TagSortBy, TagSearchInput, Tag, tag>(MODEL_TYPES.Tag, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...where }, {...input, ids: idsLimit}, info);
         // Compute "isStarred" field for each tag
         // If userId not provided "isStarred" is false
@@ -153,7 +129,7 @@ export type TagDB = TagAllPrimitives &
         userId: string,
         input: TagAddInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Tag>> {
         // Check for valid arguments
         tagAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
@@ -163,16 +139,16 @@ export type TagDB = TagAllPrimitives &
         // Create tag
         const tag = await prisma.tag.create({
             data: tagData,
-            ...selectHelper<Tag, TagDB>(info, format.toDB)
+            ...selectHelper<Tag, tag>(info, format.toDB)
         })
         // Return tag with "isStarred" field. This will be its default value.
-        return { ...tag, isStarred: false };
+        return { ...format.toGraphQL(tag), isStarred: false };
     },
     async updateTag(
         userId: string,
         input: TagUpdateInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Tag>> {
         // Check for valid arguments
         tagUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
@@ -183,12 +159,12 @@ export type TagDB = TagAllPrimitives &
         const tag = await prisma.tag.update({
             where: { createdByUserId: userId },
             data: tagData,
-            ...selectHelper<Tag, TagDB>(info, format.toDB)
+            ...selectHelper<Tag, tag>(info, format.toDB)
         });
         // Return tag with "isStarred" field. This must be queried separately.
         const star = await prisma.star.findFirst({ where: { byId: userId, tagId: tag.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...tag, isStarred };
+        return { ...format.toGraphQL(tag), isStarred };
     },
     async deleteTags(userId: string, input: DeleteManyInput): Promise<Count> {
         // Find

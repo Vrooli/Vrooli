@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardInput, StandardType } from "./globalTypes";
+import { StandardUpdateInput, StandardType } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: standardUpdate
@@ -16,8 +16,7 @@ export interface standardUpdate_standardUpdate_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  score: number;
-  isUpvoted: boolean;
+  isStarred: boolean | null;
 }
 
 export interface standardUpdate_standardUpdate_creator_Organization {
@@ -47,8 +46,9 @@ export interface standardUpdate_standardUpdate {
   tags: standardUpdate_standardUpdate_tags[];
   creator: standardUpdate_standardUpdate_creator | null;
   stars: number;
+  isStarred: boolean | null;
   score: number;
-  isUpvoted: boolean;
+  isUpvoted: boolean | null;
 }
 
 export interface standardUpdate {
@@ -56,5 +56,5 @@ export interface standardUpdate {
 }
 
 export interface standardUpdateVariables {
-  input: StandardInput;
+  input: StandardUpdateInput;
 }

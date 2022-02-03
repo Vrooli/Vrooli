@@ -21,7 +21,7 @@ export interface resources_resources_edges_node {
   title: string;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor;
+  usedFor: ResourceUsedFor | null;
 }
 
 export interface resources_resources_edges {

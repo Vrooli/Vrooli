@@ -1,90 +1,38 @@
-import { DeleteOneInput, FindByIdInput, Organization, Resource, Routine, RoutineCountInput, RoutineAddInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Success, Tag, User } from "../schema/types";
+import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineAddInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCreatorField, addJoinTables, addOwnerField, counter, deleter, FormatConverter, InfoType, keepOnly, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
-import { GraphQLResolveInfo } from "graphql";
+import { addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { CODE, routineAdd, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type RoutineRelationshipList = 'inputs' | 'outputs' | 'nodes' | 'contextualResources' |
-    'externalResources' | 'tags' | 'starredBy' | 'project' | 'user' | 'organization' |
-    'createdByUser' | 'createdByOrganization' | 'parent' | 'forks' | 'nodeLists' | 'reports' | 'comments';
-// Type 2. QueryablePrimitives
-export type RoutineQueryablePrimitives = Omit<Routine, RoutineRelationshipList>;
-// Type 3. AllPrimitives
-export type RoutineAllPrimitives = RoutineQueryablePrimitives;
-// type 4. Database shape
-export type RoutineDB = RoutineAllPrimitives &
-    Pick<Omit<Routine, 'creator' | 'owner'>, 'nodes' | 'reports' | 'comments' | 'inputs' | 'outputs' | 'parent' | 'project'> &
-{
-    user: User;
-    organization: Organization;
-    createdByUser: User;
-    createdByOrganization: Organization;
-    contextualResources: { resource: Resource }[],
-    externalResources: { resource: Resource }[],
-    tags: { tag: Tag }[],
-    starredBy: { user: User }[],
-    forks: { fork: Routine }[],
-    nodeLists: { list: Routine }[],
-};
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { routine } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
 /**
- * Custom component for creating routine. 
- * NOTE: Data should be in Prisma shape, not GraphQL
- */
-const routineCreater = (toDB: FormatConverter<Routine, RoutineDB>['toDB'], prisma: PrismaType) => ({
-    async create(
-        data: any,
-        info: GraphQLResolveInfo | null = null,
-    ): Promise<RecursivePartial<RoutineDB> | null> {
-        // Remove any relationships should not be created/connected in this operation
-        data = keepOnly(data, ['inputs', 'outputs', 'nodes', 'contextualResources', 'externalResources', 'tags', 'users', 'organizations', 'parent']);
-        // Perform additional checks
-        // TODO
-        // Create
-        const { id } = await prisma.routine.create({ data });
-        // Query database
-        return await prisma.routine.findUnique({ where: { id }, ...selectHelper<Routine, RoutineDB>(info, toDB) }) as RecursivePartial<RoutineDB> | null;
-    }
-})
-
-/**
  * Handles the authorized adding, updating, and deleting of routines.
  */
-const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<RoutineSortBy>, prisma: PrismaType) => ({
+const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<RoutineSortBy>, prisma: PrismaType) => ({
     async findRoutine(
         userId: string | null | undefined, // Of the user making the request, not the routine
         input: FindByIdInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Routine> | null> {
         // Create selector
-        const select = selectHelper<Routine, RoutineDB>(info, formatter().toDB);
+        const select = selectHelper<Routine, routine>(info, formatter().toDB);
         // Access database
         let routine = await prisma.routine.findUnique({ where: { id: input.id }, ...select });
         // Return routine with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!routine) throw new CustomError(CODE.InternalError, 'Routine not found');
-        if (!userId) return { ...routine, isUpvoted: false, isStarred: false };
+        if (!userId) return { ...format.toGraphQL(routine), isUpvoted: false, isStarred: false };
         const vote = await prisma.vote.findFirst({ where: { userId, routineId: routine.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
         const star = await prisma.star.findFirst({ where: { byId: userId, routineId: routine.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...routine, isUpvoted, isStarred };
+        return { ...format.toGraphQL(routine), isUpvoted, isStarred };
     },
     async searchRoutines(
         where: { [x: string]: any },
@@ -95,10 +43,10 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         // Create where clauses
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
-        const parentIdQuery = input.parentId ? { forks: { some: { forkId: input.parentId } } } : {};
+        const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         // Search
-        const search = searcher<RoutineSortBy, RoutineSearchInput, Routine, RoutineDB>(MODEL_TYPES.Routine, format.toDB, format.toGraphQL, sort, prisma);
+        const search = searcher<RoutineSortBy, RoutineSearchInput, Routine, routine>(MODEL_TYPES.Routine, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where }, input, info);
         // Compute "isUpvoted" and "isStarred" field for each routine
         // If userId not provided, then "isUpvoted" is null and "isStarred" is false
@@ -124,18 +72,19 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         userId: string,
         input: RoutineAddInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Routine>> {
         // Check for valid arguments
         routineAdd.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Create routine data
         let routineData: { [x: string]: any } = {
-            name: input.title,
             description: input.description,
+            name: input.title,
             instructions: input.instructions,
-            version: input.version,
             isAutomatable: input.isAutomatable,
+            parentId: input.parentId,
+            version: input.version,
         };
         // Associate with either organization or user
         if (input.createdByOrganizationId) {
@@ -156,35 +105,38 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         }
         // TODO inputs
         // TODO outputs
+        // Handle nodes TODO
         // Handle contextual/external resources
         const resourceContextualData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesContextualAdd }, true);
         if (resourceContextualData) routineData.contextualResources = resourceContextualData;
         const resourceExternalData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesExternalAdd }, true);
         if (resourceExternalData) routineData.externalResources = resourceExternalData;
+        // Handle tags TODO
         // Create routine
         const routine = await prisma.routine.create({
             data: routineData as any,
-            ...selectHelper<Routine, RoutineDB>(info, format.toDB)
+            ...selectHelper<Routine, routine>(info, format.toDB)
         })
         // Return routine with "isUpvoted" and "isStarred" fields. These will be their default values.
-        return { ...routine, isUpvoted: null, isStarred: false };
+        return { ...format.toGraphQL(routine), isUpvoted: null, isStarred: false };
     },
     async updateRoutine(
         userId: string,
         input: RoutineUpdateInput,
         info: InfoType = null,
-    ): Promise<any> {
+    ): Promise<RecursivePartial<Routine>> {
         // Check for valid arguments
         routineUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Create routine data
         let routineData: { [x: string]: any } = {
-            name: input.title,
             description: input.description,
+            name: input.title,
             instructions: input.instructions,
-            version: input.version,
             isAutomatable: input.isAutomatable,
+            parentId: input.parentId,
+            version: input.version,
         };
         // Associate with either organization or user. This will remove the association with the other.
         if (input.organizationId) {
@@ -197,11 +149,13 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         }
         // TODO inputs
         // TODO outputs
+        // Handle nodes TODO
         // Handle contextual/external resources
         const resourceContextualData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesContextualAdd }, false);
         if (resourceContextualData) routineData.contextualResources = resourceContextualData;
         const resourceExternalData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesExternalAdd }, false);
         if (resourceExternalData) routineData.externalResources = resourceExternalData;
+        // Handle tags TODO
         // Find routine
         let routine = await prisma.routine.findFirst({
             where: {
@@ -221,14 +175,14 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
         routine = await prisma.routine.update({
             where: { id: routine.id },
             data: routine as any,
-            ...selectHelper<Routine, RoutineDB>(info, format.toDB)
+            ...selectHelper<Routine, routine>(info, format.toDB)
         });
         // Return routine with "isUpvoted" and "isStarred" field. These must be queried separately.
         const vote = await prisma.vote.findFirst({ where: { userId, routineId: routine.id } });
         const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
         const star = await prisma.star.findFirst({ where: { byId: userId, routineId: routine.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...routine, isUpvoted, isStarred };
+        return { ...format.toGraphQL(routine), isUpvoted, isStarred };
     },
     async deleteRoutine(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
@@ -258,17 +212,13 @@ const routiner = (format: FormatConverter<Routine, RoutineDB>, sort: Sortable<Ro
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Routine, RoutineDB> => {
+const formatter = (): FormatConverter<Routine, routine> => {
     const joinMapper = {
-        contextualResources: 'resource',
-        externalResources: 'resource',
         tags: 'tag',
         starredBy: 'user',
-        forks: 'fork',
-        nodeLists: 'list',
     };
     return {
-        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<RoutineDB> => {
+        toDB: (obj: RecursivePartial<Routine>): RecursivePartial<routine> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = removeCreatorField(modified);
             modified = removeOwnerField(modified);
@@ -277,7 +227,7 @@ const formatter = (): FormatConverter<Routine, RoutineDB> => {
             if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
-        toGraphQL: (obj: RecursivePartial<RoutineDB>): RecursivePartial<Routine> => {
+        toGraphQL: (obj: RecursivePartial<routine>): RecursivePartial<Routine> => {
             let modified = removeJoinTables(obj, joinMapper);
             modified = addCreatorField(modified);
             modified = addOwnerField(modified);
@@ -341,8 +291,6 @@ export function RoutineModel(prisma: PrismaType) {
         ...format,
         ...sort,
         ...counter<RoutineCountInput>(model, prisma),
-        ...deleter(model, prisma),
-        ...routineCreater(format.toDB, prisma),
         ...routiner(format, sort, prisma),
     }
 }

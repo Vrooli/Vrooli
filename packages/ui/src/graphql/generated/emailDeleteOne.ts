@@ -6,18 +6,18 @@
 import { DeleteOneInput } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: commentDeleteOne
+// GraphQL mutation operation: emailDeleteOne
 // ====================================================
 
-export interface commentDeleteOne_commentDeleteOne {
+export interface emailDeleteOne_emailDeleteOne {
   __typename: "Success";
   success: boolean | null;
 }
 
-export interface commentDeleteOne {
-  commentDeleteOne: commentDeleteOne_commentDeleteOne;
+export interface emailDeleteOne {
+  emailDeleteOne: emailDeleteOne_emailDeleteOne;
 }
 
-export interface commentDeleteOneVariables {
+export interface emailDeleteOneVariables {
   input: DeleteOneInput;
 }

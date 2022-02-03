@@ -130,7 +130,7 @@ export const resolvers = {
     Mutation: {
         resourceAdd: async (_parent: undefined, { input }: IWrap<ResourceAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
             const created = await ResourceModel(prisma).addResource(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
@@ -138,7 +138,7 @@ export const resolvers = {
         },
         resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
             const updated = await ResourceModel(prisma).updateResource(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
@@ -146,7 +146,7 @@ export const resolvers = {
         },
         resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             return await ResourceModel(prisma).deleteResources(req.userId, input);
         },
     }

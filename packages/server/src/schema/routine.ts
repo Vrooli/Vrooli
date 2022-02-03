@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, RoutineSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineAddInput, RoutineUpdateInput, RoutineSearchInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineAddInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { RoutineModel } from '../models';
@@ -204,7 +204,7 @@ export const resolvers = {
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
-        routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
+        routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
             const data = await RoutineModel(prisma).searchRoutines({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
@@ -217,7 +217,7 @@ export const resolvers = {
     Mutation: {
         routineAdd: async (_parent: undefined, { input }: IWrap<RoutineAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
             const created = await RoutineModel(prisma).addRoutine(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
@@ -225,7 +225,7 @@ export const resolvers = {
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
             const updated = await RoutineModel(prisma).updateRoutine(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
@@ -233,7 +233,7 @@ export const resolvers = {
         },
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             return await RoutineModel(prisma).deleteRoutine(req.userId, input);
         },
     }

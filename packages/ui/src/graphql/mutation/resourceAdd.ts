@@ -3,7 +3,7 @@ import { resourceFields } from 'graphql/fragment';
 
 export const resourceAddMutation = gql`
     ${resourceFields}
-    mutation resourceAdd($input: ResourceInput!) {
+    mutation resourceAdd($input: ResourceAddInput!) {
         resourceAdd(input: $input) {
             ...resourceFields
         }

@@ -2,18 +2,22 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteManyInput, Email, EmailInput } from './types';
+import { DeleteOneInput, Email, EmailAddInput, EmailUpdateInput, Success } from './types';
 import { Context } from '../context';
-import { emailFormatter, EmailModel } from '../models';
+import { EmailModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
-    input EmailInput {
-        id: ID
+
+    input EmailAddInput {
         emailAddress: String!
         receivesAccountUpdates: Boolean
         receivesBusinessUpdates: Boolean
-        userId: ID
+    }
+    input EmailUpdateInput {
+        id: ID!
+        receivesAccountUpdates: Boolean
+        receivesBusinessUpdates: Boolean
     }
 
     type Email {
@@ -27,9 +31,9 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        emailAdd(input: EmailInput!): Email!
-        emailUpdate(input: EmailInput!): Email!
-        emailDeleteMany(input: DeleteManyInput!): Count!
+        emailAdd(input: EmailAddInput!): Email!
+        emailUpdate(input: EmailUpdateInput!): Email!
+        emailDeleteOne(input: DeleteOneInput!): Success!
     }
 `
 
@@ -38,36 +42,30 @@ export const resolvers = {
         /**
          * Associate a new email address to your account.
          */
-        emailAdd: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            // Must be adding to your own
-            if(req.userId !== input.userId) throw new CustomError(CODE.Unauthorized);
+        emailAdd: async (_parent: undefined, { input }: IWrap<EmailAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
+            // Must be logged in with an account
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const dbModel = await EmailModel(prisma).create(input, info);
-            // Format object to GraphQL type
-            return emailFormatter().toGraphQL(dbModel);
+            const created = await EmailModel(prisma).addEmail(req.userId, input, info);
+            if (!created) throw new CustomError(CODE.ErrorUnknown);
+            return created;
         },
         /**
          * Update an existing email address that is associated with your account.
          */
-        emailUpdate: async (_parent: undefined, { input }: IWrap<EmailInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            if (!input.id) throw new CustomError(CODE.InvalidArgs, 'Email ID is required');
-            // Find the email object in the database
-            const curr = await prisma.email.findUnique({ where: { id: input.id }, select: { userId: true } });
-            // Validate that the email belongs to the user
-            if (curr === null || req.userId !== curr.userId) throw new CustomError(CODE.Unauthorized);
+        emailUpdate: async (_parent: undefined, { input }: IWrap<EmailUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
+            // Must be logged in with an account
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const dbModel = await EmailModel(prisma).update(input, info);
-            // Format to GraphQL type
-            return emailFormatter().toGraphQL(dbModel);
+            const updated = await EmailModel(prisma).updateEmail(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
         },
-        emailDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
-            // Must deleting your own
-            // TODO must keep at least one email per user
-            const specified = await prisma.email.findMany({ where: { id: { in: input.ids } } });
-            if (!specified) throw new CustomError(CODE.ErrorUnknown);
-            const userIds = [...new Set(specified.map((s: any) => s.userId))];
-            if (userIds.length > 1 || req.userId !== userIds[0]) throw new CustomError(CODE.Unauthorized);
-            return await prisma.email.deleteMany({ where: { id: { in: input.ids } } });
+        emailDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
+            // Must be logged in with an account
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
+            // Delete object
+            return await EmailModel(prisma).deleteEmail(req.userId, input);
         }
     }
 }

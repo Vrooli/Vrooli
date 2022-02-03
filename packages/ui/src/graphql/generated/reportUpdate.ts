@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ReportInput } from "./globalTypes";
+import { ReportUpdateInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: reportUpdate
@@ -21,5 +21,5 @@ export interface reportUpdate {
 }
 
 export interface reportUpdateVariables {
-  input: ReportInput;
+  input: ReportUpdateInput;
 }

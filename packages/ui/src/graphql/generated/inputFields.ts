@@ -29,7 +29,7 @@ export interface inputFields_standard {
 }
 
 export interface inputFields {
-  __typename: "RoutineInputItem";
+  __typename: "InputItem";
   id: string;
-  standard: inputFields_standard;
+  standard: inputFields_standard | null;
 }

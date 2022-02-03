@@ -21,9 +21,12 @@
  */
 
 export * from './base';
+export * from './comment';
+export * from './email';
 export * from './node';
 export * from './organization';
 export * from './project';
+export * from './report';
 export * from './resource';
 export * from './routine';
 export * from './standard';

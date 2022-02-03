@@ -15,7 +15,7 @@ export interface resource_resource {
   title: string;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor;
+  usedFor: ResourceUsedFor | null;
 }
 
 export interface resource {

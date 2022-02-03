@@ -30,7 +30,7 @@ export const nodeFields = gql`
             ... on NodeCombine {
                 id
                 from
-                to
+                toId
             }
             ... on NodeDecision {
                 id

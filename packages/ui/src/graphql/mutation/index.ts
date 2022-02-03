@@ -2,7 +2,7 @@ export * from './commentAdd';
 export * from './commentDeleteOne';
 export * from './commentUpdate';
 export * from './emailAdd';
-export * from './emailDeleteMany';
+export * from './emailDeleteOne';
 export * from './emailLogIn';
 export * from './emailRequestPasswordChange';
 export * from './emailResetPassword';

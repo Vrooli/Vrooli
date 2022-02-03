@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ResourceInput, ResourceUsedFor } from "./globalTypes";
+import { ResourceUpdateInput, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: resourceUpdate
@@ -15,7 +15,7 @@ export interface resourceUpdate_resourceUpdate {
   title: string;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor;
+  usedFor: ResourceUsedFor | null;
 }
 
 export interface resourceUpdate {
@@ -23,5 +23,5 @@ export interface resourceUpdate {
 }
 
 export interface resourceUpdateVariables {
-  input: ResourceInput;
+  input: ResourceUpdateInput;
 }

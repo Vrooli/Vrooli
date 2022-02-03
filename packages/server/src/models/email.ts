@@ -1,38 +1,120 @@
-import { Email, EmailInput } from "schema/types";
-import { PrismaType } from "types";
-import { creater, deleter, FormatConverter, MODEL_TYPES, updater } from "./base";
-
-//======================================================================================================================
-/* #region Type Definitions */
-//======================================================================================================================
-
-// Type 1. RelationshipList
-export type EmailRelationshipList = 'user';
-// Type 2. QueryablePrimitives
-export type EmailQueryablePrimitives = Omit<Email, EmailRelationshipList>;
-// Type 3. AllPrimitives
-export type EmailAllPrimitives = EmailQueryablePrimitives & {
-    verificationCode: string | null;
-    lastVerificationCodeRequestAttempt: Date | null;
-}
-// type 4. Database shape
-export type EmailDB = EmailAllPrimitives &
-Pick<Email, 'user'>;
-
-//======================================================================================================================
-/* #endregion Type Definitions */
-//======================================================================================================================
+import { CODE, emailAdd, emailUpdate } from "@local/shared";
+import { CustomError } from "../error";
+import { GraphQLResolveInfo } from "graphql";
+import { DeleteOneInput, Email, EmailAddInput, EmailUpdateInput, Success } from "../schema/types";
+import { PrismaType, RecursivePartial } from "types";
+import { MODEL_TYPES } from "./base";
+import bcrypt from 'bcrypt';
+import { sendVerificationLink } from "../worker/email/queue";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
 /**
- * Component for formatting between graphql and prisma types
+ * Handles the authorized adding, updating, and deleting of emails.
+ * A user can only add/update/delete their own email, and must leave at least
+ * one authentication method (either an email or wallet).
  */
- export const emailFormatter = (): FormatConverter<any, any>  => ({
-    toDB: (obj: any): any => ({ ...obj}),
-    toGraphQL: (obj: any): any => ({ ...obj })
+ const emailer = (prisma: PrismaType) => ({
+    /**
+    * Sends a verification email to the user's email address.
+    */
+    async setupVerificationCode(emailAddress: string): Promise<void> {
+        // Generate new code
+        const verificationCode = bcrypt.genSaltSync(8).replace('/', '')
+        // Store code and request time in email row
+        const email = await prisma.email.update({
+            where: { emailAddress },
+            data: { verificationCode, lastVerificationCodeRequestAttempt: new Date().toISOString() },
+            select: { userId: true }
+        })
+        // If email is not associated with a user, throw error
+        if (!email.userId) throw new CustomError(CODE.ErrorUnknown, 'Email not associated with a user');
+        // Send new verification email
+        sendVerificationLink(emailAddress, email.userId, verificationCode);
+        // TODO send email to existing emails from user, warning of new email
+    },
+    async addEmail(
+        userId: string,
+        input: EmailAddInput,
+        info: GraphQLResolveInfo | null = null,
+    ): Promise<RecursivePartial<Email>> {
+        // Check for valid arguments
+        emailAdd.validateSync(input, { abortEarly: false });
+        // Check for existing email
+        const existing = await prisma.email.findUnique({ where: { emailAddress: input.emailAddress } });
+        if (existing) throw new CustomError(CODE.EmailInUse)
+        // Add email
+        let email = await prisma.email.create({
+            data: {
+                userId,
+                ...input
+            } as any,
+        });
+        // Send verification email
+        await this.setupVerificationCode(email.emailAddress);
+        // Return email
+        return email;
+    },
+    async updateEmail(
+        userId: string,
+        input: EmailUpdateInput,
+        info: GraphQLResolveInfo | null = null,
+    ): Promise<RecursivePartial<Email>> {
+        // Check for valid arguments
+        emailUpdate.validateSync(input, { abortEarly: false });
+        // Find email
+        let email = await prisma.email.findFirst({
+            where: {
+                AND: [
+                    { id: input.id },
+                    { userId },
+                ]
+            }
+        })
+        if (!email) throw new CustomError(CODE.NotFound, "Email not found");
+        // Update email
+        email = await prisma.email.update({
+            where: { id: email.id },
+            data: info as any,
+        });
+        // Return email
+        return email;
+    },
+    async deleteEmail(userId: string, input: DeleteOneInput): Promise<Success> {
+        // Find
+        const email = await prisma.email.findFirst({
+            where: {
+                AND: [
+                    { id: input.id },
+                    { userId },
+                ]
+            }
+        })
+        if (!email) throw new CustomError(CODE.NotFound, "Email not found");
+        // Check if user has at least one verified authentication method, besides the one being deleted
+        const verifiedEmailsCount = await prisma.email.count({
+            where: { 
+                userId,
+                verified: true,
+            }
+        })
+        const verifiedWalletsCount = await prisma.wallet.count({
+            where: {
+                userId,
+                verified: true,
+            }
+        })
+        const wontHaveVerifiedEmail = email.verified ? verifiedEmailsCount <= 1 : verifiedEmailsCount <= 0;
+        const wontHaveVerifiedWallet = verifiedWalletsCount <= 0;
+        if (wontHaveVerifiedEmail || wontHaveVerifiedWallet) throw new CustomError(CODE.InternalError, "Must leave at least one verified authentication method");
+        // Delete
+        await prisma.email.delete({
+            where: { id: email.id },
+        });
+        return { success: true };
+    }
 })
 
 //==============================================================
@@ -45,15 +127,11 @@ Pick<Email, 'user'>;
 
 export function EmailModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Email;
-    const format = emailFormatter();
     
     return {
         prisma,
         model,
-        ...format,
-        ...creater<EmailInput, Email, EmailDB>(model, format.toDB, prisma),
-        ...updater<EmailInput, Email, EmailDB>(model, format.toDB, prisma),
-        ...deleter(model, prisma)
+        ...emailer(prisma),
     }
 }
 

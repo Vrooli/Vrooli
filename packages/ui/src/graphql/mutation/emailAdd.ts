@@ -3,7 +3,7 @@ import { emailFields } from 'graphql/fragment';
 
 export const emailAddMutation = gql`
     ${emailFields}
-    mutation emailAdd($input: EmailInput!) {
+    mutation emailAdd($input: EmailAddInput!) {
         emailAdd(input: $input) {
             ...emailFields
         }

@@ -140,7 +140,7 @@ export const resolvers = {
     Mutation: {
         organizationAdd: async (_parent: undefined, { input }: IWrap<OrganizationAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
             const created = await OrganizationModel(prisma).addOrganization(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
@@ -148,7 +148,7 @@ export const resolvers = {
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
             const updated = await OrganizationModel(prisma).updateOrganization(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
@@ -156,7 +156,7 @@ export const resolvers = {
         },
         organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             return await OrganizationModel(prisma).deleteOrganization(req.userId, input);
         },
     }

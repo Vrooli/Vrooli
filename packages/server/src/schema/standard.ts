@@ -3,7 +3,7 @@ import { CODE, StandardSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardAddInput, StandardUpdateInput, StandardSearchInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardAddInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
@@ -135,7 +135,7 @@ export const resolvers = {
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
-        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
+        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
             const data = await StandardModel(prisma).searchStandards({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
@@ -152,7 +152,7 @@ export const resolvers = {
          */
         standardAdd: async (_parent: undefined, { input }: IWrap<StandardAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
             const created = await StandardModel(prisma).addStandard(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
@@ -167,7 +167,7 @@ export const resolvers = {
          */
         standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
             const updated = await StandardModel(prisma).updateStandard(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
@@ -179,7 +179,7 @@ export const resolvers = {
          */
         standardDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             return await StandardModel(prisma).deleteStandard(req.userId, input);
         },
     }

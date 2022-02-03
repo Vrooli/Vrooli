@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationInput } from "./globalTypes";
+import { OrganizationAddInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: organizationAdd
@@ -35,5 +35,5 @@ export interface organizationAdd {
 }
 
 export interface organizationAddVariables {
-  input: OrganizationInput;
+  input: OrganizationAddInput;
 }

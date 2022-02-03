@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { CommentInput } from "./globalTypes";
+import { CommentAddInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: commentAdd
@@ -61,5 +61,5 @@ export interface commentAdd {
 }
 
 export interface commentAddVariables {
-  input: CommentInput;
+  input: CommentAddInput;
 }

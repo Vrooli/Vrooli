@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, CommentFor } from '@local/shared';
 import { CustomError } from '../error';
-import { Comment, CommentInput, DeleteOneInput, Success } from './types';
+import { Comment, CommentAddInput, CommentUpdateInput, DeleteOneInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
 import { CommentModel } from '../models';
 import { Context } from '../context';
@@ -16,11 +16,14 @@ export const typeDef = gql`
         User
     }   
 
-    input CommentInput {
-        id: ID
-        text: String
+    input CommentAddInput {
+        text: String!
         createdFor: CommentFor!
         forId: ID!
+    }
+    input CommentUpdateInput {
+        id: ID!
+        text: String
     }
 
     union CommentedOn = Project | Routine | Standard
@@ -40,33 +43,27 @@ export const typeDef = gql`
         isUpvoted: Boolean
     }
 
-    input DeleteCommentInput {
-        id: ID!
-        createdFor: CommentFor!
-        forId: ID!
-    }
-
     extend type Mutation {
-        commentAdd(input: CommentInput!): Comment!
-        commentUpdate(input: CommentInput!): Comment!
-        commentDeleteOne(input: DeleteCommentInput!): Success!
+        commentAdd(input: CommentAddInput!): Comment!
+        commentUpdate(input: CommentUpdateInput!): Comment!
+        commentDeleteOne(input: DeleteOneInput!): Success!
     }
 `
 
 export const resolvers = {
     CommentFor: CommentFor,
     Mutation: {
-        commentAdd: async (_parent: undefined, { input }: IWrap<CommentInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
+        commentAdd: async (_parent: undefined, { input }: IWrap<CommentAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
             const created = await CommentModel(prisma).addComment(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
-        commentUpdate: async (_parent: undefined, { input }: IWrap<CommentInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
+        commentUpdate: async (_parent: undefined, { input }: IWrap<CommentUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
             const updated = await CommentModel(prisma).updateComment(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
@@ -74,7 +71,7 @@ export const resolvers = {
         },
         commentDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
-            if (!req.isLoggedIn || !req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Delete object
             return await CommentModel(prisma).deleteComment(req.userId, input);
         },

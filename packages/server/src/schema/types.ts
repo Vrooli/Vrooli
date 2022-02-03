@@ -53,6 +53,12 @@ export type Comment = {
   updated_at: Scalars['Date'];
 };
 
+export type CommentAddInput = {
+  createdFor: CommentFor;
+  forId: Scalars['ID'];
+  text: Scalars['String'];
+};
+
 export enum CommentFor {
   Organization = 'Organization',
   Project = 'Project',
@@ -61,10 +67,8 @@ export enum CommentFor {
   User = 'User'
 }
 
-export type CommentInput = {
-  createdFor: CommentFor;
-  forId: Scalars['ID'];
-  id?: InputMaybe<Scalars['ID']>;
+export type CommentUpdateInput = {
+  id: Scalars['ID'];
   text?: InputMaybe<Scalars['String']>;
 };
 
@@ -75,12 +79,6 @@ export type Contributor = Organization | User;
 export type Count = {
   __typename?: 'Count';
   count?: Maybe<Scalars['Int']>;
-};
-
-export type DeleteCommentInput = {
-  createdFor: CommentFor;
-  forId: Scalars['ID'];
-  id: Scalars['ID'];
 };
 
 export type DeleteManyInput = {
@@ -102,12 +100,10 @@ export type Email = {
   verified: Scalars['Boolean'];
 };
 
-export type EmailInput = {
+export type EmailAddInput = {
   emailAddress: Scalars['String'];
-  id?: InputMaybe<Scalars['ID']>;
   receivesAccountUpdates?: InputMaybe<Scalars['Boolean']>;
   receivesBusinessUpdates?: InputMaybe<Scalars['Boolean']>;
-  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export type EmailLogInInput = {
@@ -133,6 +129,12 @@ export type EmailSignUpInput = {
   password: Scalars['String'];
   theme: Scalars['String'];
   username: Scalars['String'];
+};
+
+export type EmailUpdateInput = {
+  id: Scalars['ID'];
+  receivesAccountUpdates?: InputMaybe<Scalars['Boolean']>;
+  receivesBusinessUpdates?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type FeedbackInput = {
@@ -189,7 +191,7 @@ export type Mutation = {
   commentDeleteOne: Success;
   commentUpdate: Comment;
   emailAdd: Email;
-  emailDeleteMany: Count;
+  emailDeleteOne: Success;
   emailLogIn: Session;
   emailRequestPasswordChange: Success;
   emailResetPassword: Session;
@@ -236,27 +238,27 @@ export type Mutation = {
 
 
 export type MutationCommentAddArgs = {
-  input: CommentInput;
+  input: CommentAddInput;
 };
 
 
 export type MutationCommentDeleteOneArgs = {
-  input: DeleteCommentInput;
+  input: DeleteOneInput;
 };
 
 
 export type MutationCommentUpdateArgs = {
-  input: CommentInput;
+  input: CommentUpdateInput;
 };
 
 
 export type MutationEmailAddArgs = {
-  input: EmailInput;
+  input: EmailAddInput;
 };
 
 
-export type MutationEmailDeleteManyArgs = {
-  input: DeleteManyInput;
+export type MutationEmailDeleteOneArgs = {
+  input: DeleteOneInput;
 };
 
 
@@ -281,7 +283,7 @@ export type MutationEmailSignUpArgs = {
 
 
 export type MutationEmailUpdateArgs = {
-  input: EmailInput;
+  input: EmailUpdateInput;
 };
 
 
@@ -341,7 +343,7 @@ export type MutationProjectUpdateArgs = {
 
 
 export type MutationReportAddArgs = {
-  input: ReportInput;
+  input: ReportAddInput;
 };
 
 
@@ -351,7 +353,7 @@ export type MutationReportDeleteOneArgs = {
 
 
 export type MutationReportUpdateArgs = {
-  input: ReportInput;
+  input: ReportUpdateInput;
 };
 
 
@@ -730,10 +732,8 @@ export type Organization = {
 
 export type OrganizationAddInput = {
   bio?: InputMaybe<Scalars['String']>;
-  membersConnect?: InputMaybe<Array<Scalars['ID']>>;
   name: Scalars['String'];
   resourcesAdd?: InputMaybe<Array<ResourceAddInput>>;
-  resourcesConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
 };
@@ -782,15 +782,13 @@ export enum OrganizationSortBy {
 }
 
 export type OrganizationUpdateInput = {
-    id?: InputMaybe<Scalars['ID']>;
   bio?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
   membersConnect?: InputMaybe<Array<Scalars['ID']>>;
   membersDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   name?: InputMaybe<Scalars['String']>;
   resourcesAdd?: InputMaybe<Array<ResourceAddInput>>;
-  resourcesConnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -837,6 +835,7 @@ export type Profile = {
   emails: Array<Email>;
   id: Scalars['ID'];
   projects: Array<Project>;
+  projectsCreated: Array<Project>;
   reports: Array<Report>;
   resources: Array<Resource>;
   roles: Array<Role>;
@@ -844,13 +843,7 @@ export type Profile = {
   routinesCreated: Array<Routine>;
   sentReports: Array<Report>;
   starredBy: Array<User>;
-  starredComments: Array<Comment>;
-  starredOrganizations: Array<Organization>;
-  starredProjects: Array<Project>;
-  starredRoutines: Array<Routine>;
-  starredStandards: Array<Standard>;
-  starredTags: Array<Tag>;
-  starredUsers: Array<User>;
+  stars: Array<Stars>;
   status: AccountStatus;
   theme: Scalars['String'];
   updated_at: Scalars['Date'];
@@ -861,7 +854,7 @@ export type Profile = {
 export type ProfileUpdateInput = {
   bio?: InputMaybe<Scalars['String']>;
   currentPassword: Scalars['String'];
-  emails?: InputMaybe<Array<EmailInput>>;
+  emails?: InputMaybe<Array<EmailUpdateInput>>;
   newPassword?: InputMaybe<Scalars['String']>;
   theme?: InputMaybe<Scalars['String']>;
   username?: InputMaybe<Scalars['String']>;
@@ -898,7 +891,6 @@ export type ProjectAddInput = {
   name: Scalars['String'];
   parentId?: InputMaybe<Scalars['ID']>;
   resourcesAdd?: InputMaybe<Array<ResourceAddInput>>;
-  resourcesConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
 };
@@ -958,9 +950,7 @@ export type ProjectUpdateInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   resourcesAdd?: InputMaybe<Array<ResourceAddInput>>;
-  resourcesConnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1135,6 +1125,13 @@ export type Report = {
   reason: Scalars['String'];
 };
 
+export type ReportAddInput = {
+  createdFor: ReportFor;
+  createdForId: Scalars['ID'];
+  details?: InputMaybe<Scalars['String']>;
+  reason: Scalars['String'];
+};
+
 export enum ReportFor {
   Comment = 'Comment',
   Organization = 'Organization',
@@ -1145,12 +1142,10 @@ export enum ReportFor {
   User = 'User'
 }
 
-export type ReportInput = {
-  createdFor: ReportFor;
+export type ReportUpdateInput = {
   details?: InputMaybe<Scalars['String']>;
-  forId: Scalars['ID'];
-  id?: InputMaybe<Scalars['ID']>;
-  reason: Scalars['String'];
+  id: Scalars['ID'];
+  reason?: InputMaybe<Scalars['String']>;
 };
 
 export type Resource = {
@@ -1299,9 +1294,7 @@ export type RoutineAddInput = {
   outputsAdd?: InputMaybe<Array<OutputItemAddInput>>;
   parentId?: InputMaybe<Scalars['ID']>;
   resourcesContextualAdd?: InputMaybe<Array<ResourceAddInput>>;
-  resourcesContextualConnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesExternalAdd?: InputMaybe<Array<ResourceAddInput>>;
-  resourcesExternalConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   title: Scalars['String'];
@@ -1375,14 +1368,10 @@ export type RoutineUpdateInput = {
   outputsUpdate?: InputMaybe<Array<OutputItemUpdateInput>>;
   parentId?: InputMaybe<Scalars['ID']>;
   resourcesContextualAdd?: InputMaybe<Array<ResourceAddInput>>;
-  resourcesContextualConnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesContextualDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesContextualDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesContextualUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   resourcesExternalAdd?: InputMaybe<Array<ResourceAddInput>>;
-  resourcesExternalConnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesExternalDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesExternalDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesExternalUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1521,6 +1510,8 @@ export type StarInput = {
   isStar: Scalars['Boolean'];
   starFor: StarFor;
 };
+
+export type Stars = Comment | Organization | Project | Routine | Standard | Tag;
 
 export type StatisticsResult = {
   __typename?: 'StatisticsResult';
