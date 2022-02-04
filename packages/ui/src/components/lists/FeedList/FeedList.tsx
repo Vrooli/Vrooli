@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { Box, Link, List, Tooltip, Typography } from '@mui/material';
+import { Box, Link, List, Stack, Tooltip, Typography } from '@mui/material';
 import { FeedListProps } from '../types';
 import { clickSize, containerShadow } from 'styles';
 import { useCallback } from 'react';
@@ -13,11 +13,11 @@ export function FeedList({
 
     return (
         <Box
+            onClick={handleSeeMoreClick}
             sx={{
                 ...containerShadow,
                 borderRadius: '8px',
                 background: (t) => t.palette.background.default,
-                minHeight: 'min(300px, 25vh)',
                 transition: 'scale filter 1s scale 1s ease-in-out',
                 cursor: 'pointer',
                 '&:hover': {
@@ -26,8 +26,8 @@ export function FeedList({
                 },
             }}
         >
-            <Box sx={{ 
-                background: (t) => t.palette.primary.dark, 
+            <Box sx={{
+                background: (t) => t.palette.primary.dark,
                 color: (t) => t.palette.primary.contrastText,
                 borderRadius: '8px 8px 0 0',
                 padding: 0.5,
@@ -35,8 +35,8 @@ export function FeedList({
                 <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>
             </Box>
             <Tooltip placement="bottom" title="Press to see more">
-                <Box>
-                    <List>
+                <Stack direction="column">
+                    <List sx={{ minHeight: 'min(300px, 25vh)'}}>
                         {children}
                     </List>
                     <Link onClick={handleSeeMoreClick}>
@@ -47,13 +47,14 @@ export function FeedList({
                                 display: 'flex',
                                 alignItems: 'center',
                                 flexDirection: 'row-reverse',
-                                marginRight: 1,
+                                marginRight: 2,
+                                marginBottom: 1,
                             }}
                         >
                             See more results
                         </Typography>
                     </Link>
-                </Box>
+                </Stack>
             </Tooltip>
         </Box>
     )

@@ -27,9 +27,11 @@ export const AutocompleteSearchBar = ({
 
     const handleChange = useCallback((event: ChangeEvent<any>) => {
         const { value } = event.target;
+        console.log('handleChange', value);
         setInternalValue(value);
         onChangeDebounced(value);
     }, [onChangeDebounced]);
+
     return (
         <Autocomplete
             disablePortal
@@ -37,6 +39,7 @@ export const AutocompleteSearchBar = ({
             sx={sx}
             options={options}
             getOptionLabel={getOptionLabel}
+            inputValue={internalValue}
             onInputChange={onInputChange}
             renderInput={(params) => (
                 // <SearchBar TODO doesn't work for some reason

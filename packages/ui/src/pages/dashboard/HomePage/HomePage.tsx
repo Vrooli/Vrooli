@@ -5,11 +5,12 @@ import { autocomplete, autocompleteVariables } from 'graphql/generated/autocompl
 import { useQuery } from '@apollo/client';
 import { autocompleteQuery } from 'graphql/query';
 import { ActorListItem, FeedList, OrganizationListItem, ProjectListItem, RoutineListItem, AutocompleteSearchBar, StandardListItem } from 'components';
-import { useLocation } from 'wouter';
+import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import faqMarkdown from './faq.md';
+import { parseSearchParams } from 'utils/urlTools';
 
 const ObjectType = {
     Organization: 'Organization',
@@ -19,12 +20,12 @@ const ObjectType = {
     User: 'User',
 }
 
-const linkMap = {
-    [ObjectType.Organization]: APP_LINKS.SearchOrganizations,
-    [ObjectType.Project]: APP_LINKS.SearchProjects,
-    [ObjectType.Routine]: APP_LINKS.SearchRoutines,
-    [ObjectType.Standard]: APP_LINKS.SearchStandards,
-    [ObjectType.User]: APP_LINKS.SearchUsers,
+const linkMap: { [x: string]: [string, string] } = {
+    [ObjectType.Organization]: [APP_LINKS.SearchOrganizations, APP_LINKS.Organization],
+    [ObjectType.Project]: [APP_LINKS.SearchProjects, APP_LINKS.Project],
+    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Routine],
+    [ObjectType.Standard]: [APP_LINKS.SearchStandards, APP_LINKS.Standard],
+    [ObjectType.User]: [APP_LINKS.SearchUsers, APP_LINKS.Profile],
 }
 
 /**
@@ -38,12 +39,24 @@ export const HomePage = ({
     session
 }: HomePageProps) => {
     const [, setLocation] = useLocation();
-    const [searchString, setSearchString] = useState<string>('');
+    const [searchString, setSearchString] = useState<string>(() => {
+        const { search } = parseSearchParams(window.location.search);
+        console.log('in calculate search string', search);
+        return search ?? '';
+    });
     const updateSearch = useCallback((newValue: any) => { console.log('update search'); setSearchString(newValue) }, []);
     // Search query removes words that start with a '!'. These are used for sorting results. TODO doesn't work
     const { data, refetch } = useQuery<autocomplete, autocompleteVariables>(autocompleteQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
     useEffect(() => { console.log('refetching...', session); refetch() }, [refetch, searchString]);
+
+    // useEffect(() => {
+    //     console.log('tttttttttt', parseSearchParams(window.location.search))
+    //     const urlSearch = parseSearchParams(window.location.search);
+    //     if (urlSearch.search) {
+    //         setSearchString(urlSearch.search);
+    //     }
+    // }, [])
 
     const { routines, projects, organizations, standards, users } = useMemo(() => {
         if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
@@ -70,6 +83,8 @@ export const HomePage = ({
     const onInputSelect = useCallback((_e: any, newValue: any) => {
         console.log('onInputSelect', newValue);
         if (!newValue) return;
+        // Replace current state with search string, so that search is not lost
+        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
         // Determine object from selected label
         const selectedItem = autocompleteOptions.find(o => `${o.title} | ${o.objectType}` === newValue);
         if (!selectedItem) return;
@@ -84,10 +99,12 @@ export const HomePage = ({
     }, [searchString]);
 
     // Opens correct search page
-    const openSearch = useCallback((linkBase: string, id?: string) => {
-        setLocation(linkBase);
-        if (id) setLocation(`${linkBase}/${id}`);
-    }, [])
+    const openSearch = useCallback((linkBases: [string, string], id?: string) => {
+        // Replace current state with search string, so that search is not lost
+        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
+        console.log('heeeeeee', id ? `${linkBases[1]}/${id}` : linkBases[0])
+        setLocation(id ? `${linkBases[1]}/${id}` : linkBases[0]);
+    }, [searchString, setLocation]);
 
     /**
      * Determine the order that the feed lists should be displayed in.
@@ -127,15 +144,17 @@ export const HomePage = ({
                     ))
                     break;
                 case ObjectType.Project:
-                    listFeedItems = projects.map(o => {console.log('p', o); return (
-                        <ProjectListItem
-                            key={`feed-list-item-${o.id}`}
-                            session={session}
-                            data={o}
-                            isOwn={false}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
-                        />
-                    )})
+                    listFeedItems = projects.map(o => {
+                        console.log('p', o); return (
+                            <ProjectListItem
+                                key={`feed-list-item-${o.id}`}
+                                session={session}
+                                data={o}
+                                isOwn={false}
+                                onClick={() => openSearch(linkMap[objectType], o.id)}
+                            />
+                        )
+                    })
                     break;
                 case ObjectType.Routine:
                     listFeedItems = routines.map(o => (
@@ -161,11 +180,11 @@ export const HomePage = ({
                     break;
                 case ObjectType.User:
                     listFeedItems = users.map(o => (
-                        <ActorListItem 
-                            key={`feed-list-item-${o.id}`} 
-                            session={session} 
-                            data={o} 
-                            isOwn={false} 
+                        <ActorListItem
+                            key={`feed-list-item-${o.id}`}
+                            session={session}
+                            data={o}
+                            isOwn={false}
                             onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))
@@ -175,7 +194,7 @@ export const HomePage = ({
                 <FeedList
                     key={`feed-list-${objectType}`}
                     title={getFeedTitle(`${objectType}s`)}
-                    onClick={(id?: string) => openSearch(linkMap[objectType], id)}
+                    onClick={() => openSearch(linkMap[objectType])}
                 >
                     {listFeedItems}
                 </FeedList>

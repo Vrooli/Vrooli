@@ -13,6 +13,8 @@ export const SearchOrganizationsPage = ({
 }: SearchOrganizationsPageProps) => {
     const [location, setLocation] = useLocation();
 
+    console.log("SearchOrganizationsPage", window);
+
     // Handles item add/select/edit
     const [selectedItem, setSelectedItem] = useState<Organization | undefined>(undefined);
     useEffect(() => {
