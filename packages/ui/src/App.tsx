@@ -114,9 +114,9 @@ export function App() {
             return;
         }
         // Check if previous log in exists
-        validateSession().then((response) => {
-            console.log('setting session b', response.data.validateSession as Session)
-            setSession(response?.data?.validateSession as Session);
+        validateSession().then(({ data }) => {
+            console.log('setting session b', data?.validateSession as Session)
+            setSession(data?.validateSession as Session);
         }).catch((response) => {
             if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
             console.log('sessing sesssion c oh no', response)

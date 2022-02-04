@@ -1,6 +1,6 @@
 import { Suspense, useCallback } from 'react';
 import { lazily } from 'react-lazily';
-import { Route, Switch } from 'wouter';
+import { Route, Router, Switch, useLocation, useRouter } from 'wouter';
 import { BUSINESS_NAME, ROLES } from '@local/shared';
 import { APP_LINKS as LINKS } from '@local/shared';
 // import { Sitemap } from 'Sitemap';
@@ -73,27 +73,27 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #endregion Dashboard Routes ========= */}
 
                 {/* ========= #region Search Routes ========= */}
-                <Route path={`${LINKS.SearchUsers}/:id?`}>
+                <Route path={`${LINKS.SearchUsers}/:params*`}>
                     <Page title={title('Users Search')} {...props}>
                         <SearchActorsPage session={props.session ?? {}} />
                     </Page>
                 </Route>
-                <Route path={`${LINKS.SearchOrganizations}/:id?`}>
+                <Route path={`${LINKS.SearchOrganizations}/:params*`}>
                     <Page title={title('Organizations Search')} {...props}>
                         <SearchOrganizationsPage session={props.session ?? {}} />
                     </Page>
                 </Route>
-                <Route path={`${LINKS.SearchProjects}/:id?`}>
+                <Route path={`${LINKS.SearchProjects}/:params*`}>
                     <Page title={title('Projects Search')} {...props}>
                         <SearchProjectsPage session={props.session ?? {}} />
                     </Page>
                 </Route>
-                <Route path={`${LINKS.SearchRoutines}/:id?`}>
+                <Route path={`${LINKS.SearchRoutines}/:params*`}>
                     <Page title={title('Routines Search')} {...props}>
                         <SearchRoutinesPage session={props.session ?? {}} />
                     </Page>
                 </Route>
-                <Route path={`${LINKS.SearchStandards}/:id?`}>
+                <Route path={`${LINKS.SearchStandards}/:params*`}>
                     <Page title={title('Standards Search')} {...props}>
                         <SearchStandardsPage session={props.session ?? {}} />
                     </Page>

@@ -1,4 +1,4 @@
-import { StandardListItem, StandardView, ShareDialog, ViewDialogBase, StandardSortOptions, standardDefaultSortOption, standardOptionLabel } from "components";
+import { StandardListItem, StandardView, ShareDialog, BaseObjectDialog, StandardSortOptions, standardDefaultSortOption, standardOptionLabel } from "components";
 import { standardsQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
 import { Standard } from "types";
@@ -52,13 +52,13 @@ export const SearchStandardsPage = ({
             {/* Invite link dialog */}
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
-            <ViewDialogBase
+            {/* <ViewDialogBase
                 title='View Standard'
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
                 <StandardView session={session} partialData={partialData} />
-            </ViewDialogBase>
+            </ViewDialogBase> */}
             {/* Search component */}
             <BaseSearchPage
                 title="Standards"

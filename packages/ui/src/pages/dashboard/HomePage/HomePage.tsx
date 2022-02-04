@@ -85,7 +85,8 @@ export const HomePage = ({
 
     // Opens correct search page
     const openSearch = useCallback((linkBase: string, id?: string) => {
-        return setLocation(id ? `${linkBase}/${id}` : linkBase);
+        setLocation(linkBase);
+        if (id) setLocation(`${linkBase}/${id}`);
     }, [])
 
     /**

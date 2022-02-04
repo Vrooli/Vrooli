@@ -1,5 +1,5 @@
 import { APP_LINKS, RoutineSortBy } from "@local/shared";
-import { projectDefaultSortOption, projectOptionLabel, ProjectSortOptions, RoutineListItem, RoutineView, ShareDialog, ViewDialogBase } from "components";
+import { projectDefaultSortOption, projectOptionLabel, ProjectSortOptions, RoutineListItem, RoutineView, ShareDialog, BaseObjectDialog } from "components";
 import { routinesQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
 import { RoutineDeep as Routine, RoutineDeep } from "types";
@@ -54,13 +54,13 @@ export const SearchRoutinesPage = ({
             {/* Invite link dialog */}
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
-            <ViewDialogBase
+            {/* <ViewDialogBase
                 title='View Routine'
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
                 <RoutineView session={session} partialData={partialData} />
-            </ViewDialogBase>
+            </ViewDialogBase> */}
             {/* Search component */}
             <BaseSearchPage
                 title="Routines"

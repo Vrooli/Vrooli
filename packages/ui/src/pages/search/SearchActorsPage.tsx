@@ -1,5 +1,5 @@
 import { APP_LINKS } from "@local/shared";
-import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, ActorView, ShareDialog, ViewDialogBase } from "components";
+import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, ActorView, ShareDialog, BaseObjectDialog } from "components";
 import { usersQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
 import { User } from "types";
@@ -53,13 +53,13 @@ export const SearchActorsPage = ({
             {/* Invite link dialog */}
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
-            <ViewDialogBase
+            {/* <ViewDialogBase
                 title='View User'
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
                 <ActorView session={session} partialData={partialData} />
-            </ViewDialogBase>
+            </ViewDialogBase> */}
             {/* Search component */}
             <BaseSearchPage
                 title="Users"

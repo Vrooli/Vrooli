@@ -2,7 +2,7 @@ import { DialogProps, MenuProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
-import { Session } from 'types';
+import { Organization, Session } from 'types';
 
 export interface AlertDialogProps extends DialogProps {};
 
@@ -30,27 +30,30 @@ export interface ListMenuProps {
     title?: string;
     data?: ListMenuItemData[];
 }
-export interface AddDialogBaseProps extends DialogProps {
-    title: string;
-    open: boolean;
-    onSubmit: (value: any) => any;
-    onClose: () => any;
-    children: JSX.Element | JSX.Element[];
-};
 
-export interface ViewDialogBaseProps extends DialogProps {
+export enum ObjectDialogState {
+    Add,
+    Edit,
+    View,
+}
+export enum ObjectDialogAction {
+    Add,
+    Cancel,
+    Close,
+    Edit,
+    Next,
+    Previous,
+    Save,
+}
+
+export interface BaseObjectDialogProps extends DialogProps {
     title: string;
     open: boolean;
     canEdit?: boolean; // Can only edit if you own the object
-    isEditing?: boolean; // Is currently editing
-    onEdit?: () => any; // Callback when starting to edit object
-    onSave?: () => any; // Callback when saving changes
-    onRevert?: () => any; // Callback when reverting changes
-    onClose?: () => any; // Callback when closing dialog
     hasPrevious?: boolean;
     hasNext?: boolean;
-    onPrevious?: () => any;
-    onNext?: () => any;
+    state: ObjectDialogState; // Determines what options to show
+    onAction: (state: ObjectDialogAction) => any; // Callback when option button or close button is pressed
     children: JSX.Element | JSX.Element[];
 };
 
@@ -73,3 +76,11 @@ export interface ReportDialogProps extends DialogProps {
     reportFor: ReportFor;
     forId: string;
 }
+
+export interface OrganizationDialogProps {
+    canEdit?: boolean; // Can only edit if you own the object
+    hasPrevious?: boolean;
+    hasNext?: boolean;
+    partialData?: Partial<Organization>;
+    session: Session;
+};

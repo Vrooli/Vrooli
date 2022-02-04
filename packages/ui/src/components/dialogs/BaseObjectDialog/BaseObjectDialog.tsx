@@ -11,51 +11,62 @@ import {
     Typography,
 } from '@mui/material';
 import {
-    ChevronLeft as ChevronLeftIcon,
-    ChevronRight as ChevronRightIcon,
+    Add as AddIcon,
+    ChevronLeft as PreviousIcon,
+    ChevronRight as NextIcon,
     Close as CloseIcon,
     Edit as EditIcon,
-    Restore as RestoreIcon,
-    Update as UpdateIcon,
+    Restore as CancelIcon,
+    Update as SaveIcon,
 } from '@mui/icons-material';
 import { UpTransition } from 'components';
-import { CSSProperties, useMemo } from 'react';
-import { ViewDialogBaseProps } from '../types';
+import { CSSProperties, useCallback, useMemo } from 'react';
+import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction, ObjectDialogState } from '../types';
 
 /**
  * Dialog for displaying any "Add" form
  * @returns 
  */
-export const ViewDialogBase = ({
+export const BaseObjectDialog = ({
     title,
     open = true,
-    canEdit = false,
-    isEditing = false,
-    onEdit,
-    onSave,
-    onRevert,
-    onClose,
-    children,
     hasPrevious,
     hasNext,
-    onPrevious,
-    onNext,
-}: ViewDialogBaseProps) => {
+    canEdit = false,
+    state,
+    onAction,
+    children,
+}: BaseObjectDialogProps) => {
+    const onAdd = useCallback(() => onAction(ObjectDialogAction.Add), [onAction]);
+    const onCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction]);
+    const onClose = useCallback(() => onAction(ObjectDialogAction.Close), [onAction]);
+    const onEdit = useCallback(() => onAction(ObjectDialogAction.Edit), [onAction]);
+    const onPrevious = useCallback(() => onAction(ObjectDialogAction.Previous), [onAction]);
+    const onNext = useCallback(() => onAction(ObjectDialogAction.Next), [onAction]);
+    const onSave = useCallback(() => onAction(ObjectDialogAction.Save), [onAction]);
 
-    const options = useMemo(() => {
+    /**
+     * Determine option buttons to display (besides close, since that's always available). 
+     * - If viewing an object (i.e. not adding or updating):
+     *      - If canEdit, show edit button
+     *      - Else, show no button
+     * - If editing, show "Save" and "Cancel" buttons.
+     * - If adding, show "Add" button
+     */
+    const options: JSX.Element = useMemo(() => {
         // Determine edit options to show
         let availableOptions: Array<[string, any, any]> = [];
-        if (isEditing) {
-            availableOptions.push(
-                ['Revert', RestoreIcon, onRevert],
-                ['Save', UpdateIcon, onSave]
-            );
+        switch (state) {
+            case ObjectDialogState.View:
+                availableOptions = canEdit ? [['Edit', EditIcon, onEdit]] : [];
+                break;
+            case ObjectDialogState.Edit:
+                availableOptions = [['Save', SaveIcon, onSave], ['Cancel', CancelIcon, onCancel]];
+                break;
+            case ObjectDialogState.Add:
+                availableOptions = [['Add', AddIcon, onAdd]];
+                break;
         }
-        else if (canEdit) {
-            availableOptions.push(['Edit', EditIcon, onEdit]);
-        }
-        // If no options, don't show anything
-        if (availableOptions.length === 0) return null;
 
         // Determine sizing based on number of options
         const maxGridWidth = `min(100vw, ${200 * availableOptions.length}px)`;
@@ -71,22 +82,19 @@ export const ViewDialogBase = ({
         }
 
         return (
-            <Box p={2} sx={{ background: (t) => t.palette.primary.main }}>
-                <Grid container spacing={2} maxWidth={maxGridWidth}>
-                    {availableOptions.map(([label, Icon, onClick]) => (
-                        <Grid key={label} {...gridItemSizes}>
-                            <Button
-                                fullWidth
-                                startIcon={<Icon />}
-                                onClick={onClick ? onClick() : undefined}
-                            >{label}</Button>
-                        </Grid>
-                    ))}
-                </Grid>
-            </Box>
+            <Grid container spacing={2} maxWidth={maxGridWidth}>
+                {availableOptions.map(([label, Icon, onClick]) => (
+                    <Grid key={label} {...gridItemSizes}>
+                        <Button
+                            fullWidth
+                            startIcon={<Icon />}
+                            onClick={onClick ? onClick() : undefined}
+                        >{label}</Button>
+                    </Grid>
+                ))}
+            </Grid>
         )
-
-    }, [canEdit, isEditing])
+    }, [state, canEdit, onAction]);
 
     return (
         <Dialog
@@ -105,7 +113,7 @@ export const ViewDialogBase = ({
                             {hasPrevious && (
                                 <Tooltip title="Previous" placement="bottom">
                                     <IconButton size="large" onClick={onPrevious} aria-label="previous">
-                                        <ChevronLeftIcon sx={{ fill: 'white' }} />
+                                        <PreviousIcon sx={{ fill: 'white' }} />
                                     </IconButton>
                                 </Tooltip>
                             )}
@@ -115,12 +123,13 @@ export const ViewDialogBase = ({
                             {hasNext && (
                                 <Tooltip title="Next" placement="bottom">
                                     <IconButton size="large" onClick={onNext} aria-label="next">
-                                        <ChevronRightIcon sx={{ fill: 'white' }} />
+                                        <NextIcon sx={{ fill: 'white' }} />
                                     </IconButton>
                                 </Tooltip>
                             )}
                         </Stack>
                     </Box>
+                    {options}
                 </Toolbar>
             </AppBar>
             <Box
@@ -133,17 +142,6 @@ export const ViewDialogBase = ({
                 }}
             >
                 {children}
-                <Box
-                    sx={{
-                        background: (t) => t.palette.primary.main,
-                        position: 'fixed',
-                        bottom: '0',
-                        width: '-webkit-fill-available',
-                        zIndex: 1,
-                    }}
-                >
-                    {options}
-                </Box>
             </Box>
         </Dialog>
     );

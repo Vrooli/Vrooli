@@ -4,7 +4,7 @@
 import isFunction from 'lodash/isFunction';
 import { Pubs } from "utils";
 import PubSub from 'pubsub-js';
-import { ApolloCache, DefaultContext, MutationFunctionOptions, OperationVariables } from '@apollo/client';
+import { ApolloCache, DefaultContext, FetchResult, MutationFunctionOptions, OperationVariables } from '@apollo/client';
 
 interface Props {
     // useMutation function
@@ -18,7 +18,7 @@ interface Props {
     // Debug data to print on success
     successData?: any;
     // Callback triggered on success
-    onSuccess?: (response?: any) => any;
+    onSuccess?: (response: FetchResult<any, Record<string, any>, Record<string, any>>) => any;
     // Message displayed on error
     errorMessage?: (response?: any) => string;
     // Debug data to print on error

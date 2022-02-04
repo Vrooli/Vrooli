@@ -1,5 +1,5 @@
 import { APP_LINKS } from "@local/shared";
-import { projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ProjectView, ShareDialog, ViewDialogBase } from "components";
+import { projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ProjectView, ShareDialog, BaseObjectDialog } from "components";
 import { projectsQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
 import { Project } from "types";
@@ -52,13 +52,13 @@ export const SearchProjectsPage = ({
             {/* Invite link dialog */}
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
-            <ViewDialogBase
+            {/* <ViewDialogBase
                 title='View Project'
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
                 <ProjectView session={session} partialData={partialData} />
-            </ViewDialogBase>
+            </ViewDialogBase> */}
             {/* Search component */}
             <BaseSearchPage
                 title="Projects"

@@ -1,11 +1,11 @@
 import { Meta, Story } from "@storybook/react";
 import { ActorView, OrganizationView, ProjectView, RoutineView, StandardView } from "components";
-import { AddDialogBase as Component } from '../';
-import { AddDialogBaseProps as Props } from '../types';
+import { BaseObjectDialog as Component } from '..';
+import { BaseObjectDialogProps as Props } from '../types';
 
 // Define story metadata
 export default {
-    title: 'dialogs/AddDialogBase',
+    title: 'dialogs/BaseObjectDialog',
     component: Component,
 } as Meta;
 
