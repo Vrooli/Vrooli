@@ -85,9 +85,9 @@ export const StandardDialog = ({
     const child = useMemo(() => {
         switch(state) {
             case 'add':
-                return <StandardAdd onAdded={() => onAction(ObjectDialogAction.Add)} />
+                return <StandardAdd session={session} onAdded={() => onAction(ObjectDialogAction.Add)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             case 'edit':
-                return <StandardUpdate id="" onUpdated={() => onAction(ObjectDialogAction.Save)} />
+                return <StandardUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:
                 return <StandardView session={session} partialData={partialData} />
         }

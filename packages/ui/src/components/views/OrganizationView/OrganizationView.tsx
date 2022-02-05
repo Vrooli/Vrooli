@@ -53,7 +53,7 @@ export const OrganizationView = ({
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/view/:id`);
     const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
     const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });

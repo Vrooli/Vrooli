@@ -1,40 +1,45 @@
-import { APP_LINKS, RoutineSortBy } from "@local/shared";
-import { projectDefaultSortOption, projectOptionLabel, ProjectSortOptions, RoutineListItem, RoutineView, ShareDialog, BaseObjectDialog } from "components";
+import { APP_LINKS, ROLES } from "@local/shared";
+import { routineDefaultSortOption, routineOptionLabel, RoutineSortOptions, RoutineListItem, ShareDialog, RoutineDialog } from "components";
 import { routinesQuery } from "graphql/query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Routine } from "types";
-import { labelledSortOptions } from "utils";
+import { Pubs } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
-import { LabelledSortOption } from "utils";
 import { SearchRoutinesPageProps } from "./types";
-import { useLocation, useRoute } from "wouter";
+import { useLocation } from "wouter";
 
 export const SearchRoutinesPage = ({
     session
 }: SearchRoutinesPageProps) => {
-    const [, setLocation] = useLocation();
-    const [match, params] = useRoute(`${APP_LINKS.SearchRoutines}/:id`);
-    // Handles dialog when selecting a search result
-    const [selected, setSelected] = useState<Routine | undefined>(undefined);
-    const selectedDialogOpen = Boolean(match || selected);
+    const [location, setLocation] = useLocation();
+
+    // Handles item add/select/edit
+    const [selectedItem, setSelectedItem] = useState<Routine | undefined>(undefined);
     const handleSelected = useCallback((selected: Routine) => {
-        setSelected(selected);
-        setLocation(`${APP_LINKS.SearchRoutines}/${selected.id}`);
+        setSelectedItem(selected);
     }, [setLocation]);
-    const handleSelectedDialogClose = useCallback(() => {
-        setSelected(undefined);
-        // If selected data exists, then we know we can go back to the previous page
-        if (selected) window.history.back();
-        // Otherwise the user must have entered the page directly, so we can navigate to the search page
-        else setLocation(APP_LINKS.SearchRoutines);
-    }, [setLocation, selected]);
+    useEffect(() => {
+        if (selectedItem) {
+            setLocation(`${APP_LINKS.SearchRoutines}/view/${selectedItem.id}`, { replace: true });
+        }
+    }, [selectedItem, setLocation]);
+    useEffect(() => {
+        if (location === APP_LINKS.SearchRoutines) {
+            setSelectedItem(undefined);
+        }
+    }, [location])
 
-    const partialData = useMemo(() => {
-        if (selected) return selected;
-        if (params?.id) return { id: params.id };
-        return undefined;
-    }, [params, selected]);
-
+    // Handles dialog when adding a new organization
+    const handleAddDialogOpen = useCallback(() => {
+        const canAdd = Array.isArray(session?.roles) && !session.roles.includes(ROLES.Actor);
+        if (canAdd) {
+            setLocation(`${APP_LINKS.SearchRoutines}/add`)
+        }
+        else {
+            PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
+            setLocation(APP_LINKS.Start)
+        }
+    }, [setLocation]);
     // Handles dialog for the button that appears after scrolling a certain distance
     const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
     const handleSurpriseDialogOpen = useCallback(() => setSurpriseDialogOpen(true), []);
@@ -46,7 +51,7 @@ export const SearchRoutinesPage = ({
             session={session}
             data={node}
             isOwn={false}
-            onClick={(selected: Routine) => setSelected(selected)}
+            onClick={(selected: Routine) => setSelectedItem(selected)}
         />)
 
     return (
@@ -54,25 +59,24 @@ export const SearchRoutinesPage = ({
             {/* Invite link dialog */}
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
-            {/* <ViewDialogBase
-                title='View Routine'
-                open={selectedDialogOpen}
-                onClose={handleSelectedDialogClose}
-            >
-                <RoutineView session={session} partialData={partialData} />
-            </ViewDialogBase> */}
+            <RoutineDialog
+                hasPrevious={false}
+                hasNext={false}
+                canEdit={false}
+                partialData={selectedItem}
+                session={session}
+            />
             {/* Search component */}
             <BaseSearchPage
                 title="Routines"
                 searchPlaceholder="Search..."
-                sortOptions={ProjectSortOptions}
-                defaultSortOption={projectDefaultSortOption}
+                sortOptions={RoutineSortOptions}
+                defaultSortOption={routineDefaultSortOption}
                 query={routinesQuery}
                 listItemFactory={listItemFactory}
-                getOptionLabel={(o: any) => o.name}
-                onObjectSelect={projectOptionLabel}
-                showAddButton={true}
-                onAddClick={() => {}}
+                getOptionLabel={routineOptionLabel}
+                onObjectSelect={handleSelected}
+                onAddClick={handleAddDialogOpen}
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={handleSurpriseDialogOpen}

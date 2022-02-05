@@ -1,11 +1,14 @@
 import { Organization, Project, Routine, Session, Standard, User } from "types";
 
 export interface AddProps<T> {
+    session: Session;
     onAdded: (item: T) => void;
+    onCancel: () => void;
 }
 export interface UpdateProps<T> {
-    id?: string;
+    session: Session;
     onUpdated: (item: T) => void;
+    onCancel: () => void;
 }
 export interface ViewProps<T> {
     session: Session;

@@ -1,37 +1,45 @@
-import { StandardListItem, StandardView, ShareDialog, BaseObjectDialog, StandardSortOptions, standardDefaultSortOption, standardOptionLabel } from "components";
+import { StandardListItem, StandardView, ShareDialog, BaseObjectDialog, StandardSortOptions, standardDefaultSortOption, standardOptionLabel, StandardDialog } from "components";
 import { standardsQuery } from "graphql/query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Standard } from "types";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchStandardsPageProps } from "./types";
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS, ROLES } from "@local/shared";
+import { Pubs } from "utils";
 
 export const SearchStandardsPage = ({
     session
 }: SearchStandardsPageProps) => {
-    const [, setLocation] = useLocation();
-    const [match, params] = useRoute(`${APP_LINKS.SearchStandards}/:id`);
-    // Handles dialog when selecting a search result
-    const [selected, setSelected] = useState<Standard | undefined>(undefined);
-    const selectedDialogOpen = Boolean(match || selected);
-    const handleSelected = useCallback((selected: Standard) => {
-        setSelected(selected);
-        setLocation(`${APP_LINKS.SearchStandards}/${selected.id}`);
-    }, [setLocation]);
-    const handleSelectedDialogClose = useCallback(() => {
-        setSelected(undefined);
-        // If selected data exists, then we know we can go back to the previous page
-        if (selected) window.history.back();
-        // Otherwise the user must have entered the page directly, so we can navigate to the search page
-        else setLocation(APP_LINKS.SearchStandards);
-    }, [setLocation, selected]);
+    const [location, setLocation] = useLocation();
 
-    const partialData = useMemo(() => {
-        if (selected) return selected;
-        if (params?.id) return { id: params.id };
-        return undefined;
-    }, [params, selected]);
+    // Handles item add/select/edit
+    const [selectedItem, setSelectedItem] = useState<Standard | undefined>(undefined);
+    const handleSelected = useCallback((selected: Standard) => {
+        setSelectedItem(selected);
+    }, [setLocation]);
+    useEffect(() => {
+        if (selectedItem) {
+            setLocation(`${APP_LINKS.SearchStandards}/view/${selectedItem.id}`, { replace: true });
+        }
+    }, [selectedItem, setLocation]);
+    useEffect(() => {
+        if (location === APP_LINKS.SearchStandards) {
+            setSelectedItem(undefined);
+        }
+    }, [location])
+
+    // Handles dialog when adding a new organization
+    const handleAddDialogOpen = useCallback(() => {
+        const canAdd = Array.isArray(session?.roles) && !session.roles.includes(ROLES.Actor);
+        if (canAdd) {
+            setLocation(`${APP_LINKS.SearchStandards}/add`)
+        }
+        else {
+            PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
+            setLocation(APP_LINKS.Start)
+        }
+    }, [setLocation]);
 
     // Handles dialog for the button that appears after scrolling a certain distance
     const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
@@ -44,7 +52,7 @@ export const SearchStandardsPage = ({
             session={session}
             data={node}
             isOwn={false}
-            onClick={(selected: Standard) => setSelected(selected)}
+            onClick={(selected: Standard) => setSelectedItem(selected)}
         />)
 
     return (
@@ -52,13 +60,13 @@ export const SearchStandardsPage = ({
             {/* Invite link dialog */}
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
-            {/* <ViewDialogBase
-                title='View Standard'
-                open={selectedDialogOpen}
-                onClose={handleSelectedDialogClose}
-            >
-                <StandardView session={session} partialData={partialData} />
-            </ViewDialogBase> */}
+            <StandardDialog
+                hasPrevious={false}
+                hasNext={false}
+                canEdit={false}
+                partialData={selectedItem}
+                session={session}
+            />
             {/* Search component */}
             <BaseSearchPage
                 title="Standards"
@@ -67,10 +75,9 @@ export const SearchStandardsPage = ({
                 defaultSortOption={standardDefaultSortOption}
                 query={standardsQuery}
                 listItemFactory={listItemFactory}
-                getOptionLabel={(o: any) => o.name}
-                onObjectSelect={standardOptionLabel}
-                showAddButton={true}
-                onAddClick={() => {}}
+                getOptionLabel={standardOptionLabel}
+                onObjectSelect={handleSelected}
+                onAddClick={handleAddDialogOpen}
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={handleSurpriseDialogOpen}

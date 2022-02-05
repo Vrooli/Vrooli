@@ -14,13 +14,14 @@ import { organizationUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";
 
 export const OrganizationUpdate = ({
-    id,
     onUpdated
 }: OrganizationUpdateProps) => {
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Organization}/:id/edit`);
+    const [, params] = useRoute(`${APP_LINKS.Organization}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/edit/:id`);
+    const id: string = params?.id ?? params2?.id ?? '';
     // Fetch existing data
-    const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id: params?.id ?? id ?? '' } } });
+    const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });
     const organization = useMemo(() => data?.organization, [data]);
 
     // Handle update

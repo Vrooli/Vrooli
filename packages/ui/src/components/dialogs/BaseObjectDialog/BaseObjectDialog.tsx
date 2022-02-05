@@ -5,10 +5,12 @@ import {
     Dialog,
     Grid,
     IconButton,
+    Slide,
     Stack,
     Toolbar,
     Tooltip,
     Typography,
+    useScrollTrigger,
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -20,7 +22,7 @@ import {
     Update as SaveIcon,
 } from '@mui/icons-material';
 import { UpTransition } from 'components';
-import { CSSProperties, useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction, ObjectDialogState } from '../types';
 
 /**
@@ -37,6 +39,9 @@ export const BaseObjectDialog = ({
     onAction,
     children,
 }: BaseObjectDialogProps) => {
+    const [scrollTarget, setScrollTarget] = useState<HTMLElement | undefined>(undefined);
+    const scrollTrigger = useScrollTrigger({ target: scrollTarget });
+
     const onAdd = useCallback(() => onAction(ObjectDialogAction.Add), [onAction]);
     const onCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction]);
     const onClose = useCallback(() => onAction(ObjectDialogAction.Close), [onAction]);
@@ -103,40 +108,48 @@ export const BaseObjectDialog = ({
             onClose={onClose}
             TransitionComponent={UpTransition}
         >
-            <AppBar sx={{ position: 'relative' } as CSSProperties}>
-                <Toolbar>
-                    <IconButton edge="start" color="inherit" onClick={onClose} aria-label="close">
-                        <CloseIcon />
-                    </IconButton>
-                    <Box sx={{ width: '100%', alignItems: 'center' }}>
-                        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                            {hasPrevious && (
-                                <Tooltip title="Previous" placement="bottom">
-                                    <IconButton size="large" onClick={onPrevious} aria-label="previous">
-                                        <PreviousIcon sx={{ fill: 'white' }} />
-                                    </IconButton>
-                                </Tooltip>
-                            )}
-                            <Typography variant="h5">
-                                {title}
-                            </Typography>
-                            {hasNext && (
-                                <Tooltip title="Next" placement="bottom">
-                                    <IconButton size="large" onClick={onNext} aria-label="next">
-                                        <NextIcon sx={{ fill: 'white' }} />
-                                    </IconButton>
-                                </Tooltip>
-                            )}
-                        </Stack>
-                    </Box>
-                    {options}
-                </Toolbar>
-            </AppBar>
+            {/* TODO hide not working */}
+            <Slide appear={false} direction="down" in={!scrollTrigger}>
+                <AppBar ref={node => {
+                    if (node) {
+                        setScrollTarget(node);
+                    }
+                }}>
+                    <Toolbar>
+                        <IconButton edge="start" color="inherit" onClick={onClose} aria-label="close">
+                            <CloseIcon />
+                        </IconButton>
+                        <Box sx={{ width: '100%', alignItems: 'center' }}>
+                            <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                                {hasPrevious && (
+                                    <Tooltip title="Previous" placement="bottom">
+                                        <IconButton size="large" onClick={onPrevious} aria-label="previous">
+                                            <PreviousIcon sx={{ fill: 'white' }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
+                                <Typography variant="h5">
+                                    {title}
+                                </Typography>
+                                {hasNext && (
+                                    <Tooltip title="Next" placement="bottom">
+                                        <IconButton size="large" onClick={onNext} aria-label="next">
+                                            <NextIcon sx={{ fill: 'white' }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
+                            </Stack>
+                        </Box>
+                        {options}
+                    </Toolbar>
+                </AppBar>
+            </Slide>
             <Box
                 sx={{
                     background: (t) => t.palette.background.default,
                     flex: 'auto',
                     padding: 0,
+                    paddingTop: { xs: '56px', sm: '64px' },
                     paddingBottom: '15vh',
                     width: '100%',
                 }}

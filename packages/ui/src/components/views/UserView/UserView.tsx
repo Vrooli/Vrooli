@@ -54,7 +54,7 @@ export const UserView = ({
     const [, setLocation] = useLocation();
     // Get URL params
     const [isProfile, params] = useRoute(`${APP_LINKS.Profile}`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchUsers}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchUsers}/view/:id`);
     const id: string = useMemo(() => {
         if (isProfile) return session?.id ?? '';
         return params2?.id ?? ';'
@@ -290,7 +290,7 @@ export const UserView = ({
                                 <IconButton
                                     aria-label="Edit profile"
                                     size="small"
-                                    onClick={() => setLocation(`${APP_LINKS.Profile}/${id}/edit`)}
+                                    onClick={() => setLocation(`${APP_LINKS.Profile}/edit/${id}`)}
                                 >
                                     <EditIcon color="primary" />
                                 </IconButton>

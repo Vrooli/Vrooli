@@ -45,13 +45,12 @@ export function BaseSearchPage<DataType, SortBy>({
         setLocation(searchUrl.substring(0, searchUrl.length - 1), { replace: true });
     }, [searchString, sortBy, timeFrame, setLocation]);
     // Handle tabs
-    const [tabIndex, setTabIndex] = useState<number>(() => {
-        const tabIndex = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
-        return tabIndex >= 0 ? tabIndex : 0;
-    });
-    const handleTabChange = (event, newValue) => { 
-        setTabIndex(newValue);
-        setLocation(tabOptions[tabIndex][1]);
+    const tabIndex = useMemo(() => {
+        const index = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
+        return Math.max(index, 0);
+    }, []);
+    const handleTabChange = (_e, newIndex) => { 
+        setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
     // Popup button

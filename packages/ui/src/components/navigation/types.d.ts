@@ -17,3 +17,8 @@ export interface TabPanelProps {
     index: number;
     value: number;
 }
+
+export interface HideOnScrollProps {
+    target?: any;
+    children: JSX.Element;
+}

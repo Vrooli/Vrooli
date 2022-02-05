@@ -14,13 +14,14 @@ import { standardUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";
 
 export const StandardUpdate = ({
-    id,
     onUpdated
 }: StandardUpdateProps) => {
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Standard}/:id/edit`);
+    const [, params] = useRoute(`${APP_LINKS.Standard}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/edit/:id`);
+    const id: string = params?.id ?? params2?.id ?? '';
     // Fetch existing data
-    const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id: params?.id ?? id ?? '' } } });
+    const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id } } });
     const standard = useMemo(() => data?.standard, [data]);
 
     // Handle update

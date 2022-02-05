@@ -1,38 +1,32 @@
 import { APP_LINKS } from "@local/shared";
-import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, UserView, ShareDialog, BaseObjectDialog } from "components";
+import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, ShareDialog, UserDialog } from "components";
 import { usersQuery } from "graphql/query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { User } from "types";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchActorsPageProps } from "./types";
-import { useLocation, useRoute } from "wouter";
+import { useLocation } from "wouter";
 
 export const SearchActorsPage = ({
     session
 }: SearchActorsPageProps) => {
-    const [, setLocation] = useLocation();
-    const [match, params] = useRoute(`${APP_LINKS.SearchUsers}/:id`);
-    // Handles dialog when selecting a search result
-    const [selected, setSelected] = useState<User | undefined>(undefined);
-    const selectedDialogOpen = Boolean(match || selected);
-    const handleSelected = useCallback((selected: User) => {
-        setSelected(selected);
-        setLocation(`${APP_LINKS.SearchUsers}/${selected.id}`);
-    }, [setLocation]);
-    const handleSelectedDialogClose = useCallback(() => {
-        console.log("handleSelectedDialogClose");
-        setSelected(undefined);
-        // If selected data exists, then we know we can go back to the previous page
-        if (selected) window.history.back();
-        // Otherwise the user must have entered the page directly, so we can navigate to the search page
-        else setLocation(APP_LINKS.SearchUsers);
-    }, [setLocation, selected]);
+    const [location, setLocation] = useLocation();
 
-    const partialData = useMemo(() => {
-        if (selected) return selected;
-        if (params?.id) return { id: params.id };
-        return undefined;
-    }, [params, selected]);
+    // Handles item add/select/edit
+    const [selectedItem, setSelectedItem] = useState<User | undefined>(undefined);
+    const handleSelected = useCallback((selected: User) => {
+        setSelectedItem(selected);
+    }, [setLocation]);
+    useEffect(() => {
+        if (selectedItem) {
+            setLocation(`${APP_LINKS.SearchUsers}/view/${selectedItem.id}`, { replace: true });
+        }
+    }, [selectedItem, setLocation]);
+    useEffect(() => {
+        if (location === APP_LINKS.SearchUsers) {
+            setSelectedItem(undefined);
+        }
+    }, [location])
 
     // Handles dialog for the button that appears after scrolling a certain distance
     const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
@@ -45,7 +39,7 @@ export const SearchActorsPage = ({
             session={session}
             data={node}
             isOwn={session?.id === node.id}
-            onClick={handleSelected}
+            onClick={(selected: User) => setSelectedItem(selected)}
         />)
 
     return (
@@ -53,13 +47,13 @@ export const SearchActorsPage = ({
             {/* Invite link dialog */}
             <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
-            {/* <ViewDialogBase
-                title='View User'
-                open={selectedDialogOpen}
-                onClose={handleSelectedDialogClose}
-            >
-                <UserView session={session} partialData={partialData} />
-            </ViewDialogBase> */}
+            <UserDialog
+                hasPrevious={false}
+                hasNext={false}
+                canEdit={false}
+                partialData={selectedItem}
+                session={session}
+            />
             {/* Search component */}
             <BaseSearchPage
                 title="Users"

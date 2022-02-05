@@ -44,7 +44,7 @@ export const RoutineView = ({
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Routine}/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/view/:id`);
     const id: string = params?.id ?? params2?.id ?? '';
     // Fetch data
     const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });

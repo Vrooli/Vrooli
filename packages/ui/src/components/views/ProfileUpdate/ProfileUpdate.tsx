@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { userQuery } from "graphql/query";
 import { useMemo } from "react";
-import { ProfileUpdateProps } from "../types";
+import { UserUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import PubSub from 'pubsub-js';
 import { profileSchema as validationSchema } from '@local/shared';
@@ -14,13 +14,12 @@ import { profileUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";
 
 export const ProfileUpdate = ({
-    id,
     onUpdated
-}: ProfileUpdateProps) => {
+}: UserUpdateProps) => {
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Profile}/:id/edit`);
+    const [, params] = useRoute(`${APP_LINKS.Profile}/edit/:id`);
     // Fetch existing data
-    const { data, loading } = useQuery<user>(userQuery, { variables: { input: { id: params?.id ?? id ?? '' } } });
+    const { data, loading } = useQuery<user>(userQuery, { variables: { input: { id: params?.id ?? '' } } });
     const profile = useMemo(() => data?.user, [data]);
 
     // Handle update

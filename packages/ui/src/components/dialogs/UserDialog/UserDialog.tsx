@@ -68,7 +68,7 @@ export const UserDialog = ({
     const child = useMemo(() => {
         switch(state) {
             case 'edit':
-                return <ProfileUpdate id="" onUpdated={() => onAction(ObjectDialogAction.Save)} />
+                return <ProfileUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:
                 return <UserView session={session} partialData={partialData} />
         }

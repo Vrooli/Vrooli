@@ -14,13 +14,14 @@ import { routineUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";
 
 export const RoutineUpdate = ({
-    id,
     onUpdated
 }: RoutineUpdateProps) => {
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Routine}/:id/edit`);
+    const [, params] = useRoute(`${APP_LINKS.Routine}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/edit/:id`);
+    const id: string = params?.id ?? params2?.id ?? '';
     // Fetch existing data
-    const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id: params?.id ?? id ?? '' } } });
+    const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const routine = useMemo(() => data?.routine, [data]);
 
     // Handle update

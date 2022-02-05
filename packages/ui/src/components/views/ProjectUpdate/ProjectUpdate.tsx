@@ -14,13 +14,14 @@ import { projectUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";
 
 export const ProjectUpdate = ({
-    id,
     onUpdated
 }: ProjectUpdateProps) => {
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Project}/:id/edit`);
+    const [, params] = useRoute(`${APP_LINKS.Project}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/edit/:id`);
+    const id: string = params?.id ?? params2?.id ?? '';
     // Fetch existing data
-    const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id: params?.id ?? id ?? '' } } });
+    const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
     const project = useMemo(() => data?.project, [data]);
 
     // Handle update

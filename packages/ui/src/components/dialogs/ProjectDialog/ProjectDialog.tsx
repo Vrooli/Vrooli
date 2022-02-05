@@ -85,9 +85,9 @@ export const ProjectDialog = ({
     const child = useMemo(() => {
         switch(state) {
             case 'add':
-                return <ProjectAdd onAdded={() => onAction(ObjectDialogAction.Add)} />
+                return <ProjectAdd session={session} onAdded={() => onAction(ObjectDialogAction.Add)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             case 'edit':
-                return <ProjectUpdate id="" onUpdated={() => onAction(ObjectDialogAction.Save)} />
+                return <ProjectUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:
                 return <ProjectView session={session} partialData={partialData} />
         }

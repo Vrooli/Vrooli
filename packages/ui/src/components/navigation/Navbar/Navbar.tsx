@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import Logo from 'assets/img/Logo.png';
 import { BUSINESS_NAME, APP_LINKS } from '@local/shared';
-import { AppBar, Toolbar, Typography, Slide, useScrollTrigger, Theme } from '@mui/material';
+import { AppBar, Toolbar, Typography, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { Hamburger } from '../Hamburger/Hamburger';
 import { NavList } from '../NavList/NavList';
 import { useLocation } from 'wouter';
 import { NavbarProps } from '../types';
+import { HideOnScroll } from '..';
 
 const SHOW_HAMBURGER_AT = 1000;
 
@@ -52,21 +53,6 @@ const useStyles = makeStyles((theme: Theme) => ({
         }
     },
 }));
-
-interface HideOnScrollProps {
-    children: JSX.Element;
-}
-
-const HideOnScroll = ({
-    children,
-}: HideOnScrollProps) => {
-    const trigger = useScrollTrigger();
-    return (
-        <Slide appear={false} direction="down" in={!trigger}>
-            {children}
-        </Slide>
-    );
-}
 
 export const Navbar = ({
     userRoles

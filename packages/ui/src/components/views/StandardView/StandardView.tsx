@@ -44,7 +44,7 @@ export const StandardView = ({
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Standard}/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/:id`);
+    const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/view/:id`);
     const id: string = params?.id ?? params2?.id ?? '';
     // Fetch data
     const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id } } });

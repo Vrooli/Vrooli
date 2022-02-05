@@ -85,9 +85,9 @@ export const RoutineDialog = ({
     const child = useMemo(() => {
         switch(state) {
             case 'add':
-                return <RoutineAdd onAdded={() => onAction(ObjectDialogAction.Add)} />
+                return <RoutineAdd session={session} onAdded={() => onAction(ObjectDialogAction.Add)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             case 'edit':
-                return <RoutineUpdate id="" onUpdated={() => onAction(ObjectDialogAction.Save)} />
+                return <RoutineUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:
                 return <RoutineView session={session} partialData={partialData} />
         }

@@ -86,9 +86,9 @@ export const OrganizationDialog = ({
     const child = useMemo(() => {
         switch(state) {
             case 'add':
-                return <OrganizationAdd onAdded={() => onAction(ObjectDialogAction.Add)} />
+                return <OrganizationAdd session={session} onAdded={() => onAction(ObjectDialogAction.Add)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             case 'edit':
-                return <OrganizationUpdate id="" onUpdated={() => onAction(ObjectDialogAction.Save)} />
+                return <OrganizationUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:
                 return <OrganizationView session={session} partialData={partialData} />
         }
