@@ -1,4 +1,4 @@
-export * from './ActorViewPage';
+export * from './UserViewPage';
 export * from './OrganizationViewPage';
 export * from './ProjectViewPage';
 export * from './RoutineViewPage';

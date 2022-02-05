@@ -15,26 +15,41 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     defaultSortOption,
     query,
     take = 20,
+    searchString,
+    sortBy,
+    timeFrame,
+    setSearchString,
+    setSortBy,
+    setTimeFrame,
     listItemFactory,
     getOptionLabel,
     onObjectSelect,
     onScrolledFar,
 }: SearchListProps<DataType, SortBy>) {
-    const [searchString, setSearchString] = useState<string>('');
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
-    const [sortBy, setSortBy] = useState<SortBy | undefined>(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
     const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption.label ?? sortOptions.length > 0 ? sortOptions[0].label : 'Sort');
-    const [createdTimeFrame, setCreatedTimeFrame] = useState<any | undefined>(undefined);
-    const [createdTimeFrameLabel, setCreatedTimeFrameLabel] = useState<string>('Time');
+    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
     const [after, setAfter] = useState<string | undefined>(undefined);
+    const createdTimeFrame = useMemo(() => {
+        let result: {[x: string]: Date} = {}
+        const split = timeFrame?.split(',');
+        if (split?.length !== 2) return result;
+        const after = new Date(split[0]);
+        const before = new Date(split[1]);
+        if (Boolean(after.getMonth())) result.after = after;
+        if (Boolean(before.getMonth())) result.before = before;
+        return result;
+    }, [timeFrame]);
+
     const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after, take, sortBy, searchString, createdTimeFrame } } as any) });
     const [allData, setAllData] = useState<DataType[]>([]);
+    console.log('time frame', timeFrame, timeFrame?.split(','))
 
     // On search filters/sort change, reset the page
     useEffect(() => {
         setAfter(undefined);
-    }, [searchString, sortBy, createdTimeFrame]);
+    }, [searchString, sortBy, timeFrame]);
 
     // Load page whenever "after" is set or unset
     useEffect(() => {
@@ -98,21 +113,21 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
-    const handleSearch = useCallback((newString) => { console.log('HANDLE SEARCH', newString); setSearchString(newString) }, []);
+    const handleSearch = useCallback((newString: string) => { setSearchString(newString) }, []);
 
     const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
     const handleSortClose = (label?: string, selected?: string) => {
         setSortAnchorEl(null);
-        if (selected) setSortBy(selected as any);
+        if (selected) setSortBy(selected);
         if (label) setSortByLabel(label);
     };
 
     const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
     const handleTimeClose = (label?: string, after?: Date | null, before?: Date | null) => {
         setTimeAnchorEl(null);
-        if (!after && !before) setCreatedTimeFrame(undefined);
-        else setCreatedTimeFrame({ after, before });
-        if (label) setCreatedTimeFrameLabel(label);
+        if (!after && !before) setTimeFrame(undefined);
+        else setTimeFrame(`${after?.getTime()},${before?.getTime()}`);
+        if (label) setTimeFrameLabel(label);
     };
 
     /**
@@ -188,7 +203,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                             height: '100%',
                         }}
                     >
-                        {createdTimeFrameLabel}
+                        {timeFrameLabel}
                     </Button>
                 </Grid>
             </Grid>

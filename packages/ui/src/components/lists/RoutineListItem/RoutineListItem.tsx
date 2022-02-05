@@ -11,7 +11,7 @@ import { starMutation, voteMutation } from 'graphql/mutation';
 import { vote } from 'graphql/generated/vote';
 import { star } from 'graphql/generated/star';
 import { LabelledSortOption, labelledSortOptions } from 'utils';
-import { RoutineDeep } from 'types';
+import { Routine } from 'types';
 
 export function RoutineListItem({
     session,
@@ -96,4 +96,4 @@ export function RoutineListItem({
 
 export const RoutineSortOptions: LabelledSortOption<RoutineSortBy>[] = labelledSortOptions(RoutineSortBy);
 export const routineDefaultSortOption = RoutineSortOptions[1];
-export const routineOptionLabel = (o: RoutineDeep) => o.title ?? '';
+export const routineOptionLabel = (o: Routine) => o.title ?? '';

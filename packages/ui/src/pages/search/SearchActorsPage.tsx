@@ -1,5 +1,5 @@
 import { APP_LINKS } from "@local/shared";
-import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, ActorView, ShareDialog, BaseObjectDialog } from "components";
+import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, UserView, ShareDialog, BaseObjectDialog } from "components";
 import { usersQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
 import { User } from "types";
@@ -58,7 +58,7 @@ export const SearchActorsPage = ({
                 open={selectedDialogOpen}
                 onClose={handleSelectedDialogClose}
             >
-                <ActorView session={session} partialData={partialData} />
+                <UserView session={session} partialData={partialData} />
             </ViewDialogBase> */}
             {/* Search component */}
             <BaseSearchPage

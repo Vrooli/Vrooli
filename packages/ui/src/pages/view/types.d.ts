@@ -1,9 +1,5 @@
 import { Session } from 'types';
 
-export interface ActorViewPageProps {
-    session: Session
-}
-
 export interface OrganizationViewPageProps {
     session: Session
 }
@@ -17,5 +13,9 @@ export interface RoutineViewPageProps {
 }
 
 export interface StandardViewPageProps {
+    session: Session
+}
+
+export interface UserViewPageProps {
     session: Session
 }

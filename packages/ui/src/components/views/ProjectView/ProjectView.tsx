@@ -4,7 +4,7 @@ import { APP_LINKS, StarFor, VoteFor } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
 import { project } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
     DeleteForever as DeleteForeverIcon,
@@ -23,7 +23,7 @@ import { ListMenu, routineDefaultSortOption, RoutineListItem, routineOptionLabel
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { LabelledSortOption } from "utils";
-import { RoutineDeep, Standard } from "types";
+import { Routine, Standard } from "types";
 import { starMutation, voteMutation } from "graphql/mutation";
 import { star } from 'graphql/generated/star';
 import { vote } from "graphql/generated/vote";
@@ -146,13 +146,13 @@ export const ProjectView = ({
                     routineOptionLabel,
                     routinesQuery,
                     (newValue) => openLink(APP_LINKS.Routine, newValue.id),
-                    (node: RoutineDeep, index: number) => (
+                    (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             session={session}
                             data={node}
                             isOwn={false}
-                            onClick={(selected: RoutineDeep) => openLink(APP_LINKS.Routine, selected.id)}
+                            onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
                         />)
                 ];
             case 2:
@@ -184,6 +184,14 @@ export const ProjectView = ({
                 ];
         }
     }, [tabIndex]);
+
+    // Handle url search
+    const [searchString, setSearchString] = useState<string>('');
+    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        setSortBy(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
+    }, [defaultSortOption, sortOptions]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -353,6 +361,12 @@ export const ProjectView = ({
                                 defaultSortOption={defaultSortOption}
                                 query={searchQuery}
                                 take={20}
+                                searchString={searchString}
+                                sortBy={sortBy}
+                                timeFrame={timeFrame}
+                                setSearchString={setSearchString}
+                                setSortBy={setSortBy}
+                                setTimeFrame={setTimeFrame}
                                 listItemFactory={searchItemFactory}
                                 getOptionLabel={sortOptionLabel}
                                 onObjectSelect={onSearchSelect}

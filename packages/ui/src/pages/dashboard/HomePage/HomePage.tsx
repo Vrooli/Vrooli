@@ -100,9 +100,9 @@ export const HomePage = ({
 
     // Opens correct search page
     const openSearch = useCallback((linkBases: [string, string], id?: string) => {
+        console.log('open search', searchString, id ? `${linkBases[1]}/${id}` : linkBases[0])
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
-        console.log('heeeeeee', id ? `${linkBases[1]}/${id}` : linkBases[0])
         setLocation(id ? `${linkBases[1]}/${id}` : linkBases[0]);
     }, [searchString, setLocation]);
 

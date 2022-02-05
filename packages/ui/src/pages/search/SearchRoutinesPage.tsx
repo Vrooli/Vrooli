@@ -2,7 +2,7 @@ import { APP_LINKS, RoutineSortBy } from "@local/shared";
 import { projectDefaultSortOption, projectOptionLabel, ProjectSortOptions, RoutineListItem, RoutineView, ShareDialog, BaseObjectDialog } from "components";
 import { routinesQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
-import { RoutineDeep as Routine, RoutineDeep } from "types";
+import { Routine } from "types";
 import { labelledSortOptions } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { LabelledSortOption } from "utils";
@@ -15,9 +15,9 @@ export const SearchRoutinesPage = ({
     const [, setLocation] = useLocation();
     const [match, params] = useRoute(`${APP_LINKS.SearchRoutines}/:id`);
     // Handles dialog when selecting a search result
-    const [selected, setSelected] = useState<RoutineDeep | undefined>(undefined);
+    const [selected, setSelected] = useState<Routine | undefined>(undefined);
     const selectedDialogOpen = Boolean(match || selected);
-    const handleSelected = useCallback((selected: RoutineDeep) => {
+    const handleSelected = useCallback((selected: Routine) => {
         setSelected(selected);
         setLocation(`${APP_LINKS.SearchRoutines}/${selected.id}`);
     }, [setLocation]);

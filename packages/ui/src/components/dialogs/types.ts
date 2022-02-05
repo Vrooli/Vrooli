@@ -2,7 +2,7 @@ import { DialogProps, MenuProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
-import { Organization, Session } from 'types';
+import { Organization, Project, Routine, Session, Standard, User } from 'types';
 
 export interface AlertDialogProps extends DialogProps {};
 
@@ -82,5 +82,37 @@ export interface OrganizationDialogProps {
     hasPrevious?: boolean;
     hasNext?: boolean;
     partialData?: Partial<Organization>;
+    session: Session;
+};
+
+export interface ProjectDialogProps {
+    canEdit?: boolean; // Can only edit if you own the object
+    hasPrevious?: boolean;
+    hasNext?: boolean;
+    partialData?: Partial<Project>;
+    session: Session;
+};
+
+export interface RoutineDialogProps {
+    canEdit?: boolean; // Can only edit if you own the object
+    hasPrevious?: boolean;
+    hasNext?: boolean;
+    partialData?: Partial<Routine>;
+    session: Session;
+};
+
+export interface StandardDialogProps {
+    canEdit?: boolean; // Can only edit if you own the object
+    hasPrevious?: boolean;
+    hasNext?: boolean;
+    partialData?: Partial<Standard>;
+    session: Session;
+};
+
+export interface UserDialogProps {
+    canEdit?: boolean; // Can only edit if you own the object
+    hasPrevious?: boolean;
+    hasNext?: boolean;
+    partialData?: Partial<User>;
     session: Session;
 };

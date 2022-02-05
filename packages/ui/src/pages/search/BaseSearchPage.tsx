@@ -6,6 +6,7 @@ import { centeredDiv } from "styles";
 import { useLocation } from "wouter";
 import { BaseSearchPageProps } from "./types";
 import { Add as AddIcon } from '@mui/icons-material';
+import { parseSearchParams } from "utils/urlTools";
 
 const tabOptions = [
     ['Organizations', APP_LINKS.SearchOrganizations],
@@ -32,16 +33,26 @@ export function BaseSearchPage<DataType, SortBy>({
     onPopupButtonClick,
 }: BaseSearchPageProps<DataType, SortBy>) {
     const [, setLocation] = useLocation();
+    // Handle url search
+    const [searchString, setSearchString] = useState<string>(parseSearchParams(window.location.search).search ?? '');
+    const [sortBy, setSortBy] = useState<string | undefined>(parseSearchParams(window.location.search).sort ?? defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
+    const [timeFrame, setTimeFrame] = useState<string | undefined>(parseSearchParams(window.location.search).time);
+    useEffect(() => {
+        let searchUrl = '?';
+        if (searchString) searchUrl += `search=${searchString}&`;
+        if (sortBy) searchUrl += `sort=${sortBy}&`;
+        if (timeFrame) searchUrl += `time=${timeFrame}&`;
+        setLocation(searchUrl.substring(0, searchUrl.length - 1), { replace: true });
+    }, [searchString, sortBy, timeFrame, setLocation]);
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
         const tabIndex = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
         return tabIndex >= 0 ? tabIndex : 0;
     });
-    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
-    useEffect(() => {
-        console.log()
+    const handleTabChange = (event, newValue) => { 
+        setTabIndex(newValue);
         setLocation(tabOptions[tabIndex][1]);
-    }, [tabIndex]);
+    };
 
     // Popup button
     const [popupButton, setPopupButton] = useState<boolean>(false);
@@ -112,6 +123,12 @@ export function BaseSearchPage<DataType, SortBy>({
                 defaultSortOption={defaultSortOption}
                 query={query}
                 take={take}
+                searchString={searchString}
+                sortBy={sortBy}
+                timeFrame={timeFrame}
+                setSearchString={setSearchString}
+                setSortBy={setSortBy}
+                setTimeFrame={setTimeFrame}
                 listItemFactory={listItemFactory}
                 getOptionLabel={getOptionLabel}
                 onObjectSelect={onObjectSelect}

@@ -16,9 +16,6 @@ export interface ViewProps<T> {
     partialData?: Partial<T>;
 }
 
-export interface ProfileUpdateProps extends UpdateProps<User> {}
-export interface ActorViewProps extends ViewProps<User> {}
-
 export interface OrganizationAddProps extends AddProps<Organization> {}
 export interface OrganizationUpdateProps extends UpdateProps<Organization> {}
 export interface OrganizationViewProps extends ViewProps<Organization> {}
@@ -34,3 +31,6 @@ export interface RoutineViewProps extends ViewProps<Routine> {}
 export interface StandardAddProps extends AddProps<Standard> {}
 export interface StandardUpdateProps extends UpdateProps<Standard> {}
 export interface StandardViewProps extends ViewProps<Standard> {}
+
+export interface UserUpdateProps extends UpdateProps<User> {}
+export interface UserViewProps extends ViewProps<User> {}

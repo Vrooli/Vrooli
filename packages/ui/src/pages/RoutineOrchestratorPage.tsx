@@ -16,7 +16,7 @@ import {
     Restore as RestoreIcon,
     Update as UpdateIcon
 } from '@mui/icons-material';
-import { RoutineDeep } from 'types';
+import { Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 
 //TEMP
@@ -243,8 +243,8 @@ const data: OrchestrationData = {
 export const RoutineOrchestratorPage = () => {
     // Queries routine data
     const { data: routineData } = useQuery<routine>(routineQuery, { variables: { input: { id: 'TODO' } } });
-    const [routine, setRoutine] = useState<RoutineDeep | null>(null);
-    const [changedRoutine, setChangedRoutine] = useState<RoutineDeep | null>(null);
+    const [routine, setRoutine] = useState<Routine | null>(null);
+    const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     // Routine mutator
     const [routineUpdate, { loading }] = useMutation<any>(routineUpdateMutation);
     // The routine's status (valid/invalid)

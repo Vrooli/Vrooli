@@ -9,7 +9,7 @@ export function FeedList({
     onClick,
     children,
 }: FeedListProps) {
-    const handleSeeMoreClick = useCallback(() => onClick(), [onClick]);
+    const handleSeeMoreClick = useCallback(() => {console.log('handleseemoreclick'); onClick()}, [onClick]);
 
     return (
         <Box

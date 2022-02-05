@@ -1,32 +1,31 @@
-import { OrganizationView } from 'components';
+import { StandardView } from 'components';
 import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
-import { OrganizationAdd } from 'components/views/OrganizationAdd/OrganizationAdd';
-import { OrganizationUpdate } from 'components/views/OrganizationUpdate/OrganizationUpdate';
-import { OrganizationDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
+import { StandardAdd } from 'components/views/StandardAdd/StandardAdd';
+import { StandardUpdate } from 'components/views/StandardUpdate/StandardUpdate';
+import { StandardDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { useMutation } from '@apollo/client';
-import { organization } from 'graphql/generated/organization';
-import { organizationAddMutation, organizationUpdateMutation } from 'graphql/mutation';
+import { standard } from 'graphql/generated/standard';
+import { standardAddMutation, standardUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS } from '@local/shared';
 import { Pubs } from 'utils';
 
-export const OrganizationDialog = ({
+export const StandardDialog = ({
     hasPrevious,
     hasNext,
     canEdit = false,
     partialData,
     session
-}: OrganizationDialogProps) => {
+}: StandardDialogProps) => {
     const [, setLocation] = useLocation();
-    const [, params] = useRoute(`${APP_LINKS.SearchOrganizations}/:params*`);
+    const [, params] = useRoute(`${APP_LINKS.SearchStandards}/:params*`);
     const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
-    console.log("OrganizationDialog", { params, state, id });
 
-    const [add] = useMutation<organization>(organizationAddMutation);
-    const [update] = useMutation<organization>(organizationUpdateMutation);
-    const [del] = useMutation<organization>(organizationUpdateMutation);
+    const [add] = useMutation<standard>(standardAddMutation);
+    const [update] = useMutation<standard>(standardUpdateMutation);
+    const [del] = useMutation<standard>(standardUpdateMutation);
 
     const onAction = useCallback((action: ObjectDialogAction) => {
         switch (action) {
@@ -36,7 +35,7 @@ export const OrganizationDialog = ({
                     input: { },
                     onSuccess: ({ data }) => { 
                         const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
+                        if (id) setLocation(`${APP_LINKS.SearchStandards}/view/${id}`, { replace: true });
                     },
                     onError: (response) => {
                         PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
@@ -44,13 +43,13 @@ export const OrganizationDialog = ({
                 })
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.SearchOrganizations}/view`, { replace: true });
+                setLocation(`${APP_LINKS.SearchStandards}/view`, { replace: true });
                 break;
             case ObjectDialogAction.Close:
                 window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.SearchOrganizations}/edit/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.SearchStandards}/edit/${id}`, { replace: true });
                 break;
             case ObjectDialogAction.Next:
                 break;
@@ -62,7 +61,7 @@ export const OrganizationDialog = ({
                     input: { },
                     onSuccess: ({ data }) => { 
                         const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
+                        if (id) setLocation(`${APP_LINKS.SearchStandards}/view/${id}`, { replace: true });
                     },
                     onError: (response) => {
                         PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
@@ -75,9 +74,9 @@ export const OrganizationDialog = ({
     const title = useMemo(() => {
         switch(state) {
             case 'add':
-                return 'Add Organization';
+                return 'Add Standard';
             case 'edit':
-                return 'Edit Organization';
+                return 'Edit Standard';
             default:
                 return '';
         }
@@ -86,11 +85,11 @@ export const OrganizationDialog = ({
     const child = useMemo(() => {
         switch(state) {
             case 'add':
-                return <OrganizationAdd onAdded={() => onAction(ObjectDialogAction.Add)} />
+                return <StandardAdd onAdded={() => onAction(ObjectDialogAction.Add)} />
             case 'edit':
-                return <OrganizationUpdate id="" onUpdated={() => onAction(ObjectDialogAction.Save)} />
+                return <StandardUpdate id="" onUpdated={() => onAction(ObjectDialogAction.Save)} />
             default:
-                return <OrganizationView session={session} partialData={partialData} />
+                return <StandardView session={session} partialData={partialData} />
         }
     }, [state]);
 

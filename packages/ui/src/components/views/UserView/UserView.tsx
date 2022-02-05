@@ -4,7 +4,7 @@ import { APP_LINKS, StarFor } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, userQuery } from "graphql/query";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
     DeleteForever as DeleteForeverIcon,
@@ -19,11 +19,12 @@ import {
 } from "@mui/icons-material";
 import { ListMenu, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
-import { ActorViewProps } from "../types";
+import { UserViewProps } from "../types";
 import { LabelledSortOption } from "utils";
-import { Organization, Project, RoutineDeep, Standard } from "types";
+import { Organization, Project, Routine, Standard } from "types";
 import { starMutation } from "graphql/mutation";
 import { star } from 'graphql/generated/star';
+import { parseSearchParams } from "utils/urlTools";
 
 const tabLabels = ['Resources', 'Organizations', 'Projects', 'Routines', 'Standards'];
 
@@ -45,10 +46,10 @@ const allOptionsMap: { [x: string]: [string, SvgIconComponent, string] } = ({
     [Actions.Delete]: ['Delete', DeleteForeverIcon, "default"],
 })
 
-export const ActorView = ({
+export const UserView = ({
     session,
     partialData,
-}: ActorViewProps) => {
+}: UserViewProps) => {
     const [star] = useMutation<star>(starMutation);
     const [, setLocation] = useLocation();
     // Get URL params
@@ -162,13 +163,13 @@ export const ActorView = ({
                     routineOptionLabel,
                     routinesQuery,
                     (newValue) => openLink(APP_LINKS.Routine, newValue.id),
-                    (node: RoutineDeep, index: number) => (
+                    (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             session={session}
                             data={node}
                             isOwn={false}
-                            onClick={(selected: RoutineDeep) => openLink(APP_LINKS.Routine, selected.id)}
+                            onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
                         />)
                 ];
             case 4:
@@ -200,6 +201,14 @@ export const ActorView = ({
                 ];
         }
     }, [tabIndex]);
+
+    // Handle url search
+    const [searchString, setSearchString] = useState<string>('');
+    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        setSortBy(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
+    }, [defaultSortOption, sortOptions]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -369,6 +378,12 @@ export const ActorView = ({
                                 defaultSortOption={defaultSortOption}
                                 query={searchQuery}
                                 take={20}
+                                searchString={searchString}
+                                sortBy={sortBy}
+                                timeFrame={timeFrame}
+                                setSearchString={setSearchString}
+                                setSortBy={setSortBy}
+                                setTimeFrame={setTimeFrame}
                                 listItemFactory={searchItemFactory}
                                 getOptionLabel={sortOptionLabel}
                                 onObjectSelect={onSearchSelect}

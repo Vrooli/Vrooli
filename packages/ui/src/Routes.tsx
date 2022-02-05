@@ -13,7 +13,7 @@ import { CommonProps } from 'types';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
-    ActorViewPage,
+    UserViewPage,
     DevelopPage,
     FormPage,
     HomePage,
@@ -119,7 +119,7 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
                 <Route path={`${LINKS.Profile}/:id?`}>
                     <Page title={title('Profile')} {...props}>
-                        <ActorViewPage session={props.session ?? {}}/>
+                        <UserViewPage session={props.session ?? {}}/>
                     </Page>
                 </Route>
                 <Route path={`${LINKS.Organization}/:id?`}>

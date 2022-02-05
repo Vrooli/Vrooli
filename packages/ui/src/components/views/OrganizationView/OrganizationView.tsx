@@ -4,7 +4,7 @@ import { APP_LINKS, StarFor } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
 import { organization } from "graphql/generated/organization";
 import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
     DeleteForever as DeleteForeverIcon,
@@ -21,7 +21,7 @@ import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptio
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { LabelledSortOption } from "utils";
-import { User, Project, RoutineDeep, Standard } from "types";
+import { User, Project, Routine, Standard } from "types";
 import { starMutation } from "graphql/mutation";
 import { star } from 'graphql/generated/star';
 
@@ -159,13 +159,13 @@ export const OrganizationView = ({
                     routineOptionLabel,
                     routinesQuery,
                     (newValue) => openLink(APP_LINKS.Routine, newValue.id),
-                    (node: RoutineDeep, index: number) => (
+                    (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             session={session}
                             data={node}
                             isOwn={false}
-                            onClick={(selected: RoutineDeep) => openLink(APP_LINKS.Routine, selected.id)}
+                            onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
                         />)
                 ];
             case 4:
@@ -197,6 +197,14 @@ export const OrganizationView = ({
                 ];
         }
     }, [tabIndex]);
+
+    // Handle url search
+    const [searchString, setSearchString] = useState<string>('');
+    const [sortBy, setSortBy] = useState<string | undefined>(undefined);
+    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        setSortBy(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
+    }, [defaultSortOption, sortOptions]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -366,6 +374,12 @@ export const OrganizationView = ({
                                 defaultSortOption={defaultSortOption}
                                 query={searchQuery}
                                 take={20}
+                                searchString={searchString}
+                                sortBy={sortBy}
+                                timeFrame={timeFrame}
+                                setSearchString={setSearchString}
+                                setSortBy={setSortBy}
+                                setTimeFrame={setTimeFrame}
                                 listItemFactory={searchItemFactory}
                                 getOptionLabel={sortOptionLabel}
                                 onObjectSelect={onSearchSelect}
