@@ -39,8 +39,8 @@ import { tag } from "@prisma/client";
     defaultSort: TagSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [TagSortBy.AlphabeticalAsc]: { name: 'asc' },
-            [TagSortBy.AlphabeticalDesc]: { name: 'desc' },
+            [TagSortBy.AlphabeticalAsc]: { tag: 'asc' },
+            [TagSortBy.AlphabeticalDesc]: { tag: 'desc' },
             [TagSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [TagSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [TagSortBy.DateUpdatedAsc]: { updated_at: 'asc' },

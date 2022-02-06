@@ -88,6 +88,7 @@ import { organization } from "@prisma/client";
         const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, true);
         if (resourceData) organizationData.resources = resourceData;
         // Handle tags TODO
+        console.log('addOrganization', organizationData);
         // Create organization
         const organization = await prisma.organization.create({
             data: organizationData,

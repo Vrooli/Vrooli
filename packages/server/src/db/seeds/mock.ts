@@ -329,5 +329,26 @@ export async function mock(prisma: PrismaType) {
     /* #endregion Create projects */
     //==============================================================
 
+    //==============================================================
+    /* #region Create tags */
+    //==============================================================
+    // Make sure to test the following:
+    // - Short and long tags display correctly
+    await prisma.tag.create({
+        data: {
+            tag: 'Cardano',
+            description: 'lorem ipsum dolor sit amet',
+        }
+    });
+    await prisma.tag.create({
+        data: {
+            tag: 'Entrepreneurship',
+            description: 'lorem ipsum dolor sit amet',
+        }
+    });
+    //==============================================================
+    /* #endregion Create tags */
+    //==============================================================
+
     console.info(`✅ Database mock complete.`);
 }

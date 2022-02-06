@@ -15,7 +15,7 @@ export const ProjectAdd = ({
     onAdded,
     onCancel,
 }: ProjectAddProps) => {
-    const canAdd = useMemo(() => Array.isArray(session?.roles) && !session.roles.includes(ROLES.Actor), [session]);
+    const canAdd = useMemo(() => Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor), [session]);
 
     // Handle add
     const [mutation] = useMutation<project>(projectAddMutation);

@@ -46,6 +46,7 @@ export interface DateRangeMenuProps {
 export interface FeedListProps {
     title?: string;
     onClick: () => void;
+    loading: boolean;
     children: JSX.Element[];
 }
 

@@ -46,7 +46,7 @@ export const HomePage = ({
     });
     const updateSearch = useCallback((newValue: any) => { console.log('update search'); setSearchString(newValue) }, []);
     // Search query removes words that start with a '!'. These are used for sorting results. TODO doesn't work
-    const { data, refetch } = useQuery<autocomplete, autocompleteVariables>(autocompleteQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
+    const { data, refetch, loading } = useQuery<autocomplete, autocompleteVariables>(autocompleteQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
     useEffect(() => { console.log('refetching...', session); refetch() }, [refetch, searchString]);
 
@@ -194,6 +194,7 @@ export const HomePage = ({
                 <FeedList
                     key={`feed-list-${objectType}`}
                     title={getFeedTitle(`${objectType}s`)}
+                    loading={loading}
                     onClick={() => openSearch(linkMap[objectType])}
                 >
                     {listFeedItems}

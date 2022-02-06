@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { Box, Link, List, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Link, List, Stack, Tooltip, Typography } from '@mui/material';
 import { FeedListProps } from '../types';
 import { clickSize, containerShadow } from 'styles';
 import { useCallback } from 'react';
@@ -7,9 +7,10 @@ import { useCallback } from 'react';
 export function FeedList({
     title = 'Popular Items',
     onClick,
+    loading,
     children,
 }: FeedListProps) {
-    const handleSeeMoreClick = useCallback(() => {console.log('handleseemoreclick'); onClick()}, [onClick]);
+    const handleSeeMoreClick = useCallback(() => { onClick() }, [onClick]);
 
     return (
         <Box
@@ -36,9 +37,19 @@ export function FeedList({
             </Box>
             <Tooltip placement="bottom" title="Press to see more">
                 <Stack direction="column">
-                    <List sx={{ minHeight: 'min(300px, 25vh)'}}>
-                        {children}
-                    </List>
+                    <Box sx={{ minHeight: 'min(300px, 25vh)' }}>
+                        {loading ?
+                            (
+                                <List sx={{ minHeight: 'min(300px, 25vh)' }}>
+                                    {children}
+                                </List>
+                            ) : (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                    <CircularProgress color="secondary" />
+                                </Box>
+                            )
+                        }
+                    </Box>
                     <Link onClick={handleSeeMoreClick}>
                         <Typography
                             sx={{

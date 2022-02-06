@@ -47,3 +47,10 @@ export interface SelectorProps extends SelectProps {
     className?: string;
     style?: any;
 }
+
+export interface TagSelectorProps {
+    tags: string[];
+    onTagAdd: (tag: string) => any;
+    onTagRemove: (tag: string) => any;
+    onTagsClear: () => any;
+}

@@ -8,14 +8,16 @@ import { useFormik } from 'formik';
 import { organizationAddMutation } from "graphql/mutation";
 import { formatForAdd, Pubs } from "utils";
 import { OrganizationAddProps } from "../types";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { TagSelector } from "components";
+import { handleBreakpoints } from "@mui/system";
 
 export const OrganizationAdd = ({
     session,
     onAdded,
     onCancel,
 }: OrganizationAddProps) => {
-    const canAdd = useMemo(() => Array.isArray(session?.roles) && !session.roles.includes(ROLES.Actor), [session]);
+    const canAdd = useMemo(() => Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor), [session]);
 
     // Handle add
     const [mutation] = useMutation<organization>(organizationAddMutation);
@@ -37,11 +39,23 @@ export const OrganizationAdd = ({
         },
     });
 
+    // Handle tags
+    const [tags, setTags] = useState<string[]>(['asdf', 'fdsa']);
+    const addTag = useCallback((tag: string) => {
+        setTags(tags => [...tags, tag]);
+    }, [setTags]);
+    const removeTag = useCallback((tag: string) => {
+        setTags(tags => tags.filter(t => t !== tag));
+    }, [setTags]);
+    const clearTags = useCallback(() => {
+        setTags([]);
+    }, [setTags]);
+
     console.log('formik', formik.values, formik.errors, formik.touched);
 
     return (
         <form onSubmit={formik.handleSubmit}>
-            <Grid container spacing={2} sx={{padding: 2}}>
+            <Grid container spacing={2} sx={{ padding: 2 }}>
                 <Grid item xs={12}>
                     <TextField
                         fullWidth
@@ -68,6 +82,14 @@ export const OrganizationAdd = ({
                         onChange={formik.handleChange}
                         error={formik.touched.bio && Boolean(formik.errors.bio)}
                         helperText={formik.touched.bio && formik.errors.bio}
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <TagSelector
+                        tags={tags}
+                        onTagAdd={addTag}
+                        onTagRemove={removeTag}
+                        onTagsClear={clearTags}
                     />
                 </Grid>
                 <Grid item xs={12} sm={6}>

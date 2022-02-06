@@ -31,7 +31,7 @@ export const SearchStandardsPage = ({
 
     // Handles dialog when adding a new organization
     const handleAddDialogOpen = useCallback(() => {
-        const canAdd = Array.isArray(session?.roles) && !session.roles.includes(ROLES.Actor);
+        const canAdd = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
         if (canAdd) {
             setLocation(`${APP_LINKS.SearchStandards}/add`)
         }

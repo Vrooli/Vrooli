@@ -32,7 +32,8 @@ export const SearchOrganizationsPage = ({
 
     // Handles dialog when adding a new organization
     const handleAddDialogOpen = useCallback(() => {
-        const canAdd = Array.isArray(session?.roles) && !session.roles.includes(ROLES.Actor);
+        const canAdd = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
+        console.log('handleAddDialogOpen', canAdd, session);
         if (canAdd) {
             setLocation(`${APP_LINKS.SearchOrganizations}/add`)
         }
@@ -40,7 +41,7 @@ export const SearchOrganizationsPage = ({
             PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
             setLocation(APP_LINKS.Start)
         }
-    }, [setLocation]);
+    }, [session, setLocation]);
 
     // Handles dialog for the button that appears after scrolling a certain distance
     const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
