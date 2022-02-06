@@ -15,6 +15,10 @@ export const CODE = {
         code: 'EMAIL_IN_USE',
         message: 'Error: Account with that email already exists'
     },
+    EmailNotFound: {
+        code: 'EMAIL_NOT_FOUND',
+        message: 'Error: Could not find an account with that email'
+    },
     EmailNotVerified: {
         code: 'EMAIL_NOT_VERIFIED',
         message: 'Error: Email has not been verified yet. Sending new verification email'
@@ -98,5 +102,9 @@ export const CODE = {
     UsernameInUse: {
         code: 'USERNAME_IN_USE',
         message: 'Error: Account with that username already exists'
+    },
+    UserNotFound: {
+        code: 'USER_NOT_FOUND',
+        message: 'Error: User not found'
     },
 }

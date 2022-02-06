@@ -127,6 +127,10 @@ export function App() {
 
     useEffect(() => {
         checkSession();
+        // Handle log out
+        let logOutSub = PubSub.subscribe(Pubs.LogOut, () => {
+            setSession(undefined);
+        });
         // Handle loading spinner, which can have a delay
         let loadingSub = PubSub.subscribe(Pubs.Loading, (_, data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -138,6 +142,7 @@ export function App() {
         });
         let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
         return (() => {
+            PubSub.unsubscribe(logOutSub);
             PubSub.unsubscribe(loadingSub);
             PubSub.unsubscribe(themeSub);
         })

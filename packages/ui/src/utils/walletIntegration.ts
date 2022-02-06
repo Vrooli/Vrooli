@@ -1,19 +1,35 @@
-// Handles wallet integration
+/**
+ * Handles wallet integration
+ * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
+ */
 import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
 import { initializeApollo } from 'graphql/utils/initialize';
 import { Session } from 'types';
 import { Pubs } from 'utils';
 
-enum WalletProvider {
-    Nami
+export enum WalletProvider {
+    CCVault,
+    Nami,
+    // Yoroi, // Doesn't work yet
 }
+
 /**
- * Maps supported wallet providers to their key name in window.cardano. 
- * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
+ * [Enum, window.cardano key, Label, Download extension URL]
  */
-const Provider = {
-    [WalletProvider.Nami]: 'nami'
+const walletProviderInfoMap: { [x: string]: [WalletProvider, string, string, string] } = {
+    [WalletProvider.CCVault]: [WalletProvider.CCVault, 'ccvault', 'CCVault.io', 'https://chrome.google.com/webstore/detail/ccvaultio/kmhcihpebfmpgmihbkipmjlmmioameka'],
+    [WalletProvider.Nami]: [WalletProvider.Nami, 'nami', 'Nami', 'https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo'],
+    // [WalletProvider.Yoroi]: [WalletProvider.Yoroi, 'yoroi', 'Yoroi', 'https://chrome.google.com/webstore/detail/yoroi/ffnbelfdoeiohenkjibnmadjiehjhajb'],
 }
+
+export const walletProviderInfo = Object.values(walletProviderInfoMap).map(o => ({
+    enum: o[0],
+    key: o[1],
+    label: o[2],
+    extensionUrl: o[3],
+}))
+
+
 
 /**
  * Maps network names to their ids
@@ -23,7 +39,7 @@ const Network = {
     Testnet: 0
 }
 
-export const hasWalletExtension = () => Boolean(window.cardano);
+export const hasWalletExtension = (provider: WalletProvider) => Boolean(window.cardano && window.cardano[walletProviderInfo[provider].key]);
 
 /**
  * Connects to wallet provider
@@ -31,40 +47,48 @@ export const hasWalletExtension = () => Boolean(window.cardano);
  * @returns Object containing methods to interact with the wallet provider
  */
 const connectWallet = async (provider: WalletProvider): Promise<any> => {
-    if (!hasWalletExtension()) return false;
-    return await window.cardano[Provider[provider]].enable();
+    if (!hasWalletExtension(provider)) return false;
+    return await window.cardano[walletProviderInfo[provider].key].enable();
 }
 
 // Initiate handshake to verify wallet with backend
 // Returns hex string of payload, to be signed by wallet
 const walletInit = async (publicAddress: string): Promise<any> => {
+    PubSub.publish(Pubs.Loading, 500);
     const client = initializeApollo();
     const result = await client.mutate({
         mutation: walletInitMutation,
         variables: { input: { publicAddress } }
     });
+    PubSub.publish(Pubs.Loading, false);
     return result.data.walletInit;
 }
 
 /**
  * Completes handshake to verify wallet with backend
  * @param publicAddress Wallet's public address
- * @param message Message signed by wallet
+ * @param signedPayload Message signed by wallet
  * @returns Session object if successful, null if not
  */
-const walletComplete = async (publicAddress: string, message: { key: string, signature: string }): Promise<Session | null> => {
+const walletComplete = async (publicAddress: string, signedPayload: string): Promise<Session | null> => {
+    PubSub.publish(Pubs.Loading, 500);
     const client = initializeApollo();
-    console.log('in wallet complete', message);
+    console.log('in wallet complete', signedPayload);
     const result = await client.mutate({
         mutation: walletCompleteMutation,
-        variables: { input: { publicAddress, ...message } }
+        variables: { input: { publicAddress, signedPayload } }
     });
+    PubSub.publish(Pubs.Loading, false);
     return result.data.walletComplete;
 }
 
 // Signs payload received from walletInit
-const signPayload = async (walletActions: any, publicAddress: string, payload: string): Promise<any> => {
-    if (!hasWalletExtension()) return null;
+const signPayload = async (provider: WalletProvider, walletActions: any, publicAddress: string, payload: string): Promise<any> => {
+    if (!hasWalletExtension(provider)) return null;
+    // As of 2022-02-05, new Nami endpoint is not fully working. So the old method is used for now
+    if (provider === WalletProvider.Nami)
+        return await window.cardano.signData(publicAddress, payload);
+    // For all other providers, we use the new method
     return await walletActions.signData(publicAddress, payload);
 }
 
@@ -72,7 +96,7 @@ const signPayload = async (walletActions: any, publicAddress: string, payload: s
  * Establish trust between a user's wallet and the backend
  * @returns Session object or null
  */
-export const validateWallet = async (provider: WalletProvider = WalletProvider.Nami): Promise<Session | null> => {
+export const validateWallet = async (provider: WalletProvider): Promise<Session | null> => {
     let session: Session | null = null;
     try {
         // Connect to wallet extension
@@ -90,7 +114,7 @@ export const validateWallet = async (provider: WalletProvider = WalletProvider.N
         const payload = await walletInit(rewardAddresses[0]);
         if (!payload) return null;
         // Sign payload with wallet
-        const signedPayload = await signPayload(walletActions, rewardAddresses[0], payload);
+        const signedPayload = await signPayload(provider, walletActions, rewardAddresses[0], payload);
         console.log('signed payload', signedPayload);
         if (!signedPayload) return null;
         // Send signed payload to backend for verification

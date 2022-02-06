@@ -625,12 +625,14 @@ export type NodeRoutineListItem = {
   __typename?: 'NodeRoutineListItem';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  isOptional: Scalars['Boolean'];
   routine: Routine;
   title?: Maybe<Scalars['String']>;
 };
 
 export type NodeRoutineListItemAddInput = {
   description?: InputMaybe<Scalars['String']>;
+  isOptional?: InputMaybe<Scalars['Boolean']>;
   routineConnect: Scalars['ID'];
   title?: InputMaybe<Scalars['String']>;
 };
@@ -638,6 +640,7 @@ export type NodeRoutineListItemAddInput = {
 export type NodeRoutineListItemUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isOptional?: InputMaybe<Scalars['Boolean']>;
   routineConnect?: InputMaybe<Scalars['ID']>;
   title?: InputMaybe<Scalars['String']>;
 };
@@ -1701,9 +1704,8 @@ export type Wallet = {
 };
 
 export type WalletCompleteInput = {
-  key: Scalars['String'];
   publicAddress: Scalars['String'];
-  signature: Scalars['String'];
+  signedPayload: Scalars['String'];
 };
 
 export type WalletInitInput = {

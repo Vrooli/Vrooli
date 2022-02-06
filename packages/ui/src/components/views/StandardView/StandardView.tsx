@@ -32,7 +32,7 @@ const moreOptionsMap: { [x: string]: [string, SvgIconComponent] } = ({
     [Actions.Share]: ['Share', ShareIcon],
     [Actions.Report]: ['Delete', ReportIcon],
 })
-const moreOptions: ListMenuItemData[] = Object.keys(moreOptionsMap).map(o => ({
+const moreOptions: ListMenuItemData<string>[] = Object.keys(moreOptionsMap).map(o => ({
     label: moreOptionsMap[o][0],
     value: o,
     Icon: moreOptionsMap[o][1]

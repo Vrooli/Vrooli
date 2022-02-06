@@ -18,7 +18,7 @@ const listOptionsMap: {[x: string]: [string, SvgIconComponent]} = {
     'move': ['Move node', EditLocationIcon],
 }
 
-const listOptions: ListMenuItemData[] = Object.keys(listOptionsMap).map(o => ({ 
+const listOptions: ListMenuItemData<string>[] = Object.keys(listOptionsMap).map(o => ({ 
     label: listOptionsMap[o][0],
     value: o,
     Icon: listOptionsMap[o][1]

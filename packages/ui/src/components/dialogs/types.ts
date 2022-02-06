@@ -15,20 +15,20 @@ export interface FormDialogProps {
     onClose: () => void;
 }
 
-export interface ListMenuItemData {
+export interface ListMenuItemData<T> {
     label: string; // Text to display
-    value: string; // Value to pass back
+    value: T; // Value to pass back
     Icon?: SvgIconComponent; // Icon to display
     iconColor?: string; // Color of icon, if different than text
     helpData?: HelpButtonProps; // If set, displays help button with data
 }
-export interface ListMenuProps {
+export interface ListMenuProps<T> {
     id: string;
     anchorEl: HTMLElement | null;
-    onSelect: (value: any) => void;
+    onSelect: (value: T) => void;
     onClose: () => void;
     title?: string;
-    data?: ListMenuItemData[];
+    data?: ListMenuItemData<T>[];
 }
 
 export enum ObjectDialogState {

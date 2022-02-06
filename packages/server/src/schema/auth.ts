@@ -56,8 +56,7 @@ export const typeDef = gql`
 
     input WalletCompleteInput {
         publicAddress: String!
-        key: String!
-        signature: String!
+        signedPayload: String!
     }
 
     type Session {
@@ -121,13 +120,10 @@ export const resolvers = {
         emailSignUp: async (_parent: undefined, { input }: IWrap<EmailSignUpInput>, { prisma, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Validate input format
             emailSignUpSchema.validateSync(input, { abortEarly: false });
-            if (input?.password !== input?.confirmPassword) throw new CustomError(CODE.InvalidArgs, 'Passwords do not match');
             // Find user role to give to new user
             const roles = await prisma.role.findMany({ select: { id: true, title: true } });
             const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
             if (!actorRoleId) throw new CustomError(CODE.ErrorUnknown);
-            // Check for valid username
-            if (!input.username || input.username.length < 1) throw new CustomError(CODE.InvalidArgs, 'Username too short');
             // Check for censored words
             if (hasProfanity(input.username)) throw new CustomError(CODE.BannedWord);
             // Check if email exists
@@ -135,7 +131,7 @@ export const resolvers = {
             if (existingEmail) throw new CustomError(CODE.EmailInUse);
             // Check if username exists
             let existingUser = await prisma.user.findUnique({ where: { username: input.username } });
-            if (!existingUser) throw new CustomError(CODE.UsernameInUse);
+            if (existingUser) throw new CustomError(CODE.UsernameInUse);
             // Create user object
             const user = await prisma.user.create({
                 data: {
@@ -166,13 +162,15 @@ export const resolvers = {
         },
         emailRequestPasswordChange: async (_parent: undefined, { input }: IWrap<EmailRequestPasswordChangeInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Validate input format
+            console.log('emailRequestPasswordChange', input);
             emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
             // Validate email address
             const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
-            if (!email) throw new CustomError(CODE.BadCredentials);
+            console.log('emai', email);
+            if (!email) throw new CustomError(CODE.EmailNotFound);
             // Find user
             let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
-            if (!user) throw new CustomError(CODE.InternalError, 'User not found');
+            if (!user) throw new CustomError(CODE.UserNotFound);
             // Generate and send password reset code
             const success = await UserModel(prisma).setupPasswordReset(user);
             return { success };
@@ -320,13 +318,13 @@ export const resolvers = {
             });
             //TODO waiting on github issue to be resolved
             console.log('walletcomplete walletdata', walletData, input.publicAddress);
-            console.log('attempt420', verifySignedMessage(input.publicAddress, walletData?.nonce ?? '', input.signature));
+            console.log('attempt420', verifySignedMessage(input.publicAddress, walletData?.nonce ?? '', input.signedPayload));
             // If wallet doesn't exist, return error
             if (!walletData) throw new CustomError(CODE.InvalidArgs);
             // If nonce expired, return error
             if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
             // Verify that message was signed by wallet address
-            const walletVerified = false;//verifySignedMessage(input.publicAddress, walletData.nonce, input.signature);
+            const walletVerified = verifySignedMessage(input.publicAddress, walletData.nonce, input.signedPayload);
             if (!walletVerified) throw new CustomError(CODE.Unauthorized);
             let userData = walletData.user;
             // If user doesn't exist, create new user

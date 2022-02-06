@@ -22,7 +22,7 @@ import {
 } from '@mui/material';
 import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
-import { openLink } from 'utils';
+import { openLink, Pubs } from 'utils';
 import { Path } from 'wouter';
 
 export const ACTION_TAGS = {
@@ -66,7 +66,13 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
     } else {
         actions.push(
             ['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0],
-            ['Log Out', ACTION_TAGS.LogOut, LINKS.Home, () => { const client = initializeApollo(); client.mutate({ mutation: logOutMutation }) }, LogOutIcon, 0]
+            ['Log Out', ACTION_TAGS.LogOut, LINKS.Home, async () => { 
+                PubSub.publish(Pubs.Loading, 1000);
+                const client = initializeApollo(); 
+                await client.mutate({ mutation: logOutMutation });
+                PubSub.publish(Pubs.Loading, false);
+                PubSub.publish(Pubs.LogOut);
+            }, LogOutIcon, 0]
         );
     }
 

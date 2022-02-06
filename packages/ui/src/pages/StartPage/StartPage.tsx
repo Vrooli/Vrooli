@@ -1,5 +1,5 @@
 // Provides 3 options for entering the main application:
-// 1. Wallet authentication - Quickest and safest method, but requires Nami extension
+// 1. Wallet authentication - Quickest and safest method, but requires an extension which supports it
 // 2. Email authentication - Requires email and password. Pretty safe if using password manager, 
 // but wallet must be connected before performing any blockchain-related activities
 // 3. Guest pass - Those who don't want to make an account can still view and run routines, but will not
@@ -9,17 +9,19 @@ import {
     Box,
     Button,
     Dialog,
+    ListItem,
+    ListItemText,
     Stack,
     SxProps,
     Typography,
 } from '@mui/material';
 import { Forms, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { hasWalletExtension, validateWallet } from 'utils/walletIntegration';
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/walletIntegration';
 import { CommonProps } from 'types';
 import { ROLES } from '@local/shared';
-import { HelpButton } from 'components';
+import { HelpButton, ListMenu } from 'components';
 import {
     LogInForm,
     ForgotPasswordForm,
@@ -70,10 +72,24 @@ export const StartPage = ({
             });
     }, []);
 
+    // Wallet connect popup
+    const [walletOptionPopupOpen, setWalletOptionPopupOpen] = useState(false);
+    const [walletDialogFor, setWalletDialogFor] = useState<'connect' | 'download'>('connect');
+    const openWalletConnectDialog = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
+        setWalletDialogFor('connect');
+        setWalletOptionPopupOpen(true);
+        ev.preventDefault();
+    }, []);
+    const openWalletDownloadDialog = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
+        setWalletDialogFor('download');
+        setWalletOptionPopupOpen(true);
+        ev.preventDefault();
+    }, []);
+
     // Opens link to install wallet extension
-    const downloadExtension = useCallback(() => {
-        const extensionLink = `https://chrome.google.com/webstore/detail/nami-wallet/lpfcbjknijpeeillifnkikgncikgfhdo`;
-        window.open(extensionLink, '_blank', 'noopener,noreferrer');
+    const downloadExtension = useCallback((provider: WalletProvider) => {
+        const extensionUrl = walletProviderInfo[provider].extensionUrl;
+        window.open(extensionUrl, '_blank', 'noopener,noreferrer');
     }, [])
 
 
@@ -91,21 +107,21 @@ export const StartPage = ({
     // 4. Sign human-readable message (which includes nonce) using wallet
     // 5. Send signed message to backend for verification
     // 6. Receive JWT and user session
-    const walletLogin = useCallback(async () => {
+    const walletLogin = useCallback(async (provider: WalletProvider) => {
         // Check if wallet extension installed
-        if (!hasWalletExtension()) {
+        if (!hasWalletExtension(provider)) {
             PubSub.publish(Pubs.AlertDialog, {
                 message: 'Wallet not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
                     { text: 'Try Again', onClick: walletLogin },
-                    { text: 'Install Nami', onClick: downloadExtension },
+                    { text: 'Install Wallet', onClick: openWalletDownloadDialog },
                     { text: 'Email Login', onClick: toEmailLogIn },
                 ]
             });
             return;
         }
         // Validate wallet
-        const session = await validateWallet();
+        const session = await validateWallet(provider);
         console.log('wallet validation', session);
         if (session) {
             PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
@@ -126,6 +142,19 @@ export const StartPage = ({
         })
     }, [guestLogIn, setLocation, onSessionUpdate]);
 
+    const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
+        console.log('handleWalletDialogSelect', selected);
+        if (walletDialogFor === 'connect') {
+            walletLogin(selected);
+        } else if (walletDialogFor === 'download') {
+            downloadExtension(selected);
+        }
+        handleWalletDialogClose();
+    }, []);
+    const handleWalletDialogClose = useCallback(() => {
+        setWalletOptionPopupOpen(false);
+    }, []);
+
     return (
         <Box
             sx={{
@@ -134,6 +163,30 @@ export const StartPage = ({
                 minHeight: '100vh', //Fullscreen
             }}
         >
+            <Dialog
+                open={walletOptionPopupOpen}
+                disableScrollLock={true}
+                onClose={handleWalletDialogClose}
+            >
+                <Box
+                    sx={{
+                        width: '100',
+                        borderRadius: '4px 4px 0 0',
+                        padding: 1,
+                        paddingLeft: 2,
+                        paddingRight: 2,
+                        background: (t) => t.palette.primary.dark,
+                        color: 'white',
+                    }}
+                >
+                    <Typography variant="h6" textAlign="center">Select Wallet</Typography>
+                </Box>
+                {Object.values(walletProviderInfo).map((o, index) => (
+                    <ListItem button onClick={() => handleWalletDialogSelect(o.enum)} key={index}>
+                        <ListItemText primary={o.label} />
+                    </ListItem>
+                ))}
+            </Dialog>
             <Box
                 sx={{
                     width: 'min(100%, 500px)',
@@ -142,7 +195,7 @@ export const StartPage = ({
                 }}
             >
                 <Box textAlign="center">
-                    <Typography 
+                    <Typography
                         variant="h6"
                         sx={{
                             display: 'inline-block',
@@ -156,7 +209,7 @@ export const StartPage = ({
                     direction="column"
                     spacing={2}
                 >
-                    <Button fullWidth onClick={walletLogin} sx={{ ...buttonProps }}>Wallet (Nami)</Button>
+                    <Button fullWidth onClick={openWalletConnectDialog} sx={{ ...buttonProps }}>Wallet</Button>
                     <Button fullWidth onClick={toEmailLogIn} sx={{ ...buttonProps }}>Email</Button>
                     <Button fullWidth onClick={requestGuestToken} sx={{ ...buttonProps }}>Enter As Guest</Button>
                 </Stack>

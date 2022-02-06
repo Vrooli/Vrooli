@@ -14,14 +14,14 @@ import { noSelect } from 'styles';
 import { ListMenuProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 
-export const ListMenu = ({
+export function ListMenu<T>({
     id,
     anchorEl,
     onSelect,
     onClose,
     title = 'Select Item',
     data,
-}: ListMenuProps) => {
+}: ListMenuProps<T>) {
     const open = Boolean(anchorEl);
 
     console.log('anchorEl', anchorEl);
