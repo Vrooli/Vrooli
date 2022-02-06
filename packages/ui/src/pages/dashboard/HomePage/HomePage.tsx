@@ -4,8 +4,8 @@ import { centeredDiv, containerShadow } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
 import { useQuery } from '@apollo/client';
 import { autocompleteQuery } from 'graphql/query';
-import { ActorListItem, FeedList, OrganizationListItem, ProjectListItem, RoutineListItem, AutocompleteSearchBar, StandardListItem } from 'components';
-import { useLocation, useRoute } from 'wouter';
+import { ActorListItem, OrganizationListItem, ProjectListItem, RoutineListItem, AutocompleteSearchBar, StandardListItem, TitleContainer } from 'components';
+import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
@@ -191,27 +191,24 @@ export const HomePage = ({
                     break;
             }
             listFeeds.push((
-                <FeedList
+                <TitleContainer
                     key={`feed-list-${objectType}`}
                     title={getFeedTitle(`${objectType}s`)}
                     loading={loading}
                     onClick={() => openSearch(linkMap[objectType])}
+                    options={[['See more results', () => openSearch(linkMap[objectType])]]}
                 >
                     {listFeedItems}
-                </FeedList>
+                </TitleContainer>
             ))
         }
         return listFeeds;
-    }, [feedOrder, organizations, projects, routines, standards, users, openSearch]);
+    }, [feedOrder, loading, organizations, projects, routines, standards, users, openSearch]);
 
     // Parse FAQ markdown from .md file
     const [faqText, setFaqText] = useState<string>('');
     useEffect(() => {
-        fetch(faqMarkdown)
-            .then((response) => response.text())
-            .then((text) => {
-                setFaqText(text);
-            });
+        fetch(faqMarkdown).then((r) => r.text()).then((text) => { setFaqText(text) });
     }, []);
 
     return (
@@ -232,7 +229,7 @@ export const HomePage = ({
                 />
                 {/* =========  #endregion ========= */}
             </Stack>
-            {/* Examples stack */}
+            {/* Examples stack TODO */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '40px', paddingBottom: '40px' }}>
                 <Typography component="h2" variant="h5">Examples</Typography>
             </Stack>

@@ -1,6 +1,7 @@
 export * from './breadcrumbs';
 export * from './buttons';
 export * from './cards';
+export * from './containers';
 export * from './dialogs';
 export * from './graphs';
 export * from './inputs';

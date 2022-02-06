@@ -8,6 +8,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 export const HelpButton = ({
     id = 'help-details-menu',
     markdown, // Markdown to display in the menu
+    sx, // Styles to apply to the question mark icon
 }: HelpButtonProps) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
@@ -28,11 +29,11 @@ export const HelpButton = ({
                     }}
                 >
                     <IconButton edge="start" color="inherit" onClick={closeMenu} aria-label="close">
-                        <CloseIcon 
+                        <CloseIcon
                             sx={{
                                 fill: 'white',
                                 marginLeft: '0.5em',
-                            }} 
+                            }}
                         />
                     </IconButton>
                 </Box>
@@ -54,10 +55,10 @@ export const HelpButton = ({
                     onClick={openMenu}
                     sx={{
                         display: 'inline-flex',
-                        bottom: '2px',
+                        bottom: '0',
                     }}
                 >
-                    <HelpIcon sx={{fill: 'gb(103 103 104 / 87%)'}} />
+                    <HelpIcon sx={{ fill: 'gb(103 103 104 / 87%)', ...sx }} />
                     <Menu
                         id={id}
                         open={open}

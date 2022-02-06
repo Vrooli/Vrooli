@@ -101,7 +101,7 @@ const SocialIconMap = {
 }
 
 export const ResourceListHorizontal = ({
-    title = 'Pinned Resources',
+    title = '📌 Resources',
     canEdit = true,
 }: ResourceListHorizontalProps) => {
 
@@ -153,7 +153,7 @@ export const ResourceListHorizontal = ({
                 onEdit={() => { }}
                 onMove={() => { }}
             />
-            <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>
+            <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
             <Box
                 sx={{
                     ...containerShadow,
@@ -162,7 +162,19 @@ export const ResourceListHorizontal = ({
                     border: (t) => `1px ${t.palette.text.primary}`,
                 }}
             >
-                <Stack direction="row" spacing={1} p={1} sx={{ overflowX: 'scroll' }}>
+                <Stack direction="row" spacing={2} p={2} sx={{ 
+                    overflowX: 'scroll',
+                    "&::-webkit-scrollbar": {
+                        width: 5,
+                    },
+                    "&::-webkit-scrollbar-track": {
+                        backgroundColor: 'transparent',
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                        borderRadius: '100px',
+                        backgroundColor: "#409590",
+                    },
+                }}>
                     {/* Resources */}
                     {cardData.map((c: Resource, index) => (
                         <ResourceCard

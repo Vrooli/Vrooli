@@ -43,13 +43,6 @@ export interface DateRangeMenuProps {
     onSubmit: (after?: Date | null, before?: Date | null) => void;
 }
 
-export interface FeedListProps {
-    title?: string;
-    onClick: () => void;
-    loading: boolean;
-    children: JSX.Element[];
-}
-
 export interface ResourceListHorizontalProps {
     title?: string;
     canEdit?: boolean;

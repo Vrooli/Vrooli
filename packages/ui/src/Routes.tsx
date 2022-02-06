@@ -57,17 +57,17 @@ export const AllRoutes = (props: CommonProps) => {
                 </Route>
                 <Route path={LINKS.Learn} >
                     <Page title={title('Learn')} {...props}>
-                        <LearnPage />
+                        <LearnPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={LINKS.Research}>
                     <Page title={title('Research')} {...props}>
-                        <ResearchPage />
+                        <ResearchPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 <Route path={LINKS.Develop}>
                     <Page title={title('Develop')} {...props}>
-                        <DevelopPage />
+                        <DevelopPage session={props.session ?? {}} />
                     </Page>
                 </Route>
                 {/* ========= #endregion Dashboard Routes ========= */}

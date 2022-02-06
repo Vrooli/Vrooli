@@ -1,6 +1,5 @@
 export * from './ActorListItem/ActorListItem';
 export * from './DateRangeMenu/DateRangeMenu';
-export * from './FeedList/FeedList';
 export * from './OrganizationListItem/OrganizationListItem';
 export * from './ProjectListItem/ProjectListItem';
 export * from './ResourceListHorizontal/ResourceListHorizontal';

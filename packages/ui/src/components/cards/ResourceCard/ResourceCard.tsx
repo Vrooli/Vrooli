@@ -1,5 +1,6 @@
 import {
     Box,
+    IconButton,
     Stack,
     Tooltip,
     Typography
@@ -13,6 +14,23 @@ import { ResourceCardProps } from '../types';
 import { cardRoot } from '../styles';
 import { multiLineEllipsis } from 'styles';
 import { readOpenGraph, readOpenGraphVariables } from 'graphql/generated/readOpenGraph';
+import {
+    Delete as DeleteIcon,
+    Edit as EditIcon,
+} from '@mui/icons-material';
+
+const buttonProps = {
+    position: 'absolute',
+    background: 'white',
+    top: '-15px',
+    color: (t) => t.palette.secondary.dark,
+    borderRadius: '100%',
+    transition: 'brightness 0.2s ease-in-out',
+    '&:hover': {
+        filter: `brightness(120%)`,
+        background: 'white',
+    },
+}
 
 export const ResourceCard = ({
     data,
@@ -64,8 +82,30 @@ export const ResourceCard = ({
                     padding: 1,
                     width: '120px',
                     minWidth: '120px',
+                    position: 'relative'
                 }}
             >
+                {/* Delete/edit buttons */}
+                <Box sx={{
+                    width: '100%',
+                    height: '100%',
+                    position: 'absolute',
+                    top: '0',
+                    left: '0',
+                    opacity: '0',
+                    transition: 'opacity 0.2s ease-in-out',
+                    '&:hover': {
+                        opacity: '1',
+                    },
+                }}>
+                    <IconButton size="small" onClick={() => { }} aria-label="close" sx={{ ...buttonProps, left: '-15px' } as any}>
+                        <DeleteIcon />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => { }} aria-label="close" sx={{ ...buttonProps, right: '-15px' } as any}>
+                        <EditIcon />
+                    </IconButton>
+                </Box>
+                {/* Content */}
                 <Stack direction="column" justifyContent="center" alignItems="center">
                     <Icon sx={{ fill: 'white' }} />
                     <Typography

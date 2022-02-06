@@ -42,14 +42,6 @@ export const AutocompleteSearchBar = ({
             inputValue={internalValue}
             onInputChange={onInputChange}
             renderInput={(params) => (
-                // <SearchBar TODO doesn't work for some reason
-                //     value={value}
-                //     onChange={onChange}
-                //     debounce={debounce}
-                //     {...props}
-                //     {...params.InputProps}
-                //     inputProps={params.inputProps}
-                // />
                 < Paper
                     component="form"
                     sx={{ p: '2px 4px', display: 'flex', alignItems: 'center', borderRadius: '10px' }}

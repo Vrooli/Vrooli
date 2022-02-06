@@ -90,15 +90,10 @@ export const SelectInterestsDialog = ({
         onClose();
     }, [onClose]);
 
-    // Stores help text
-    const [helpText, setHelpText] = useState<string>('');
     // Parse help text from markdown
+    const [helpText, setHelpText] = useState<string>('');
     useEffect(() => {
-        fetch(helpMarkdown)
-            .then((response) => response.text())
-            .then((text) => {
-                setHelpText(text);
-            });
+        fetch(helpMarkdown).then((r) => r.text()).then((text) => { setHelpText(text) });
     }, []);
 
     return (

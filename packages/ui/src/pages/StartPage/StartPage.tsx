@@ -21,7 +21,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/walletIntegration';
 import { CommonProps } from 'types';
 import { ROLES } from '@local/shared';
-import { HelpButton, ListMenu } from 'components';
+import { HelpButton } from 'components';
 import {
     LogInForm,
     ForgotPasswordForm,
@@ -62,14 +62,8 @@ export const StartPage = ({
     }, [popupForm])
 
     const [helpText, setHelpText] = useState<string>('');
-
-    // Parse help text from markdown
     useEffect(() => {
-        fetch(helpMarkdown)
-            .then((response) => response.text())
-            .then((text) => {
-                setHelpText(text);
-            });
+        fetch(helpMarkdown).then((r) => r.text()).then((text) => { setHelpText(text) });
     }, []);
 
     // Wallet connect popup

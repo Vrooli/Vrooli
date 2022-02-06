@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
 import {
     AlertDialog,
     BottomNav,
@@ -23,6 +23,16 @@ const useStyles = makeStyles(() => ({
             backgroundColor: 'black',
             overflowX: 'hidden',
             overflowY: 'auto',
+            "&::-webkit-scrollbar": {
+                width: 10,
+            },
+            "&::-webkit-scrollbar-track": {
+                backgroundColor: '#dae5f0',
+            },
+            "&::-webkit-scrollbar-thumb": {
+                borderRadius: '100px',
+                backgroundColor: "#409590",
+            },
         },
         '#page': {
             minWidth: '100%',
@@ -41,9 +51,6 @@ const useStyles = makeStyles(() => ({
             src: `local('Lato'), url(${SakBunderan}) format('truetype')`,
             fontDisplay: 'swap',
         },
-    },
-    contentWrap: {
-        minHeight: '100vh',
     },
     spinner: {
         position: 'absolute',
@@ -160,7 +167,10 @@ export function App() {
                             color: theme.palette.background.textPrimary,
                         }}
                     >
-                        <Box id="content-wrap" className={classes.contentWrap} sx={{ background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)' }}>
+                        <Box id="content-wrap" sx={{
+                            background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)',
+                            minHeight: '100vh',
+                        }}>
                             <Navbar userRoles={session?.roles ?? []} />
                             {loading ?
                                 <div className={classes.spinner}>
