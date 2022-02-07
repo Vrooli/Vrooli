@@ -1,5 +1,6 @@
 import { InputProps, SelectProps } from '@mui/material';
 import { ChangeEvent } from 'react';
+import { Session, Tag } from 'types';
 
 export interface DropzoneProps {
     acceptedFileTypes?: string[];
@@ -51,9 +52,15 @@ export interface SelectorProps extends SelectProps {
     style?: any;
 }
 
+// Tag object which may not exist in the database
+export type TagSelectorTag = Partial<Tag> & {
+    tag: string
+}
+
 export interface TagSelectorProps {
-    tags: string[];
-    onTagAdd: (tag: string) => any;
-    onTagRemove: (tag: string) => any;
+    session: Session;
+    tags: TagSelectorTag[];
+    onTagAdd: (tag: TagSelectorTag) => any;
+    onTagRemove: (tag: TagSelectorTag) => any;
     onTagsClear: () => any;
 }

@@ -2,7 +2,7 @@ import { description, id } from './base';
 import * as yup from 'yup';
 
 const anonymous = yup.boolean().optional(); // Determines if the user will be credited for the tag
-const tag = yup.string().max(128).optional();
+const tag = yup.string().min(2).max(128).optional();
 
 /**
  * Information required when creating a tag

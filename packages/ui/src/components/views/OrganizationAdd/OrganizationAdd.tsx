@@ -10,7 +10,8 @@ import { formatForAdd, Pubs } from "utils";
 import { OrganizationAddProps } from "../types";
 import { useCallback, useMemo, useState } from "react";
 import { TagSelector } from "components";
-import { handleBreakpoints } from "@mui/system";
+import { Tag } from "types";
+import { TagSelectorTag } from "components/inputs/types";
 
 export const OrganizationAdd = ({
     session,
@@ -40,12 +41,15 @@ export const OrganizationAdd = ({
     });
 
     // Handle tags
-    const [tags, setTags] = useState<string[]>(['asdf', 'fdsa']);
-    const addTag = useCallback((tag: string) => {
+    const [tags, setTags] = useState<TagSelectorTag[]>([]);
+    const addTag = useCallback((tag: TagSelectorTag) => {
         setTags(tags => [...tags, tag]);
     }, [setTags]);
-    const removeTag = useCallback((tag: string) => {
-        setTags(tags => tags.filter(t => t !== tag));
+    const removeTag = useCallback((tag: TagSelectorTag) => {
+        console.log('removeTag', tag);
+        const temp = tags.filter(t => t.tag !== tag.tag);
+        console.log('temp', tags.length, temp.length);
+        setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
         setTags([]);
@@ -86,6 +90,7 @@ export const OrganizationAdd = ({
                 </Grid>
                 <Grid item xs={12}>
                     <TagSelector
+                        session={session}
                         tags={tags}
                         onTagAdd={addTag}
                         onTagRemove={removeTag}

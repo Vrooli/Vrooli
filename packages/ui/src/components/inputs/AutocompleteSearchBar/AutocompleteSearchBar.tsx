@@ -50,8 +50,6 @@ export function AutocompleteSearchBar<T>({
             options={options}
             inputValue={internalValue}
             getOptionLabel={getOptionLabel}
-            //onInputChange={onInputChange}
-            //PopperComponent={PopperComponent}
             renderOption={(_, option) => {console.log('autocomplete render option!', option); return (
                 <MenuItem
                     key={getOptionKey(option)}

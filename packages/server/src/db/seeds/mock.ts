@@ -336,18 +336,12 @@ export async function mock(prisma: PrismaType) {
     //==============================================================
     // Make sure to test the following:
     // - Short and long tags display correctly
-    await prisma.tag.create({
-        data: {
-            tag: 'Cardano',
-            description: 'lorem ipsum dolor sit amet',
-        }
-    });
-    await prisma.tag.create({
-        data: {
-            tag: 'Entrepreneurship',
-            description: 'lorem ipsum dolor sit amet',
-        }
-    });
+    await prisma.tag.create({ data: { tag: 'Cardano' } });
+    await prisma.tag.create({ data: { tag: 'Entrepreneurship' } });
+    await prisma.tag.create({ data: { tag: 'Vrooli' } });
+    await prisma.tag.create({ data: { tag: 'Idea Validation' } });
+    await prisma.tag.create({ data: { tag: 'Learn' } });
+    await prisma.tag.create({ data: { tag: 'Research' } });
     //==============================================================
     /* #endregion Create tags */
     //==============================================================
