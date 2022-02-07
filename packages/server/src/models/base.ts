@@ -186,17 +186,15 @@ export const addCountQueries = (obj: any, map: CountMap): any => {
  * Helper function for converting creator GraphQL field to Prisma createdByUser/createdByOrganization fields
  */
 export const removeCreatorField = (modified: any): any => {
-    if (modified.creator) {
-        modified.createdByUser = {
-            id: true,
-            username: true,
-        }
-        modified.createdByOrganization = {
-            id: true,
-            name: true,
-        }
-        delete modified.creator;
+    modified.createdByUser = {
+        id: true,
+        username: true,
     }
+    modified.createdByOrganization = {
+        id: true,
+        name: true,
+    }
+    delete modified.creator;
     return modified;
 }
 
@@ -209,6 +207,7 @@ export const addCreatorField = (modified: any): any => {
     } else if (modified.createdByOrganization?.id) {
         modified.creator = modified.createdByOrganization;
     }
+    else modified.creator = null;
     delete modified.createdByUser;
     delete modified.createdByOrganization;
     return modified;
@@ -218,17 +217,15 @@ export const addCreatorField = (modified: any): any => {
  * Helper function for converting owner GraphQL field to Prisma user/organization fields
  */
 export const removeOwnerField = (modified: any): any => {
-    if (modified.owner) {
-        modified.user = {
-            id: true,
-            username: true,
-        }
-        modified.organization = {
-            id: true,
-            name: true,
-        }
-        delete modified.owner;
+    modified.user = {
+        id: true,
+        username: true,
     }
+    modified.organization = {
+        id: true,
+        name: true,
+    }
+    delete modified.owner;
     return modified;
 }
 
@@ -241,6 +238,7 @@ export const addOwnerField = (modified: any): any => {
     } else if (modified.organization?.id) {
         modified.owner = modified.organization;
     }
+    else modified.owner = null;
     delete modified.user;
     delete modified.organization;
     return modified;

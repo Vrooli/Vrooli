@@ -28,6 +28,13 @@ const linkMap: { [x: string]: [string, string] } = {
     [ObjectType.User]: [APP_LINKS.SearchUsers, APP_LINKS.Profile],
 }
 
+interface AutocompleteListItem {
+    title: string | null;
+    id: string;
+    stars: number;
+    objectType: string;
+}
+
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
  * and a FAQ section.
@@ -50,21 +57,13 @@ export const HomePage = ({
     //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
     useEffect(() => { console.log('refetching...', session); refetch() }, [refetch, searchString]);
 
-    // useEffect(() => {
-    //     console.log('tttttttttt', parseSearchParams(window.location.search))
-    //     const urlSearch = parseSearchParams(window.location.search);
-    //     if (urlSearch.search) {
-    //         setSearchString(urlSearch.search);
-    //     }
-    // }, [])
-
     const { routines, projects, organizations, standards, users } = useMemo(() => {
         if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
         const { routines, projects, organizations, standards, users } = data.autocomplete;
         return { routines, projects, organizations, standards, users };
     }, [data]);
 
-    const autocompleteOptions = useMemo(() => {
+    const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
         if (!data) return [];
         const routines = data.autocomplete.routines.map(r => ({ title: r.title, id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
         const projects = data.autocomplete.projects.map(p => ({ title: p.name, id: p.id, stars: p.stars, objectType: ObjectType.Project }));
@@ -80,13 +79,13 @@ export const HomePage = ({
     /**
      * When an autocomplete item is selected, navigate to object
      */
-    const onInputSelect = useCallback((_e: any, newValue: any) => {
+    const onInputSelect = useCallback((newValue: AutocompleteListItem) => {
         console.log('onInputSelect', newValue);
         if (!newValue) return;
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
         // Determine object from selected label
-        const selectedItem = autocompleteOptions.find(o => `${o.title} | ${o.objectType}` === newValue);
+        const selectedItem = autocompleteOptions.find(o => o.id === newValue.id);
         if (!selectedItem) return;
         console.log('selectedItem', selectedItem);
         return openSearch(linkMap[selectedItem.objectType], selectedItem.id);
@@ -221,7 +220,10 @@ export const HomePage = ({
                     id="main-search"
                     placeholder='Search routines, projects, and more...'
                     options={autocompleteOptions}
-                    getOptionLabel={(o: any) => `${o.title} | ${o.objectType}`}
+                    getOptionKey={(option) => option.id}
+                    getOptionLabel={(option) => option.title ?? ''}
+                    getOptionLabelSecondary={(option) => option.objectType}
+                    loading={loading}
                     value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}

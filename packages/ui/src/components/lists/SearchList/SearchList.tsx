@@ -1,7 +1,7 @@
 import { useQuery } from "@apollo/client";
-import { Box, Button, Grid, List } from "@mui/material";
+import { Box, Button, CircularProgress, Grid, List, Typography } from "@mui/material";
 import { AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { containerShadow } from "styles";
 import {
     AccessTime as TimeIcon,
@@ -30,9 +30,9 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
     const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption.label ?? sortOptions.length > 0 ? sortOptions[0].label : 'Sort');
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
-    const [after, setAfter] = useState<string | undefined>(undefined);
+    const after = useRef<string | undefined>(undefined);
     const createdTimeFrame = useMemo(() => {
-        let result: {[x: string]: Date} = {}
+        let result: { [x: string]: Date } = {}
         const split = timeFrame?.split(',');
         if (split?.length !== 2) return result;
         const after = new Date(split[0]);
@@ -42,32 +42,30 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return result;
     }, [timeFrame]);
 
-    const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after, take, sortBy, searchString, createdTimeFrame } } as any) });
+    const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after: after.current, take, sortBy, searchString, createdTimeFrame } } as any) });
     const [allData, setAllData] = useState<DataType[]>([]);
-    console.log('time frame', timeFrame, timeFrame?.split(','))
 
     // On search filters/sort change, reset the page
     useEffect(() => {
-        setAfter(undefined);
-    }, [searchString, sortBy, timeFrame]);
-
-    // Load page whenever "after" is set or unset
-    useEffect(() => {
+        console.log('Resetting page', after.current);
+        after.current = undefined;
         fetchPage();
-    }, [after]);
+    }, [searchString, sortBy, timeFrame]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
+        console.log('load more!');
         if (!pageData) return;
         const queryData: any = Object.values(pageData)[0];
         if (!queryData || !queryData.pageInfo) return [];
         if (queryData.pageInfo?.hasNextPage) {
             const { endCursor } = queryData.pageInfo;
             if (endCursor) {
-                setAfter(endCursor);
+                after.current = endCursor;
+                fetchPage();
             }
         }
-    }, [pageData, setAfter]);
+    }, [pageData]);
 
     // Helper method for converting fetched data to an array of object data
     const parseData = useCallback((data: any) => {
@@ -80,13 +78,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
+        console.log('parse newly fetched data', pageData);
         const parsedData = parseData(pageData);
         if (!parsedData) {
             setAllData([]);
             return;
         }
-        if (after) {
-            setAllData([...allData, ...parsedData]);
+        if (after.current) {
+            setAllData(curr => [...curr, ...parsedData]);
         } else {
             setAllData(parsedData);
         }
@@ -117,6 +116,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
     const handleSortClose = (label?: string, selected?: string) => {
+        console.log('handle sort close', label, selected);
         setSortAnchorEl(null);
         if (selected) setSortBy(selected);
         if (label) setSortByLabel(label);
@@ -124,6 +124,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
     const handleTimeClose = (label?: string, after?: Date | null, before?: Date | null) => {
+        console.log('handle time close', label, after, before);
         setTimeAnchorEl(null);
         if (!after && !before) setTimeFrame(undefined);
         else setTimeFrame(`${after?.getTime()},${before?.getTime()}`);
@@ -133,29 +134,47 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     /**
      * When an autocomplete item is selected, navigate to object
      */
-    const onInputSelect = useCallback((_e: any, newValue: any) => {
+    const onInputSelect = useCallback((newValue: any) => {
+        console.log('search list oninputselect', newValue)
         if (!newValue) return;
         // Determine object from selected label
-        const selectedItem = allData.find(o => getOptionLabel(o) === newValue);
+        const selectedItem = allData.find(o => (o as any)?.id === newValue?.id);
         if (!selectedItem) return;
         console.log('selectedItem', selectedItem);
         onObjectSelect(selectedItem);
     }, [allData]);
 
-    const searchResultContainer = useMemo(() => (
-        <Box
-            sx={{
-                ...containerShadow,
-                borderRadius: '8px',
+    const searchResultContainer = useMemo(() => {
+        const hasItems = listItems.length > 0;
+        return (
+            <Box sx={{
                 marginTop: 2,
-                background: (t) => t.palette.background.paper,
-            }}
-        >
-            <List>
-                {listItems}
-            </List>
-        </Box>
-    ), [listItems]);
+                ...(hasItems || loading ? {
+                    ...containerShadow,
+                    background: (t) => t.palette.background.paper,
+                    borderRadius: '8px',
+                } : {}),
+                ...(loading ? {
+                    minHeight: 'min(300px, 25vh)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                } : {
+                    display: 'block',
+                })
+            }}>
+                {
+                    loading ? (<CircularProgress color="secondary" />) : (
+                        hasItems ? (
+                            <List>
+                                {listItems}
+                            </List>
+                        ) : (<Typography variant="h6" textAlign="center">No results</Typography>)
+                    )
+                }
+            </Box>
+        )
+    }, [listItems]);
 
     return (
         <>
@@ -174,6 +193,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         id={`search-bar`}
                         placeholder={searchPlaceholder}
                         options={allData}
+                        loading={loading}
+                        getOptionKey={getOptionLabel}
                         getOptionLabel={getOptionLabel}
                         value={searchString}
                         onChange={handleSearch}
@@ -207,7 +228,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                     </Button>
                 </Grid>
             </Grid>
-            {listItems && listItems.length > 0 ? searchResultContainer : null}
+            {searchResultContainer}
         </>
     )
 }

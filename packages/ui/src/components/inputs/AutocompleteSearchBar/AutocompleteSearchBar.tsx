@@ -1,34 +1,44 @@
-import { Autocomplete, IconButton, Input, Paper } from '@mui/material';
+import { Autocomplete, IconButton, Input, ListItemText, MenuItem, Paper, Typography } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
-import { SearchBar } from '..';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { Search as SearchIcon } from '@mui/icons-material';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 
-export const AutocompleteSearchBar = ({
+export function AutocompleteSearchBar<T>({
     id = 'search-bar',
-    placeholder='Search...',
+    placeholder = 'Search...',
     options = [],
-    getOptionLabel = (option) => option,
+    getOptionKey,
+    getOptionLabel,
+    getOptionLabelSecondary,
     value,
     onChange,
     onInputChange,
     debounce = 200,
+    loading = false,
     sx,
     ...props
-}: AutocompleteSearchBarProps) => {
-    console.log('AutocompleteSearchBar', options, value);
+}: AutocompleteSearchBarProps<T>) {
+    const [popupOpen, setPopupOpen] = useState(false);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const handleClick = useCallback((event) => {
+        setAnchorEl(event.currentTarget);
+        setPopupOpen(true);
+    }, []);
+    const handleClose = useCallback(() => setPopupOpen(false), []);
+
     const [internalValue, setInternalValue] = useState<string>(value);
     const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
         onChange,
         debounce,
     ), [onChange, debounce]);
     useEffect(() => setInternalValue(value), [value]);
-
     const handleChange = useCallback((event: ChangeEvent<any>) => {
+        // Get the new input string
         const { value } = event.target;
-        console.log('handleChange', value);
+        // Update state
         setInternalValue(value);
+        // Debounce onChange
         onChangeDebounced(value);
     }, [onChangeDebounced]);
 
@@ -38,11 +48,26 @@ export const AutocompleteSearchBar = ({
             id={id}
             sx={sx}
             options={options}
-            getOptionLabel={getOptionLabel}
             inputValue={internalValue}
-            onInputChange={onInputChange}
+            getOptionLabel={getOptionLabel}
+            //onInputChange={onInputChange}
+            //PopperComponent={PopperComponent}
+            renderOption={(_, option) => {console.log('autocomplete render option!', option); return (
+                <MenuItem
+                    key={getOptionKey(option)}
+                    onClick={() => {
+                        setInternalValue(getOptionLabel(option));
+                        onChangeDebounced(getOptionLabel(option));
+                        handleClose();
+                        onInputChange(option);
+                    }}
+                >
+                    <ListItemText>{getOptionLabel(option)}</ListItemText>
+                    {getOptionLabelSecondary ? <Typography color="text.secondary">{getOptionLabelSecondary(option)}</Typography> : null}
+                </MenuItem>
+            )}}  
             renderInput={(params) => (
-                < Paper
+                <Paper
                     component="form"
                     sx={{ p: '2px 4px', display: 'flex', alignItems: 'center', borderRadius: '10px' }}
                 >

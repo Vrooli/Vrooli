@@ -20,14 +20,17 @@ export interface SearchBarProps extends InputProps {
     debounce?: number;
 }
 
-export interface AutocompleteSearchBarProps extends SearchBarProps {
+export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
     id?: string;
     placeholder?: string;
     value: string;
-    options?: any[];
-    getOptionLabel?: (option: any) => string;
+    loading?: boolean;
+    options?: T[];
+    getOptionKey: (option: T) => string;
+    getOptionLabel: (option: T) => string;
+    getOptionLabelSecondary?: (option: T) => string;
     onChange: (updatedText: string) => any;
-    onInputChange?: (event: any, newValue: any) => any;
+    onInputChange: (newValue: T) => any;
     debounce?: number;
 }
 

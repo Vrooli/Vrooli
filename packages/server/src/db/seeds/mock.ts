@@ -315,6 +315,7 @@ export async function mock(prisma: PrismaType) {
         data: {
             name: "Vrooli",
             description: "This is getting meta!",
+            createdByOrganization: { connect: { id: organization1?.id } },
             organization: { connect: { id: organization1?.id } },
         }
     })
@@ -322,6 +323,7 @@ export async function mock(prisma: PrismaType) {
         data: {
             name: "Vrooli 2",
             description: "This is getting meta!",
+            createdByOrganization: { connect: { id: organization2?.id } },
             organization: { connect: { id: organization2?.id } },
         }
     })

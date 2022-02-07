@@ -37,10 +37,12 @@ export const projectFormatter = (): FormatConverter<Project, project> => {
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<project>): RecursivePartial<Project> => {
+            console.log('projectFormatter.toGraphQL start', obj);
             let modified = removeJoinTables(obj, joinMapper);
             modified = removeCountQueries(modified, countMapper);
             modified = addCreatorField(modified);
             modified = addOwnerField(modified);
+            console.log('projectFormatter.toGraphQL finished', modified);
             return modified;
         },
     }
