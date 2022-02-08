@@ -1,4 +1,4 @@
-import { Organization, Project, Resource, Routine, Session, Standard, User } from 'types';
+import { Organization, Project, Resource, Routine, Session, Standard, Tag, User } from 'types';
 
 export interface ObjectListItemProps {
     session: Session;
@@ -108,4 +108,10 @@ export interface SearchListProps<DataType, SortBy> {
     getOptionLabel: (option: any) => string;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
+}
+
+export interface TagListProps {
+    session: Seession;
+    parentId: string;
+    tags: Tag[];
 }

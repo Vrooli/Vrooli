@@ -31,7 +31,7 @@ export function convertToDot(obj, parent = [], keyValue = {}) {
 /**
  * Formats an object to prepare for an add mutation. Each relationship field is converted into
  * either a connection or add, depending on the existence of an id.
- * @param obj - The updated object, or partial update changes (which is a superset of the original)
+ * @param obj - The object being added
  */
 export const formatForAdd = <T>(obj: Partial<T>): Partial<T> => {
     let changed = {};
@@ -52,6 +52,7 @@ export const formatForAdd = <T>(obj: Partial<T>): Partial<T> => {
         }
         // If the value is an array
         else if (Array.isArray(value)) {
+            console.log('formatforAdd is array', value)
             // Loop through changed values and determine which are connections and adds
             for (let i = 0; i < value.length; i++) {
                 const curr = value[i];
@@ -61,26 +62,35 @@ export const formatForAdd = <T>(obj: Partial<T>): Partial<T> => {
                 if (changedValue && curr.id === undefined) {
                     addToChangedArray(`${key}Add`, changedValue);
                 }
-                // Check if connection (i.e. is an object with only an id, or simply an id)
-                else if (typeof curr === 'string' || (Object.keys(curr).length === 1 && curr.id)) {
+                // Check if connection type 1 (i.e. is an object with an id)
+                else if (curr.id) {
                     addToChangedArray(`${key}Connect`, curr.id);
+                }
+                // Check if connection type 2 (i.e. simply an id)
+                else if (typeof curr === 'string') {
+                    addToChangedArray(`${key}Connect`, curr);
                 }
                 // Shouldn't hit this point under normal circumstances. But if you do,
                 // add the value to the changed array
-                addToChangedArray(key, changedValue);
+                else addToChangedArray(key, changedValue);
             }
         }
         // If the value is an object
         else if (_.isObject(value)) {
+            console.log('formatforadd in isobject', value)
             const curr: any = value;
             // Find the changed value
             const changedValue = formatForAdd(curr);
+            console.log('changed value', changedValue)
             // Check if add (i.e does not contain an id)
             if (changedValue && curr.id === undefined) {
+                console.log('add')
                 changed[`${key}Add`] = changedValue;
             }
-            // Check if connection (i.e. is an object with only an id, or simply an id)
-            else if (typeof curr === 'string' || (Object.keys(curr).length === 1 && curr.id)) {
+            // Check if connection (i.e. is an object with only an id)
+            // NOTE: Does not support passing an id directly, like in the case of an array
+            else if (curr.id) {
+                console.log('connect')
                 changed[`${key}Connect`] = curr.id;
             }
             // Shouldn't hit this point under normal circumstances. But if you do,

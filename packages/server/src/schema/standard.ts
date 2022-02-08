@@ -54,9 +54,7 @@ export const typeDef = gql`
         makeAnonymous: Boolean
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
-        tagsDelete: [ID!]
         tagsAdd: [TagAddInput!]
-        tagsUpdate: [TagUpdateInput!]
     }
     type Standard {
         id: ID!

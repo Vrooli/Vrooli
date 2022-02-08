@@ -72,9 +72,7 @@ export const typeDef = gql`
         resourcesExternalUpdate: [ResourceUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
-        tagsDelete: [ID!]
         tagsAdd: [TagAddInput!]
-        tagsUpdate: [TagUpdateInput!]
     }
     type Routine {
         id: ID!

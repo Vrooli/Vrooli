@@ -2,7 +2,7 @@ import { description, idArray, id, name, title } from './base';
 import { nodesAdd, nodesUpdate } from './node';
 import { resourcesAdd, resourcesUpdate } from './resource';
 import { standardAdd } from './standard';
-import { tagsAdd, tagsUpdate } from './tag';
+import { tagsAdd } from './tag';
 import * as yup from 'yup';
 
 const isAutomatable = yup.boolean().optional();
@@ -95,9 +95,7 @@ export const routineUpdate = yup.object().shape({
     resourcesExternalUpdate: resourcesUpdate,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
-    tagsDelete: idArray,
     tagsAdd,
-    tagsUpdate,
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
 
 export const routinesAdd = yup.array().of(routineAdd.required()).optional();

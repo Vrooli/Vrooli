@@ -7,6 +7,7 @@ import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
 import { routine } from "@prisma/client";
+import { TagModel } from "./tag";
 
 //==============================================================
 /* #region Custom Components */
@@ -85,6 +86,11 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             isAutomatable: input.isAutomatable,
             parentId: input.parentId,
             version: input.version,
+            // Handle resources
+            contextualResources: ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesContextualAdd }, true),
+            externalResources: ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesExternalAdd }, true),
+            // Handle tags
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
         };
         // Associate with either organization or user
         if (input.createdByOrganizationId) {
@@ -103,15 +109,9 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
                 createdByUser: { connect: { id: userId } },
             };
         }
-        // TODO inputs
-        // TODO outputs
+        // Handle inputs TODO
+        // Handle outputs TODO
         // Handle nodes TODO
-        // Handle contextual/external resources
-        const resourceContextualData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesContextualAdd }, true);
-        if (resourceContextualData) routineData.contextualResources = resourceContextualData;
-        const resourceExternalData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesExternalAdd }, true);
-        if (resourceExternalData) routineData.externalResources = resourceExternalData;
-        // Handle tags TODO
         // Create routine
         const routine = await prisma.routine.create({
             data: routineData as any,
@@ -137,6 +137,19 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             isAutomatable: input.isAutomatable,
             parentId: input.parentId,
             version: input.version,
+            // Handle resources
+            contextualResources: ResourceModel(prisma).relationshipBuilder(userId, { 
+                resourcesAdd: input.resourcesContextualAdd,
+                resourcesUpdate: input.resourcesContextualUpdate,
+                resourcesDelete: input.resourcesContextualDelete, 
+            }, true),
+            externalResources: ResourceModel(prisma).relationshipBuilder(userId, { 
+                resourcesAdd: input.resourcesExternalAdd,
+                resourcesUpdate: input.resourcesExternalUpdate,
+                resourcesDelete: input.resourcesExternalDelete,
+            }, true),
+            // Handle tags
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
         };
         // Associate with either organization or user. This will remove the association with the other.
         if (input.organizationId) {
@@ -150,12 +163,6 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // TODO inputs
         // TODO outputs
         // Handle nodes TODO
-        // Handle contextual/external resources
-        const resourceContextualData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesContextualAdd }, false);
-        if (resourceContextualData) routineData.contextualResources = resourceContextualData;
-        const resourceExternalData = ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesExternalAdd }, false);
-        if (resourceExternalData) routineData.externalResources = resourceExternalData;
-        // Handle tags TODO
         // Find routine
         let routine = await prisma.routine.findFirst({
             where: {

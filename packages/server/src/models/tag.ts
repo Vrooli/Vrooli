@@ -1,6 +1,6 @@
 import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagAddInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTables, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { addJoinTables, counter, FormatConverter, InfoType, joinRelationshipToPrisma, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { CODE, tagAdd, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -13,7 +13,7 @@ import { tag } from "@prisma/client";
 /**
  * Component for formatting between graphql and prisma types
  */
- export const tagFormatter = (): FormatConverter<Tag, tag> => {
+export const tagFormatter = (): FormatConverter<Tag, tag> => {
     const joinMapper = {
         organizations: 'tagged',
         projects: 'tagged',
@@ -35,7 +35,7 @@ import { tag } from "@prisma/client";
 /**
  * Component for search filters
  */
- export const tagSorter = (): Sortable<TagSortBy> => ({
+export const tagSorter = (): Sortable<TagSortBy> => ({
     defaultSort: TagSortBy.AlphabeticalDesc,
     getSortQuery: (sortBy: string): any => {
         return {
@@ -63,7 +63,47 @@ import { tag } from "@prisma/client";
 /**
  * Handles the authorized adding, updating, and deleting of tags.
  */
- const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, prisma: PrismaType) => ({
+const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, prisma: PrismaType) => ({
+    /**
+     * Add, update, or remove a tag relationship from an object. 
+     * This is different than most relationship builders, as tags are a many-to-many relationship.
+     */
+    async relationshipBuilder(
+        userId: string | null,
+        input: { [x: string]: any },
+        isAdd: boolean = true,
+    ): Promise<{ [x: string]: any } | undefined> {
+        // If any tag creates, check if they're supposed to be connects
+        if (Array.isArray(input.tagCreate)) {
+            // Query for all creating tags
+            const existingTags = await prisma.tag.findMany({
+                where: { tag: { in: input.tagCreate.map(c => c.tag) } },
+                select: { id: true, tag: true }
+            });
+            console.log('tag relationshipbuilder existingTags', existingTags);
+            // All results should be connects
+            const connectTags = existingTags.map(t => ({ id: t.id }));
+            // All tags that didn't exist are creates
+            const createTags = input.tagCreate.filter(c => !connectTags.some(t => t.id === c.id));
+            input.tagConnect = Array.isArray(input.tagConnect) ? [...input.tagConnect, ...connectTags] : createTags;
+            input.tagCreate = createTags;
+        }
+        // Validate create
+        if (Array.isArray(input.tagCreate)) {
+            for (const tag of input.tagCreate) {
+                // Check for valid arguments
+                tagAdd.validateSync(input, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(tag.tag, tag.description)) throw new CustomError(CODE.BannedWord);
+            }
+        }
+        // Convert input to Prisma shape
+        // Updating/deleting tags is not supported. This must be done in its own query.
+        let formattedInput = joinRelationshipToPrisma(input, 'tags', 'tag', isAdd, [], false);
+        delete formattedInput.update;
+        delete formattedInput.delete;
+        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+    },
     async findTag(
         userId: string | null | undefined, // Of the user making the request, not the tag's creator
         input: FindByIdInput,
@@ -89,7 +129,7 @@ import { tag } from "@prisma/client";
         // If myId or hidden specified, limit results.
         let idsLimit: string[] | undefined = undefined;
         // Looking for tags the requesting user has starred
-        if (userId && input.myTags){
+        if (userId && input.myTags) {
             idsLimit = (await prisma.star.findMany({
                 where: {
                     AND: [
@@ -107,7 +147,7 @@ import { tag } from "@prisma/client";
         }
         // Search
         const search = searcher<TagSortBy, TagSearchInput, Tag, tag>(MODEL_TYPES.Tag, format.toDB, format.toGraphQL, sort, prisma);
-        let searchResults = await search.search({ ...where }, {...input, ids: idsLimit}, info);
+        let searchResults = await search.search({ ...where }, { ...input, ids: idsLimit }, info);
         // Compute "isStarred" field for each tag
         // If userId not provided "isStarred" is false
         if (!userId) {
@@ -119,8 +159,8 @@ import { tag } from "@prisma/client";
         const isStarredArray = await prisma.star.findMany({ where: { byId: userId, tagId: { in: resultIds } } });
         console.log('isStarredArray', isStarredArray);
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
-            const isStarred = Boolean(isStarredArray.find(({ tagId }) => tagId === node.id));   
-            console.log('isStarred', isStarred, );
+            const isStarred = Boolean(isStarredArray.find(({ tagId }) => tagId === node.id));
+            console.log('isStarred', isStarred,);
             return { cursor, node: { ...node, isStarred } };
         });
         return searchResults;

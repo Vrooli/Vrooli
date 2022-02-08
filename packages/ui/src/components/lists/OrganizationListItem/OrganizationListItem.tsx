@@ -8,7 +8,7 @@ import { useLocation } from 'wouter';
 import { useMutation } from '@apollo/client';
 import { star } from 'graphql/generated/star';
 import { starMutation } from 'graphql/mutation';
-import { StarButton } from '..';
+import { StarButton, TagList } from '..';
 import { LabelledSortOption, labelledSortOptions } from 'utils';
 import { Organization } from 'types';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
@@ -90,14 +90,18 @@ export function OrganizationListItem({
                         }} />
                     </Box>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
+                        {/* Name/Title */}
                         <ListItemText
                             primary={data.name}
                             sx={{ ...multiLineEllipsis(1) }}
                         />
+                        {/* Bio/Description */}
                         <ListItemText
                             primary={data.bio}
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
+                        {/* Tags */}
+                        <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} />
                     </Stack>
                     {isOwn ? null : <StarButton
                         session={session}

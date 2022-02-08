@@ -6,6 +6,7 @@ import { addCountQueries, addCreatorField, addJoinTables, counter, FormatConvert
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { standard } from "@prisma/client";
+import { TagModel } from "./tag";
 
 //==============================================================
 /* #region Custom Components */
@@ -150,7 +151,9 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
             default: input.default,
             isFile: input.isFile,
             schema: input.schema,
-            type: input.type
+            type: input.type,
+            // Handle tags
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
         };
         // Associate with either organization or user
         if (input.createdByOrganizationId) {
@@ -167,7 +170,6 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
                 createdByUser: { connect: { id: userId } },
             };
         }
-        // Handle tags TODO
         // Create standard
         const standard = await prisma.standard.create({
             data: standardData as any,
@@ -185,7 +187,11 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         standardUpdate.validateSync(input, { abortEarly: false });
         if (!input.id) throw new CustomError(CODE.InternalError, 'No standard id provided');
         // Create standard data
-        let standardData: { [x: string]: any } = { description: input.description };
+        let standardData: { [x: string]: any } = { 
+            description: input.description,
+            // Handle tags
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, false),
+        };
         // Check if authorized to update
         let standard = await prisma.standard.findUnique({
             where: { id: input.id },
@@ -201,7 +207,6 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
             const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, standard.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
         }
-        // Handle tags TODO
         // Update standard
         standard = await prisma.standard.update({
             where: { id: standard.id },

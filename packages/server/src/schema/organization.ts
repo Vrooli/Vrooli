@@ -43,9 +43,7 @@ export const typeDef = gql`
         resourcesUpdate: [ResourceUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
-        tagsDelete: [ID!]
         tagsAdd: [TagAddInput!]
-        tagsUpdate: [TagUpdateInput!]
     }
     type Organization {
         id: ID!

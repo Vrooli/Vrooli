@@ -1,5 +1,5 @@
 import { description, idArray, id, name, version } from './base';
-import { tagsAdd, tagsUpdate } from './tag';
+import { tagsAdd } from './tag';
 import * as yup from 'yup';
 import { StandardType } from '../consts';
 
@@ -32,9 +32,7 @@ export const standardUpdate = yup.object().shape({
     makingAnonymous: yup.boolean().optional(), // If you want the standard to be made anonymous
     tagsConnect: idArray,
     tagsDisconnect: idArray,
-    tagsDelete: idArray,
     tagsAdd,
-    tagsUpdate,
 })
 
 export const standardsAdd = yup.array().of(standardAdd.required()).optional();

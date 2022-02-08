@@ -34,11 +34,11 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
     /**
      * Add, update, or remove a resource relationship from an organization, project, routine, or user
      */
-    async relationshipBuilder(
+    relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-    ): Promise<any> {
+    ): { [x: string]: any } | undefined {
         // Convert input to Prisma shape, excluding "createdFor" and "createdForId" fields
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by resources (since they can only be applied to one object, and 
@@ -64,7 +64,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
                 if (hasProfanity(resource.title, resource.description)) throw new CustomError(CODE.BannedWord);
             }
         }
-        return formattedInput;
+        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async findResource(
         userId: string | null | undefined, // Of the user making the request, not the organization

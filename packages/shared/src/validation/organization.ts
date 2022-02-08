@@ -1,6 +1,6 @@
 import { bio, idArray, name } from './base';
 import { resourcesAdd, resourcesUpdate } from './resource';
-import { tagsAdd, tagsUpdate } from './tag';
+import { tagsAdd } from './tag';
 import * as yup from 'yup';
 
 /**
@@ -30,9 +30,7 @@ export const organizationUpdate = yup.object().shape({
     resourcesUpdate,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
-    tagsDelete: idArray,
     tagsAdd,
-    tagsUpdate,
 })
 
 export const organizationsAdd = yup.array().of(organizationAdd.required()).optional();

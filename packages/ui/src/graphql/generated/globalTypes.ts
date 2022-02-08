@@ -453,9 +453,7 @@ export interface OrganizationUpdateInput {
   resourcesUpdate?: ResourceUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
-  tagsDelete?: string[] | null;
   tagsAdd?: TagAddInput[] | null;
-  tagsUpdate?: TagUpdateInput[] | null;
 }
 
 export interface OutputItemAddInput {
@@ -524,9 +522,7 @@ export interface ProjectUpdateInput {
   resourcesUpdate?: ResourceUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
-  tagsDelete?: string[] | null;
   tagsAdd?: TagAddInput[] | null;
-  tagsUpdate?: TagUpdateInput[] | null;
 }
 
 export interface ReadAssetsInput {
@@ -653,9 +649,7 @@ export interface RoutineUpdateInput {
   resourcesExternalUpdate?: ResourceUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
-  tagsDelete?: string[] | null;
   tagsAdd?: TagAddInput[] | null;
-  tagsUpdate?: TagUpdateInput[] | null;
 }
 
 export interface StandardAddInput {
@@ -697,9 +691,7 @@ export interface StandardUpdateInput {
   makeAnonymous?: boolean | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
-  tagsDelete?: string[] | null;
   tagsAdd?: TagAddInput[] | null;
-  tagsUpdate?: TagUpdateInput[] | null;
 }
 
 export interface StarInput {

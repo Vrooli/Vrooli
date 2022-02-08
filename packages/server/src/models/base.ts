@@ -147,7 +147,7 @@ export const addJoinTables = (obj: any, map: JoinMap): any => {
  * @param obj - DB-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
- export const removeJoinTables = (obj: any, map: JoinMap): any => {
+export const removeJoinTables = (obj: any, map: JoinMap): any => {
     // Create result object
     let result: any = {};
     // Iterate over join map
@@ -514,13 +514,13 @@ export const relationshipToPrisma = (
     relationshipName: string,
     isAdd: boolean,
     excludes: string[] = [],
-    softDelete: boolean = false): { [x: string]: { 
+    softDelete: boolean = false): {
         connect?: { [x: string]: any }[],
         disconnect?: { [x: string]: any }[],
         delete?: { [x: string]: any }[],
         create?: { [x: string]: any }[],
         update?: { [x: string]: any }[],
-    } } => {
+    } => {
     // Determine valid operations
     const ops = isAdd ? ['Connect', 'Create'] : ['Connect', 'Disconnect', 'Delete', 'Create', 'Update'];
     // Create result object
@@ -533,10 +533,72 @@ export const relationshipToPrisma = (
         const currOp = key.replace(relationshipName, '');
         // TODO handle soft delete
         // Add operation to result object
-        converted[relationshipName] = {
-            ...converted[relationshipName],
-            [currOp.toLowerCase()]: shapeRelationshipData(value, excludes),
-        }
+        const shapedData = shapeRelationshipData(value, excludes);
+        converted[currOp.toLowerCase()] = Array.isArray(converted[currOp.toLowerCase()]) ? [...converted[currOp.toLowerCase()], ...shapedData] : shapedData;
     };
+    return converted;
+}
+
+/**
+ * Converts the result of relationshipToPrisma to apply to a many-to-many relationship 
+ * (i.e. uses a join table).
+ * @param data The data to convert
+ * @param relationshipName The name of the relationship to convert (since data may contain irrelevant fields)
+ * @param joinFieldName The name of the field in the join table associated with the child object
+ * @param isAdd True if data is being converted for an add operation. This limits the prisma operations to only "connect" and "create"
+ * @param exclues Fields to exclude from the conversion
+ * @param softDelete True if deletes should be converted to soft deletes
+ */
+export const joinRelationshipToPrisma = (
+    data: { [x: string]: any },
+    relationshipName: string,
+    joinFieldName: string,
+    isAdd: boolean,
+    excludes: string[] = [],
+    softDelete: boolean = false): {
+        disconnect?: { [x: string]: any }[],
+        delete?: { [x: string]: any }[],
+        create?: { [x: string]: any }[],
+        update?: { [x: string]: any }[],
+    } => {
+    console.log('in joinRelationshipToPrisma', relationshipName, joinFieldName);
+    let converted: { [x: string]: any } = {};
+    // Call relationshipToPrisma to get join data used for one-to-many relationships
+    const normalJoinData = relationshipToPrisma(data, relationshipName, isAdd, excludes, softDelete);
+    // Convert this to support a join table
+    if (normalJoinData.hasOwnProperty('connect')) {
+        console.log('in connect', normalJoinData.connect);
+        // ex: create: [{ tag: { connect: { id: '123' } } }]
+        // Note that the connect is technically a create, since the join table row is created
+        const dataArray = normalJoinData.connect?.map(e => ({
+            [joinFieldName]: { connect: e }
+        })) ?? [];
+        converted.create = Array.isArray(normalJoinData.create) ? [...normalJoinData.create, ...dataArray] : dataArray;
+    }
+    if (normalJoinData.hasOwnProperty('disconnect')) {
+        // ex: delete: [{ tag: { id: '123' } }]
+        const dataArray = normalJoinData.disconnect?.map(e => ({
+            [joinFieldName]: { e }
+        })) ?? [];
+        converted.delete = Array.isArray(normalJoinData.delete) ? [...normalJoinData.delete, ...dataArray] : dataArray;
+    }
+    if (normalJoinData.hasOwnProperty('delete')) {
+        // ex: tag: { delete: [{ id: '123' }, { id: '432' }] }
+        converted[joinFieldName] = { delete: normalJoinData.delete };
+    }
+    if (normalJoinData.hasOwnProperty('create')) {
+        // ex: create: [{ tag: { create: { id: '123' } } }]
+        const dataArray = normalJoinData.create?.map(e => ({
+            [joinFieldName]: { create: e }
+        })) ?? [];
+        converted.create = Array.isArray(normalJoinData.create) ? [...normalJoinData.create, ...dataArray] : dataArray;
+    }
+    if (normalJoinData.hasOwnProperty('update')) {
+        // ex: update: [{ tag: update: { id: '123' } } }]
+        const dataArray = normalJoinData.create?.map(e => ({
+            [joinFieldName]: { update: e }
+        })) ?? [];
+        converted.update = Array.isArray(normalJoinData.update) ? [...normalJoinData.update, ...dataArray] : dataArray;
+    }
     return converted;
 }

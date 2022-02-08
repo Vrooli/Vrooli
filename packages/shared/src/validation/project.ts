@@ -1,6 +1,6 @@
 import { description, idArray, id, name } from './base';
 import { resourcesAdd, resourcesUpdate } from './resource';
-import { tagsAdd, tagsUpdate } from './tag';
+import { tagsAdd } from './tag';
 import * as yup from 'yup';
 
 /**
@@ -30,9 +30,7 @@ export const projectUpdate = yup.object().shape({
     resourcesUpdate,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
-    tagsDelete: idArray,
     tagsAdd,
-    tagsUpdate,
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
 
 export const projectsAdd = yup.array().of(projectAdd.required()).optional();

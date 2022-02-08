@@ -92,7 +92,7 @@ export const OrganizationDialog = ({
             default:
                 return <OrganizationView session={session} partialData={partialData} />
         }
-    }, [state]);
+    }, [state, onAction, session, partialData]);
 
     return (
         <BaseObjectDialog

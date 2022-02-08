@@ -19,26 +19,7 @@ export const OrganizationAdd = ({
     onCancel,
 }: OrganizationAddProps) => {
     const canAdd = useMemo(() => Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor), [session]);
-
-    // Handle add
-    const [mutation] = useMutation<organization>(organizationAddMutation);
-    const formik = useFormik({
-        initialValues: {
-            name: '',
-            bio: '',
-        },
-        validationSchema,
-        onSubmit: (values) => {
-            mutationWrapper({
-                mutation,
-                input: formatForAdd(values),
-                onSuccess: (response) => { onAdded(response.data.organizationAdd) },
-                onError: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                }
-            })
-        },
-    });
+    console.log('session in OrganizationAdd', session, canAdd);
 
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
@@ -55,7 +36,27 @@ export const OrganizationAdd = ({
         setTags([]);
     }, [setTags]);
 
-    console.log('formik', formik.values, formik.errors, formik.touched);
+    // Handle add
+    const [mutation] = useMutation<organization>(organizationAddMutation);
+    const formik = useFormik({
+        initialValues: {
+            name: '',
+            bio: '',
+        },
+        validationSchema,
+        onSubmit: (values) => {
+            mutationWrapper({
+                mutation,
+                input: formatForAdd({...values, tags}),
+                onSuccess: (response) => { onAdded(response.data.organizationAdd) },
+                onError: (response) => {
+                    PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
+                }
+            })
+        },
+    });
+
+    console.log('formik', formik);
 
     return (
         <form onSubmit={formik.handleSubmit}>
@@ -102,14 +103,14 @@ export const OrganizationAdd = ({
                         fullWidth
                         color="secondary"
                         type="submit"
-                        disabled={!canAdd}
+                        disabled={!canAdd || formik.isSubmitting || !formik.isValid}
                     >Add</Button>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                     <Button
                         fullWidth
                         color="secondary"
-                        disabled={!canAdd}
+                        disabled={formik.isSubmitting}
                         onClick={onCancel}
                     >Cancel</Button>
                 </Grid>

@@ -7,6 +7,7 @@ import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
 import { project } from "@prisma/client";
+import { TagModel } from "./tag";
 
 //==============================================================
 /* #region Custom Components */
@@ -150,7 +151,15 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         // Check for censored words
         if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create project data
-        let projectData: { [x: string]: any } = { name: input.name, description: input.description, parentId: input.parentId };
+        let projectData: { [x: string]: any } = { 
+            name: input.name, 
+            description: input.description, 
+            parentId: input.parentId,
+            // Handle resources
+            resources: ResourceModel(prisma).relationshipBuilder(userId, input, true),
+            // Handle tags
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
+        };
         // Associate with either organization or user
         if (input.createdByOrganizationId) {
             // Make sure the user is an admin of the organization
@@ -168,10 +177,6 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
                 createdByUser: { connect: { id: userId } },
             };
         }
-        // Handle resources
-        const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, true);
-        if (resourceData) projectData.resources = resourceData;
-        // Handle tags TODO
         // Create project
         const project = await prisma.project.create({
             data: projectData as any,
@@ -190,7 +195,15 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         // Check for censored words
         if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create project data
-        let projectData: { [x: string]: any } = { name: input.name, description: input.description, parentId: input.parentId };
+        let projectData: { [x: string]: any } = { 
+            name: input.name, 
+            description: input.description, 
+            parentId: input.parentId,
+            // Handle resources
+            resources: ResourceModel(prisma).relationshipBuilder(userId, input, false),
+            // Handle tags
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, false),
+        };
         // Associate with either organization or user. This will remove the association with the other.
         if (input.organizationId) {
             // Make sure the user is an admin of the organization
@@ -200,10 +213,6 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         } else {
             projectData = { ...projectData, user: { connect: { id: userId } }, organizationId: null };
         }
-        // Handle resources
-        const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, false);
-        if (resourceData) projectData.resources = resourceData;
-        // Handle tags TODO
         // Find project
         let project = await prisma.project.findFirst({
             where: {

@@ -795,9 +795,7 @@ export type OrganizationUpdateInput = {
   resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsDelete?: InputMaybe<Array<Scalars['ID']>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsUpdate?: InputMaybe<Array<TagUpdateInput>>;
 };
 
 export type OutputItem = {
@@ -957,9 +955,7 @@ export type ProjectUpdateInput = {
   resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsDelete?: InputMaybe<Array<Scalars['ID']>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsUpdate?: InputMaybe<Array<TagUpdateInput>>;
   userId?: InputMaybe<Scalars['ID']>;
 };
 
@@ -1378,9 +1374,7 @@ export type RoutineUpdateInput = {
   resourcesExternalUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsDelete?: InputMaybe<Array<Scalars['ID']>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsUpdate?: InputMaybe<Array<TagUpdateInput>>;
   title?: InputMaybe<Scalars['String']>;
   userId?: InputMaybe<Scalars['ID']>;
   version?: InputMaybe<Scalars['String']>;
@@ -1493,9 +1487,7 @@ export type StandardUpdateInput = {
   makeAnonymous?: InputMaybe<Scalars['Boolean']>;
   tagsAdd?: InputMaybe<Array<TagAddInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsDelete?: InputMaybe<Array<Scalars['ID']>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  tagsUpdate?: InputMaybe<Array<TagUpdateInput>>;
 };
 
 export enum StarFor {

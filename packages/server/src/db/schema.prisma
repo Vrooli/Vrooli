@@ -262,7 +262,7 @@ model organization_tags {
     @@unique([taggedId, tagId], name: "organization_tags_taggedid_tagid_unique")
 }
 
-// Many to many relationship between organizaitons and users
+// Many-to-many relationship between organizaitons and users
 model organization_users {
     id             String       @id @default(uuid()) @db.Uuid
     organizationId String       @db.Uuid
@@ -664,7 +664,7 @@ model user_roles {
     @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
 }
 
-// Many to many relationship between users and tags they have hidden/blurred
+// Many-to-many relationship between users and tags they have hidden/blurred
 model user_tag_hidden {
     id     String  @id @default(uuid()) @db.Uuid
     isBlur Boolean @default(true) // Determines if content with this tag is hidden completely, or blurred

@@ -7,6 +7,7 @@ import { CODE, MemberRole, organizationAdd, organizationUpdate } from "@local/sh
 import { hasProfanity } from "../utils/censor";
 import { ResourceModel } from "./resource";
 import { organization } from "@prisma/client";
+import { TagModel } from "./tag";
 
 //==============================================================
 /* #region Custom Components */
@@ -81,14 +82,19 @@ import { organization } from "@prisma/client";
         // Check for censored words
         if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
-        let organizationData: { [x: string]: any } = { name: input.name, bio: input.bio };
-        // Add user as member
-        organizationData.members = { connect: { id: userId } };
-        // Handle resources
-        const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, true);
-        if (resourceData) organizationData.resources = resourceData;
-        // Handle tags TODO
+        let organizationData: { [x: string]: any } = { 
+            name: input.name, 
+            bio: input.bio ,
+            // Add user as member
+            members: { connect: { id: userId } },
+            // Handle resources
+            resources: ResourceModel(prisma).relationshipBuilder(userId, input, true),
+            // Handle tags
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
+        };
         console.log('addOrganization', organizationData);
+        console.log('members.connect', organizationData.members.connect);
+        console.log('tags.create', organizationData.tags.create);
         // Create organization
         const organization = await prisma.organization.create({
             data: organizationData,
@@ -107,14 +113,18 @@ import { organization } from "@prisma/client";
         // Check for censored words
         if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
-        let organizationData: { [x: string]: any } = { name: input.name, bio: input.bio };
+        let organizationData: { [x: string]: any } = { 
+            name: input.name, 
+            bio: input.bio,
+            // Handle resources
+            resources: ResourceModel(prisma).relationshipBuilder(userId, input, false),
+            // Handle tags
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, false),
+        };
         // Check if user is allowed to update
         const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.id);
         if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-        // Handle resources
-        const resourceData = ResourceModel(prisma).relationshipBuilder(userId, input, false);
-        if (resourceData) organizationData.resources = resourceData;
-        // Handle tags TODO
+        // Handle members TODO
         // Find organization
         let organization = await prisma.organization.findFirst({
             where: {
