@@ -20,7 +20,7 @@ export const SearchRoutinesPage = ({
     }, [setLocation]);
     useEffect(() => {
         if (selectedItem) {
-            setLocation(`${APP_LINKS.SearchRoutines}/view/${selectedItem.id}`, { replace: true });
+            setLocation(`${APP_LINKS.SearchRoutines}/view/${selectedItem.id}`);
         }
     }, [selectedItem, setLocation]);
     useEffect(() => {

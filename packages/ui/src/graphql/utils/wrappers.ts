@@ -1,10 +1,8 @@
-// Wraps GraphQL mutations, to provide each mutation with the same functionality:
-// - Success and error messages
-// - Loading spinner
 import isFunction from 'lodash/isFunction';
 import { Pubs } from "utils";
 import PubSub from 'pubsub-js';
 import { ApolloCache, DefaultContext, FetchResult, MutationFunctionOptions, OperationVariables } from '@apollo/client';
+import { errorToSnack } from './errorToSnack';
 
 interface Props {
     // useMutation function
@@ -31,6 +29,11 @@ interface Props {
     spinnerDelay?: number | null;
 }
 
+/**
+ * Wraps GraphQL mutations, to provide each mutation with the following functionality:
+ * - Success and error messages
+ * - Loading spinner
+ */
 export const mutationWrapper = ({ 
     mutation,
     input,
@@ -45,6 +48,7 @@ export const mutationWrapper = ({
     spinnerDelay = 1000,
 }: Props) => {
     if (spinnerDelay) PubSub.publish(Pubs.Loading, spinnerDelay);
+    console.log('mutationwrapper calling mutation', mutation);
     mutation(input ? { variables: { input } } : undefined).then((response) => {
         if (successCondition(response)) {
             if (successMessage || successData) PubSub.publish(Pubs.Snack, { message: successMessage && successMessage(response), ...successData });
@@ -54,20 +58,20 @@ export const mutationWrapper = ({
             if (errorMessage || errorData) {
                 PubSub.publish(Pubs.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
             }
-            else if (showDefaultErrorSnack) PubSub.publish(Pubs.Snack, { message: 'Unknown error occurred.', severity: 'error', data: response });
+            else if (showDefaultErrorSnack) {
+                PubSub.publish(Pubs.Snack, { message: 'Unknown error occurred.', severity: 'error', data: response });
+            }
             if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
             if (isFunction(onError)) onError(response);
         }
     }).catch((response) => {
+        console.log('wrapper error', response.name)
         if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
         if (errorMessage || errorData) {
             PubSub.publish(Pubs.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });
         }
         else if (showDefaultErrorSnack) {
-            // Don't show internal errors, as they're often a block of code
-            //TODO likely doesn't work
-            const messageToShow = response.code === 'INTERNAL_SERVER_ERROR' ? 'Unknown error occurred.' : response.message ?? 'Unknown error occurred.';
-            PubSub.publish(Pubs.Snack, { message: messageToShow, severity: 'error', data: response });
+            PubSub.publish(Pubs.Snack, { message: errorToSnack(response), severity: 'error', data: response });
         }
         if (isFunction(onError)) onError(response);
     })

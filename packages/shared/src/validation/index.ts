@@ -23,6 +23,7 @@
 export * from './base';
 export * from './comment';
 export * from './email';
+export * from './feedback';
 export * from './node';
 export * from './organization';
 export * from './project';

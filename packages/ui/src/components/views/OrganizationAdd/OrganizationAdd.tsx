@@ -1,26 +1,27 @@
-import { Button, Grid, TextField } from "@mui/material";
+import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { organization } from "graphql/generated/organization";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import PubSub from 'pubsub-js';
 import { organizationAdd as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationAddMutation } from "graphql/mutation";
-import { formatForAdd, Pubs } from "utils";
+import { formatForAdd } from "utils";
 import { OrganizationAddProps } from "../types";
 import { useCallback, useMemo, useState } from "react";
 import { TagSelector } from "components";
-import { Tag } from "types";
 import { TagSelectorTag } from "components/inputs/types";
+import {
+    Add as AddIcon,
+    Restore as CancelIcon,
+} from '@mui/icons-material';
+import { DialogActionItem } from "components/containers/types";
+import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 
 export const OrganizationAdd = ({
     session,
     onAdded,
     onCancel,
 }: OrganizationAddProps) => {
-    const canAdd = useMemo(() => Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor), [session]);
-    console.log('session in OrganizationAdd', session, canAdd);
-
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
     const addTag = useCallback((tag: TagSelectorTag) => {
@@ -45,21 +46,29 @@ export const OrganizationAdd = ({
         },
         validationSchema,
         onSubmit: (values) => {
+            console.log('submitting', values);
             mutationWrapper({
                 mutation,
-                input: formatForAdd({...values, tags}),
+                input: formatForAdd({ ...values, tags }),
                 onSuccess: (response) => { onAdded(response.data.organizationAdd) },
-                onError: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                }
             })
         },
     });
 
-    console.log('formik', formik);
+    const actions: DialogActionItem[] = useMemo(() => {
+        const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
+        return [
+            ['Add', AddIcon, Boolean(!correctRole || formik.isSubmitting || !formik.isValid), true, () => {}],
+            ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
+        ] as DialogActionItem[]
+    }, [formik, onCancel, session]);
+    const [formBottom, setFormBottom] = useState<number>(0);
+    const handleResize = useCallback(({ height }: any) => {
+        setFormBottom(height);
+    }, [setFormBottom]);
 
     return (
-        <form onSubmit={formik.handleSubmit}>
+        <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
             <Grid container spacing={2} sx={{ padding: 2 }}>
                 <Grid item xs={12}>
                     <TextField
@@ -89,7 +98,7 @@ export const OrganizationAdd = ({
                         helperText={formik.touched.bio && formik.errors.bio}
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} marginBottom={4}>
                     <TagSelector
                         session={session}
                         tags={tags}
@@ -98,23 +107,8 @@ export const OrganizationAdd = ({
                         onTagsClear={clearTags}
                     />
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                    <Button
-                        fullWidth
-                        color="secondary"
-                        type="submit"
-                        disabled={!canAdd || formik.isSubmitting || !formik.isValid}
-                    >Add</Button>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <Button
-                        fullWidth
-                        color="secondary"
-                        disabled={formik.isSubmitting}
-                        onClick={onCancel}
-                    >Cancel</Button>
-                </Grid>
             </Grid>
+            <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )
 }

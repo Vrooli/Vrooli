@@ -22,14 +22,6 @@ export const emailSchema = yup.object().shape({
     userId: id,
 });
 
-/**
- * Schema for submitting site feedback
- */
-export const feedbackSchema = yup.object().shape({
-    text: yup.string().max(4096).required(),
-    userId: id,
-});
-
 export const roleSchema = yup.object().shape({
     title,
     description,

@@ -133,7 +133,17 @@ export const addJoinTables = (obj: any, map: JoinMap): any => {
     let result: any = {};
     // Iterate over join map
     for (const [key, value] of Object.entries(map)) {
-        if (obj[key]) result[key] = ({ [value]: obj[key] })
+        // If the key is in the object
+        if (obj[key]) {
+            // If the value is an array
+            if (Array.isArray(obj[key])) {
+                // Add the join table to each item in the array
+                result[key] = obj[key].map((item: any) => ({ [value]: item }));
+            } else {
+                // Otherwise, add the join table to the object
+                result[key] = { [value]: obj[key] };
+            }
+        }
     }
     return {
         ...obj,
@@ -152,7 +162,17 @@ export const removeJoinTables = (obj: any, map: JoinMap): any => {
     let result: any = {};
     // Iterate over join map
     for (const [key, value] of Object.entries(map)) {
-        if (obj[key] && obj[key][value]) result[key] = obj[key][value];
+        // If the key is in the object
+        if (obj[key]) {
+            // If the value is an array
+            if (Array.isArray(obj[key])) {
+                // Remove the join table from each item in the array
+                result[key] = obj[key].map((item: any) => item[value]);
+            } else {
+                // Otherwise, remove the join table from the object
+                result[key] = obj[key][value];
+            }
+        }
     }
     return {
         ...obj,

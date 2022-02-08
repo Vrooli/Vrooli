@@ -4,14 +4,14 @@
 // 3. Guest login
 import { gql } from 'apollo-server-express';
 import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES, AccountStatus } from '@local/shared';
-import { CustomError, validateArgs } from '../error';
+import { CustomError } from '../error';
 import { generateNonce, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionToken } from '../auth/auth.js';
 import { IWrap, RecursivePartial } from '../types';
 import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
-import { EmailModel, UserModel, userSessioner } from '../models';
+import { UserModel, userSessioner } from '../models';
 import { hasProfanity } from '../utils/censor';
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -170,7 +170,7 @@ export const resolvers = {
             if (!email) throw new CustomError(CODE.EmailNotFound);
             // Find user
             let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
-            if (!user) throw new CustomError(CODE.UserNotFound);
+            if (!user) throw new CustomError(CODE.NoUser);
             // Generate and send password reset code
             const success = await UserModel(prisma).setupPasswordReset(user);
             return { success };

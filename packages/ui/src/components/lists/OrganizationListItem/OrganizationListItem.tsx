@@ -101,7 +101,7 @@ export function OrganizationListItem({
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                         {/* Tags */}
-                        <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} />
+                        {Array.isArray(data.tags) && data.tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} /> : null}
                     </Stack>
                     {isOwn ? null : <StarButton
                         session={session}

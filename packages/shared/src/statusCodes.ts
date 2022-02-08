@@ -1,110 +1,131 @@
+/**
+ * All error codes used by the API.
+ * Each code is associated with a message, and an optional snack message.
+ */
 export const CODE = {
     BadCredentials: {
-        code: 'BAD_CREDENTIALS',
-        message: 'Error: Email or password incorrect'
+        code: 'BadCredentials',
+        message: 'Email or password incorrect',
     },
     BannedWord: {
-        code: 'BANNED_WORD',
-        message: 'You used a banned word. If you think this is a mistake, please contact us.'
+        code: 'BannedWord',
+        message: 'You used a banned word. If you think this is a mistake, please contact us.',
+        snack: 'Banned word detected.',
     },
     CannotDeleteYourself: {
-        code: 'CANNOT_DELETE_YOURSELF',
-        message: 'Error: What are you doing trying to delete your own account? I am disappointed :('
+        code: 'CannotDeleteYourself',
+        message: 'What are you doing trying to delete your own account? I am disappointed :(',
+        snack: 'Cannot delete yourself',
     },
     EmailInUse: {
-        code: 'EMAIL_IN_USE',
-        message: 'Error: Account with that email already exists'
+        code: 'EmailInUse',
+        message: 'Account with that email already exists',
+        snack: 'Email already in use',
     },
     EmailNotFound: {
-        code: 'EMAIL_NOT_FOUND',
-        message: 'Error: Could not find an account with that email'
+        code: 'EmailNotFound',
+        message: 'Could not find an account with that email',
+        snack: 'Email not found',
     },
     EmailNotVerified: {
-        code: 'EMAIL_NOT_VERIFIED',
-        message: 'Error: Email has not been verified yet. Sending new verification email'
+        code: 'EmailNotVerified',
+        message: 'Email has not been verified yet. Sending new verification email',
+        snack: 'Email not verified',
     },
     ErrorUnknown: {
-        code: 'ERROR_UNKNOWN',
-        message: 'Unknown error occurred'
+        code: 'ErrorUnknown',
+        message: 'Unknown error occurred',
     },
     ExportLimitReached: {
-        code: 'EXPORT_LIMIT_REACHED',
-        message: 'Account has exported too many times in a short period of time. Please wait at least 24 hours before trying again.'
+        code: 'ExportLimitReached',
+        message: 'Account has exported too many times in a short period of time. Please wait at least 24 hours before trying again.',
+        snack: 'Export limit reached',
     },
     HardLockout: {
-        code: 'HARD_LOCKOUT',
-        message: 'Error: Account locked. Contact us for assistance'
+        code: 'HardLockout',
+        message: 'Account locked. Contact us for assistance',
+        snack: 'Account locked',
     },
     InternalError: {
-        code: 'INTERNAL_ERROR',
-        message: 'Internal error occurred'
+        code: 'InternalError',
+        message: 'Internal error occurred',
     },
     InvalidArgs: {
-        code: 'INVALID_ARGS',
-        message: 'Error: Invalid arguments supplied'
+        code: 'InvalidArgs',
+        message: 'Invalid arguments supplied'
     },
     InvalidResetCode: {
-        code: 'INVALID_RESET_CODE',
-        message: 'Error: Reset code expired or invalid. Sending a new code to your email.'
+        code: 'InvalidResetCode',
+        message: 'Reset code expired or invalid. Sending a new code to your email.',
+        snack: 'Invalid reset code',
     },
     MaxNodesReached: {
-        code: 'MAX_NODES_REACHED',
-        message: 'Maximum number of nodes reached for routine. This limit has been set to an extreme value. If you believe this is a mistake, please contact us.'
+        code: 'MaxNodesReached',
+        message: 'Maximum number of nodes reached for routine. This limit has been set to an extreme value. If you believe this is a mistake, please contact us.',
+        snack: 'Max nodes reached',
     },
     MustResetPassword: {
-        code: 'MUST_RESET_PASSWORD',
-        message: 'Before signing in, please follow the link sent to your email to change your password.'
+        code: 'MustResetPassword',
+        message: 'Before signing in, please follow the link sent to your email to change your password.',
+        snack: 'Must reset password',
     },
     NonceExpired: {
-        code: 'NONE_EXPIRED',
-        message: 'Nonce has expired. Please restart the sign in process (and complete it quicker this time :)'
+        code: 'NonceExpired',
+        message: 'Nonce has expired. Please restart the sign in process (and complete it quicker this time :)',
+        snack: 'Nonce expired',
     },
     NotFound: {
-        code: 'NOT_FOUND',
-        message: 'Error: Resource not found'
+        code: 'NotFound',
+        message: 'Resource not found'
     },
     NotImplemented: {
-        code: 'NOT_IMPLEMENTED',
-        message: 'Error: This has not been implemented yet. Please be patient :)'
+        code: 'NotImplemented',
+        message: 'This has not been implemented yet. Please be patient :)',
+        snack: 'Not implemented',
     },
     NotVerified: {
-        code: 'NOT_VERIFIED',
-        message: 'Error: Session token could not be verified. Please log back in'
+        code: 'NotVerified',
+        message: 'Session token could not be verified. Please log back in',
+        snack: 'Session expired/invalid',
     },
     NotYourWallet: {
-        code: 'WALLET_ASSIGNED_TO_ANOTHER_ACCOUNT',
-        message: 'Wallet has already been verified by another account. If you believe this is a mistake, please contact us.'
+        code: 'NotYourWallet',
+        message: 'Wallet has already been verified by another account. If you believe this is a mistake, please contact us.',
+        snack: 'Wallet taken',
     },
     NoUser: {
-        code: 'NO_USER',
-        message: 'Error: No user with that email'
+        code: 'NoUser',
+        message: 'No user with that email',
+        snack: 'User not found',
     },
     PhoneInUse: {
-        code: 'PHONE_IN_USE',
-        message: 'Error: Account with that phone number already exists'
+        code: 'PhoneInUse',
+        message: 'Account with that phone number already exists',
+        snack: 'Phone number taken',
     },
     SessionExpired: {
-        code: 'SESSION_EXPIRED',
-        message: 'Session has expired. Please log back in'
+        code: 'SessionExpired',
+        message: 'Session has expired. Please log back in',
+        snack: 'Session expired',
     },
     SoftLockout: {
-        code: 'SOFT_LOCKOUT',
-        message: 'Error: Too many log in attempts. Try again in 15 minutes'
+        code: 'SoftLockout',
+        message: 'Too many log in attempts. Try again in 15 minutes',
+        snack: 'Too many attempts. Wait 15 minutes',
     },
     SomeImagesAlreadyUploaded: {
-        code: 'SOME_IMAGES_ALREADY_UPLOADED',
-        message: 'Warning: Some images were already uploaded'
+        code: 'SomeImagesAlreadyUploaded',
+        message: 'Warning: Some images were already uploaded',
+        snack: 'Some images already uploaded',
     },
     Unauthorized: {
-        code: 'UNAUTHORIZED',
-        message: 'Error: Not authorized to perform this action'
+        code: 'Unauthorized',
+        message: 'Not authorized to perform this action',
+        snack: 'Unauthorized',
     },
     UsernameInUse: {
-        code: 'USERNAME_IN_USE',
-        message: 'Error: Account with that username already exists'
-    },
-    UserNotFound: {
-        code: 'USER_NOT_FOUND',
-        message: 'Error: User not found'
+        code: 'UsernameInUse',
+        message: 'Account with that username already exists',
+        snack: 'Username taken',
     },
 }

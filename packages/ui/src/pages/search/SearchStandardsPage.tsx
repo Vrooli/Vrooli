@@ -20,7 +20,7 @@ export const SearchStandardsPage = ({
     }, [setLocation]);
     useEffect(() => {
         if (selectedItem) {
-            setLocation(`${APP_LINKS.SearchStandards}/view/${selectedItem.id}`, { replace: true });
+            setLocation(`${APP_LINKS.SearchStandards}/view/${selectedItem.id}`);
         }
     }, [selectedItem, setLocation]);
     useEffect(() => {

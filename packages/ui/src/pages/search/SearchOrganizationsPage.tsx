@@ -21,7 +21,7 @@ export const SearchOrganizationsPage = ({
     }, [setLocation]);
     useEffect(() => {
         if (selectedItem) {
-            setLocation(`${APP_LINKS.SearchOrganizations}/view/${selectedItem.id}`, { replace: true });
+            setLocation(`${APP_LINKS.SearchOrganizations}/view/${selectedItem.id}`);
         }
     }, [selectedItem, setLocation]);
     useEffect(() => {

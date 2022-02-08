@@ -8,3 +8,11 @@ export interface TitleContainerProps {
     sx?: object;
     children: JSX.Element[];
 }
+
+// label, Icon, disabled, isSubmit, onClick
+export type DialogActionItem = [string, any, boolean, boolean, () => void,]
+
+export interface DialogActionsContainerProps {
+    actions: DialogActionItem[];
+    onResize: ({ height: number, width: number }) => any;
+}

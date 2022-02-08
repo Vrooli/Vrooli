@@ -11,6 +11,7 @@ import { organizationAddMutation, organizationUpdateMutation } from 'graphql/mut
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS } from '@local/shared';
 import { Pubs } from 'utils';
+import { Organization } from 'types';
 
 export const OrganizationDialog = ({
     hasPrevious,
@@ -28,20 +29,11 @@ export const OrganizationDialog = ({
     const [update] = useMutation<organization>(organizationUpdateMutation);
     const [del] = useMutation<organization>(organizationUpdateMutation);
 
-    const onAction = useCallback((action: ObjectDialogAction) => {
+    const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                mutationWrapper({
-                    mutation: add,
-                    input: { },
-                    onSuccess: ({ data }) => { 
-                        const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
-                    },
-                    onError: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                    }
-                })
+                const id = data?.id;
+                if (id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
                 setLocation(`${APP_LINKS.SearchOrganizations}/view`, { replace: true });
@@ -59,8 +51,8 @@ export const OrganizationDialog = ({
             case ObjectDialogAction.Save:
                 mutationWrapper({
                     mutation: update,
-                    input: { },
-                    onSuccess: ({ data }) => { 
+                    input: {},
+                    onSuccess: ({ data }) => {
                         const id = data?.id;
                         if (id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
                     },
@@ -70,10 +62,10 @@ export const OrganizationDialog = ({
                 })
                 break;
         }
-    },  [add, update, del, setLocation, state]);
+    }, [add, update, del, setLocation, state]);
 
     const title = useMemo(() => {
-        switch(state) {
+        switch (state) {
             case 'add':
                 return 'Add Organization';
             case 'edit':
@@ -84,9 +76,9 @@ export const OrganizationDialog = ({
     }, [state]);
 
     const child = useMemo(() => {
-        switch(state) {
+        switch (state) {
             case 'add':
-                return <OrganizationAdd session={session} onAdded={() => onAction(ObjectDialogAction.Add)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <OrganizationAdd session={session} onAdded={(data: Organization) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             case 'edit':
                 return <OrganizationUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:

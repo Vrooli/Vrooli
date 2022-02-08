@@ -86,20 +86,19 @@ import { TagModel } from "./tag";
             name: input.name, 
             bio: input.bio ,
             // Add user as member
-            members: { connect: { id: userId } },
+            members: { create: { role: MemberRole.Owner, user: { connect: { id: userId }} } },
             // Handle resources
             resources: ResourceModel(prisma).relationshipBuilder(userId, input, true),
             // Handle tags
             tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
         };
-        console.log('addOrganization', organizationData);
-        console.log('members.connect', organizationData.members.connect);
-        console.log('tags.create', organizationData.tags.create);
         // Create organization
         const organization = await prisma.organization.create({
             data: organizationData,
             ...selectHelper<Organization, organization>(info, format.toDB)
         })
+        console.log('organization here', organization);
+        console.log('tags', (organization as any).tags[0]);
         // Return organization with "isStarred" field. This will be its default values.
         return { ...format.toGraphQL(organization), isStarred: false, isAdmin: true };
     },
@@ -181,15 +180,21 @@ import { TagModel } from "./tag";
     }
     return {
         toDB: (obj: RecursivePartial<Organization>): RecursivePartial<organization> => {
+            console.log('organization todb', obj);
             let modified = addJoinTables(obj, joinMapper);
+            console.log('add join tables', modified);
             modified = addCountQueries(modified, countMapper);
+            console.log('add count queries', modified);
             // Remove isStarred, as it is calculated in its own query
             if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<organization>): RecursivePartial<Organization> => {
+            console.log('organization tographql', obj);
             let modified = removeJoinTables(obj, joinMapper);
+            console.log('removed join tables', modified);
             modified = removeCountQueries(modified, countMapper);
+            console.log('removed count queries', modified);
             return modified;
         },
     }

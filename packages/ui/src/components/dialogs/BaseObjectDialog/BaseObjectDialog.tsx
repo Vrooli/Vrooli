@@ -150,7 +150,6 @@ export const BaseObjectDialog = ({
                     flex: 'auto',
                     padding: 0,
                     paddingTop: { xs: '56px', sm: '64px' },
-                    paddingBottom: '15vh',
                     width: '100%',
                 }}
             >

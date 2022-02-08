@@ -19,7 +19,7 @@ export const SearchActorsPage = ({
     }, [setLocation]);
     useEffect(() => {
         if (selectedItem) {
-            setLocation(`${APP_LINKS.SearchUsers}/view/${selectedItem.id}`, { replace: true });
+            setLocation(`${APP_LINKS.SearchUsers}/view/${selectedItem.id}`);
         }
     }, [selectedItem, setLocation]);
     useEffect(() => {
