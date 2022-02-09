@@ -1,16 +1,12 @@
 import { RoutineView } from 'components';
 import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
-import { RoutineAdd } from 'components/views/RoutineAdd/RoutineAdd';
+import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
 import { RoutineUpdate } from 'components/views/RoutineUpdate/RoutineUpdate';
 import { RoutineDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
-import { useMutation } from '@apollo/client';
-import { routine } from 'graphql/generated/routine';
-import { routineAddMutation, routineUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS } from '@local/shared';
-import { Pubs } from 'utils';
+import { Routine } from 'types';
 
 export const RoutineDialog = ({
     hasPrevious,
@@ -23,24 +19,10 @@ export const RoutineDialog = ({
     const [, params] = useRoute(`${APP_LINKS.SearchRoutines}/:params*`);
     const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
-    const [add] = useMutation<routine>(routineAddMutation);
-    const [update] = useMutation<routine>(routineUpdateMutation);
-    const [del] = useMutation<routine>(routineUpdateMutation);
-
-    const onAction = useCallback((action: ObjectDialogAction) => {
+    const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                mutationWrapper({
-                    mutation: add,
-                    input: { },
-                    onSuccess: ({ data }) => { 
-                        const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchRoutines}/view/${id}`, { replace: true });
-                    },
-                    onError: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                    }
-                })
+                if (data?.id) setLocation(`${APP_LINKS.SearchRoutines}/view/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
                 setLocation(`${APP_LINKS.SearchRoutines}/view`, { replace: true });
@@ -56,20 +38,10 @@ export const RoutineDialog = ({
             case ObjectDialogAction.Previous:
                 break;
             case ObjectDialogAction.Save:
-                mutationWrapper({
-                    mutation: update,
-                    input: { },
-                    onSuccess: ({ data }) => { 
-                        const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchRoutines}/view/${id}`, { replace: true });
-                    },
-                    onError: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                    }
-                })
+                setLocation(`${APP_LINKS.SearchRoutines}/view/${id}`, { replace: true });
                 break;
         }
-    },  [add, update, del, setLocation, state]);
+    }, [id, setLocation]);
 
     const title = useMemo(() => {
         switch(state) {
@@ -85,7 +57,7 @@ export const RoutineDialog = ({
     const child = useMemo(() => {
         switch(state) {
             case 'add':
-                return <RoutineAdd session={session} onAdded={() => onAction(ObjectDialogAction.Add)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <RoutineCreate session={session} onCreated={(data: Routine) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             case 'edit':
                 return <RoutineUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:

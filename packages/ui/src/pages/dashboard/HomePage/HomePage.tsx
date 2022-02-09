@@ -132,9 +132,10 @@ export const HomePage = ({
             let listFeedItems: JSX.Element[] = [];
             switch (objectType) {
                 case ObjectType.Organization:
-                    listFeedItems = organizations.map(o => (
+                    listFeedItems = organizations.map((o, index) => (
                         <OrganizationListItem
                             key={`feed-list-item-${o.id}`}
+                            index={index}
                             session={session}
                             data={o}
                             isOwn={false}
@@ -143,22 +144,22 @@ export const HomePage = ({
                     ))
                     break;
                 case ObjectType.Project:
-                    listFeedItems = projects.map(o => {
-                        console.log('p', o); return (
-                            <ProjectListItem
-                                key={`feed-list-item-${o.id}`}
-                                session={session}
-                                data={o}
-                                isOwn={false}
-                                onClick={() => openSearch(linkMap[objectType], o.id)}
-                            />
-                        )
-                    })
+                    listFeedItems = projects.map((o, index) => (
+                        <ProjectListItem
+                            key={`feed-list-item-${o.id}`}
+                            index={index}
+                            session={session}
+                            data={o}
+                            isOwn={false}
+                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                        />
+                    ))
                     break;
                 case ObjectType.Routine:
-                    listFeedItems = routines.map(o => (
+                    listFeedItems = routines.map((o, index) => (
                         <RoutineListItem
                             key={`feed-list-item-${o.id}`}
+                            index={index}
                             session={session}
                             data={o}
                             isOwn={false}
@@ -167,9 +168,10 @@ export const HomePage = ({
                     ))
                     break;
                 case ObjectType.Standard:
-                    listFeedItems = standards.map(o => (
+                    listFeedItems = standards.map((o, index) => (
                         <StandardListItem
                             key={`feed-list-item-${o.id}`}
+                            index={index}
                             session={session}
                             data={o}
                             isOwn={false}
@@ -178,9 +180,10 @@ export const HomePage = ({
                     ))
                     break;
                 case ObjectType.User:
-                    listFeedItems = users.map(o => (
+                    listFeedItems = users.map((o, index) => (
                         <ActorListItem
                             key={`feed-list-item-${o.id}`}
+                            index={index}
                             session={session}
                             data={o}
                             isOwn={false}

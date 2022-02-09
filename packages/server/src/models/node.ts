@@ -1,7 +1,7 @@
-import { DeleteOneInput, Node, NodeAddInput, NodeUpdateInput, Success } from "../schema/types";
+import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from "../schema/types";
 import { FormatConverter, InfoType, MODEL_TYPES, selectHelper } from "./base";
 import { CustomError } from "../error";
-import { CODE, nodeAdd, NodeType } from "@local/shared";
+import { CODE, nodeCreate, NodeType, nodeUpdate } from "@local/shared";
 import { PrismaType, RecursivePartial } from "types";
 import { node } from "@prisma/client";
 import { hasProfanityRecursive } from "../utils/censor";
@@ -92,13 +92,13 @@ const typeMapper = {
  * Handles the authorized adding, updating, and deleting of nodes.
  */
  const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
-    async addNode(
+    async create(
         userId: string,
-        input: NodeAddInput,
+        input: NodeCreateInput,
         info: InfoType = null,
     ): Promise<RecursivePartial<Node>> {
         // Check for valid arguments
-        nodeAdd.validateSync(input, { abortEarly: false });
+        nodeCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanityRecursive(input, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);
         // Check if authorized TODO
@@ -128,13 +128,13 @@ const typeMapper = {
         // Return node
         return format.toGraphQL(node);
     },
-    async updateNode(
+    async update(
         userId: string,
         input: NodeUpdateInput,
         info: InfoType = null,
     ): Promise<RecursivePartial<Node>> {
         // Check for valid arguments
-        nodeAdd.validateSync(input, { abortEarly: false });
+        nodeUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanityRecursive(input, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);
         // Create node data
@@ -168,7 +168,7 @@ const typeMapper = {
         });
         return format.toGraphQL(node);
     },
-    async deleteNode(userId: string, input: DeleteOneInput): Promise<Success> {
+    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Check if authorized TODO
         const isAuthorized = true;
         if (!isAuthorized) throw new CustomError(CODE.Unauthorized);

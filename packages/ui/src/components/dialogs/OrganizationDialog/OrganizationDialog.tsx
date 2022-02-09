@@ -1,16 +1,11 @@
 import { OrganizationView } from 'components';
 import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
-import { OrganizationAdd } from 'components/views/OrganizationAdd/OrganizationAdd';
+import { OrganizationCreate } from 'components/views/OrganizationCreate/OrganizationCreate';
 import { OrganizationUpdate } from 'components/views/OrganizationUpdate/OrganizationUpdate';
 import { OrganizationDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
-import { useMutation } from '@apollo/client';
-import { organization } from 'graphql/generated/organization';
-import { organizationAddMutation, organizationUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS } from '@local/shared';
-import { Pubs } from 'utils';
 import { Organization } from 'types';
 
 export const OrganizationDialog = ({
@@ -25,15 +20,10 @@ export const OrganizationDialog = ({
     const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
     console.log("OrganizationDialog", { params, state, id });
 
-    const [add] = useMutation<organization>(organizationAddMutation);
-    const [update] = useMutation<organization>(organizationUpdateMutation);
-    const [del] = useMutation<organization>(organizationUpdateMutation);
-
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                const id = data?.id;
-                if (id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
+                if (data?.id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
                 setLocation(`${APP_LINKS.SearchOrganizations}/view`, { replace: true });
@@ -49,20 +39,10 @@ export const OrganizationDialog = ({
             case ObjectDialogAction.Previous:
                 break;
             case ObjectDialogAction.Save:
-                mutationWrapper({
-                    mutation: update,
-                    input: {},
-                    onSuccess: ({ data }) => {
-                        const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
-                    },
-                    onError: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                    }
-                })
+                if (data?.id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
                 break;
         }
-    }, [add, update, del, setLocation, state]);
+    }, [id, setLocation]);
 
     const title = useMemo(() => {
         switch (state) {
@@ -78,7 +58,7 @@ export const OrganizationDialog = ({
     const child = useMemo(() => {
         switch (state) {
             case 'add':
-                return <OrganizationAdd session={session} onAdded={(data: Organization) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <OrganizationCreate session={session} onCreated={(data: Organization) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             case 'edit':
                 return <OrganizationUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:

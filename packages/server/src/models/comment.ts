@@ -1,6 +1,6 @@
-import { CODE, commentAdd, CommentFor, commentUpdate } from "@local/shared";
+import { CODE, commentCreate, CommentFor, commentUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { Comment, CommentAddInput, CommentUpdateInput, DeleteOneInput, Success } from "../schema/types";
+import { Comment, CommentCreateInput, CommentUpdateInput, DeleteOneInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCountQueries, addCreatorField, addJoinTables, FormatConverter, MODEL_TYPES, removeCountQueries, removeCreatorField, removeJoinTables, selectHelper } from "./base";
 import { hasProfanity } from "../utils/censor";
@@ -74,13 +74,13 @@ const forMapper = {
  * the same object.
  */
 const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType) => ({
-    async addComment(
+    async create(
         userId: string,
-        input: CommentAddInput,
+        input: CommentCreateInput,
         info: GraphQLResolveInfo | null = null,
     ): Promise<RecursivePartial<Comment>> {
         // Check for valid arguments
-        commentAdd.validateSync(input, { abortEarly: false });
+        commentCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
         // Add comment
@@ -90,12 +90,12 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
                 userId,
                 [forMapper[input.createdFor]]: input.forId,
             },
-            ...selectHelper<CommentAddInput | CommentUpdateInput, comment>(info, formatter().toDB)
+            ...selectHelper<CommentCreateInput | CommentUpdateInput, comment>(info, formatter().toDB)
         });
         // Return comment with "isUpvoted" and "isStarred" fields. These will be their default values.
         return { ...format.toGraphQL(comment), isUpvoted: null, isStarred: false };
     },
-    async updateComment(
+    async update(
         userId: string,
         input: CommentUpdateInput,
         info: GraphQLResolveInfo | null = null,
@@ -113,7 +113,7 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
             data: {
                 text: input.text,
             },
-            ...selectHelper<CommentAddInput | CommentUpdateInput, comment>(info, formatter().toDB)
+            ...selectHelper<CommentCreateInput | CommentUpdateInput, comment>(info, formatter().toDB)
         });
         // Return comment with "isUpvoted" and "isStarred" fields. These must be queried separately.
         const vote = await prisma.vote.findFirst({ where: { userId, commentId: comment.id } });
@@ -122,7 +122,7 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
         const isStarred = Boolean(star) ?? false;
         return { ...format.toGraphQL(comment), isUpvoted, isStarred };
     },
-    async deleteComment(userId: string, input: DeleteOneInput): Promise<Success> {
+    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
         const comment = await prisma.comment.findFirst({
             where: { id: input.id },

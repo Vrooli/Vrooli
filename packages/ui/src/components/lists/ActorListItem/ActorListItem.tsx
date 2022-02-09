@@ -28,6 +28,7 @@ const colorOptions: [string, string][] = [
 
 export const ActorListItem = ({
     session,
+    index,
     data,
     isOwn = false,
     onClick,
@@ -66,6 +67,7 @@ export const ActorListItem = ({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
+                    background: index % 2 === 0 ? 'default' : '#e9e9e9',
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>

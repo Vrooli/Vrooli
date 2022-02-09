@@ -48,7 +48,7 @@ export function BaseSearchPage<DataType, SortBy>({
     const tabIndex = useMemo(() => {
         const index = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
         return Math.max(index, 0);
-    }, []);
+    }, [window.location.pathname]);
     const handleTabChange = (_e, newIndex) => { 
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
@@ -77,7 +77,7 @@ export function BaseSearchPage<DataType, SortBy>({
                 </Button>
             </Tooltip>
         </Box>
-    ), [popupButton, onPopupButtonClick, popupButtonText, popupButtonTooltip]);
+    ), [popupButton, popupButtonText, popupButtonTooltip, onPopupButtonClick]);
 
     return (
         <Box id="page">

@@ -2,14 +2,14 @@ import { gql } from 'apollo-server-express';
 import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, Email, EmailAddInput, EmailUpdateInput, Success } from './types';
+import { DeleteOneInput, Email, EmailCreateInput, EmailUpdateInput, Success } from './types';
 import { Context } from '../context';
 import { EmailModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
 
-    input EmailAddInput {
+    input EmailCreateInput {
         emailAddress: String!
         receivesAccountUpdates: Boolean
         receivesBusinessUpdates: Boolean
@@ -31,7 +31,7 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        emailAdd(input: EmailAddInput!): Email!
+        emailCreate(input: EmailCreateInput!): Email!
         emailUpdate(input: EmailUpdateInput!): Email!
         emailDeleteOne(input: DeleteOneInput!): Success!
     }
@@ -42,11 +42,11 @@ export const resolvers = {
         /**
          * Associate a new email address to your account.
          */
-        emailAdd: async (_parent: undefined, { input }: IWrap<EmailAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
+        emailCreate: async (_parent: undefined, { input }: IWrap<EmailCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const created = await EmailModel(prisma).addEmail(req.userId, input, info);
+            const created = await EmailModel(prisma).create(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
@@ -57,7 +57,7 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const updated = await EmailModel(prisma).updateEmail(req.userId, input, info);
+            const updated = await EmailModel(prisma).update(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
@@ -65,7 +65,7 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Delete object
-            return await EmailModel(prisma).deleteEmail(req.userId, input);
+            return await EmailModel(prisma).delete(req.userId, input);
         }
     }
 }

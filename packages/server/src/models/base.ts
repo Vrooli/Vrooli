@@ -502,6 +502,7 @@ const filterFields = (data: { [x: string]: any }, excludes: string[]): { [x: str
  * @param excludes The fields to exclude from the shape
  */
 const shapeRelationshipData = (data: any, excludes: string[] = []): any => {
+    console.log('shapeRelationshipData', data, excludes)
     if (Array.isArray(data)) {
         return data.map(e => {
             if (isObject(e)) {
@@ -545,12 +546,16 @@ export const relationshipToPrisma = (
     const ops = isAdd ? ['Connect', 'Create'] : ['Connect', 'Disconnect', 'Delete', 'Create', 'Update'];
     // Create result object
     let converted: { [x: string]: any } = {};
+    console.log('relationshipToPrisma', data, relationshipName);
     // Loop through object's keys
     for (const [key, value] of Object.entries(data)) {
+        console.log('relationshipToPrisma loop', relationshipName, key, value);
         // Skip if not matching relationship or not a valid operation
         if (!key.startsWith(relationshipName) || !ops.some(o => key.endsWith(o))) continue;
+        console.log('made it past check')
         // Determine operation
         const currOp = key.replace(relationshipName, '');
+        console.log('currOp', currOp);
         // TODO handle soft delete
         // Add operation to result object
         const shapedData = shapeRelationshipData(value, excludes);
@@ -585,6 +590,7 @@ export const joinRelationshipToPrisma = (
     let converted: { [x: string]: any } = {};
     // Call relationshipToPrisma to get join data used for one-to-many relationships
     const normalJoinData = relationshipToPrisma(data, relationshipName, isAdd, excludes, softDelete);
+    console.log('normalJoinData', normalJoinData);
     // Convert this to support a join table
     if (normalJoinData.hasOwnProperty('connect')) {
         console.log('in connect', normalJoinData.connect);
@@ -593,14 +599,15 @@ export const joinRelationshipToPrisma = (
         const dataArray = normalJoinData.connect?.map(e => ({
             [joinFieldName]: { connect: e }
         })) ?? [];
-        converted.create = Array.isArray(normalJoinData.create) ? [...normalJoinData.create, ...dataArray] : dataArray;
+        console.log('connect dataArray', dataArray);
+        converted.create = Array.isArray(converted.create) ? [...converted.create, ...dataArray] : dataArray;
     }
     if (normalJoinData.hasOwnProperty('disconnect')) {
         // ex: delete: [{ tag: { id: '123' } }]
         const dataArray = normalJoinData.disconnect?.map(e => ({
             [joinFieldName]: { e }
         })) ?? [];
-        converted.delete = Array.isArray(normalJoinData.delete) ? [...normalJoinData.delete, ...dataArray] : dataArray;
+        converted.delete = Array.isArray(converted.delete) ? [...converted.delete, ...dataArray] : dataArray;
     }
     if (normalJoinData.hasOwnProperty('delete')) {
         // ex: tag: { delete: [{ id: '123' }, { id: '432' }] }
@@ -611,14 +618,14 @@ export const joinRelationshipToPrisma = (
         const dataArray = normalJoinData.create?.map(e => ({
             [joinFieldName]: { create: e }
         })) ?? [];
-        converted.create = Array.isArray(normalJoinData.create) ? [...normalJoinData.create, ...dataArray] : dataArray;
+        converted.create = Array.isArray(converted.create) ? [...converted.create, ...dataArray] : dataArray;
     }
     if (normalJoinData.hasOwnProperty('update')) {
         // ex: update: [{ tag: update: { id: '123' } } }]
         const dataArray = normalJoinData.create?.map(e => ({
             [joinFieldName]: { update: e }
         })) ?? [];
-        converted.update = Array.isArray(normalJoinData.update) ? [...normalJoinData.update, ...dataArray] : dataArray;
+        converted.update = Array.isArray(converted.update) ? [...converted.update, ...dataArray] : dataArray;
     }
     return converted;
 }

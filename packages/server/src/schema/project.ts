@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, ProjectSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Project, ProjectAddInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult } from './types';
+import { DeleteOneInput, FindByIdInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult } from './types';
 import { Context } from '../context';
 import { ProjectModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -25,15 +25,15 @@ export const typeDef = gql`
         VotesDesc
     }
 
-    input ProjectAddInput {
+    input ProjectCreateInput {
         description: String
         name: String!
         parentId: ID
         createdByUserId: ID
         createdByOrganizationId: ID
-        resourcesAdd: [ResourceAddInput!]
+        resourcesCreate: [ResourceCreateInput!]
         tagsConnect: [ID!]
-        tagsAdd: [TagAddInput!]
+        tagsCreate: [TagCreateInput!]
     }
     input ProjectUpdateInput {
         id: ID!
@@ -43,11 +43,11 @@ export const typeDef = gql`
         userId: ID
         organizationId: ID
         resourcesDelete: [ID!]
-        resourcesAdd: [ResourceAddInput!]
+        resourcesCreate: [ResourceCreateInput!]
         resourcesUpdate: [ResourceUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
-        tagsAdd: [TagAddInput!]
+        tagsCreate: [TagCreateInput!]
     }
     type Project {
         id: ID!
@@ -111,7 +111,7 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        projectAdd(input: ProjectAddInput!): Project!
+        projectCreate(input: ProjectCreateInput!): Project!
         projectUpdate(input: ProjectUpdateInput!): Project!
         projectDeleteOne(input: DeleteOneInput!): Success!
     }
@@ -121,12 +121,12 @@ export const resolvers = {
     ProjectSortBy: ProjectSortBy,
     Query: {
         project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
-            const data = await ProjectModel(prisma).findProject(req.userId, input, info);
+            const data = await ProjectModel(prisma).find(req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
         projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
-            const data = await ProjectModel(prisma).searchProjects({}, req.userId, input, info);
+            const data = await ProjectModel(prisma).search({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
@@ -135,11 +135,11 @@ export const resolvers = {
         },
     },
     Mutation: {
-        projectAdd: async (_parent: undefined, { input }: IWrap<ProjectAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
+        projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const created = await ProjectModel(prisma).addProject(req.userId, input, info);
+            const created = await ProjectModel(prisma).create(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
@@ -147,14 +147,14 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const updated = await ProjectModel(prisma).updateProject(req.userId, input, info);
+            const updated = await ProjectModel(prisma).update(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
         projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await ProjectModel(prisma).deleteProject(req.userId, input);
+            return await ProjectModel(prisma).delete(req.userId, input);
         },
     }
 }

@@ -116,3 +116,29 @@ export interface UserDialogProps {
     partialData?: Partial<User>;
     session: Session;
 };
+
+/**
+ * All available actions an object can possibly have
+ */
+ export enum BaseObjectAction {
+    Copy = 'Copy',
+    Delete = "Delete",
+    Donate = "Donate",
+    Downvote = "Downvote",
+    Edit = "Edit",
+    Fork = "Fork",
+    Report = "Report",
+    Share = "Share",
+    Star = "Star",
+    Unstar = "Unstar",
+    Upvote = "Upvote",
+}
+
+export interface BaseObjectActionDialogProps {
+    objectId: string;
+    objectType: string;
+    title: string;
+    anchorEl: HTMLElement | null;
+    availableOptions: BaseObjectAction[];
+    onClose: () => any;
+}

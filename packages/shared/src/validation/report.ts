@@ -9,7 +9,7 @@ const reason = yup.string().min(1).max(128).optional();
 /**
  * Information required when creating a comment
  */
-export const reportAdd = yup.object().shape({
+export const reportCreate = yup.object().shape({
     createdFor: createdFor.required(),
     createdForId: id.required(),
     details,

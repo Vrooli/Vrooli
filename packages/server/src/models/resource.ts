@@ -1,5 +1,5 @@
-import { CODE, resourceAdd, ResourceFor, resourceUpdate } from "@local/shared";
-import { Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, DeleteManyInput, Count, FindByIdInput } from "../schema/types";
+import { CODE, resourceCreate, ResourceFor, resourceUpdate } from "@local/shared";
+import { Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, DeleteManyInput, Count, FindByIdInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
@@ -50,7 +50,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         if (Array.isArray(formattedInput.create)) {
             for (const resource of formattedInput.create) {
                 // Check for valid arguments
-                resourceAdd.omit(['createdFor', 'createdForId']).validateSync(input, { abortEarly: false });
+                resourceCreate.omit(['createdFor', 'createdForId']).validateSync(input, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(resource.title, resource.description)) throw new CustomError(CODE.BannedWord);
             }
@@ -66,7 +66,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
-    async findResource(
+    async find(
         userId: string | null | undefined, // Of the user making the request, not the organization
         input: FindByIdInput,
         info: InfoType = null,
@@ -77,7 +77,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         const resource = await prisma.resource.findUnique({ where: { id: input.id }, ...select });
         return resource ? format.toGraphQL(resource) : null;
     },
-    async searchResources(
+    async search(
         where: { [x: string]: any },
         userId: string | null | undefined,
         input: ResourceSearchInput,
@@ -89,14 +89,14 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         let searchResults = await search.search({ ...forQuery, ...where }, input, info);
         return searchResults;
     },
-    async addResource(
+    async create(
         userId: string,
-        input: ResourceAddInput,
+        input: ResourceCreateInput,
         info: InfoType = null,
     ): Promise<RecursivePartial<Resource>> {
         // TODO authorize user
         // Check for valid arguments
-        resourceAdd.validateSync(input, { abortEarly: false });
+        resourceCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Filter out for and forId, since they are not part of the resource object
@@ -108,7 +108,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         // Return query
         return await prisma.resource.findFirst({ where: { id: resource.id }, ...selectHelper<Resource, resource>(info, format.toDB) }) as any;
     },
-    async updateResource(
+    async update(
         userId: string,
         input: ResourceUpdateInput,
         info: InfoType = null,
@@ -137,7 +137,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
             ...selectHelper<Resource, resource>(info, format.toDB)
         }) as any;
     },
-    async deleteResources(userId: string, input: DeleteManyInput): Promise<Count> {
+    async delete(userId: string, input: DeleteManyInput): Promise<Count> {
         // TODO authorize user
         // Delete
         return await prisma.resource.deleteMany({

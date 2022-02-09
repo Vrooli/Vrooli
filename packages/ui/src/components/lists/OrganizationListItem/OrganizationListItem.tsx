@@ -28,6 +28,7 @@ const colorOptions: [string, string][] = [
 
 export function OrganizationListItem({
     session,
+    index,
     data,
     isOwn = false,
     onClick,
@@ -68,6 +69,7 @@ export function OrganizationListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
+                    background: index % 2 === 0 ? 'default' : '#e9e9e9',
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>

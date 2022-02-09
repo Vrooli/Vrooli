@@ -5,7 +5,7 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback } from 'react';
 import { APP_LINKS, StandardSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton, UpvoteDownvote } from '..';
+import { StarButton, TagList, UpvoteDownvote } from '..';
 import { useMutation } from '@apollo/client';
 import { starMutation, voteMutation } from 'graphql/mutation';
 import { vote } from 'graphql/generated/vote';
@@ -15,6 +15,7 @@ import { Standard } from 'types';
 
 export function StandardListItem({
     session,
+    index,
     data,
     isOwn = false,
     onClick,
@@ -63,6 +64,7 @@ export function StandardListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
+                    background: index % 2 === 0 ? 'default' : '#e9e9e9',
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
@@ -81,6 +83,8 @@ export function StandardListItem({
                             primary={data.description}
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
+                        {/* Tags */}
+                        {Array.isArray(data.tags) && data.tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} /> : null}
                     </Stack>
                     { isOwn ? null : <StarButton
                         session={session}

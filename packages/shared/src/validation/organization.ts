@@ -1,20 +1,20 @@
 import { bio, idArray, name } from './base';
-import { resourcesAdd, resourcesUpdate } from './resource';
-import { tagsAdd } from './tag';
+import { resourcesCreate, resourcesUpdate } from './resource';
+import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
 /**
  * Information required when creating an organization. 
- * You are automatically added as an admin
+ * You are automatically created as an admin
  */
-export const organizationAdd = yup.object().shape({
+export const organizationCreate = yup.object().shape({
     bio,
     name: name.required(),
     // You are automatically added as an admin. IDs you add here will be requested to be added as a member
     membersConnect: idArray,
-    resourcesAdd,
+    resourcesCreate,
     tagsConnect: idArray,
-    tagsAdd,
+    tagsCreate,
 })
 
 /**
@@ -26,12 +26,12 @@ export const organizationUpdate = yup.object().shape({
     membersConnect: idArray,
     membersDisconnect: idArray,
     resourcesDelete: idArray,
-    resourcesAdd,
+    resourcesCreate,
     resourcesUpdate,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
-    tagsAdd,
+    tagsCreate,
 })
 
-export const organizationsAdd = yup.array().of(organizationAdd.required()).optional();
+export const organizationsCreate = yup.array().of(organizationCreate.required()).optional();
 export const organizationsUpdate = yup.array().of(organizationUpdate.required()).optional();

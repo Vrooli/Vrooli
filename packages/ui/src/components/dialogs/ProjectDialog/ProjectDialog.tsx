@@ -1,16 +1,12 @@
 import { ProjectView } from 'components';
 import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
-import { ProjectAdd } from 'components/views/ProjectAdd/ProjectAdd';
 import { ProjectUpdate } from 'components/views/ProjectUpdate/ProjectUpdate';
 import { ProjectDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
-import { useMutation } from '@apollo/client';
-import { project } from 'graphql/generated/project';
-import { projectAddMutation, projectUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS } from '@local/shared';
-import { Pubs } from 'utils';
+import { ProjectCreate } from 'components/views/ProjectCreate/ProjectCreate';
+import { Project } from 'types';
 
 export const ProjectDialog = ({
     hasPrevious,
@@ -23,24 +19,10 @@ export const ProjectDialog = ({
     const [, params] = useRoute(`${APP_LINKS.SearchProjects}/:params*`);
     const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
-    const [add] = useMutation<project>(projectAddMutation);
-    const [update] = useMutation<project>(projectUpdateMutation);
-    const [del] = useMutation<project>(projectUpdateMutation);
-
-    const onAction = useCallback((action: ObjectDialogAction) => {
+    const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                mutationWrapper({
-                    mutation: add,
-                    input: { },
-                    onSuccess: ({ data }) => { 
-                        const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchProjects}/view/${id}`, { replace: true });
-                    },
-                    onError: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                    }
-                })
+                if (data?.id) setLocation(`${APP_LINKS.SearchProjects}/view/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
                 setLocation(`${APP_LINKS.SearchProjects}/view`, { replace: true });
@@ -56,20 +38,10 @@ export const ProjectDialog = ({
             case ObjectDialogAction.Previous:
                 break;
             case ObjectDialogAction.Save:
-                mutationWrapper({
-                    mutation: update,
-                    input: { },
-                    onSuccess: ({ data }) => { 
-                        const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchProjects}/view/${id}`, { replace: true });
-                    },
-                    onError: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                    }
-                })
+                setLocation(`${APP_LINKS.SearchProjects}/view/${id}`, { replace: true });
                 break;
         }
-    },  [add, update, del, setLocation, state]);
+    }, [id, setLocation]);
 
     const title = useMemo(() => {
         switch(state) {
@@ -85,7 +57,7 @@ export const ProjectDialog = ({
     const child = useMemo(() => {
         switch(state) {
             case 'add':
-                return <ProjectAdd session={session} onAdded={() => onAction(ObjectDialogAction.Add)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <ProjectCreate session={session} onCreated={(data: Project) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             case 'edit':
                 return <ProjectUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:

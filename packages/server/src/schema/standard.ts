@@ -3,7 +3,7 @@ import { CODE, StandardSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { StandardModel } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardAddInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult } from './types';
+import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
@@ -35,7 +35,7 @@ export const typeDef = gql`
         VotesDesc
     }
 
-    input StandardAddInput {
+    input StandardCreateInput {
         default: String
         description: String
         isFile: Boolean
@@ -46,7 +46,7 @@ export const typeDef = gql`
         createdByUserId: ID
         createdByOrganizationId: ID
         tagsConnect: [ID!]
-        tagsAdd: [TagAddInput!]
+        tagsCreate: [TagCreateInput!]
     }
     input StandardUpdateInput {
         id: ID
@@ -54,7 +54,7 @@ export const typeDef = gql`
         makeAnonymous: Boolean
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
-        tagsAdd: [TagAddInput!]
+        tagsCreate: [TagCreateInput!]
     }
     type Standard {
         id: ID!
@@ -118,7 +118,7 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        standardAdd(input: StandardAddInput!): Standard!
+        standardCreate(input: StandardCreateInput!): Standard!
         standardUpdate(input: StandardUpdateInput!): Standard!
         standardDeleteOne(input: DeleteOneInput!): Success!
     }
@@ -129,12 +129,12 @@ export const resolvers = {
     StandardSortBy: StandardSortBy,
     Query: {
         standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
-            const data = await StandardModel(prisma).findStandard(req.userId, input, info);
+            const data = await StandardModel(prisma).find(req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
         standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
-            const data = await StandardModel(prisma).searchStandards({}, req.userId, input, info);
+            const data = await StandardModel(prisma).search({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
@@ -145,14 +145,14 @@ export const resolvers = {
     },
     Mutation: {
         /**
-         * Add a new standard
+         * Create a new standard
          * @returns Standard object if successful
          */
-        standardAdd: async (_parent: undefined, { input }: IWrap<StandardAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
+        standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const created = await StandardModel(prisma).addStandard(req.userId, input, info);
+            const created = await StandardModel(prisma).create(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
@@ -167,7 +167,7 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const updated = await StandardModel(prisma).updateStandard(req.userId, input, info);
+            const updated = await StandardModel(prisma).update(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
@@ -178,7 +178,7 @@ export const resolvers = {
         standardDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await StandardModel(prisma).deleteStandard(req.userId, input);
+            return await StandardModel(prisma).delete(req.userId, input);
         },
     }
 }

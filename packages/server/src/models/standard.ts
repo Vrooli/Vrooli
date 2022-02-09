@@ -1,7 +1,7 @@
-import { CODE, standardAdd, standardUpdate } from "@local/shared";
+import { CODE, standardCreate, standardUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
-import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardAddInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Success } from "../schema/types";
+import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Success } from "../schema/types";
 import { addCountQueries, addCreatorField, addJoinTables, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
@@ -79,7 +79,7 @@ const sorter = (): Sortable<StandardSortBy> => ({
  * Handles the authorized adding, updating, and deleting of standards.
  */
 const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<StandardSortBy>, prisma: PrismaType) => ({
-    async findStandard(
+    async find(
         userId: string | null | undefined, // Of the user making the request, not the standard
         input: FindByIdInput,
         info: InfoType = null,
@@ -97,7 +97,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         const isStarred = Boolean(star) ?? false;
         return { ...format.toGraphQL(standard), isUpvoted, isStarred };
     },
-    async searchStandards(
+    async search(
         where: { [x: string]: any },
         userId: string | null | undefined,
         input: StandardSearchInput,
@@ -135,13 +135,13 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         });
         return searchResults;
     },
-    async addStandard(
+    async create(
         userId: string,
-        input: StandardAddInput,
+        input: StandardCreateInput,
         info: InfoType = null,
     ): Promise<RecursivePartial<Standard>> {
         // Check for valid arguments
-        standardAdd.validateSync(input, { abortEarly: false });
+        standardCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create standard data
@@ -178,7 +178,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         // Return standard with "isUpvoted" and "isStarred" fields. These will be their default values.
         return { ...format.toGraphQL(standard), isUpvoted: null, isStarred: false };
     },
-    async updateStandard(
+    async update(
         userId: string,
         input: StandardUpdateInput,
         info: InfoType = null,
@@ -220,7 +220,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         const isStarred = Boolean(star) ?? false;
         return { ...standard, isUpvoted, isStarred };
     },
-    async deleteStandard(userId: string, input: DeleteOneInput): Promise<Success> {
+    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
         const standard = await prisma.standard.findFirst({
             where: { id: input.id },

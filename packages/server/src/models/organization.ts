@@ -1,9 +1,8 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationAddInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Success } from "../schema/types";
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Success } from "../schema/types";
 import { addCountQueries, addJoinTables, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
-import { GraphQLResolveInfo } from "graphql";
 import { CustomError } from "../error";
-import { CODE, MemberRole, organizationAdd, organizationUpdate } from "@local/shared";
+import { CODE, MemberRole, organizationCreate, organizationUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { ResourceModel } from "./resource";
 import { organization } from "@prisma/client";
@@ -17,7 +16,7 @@ import { TagModel } from "./tag";
  * Handles the authorized adding, updating, and deleting of organizations.
  */
  const organizationer = (format: FormatConverter<Organization, organization>, sort: Sortable<OrganizationSortBy>, prisma: PrismaType) => ({
-    async findOrganization(
+    async find(
         userId: string | null | undefined, // Of the user making the request, not the organization
         input: FindByIdInput,
         info: InfoType = null,
@@ -34,7 +33,7 @@ import { TagModel } from "./tag";
         const isAdmin = await this.isOwnerOrAdmin(userId, organization.id);
         return { ...format.toGraphQL(organization), isStarred, isAdmin };
     },
-    async searchOrganizations(
+    async search(
         where: { [x: string]: any },
         userId: string | null | undefined,
         input: OrganizationSearchInput,
@@ -72,13 +71,13 @@ import { TagModel } from "./tag";
         });
         return searchResults;
     },
-    async addOrganization(
+    async create(
         userId: string,
-        input: OrganizationAddInput,
+        input: OrganizationCreateInput,
         info: InfoType = null,
     ): Promise<RecursivePartial<Organization>> {
         // Check for valid arguments
-        organizationAdd.validateSync(input, { abortEarly: false });
+        organizationCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
@@ -102,7 +101,7 @@ import { TagModel } from "./tag";
         // Return organization with "isStarred" field. This will be its default values.
         return { ...format.toGraphQL(organization), isStarred: false, isAdmin: true };
     },
-    async updateOrganization(
+    async update(
         userId: string,
         input: OrganizationUpdateInput,
         info: InfoType = null,
@@ -145,7 +144,7 @@ import { TagModel } from "./tag";
         const isStarred = Boolean(star) ?? false;
         return { ...format.toGraphQL(organization), isStarred, isAdmin: true };
     },
-    async deleteOrganization(userId: string, input: DeleteOneInput): Promise<Success> {
+    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Make sure the user is an admin of this organization
         const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.id);
         if (!isAuthorized) throw new CustomError(CODE.Unauthorized);

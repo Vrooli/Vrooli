@@ -10,9 +10,10 @@ import recentMarkdown from './recentHelp.md';
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
-    const inProgress = useMemo(() => [].map(o => (
+    const inProgress = useMemo(() => [].map((o, index) => (
         <ProjectListItem
             key={`in-progress-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}
@@ -20,9 +21,10 @@ export const DevelopPage = ({
         />
     )), []);
 
-    const recent = useMemo(() => [].map(o => (
+    const recent = useMemo(() => [].map((o, index) => (
         <ProjectListItem
             key={`recently-projects-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}
@@ -30,9 +32,10 @@ export const DevelopPage = ({
         />
     )), []);
 
-    const completed = useMemo(() => [].map(o => (
+    const completed = useMemo(() => [].map((o, index) => (
         <ProjectListItem
             key={`completed-projects-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}

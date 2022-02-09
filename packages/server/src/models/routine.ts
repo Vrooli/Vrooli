@@ -1,8 +1,8 @@
-import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineAddInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Success } from "../schema/types";
+import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
-import { CODE, routineAdd, routineUpdate } from "@local/shared";
+import { CODE, routineCreate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
@@ -17,7 +17,7 @@ import { TagModel } from "./tag";
  * Handles the authorized adding, updating, and deleting of routines.
  */
 const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<RoutineSortBy>, prisma: PrismaType) => ({
-    async findRoutine(
+    async find(
         userId: string | null | undefined, // Of the user making the request, not the routine
         input: FindByIdInput,
         info: InfoType = null,
@@ -35,7 +35,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         const isStarred = Boolean(star) ?? false;
         return { ...format.toGraphQL(routine), isUpvoted, isStarred };
     },
-    async searchRoutines(
+    async search(
         where: { [x: string]: any },
         userId: string | null | undefined,
         input: RoutineSearchInput,
@@ -69,13 +69,13 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         });
         return searchResults;
     },
-    async addRoutine(
+    async create(
         userId: string,
-        input: RoutineAddInput,
+        input: RoutineCreateInput,
         info: InfoType = null,
     ): Promise<RecursivePartial<Routine>> {
         // Check for valid arguments
-        routineAdd.validateSync(input, { abortEarly: false });
+        routineCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
         // Create routine data
@@ -87,8 +87,8 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             parentId: input.parentId,
             version: input.version,
             // Handle resources
-            contextualResources: ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesContextualAdd }, true),
-            externalResources: ResourceModel(prisma).relationshipBuilder(userId, { resourcesAdd: input.resourcesExternalAdd }, true),
+            contextualResources: ResourceModel(prisma).relationshipBuilder(userId, { resourcesCreate: input.resourcesContextualCreate }, true),
+            externalResources: ResourceModel(prisma).relationshipBuilder(userId, { resourcesCreate: input.resourcesExternalCreate }, true),
             // Handle tags
             tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
         };
@@ -120,7 +120,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // Return routine with "isUpvoted" and "isStarred" fields. These will be their default values.
         return { ...format.toGraphQL(routine), isUpvoted: null, isStarred: false };
     },
-    async updateRoutine(
+    async update(
         userId: string,
         input: RoutineUpdateInput,
         info: InfoType = null,
@@ -139,12 +139,12 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             version: input.version,
             // Handle resources
             contextualResources: ResourceModel(prisma).relationshipBuilder(userId, { 
-                resourcesAdd: input.resourcesContextualAdd,
+                resourcesCreate: input.resourcesContextualCreate,
                 resourcesUpdate: input.resourcesContextualUpdate,
                 resourcesDelete: input.resourcesContextualDelete, 
             }, true),
             externalResources: ResourceModel(prisma).relationshipBuilder(userId, { 
-                resourcesAdd: input.resourcesExternalAdd,
+                resourcesCreate: input.resourcesExternalCreate,
                 resourcesUpdate: input.resourcesExternalUpdate,
                 resourcesDelete: input.resourcesExternalDelete,
             }, true),
@@ -191,7 +191,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         const isStarred = Boolean(star) ?? false;
         return { ...format.toGraphQL(routine), isUpvoted, isStarred };
     },
-    async deleteRoutine(userId: string, input: DeleteOneInput): Promise<Success> {
+    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
         const routine = await prisma.routine.findFirst({
             where: { id: input.id },

@@ -1,8 +1,8 @@
-import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagAddInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
+import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addJoinTables, counter, FormatConverter, InfoType, joinRelationshipToPrisma, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
-import { CODE, tagAdd, tagUpdate } from "@local/shared";
+import { CODE, tagCreate, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { tag } from "@prisma/client";
 
@@ -73,6 +73,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {
+        console.log('tag relationshipBuilder', input, isAdd);
         // If any tag creates, check if they're supposed to be connects
         if (Array.isArray(input.tagCreate)) {
             // Query for all creating tags
@@ -92,7 +93,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         if (Array.isArray(input.tagCreate)) {
             for (const tag of input.tagCreate) {
                 // Check for valid arguments
-                tagAdd.validateSync(input, { abortEarly: false });
+                tagCreate.validateSync(input, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(tag.tag, tag.description)) throw new CustomError(CODE.BannedWord);
             }
@@ -104,7 +105,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         delete formattedInput.delete;
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
-    async findTag(
+    async find(
         userId: string | null | undefined, // Of the user making the request, not the tag's creator
         input: FindByIdInput,
         info: InfoType = null,
@@ -120,7 +121,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         const isStarred = Boolean(star) ?? false;
         return { ...format.toGraphQL(tag), isStarred };
     },
-    async searchTags(
+    async search(
         where: { [x: string]: any },
         userId: string | null | undefined,
         input: TagSearchInput,
@@ -165,13 +166,13 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         });
         return searchResults;
     },
-    async addTag(
+    async create(
         userId: string,
-        input: TagAddInput,
+        input: TagCreateInput,
         info: InfoType = null,
     ): Promise<RecursivePartial<Tag>> {
         // Check for valid arguments
-        tagAdd.validateSync(input, { abortEarly: false });
+        tagCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.tag, input.description)) throw new CustomError(CODE.BannedWord);
         // Create tag data
@@ -184,7 +185,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         // Return tag with "isStarred" field. This will be its default value.
         return { ...format.toGraphQL(tag), isStarred: false };
     },
-    async updateTag(
+    async update(
         userId: string,
         input: TagUpdateInput,
         info: InfoType = null,
@@ -206,7 +207,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         const isStarred = Boolean(star) ?? false;
         return { ...format.toGraphQL(tag), isStarred };
     },
-    async deleteTags(userId: string, input: DeleteManyInput): Promise<Count> {
+    async deleteMany(userId: string, input: DeleteManyInput): Promise<Count> {
         // Find
         const tags = await prisma.tag.findMany({
             where: { id: { in: input.ids } },

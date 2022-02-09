@@ -128,6 +128,7 @@ export const OrganizationView = ({
                     (node: User, index: number) => (
                         <ActorListItem
                             key={`member-list-item-${index}`}
+                            index={index}
                             session={session}
                             data={node}
                             isOwn={false}
@@ -145,6 +146,7 @@ export const OrganizationView = ({
                     (node: Project, index: number) => (
                         <ProjectListItem
                             key={`project-list-item-${index}`}
+                            index={index}
                             session={session}
                             data={node}
                             isOwn={false}
@@ -162,6 +164,7 @@ export const OrganizationView = ({
                     (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
+                            index={index}
                             session={session}
                             data={node}
                             isOwn={false}
@@ -179,6 +182,7 @@ export const OrganizationView = ({
                     (node: Standard, index: number) => (
                         <StandardListItem
                             key={`standard-list-item-${index}`}
+                            index={index}
                             session={session}
                             data={node}
                             isOwn={false}

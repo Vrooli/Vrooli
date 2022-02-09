@@ -5,7 +5,7 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback } from 'react';
 import { APP_LINKS, ProjectSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton, UpvoteDownvote } from 'components';
+import { StarButton, TagList, UpvoteDownvote } from 'components';
 import { starMutation, voteMutation } from 'graphql/mutation';
 import { vote } from 'graphql/generated/vote';
 import { useMutation } from '@apollo/client';
@@ -15,6 +15,7 @@ import { Project } from 'types';
 
 export function ProjectListItem({
     session,
+    index,
     data,
     isOwn = false,
     onClick,
@@ -68,6 +69,7 @@ export function ProjectListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
+                    background: index % 2 === 0 ? 'default' : '#e9e9e9',
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
@@ -86,6 +88,8 @@ export function ProjectListItem({
                             primary={data.description}
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
+                        {/* Tags */}
+                        {Array.isArray(data.tags) && data.tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} /> : null}
                     </Stack>
                     { isOwn? null : <StarButton
                         session={session}

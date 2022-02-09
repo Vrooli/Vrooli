@@ -10,9 +10,10 @@ export const LearnPage = ({
     session,
 }: LearnPageProps) => {
 
-    const courses = useMemo(() => [].map(o => (
+    const courses = useMemo(() => [].map((o, index) => (
         <ProjectListItem
             key={`course-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}
@@ -20,9 +21,10 @@ export const LearnPage = ({
         />
     )), []);
 
-    const tutorials = useMemo(() => [].map(o => (
+    const tutorials = useMemo(() => [].map((o, index) => (
         <RoutineListItem
             key={`tutorial-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}

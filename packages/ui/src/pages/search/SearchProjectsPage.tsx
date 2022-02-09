@@ -49,6 +49,7 @@ export const SearchProjectsPage = ({
     const listItemFactory = (node: Project, index: number) => (
         <ProjectListItem
             key={`project-list-item-${index}`}
+            index={index}
             session={session}
             data={node}
             isOwn={false}

@@ -171,7 +171,7 @@ export const resolvers = {
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } }
             // Query organizations
-            const organizations = (await OrganizationModel(prisma).searchOrganizations(
+            const organizations = (await OrganizationModel(prisma).search(
                 { ...starsQuery },
                 req.userId,
                 {
@@ -184,7 +184,7 @@ export const resolvers = {
                     stars: true,
                 })).edges.map(({ node }: any) => node);
             // Query projects
-            const projects = (await ProjectModel(prisma).searchProjects(
+            const projects = (await ProjectModel(prisma).search(
                 { ...starsQuery },
                 req.userId,
                 { ...input, sortBy: ProjectSortBy.StarsDesc },
@@ -196,7 +196,7 @@ export const resolvers = {
                 }
             )).edges.map(({ node }: any) => node);
             // Query routines
-            const routines = (await RoutineModel(prisma).searchRoutines(
+            const routines = (await RoutineModel(prisma).search(
                 { ...starsQuery },
                 req.userId,
                 { ...input, sortBy: RoutineSortBy.StarsDesc },
@@ -208,7 +208,7 @@ export const resolvers = {
                 }
             )).edges.map(({ node }: any) => node);
             // Query standards
-            const standards = (await StandardModel(prisma).searchStandards(
+            const standards = (await StandardModel(prisma).search(
                 { ...starsQuery },
                 req.userId,
                 { ...input, sortBy: StandardSortBy.StarsDesc },

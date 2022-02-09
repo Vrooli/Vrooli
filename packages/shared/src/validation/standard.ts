@@ -1,5 +1,5 @@
 import { description, idArray, id, name, version } from './base';
-import { tagsAdd } from './tag';
+import { tagsCreate } from './tag';
 import * as yup from 'yup';
 import { StandardType } from '../consts';
 
@@ -10,7 +10,7 @@ const type = yup.string().oneOf(Object.values(StandardType)).optional();
 /**
  * Information required when creating a standard. 
  */
-export const standardAdd = yup.object().shape({
+export const standardCreate = yup.object().shape({
     default: standardDefault,
     description,
     isFile: yup.boolean().optional(),
@@ -21,7 +21,7 @@ export const standardAdd = yup.object().shape({
     createdByUserId: id, // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id, // If associating with an organization you are an admin of, the organization's id
     tagsConnect: idArray,
-    tagsAdd,
+    tagsCreate,
 })
 
 /**
@@ -32,8 +32,8 @@ export const standardUpdate = yup.object().shape({
     makingAnonymous: yup.boolean().optional(), // If you want the standard to be made anonymous
     tagsConnect: idArray,
     tagsDisconnect: idArray,
-    tagsAdd,
+    tagsCreate,
 })
 
-export const standardsAdd = yup.array().of(standardAdd.required()).optional();
+export const standardsCreate = yup.array().of(standardCreate.required()).optional();
 export const standardsUpdate = yup.array().of(standardUpdate.required()).optional();

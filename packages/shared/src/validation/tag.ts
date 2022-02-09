@@ -7,7 +7,7 @@ const tag = yup.string().min(2).max(128).optional();
 /**
  * Information required when creating a tag
  */
-export const tagAdd = yup.object().shape({
+export const tagCreate = yup.object().shape({
     anonymous,
     description,
     tag: tag.required(),
@@ -23,5 +23,5 @@ export const tagUpdate = yup.object().shape({
     tag,
 })
 
-export const tagsAdd = yup.array().of(tagAdd.required()).optional();
+export const tagsCreate = yup.array().of(tagCreate.required()).optional();
 export const tagsUpdate = yup.array().of(tagUpdate.required()).optional();

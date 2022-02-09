@@ -51,6 +51,7 @@ export const SearchOrganizationsPage = ({
     const listItemFactory = (node: Organization, index: number) => (
         <OrganizationListItem
             key={`organization-list-item-${index}`}
+            index={index}
             session={session}
             data={node}
             isOwn={false}

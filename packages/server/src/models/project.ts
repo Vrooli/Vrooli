@@ -1,7 +1,7 @@
-import { CODE, projectAdd, projectUpdate } from "@local/shared";
+import { CODE, projectCreate, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
-import { DeleteOneInput, FindByIdInput, Project, ProjectCountInput, ProjectAddInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Success } from "../schema/types";
+import { DeleteOneInput, FindByIdInput, Project, ProjectCountInput, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Success } from "../schema/types";
 import { addCountQueries, addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
@@ -88,7 +88,7 @@ export const projectSorter = (): Sortable<ProjectSortBy> => ({
  * Handles the authorized adding, updating, and deleting of projects.
  */
 const projecter = (format: FormatConverter<Project, project>, sort: Sortable<ProjectSortBy>, prisma: PrismaType) => ({
-    async findProject(
+    async find(
         userId: string | null | undefined, // Of the user making the request, not the project
         input: FindByIdInput,
         info: InfoType = null,
@@ -106,7 +106,7 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         const isStarred = Boolean(star) ?? false;
         return { ...format.toGraphQL(project), isUpvoted, isStarred };
     },
-    async searchProjects(
+    async search(
         where: { [x: string]: any },
         userId: string | null | undefined,
         input: ProjectSearchInput,
@@ -141,13 +141,13 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         });
         return searchResults;
     },
-    async addProject(
+    async create(
         userId: string,
-        input: ProjectAddInput,
+        input: ProjectCreateInput,
         info: InfoType = null,
     ): Promise<RecursivePartial<Project>> {
         // Check for valid arguments
-        projectAdd.validateSync(input, { abortEarly: false });
+        projectCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
         // Create project data
@@ -185,7 +185,7 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         // Return project with "isUpvoted" and "isStarred" fields. These will be their default values.
         return { ...format.toGraphQL(project), isUpvoted: null, isStarred: false };
     },
-    async updateProject(
+    async update(
         userId: string,
         input: ProjectUpdateInput,
         info: InfoType = null,
@@ -239,7 +239,7 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         const isStarred = Boolean(star) ?? false;
         return { ...format.toGraphQL(project), isUpvoted, isStarred };
     },
-    async deleteProject(userId: string, input: DeleteOneInput): Promise<Success> {
+    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
         const project = await prisma.project.findFirst({
             where: { id: input.id },

@@ -8,7 +8,7 @@ const receivesBusinessUpdates = yup.boolean().optional();
 /**
  * Information required when creating a comment
  */
-export const emailAdd = yup.object().shape({
+export const emailCreate = yup.object().shape({
     emailAddress: emailAddress.required(),
     receivesAccountUpdates,
     receivesBusinessUpdates,
@@ -23,5 +23,5 @@ export const emailUpdate = yup.object().shape({
     receivesBusinessUpdates,
 })
 
-export const emailsAdd = yup.array().of(emailAdd.required()).optional();
+export const emailsCreate = yup.array().of(emailCreate.required()).optional();
 export const emailsUpdate = yup.array().of(emailUpdate.required()).optional();

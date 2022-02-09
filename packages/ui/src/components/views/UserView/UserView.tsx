@@ -17,14 +17,14 @@ import {
     StarOutline as StarOutlineIcon,
     SvgIconComponent
 } from "@mui/icons-material";
-import { ListMenu, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, ListMenu, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { LabelledSortOption } from "utils";
 import { Organization, Project, Routine, Standard } from "types";
 import { starMutation } from "graphql/mutation";
 import { star } from 'graphql/generated/star';
-import { parseSearchParams } from "utils/urlTools";
+import { BaseObjectAction } from "components/dialogs/types";
 
 const tabLabels = ['Resources', 'Organizations', 'Projects', 'Routines', 'Standards'];
 
@@ -82,27 +82,21 @@ export const UserView = ({
     }, [user?.id, star]);
 
     // Determine options available to object, in order
-    const moreOptions = useMemo(() => {
+    const moreOptions: BaseObjectAction[] = useMemo(() => {
         // Initialize
-        let options: [string, SvgIconComponent, string][] = [];
+        let options: BaseObjectAction[] = [];
         if (user && session && !isOwn) {
-            options.push(user.isStarred ? allOptionsMap[Actions.Unstar] : allOptionsMap[Actions.Star]);
+            options.push(user.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
         }
-        options.push(allOptionsMap[Actions.Donate], allOptionsMap[Actions.Share])
+        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
         if (session?.id) {
-            options.push(allOptionsMap[Actions.Report]);
+            options.push(BaseObjectAction.Report);
         }
         if (isOwn) {
-            options.push(allOptionsMap[Actions.Delete]);
+            options.push(BaseObjectAction.Delete);
         }
-        // Convert options to ListMenuItemData
-        return options.map(o => ({
-            label: o[0],
-            value: o[0],
-            Icon: o[1],
-            iconColor: o[2],
-        }));
-    }, [session, user])
+        return options;
+    }, [user, isOwn, session]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -132,6 +126,7 @@ export const UserView = ({
                     (node: Organization, index: number) => (
                         <OrganizationListItem
                             key={`organization-list-item-${index}`}
+                            index={index}
                             session={session}
                             data={node}
                             isOwn={false}
@@ -149,6 +144,7 @@ export const UserView = ({
                     (node: Project, index: number) => (
                         <ProjectListItem
                             key={`project-list-item-${index}`}
+                            index={index}
                             session={session}
                             data={node}
                             isOwn={false}
@@ -166,6 +162,7 @@ export const UserView = ({
                     (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
+                            index={index}
                             session={session}
                             data={node}
                             isOwn={false}
@@ -183,6 +180,7 @@ export const UserView = ({
                     (node: Standard, index: number) => (
                         <StandardListItem
                             key={`standard-list-item-${index}`}
+                            index={index}
                             session={session}
                             data={node}
                             isOwn={false}
@@ -218,20 +216,6 @@ export const UserView = ({
         ev.preventDefault();
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-    const onMoreMenuSelect = useCallback((value: string) => {
-        console.log('onMoreMenuSelect', value);
-        switch (value) {
-            case Actions.Star:
-                break;
-            case Actions.Share:
-                break;
-            case Actions.Donate:
-                break;
-            case Actions.Report:
-                break;
-        }
-        closeMoreMenu();
-    }, [closeMoreMenu]);
 
     /**
      * Displays username, avatar, bio, and quick links
@@ -329,12 +313,12 @@ export const UserView = ({
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ListMenu
-                id={moreMenuId}
+            <BaseObjectActionDialog
+                objectId={id}
+                objectType={'User'}
                 anchorEl={moreMenuAnchor}
                 title='User Options'
-                data={moreOptions}
-                onSelect={onMoreMenuSelect}
+                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
             />
             <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>

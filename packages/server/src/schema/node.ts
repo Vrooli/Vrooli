@@ -1,9 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { CODE, NodeType } from '@local/shared';
 import { CustomError } from '../error';
-import { nodeFormatter, NodeModel } from '../models';
+import { NodeModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, Node, NodeAddInput, NodeUpdateInput, Success } from './types';
+import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -20,17 +20,17 @@ export const typeDef = gql`
 
     union NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList | NodeRedirect | NodeStart
 
-    input NodeAddInput {
+    input NodeCreateInput {
         description: String
         title: String
         type: NodeType
-        nodeCombineAdd: NodeCombineAddInput
-        nodeDecisionAdd: NodeDecisionAddInput
-        nodeEndAdd: NodeEndAddInput
-        nodeLoopAdd: NodeLoopAddInput
-        nodeRedirectAdd: NodeRoutineListAddInput
-        nodeRoutineListAdd: NodeRedirectAddInput
-        nodeStartAdd: NodeStartAddInput
+        nodeCombineCreate: NodeCombineCreateInput
+        nodeDecisionCreate: NodeDecisionCreateInput
+        nodeEndCreate: NodeEndCreateInput
+        nodeLoopCreate: NodeLoopCreateInput
+        nodeRedirectCreate: NodeRoutineListCreateInput
+        nodeRoutineListCreate: NodeRedirectCreateInput
+        nodeStartCreate: NodeStartCreateInput
         previousId: ID
         nextId: ID
         routineId: ID!
@@ -40,19 +40,19 @@ export const typeDef = gql`
         description: String
         title: String
         type: NodeType
-        nodeCombineAdd: NodeCombineAddInput
+        nodeCombineCreate: NodeCombineCreateInput
         nodeCombineUpdate: NodeCombineUpdateInput
-        nodeDecisionAdd: NodeDecisionAddInput
+        nodeDecisionCreate: NodeDecisionCreateInput
         nodeDecisionUpdate: NodeDecisionUpdateInput
-        nodeEndAdd: NodeEndAddInput
+        nodeEndCreate: NodeEndCreateInput
         nodeEndUpdate: NodeEndUpdateInput
-        nodeLoopAdd: NodeLoopAddInput
+        nodeLoopCreate: NodeLoopCreateInput
         nodeLoopUpdate: NodeLoopUpdateInput
-        nodeRedirectAdd: NodeRoutineListAddInput
+        nodeRedirectCreate: NodeRoutineListCreateInput
         nodeRedirectUpdate: NodeRoutineListUpdateInput
-        nodeRoutineListAdd: NodeRedirectAddInput
+        nodeRoutineListCreate: NodeRedirectCreateInput
         nodeRoutineListUpdate: NodeRedirectUpdateInput
-        nodeStartAdd: NodeStartAddInput
+        nodeStartCreate: NodeStartCreateInput
         nodeStartUpdate: NodeStartUpdateInput
         previousId: ID
         nextId: ID
@@ -77,7 +77,7 @@ export const typeDef = gql`
         DecisionItem: [NodeDecisionItem!]!
     }
 
-    input NodeCombineAddInput {
+    input NodeCombineCreateInput {
         from: [ID!]!
         toId: ID
     }
@@ -92,12 +92,12 @@ export const typeDef = gql`
         toId: ID!
     }
 
-    input NodeDecisionAddInput {
-        decisionsAdd: [NodeDecisionItemAddInput!]!
+    input NodeDecisionCreateInput {
+        decisionsCreate: [NodeDecisionItemCreateInput!]!
     }
     input NodeDecisionUpdateInput {
         id: ID!
-        decisionsAdd: [NodeDecisionItemAddInput!]
+        decisionsCreate: [NodeDecisionItemCreateInput!]
         decisionsUpdate: [NodeDecisionItemUpdateInput!]
         decisionsDelete: [ID!]
     }
@@ -105,17 +105,17 @@ export const typeDef = gql`
         id: ID!
         decisions: [NodeDecisionItem!]!
     }
-    input NodeDecisionItemAddInput {
+    input NodeDecisionItemCreateInput {
         description: String
         title: String!
-        whenAdd: [NodeDecisionItemWhenAddInput!]!
+        whenCreate: [NodeDecisionItemWhenCreateInput!]!
         toId: ID
     }
     input NodeDecisionItemUpdateInput {
         id: ID!
         description: String
         title: String
-        whenAdd: [NodeDecisionItemWhenAddInput!]
+        whenCreate: [NodeDecisionItemWhenCreateInput!]
         whenUpdate: [NodeDecisionItemWhenUpdateInput!]
         whenDelete: [ID!]
         toId: ID
@@ -127,7 +127,7 @@ export const typeDef = gql`
         when: [NodeDecisionItemWhen!]!
         toId: ID
     } 
-    input NodeDecisionItemWhenAddInput {
+    input NodeDecisionItemWhenCreateInput {
         condition: String!
     }
     input NodeDecisionItemWhenUpdateInput {
@@ -139,7 +139,7 @@ export const typeDef = gql`
         condition: String!
     }
 
-    input NodeEndAddInput {
+    input NodeEndCreateInput {
         wasSuccessful: Boolean
     }
     input NodeEndUpdateInput {
@@ -151,7 +151,7 @@ export const typeDef = gql`
         wasSuccessful: Boolean!
     }
 
-    input NodeLoopAddInput {
+    input NodeLoopCreateInput {
         id: ID
     }
     input NodeLoopUpdateInput {
@@ -161,7 +161,7 @@ export const typeDef = gql`
         id: ID!
     }
 
-    input NodeRedirectAddInput {
+    input NodeRedirectCreateInput {
         id: ID
     }
     input NodeRedirectUpdateInput {
@@ -171,11 +171,11 @@ export const typeDef = gql`
         id: ID!
     }
 
-    input NodeRoutineListAddInput {
+    input NodeRoutineListCreateInput {
         isOrdered: Boolean
         isOptional: Boolean
         routinesConnect: [ID!]
-        routinesAdd: [NodeRoutineListItemAddInput!]
+        routinesCreate: [NodeRoutineListItemCreateInput!]
     }
     input NodeRoutineListUpdateInput {
         id: ID!
@@ -184,7 +184,7 @@ export const typeDef = gql`
         routinesConnect: [ID!]
         routinesDisconnect: [ID!]
         routinesDelete: [ID!]
-        routinesAdd: [NodeRoutineListItemAddInput!]
+        routinesCreate: [NodeRoutineListItemCreateInput!]
         routinesUpdate: [NodeRoutineListItemUpdateInput!]
     }
     type NodeRoutineList {
@@ -193,7 +193,7 @@ export const typeDef = gql`
         isOptional: Boolean!
         routines: [NodeRoutineListItem!]!
     }
-    input NodeRoutineListItemAddInput {
+    input NodeRoutineListItemCreateInput {
         description: String
         isOptional: Boolean
         title: String
@@ -214,7 +214,7 @@ export const typeDef = gql`
         routine: Routine!
     }
 
-    input NodeStartAddInput {
+    input NodeStartCreateInput {
         _blank: String
     }
     input NodeStartUpdateInput {
@@ -225,7 +225,7 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        nodeAdd(input: NodeAddInput!): Node!
+        nodeCreate(input: NodeCreateInput!): Node!
         nodeUpdate(input: NodeUpdateInput!): Node!
         nodeDeleteOne(input: DeleteOneInput!): Success!
     }
@@ -239,11 +239,11 @@ export const resolvers = {
          * Note that the order of a routine (i.e. previous, next) cannot be updated with this mutation. 
          * @returns Updated node
          */
-        nodeAdd: async (_parent: undefined, { input }: IWrap<NodeAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
+        nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const created = await NodeModel(prisma).addNode(req.userId, input, info);
+            const created = await NodeModel(prisma).create(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
@@ -251,14 +251,14 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const updated = await NodeModel(prisma).updateNode(req.userId, input, info);
+            const updated = await NodeModel(prisma).update(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
         nodeDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await NodeModel(prisma).deleteNode(req.userId, input);
+            return await NodeModel(prisma).delete(req.userId, input);
         }
     }
 }

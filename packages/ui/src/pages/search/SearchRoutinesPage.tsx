@@ -48,6 +48,7 @@ export const SearchRoutinesPage = ({
     const listItemFactory = (node: Routine, index: number) => (
         <RoutineListItem
             key={`routine-list-item-${index}`}
+            index={index}
             session={session}
             data={node}
             isOwn={false}

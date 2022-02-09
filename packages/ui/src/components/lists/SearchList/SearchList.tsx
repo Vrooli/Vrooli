@@ -50,7 +50,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         console.log('Resetting page', after.current);
         after.current = undefined;
         fetchPage();
-    }, [searchString, sortBy, timeFrame]);
+    }, [searchString, sortBy, createdTimeFrame]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
@@ -104,7 +104,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         if (scrolledY > 100) {
             if (onScrolledFar) onScrolledFar();
         }
-    }, [pageData, loadMore, loading]);
+    }, [loading, loadMore, onScrolledFar]);
 
     // Set event listener for infinite scroll
     useEffect(() => {
@@ -142,7 +142,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         if (!selectedItem) return;
         console.log('selectedItem', selectedItem);
         onObjectSelect(selectedItem);
-    }, [allData]);
+    }, [allData, onObjectSelect]);
 
     const searchResultContainer = useMemo(() => {
         const hasItems = listItems.length > 0;
@@ -174,7 +174,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 }
             </Box>
         )
-    }, [listItems]);
+    }, [listItems, loading]);
 
     return (
         <>

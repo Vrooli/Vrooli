@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, CommentFor } from '@local/shared';
 import { CustomError } from '../error';
-import { Comment, CommentAddInput, CommentUpdateInput, DeleteOneInput, Success } from './types';
+import { Comment, CommentCreateInput, CommentUpdateInput, DeleteOneInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
 import { CommentModel } from '../models';
 import { Context } from '../context';
@@ -16,7 +16,7 @@ export const typeDef = gql`
         User
     }   
 
-    input CommentAddInput {
+    input CommentCreateInput {
         text: String!
         createdFor: CommentFor!
         forId: ID!
@@ -44,7 +44,7 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        commentAdd(input: CommentAddInput!): Comment!
+        commentCreate(input: CommentCreateInput!): Comment!
         commentUpdate(input: CommentUpdateInput!): Comment!
         commentDeleteOne(input: DeleteOneInput!): Success!
     }
@@ -53,11 +53,11 @@ export const typeDef = gql`
 export const resolvers = {
     CommentFor: CommentFor,
     Mutation: {
-        commentAdd: async (_parent: undefined, { input }: IWrap<CommentAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
+        commentCreate: async (_parent: undefined, { input }: IWrap<CommentCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const created = await CommentModel(prisma).addComment(req.userId, input, info);
+            const created = await CommentModel(prisma).create(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
@@ -65,7 +65,7 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const updated = await CommentModel(prisma).updateComment(req.userId, input, info);
+            const updated = await CommentModel(prisma).update(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
@@ -73,7 +73,7 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Delete object
-            return await CommentModel(prisma).deleteComment(req.userId, input);
+            return await CommentModel(prisma).delete(req.userId, input);
         },
     }
 }

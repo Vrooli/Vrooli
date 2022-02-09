@@ -1,7 +1,7 @@
-import { CODE, emailAdd, emailUpdate } from "@local/shared";
+import { CODE, emailCreate, emailUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
-import { DeleteOneInput, Email, EmailAddInput, EmailUpdateInput, Success } from "../schema/types";
+import { DeleteOneInput, Email, EmailCreateInput, EmailUpdateInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { MODEL_TYPES } from "./base";
 import bcrypt from 'bcrypt';
@@ -35,13 +35,13 @@ import { sendVerificationLink } from "../worker/email/queue";
         sendVerificationLink(emailAddress, email.userId, verificationCode);
         // TODO send email to existing emails from user, warning of new email
     },
-    async addEmail(
+    async create(
         userId: string,
-        input: EmailAddInput,
+        input: EmailCreateInput,
         info: GraphQLResolveInfo | null = null,
     ): Promise<RecursivePartial<Email>> {
         // Check for valid arguments
-        emailAdd.validateSync(input, { abortEarly: false });
+        emailCreate.validateSync(input, { abortEarly: false });
         // Check for existing email
         const existing = await prisma.email.findUnique({ where: { emailAddress: input.emailAddress } });
         if (existing) throw new CustomError(CODE.EmailInUse)
@@ -57,7 +57,7 @@ import { sendVerificationLink } from "../worker/email/queue";
         // Return email
         return email;
     },
-    async updateEmail(
+    async update(
         userId: string,
         input: EmailUpdateInput,
         info: GraphQLResolveInfo | null = null,
@@ -82,7 +82,7 @@ import { sendVerificationLink } from "../worker/email/queue";
         // Return email
         return email;
     },
-    async deleteEmail(userId: string, input: DeleteOneInput): Promise<Success> {
+    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
         const email = await prisma.email.findFirst({
             where: {

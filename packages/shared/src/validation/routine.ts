@@ -1,8 +1,8 @@
 import { description, idArray, id, name, title } from './base';
-import { nodesAdd, nodesUpdate } from './node';
-import { resourcesAdd, resourcesUpdate } from './resource';
-import { standardAdd } from './standard';
-import { tagsAdd } from './tag';
+import { nodesCreate, nodesUpdate } from './node';
+import { resourcesCreate, resourcesUpdate } from './resource';
+import { standardCreate } from './standard';
+import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
 const isAutomatable = yup.boolean().optional();
@@ -10,12 +10,12 @@ const isRequired = yup.boolean().optional();
 const instructions = yup.string().max(8192).optional();
 const version = yup.string().max(16).optional();
 
-const inputAdd = yup.object().shape({
+const inputCreate = yup.object().shape({
     description,
     isRequired,
     name,
     standardConnect: id,
-    standardAdd,
+    standardCreate,
 })
 const inputUpdate = yup.object().shape({
     description,
@@ -24,14 +24,14 @@ const inputUpdate = yup.object().shape({
     // There is purposely no option to delete or update a standard from here
     standardConnect: id,
     standardDisconnect: id,
-    standardAdd,
+    standardCreate,
 })
 
-const outputAdd = yup.object().shape({
+const outputCreate = yup.object().shape({
     description,
     name,
     standardConnect: id,
-    standardAdd,
+    standardCreate,
 })
 const outputUpdate = yup.object().shape({
     description,
@@ -39,13 +39,13 @@ const outputUpdate = yup.object().shape({
     // There is purposely no option to delete or update a standard from here
     standardConnect: id,
     standardDisconnect: id,
-    standardAdd,
+    standardCreate,
 })
 
 /**
  * Information required when creating a routine. 
  */
-export const routineAdd = yup.object().shape({
+export const routineCreate = yup.object().shape({
     description,
     instructions,
     isAutomatable,
@@ -55,13 +55,13 @@ export const routineAdd = yup.object().shape({
     createdByUserId: id, // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id, // If associating with an organization you are an admin of, the organization's id
     nodesConnect: idArray,
-    nodesAdd,
-    inputsAdd: inputAdd.optional(),
-    outputsAdd: outputAdd.optional(),
-    resourcesContextualAdd: resourcesAdd,
-    resourcesExternalAdd: resourcesAdd,
+    nodesCreate,
+    inputsCreate: inputCreate.optional(),
+    outputsCreate: outputCreate.optional(),
+    resourcesContextualCreate: resourcesCreate,
+    resourcesExternalCreate: resourcesCreate,
     tagsConnect: idArray,
-    tagsAdd,
+    tagsCreate,
 }, [['createdByUserId', 'createdByOrganizationId']]) // Makes sure you can't associate with both a user and an organization
 
 /**
@@ -79,24 +79,24 @@ export const routineUpdate = yup.object().shape({
     nodesConnect: idArray,
     nodesDisconnect: idArray,
     nodesDelete: idArray,
-    nodesAdd,
+    nodesCreate,
     nodesUpdate,
     inputsDelete: idArray,
-    inputsAdd: inputAdd,
+    inputsCreate: inputCreate,
     inputsUpdate: inputUpdate,
     outputsDelete: idArray,
-    outpusAdd: outputAdd,
+    outpusCreate: outputCreate,
     outputsUpdate: outputUpdate,
     resourcesContextualDelete: idArray,
-    resourcesContextualAdd: resourcesAdd,
+    resourcesContextualCreate: resourcesCreate,
     resourcesContextualUpdate: resourcesUpdate,
     resourcesExternalDelete: idArray,
-    resourcesExternalAdd: resourcesAdd,
+    resourcesExternalCreate: resourcesCreate,
     resourcesExternalUpdate: resourcesUpdate,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
-    tagsAdd,
+    tagsCreate,
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
 
-export const routinesAdd = yup.array().of(routineAdd.required()).optional();
+export const routinesCreate = yup.array().of(routineCreate.required()).optional();
 export const routinesUpdate = yup.array().of(routineUpdate.required()).optional();

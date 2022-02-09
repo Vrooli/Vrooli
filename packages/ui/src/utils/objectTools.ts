@@ -29,38 +29,40 @@ export function convertToDot(obj, parent = [], keyValue = {}) {
 }
 
 /**
- * Formats an object to prepare for an add mutation. Each relationship field is converted into
- * either a connection or add, depending on the existence of an id.
- * @param obj - The object being added
+ * Formats an object to prepare for a create mutation. Each relationship field is converted into
+ * either a connection or create, depending on the existence of an id.
+ * @param obj - The object being created
  */
-export const formatForAdd = <T>(obj: Partial<T>): Partial<T> => {
+export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
     let changed = {};
-    console.log('formatForAdd start', obj);
+    console.log('formatForCreate start', obj);
     // Helper method to add to arrays which might not exist
     const addToChangedArray = (key, value) => {
+        console.log('add to changed array', key, value);
         if (Array.isArray(changed[key])) {
+            console.log('is array');
             if (Array.isArray(value)) changed[key] = [...changed[key], ...value];
             else changed[key] = [...changed[key], value];
         }
-        else changed[key] = value;
+        else changed[key] = Array.isArray(value) ? value : [value];
     }
     // Iterate through each field in the object
     for (const [key, value] of Object.entries(obj)) {
-        // If the key is already one of the 5 relationship mutation types (connect, disconnect, delete, add, update), don't parse it
-        if (['Connect', 'Add'].some(s => key.endsWith(s))) {
+        // If the key is already one of the relationship mutation types, don't parse it
+        if (['Connect', 'Create'].some(s => key.endsWith(s))) {
             addToChangedArray(key, value);
         }
         // If the value is an array
         else if (Array.isArray(value)) {
-            console.log('formatforAdd is array', value)
+            console.log('formatforCreate is array', value)
             // Loop through changed values and determine which are connections and adds
             for (let i = 0; i < value.length; i++) {
                 const curr = value[i];
                 // Find the changed value at this index
-                const changedValue = _.isObject(curr) ? formatForAdd(curr) : curr;
-                // Check if add (i.e does not contain an id)
+                const changedValue = _.isObject(curr) ? formatForCreate(curr) : curr;
+                // Check if create (i.e does not contain an id)
                 if (changedValue && curr.id === undefined) {
-                    addToChangedArray(`${key}Add`, changedValue);
+                    addToChangedArray(`${key}Create`, changedValue);
                 }
                 // Check if connection type 1 (i.e. is an object with an id)
                 else if (curr.id) {
@@ -77,15 +79,15 @@ export const formatForAdd = <T>(obj: Partial<T>): Partial<T> => {
         }
         // If the value is an object
         else if (_.isObject(value)) {
-            console.log('formatforadd in isobject', value)
+            console.log('formatforCreate in isobject', value)
             const curr: any = value;
             // Find the changed value
-            const changedValue = formatForAdd(curr);
+            const changedValue = formatForCreate(curr);
             console.log('changed value', changedValue)
-            // Check if add (i.e does not contain an id)
+            // Check if create (i.e does not contain an id)
             if (changedValue && curr.id === undefined) {
-                console.log('add')
-                changed[`${key}Add`] = changedValue;
+                console.log('create')
+                changed[`${key}Create`] = changedValue;
             }
             // Check if connection (i.e. is an object with only an id)
             // NOTE: Does not support passing an id directly, like in the case of an array
@@ -100,16 +102,16 @@ export const formatForAdd = <T>(obj: Partial<T>): Partial<T> => {
         // If the value is a primitive, add it to the changed object
         else changed[key] = value;
     }
-    console.log('formatForAdd complete', changed);
+    console.log('formatForCreate complete', changed);
     return changed;
 }
 
 /**
  * Compares an object against its updates. Returns fields that have changed.
  * For non-primitive values, splits field into 4 parts:
- * - connections - existing objects which are being newly connected to the object (e.g. adding an existing standard to a routine input)
- * - disconnections - existing objects which are being disconnected from the object (e.g. removing a standard from a routine input)
- * - adds - new objects which are being added (e.g. adding a new standard to a routine input)
+ * - connections - existing objects which are being newly connected to the object (e.g. associating an existing standard to a routine input)
+ * - disconnections - existing objects which are being disconnected from the object (e.g. disassociating a standard from a routine input)
+ * - creates - new objects which are being created (e.g. creating a new standard to a routine input)
  * - updates - existing objects which are being updated (e.g. changing a standard's name)
  * @param original - The orginal object fetched from the database, in query return format. Needed to exclude fields in the update object that 
  * haven't actually been updated
@@ -128,15 +130,15 @@ export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, u
     }
     // Iterate through each field in the updated object
     for (const [key, value] of Object.entries(updated)) {
-        // If the key is already one of the 5 relationship mutation types (connect, disconnect, delete, add, update), don't parse it
-        if (['Connect', 'Disconnect', 'Delete', 'Add', 'Update'].some(s => key.endsWith(s))) {
+        // If the key is already one of the 5 relationship mutation types (connect, disconnect, delete, create, update), don't parse it
+        if (['Connect', 'Disconnect', 'Delete', 'Create', 'Update'].some(s => key.endsWith(s))) {
             addToChangedArray(key, value);
         }
         // If the value is identical to the original value (and not an id), skip it
         else if (key !== 'id' && original && _.isEqual(value, original[key])) continue;
         // If the value is an array
         else if (Array.isArray(value)) {
-            // Loop through changed values and determine which are connections, adds, and updates
+            // Loop through changed values and determine which are connections, creates, and updates
             for (let i = 0; i < value.length; i++) {
                 const curr = value[i];
                 // If the current value is an object, try to find the original value
@@ -146,9 +148,9 @@ export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, u
                 }
                 // Find the changed value at this index
                 const changedValue = _.isObject(curr) ? formatForUpdate(originalValue, curr) : curr;
-                // Check if add (i.e does not contain an id)
+                // Check if create (i.e does not contain an id)
                 if (curr.id === undefined) {
-                    addToChangedArray(`${key}Add`, changedValue);
+                    addToChangedArray(`${key}Create`, changedValue);
                 }
                 // Check if connection (i.e. is an object with only an id, or simply an id)
                 else if (typeof curr === 'string' || (Object.keys(curr).length === 1 && curr.id)) {
@@ -186,9 +188,9 @@ export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, u
             if (!changedValue && originalValue) {
                 changed[`${key}Disconnect`] = curr.id;
             }
-            // Check if add (i.e does not contain an id)
+            // Check if create (i.e does not contain an id)
             else if (changedValue && curr.id === undefined) {
-                changed[`${key}Add`] = changedValue;
+                changed[`${key}Create`] = changedValue;
             }
             // Check if connection (i.e. is an object with only an id, or simply an id)
             else if (typeof curr === 'string' || (Object.keys(curr).length === 1 && curr.id)) {

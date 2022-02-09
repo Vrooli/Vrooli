@@ -1,16 +1,12 @@
 import { StandardView } from 'components';
 import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
-import { StandardAdd } from 'components/views/StandardAdd/StandardAdd';
+import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
 import { StandardUpdate } from 'components/views/StandardUpdate/StandardUpdate';
 import { StandardDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
-import { useMutation } from '@apollo/client';
-import { standard } from 'graphql/generated/standard';
-import { standardAddMutation, standardUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS } from '@local/shared';
-import { Pubs } from 'utils';
+import { Standard } from 'types';
 
 export const StandardDialog = ({
     hasPrevious,
@@ -23,24 +19,10 @@ export const StandardDialog = ({
     const [, params] = useRoute(`${APP_LINKS.SearchStandards}/:params*`);
     const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
-    const [add] = useMutation<standard>(standardAddMutation);
-    const [update] = useMutation<standard>(standardUpdateMutation);
-    const [del] = useMutation<standard>(standardUpdateMutation);
-
-    const onAction = useCallback((action: ObjectDialogAction) => {
+    const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                mutationWrapper({
-                    mutation: add,
-                    input: { },
-                    onSuccess: ({ data }) => { 
-                        const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchStandards}/view/${id}`, { replace: true });
-                    },
-                    onError: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                    }
-                })
+                if (data?.id) setLocation(`${APP_LINKS.SearchStandards}/view/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
                 setLocation(`${APP_LINKS.SearchStandards}/view`, { replace: true });
@@ -56,20 +38,10 @@ export const StandardDialog = ({
             case ObjectDialogAction.Previous:
                 break;
             case ObjectDialogAction.Save:
-                mutationWrapper({
-                    mutation: update,
-                    input: { },
-                    onSuccess: ({ data }) => { 
-                        const id = data?.id;
-                        if (id) setLocation(`${APP_LINKS.SearchStandards}/view/${id}`, { replace: true });
-                    },
-                    onError: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                    }
-                })
+                setLocation(`${APP_LINKS.SearchStandards}/view/${id}`, { replace: true });
                 break;
         }
-    },  [add, update, del, setLocation, state]);
+    },  [id, setLocation]);
 
     const title = useMemo(() => {
         switch(state) {
@@ -85,7 +57,7 @@ export const StandardDialog = ({
     const child = useMemo(() => {
         switch(state) {
             case 'add':
-                return <StandardAdd session={session} onAdded={() => onAction(ObjectDialogAction.Add)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <StandardCreate session={session} onCreated={(data: Standard) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             case 'edit':
                 return <StandardUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
             default:

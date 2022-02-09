@@ -3,7 +3,7 @@ import { CODE, ResourceFor, ResourceSortBy, ResourceUsedFor } from '@local/share
 import { CustomError } from '../error';
 import { ResourceModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceAddInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -36,7 +36,7 @@ export const typeDef = gql`
         Tutorial
     }
 
-    input ResourceAddInput {
+    input ResourceCreateInput {
         createdFor: ResourceFor!
         createdForId: ID!
         description: String
@@ -102,7 +102,7 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        resourceAdd(input: ResourceAddInput!): Resource!
+        resourceCreate(input: ResourceCreateInput!): Resource!
         resourceUpdate(input: ResourceUpdateInput!): Resource!
         resourceDeleteMany(input: DeleteManyInput!): Count!
     }
@@ -114,12 +114,12 @@ export const resolvers = {
     ResourceUsedFor: ResourceUsedFor,
     Query: {
         resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
-            const data = await ResourceModel(prisma).findResource(req.userId, input, info);
+            const data = await ResourceModel(prisma).find(req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
         resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ResourceSearchResult> => {
-            const data = await ResourceModel(prisma).searchResources({}, req.userId, input, info);
+            const data = await ResourceModel(prisma).search({}, req.userId, input, info);
             if (!data) throw new CustomError(CODE.ErrorUnknown);
             return data;
         },
@@ -128,11 +128,11 @@ export const resolvers = {
         },
     },
     Mutation: {
-        resourceAdd: async (_parent: undefined, { input }: IWrap<ResourceAddInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
+        resourceCreate: async (_parent: undefined, { input }: IWrap<ResourceCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Create object
-            const created = await ResourceModel(prisma).addResource(req.userId, input, info);
+            const created = await ResourceModel(prisma).create(req.userId, input, info);
             if (!created) throw new CustomError(CODE.ErrorUnknown);
             return created;
         },
@@ -140,14 +140,14 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const updated = await ResourceModel(prisma).updateResource(req.userId, input, info);
+            const updated = await ResourceModel(prisma).update(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
         resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await ResourceModel(prisma).deleteResources(req.userId, input);
+            return await ResourceModel(prisma).delete(req.userId, input);
         },
     }
 }

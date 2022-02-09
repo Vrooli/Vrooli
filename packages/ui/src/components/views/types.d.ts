@@ -1,8 +1,8 @@
 import { Organization, Project, Routine, Session, Standard, User } from "types";
 
-export interface AddProps<T> {
+export interface CreateProps<T> {
     session: Session;
-    onAdded: (item: T) => void;
+    onCreated: (item: T) => void;
     onCancel: () => void;
 }
 export interface UpdateProps<T> {
@@ -19,19 +19,19 @@ export interface ViewProps<T> {
     partialData?: Partial<T>;
 }
 
-export interface OrganizationAddProps extends AddProps<Organization> {}
+export interface OrganizationCreateProps extends CreateProps<Organization> {}
 export interface OrganizationUpdateProps extends UpdateProps<Organization> {}
 export interface OrganizationViewProps extends ViewProps<Organization> {}
 
-export interface ProjectAddProps extends AddProps<Project> {}
+export interface ProjectCreateProps extends CreateProps<Project> {}
 export interface ProjectUpdateProps extends UpdateProps<Project> {}
 export interface ProjectViewProps extends ViewProps<Project> {}
 
-export interface RoutineAddProps extends AddProps<Routine> {}
+export interface RoutineCreateProps extends CreateProps<Routine> {}
 export interface RoutineUpdateProps extends UpdateProps<Routine> {}
 export interface RoutineViewProps extends ViewProps<Routine> {}
 
-export interface StandardAddProps extends AddProps<Standard> {}
+export interface StandardCreateProps extends CreateProps<Standard> {}
 export interface StandardUpdateProps extends UpdateProps<Standard> {}
 export interface StandardViewProps extends ViewProps<Standard> {}
 

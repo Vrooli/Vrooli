@@ -49,6 +49,7 @@ export const SearchStandardsPage = ({
     const listItemFactory = (node: Standard, index: number) => (
         <StandardListItem
             key={`standard-list-item-${index}`}
+            index={index}
             session={session}
             data={node}
             isOwn={false}

@@ -1,10 +1,9 @@
-import { CODE, reportAdd, ReportFor, reportUpdate } from "@local/shared";
+import { CODE, reportCreate, ReportFor, reportUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { DeleteOneInput, Report, ReportAddInput, ReportUpdateInput, Success } from "../schema/types";
+import { DeleteOneInput, Report, ReportCreateInput, ReportUpdateInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { hasProfanity } from "../utils/censor";
 import { MODEL_TYPES } from "./base";
-import { report } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -26,12 +25,12 @@ const forMapper = {
  * They can technically report their own objects, but why would they?
  */
  const reporter = (prisma: PrismaType) => ({
-    async addReport(
+    async create(
         userId: string, 
-        input: ReportAddInput,
+        input: ReportCreateInput,
     ): Promise<RecursivePartial<Report>> {
         // Check for valid arguments
-        reportAdd.validateSync(input, { abortEarly: false });
+        reportCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
         if (hasProfanity(input.reason, input.details)) throw new CustomError(CODE.BannedWord);
         // Add report
@@ -44,7 +43,7 @@ const forMapper = {
             }
         })
     },
-    async updateReport(
+    async update(
         userId: string, 
         input: ReportUpdateInput,
     ): Promise<RecursivePartial<Report>> {
@@ -69,7 +68,7 @@ const forMapper = {
             }
         });
     },
-    async deleteReport(userId: string, input: DeleteOneInput): Promise<Success> {
+    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         const result = await prisma.report.deleteMany({
             where: {
                 AND: [

@@ -2,6 +2,7 @@ import { Organization, Project, Resource, Routine, Session, Standard, Tag, User 
 
 export interface ObjectListItemProps {
     session: Session;
+    index: number; // Index in list
     isOwn: boolean;
     onClick?: (data: any) => void; // Full data passed back, to display while more details load
 }

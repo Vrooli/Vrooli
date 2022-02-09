@@ -6,7 +6,7 @@ const createdFor = yup.string().oneOf(Object.values(ResourceFor)).optional();
 const link = yup.string().max(1024).optional();
 const usedFor = yup.string().oneOf(Object.values(ResourceUsedFor)).optional();
 
-export const resourceAdd = yup.object().shape({
+export const resourceCreate = yup.object().shape({
     createdFor: createdFor.required(),
     createdForId: id.required(),
     description,
@@ -25,7 +25,7 @@ export const resourceUpdate = yup.object().shape({
     usedFor,
 })
 
-// Resources added/updated through relationships don't need createdFor and createdForId,
+// Resources created/updated through relationships don't need createdFor and createdForId,
 // as the relationship handles that
-export const resourcesAdd = yup.array().of(resourceAdd.omit(['createdFor', 'createdForId']).required()).optional();
+export const resourcesCreate = yup.array().of(resourceCreate.omit(['createdFor', 'createdForId']).required()).optional();
 export const resourcesUpdate = yup.array().of(resourceUpdate.omit(['createdFor', 'createdForId']).required()).optional();

@@ -12,9 +12,10 @@ import voteMarkdown from './voteHelp.md';
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
-    const processes = useMemo(() => [].map(o => (
+    const processes = useMemo(() => [].map((o, index) => (
         <RoutineListItem
             key={`research-processes-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}
@@ -22,9 +23,10 @@ export const ResearchPage = ({
         />
     )), []);
 
-    const newlyCompleted = useMemo(() => [].map(o => (
+    const newlyCompleted = useMemo(() => [].map((o, index) => (
         <ProjectListItem
             key={`recently-completed-projects-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}
@@ -32,9 +34,10 @@ export const ResearchPage = ({
         />
     )), []);
 
-    const needVotes = useMemo(() => [].map(o => (
+    const needVotes = useMemo(() => [].map((o, index) => (
         <ProjectListItem
             key={`projects-that-need-votes-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}
@@ -42,9 +45,10 @@ export const ResearchPage = ({
         />
     )), []);
 
-    const needFunding = useMemo(() => [].map(o => (
+    const needFunding = useMemo(() => [].map((o, index) => (
         <ProjectListItem
             key={`projects-that-need-funding-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}
@@ -52,9 +56,10 @@ export const ResearchPage = ({
         />
     )), []);
 
-    const needMembers = useMemo(() => [].map(o => (
+    const needMembers = useMemo(() => [].map((o, index) => (
         <OrganizationListItem
             key={`looking-for-members-list-item-${'TODO'}`}
+            index={index}
             session={session}
             data={o}
             isOwn={false}

@@ -36,6 +36,7 @@ export const SearchActorsPage = ({
     const listItemFactory = (node: User, index: number) => (
         <ActorListItem
             key={`actor-list-item-${index}`}
+            index={index}
             session={session}
             data={node}
             isOwn={session?.id === node.id}

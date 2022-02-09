@@ -1,7 +1,7 @@
 /**
  * Nodes are a bit more complicated than the other types because they come in
  * several variations. Nonetheless, they are handled in the same way - connect, 
- * disconnect, delete, add, and update
+ * disconnect, delete, create, and update
  */
 import { description, idArray, id, title } from './base';
 import * as yup from 'yup';
@@ -12,7 +12,7 @@ const isOptional = yup.boolean().optional();
 const type = yup.string().oneOf(Object.values(NodeType)).optional();
 const wasSuccessful = yup.boolean().optional();
 
-const nodeCombineAdd = yup.object().shape({
+const nodeCombineCreate = yup.object().shape({
     from: idArray.required(),
     toId: id,
 })
@@ -22,17 +22,17 @@ const nodeCombineUpdate = yup.object().shape({
     toId: id,
 })
 
-const whenAdd = yup.array().of(yup.object().shape({
+const whenCreate = yup.array().of(yup.object().shape({
     condition: condition.required(),
 }).required()).optional();
 const whenUpdate = yup.array().of(yup.object().shape({
     id: id.required(),
     condition: condition.required(),
 }).required()).optional();
-const decisionsAdd = yup.array().of(yup.object().shape({
+const decisionsCreate = yup.array().of(yup.object().shape({
     description,
     title: title.required(),
-    whenAdd,
+    whenCreate,
     toId: id,
 }).required()).optional();
 const decisionsUpdate = yup.array().of(yup.object().shape({
@@ -40,21 +40,21 @@ const decisionsUpdate = yup.array().of(yup.object().shape({
     description,
     title,
     toId: id,
-    whenAdd,
+    whenCreate,
     whenUpdate,
     whenDelete: idArray,
 }).required()).optional();
-const nodeDecisionAdd = yup.object().shape({
-    decisionsAdd: decisionsAdd.required(),
+const nodeDecisionCreate = yup.object().shape({
+    decisionsCreate: decisionsCreate.required(),
 })
 const nodeDecisionUpdate = yup.object().shape({
     id: id.required(),
-    decisionsAdd,
+    decisionsCreate,
     decisionsUpdate,
     decisionsDelete: idArray,
 })
 
-const nodeEndAdd = yup.object().shape({
+const nodeEndCreate = yup.object().shape({
     wasSuccessful,
 })
 const nodeEndUpdate = yup.object().shape({
@@ -63,7 +63,7 @@ const nodeEndUpdate = yup.object().shape({
 })
 
 // TODO define
-const nodeLoopAdd = yup.object().shape({
+const nodeLoopCreate = yup.object().shape({
     id,
 })
 // TODO define
@@ -72,7 +72,7 @@ const nodeLoopUpdate = yup.object().shape({
 })
 
 // TODO define
-const nodeRedirectAdd = yup.object().shape({
+const nodeRedirectCreate = yup.object().shape({
     id,
 })
 // TODO define
@@ -80,11 +80,11 @@ const nodeRedirectUpdate = yup.object().shape({
     id: id.required(),
 })
 
-const nodeRoutineListItemsAdd = yup.array().of(yup.object().shape({
+const nodeRoutineListItemsCreate = yup.array().of(yup.object().shape({
     description,
     title,
     isOptional,
-    // Cannot add a routine directly from a node, as this causes a cyclic dependency
+    // Cannot create a routine directly from a node, as this causes a cyclic dependency
     routineConnect: id,
 }).required()).optional();
 const nodeRoutineListItemsUpdate = yup.array().of(yup.object().shape({
@@ -92,16 +92,16 @@ const nodeRoutineListItemsUpdate = yup.array().of(yup.object().shape({
     description,
     isOptional,
     title,
-    // Cannot add or update a routine directly from a node, as this causes a cyclic dependency
+    // Cannot create or update a routine directly from a node, as this causes a cyclic dependency
     routineConnect: id,
     routineDisconnect: id,
     routineDelete: id,
 }).required()).optional();
-const nodeRoutineListAdd = yup.object().shape({
+const nodeRoutineListCreate = yup.object().shape({
     isOrdered: yup.boolean().optional(),
     isOptional: yup.boolean().optional(),
     routinesConnect: idArray,
-    routinesAdd: nodeRoutineListItemsAdd,
+    routinesCreate: nodeRoutineListItemsCreate,
 })
 const nodeRoutineListUpdate = yup.object().shape({
     id: id.required(),
@@ -110,27 +110,27 @@ const nodeRoutineListUpdate = yup.object().shape({
     routinesConnect: idArray,
     routinesDisconnect: idArray,
     routinesDelete: idArray,
-    routinesAdd: nodeRoutineListItemsAdd,
+    routinesCreate: nodeRoutineListItemsCreate,
     routinesUpdate: nodeRoutineListItemsUpdate,
 })
 
 // Meant to be empty
-const nodeStartAdd = yup.object().shape({
+const nodeStartCreate = yup.object().shape({
 })
 const nodeStartUpdate = yup.object().shape({
 })
 
-export const nodeAdd = yup.object().shape({
+export const nodeCreate = yup.object().shape({
     description,
     title: title.required(),
     type: type.required(),
-    nodeCombineAdd,
-    nodeDecisionAdd,
-    nodeEndAdd,
-    nodeLoopAdd,
-    nodeRedirectAdd,
-    nodeRoutineListAdd,
-    nodeStartAdd,
+    nodeCombineCreate,
+    nodeDecisionCreate,
+    nodeEndCreate,
+    nodeLoopCreate,
+    nodeRedirectCreate,
+    nodeRoutineListCreate,
+    nodeStartCreate,
     nextId: id,
     previousId: id,
     routineId: id.required(),
@@ -144,24 +144,24 @@ export const nodeUpdate = yup.object().shape({
     description,
     title,
     type,
-    nodeCombineAdd,
+    nodeCombineCreate,
     nodeCombineUpdate,
-    nodeDecisionAdd,
+    nodeDecisionCreate,
     nodeDecisionUpdate,
-    nodeEndAdd,
+    nodeEndCreate,
     nodeEndUpdate,
-    nodeLoopAdd,
+    nodeLoopCreate,
     nodeLoopUpdate,
-    nodeRedirectAdd,
+    nodeRedirectCreate,
     nodeRedirectUpdate,
-    nodeRoutineListAdd,
+    nodeRoutineListCreate,
     nodeRoutineListUpdate,
-    nodeStartAdd,
+    nodeStartCreate,
     nodeStartUpdate,
     nextId: id,
     previousId: id,
     routineId: id,
 })
 
-export const nodesAdd = yup.array().of(nodeAdd.required()).optional();
+export const nodesCreate = yup.array().of(nodeCreate.required()).optional();
 export const nodesUpdate = yup.array().of(nodeUpdate.required()).optional();
