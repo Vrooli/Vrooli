@@ -3,7 +3,7 @@ import * as MessageSigning from './message_signing/rust/pkg/emurgo_message_signi
 import { randomBytes } from 'crypto';
 
 // Generate a random string of the specified length, consisting of the specified characters
-function randomString(
+export function randomString(
     length: number = 64,
     chars: string = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 ): string {

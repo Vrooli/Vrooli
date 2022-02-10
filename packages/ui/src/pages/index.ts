@@ -4,7 +4,7 @@ export * from './view';
 export * from './wrapper';
 export * from './NotFoundPage';
 export * from './RoutineOrchestratorPage';
-export * from './SettingsPage';
+export * from './SettingsPage/SettingsPage';
 export * from './StartPage/StartPage';
 export * from './dashboard/StatsPage/StatsPage';
 export * from './styles';

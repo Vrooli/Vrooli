@@ -130,9 +130,13 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
         const isUpvotedArray = await prisma.vote.findMany({ where: { userId, projectId: { in: resultIds } } });
         const isStarredArray = await prisma.star.findMany({ where: { byId: userId, projectId: { in: resultIds } } });
+        console.log('project resultIds', resultIds);
+        console.log('isUpvotedArray', isUpvotedArray);
+        console.log('isStarredArray', isStarredArray);
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
             const isUpvoted = isUpvotedArray.find(({ projectId }) => projectId === node.id)?.isUpvote ?? null;
             const isStarred = Boolean(isStarredArray.find(({ projectId }) => projectId === node.id));   
+            console.log('isStarred', isStarred);
             return { cursor, node: { ...node, isUpvoted, isStarred } };
         });
         return searchResults;

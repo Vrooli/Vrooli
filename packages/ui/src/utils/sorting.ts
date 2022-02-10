@@ -5,8 +5,8 @@ import { ValueOf } from '@local/shared';
  * Converts GraphQL sort values to User-Friendly labels
  */
  export const SortValueToLabelMap = {
-    'AlphabeticalAsc': 'Z-A',
-    'AlphabeticalDesc': 'A-Z',
+    'AlphabeticalAsc': 'A-Z',
+    'AlphabeticalDesc': 'Z-A',
     'CommentsDesc': 'Most Comments',
     'StarsDesc': 'Most Stars',
     'ForksDesc': 'Most Forks',

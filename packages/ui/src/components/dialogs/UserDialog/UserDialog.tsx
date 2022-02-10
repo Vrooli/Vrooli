@@ -1,7 +1,6 @@
 import { UserView } from 'components';
 import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
-import { ProfileUpdate } from 'components/views/ProfileUpdate/ProfileUpdate';
 import { UserDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { useMutation } from '@apollo/client';
@@ -34,7 +33,7 @@ export const UserDialog = ({
                 window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.SearchUsers}/edit/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.Settings}?page=profile?editing=true`);
                 break;
             case ObjectDialogAction.Next:
                 break;
@@ -65,15 +64,6 @@ export const UserDialog = ({
         }
     }, [state]);
 
-    const child = useMemo(() => {
-        switch(state) {
-            case 'edit':
-                return <ProfileUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
-            default:
-                return <UserView session={session} partialData={partialData} />
-        }
-    }, [state]);
-
     return (
         <BaseObjectDialog
             title={title}
@@ -84,7 +74,7 @@ export const UserDialog = ({
             state={Object.values(ObjectDialogState).includes(state ?? '') ? state as any : ObjectDialogState.View}
             onAction={onAction}
         >
-            {child}
+            <UserView session={session} partialData={partialData} />
         </BaseObjectDialog>
     );
 }

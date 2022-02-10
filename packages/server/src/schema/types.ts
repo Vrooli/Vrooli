@@ -230,7 +230,7 @@ export type Mutation = {
   userDeleteOne: Success;
   validateSession: Session;
   vote: Success;
-  walletComplete: Session;
+  walletComplete: WalletComplete;
   walletInit: Scalars['String'];
   walletRemove: Success;
   writeAssets?: Maybe<Scalars['Boolean']>;
@@ -1694,6 +1694,12 @@ export type Wallet = {
   publicAddress: Scalars['String'];
   user?: Maybe<User>;
   verified: Scalars['Boolean'];
+};
+
+export type WalletComplete = {
+  __typename?: 'WalletComplete';
+  firstLogIn: Scalars['Boolean'];
+  session?: Maybe<Session>;
 };
 
 export type WalletCompleteInput = {

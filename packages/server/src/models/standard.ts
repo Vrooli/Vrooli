@@ -46,7 +46,7 @@ const formatter = (): FormatConverter<Standard, standard> => {
  * Component for search filters
  */
 const sorter = (): Sortable<StandardSortBy> => ({
-    defaultSort: StandardSortBy.AlphabeticalDesc,
+    defaultSort: StandardSortBy.AlphabeticalAsc,
     getSortQuery: (sortBy: string): any => {
         return {
             [StandardSortBy.AlphabeticalAsc]: { name: 'asc' },

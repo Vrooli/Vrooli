@@ -150,7 +150,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
  * Component for search filters
  */
 export const resourceSorter = (): Sortable<ResourceSortBy> => ({
-    defaultSort: ResourceSortBy.AlphabeticalDesc,
+    defaultSort: ResourceSortBy.AlphabeticalAsc,
     getSortQuery: (sortBy: string): any => {
         return {
             [ResourceSortBy.AlphabeticalAsc]: { title: 'asc' },

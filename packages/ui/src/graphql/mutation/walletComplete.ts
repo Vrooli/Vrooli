@@ -6,7 +6,10 @@ export const walletCompleteMutation = gql`
     ${sessionFields}
     mutation walletComplete($input: WalletCompleteInput!) {
         walletComplete(input: $input) {
-            ...sessionFields
+            session {
+                ...sessionFields
+            }
+            firstLogIn
         }
     }
 `

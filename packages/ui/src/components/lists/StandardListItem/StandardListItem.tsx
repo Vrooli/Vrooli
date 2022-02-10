@@ -7,9 +7,8 @@ import { APP_LINKS, StandardSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from '..';
 import { useMutation } from '@apollo/client';
-import { starMutation, voteMutation } from 'graphql/mutation';
+import { voteMutation } from 'graphql/mutation';
 import { vote } from 'graphql/generated/vote';
-import { star } from 'graphql/generated/star';
 import { LabelledSortOption, labelledSortOptions } from 'utils';
 import { Standard } from 'types';
 
@@ -22,7 +21,6 @@ export function StandardListItem({
 }: StandardListItemProps) {
     const [, setLocation] = useLocation();
     const [vote] = useMutation<vote>(voteMutation);
-    const [star] = useMutation<star>(starMutation);
 
     const handleClick = useCallback(() => {
         // If onClick provided, call if
@@ -35,27 +33,16 @@ export function StandardListItem({
         // Prevent propagation of normal click event
         e.stopPropagation();
         // Send vote mutation
-        vote({ variables: { input: {
-            isUpvote,
-            voteFor: VoteFor.Project,
-            forId: data.id
-        } } });
-    }, [data.id, vote]);
-
-    const handleStar = useCallback((e: any, isStar: boolean) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        // Send star mutation
-        star({
+        vote({
             variables: {
                 input: {
-                    isStar,
-                    starFor: StarFor.Project,
+                    isUpvote,
+                    voteFor: VoteFor.Project,
                     forId: data.id
                 }
             }
         });
-    }, [data.id, star]);
+    }, [data.id, vote]);
 
     return (
         <Tooltip placement="top" title="View details">
@@ -74,7 +61,7 @@ export function StandardListItem({
                         isUpvoted={data.isUpvoted}
                         onVote={handleVote}
                     />
-                    <Stack direction="column" spacing={1} pl={2} sx={{width: '-webkit-fill-available'}}>
+                    <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         <ListItemText
                             primary={data.name}
                             sx={{ ...multiLineEllipsis(1) }}
@@ -86,12 +73,16 @@ export function StandardListItem({
                         {/* Tags */}
                         {Array.isArray(data.tags) && data.tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} /> : null}
                     </Stack>
-                    { isOwn ? null : <StarButton
-                        session={session}
-                        isStar={data.isStarred}
-                        stars={data.stars}
-                        onStar={handleStar}
-                    /> }
+                    {
+                        isOwn ? null : <StarButton
+                            session={session}
+                            objectId={data.id ?? ''}
+                            starFor={StarFor.Standard}
+                            isStar={data.isStarred}
+                            stars={data.stars}
+                            onChange={(isStar: boolean) => { }}
+                        />
+                    }
                 </ListItemButton>
             </ListItem>
         </Tooltip>

@@ -6,7 +6,6 @@ import {
     Handyman as DevelopIcon,
     School as LearnIcon,
     Science as ResearchIcon,
-    Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { APP_LINKS as LINKS } from '@local/shared';
 import {
@@ -29,7 +28,6 @@ export const ACTION_TAGS = {
     Research: 'research',
     Develop: 'develop',
     Profile: 'profile',
-    Settings: 'settings',
     LogIn: 'logIn',
 }
 export type ACTION_TAGS = ValueOf<typeof ACTION_TAGS>;
@@ -64,7 +62,6 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
     } else {
         actions.push(
             ['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0],
-            ['Settings', ACTION_TAGS.Settings, LINKS.Settings, null, SettingsIcon, 0],
         );
     }
 

@@ -9,11 +9,17 @@ import { WalletCompleteInput } from "./globalTypes";
 // GraphQL mutation operation: walletComplete
 // ====================================================
 
-export interface walletComplete_walletComplete {
+export interface walletComplete_walletComplete_session {
   __typename: "Session";
   id: string | null;
   theme: string;
   roles: string[];
+}
+
+export interface walletComplete_walletComplete {
+  __typename: "WalletComplete";
+  session: walletComplete_walletComplete_session | null;
+  firstLogIn: boolean;
 }
 
 export interface walletComplete {

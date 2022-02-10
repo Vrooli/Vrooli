@@ -5,10 +5,10 @@
 import { gql } from 'apollo-server-express';
 import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES, AccountStatus } from '@local/shared';
 import { CustomError } from '../error';
-import { generateNonce, verifySignedMessage } from '../auth/walletAuth';
+import { generateNonce, randomString, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionToken } from '../auth/auth.js';
 import { IWrap, RecursivePartial } from '../types';
-import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success } from './types';
+import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
 import { UserModel, userSessioner } from '../models';
@@ -59,6 +59,11 @@ export const typeDef = gql`
         signedPayload: String!
     }
 
+    type WalletComplete {
+        session: Session
+        firstLogIn: Boolean!
+    }
+
     type Session {
         id: ID
         roles: [String!]!
@@ -82,7 +87,7 @@ export const typeDef = gql`
         logOut: Success!
         validateSession: Session!
         walletInit(input: WalletInitInput!): String!
-        walletComplete(input: WalletCompleteInput!): Session!
+        walletComplete(input: WalletCompleteInput!): WalletComplete!
         walletRemove(input: DeleteOneInput!): Success!
     }
 `
@@ -302,7 +307,7 @@ export const resolvers = {
             return nonce;
         },
         // Verify that signed message from user wallet has been signed by the correct public address
-        walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, res }: Context, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
+        walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, res }: Context, _info: GraphQLResolveInfo): Promise<WalletComplete> => {
             // Find wallet with public address
             const walletData = await prisma.wallet.findUnique({
                 where: { publicAddress: input.publicAddress },
@@ -316,9 +321,6 @@ export const resolvers = {
                     }
                 }
             });
-            //TODO waiting on github issue to be resolved
-            console.log('walletcomplete walletdata', walletData, input.publicAddress);
-            console.log('attempt420', verifySignedMessage(input.publicAddress, walletData?.nonce ?? '', input.signedPayload));
             // If wallet doesn't exist, return error
             if (!walletData) throw new CustomError(CODE.InvalidArgs);
             // If nonce expired, return error
@@ -328,13 +330,14 @@ export const resolvers = {
             if (!walletVerified) throw new CustomError(CODE.Unauthorized);
             let userData = walletData.user;
             // If user doesn't exist, create new user
+            let firstLogIn = false;
             if (!userData?.id) {
+                firstLogIn = true;
                 const roles = await prisma.role.findMany({ select: { id: true, title: true } });
-                console.log('ROLESSS!', roles);
                 const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
-                console.log('actorRoleId', actorRoleId)
                 userData = await prisma.user.create({
                     data: {
+                        username: `user${randomString(8)}`,
                         roles: {
                             create: [{ role: { connect: { id: actorRoleId } } }]
                         }
@@ -360,8 +363,7 @@ export const resolvers = {
             }
             // Add session token to return payload
             await generateSessionToken(res, session);
-            console.log('walletcomplete', session)
-            return session;
+            return { session, firstLogIn } as WalletComplete;
         },
         walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // TODO Must deleting your own

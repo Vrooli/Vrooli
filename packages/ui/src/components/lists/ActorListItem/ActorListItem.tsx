@@ -5,9 +5,6 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, UserSortBy } from '@local/shared';
 import { useLocation } from 'wouter';
-import { useMutation } from '@apollo/client';
-import { star } from 'graphql/generated/star';
-import { starMutation } from 'graphql/mutation';
 import { StarButton } from '..';
 import { LabelledSortOption, labelledSortOptions } from 'utils';
 import { User } from 'types';
@@ -34,7 +31,6 @@ export const ActorListItem = ({
     onClick,
 }: ActorListItemProps) => {
     const [, setLocation] = useLocation();
-    const [star] = useMutation<star>(starMutation);
 
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
 
@@ -42,23 +38,8 @@ export const ActorListItem = ({
         // If onClick provided, call it
         if (onClick) onClick(data);
         // Otherwise, navigate to the actor's profile
-        else setLocation(`${APP_LINKS.Profile}/${data.id}`)
+        else setLocation(`${APP_LINKS.User}/${data.id}`)
     }, [onClick, data, setLocation]);
-
-    const handleStar = useCallback((e: any, isStar: boolean) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        // Send star mutation
-        star({
-            variables: {
-                input: {
-                    isStar,
-                    starFor: StarFor.Project,
-                    forId: data.id
-                }
-            }
-        });
-    }, [data.id, star]);
 
     return (
         <Tooltip placement="top" title="View details">
@@ -99,12 +80,16 @@ export const ActorListItem = ({
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                     </Stack>
-                    {isOwn ? null : <StarButton
-                        session={session}
-                        isStar={data.isStarred}
-                        stars={data.stars}
-                        onStar={handleStar}
-                    />}
+                    {
+                        isOwn ? null : <StarButton
+                            session={session}
+                            objectId={data.id ?? ''}
+                            starFor={StarFor.User}
+                            isStar={data.isStarred}
+                            stars={data.stars}
+                            onChange={(isStar: boolean) => { }}
+                        />
+                    }
                 </ListItemButton>
             </ListItem>
         </Tooltip>

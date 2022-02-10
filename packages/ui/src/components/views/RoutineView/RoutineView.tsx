@@ -61,7 +61,7 @@ export const RoutineView = ({
     }, [searchString]);
     const usersSearchData = useMemo(() => usersData?.users ?? [], [usersData]);
     const organizationsSearchData = useMemo(() => organizationsData?.organizations ?? [], [organizationsData]);
-    const onUserSelect = (_e, newValue) => setLocation(`${APP_LINKS.Profile}/${newValue.id}`);
+    const onUserSelect = (_e, newValue) => setLocation(`${APP_LINKS.User}/${newValue.id}`);
     const onOrganizationSelect = (_e, newValue) => setLocation(`${APP_LINKS.Organization}/${newValue.id}`);
 
     // More menu

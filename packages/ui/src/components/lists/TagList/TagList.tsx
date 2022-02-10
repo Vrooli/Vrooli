@@ -3,9 +3,6 @@ import { useMutation } from '@apollo/client';
 import { StarFor } from '@local/shared';
 import { TagListProps } from '../types';
 import { Autocomplete, Chip, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import { star } from 'graphql/generated/star';
-import { StarButton } from 'components';
-import { starMutation } from 'graphql/mutation';
 import { Pubs } from 'utils';
 import { Tag } from 'types';
 
@@ -15,23 +12,6 @@ export const TagList = ({
     tags,
 }: TagListProps) => {
     const [inputValue, setInputValue] = useState<string>('');
-
-    // Allows for favoriting tags
-    const [star] = useMutation<star>(starMutation);
-    const handleStar = useCallback((e: any, isStar: boolean, tag: Tag) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        // Send star mutation
-        star({
-            variables: {
-                input: {
-                    isStar,
-                    starFor: StarFor.Tag,
-                    forId: tag.id
-                }
-            }
-        });
-    }, []);
 
     const [chips, numTagsCutOff] = useMemo(() => {
         let charactersBeforeCutoff = 50;

@@ -1,3 +1,4 @@
+import { StarFor } from '@local/shared';
 import { Organization, Project, Resource, Routine, Session, Standard, Tag, User } from 'types';
 
 export interface ObjectListItemProps {
@@ -81,7 +82,9 @@ export interface StarButtonProps {
     session: Session;
     isStar?: boolean | null; // Defaults to false
     stars?: number | null; // Defaults to 0
-    onStar: (event: any, isStar: boolean) => void;
+    objectId: string;
+    starFor: StarFor;
+    onChange: (isStar: boolean) => void;
     tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
 }
 

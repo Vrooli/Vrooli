@@ -12,7 +12,7 @@ import { user_user } from 'graphql/generated/user';
 export type UserRoles = string[] | null;
 export type SessionChecked = boolean;
 export type Session = {
-    id?: string,
+    id?: string | null;
     theme?: string;
     roles?: UserRoles;
 }

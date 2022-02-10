@@ -2,7 +2,9 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
+import { walletComplete_walletComplete as WalletCompleteResult } from 'graphql/generated/walletComplete';
 import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
+import { errorToSnack } from 'graphql/utils/errorToSnack';
 import { initializeApollo } from 'graphql/utils/initialize';
 import { Session } from 'types';
 import { Pubs } from 'utils';
@@ -54,14 +56,21 @@ const connectWallet = async (provider: WalletProvider): Promise<any> => {
 // Initiate handshake to verify wallet with backend
 // Returns hex string of payload, to be signed by wallet
 const walletInit = async (publicAddress: string): Promise<any> => {
-    PubSub.publish(Pubs.Loading, 500);
-    const client = initializeApollo();
-    const result = await client.mutate({
-        mutation: walletInitMutation,
-        variables: { input: { publicAddress } }
-    });
-    PubSub.publish(Pubs.Loading, false);
-    return result.data.walletInit;
+    let result: any = null;
+    try {
+        PubSub.publish(Pubs.Loading, 500);
+        const client = initializeApollo();
+        const data = await client.mutate({
+            mutation: walletInitMutation,
+            variables: { input: { publicAddress } }
+        });
+        result = data.data.walletInit;
+    } catch (exception) {
+        PubSub.publish(Pubs.Snack, { message: errorToSnack(exception), severity: 'error', data: exception });
+    } finally {
+        PubSub.publish(Pubs.Loading, false);
+        return result;
+    }
 }
 
 /**
@@ -70,16 +79,22 @@ const walletInit = async (publicAddress: string): Promise<any> => {
  * @param signedPayload Message signed by wallet
  * @returns Session object if successful, null if not
  */
-const walletComplete = async (publicAddress: string, signedPayload: string): Promise<Session | null> => {
-    PubSub.publish(Pubs.Loading, 500);
-    const client = initializeApollo();
-    console.log('in wallet complete', signedPayload);
-    const result = await client.mutate({
-        mutation: walletCompleteMutation,
-        variables: { input: { publicAddress, signedPayload } }
-    });
-    PubSub.publish(Pubs.Loading, false);
-    return result.data.walletComplete;
+const walletComplete = async (publicAddress: string, signedPayload: string): Promise<WalletCompleteResult | null> => {
+    let result: any = null;
+    try {
+        PubSub.publish(Pubs.Loading, 500);
+        const client = initializeApollo();
+        const data = await client.mutate({
+            mutation: walletCompleteMutation,
+            variables: { input: { publicAddress, signedPayload } }
+        });
+        result = data.data.walletComplete;
+    } catch (exception) {
+        PubSub.publish(Pubs.Snack, { message: errorToSnack(exception), severity: 'error', data: exception });
+    } finally {
+        PubSub.publish(Pubs.Loading, false);
+        return result;
+    }
 }
 
 // Signs payload received from walletInit
@@ -118,7 +133,7 @@ export const validateWallet = async (provider: WalletProvider): Promise<Session 
         console.log('signed payload', signedPayload);
         if (!signedPayload) return null;
         // Send signed payload to backend for verification
-        session = await walletComplete(rewardAddresses[0], signedPayload);
+        session = (await walletComplete(rewardAddresses[0], signedPayload))?.session ?? null;
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
         PubSub.publish(Pubs.AlertDialog, {

@@ -104,7 +104,7 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #region Orchestration Routes ========= */}
                 {/* Pages for creating and running routine orchestrations */}
                 <Route path={`${LINKS.Orchestrate}/:id`}>
-                    <Page title={title('Plan Routine')} {...props} restrictedToRoles={Object.values(ROLES)}>
+                    <Page title={title('Plan Routine')} {...props} restrictedToRoles={[ROLES.Actor]}>
                         <RoutineOrchestratorPage />
                     </Page>
                 </Route>
@@ -118,11 +118,6 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (organizations, actors, projects, routines, resources, data) */}
                 {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
-                <Route path={`${LINKS.Profile}/:id?`}>
-                    <Page title={title('Profile')} {...props}>
-                        <UserViewPage session={props.session ?? {}}/>
-                    </Page>
-                </Route>
                 <Route path={`${LINKS.Organization}/:id?`}>
                     <Page title={title('Organization')} {...props}>
                         <OrganizationViewPage session={props.session ?? {}} />
@@ -141,6 +136,11 @@ export const AllRoutes = (props: CommonProps) => {
                 <Route path={`${LINKS.Standard}/:id?`}>
                     <Page title={title('Standard')} {...props}>
                         <StandardViewPage session={props.session ?? {}} />
+                    </Page>
+                </Route>
+                <Route path={`${LINKS.User}/:id?`}>
+                    <Page title={title('User')} {...props}>
+                        <UserViewPage session={props.session ?? {}}/>
                     </Page>
                 </Route>
                 {/* =========  #endregion ========= */}
@@ -167,7 +167,7 @@ export const AllRoutes = (props: CommonProps) => {
                 </Route>
                 {/* =========  #endregion ========= */}
                 <Route path={LINKS.Settings}>
-                    <Page title={title('Settings')} {...props}>
+                    <Page title={title('Settings')} {...props} restrictedToRoles={[ROLES.Actor]}>
                         <SettingsPage session={props.session ?? {}} />
                     </Page>
                 </Route>

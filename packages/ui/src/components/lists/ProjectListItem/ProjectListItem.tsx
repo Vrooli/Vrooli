@@ -6,10 +6,9 @@ import { useCallback } from 'react';
 import { APP_LINKS, ProjectSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from 'components';
-import { starMutation, voteMutation } from 'graphql/mutation';
+import { voteMutation } from 'graphql/mutation';
 import { vote } from 'graphql/generated/vote';
 import { useMutation } from '@apollo/client';
-import { star } from 'graphql/generated/star';
 import { LabelledSortOption, labelledSortOptions } from 'utils';
 import { Project } from 'types';
 
@@ -22,7 +21,6 @@ export function ProjectListItem({
 }: ProjectListItemProps) {
     const [, setLocation] = useLocation();
     const [vote] = useMutation<vote>(voteMutation);
-    const [star] = useMutation<star>(starMutation);
     console.log('projectlistitem', data);
 
     const handleClick = useCallback(() => {
@@ -46,21 +44,6 @@ export function ProjectListItem({
             }
         });
     }, [data.id, vote]);
-
-    const handleStar = useCallback((e: any, isStar: boolean) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        // Send star mutation
-        star({
-            variables: {
-                input: {
-                    isStar,
-                    starFor: StarFor.Project,
-                    forId: data.id
-                }
-            }
-        });
-    }, [data.id, star]);
 
     return (
         <Tooltip placement="top" title="View details">
@@ -91,12 +74,16 @@ export function ProjectListItem({
                         {/* Tags */}
                         {Array.isArray(data.tags) && data.tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} /> : null}
                     </Stack>
-                    { isOwn? null : <StarButton
-                        session={session}
-                        isStar={data.isStarred}
-                        stars={data.stars}
-                        onStar={handleStar}
-                    /> }
+                    {
+                        isOwn ? null : <StarButton
+                            session={session}
+                            objectId={data.id ?? ''}
+                            starFor={StarFor.Project}
+                            isStar={data.isStarred}
+                            stars={data.stars}
+                            onChange={(isStar: boolean) => { }}
+                        />
+                    }
                 </ListItemButton>
             </ListItem>
         </Tooltip>

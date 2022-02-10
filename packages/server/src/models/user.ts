@@ -59,7 +59,7 @@ export const userFormatter = (): UserFormatConverter => {
  * Component for search filters
  */
 export const userSorter = (): Sortable<UserSortBy> => ({
-    defaultSort: UserSortBy.AlphabeticalDesc,
+    defaultSort: UserSortBy.AlphabeticalAsc,
     getSortQuery: (sortBy: string): any => {
         return {
             [UserSortBy.AlphabeticalAsc]: { username: 'asc' },

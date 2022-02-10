@@ -1,6 +1,6 @@
 import { Box, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, SwipeableDrawer, useTheme } from '@mui/material';
-import { useCallback, useMemo, useState } from 'react';
-import { SettingsPageProps } from './types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SettingsPageProps } from '../types';
 import {
     Lock as AuthenticationIcon,
     ChevronLeft as CloseIcon,
@@ -12,13 +12,17 @@ import {
     SvgIconComponent
 } from '@mui/icons-material';
 import { logOutMutation } from 'graphql/mutation';
-import { useMutation } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import PubSub from 'pubsub-js';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
-import { useLocation } from 'wouter';
-import { ProfileUpdate } from 'components/views/ProfileUpdate/ProfileUpdate';
+import { useLocation, useRoute } from 'wouter';
+import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
+import { parseSearchParams } from 'utils/urlTools';
+import { profile, profile_profile } from 'graphql/generated/profile';
+import { profileQuery } from 'graphql/query';
+import { UserView } from 'components';
 
 const settingPages: { [x: string]: [string, string, SvgIconComponent] } = {
     'profile': ['profile', 'Profile', ProfileIcon],
@@ -31,20 +35,22 @@ const settingPages: { [x: string]: [string, string, SvgIconComponent] } = {
 export function SettingsPage({
     session,
 }: SettingsPageProps) {
-    const theme = useTheme();
     const [location, setLocation] = useLocation();
-    if (location === APP_LINKS.Settings) setLocation(`${APP_LINKS.Settings}?page=profile`, { replace: true });
+    const selectedPage = useMemo<string>(() => { console.log('PARAMS', parseSearchParams(window.location.search)); return parseSearchParams(window.location.search).page ?? 'profile' }, [window.location.search]);
+    const editing = useMemo<boolean>(() => Boolean(parseSearchParams(window.location.search).editing), [window.location.search]);
 
-    const selectedPage: [string, string, SvgIconComponent] = useMemo(() => {
-        const split = location.split(`/${APP_LINKS.Settings}?page=`);
-        if (split.length === 1) return settingPages['profile'];
-        return settingPages[split[1]] ?? settingPages['profile'];
-    }, [location]);
+    // Fetch profile data
+    const { data, loading } = useQuery<profile>(profileQuery, { variables: { input: { id: session?.id ?? '' } } });
+    const [profile, setProfile] = useState<profile_profile | undefined>(undefined);
+    useEffect(() => {
+        if (data?.profile) setProfile(data.profile);
+    }, [data]);
+    const onUpdated = useCallback((updatedProfile: profile_profile | undefined) => {
+        if (updatedProfile) setProfile(updatedProfile);
+    }, []);
 
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const openDrawer = useCallback(() => setDrawerOpen(true), [setDrawerOpen]);
-    const closeDrawer = useCallback(() => setDrawerOpen(false), [setDrawerOpen]);
-    const toggleDrawer = useCallback(() => {console.log('in toggle drawer'); setDrawerOpen(false)}, [setDrawerOpen]);
+    const toggleDrawer = useCallback(() => { console.log('in toggle drawer'); setDrawerOpen(o => !o) }, [setDrawerOpen]);
 
     const [logOut] = useMutation<any>(logOutMutation);
     const onLogOut = useCallback(() => {
@@ -55,17 +61,19 @@ export function SettingsPage({
     }, []);
 
     const listItems = useMemo(() => {
+        console.log('in list items', selectedPage);
         return Object.values(settingPages).map(([link, label, Icon]: [string, string, SvgIconComponent], index) => {
-            const selected = link === selectedPage[0];
-            console.log('selected', selected, link, selectedPage);
+            const selected = link === selectedPage;
+            console.log('selected', selectedPage);
             return (
                 <ListItem
                     key={index}
                     button
-                    onClick={() => { setLocation(`${APP_LINKS.Settings}?page=${link}`, { replace: true }) }}
+                    onClick={() => { console.log('setting location', `${APP_LINKS.Settings}?page=${link}`); setLocation(`${APP_LINKS.Settings}?page=${link}`, { replace: true }) }}
                     sx={{
                         transition: 'brightness 0.2s ease-in-out',
                         background: selected ? '#5bb6ce6e' : 'inherit',
+                        padding: drawerOpen ? '8px 16px' : '8px 12px'
                     }}
                 >
                     <ListItemIcon>
@@ -75,10 +83,10 @@ export function SettingsPage({
                 </ListItem>
             )
         });
-    }, [selectedPage, setLocation]);
+    }, [selectedPage, drawerOpen]);
 
     const mainContent: JSX.Element = useMemo(() => {
-        switch (selectedPage[0]) {
+        switch (selectedPage) {
             case 'display':
                 return <div>Display</div>;
             case 'notifications':
@@ -88,9 +96,11 @@ export function SettingsPage({
             case 'authentication':
                 return <div>Authentication</div>;
             default:
-                return <ProfileUpdate session={session} onUpdated={() => { }} onCancel={() => { }} />;
+                return editing ? <SettingsProfile profile={profile} onUpdated={onUpdated} /> : <UserView partialData={profile as any} session={session} />
         }
-    }, [selectedPage]);
+    }, [selectedPage, editing, profile, onUpdated]);
+
+    console.log('drawer open', drawerOpen);
 
     return (
         <Box id="page">
@@ -99,8 +109,8 @@ export function SettingsPage({
                 variant='permanent'
                 anchor="left"
                 open={drawerOpen}
-                onClose={closeDrawer}
-                onOpen={openDrawer}
+                onClose={() => {}}
+                onOpen={() => {}}
                 sx={{
                     '& .MuiDrawer-paper': {
                         position: 'absolute',
@@ -110,6 +120,8 @@ export function SettingsPage({
                         backdropFilter: 'blur(5px)',
                         color: 'black',
                         borderRight: (t) => `1px solid ${t.palette.text.primary}`,
+                        width: drawerOpen ? 'fit-content' : '50px', 
+                        transition: 'width 0.5s ease-in-out',
                     }
                 }}
             >
@@ -119,8 +131,8 @@ export function SettingsPage({
                     alignItems: 'center',
                     justifyContent: 'flex-end',
                 }}>
-                    <IconButton onClick={toggleDrawer}>
-                        {theme.direction === 'rtl' ? <OpenIcon /> : <CloseIcon />}
+                    <IconButton onClick={toggleDrawer} sx={{padding: drawerOpen ? '8px 16px' : '8px 12px'}}>
+                        {drawerOpen ? <CloseIcon /> : <OpenIcon />}
                     </IconButton>
                 </Box>
                 <Divider />
@@ -130,7 +142,11 @@ export function SettingsPage({
                 </List>
             </SwipeableDrawer>
             {/* Selected page display */}
-            <Box display="flex" justifyContent="center" alignItems="center" sx={{ maxWidth: 'min(100%, 700px)' }}>
+            <Box sx={{
+                width: `calc(100vw - 58px)`,
+                position: 'absolute',
+                right: 0,
+            }}>
                 {mainContent}
             </Box>
         </Box >

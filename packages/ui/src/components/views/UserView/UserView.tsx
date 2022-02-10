@@ -1,29 +1,22 @@
 import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, StarFor } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
-import { user } from "graphql/generated/user";
+import { useLazyQuery, useMutation } from "@apollo/client";
+import { user, userVariables } from "graphql/generated/user";
 import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, userQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
-    DeleteForever as DeleteForeverIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
-    ReportProblem as ReportIcon,
     Share as ShareIcon,
-    Star as StarFilledIcon,
-    StarOutline as StarOutlineIcon,
-    SvgIconComponent
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ListMenu, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { LabelledSortOption } from "utils";
 import { Organization, Project, Routine, Standard } from "types";
-import { starMutation } from "graphql/mutation";
-import { star } from 'graphql/generated/star';
 import { BaseObjectAction } from "components/dialogs/types";
 
 const tabLabels = ['Resources', 'Organizations', 'Projects', 'Routines', 'Standards'];
@@ -32,36 +25,23 @@ export const UserView = ({
     session,
     partialData,
 }: UserViewProps) => {
-    const [star] = useMutation<star>(starMutation);
     const [, setLocation] = useLocation();
     // Get URL params
-    const [isProfile, params] = useRoute(`${APP_LINKS.Profile}`);
+    const [isProfile] = useRoute(`${APP_LINKS.Settings}/:params*`);
     const [, params2] = useRoute(`${APP_LINKS.SearchUsers}/view/:id`);
     const id: string = useMemo(() => {
         if (isProfile) return session?.id ?? '';
-        return params2?.id ?? ';'
-    }, [params, params2]);
+        return params2?.id ?? ''
+    }, [isProfile, params2, session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
-    const { data, loading } = useQuery<user>(userQuery, { variables: { input: { id } } });
-    const user = useMemo(() => data?.user, [data]);
+    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { variables: { input: { id } } });
+    const user = useMemo(() => isProfile ? partialData : data?.user, [data]);
+    useEffect(() => {
+        if (id && !isProfile) getData();
+    }, [getData, id, isProfile]);
 
-    // Star object
-    const handleStar = useCallback((e: any, isStar: boolean) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        console.log('going to star', user, isStar);
-        // Send star mutation
-        star({
-            variables: {
-                input: {
-                    isStar,
-                    starFor: StarFor.User,
-                    forId: user?.id ?? ''
-                }
-            }
-        });
-    }, [user?.id, star]);
+    console.log('isProfile', isProfile, id);
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {
@@ -256,7 +236,7 @@ export const UserView = ({
                                 <IconButton
                                     aria-label="Edit profile"
                                     size="small"
-                                    onClick={() => setLocation(`${APP_LINKS.Profile}/edit/${id}`)}
+                                    onClick={() => setLocation(`${APP_LINKS.Settings}?page=profile?edit=true`)}
                                 >
                                     <EditIcon color="primary" />
                                 </IconButton>
@@ -280,17 +260,21 @@ export const UserView = ({
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
-                    {!isOwn ? <StarButton
-                        session={session}
-                        isStar={user?.isStarred ?? false}
-                        stars={user?.stars ?? 0}
-                        onStar={handleStar}
-                        tooltipPlacement="bottom"
-                    /> : null}
+                    {
+                        !isOwn ? <StarButton
+                            session={session}
+                            objectId={user?.id ?? ''}
+                            starFor={StarFor.User}
+                            isStar={user?.isStarred ?? false}
+                            stars={user?.stars ?? 0}
+                            onChange={(isStar: boolean) => { }}
+                            tooltipPlacement="bottom"
+                        /> : null
+                    }
                 </Stack>
             </Stack>
         </Box>
-    ), [user, partialData, isOwn, handleStar]);
+    ), [user, partialData, isOwn, session]);
 
     return (
         <>

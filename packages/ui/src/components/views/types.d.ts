@@ -1,3 +1,4 @@
+import { profile_profile } from "graphql/generated/profile";
 import { Organization, Project, Routine, Session, Standard, User } from "types";
 
 export interface CreateProps<T> {
@@ -35,5 +36,15 @@ export interface StandardCreateProps extends CreateProps<Standard> {}
 export interface StandardUpdateProps extends UpdateProps<Standard> {}
 export interface StandardViewProps extends ViewProps<Standard> {}
 
-export interface UserUpdateProps extends UpdateProps<User> {}
 export interface UserViewProps extends ViewProps<User> {}
+
+
+export interface SettingsBaseProps {
+    profile: profile_profile | undefined;
+    onUpdated: (profile: profile) => void;
+}
+export interface SettingsConnectProps extends SettingsBaseProps {}
+export interface SettingsDisplayProps extends SettingsBaseProps {}
+export interface SettingsNotificationsProps extends SettingsBaseProps {}
+export interface SettingsPrivacyProps extends SettingsBaseProps {}
+export interface SettingsProfileProps extends SettingsBaseProps {}

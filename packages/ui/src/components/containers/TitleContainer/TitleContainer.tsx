@@ -18,15 +18,15 @@ export function TitleContainer({
         <Tooltip placement="bottom" title={tooltip}>
             <Box display="flex" justifyContent="center">
                 <Box
-                    onClick={onClick}
+                    onClick={onClick ? onClick : () => {}}
                     sx={{
                         ...containerShadow,
                         borderRadius: '8px',
                         background: (t) => t.palette.background.default,
                         width: 'min(100%, 700px)',
-                        cursor: 'pointer',
+                        cursor: onClick ? 'pointer' : 'default',
                         '&:hover': {
-                            filter: `brightness(102%)`,
+                            filter: `brightness(onClick ? ${102} : ${100}%)`,
                         },
                         ...sx
                     }}

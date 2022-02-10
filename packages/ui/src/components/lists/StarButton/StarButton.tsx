@@ -6,12 +6,18 @@ import {
     StarBorder as IsNotStarredIcon,
 } from '@mui/icons-material';
 import { multiLineEllipsis } from 'styles';
+import { mutationWrapper } from 'graphql/utils/wrappers';
+import { useMutation } from '@apollo/client';
+import { star } from 'graphql/generated/star';
+import { starMutation } from 'graphql/mutation';
 
 export const StarButton = ({
     session,
     isStar = false,
     stars = 0,
-    onStar,
+    objectId,
+    starFor,
+    onChange,
     tooltipPlacement = "left"
 }: StarButtonProps) => {
     // Used to respond to user clicks immediately, without having 
@@ -26,12 +32,20 @@ export const StarButton = ({
         return starNum;
     }, [internalIsStar, isStar, stars]);
 
+    const [mutation] = useMutation<star>(starMutation);
     const handleClick = useCallback((event: any) => {
         if (!session.id) return;
         const isStar = !internalIsStar;
         setInternalIsStar(isStar);
-        onStar(event, isStar);
-    }, [internalIsStar, session.id, onStar]);
+        // Prevent propagation of normal click event
+        event.stopPropagation();
+        // Send star mutation
+        mutationWrapper({
+            mutation,
+            input: { isStar, starFor, forId: objectId },
+            onSuccess: (response) => { console.log('STAR SUCCESS', response.data.star); onChange(response.data.star) },
+        })
+    }, [session.id, internalIsStar, objectId, starFor]);
 
     const Icon = internalIsStar ? IsStarredIcon : IsNotStarredIcon;
     const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';

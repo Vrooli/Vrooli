@@ -36,7 +36,7 @@ export const tagFormatter = (): FormatConverter<Tag, tag> => {
  * Component for search filters
  */
 export const tagSorter = (): Sortable<TagSortBy> => ({
-    defaultSort: TagSortBy.AlphabeticalDesc,
+    defaultSort: TagSortBy.AlphabeticalAsc,
     getSortQuery: (sortBy: string): any => {
         return {
             [TagSortBy.AlphabeticalAsc]: { tag: 'asc' },

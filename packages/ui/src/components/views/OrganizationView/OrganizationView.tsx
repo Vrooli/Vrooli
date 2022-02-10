@@ -22,8 +22,6 @@ import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { LabelledSortOption } from "utils";
 import { User, Project, Routine, Standard } from "types";
-import { starMutation } from "graphql/mutation";
-import { star } from 'graphql/generated/star';
 
 const tabLabels = ['Resources', 'Members', 'Projects', 'Routines', 'Standards'];
 
@@ -49,7 +47,6 @@ export const OrganizationView = ({
     session,
     partialData,
 }: OrganizationViewProps) => {
-    const [star] = useMutation<star>(starMutation);
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/:id`);
@@ -59,23 +56,6 @@ export const OrganizationView = ({
     const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });
     const organization = useMemo(() => data?.organization, [data]);
     const isOwn: boolean = useMemo(() => true, [organization]); // TODO organization.isOwn
-
-    // Star object
-    const handleStar = useCallback((e: any, isStar: boolean) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        console.log('going to star', organization, isStar);
-        // Send star mutation
-        star({
-            variables: {
-                input: {
-                    isStar,
-                    starFor: StarFor.Organization,
-                    forId: organization?.id ?? ''
-                }
-            }
-        });
-    }, [organization?.id, star]);
 
     // Determine options available to object, in order
     const moreOptions = useMemo(() => {
@@ -124,7 +104,7 @@ export const OrganizationView = ({
                     actorDefaultSortOption,
                     actorOptionLabel,
                     usersQuery,
-                    (newValue) => openLink(APP_LINKS.Profile, newValue.id),
+                    (newValue) => openLink(APP_LINKS.User, newValue.id),
                     (node: User, index: number) => (
                         <ActorListItem
                             key={`member-list-item-${index}`}
@@ -132,7 +112,7 @@ export const OrganizationView = ({
                             session={session}
                             data={node}
                             isOwn={false}
-                            onClick={(selected: User) => openLink(APP_LINKS.Profile, selected.id)}
+                            onClick={(selected: User) => openLink(APP_LINKS.User, selected.id)}
                         />)
                 ];
             case 2:
@@ -314,17 +294,21 @@ export const OrganizationView = ({
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
-                    {!isOwn ? <StarButton
-                        session={session}
-                        isStar={organization?.isStarred ?? false}
-                        stars={organization?.stars ?? 0}
-                        onStar={handleStar}
-                        tooltipPlacement="bottom"
-                    /> : null}
+                    {
+                        !isOwn ? <StarButton
+                            session={session}
+                            objectId={organization?.id ?? ''}
+                            starFor={StarFor.Organization}
+                            isStar={organization?.isStarred ?? false}
+                            stars={organization?.stars ?? 0}
+                            onChange={(isStar: boolean) => { }}
+                            tooltipPlacement="bottom"
+                        /> : null
+                    }
                 </Stack>
             </Stack>
         </Box>
-    ), [organization, partialData, isOwn, handleStar]);
+    ), [isOwn, organization, partialData]);
 
     return (
         <>

@@ -1,4 +1,4 @@
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Button, Grid, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv, containerShadow } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
@@ -11,6 +11,10 @@ import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import faqMarkdown from './faq.md';
 import { parseSearchParams } from 'utils/urlTools';
+import {
+    Add as CreateIcon,
+    Search as SearchIcon,
+} from '@mui/icons-material';
 
 const ObjectType = {
     Organization: 'Organization',
@@ -34,6 +38,18 @@ interface AutocompleteListItem {
     stars: number;
     objectType: string;
 }
+
+const examples = [
+    'Start a new business',
+    'Learn about Project Catalyst',
+    'Fund your project',
+    'Create a Cardano native asset token',
+].map(example => (
+    <Typography component="p" variant="h6" sx={{
+        color: (t) => t.palette.text.secondary,
+        fontStyle: 'italics'
+    }}>"{example}"</Typography>
+))
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -192,17 +208,19 @@ export const HomePage = ({
                     ))
                     break;
             }
-            listFeeds.push((
-                <TitleContainer
-                    key={`feed-list-${objectType}`}
-                    title={getFeedTitle(`${objectType}s`)}
-                    loading={loading}
-                    onClick={() => openSearch(linkMap[objectType])}
-                    options={[['See more results', () => openSearch(linkMap[objectType])]]}
-                >
-                    {listFeedItems}
-                </TitleContainer>
-            ))
+            if (loading || listFeedItems.length > 0) {
+                listFeeds.push((
+                    <TitleContainer
+                        key={`feed-list-${objectType}`}
+                        title={getFeedTitle(`${objectType}s`)}
+                        loading={loading}
+                        onClick={() => openSearch(linkMap[objectType])}
+                        options={[['See more results', () => openSearch(linkMap[objectType])]]}
+                    >
+                        {listFeedItems}
+                    </TitleContainer>
+                ))
+            }
         }
         return listFeeds;
     }, [feedOrder, loading, organizations, projects, routines, standards, users, openSearch]);
@@ -236,18 +254,30 @@ export const HomePage = ({
             </Stack>
             {/* Examples stack TODO */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '40px', paddingBottom: '40px' }}>
-                <Typography component="h2" variant="h5">Examples</Typography>
+                <Typography component="h2" variant="h5" pb={1}>Examples</Typography>
+                {examples}
             </Stack>
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
+                {/* Search results */}
                 {feeds}
+                {/* Advanced search prompt TODO */}
+                <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
+                    <Typography variant="h4" textAlign="center">Can't find what you're looking for?</Typography>
+                    <Grid container spacing={2} sx={{ width: 'min(100%, 500px)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <Grid item xs={12} sm={6}>
+                            <Button fullWidth startIcon={<SearchIcon />}>Advanced Search</Button>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <Button fullWidth startIcon={<CreateIcon />}>Create New</Button>
+                        </Grid>
+                    </Grid>
+                </Stack>
                 {/* FAQ */}
-                <Box
+                <TitleContainer
+                    key={`faq-container`}
+                    title={'FAQ'}
                     sx={{
-                        ...containerShadow,
-                        borderRadius: '8px',
-                        background: (t) => t.palette.background.default,
-
                         '& h2': {
                             fontSize: '2rem',
                             fontWeight: '500',
@@ -255,16 +285,8 @@ export const HomePage = ({
                         },
                     }}
                 >
-                    <Box sx={{
-                        background: (t) => t.palette.primary.dark,
-                        color: (t) => t.palette.primary.contrastText,
-                        borderRadius: '8px 8px 0 0',
-                        padding: 0.5,
-                    }}>
-                        <Typography component="h2" variant="h4" textAlign="center">FAQ</Typography>
-                    </Box>
                     <Box pl={2} pr={2}><Markdown>{faqText}</Markdown></Box>
-                </Box>
+                </TitleContainer>
             </Stack>
         </Box>
     )

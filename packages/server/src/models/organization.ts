@@ -223,7 +223,7 @@ export const organizationFormatter = (): FormatConverter<Organization, organizat
  * Component for search filters
  */
 export const organizationSorter = (): Sortable<OrganizationSortBy> => ({
-    defaultSort: OrganizationSortBy.AlphabeticalDesc,
+    defaultSort: OrganizationSortBy.AlphabeticalAsc,
     getSortQuery: (sortBy: string): any => {
         return {
             [OrganizationSortBy.AlphabeticalAsc]: { name: 'asc' },

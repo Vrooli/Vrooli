@@ -24,8 +24,7 @@ import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { LabelledSortOption } from "utils";
 import { Routine, Standard } from "types";
-import { starMutation, voteMutation } from "graphql/mutation";
-import { star } from 'graphql/generated/star';
+import { voteMutation } from "graphql/mutation";
 import { vote } from "graphql/generated/vote";
 
 const tabLabels = ['Resources', 'Routines', 'Standards'];
@@ -56,7 +55,6 @@ export const ProjectView = ({
     session,
     partialData,
 }: ProjectViewProps) => {
-    const [star] = useMutation<star>(starMutation);
     const [vote] = useMutation<vote>(voteMutation);
     const [, setLocation] = useLocation();
     // Get URL params
@@ -68,33 +66,20 @@ export const ProjectView = ({
     const project = useMemo(() => data?.project, [data]);
     const isOwn: boolean = useMemo(() => true, [project]); // TODO project.isOwn
 
-    // Star object
-    const handleStar = useCallback((e: any, isStar: boolean) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        console.log('going to star', project, isStar);
-        // Send star mutation
-        star({
-            variables: {
-                input: {
-                    isStar,
-                    starFor: StarFor.Project,
-                    forId: project?.id ?? ''
-                }
-            }
-        });
-    }, [project?.id, star]);
-
     // Vote object
     const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
         // Prevent propagation of normal click event
         e.stopPropagation();
         // Send vote mutation
-        vote({ variables: { input: {
-            isUpvote,
-            voteFor: VoteFor.Project,
-            forId: project?.id ?? ''
-        } } });
+        vote({
+            variables: {
+                input: {
+                    isUpvote,
+                    voteFor: VoteFor.Project,
+                    forId: project?.id ?? ''
+                }
+            }
+        });
     }, [project?.id, vote]);
 
     // Determine options available to object, in order
@@ -299,17 +284,21 @@ export const ProjectView = ({
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
-                    {!isOwn ? <StarButton
-                        session={session}
-                        isStar={project?.isStarred ?? false}
-                        stars={project?.stars ?? 0}
-                        onStar={handleStar}
-                        tooltipPlacement="bottom"
-                    /> : null}
+                    {
+                        !isOwn ? <StarButton
+                            session={session}
+                            objectId={project?.id ?? ''}
+                            starFor={StarFor.Project}
+                            isStar={project?.isStarred ?? false}
+                            stars={project?.stars ?? 0}
+                            onChange={(isStar: boolean) => { }}
+                            tooltipPlacement="bottom"
+                        /> : null
+                    }
                 </Stack>
             </Stack>
         </Box>
-    ), [project, partialData, isOwn, handleStar]);
+    ), [project, partialData, isOwn, session]);
 
     return (
         <>

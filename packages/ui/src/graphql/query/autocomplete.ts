@@ -7,26 +7,34 @@ export const autocompleteQuery = gql`
                 id
                 name
                 stars
+                isStarred
             }
             projects {
                 id
                 name
                 stars
+                isUpvoted
+                isStarred
             }
             routines {
                 id
                 title
                 stars
+                isUpvoted
+                isStarred
             }
             standards {
                 id
                 name
                 stars
+                isUpvoted
+                isStarred
             }
             users {
                 id
                 username
                 stars
+                isStarred
             }
         }
     }

@@ -7,7 +7,7 @@ export const APP_LINKS = {
     Learn: '/learn', // Learn dashboard
     Orchestrate: '/orchestrate', // View or update routine orchestration
     Organization: '/organization', // View or update specific organization
-    Profile: '/profile', // View or update profile and settings (or view another actor's profile)
+    Profile: '/settings?page=profile', // View or update profile and settings (or view another actor's profile)
     Project: '/project', // View or update specific project
     Research: '/research', // Research dashboard
     Routine: '/routine', // View or update specific routine
@@ -22,6 +22,7 @@ export const APP_LINKS = {
     Standard: '/standard', // View or update specific standard
     Start: '/start', // Provides options for entering application
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
+    User: '/user', // View a user's profile
 }
 export type APP_LINKS = ValueOf<typeof APP_LINKS>;
 

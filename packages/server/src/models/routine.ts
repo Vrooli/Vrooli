@@ -244,7 +244,7 @@ const formatter = (): FormatConverter<Routine, routine> => {
  * Component for search filters
  */
 const sorter = (): Sortable<RoutineSortBy> => ({
-    defaultSort: RoutineSortBy.AlphabeticalDesc,
+    defaultSort: RoutineSortBy.AlphabeticalAsc,
     getSortQuery: (sortBy: string): any => {
         return {
             [RoutineSortBy.AlphabeticalAsc]: { title: 'asc' },

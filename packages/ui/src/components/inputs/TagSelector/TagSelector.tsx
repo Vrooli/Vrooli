@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { tags, tagsVariables } from 'graphql/generated/tags';
 import { tagsQuery } from 'graphql/query';
-import { useMutation, useQuery } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import { StarFor, TagSortBy } from '@local/shared';
 import { TagSelectorProps, TagSelectorTag } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField } from '@mui/material';
-import { star } from 'graphql/generated/star';
 import { StarButton } from 'components';
-import { starMutation } from 'graphql/mutation';
 import { Pubs } from 'utils';
 
 export const TagSelector = ({
@@ -84,23 +82,6 @@ export const TagSelector = ({
         return autocompleteData.tags.edges.map(({ node }) => node);
     }, [autocompleteData]);
 
-    // Allows for favoriting tags
-    const [star] = useMutation<star>(starMutation);
-    const handleStar = useCallback((e: any, isStar: boolean, tag: TagSelectorTag) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        // Send star mutation
-        star({
-            variables: {
-                input: {
-                    isStar,
-                    starFor: StarFor.Tag,
-                    forId: tag.id
-                }
-            }
-        });
-    }, []);
-
     return (
         <Autocomplete
             id="tags-input"
@@ -139,9 +120,11 @@ export const TagSelector = ({
                     <ListItemText>{option.tag}</ListItemText>
                     <StarButton
                         session={session}
+                        objectId={option.id ?? ''}
+                        starFor={StarFor.Tag}
                         isStar={option.isStarred}
                         stars={option.stars}
-                        onStar={(e: any, isStar: boolean) => handleStar(e, isStar, option)}
+                        onChange={(isStar: boolean) => {}}
                     />
                 </MenuItem>
             )}
