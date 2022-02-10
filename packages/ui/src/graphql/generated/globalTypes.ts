@@ -286,9 +286,7 @@ export interface NodeCreateInput {
   nodeDecisionCreate?: NodeDecisionCreateInput | null;
   nodeEndCreate?: NodeEndCreateInput | null;
   nodeLoopCreate?: NodeLoopCreateInput | null;
-  nodeRedirectCreate?: NodeRoutineListCreateInput | null;
-  nodeRoutineListCreate?: NodeRedirectCreateInput | null;
-  nodeStartCreate?: NodeStartCreateInput | null;
+  nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
   previousId?: string | null;
   nextId?: string | null;
   routineId: string;
@@ -341,19 +339,44 @@ export interface NodeEndUpdateInput {
 }
 
 export interface NodeLoopCreateInput {
-  id?: string | null;
+  loops?: number | null;
+  maxLoops?: number | null;
+  whilesCreate: NodeLoopWhileCreateInput[];
 }
 
 export interface NodeLoopUpdateInput {
-  id?: string | null;
+  id: string;
+  loops?: number | null;
+  maxLoops?: number | null;
+  whilesCreate: NodeLoopWhileCreateInput[];
+  whilesUpdate: NodeLoopWhileUpdateInput[];
+  whilesDelete?: string[] | null;
 }
 
-export interface NodeRedirectCreateInput {
-  id?: string | null;
+export interface NodeLoopWhileCaseCreateInput {
+  condition: string;
 }
 
-export interface NodeRedirectUpdateInput {
-  id?: string | null;
+export interface NodeLoopWhileCaseUpdateInput {
+  id: string;
+  condition?: string | null;
+}
+
+export interface NodeLoopWhileCreateInput {
+  description?: string | null;
+  title: string;
+  whenCreate: NodeLoopWhileCaseCreateInput[];
+  toId?: string | null;
+}
+
+export interface NodeLoopWhileUpdateInput {
+  id: string;
+  description?: string | null;
+  title?: string | null;
+  whenCreate?: NodeLoopWhileCaseCreateInput[] | null;
+  whenUpdate?: NodeLoopWhileCaseUpdateInput[] | null;
+  whenDelete?: string[] | null;
+  toId?: string | null;
 }
 
 export interface NodeRoutineListCreateInput {
@@ -389,14 +412,6 @@ export interface NodeRoutineListUpdateInput {
   routinesUpdate?: NodeRoutineListItemUpdateInput[] | null;
 }
 
-export interface NodeStartCreateInput {
-  _blank?: string | null;
-}
-
-export interface NodeStartUpdateInput {
-  id: string;
-}
-
 export interface NodeUpdateInput {
   id: string;
   description?: string | null;
@@ -410,12 +425,8 @@ export interface NodeUpdateInput {
   nodeEndUpdate?: NodeEndUpdateInput | null;
   nodeLoopCreate?: NodeLoopCreateInput | null;
   nodeLoopUpdate?: NodeLoopUpdateInput | null;
-  nodeRedirectCreate?: NodeRoutineListCreateInput | null;
-  nodeRedirectUpdate?: NodeRoutineListUpdateInput | null;
-  nodeRoutineListCreate?: NodeRedirectCreateInput | null;
-  nodeRoutineListUpdate?: NodeRedirectUpdateInput | null;
-  nodeStartCreate?: NodeStartCreateInput | null;
-  nodeStartUpdate?: NodeStartUpdateInput | null;
+  nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
+  nodeRoutineListUpdate?: NodeRoutineListUpdateInput | null;
   previousId?: string | null;
   nextId?: string | null;
   routineId?: string | null;

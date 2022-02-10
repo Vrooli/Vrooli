@@ -90,17 +90,7 @@ export interface nodeFields_data_NodeRoutineList {
   routines: nodeFields_data_NodeRoutineList_routines[];
 }
 
-export interface nodeFields_data_NodeRedirect {
-  __typename: "NodeRedirect";
-  id: string;
-}
-
-export interface nodeFields_data_NodeStart {
-  __typename: "NodeStart";
-  id: string;
-}
-
-export type nodeFields_data = nodeFields_data_NodeCombine | nodeFields_data_NodeDecision | nodeFields_data_NodeEnd | nodeFields_data_NodeLoop | nodeFields_data_NodeRoutineList | nodeFields_data_NodeRedirect | nodeFields_data_NodeStart;
+export type nodeFields_data = nodeFields_data_NodeCombine | nodeFields_data_NodeDecision | nodeFields_data_NodeEnd | nodeFields_data_NodeLoop | nodeFields_data_NodeRoutineList;
 
 export interface nodeFields {
   __typename: "Node";

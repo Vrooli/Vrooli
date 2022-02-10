@@ -144,6 +144,16 @@ export const resolvers = {
             return new Date(ast).toDateString(); // ast value is always in string format
         }
     }),
+    Contributor: {
+        __resolveType(obj: any) {
+            console.log('IN Contributor __resolveType', obj);
+            // Only a user has a username field
+            if (obj.hasOwnProperty('username')) return 'User';
+            // Only an Organization has a name and bio field
+            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('bio')) return 'Organization';
+            return null; // GraphQLError is thrown
+        },
+    },
     Query: {
         readAssets: async (_parent: undefined, { input }: any): Promise<Array<String | null>> => {
             return await readFiles(input.files);

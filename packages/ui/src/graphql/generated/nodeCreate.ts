@@ -90,17 +90,7 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList {
   routines: nodeCreate_nodeCreate_data_NodeRoutineList_routines[];
 }
 
-export interface nodeCreate_nodeCreate_data_NodeRedirect {
-  __typename: "NodeRedirect";
-  id: string;
-}
-
-export interface nodeCreate_nodeCreate_data_NodeStart {
-  __typename: "NodeStart";
-  id: string;
-}
-
-export type nodeCreate_nodeCreate_data = nodeCreate_nodeCreate_data_NodeCombine | nodeCreate_nodeCreate_data_NodeDecision | nodeCreate_nodeCreate_data_NodeEnd | nodeCreate_nodeCreate_data_NodeLoop | nodeCreate_nodeCreate_data_NodeRoutineList | nodeCreate_nodeCreate_data_NodeRedirect | nodeCreate_nodeCreate_data_NodeStart;
+export type nodeCreate_nodeCreate_data = nodeCreate_nodeCreate_data_NodeCombine | nodeCreate_nodeCreate_data_NodeDecision | nodeCreate_nodeCreate_data_NodeEnd | nodeCreate_nodeCreate_data_NodeLoop | nodeCreate_nodeCreate_data_NodeRoutineList;
 
 export interface nodeCreate_nodeCreate {
   __typename: "Node";

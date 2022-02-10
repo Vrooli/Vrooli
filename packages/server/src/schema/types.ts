@@ -496,16 +496,14 @@ export type NodeCreateInput = {
   nodeDecisionCreate?: InputMaybe<NodeDecisionCreateInput>;
   nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
   nodeLoopCreate?: InputMaybe<NodeLoopCreateInput>;
-  nodeRedirectCreate?: InputMaybe<NodeRoutineListCreateInput>;
-  nodeRoutineListCreate?: InputMaybe<NodeRedirectCreateInput>;
-  nodeStartCreate?: InputMaybe<NodeStartCreateInput>;
+  nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   previousId?: InputMaybe<Scalars['ID']>;
   routineId: Scalars['ID'];
   title?: InputMaybe<Scalars['String']>;
   type?: InputMaybe<NodeType>;
 };
 
-export type NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRedirect | NodeRoutineList | NodeStart;
+export type NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList;
 
 export type NodeDecision = {
   __typename?: 'NodeDecision';
@@ -583,27 +581,65 @@ export type NodeEndUpdateInput = {
 export type NodeLoop = {
   __typename?: 'NodeLoop';
   id: Scalars['ID'];
+  loops?: Maybe<Scalars['Int']>;
+  maxLoops?: Maybe<Scalars['Int']>;
+  whiles: Array<NodeLoopWhile>;
 };
 
 export type NodeLoopCreateInput = {
-  id?: InputMaybe<Scalars['ID']>;
+  loops?: InputMaybe<Scalars['Int']>;
+  maxLoops?: InputMaybe<Scalars['Int']>;
+  whilesCreate: Array<NodeLoopWhileCreateInput>;
 };
 
 export type NodeLoopUpdateInput = {
-  id?: InputMaybe<Scalars['ID']>;
+  id: Scalars['ID'];
+  loops?: InputMaybe<Scalars['Int']>;
+  maxLoops?: InputMaybe<Scalars['Int']>;
+  whilesCreate: Array<NodeLoopWhileCreateInput>;
+  whilesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  whilesUpdate: Array<NodeLoopWhileUpdateInput>;
 };
 
-export type NodeRedirect = {
-  __typename?: 'NodeRedirect';
+export type NodeLoopWhile = {
+  __typename?: 'NodeLoopWhile';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  title: Scalars['String'];
+  toId?: Maybe<Scalars['ID']>;
+  when: Array<NodeLoopWhileCase>;
+};
+
+export type NodeLoopWhileCase = {
+  __typename?: 'NodeLoopWhileCase';
+  condition: Scalars['String'];
   id: Scalars['ID'];
 };
 
-export type NodeRedirectCreateInput = {
-  id?: InputMaybe<Scalars['ID']>;
+export type NodeLoopWhileCaseCreateInput = {
+  condition: Scalars['String'];
 };
 
-export type NodeRedirectUpdateInput = {
-  id?: InputMaybe<Scalars['ID']>;
+export type NodeLoopWhileCaseUpdateInput = {
+  condition?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+};
+
+export type NodeLoopWhileCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  title: Scalars['String'];
+  toId?: InputMaybe<Scalars['ID']>;
+  whenCreate: Array<NodeLoopWhileCaseCreateInput>;
+};
+
+export type NodeLoopWhileUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  title?: InputMaybe<Scalars['String']>;
+  toId?: InputMaybe<Scalars['ID']>;
+  whenCreate?: InputMaybe<Array<NodeLoopWhileCaseCreateInput>>;
+  whenDelete?: InputMaybe<Array<Scalars['ID']>>;
+  whenUpdate?: InputMaybe<Array<NodeLoopWhileCaseUpdateInput>>;
 };
 
 export type NodeRoutineList = {
@@ -656,19 +692,6 @@ export type NodeRoutineListUpdateInput = {
   routinesUpdate?: InputMaybe<Array<NodeRoutineListItemUpdateInput>>;
 };
 
-export type NodeStart = {
-  __typename?: 'NodeStart';
-  id: Scalars['ID'];
-};
-
-export type NodeStartCreateInput = {
-  _blank?: InputMaybe<Scalars['String']>;
-};
-
-export type NodeStartUpdateInput = {
-  id: Scalars['ID'];
-};
-
 export enum NodeType {
   Combine = 'Combine',
   Decision = 'Decision',
@@ -691,12 +714,8 @@ export type NodeUpdateInput = {
   nodeEndUpdate?: InputMaybe<NodeEndUpdateInput>;
   nodeLoopCreate?: InputMaybe<NodeLoopCreateInput>;
   nodeLoopUpdate?: InputMaybe<NodeLoopUpdateInput>;
-  nodeRedirectCreate?: InputMaybe<NodeRoutineListCreateInput>;
-  nodeRedirectUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
-  nodeRoutineListCreate?: InputMaybe<NodeRedirectCreateInput>;
-  nodeRoutineListUpdate?: InputMaybe<NodeRedirectUpdateInput>;
-  nodeStartCreate?: InputMaybe<NodeStartCreateInput>;
-  nodeStartUpdate?: InputMaybe<NodeStartUpdateInput>;
+  nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
+  nodeRoutineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
   previousId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   title?: InputMaybe<Scalars['String']>;

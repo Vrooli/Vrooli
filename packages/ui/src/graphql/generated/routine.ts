@@ -117,17 +117,7 @@ export interface routine_routine_nodes_data_NodeRoutineList {
   routines: routine_routine_nodes_data_NodeRoutineList_routines[];
 }
 
-export interface routine_routine_nodes_data_NodeRedirect {
-  __typename: "NodeRedirect";
-  id: string;
-}
-
-export interface routine_routine_nodes_data_NodeStart {
-  __typename: "NodeStart";
-  id: string;
-}
-
-export type routine_routine_nodes_data = routine_routine_nodes_data_NodeCombine | routine_routine_nodes_data_NodeDecision | routine_routine_nodes_data_NodeEnd | routine_routine_nodes_data_NodeLoop | routine_routine_nodes_data_NodeRoutineList | routine_routine_nodes_data_NodeRedirect | routine_routine_nodes_data_NodeStart;
+export type routine_routine_nodes_data = routine_routine_nodes_data_NodeCombine | routine_routine_nodes_data_NodeDecision | routine_routine_nodes_data_NodeEnd | routine_routine_nodes_data_NodeLoop | routine_routine_nodes_data_NodeRoutineList;
 
 export interface routine_routine_nodes {
   __typename: "Node";

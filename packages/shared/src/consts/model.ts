@@ -49,8 +49,8 @@ export type StandardType = ValueOf<typeof StandardType>;
 //==============================================================
 
 export enum OrganizationSortBy {
-    AlphabeticalDesc = "AlphabeticalDesc",
     AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     DateCreatedDesc = "DateCreatedDesc",
@@ -60,8 +60,8 @@ export enum OrganizationSortBy {
 }
 
 export enum ProjectSortBy {
-    AlphabeticalDesc = "AlphabeticalDesc",
     AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
     VotesDesc = "VotesDesc",
     VotesAsc = "VotesAsc",
     StarsDesc = "StarsDesc",
@@ -77,8 +77,8 @@ export enum ProjectSortBy {
 }
 
 export enum ResourceSortBy {
-    AlphabeticalDesc = "AlphabeticalDesc",
     AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
     DateCreatedDesc = "DateCreatedDesc",
     DateCreatedAsc = "DateCreatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
@@ -86,8 +86,8 @@ export enum ResourceSortBy {
 }
 
 export enum RoutineSortBy {
-    AlphabeticalDesc = "AlphabeticalDesc",
     AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
     VotesDesc = "VotesDesc",
     VotesAsc = "VotesAsc",
     StarsDesc = "StarsDesc",
@@ -103,8 +103,8 @@ export enum RoutineSortBy {
 }
 
 export enum StandardSortBy {
-    AlphabeticalDesc = "AlphabeticalDesc",
     AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
     VotesDesc = "VotesDesc",
     VotesAsc = "VotesAsc",
     StarsDesc = "StarsDesc",
@@ -118,8 +118,8 @@ export enum StandardSortBy {
 }
 
 export enum TagSortBy {
-    AlphabeticalDesc = "AlphabeticalDesc",
     AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     DateCreatedDesc = "DateCreatedDesc",
@@ -129,8 +129,8 @@ export enum TagSortBy {
 }
 
 export enum UserSortBy {
-    AlphabeticalDesc = "AlphabeticalDesc",
     AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     DateCreatedDesc = "DateCreatedDesc",

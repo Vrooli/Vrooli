@@ -9,6 +9,8 @@ import { NodeType } from '../consts';
 
 const condition = yup.string().max(2048).optional();
 const isOptional = yup.boolean().optional();
+const loops = yup.number().integer().min(0).max(100).optional();
+const maxLoops = yup.number().integer().min(1).max(100).optional();
 const type = yup.string().oneOf(Object.values(NodeType)).optional();
 const wasSuccessful = yup.boolean().optional();
 
@@ -22,17 +24,17 @@ const nodeCombineUpdate = yup.object().shape({
     toId: id,
 })
 
-const whenCreate = yup.array().of(yup.object().shape({
+const decisionWhenCreate = yup.array().of(yup.object().shape({
     condition: condition.required(),
 }).required()).optional();
-const whenUpdate = yup.array().of(yup.object().shape({
+const decisionWhenUpdate = yup.array().of(yup.object().shape({
     id: id.required(),
     condition: condition.required(),
 }).required()).optional();
 const decisionsCreate = yup.array().of(yup.object().shape({
     description,
     title: title.required(),
-    whenCreate,
+    whenCreate: decisionWhenCreate,
     toId: id,
 }).required()).optional();
 const decisionsUpdate = yup.array().of(yup.object().shape({
@@ -40,8 +42,8 @@ const decisionsUpdate = yup.array().of(yup.object().shape({
     description,
     title,
     toId: id,
-    whenCreate,
-    whenUpdate,
+    whenCreate: decisionWhenCreate,
+    whenUpdate: decisionWhenUpdate,
     whenDelete: idArray,
 }).required()).optional();
 const nodeDecisionCreate = yup.object().shape({
@@ -62,22 +64,40 @@ const nodeEndUpdate = yup.object().shape({
     wasSuccessful,
 })
 
-// TODO define
+const loopWhenCreate = yup.array().of(yup.object().shape({
+    condition: condition.required(),
+}).required()).optional();
+const loopWhenUpdate = yup.array().of(yup.object().shape({
+    id: id.required(),
+    condition: condition.required(),
+}).required()).optional();
+const whilesCreate = yup.array().of(yup.object().shape({
+    description,
+    title: title.required(),
+    whenCreate: loopWhenCreate,
+    toId: id,
+}).required()).optional();
+const whilesUpdate = yup.array().of(yup.object().shape({
+    id: id.required(),
+    description,
+    title,
+    toId: id,
+    whenCreate: loopWhenCreate,
+    whenUpdate: loopWhenUpdate,
+    whenDelete: idArray,
+}).required()).optional();
 const nodeLoopCreate = yup.object().shape({
-    id,
+    loops,
+    maxLoops,
+    whiles: whilesCreate.required(),
 })
-// TODO define
 const nodeLoopUpdate = yup.object().shape({
     id: id.required(),
-})
-
-// TODO define
-const nodeRedirectCreate = yup.object().shape({
-    id,
-})
-// TODO define
-const nodeRedirectUpdate = yup.object().shape({
-    id: id.required(),
+    loops,
+    maxLoops,
+    whilesCreate,
+    whilesUpdate,
+    decisionsDelete: idArray,
 })
 
 const nodeRoutineListItemsCreate = yup.array().of(yup.object().shape({
@@ -114,12 +134,6 @@ const nodeRoutineListUpdate = yup.object().shape({
     routinesUpdate: nodeRoutineListItemsUpdate,
 })
 
-// Meant to be empty
-const nodeStartCreate = yup.object().shape({
-})
-const nodeStartUpdate = yup.object().shape({
-})
-
 export const nodeCreate = yup.object().shape({
     description,
     title: title.required(),
@@ -128,9 +142,7 @@ export const nodeCreate = yup.object().shape({
     nodeDecisionCreate,
     nodeEndCreate,
     nodeLoopCreate,
-    nodeRedirectCreate,
     nodeRoutineListCreate,
-    nodeStartCreate,
     nextId: id,
     previousId: id,
     routineId: id.required(),
@@ -152,12 +164,8 @@ export const nodeUpdate = yup.object().shape({
     nodeEndUpdate,
     nodeLoopCreate,
     nodeLoopUpdate,
-    nodeRedirectCreate,
-    nodeRedirectUpdate,
     nodeRoutineListCreate,
     nodeRoutineListUpdate,
-    nodeStartCreate,
-    nodeStartUpdate,
     nextId: id,
     previousId: id,
     routineId: id,

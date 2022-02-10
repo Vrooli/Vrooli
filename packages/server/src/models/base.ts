@@ -206,6 +206,7 @@ export const addCountQueries = (obj: any, map: CountMap): any => {
  * Helper function for converting creator GraphQL field to Prisma createdByUser/createdByOrganization fields
  */
 export const removeCreatorField = (modified: any): any => {
+    console.log('in removeCreatorField');
     modified.createdByUser = {
         id: true,
         username: true,
@@ -215,6 +216,7 @@ export const removeCreatorField = (modified: any): any => {
         name: true,
     }
     delete modified.creator;
+    console.log('removeCreatorField result', modified);
     return modified;
 }
 

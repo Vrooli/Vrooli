@@ -18,7 +18,7 @@ export const typeDef = gql`
         Start
     }
 
-    union NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList | NodeRedirect | NodeStart
+    union NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList
 
     input NodeCreateInput {
         description: String
@@ -28,9 +28,7 @@ export const typeDef = gql`
         nodeDecisionCreate: NodeDecisionCreateInput
         nodeEndCreate: NodeEndCreateInput
         nodeLoopCreate: NodeLoopCreateInput
-        nodeRedirectCreate: NodeRoutineListCreateInput
-        nodeRoutineListCreate: NodeRedirectCreateInput
-        nodeStartCreate: NodeStartCreateInput
+        nodeRoutineListCreate: NodeRoutineListCreateInput
         previousId: ID
         nextId: ID
         routineId: ID!
@@ -48,12 +46,8 @@ export const typeDef = gql`
         nodeEndUpdate: NodeEndUpdateInput
         nodeLoopCreate: NodeLoopCreateInput
         nodeLoopUpdate: NodeLoopUpdateInput
-        nodeRedirectCreate: NodeRoutineListCreateInput
-        nodeRedirectUpdate: NodeRoutineListUpdateInput
-        nodeRoutineListCreate: NodeRedirectCreateInput
-        nodeRoutineListUpdate: NodeRedirectUpdateInput
-        nodeStartCreate: NodeStartCreateInput
-        nodeStartUpdate: NodeStartUpdateInput
+        nodeRoutineListCreate: NodeRoutineListCreateInput
+        nodeRoutineListUpdate: NodeRoutineListUpdateInput
         previousId: ID
         nextId: ID
         routineId: ID
@@ -152,23 +146,56 @@ export const typeDef = gql`
     }
 
     input NodeLoopCreateInput {
-        id: ID
+        loops: Int
+        maxLoops: Int
+        whilesCreate: [NodeLoopWhileCreateInput!]!
     }
     input NodeLoopUpdateInput {
-        id: ID
+        id: ID!
+        loops: Int
+        maxLoops: Int
+        whilesCreate: [NodeLoopWhileCreateInput!]!
+        whilesUpdate: [NodeLoopWhileUpdateInput!]!
+        whilesDelete: [ID!]
     }
     type NodeLoop {
         id: ID!
+        loops: Int
+        maxLoops: Int
+        whiles: [NodeLoopWhile!]!
     }
-
-    input NodeRedirectCreateInput {
-        id: ID
+    input NodeLoopWhileCreateInput {
+        description: String
+        title: String!
+        whenCreate: [NodeLoopWhileCaseCreateInput!]!
+        toId: ID
     }
-    input NodeRedirectUpdateInput {
-        id: ID
-    }
-    type NodeRedirect {
+    input NodeLoopWhileUpdateInput {
         id: ID!
+        description: String
+        title: String
+        whenCreate: [NodeLoopWhileCaseCreateInput!]
+        whenUpdate: [NodeLoopWhileCaseUpdateInput!]
+        whenDelete: [ID!]
+        toId: ID
+    }
+    type NodeLoopWhile {
+        id: ID!
+        description: String
+        title: String!
+        when: [NodeLoopWhileCase!]!
+        toId: ID
+    } 
+    input NodeLoopWhileCaseCreateInput {
+        condition: String!
+    }
+    input NodeLoopWhileCaseUpdateInput {
+        id: ID!
+        condition: String
+    }
+    type NodeLoopWhileCase {
+        id: ID!
+        condition: String!
     }
 
     input NodeRoutineListCreateInput {
@@ -214,16 +241,6 @@ export const typeDef = gql`
         routine: Routine!
     }
 
-    input NodeStartCreateInput {
-        _blank: String
-    }
-    input NodeStartUpdateInput {
-        id: ID!
-    }
-    type NodeStart {
-        id: ID!
-    }
-
     extend type Mutation {
         nodeCreate(input: NodeCreateInput!): Node!
         nodeUpdate(input: NodeUpdateInput!): Node!
@@ -233,6 +250,22 @@ export const typeDef = gql`
 
 export const resolvers = {
     NodeType: NodeType,
+    NodeData: {
+        __resolveType(obj: any) {
+            console.log('IN NODEDATA __resolveType', obj);
+            // Only NodeCombine has from and toId fields
+            if (obj.hasOwnProperty('from') && obj.hasOwnProperty('toId')) return 'NodeCombine';
+            // Only NodeDecision has decisions field
+            if (obj.hasOwnProperty('decisions')) return 'NodeDecision';
+            // Only NodeEnd has wasSuccessful field
+            if (obj.hasOwnProperty('wasSuccessful')) return 'NodeEnd';
+            // Only NodeLoop has loop field
+            if (obj.hasOwnProperty('loop')) return 'NodeLoop';
+            // Only NodeRoutineList has isOrdered field
+            if (obj.hasOwnProperty('isOrdered')) return 'NodeRoutineList';
+            return null; // GraphQLError is thrown
+        },
+    },
     Mutation: {
         /**
          * Updates an individual node in a routine orchestration.

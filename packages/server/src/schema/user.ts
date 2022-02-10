@@ -19,8 +19,6 @@ export const typeDef = gql`
         StarsDesc
     }
 
-    union Stars = Comment | Organization | Project | Routine | Standard | Tag
-
     # User information available for you own account
     type Profile {
         id: ID!

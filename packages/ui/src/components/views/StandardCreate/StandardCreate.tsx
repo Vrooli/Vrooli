@@ -53,7 +53,7 @@ export const StandardCreate = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: formatForCreate(values),
+                input: formatForCreate({ ...values, tags }),
                 onSuccess: (response) => { onCreated(response.data.standardCreate) },
                 onError: (response) => {
                     PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });

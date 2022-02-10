@@ -28,9 +28,12 @@ export const projectFormatter = (): FormatConverter<Project, project> => {
     }
     return {
         toDB: (obj: RecursivePartial<Project>): RecursivePartial<project> => {
+            console.log('project toDB', obj);
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
+            console.log('project before removeCreatorField', modified);
             modified = removeCreatorField(modified);
+            console.log('project after removeCreatorField', modified);
             modified = removeOwnerField(modified);
             // Remove isUpvoted and isStarred, as they are calculated in their own queries
             if (modified.isUpvoted) delete modified.isUpvoted;
@@ -177,6 +180,7 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
                 createdByUser: { connect: { id: userId } },
             };
         }
+        console.log('creating project', projectData);
         // Create project
         const project = await prisma.project.create({
             data: projectData as any,

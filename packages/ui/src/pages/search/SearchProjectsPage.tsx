@@ -58,8 +58,6 @@ export const SearchProjectsPage = ({
 
     return (
         <>
-            {/* Invite link dialog */}
-            <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
             <ProjectDialog
                 hasPrevious={false}

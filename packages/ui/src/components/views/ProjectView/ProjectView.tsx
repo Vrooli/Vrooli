@@ -35,6 +35,11 @@ export const ProjectView = ({
     const project = useMemo(() => data?.project, [data]);
     const isOwn: boolean = useMemo(() => true, [project]); // TODO project.isOwn
 
+    const onEdit = useCallback(() => {
+        // Depends on if we're in a search popup or a normal organization page
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Project}/${id}/edit` : `${APP_LINKS.SearchProjects}/edit/${id}`);
+    }, [setLocation, id]);
+
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {
         // Initialize
@@ -192,7 +197,7 @@ export const ProjectView = ({
                                 <IconButton
                                     aria-label="Edit project"
                                     size="small"
-                                    onClick={() => setLocation(`${APP_LINKS.Project}/${id}/edit`)}
+                                    onClick={onEdit}
                                 >
                                     <EditIcon color="primary" />
                                 </IconButton>

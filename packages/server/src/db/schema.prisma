@@ -88,6 +88,7 @@ model email {
 //==============================================================
 
 // One item in a routine orchestration
+// Redirect and start nodes have no extra data, so they do not have their own custom data fields
 model node {
     id                String               @id @default(uuid()) @db.Uuid
     created_at        DateTime             @default(now()) @db.Timestamptz(6)
@@ -100,8 +101,6 @@ model node {
     nodeEndId         String?              @db.Uuid
     nodeLoopId        String?              @db.Uuid
     nodeRoutineListId String?              @db.Uuid
-    nodeRedirectId    String?              @db.Uuid
-    nodeStartId       String?              @db.Uuid
     previousId        String?              @db.Uuid
     nextId            String?              @db.Uuid
     routineId         String               @db.Uuid
@@ -110,8 +109,6 @@ model node {
     nodeEnd           node_end?            @relation(fields: [nodeEndId], references: [id], onDelete: Cascade)
     nodeLoop          node_loop?           @relation(fields: [nodeLoopId], references: [id], onDelete: Cascade)
     nodeRoutineList   node_routine_list?   @relation(fields: [nodeRoutineListId], references: [id], onDelete: Cascade)
-    nodeRedirect      node_redirect?       @relation(fields: [nodeRedirectId], references: [id], onDelete: Cascade)
-    nodeStart         node_start?          @relation(fields: [nodeStartId], references: [id], onDelete: Cascade)
     previous          node?                @relation("node_previous", fields: [previousId], references: [id], onDelete: SetNull)
     next              node?                @relation("node_next", fields: [nextId], references: [id], onDelete: SetNull)
     routine           routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -120,6 +117,7 @@ model node {
     To                node_combine[]       @relation("node_combine_to")
     From              node_combine_from[]
     DecisionItem      node_decision_item[]
+    WhileItem         node_loop_while[]
 }
 
 // Data for combine nodes (in addition to fields defined by node table) TODO complete
@@ -157,14 +155,14 @@ model node_decision_item {
     decisionId  String                    @db.Uuid
     toId        String?                   @db.Uuid
     decision    node_decision             @relation(fields: [decisionId], references: [id], onDelete: Cascade)
-    when        node_decision_item_case[]
+    when        node_decision_item_case[] // All cases must be true for this item to be available
     to          node?                     @relation(fields: [toId], references: [id], onDelete: SetNull)
 }
 
 // A condition which must be true for a decision item to be available
 model node_decision_item_case {
     id        String             @id @default(uuid()) @db.Uuid
-    condition String             @db.VarChar(1024) // TODO make this a JSON object
+    condition String             @db.VarChar(2048) // TODO make this a JSON object
     itemId    String             @db.Uuid
     item      node_decision_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 }
@@ -178,14 +176,31 @@ model node_end {
 
 // Data for loop nodes (in addition to fields defined by node table) TODO complete
 model node_loop {
-    id   String @id @default(uuid()) @db.Uuid
-    node node[]
+    id       String            @id @default(uuid()) @db.Uuid
+    node     node[]
+    loops    Int?              @default(1) // Number of times to loop
+    maxLoops Int?              @default(1) // Maximum number of times to loop=
+    whiles   node_loop_while[] // Conditions which must be true for loop to continue
 }
 
-// Data for redirect nodes (in addition to fields defined by node table) TODO complete
-model node_redirect {
-    id   String @id @default(uuid()) @db.Uuid
-    node node[]
+// A specific "while" condition in a loop node
+model node_loop_while {
+    id          String                 @id @default(uuid()) @db.Uuid
+    description String?                @db.VarChar(2048)
+    title       String                 @db.VarChar(128)
+    loopId      String                 @db.Uuid
+    toId        String?                @db.Uuid
+    loop        node_loop              @relation(fields: [loopId], references: [id], onDelete: Cascade)
+    when        node_loop_while_case[] // All cases must be true for this while condition to be true
+    to          node?                  @relation(fields: [toId], references: [id], onDelete: SetNull)
+}
+
+// A condition which must be true for the loop while item to be true
+model node_loop_while_case {
+    id        String          @id @default(uuid()) @db.Uuid
+    condition String          @db.VarChar(2048) // TODO make this a JSON object
+    itemId    String          @db.Uuid
+    item      node_loop_while @relation(fields: [itemId], references: [id], onDelete: Cascade)
 }
 
 // Data for routine list nodes (in addition to fields defined by node table) TODO complete
@@ -211,12 +226,6 @@ model node_routine_list_item {
     @@unique([listId, routineId], name: "node_routine_list_item_listid_routineid_unique")
 }
 
-// Data for start nodes (in addition to fields defined by node table)
-model node_start {
-    id   String @id @default(uuid()) @db.Uuid
-    node node[]
-}
-
 //==============================================================
 // #endregion
 //==============================================================
@@ -231,25 +240,25 @@ model node_start {
 //==============================================================
 
 model organization {
-    id              String               @id @default(uuid()) @db.Uuid
-    created_at      DateTime             @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime             @default(now()) @db.Timestamptz(6)
-    bio             String?              @db.VarChar(2048)
-    name            String               @db.VarChar(128)
-    openToNewMembers Boolean             @default(false)
-    stars           Int                  @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
-    comments        comment[]
-    members         organization_users[]
-    projects        project[]            @relation("project_organization_owner") // Projects the organization can contorl
-    projectsCreated project[]            @relation("project_organization_creator") // Projects the organization created, but cannot necessarily control
-    reports         report[]
-    resources       resource[]           @relation("resource_organization") // Links displayed on the organization's page
-    routines        routine[]            @relation("routine_organization_owner") // Routines the organization can control
-    routinesCreated routine[]            @relation("routine_organization_creator") // Routines the organization created, but cannot necessarily control
-    standards       standard[]
-    starredBy       star[]               @relation("star_organization")
-    tags            organization_tags[] // Categorical tags set by creators or community-voted
-    wallets         wallet[]
+    id               String               @id @default(uuid()) @db.Uuid
+    created_at       DateTime             @default(now()) @db.Timestamptz(6)
+    updated_at       DateTime             @default(now()) @db.Timestamptz(6)
+    bio              String?              @db.VarChar(2048)
+    name             String               @db.VarChar(128)
+    openToNewMembers Boolean              @default(false)
+    stars            Int                  @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    comments         comment[]
+    members          organization_users[]
+    projects         project[]            @relation("project_organization_owner") // Projects the organization can contorl
+    projectsCreated  project[]            @relation("project_organization_creator") // Projects the organization created, but cannot necessarily control
+    reports          report[]
+    resources        resource[]           @relation("resource_organization") // Links displayed on the organization's page
+    routines         routine[]            @relation("routine_organization_owner") // Routines the organization can control
+    routinesCreated  routine[]            @relation("routine_organization_creator") // Routines the organization created, but cannot necessarily control
+    standards        standard[]
+    starredBy        star[]               @relation("star_organization")
+    tags             organization_tags[] // Categorical tags set by creators or community-voted
+    wallets          wallet[]
 }
 
 // Many-to-many relationship between organizations and tags
@@ -286,31 +295,31 @@ model organization_users {
 // A project is "owned" by an organization and/or user,
 // and it can be "starred" by many users
 model project {
-    id                      String          @id @default(uuid()) @db.Uuid
-    created_at              DateTime        @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime        @default(now()) @db.Timestamptz(6)
-    description             String?         @db.VarChar(2048)
-    name                    String          @db.VarChar(128)
-    score                   Int             @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
-    stars                   Int             @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
-    createdByUserId         String?         @db.Uuid // User who created this
-    createdByOrganizationId String?         @db.Uuid // Organization who created this
-    userId                  String?         @db.Uuid // User who can edit this
-    organizationId          String?         @db.Uuid // Organization who can edit this
-    parentId                String?         @db.Uuid // Parent project, if any
-    createdByUser           user?           @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
-    createdByOrganization   organization?   @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-    user                    user?           @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
-    organization            organization?   @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+    id                      String         @id @default(uuid()) @db.Uuid
+    created_at              DateTime       @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime       @default(now()) @db.Timestamptz(6)
+    description             String?        @db.VarChar(2048)
+    name                    String         @db.VarChar(128)
+    score                   Int            @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    stars                   Int            @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    createdByUserId         String?        @db.Uuid // User who created this
+    createdByOrganizationId String?        @db.Uuid // Organization who created this
+    userId                  String?        @db.Uuid // User who can edit this
+    organizationId          String?        @db.Uuid // Organization who can edit this
+    parentId                String?        @db.Uuid // Parent project, if any
+    createdByUser           user?          @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+    createdByOrganization   organization?  @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+    user                    user?          @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+    organization            organization?  @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
     comments                comment[]
-    forks                   project[]                @relation("project_fork")
-    parent                  project?                 @relation("project_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    forks                   project[]      @relation("project_fork")
+    parent                  project?       @relation("project_fork", fields: [parentId], references: [id], onDelete: SetNull)
     reports                 report[]
-    resources               resource[]      @relation("resource_project")
+    resources               resource[]     @relation("resource_project")
     routines                routine[] // Routines created by this project
-    starredBy               star[]          @relation("star_project")
+    starredBy               star[]         @relation("star_project")
     tags                    project_tags[] // Categorical tags set by creators or community-voted
-    votes                   vote[]          @relation("vote_project")
+    votes                   vote[]         @relation("vote_project")
     wallets                 wallet[]
 }
 

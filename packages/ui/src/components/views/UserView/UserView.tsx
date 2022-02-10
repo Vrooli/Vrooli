@@ -43,6 +43,11 @@ export const UserView = ({
 
     console.log('isProfile', isProfile, id);
 
+    const onEdit = useCallback(() => {
+        // Depends on if we're in a search popup or a normal organization page
+        setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile?editing=true` : `${APP_LINKS.SearchUsers}/edit/${id}`);
+    }, [setLocation, id]);
+
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {
         // Initialize
@@ -235,7 +240,7 @@ export const UserView = ({
                                 <IconButton
                                     aria-label="Edit profile"
                                     size="small"
-                                    onClick={() => setLocation(`${APP_LINKS.Settings}?page=profile?edit=true`)}
+                                    onClick={onEdit}
                                 >
                                     <EditIcon color="primary" />
                                 </IconButton>

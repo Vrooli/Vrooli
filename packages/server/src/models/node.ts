@@ -78,16 +78,6 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
     }
 }
 
-const typeMapper = {
-    [NodeType.Combine]: 'nodeCombineId',
-    [NodeType.Decision]: 'nodeDecisionId',
-    [NodeType.End]: 'nodeEndId',
-    [NodeType.Loop]: 'nodeLoopId',
-    [NodeType.RoutineList]: 'nodeRoutineListId',
-    [NodeType.Redirect]: 'nodeRedirectId',
-    [NodeType.Start]: 'nodeStartId',
-}
-
 /**
  * Handles the authorized adding, updating, and deleting of nodes.
  */

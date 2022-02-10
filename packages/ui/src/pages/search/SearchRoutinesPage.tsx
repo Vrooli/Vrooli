@@ -57,8 +57,6 @@ export const SearchRoutinesPage = ({
 
     return (
         <>
-            {/* Invite link dialog */}
-            <ShareDialog onClose={handleSurpriseDialogClose} open={surpriseDialogOpen} />
             {/* Selected dialog */}
             <RoutineDialog
                 hasPrevious={false}

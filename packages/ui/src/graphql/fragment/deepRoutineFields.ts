@@ -84,12 +84,6 @@ export const deepRoutineFields = gql`
                     }
                 }
             }
-            ... on NodeRedirect {
-                id
-            }
-            ... on NodeStart {
-                id
-            }
         }
     }
     fragment resourceFields on Resource {

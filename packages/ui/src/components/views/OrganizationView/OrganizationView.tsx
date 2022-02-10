@@ -35,6 +35,11 @@ export const OrganizationView = ({
     const organization = useMemo(() => data?.organization, [data]);
     const isOwn: boolean = useMemo(() => true, [organization]); // TODO organization.isOwn
 
+    const onEdit = useCallback(() => {
+        // Depends on if we're in a search popup or a normal organization page
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Organization}/${id}/edit` : `${APP_LINKS.SearchOrganizations}/edit/${id}`);
+    }, [setLocation, id]);
+
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
     const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
@@ -227,7 +232,7 @@ export const OrganizationView = ({
                                 <IconButton
                                     aria-label="Edit organization"
                                     size="small"
-                                    onClick={() => setLocation(`${APP_LINKS.Organization}/${id}/edit`)}
+                                    onClick={onEdit}
                                 >
                                     <EditIcon color="primary" />
                                 </IconButton>

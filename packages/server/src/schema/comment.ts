@@ -52,6 +52,18 @@ export const typeDef = gql`
 
 export const resolvers = {
     CommentFor: CommentFor,
+    CommentedOn: {
+        __resolveType(obj: any) {
+            console.log('IN COMMENT __resolveType', obj);
+            // Only a Project has a name field
+            if (obj.hasOwnProperty('name')) return 'Project';
+            // Only a Routine has a title field
+            if (obj.hasOwnProperty('title')) return 'Routine';
+            // Only a Standard has an isFile field
+            if (obj.hasOwnProperty('isFile')) return 'Standard';
+            return null; // GraphQLError is thrown
+        },
+    },
     Mutation: {
         commentCreate: async (_parent: undefined, { input }: IWrap<CommentCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
             // Must be logged in with an account

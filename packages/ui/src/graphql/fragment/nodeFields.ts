@@ -66,12 +66,6 @@ export const nodeFields = gql`
                     }
                 }
             }
-            ... on NodeRedirect {
-                id
-            }
-            ... on NodeStart {
-                id
-            }
         }
     }
 `

@@ -90,17 +90,7 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList {
   routines: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines[];
 }
 
-export interface nodeUpdate_nodeUpdate_data_NodeRedirect {
-  __typename: "NodeRedirect";
-  id: string;
-}
-
-export interface nodeUpdate_nodeUpdate_data_NodeStart {
-  __typename: "NodeStart";
-  id: string;
-}
-
-export type nodeUpdate_nodeUpdate_data = nodeUpdate_nodeUpdate_data_NodeCombine | nodeUpdate_nodeUpdate_data_NodeDecision | nodeUpdate_nodeUpdate_data_NodeEnd | nodeUpdate_nodeUpdate_data_NodeLoop | nodeUpdate_nodeUpdate_data_NodeRoutineList | nodeUpdate_nodeUpdate_data_NodeRedirect | nodeUpdate_nodeUpdate_data_NodeStart;
+export type nodeUpdate_nodeUpdate_data = nodeUpdate_nodeUpdate_data_NodeCombine | nodeUpdate_nodeUpdate_data_NodeDecision | nodeUpdate_nodeUpdate_data_NodeEnd | nodeUpdate_nodeUpdate_data_NodeLoop | nodeUpdate_nodeUpdate_data_NodeRoutineList;
 
 export interface nodeUpdate_nodeUpdate {
   __typename: "Node";

@@ -153,6 +153,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                     ...containerShadow,
                     background: (t) => t.palette.background.paper,
                     borderRadius: '8px',
+                    overflow: 'overlay',
                 } : {}),
                 ...(loading ? {
                     minHeight: 'min(300px, 25vh)',
@@ -166,7 +167,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 {
                     loading ? (<CircularProgress color="secondary" />) : (
                         hasItems ? (
-                            <List>
+                            <List sx={{padding: 0}}>
                                 {listItems}
                             </List>
                         ) : (<Typography variant="h6" textAlign="center">No results</Typography>)

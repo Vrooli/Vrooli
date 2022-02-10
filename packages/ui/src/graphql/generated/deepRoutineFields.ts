@@ -117,17 +117,7 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList {
   routines: deepRoutineFields_nodes_data_NodeRoutineList_routines[];
 }
 
-export interface deepRoutineFields_nodes_data_NodeRedirect {
-  __typename: "NodeRedirect";
-  id: string;
-}
-
-export interface deepRoutineFields_nodes_data_NodeStart {
-  __typename: "NodeStart";
-  id: string;
-}
-
-export type deepRoutineFields_nodes_data = deepRoutineFields_nodes_data_NodeCombine | deepRoutineFields_nodes_data_NodeDecision | deepRoutineFields_nodes_data_NodeEnd | deepRoutineFields_nodes_data_NodeLoop | deepRoutineFields_nodes_data_NodeRoutineList | deepRoutineFields_nodes_data_NodeRedirect | deepRoutineFields_nodes_data_NodeStart;
+export type deepRoutineFields_nodes_data = deepRoutineFields_nodes_data_NodeCombine | deepRoutineFields_nodes_data_NodeDecision | deepRoutineFields_nodes_data_NodeEnd | deepRoutineFields_nodes_data_NodeLoop | deepRoutineFields_nodes_data_NodeRoutineList;
 
 export interface deepRoutineFields_nodes {
   __typename: "Node";

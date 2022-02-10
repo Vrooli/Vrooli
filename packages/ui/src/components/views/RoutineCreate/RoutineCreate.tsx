@@ -51,7 +51,7 @@ export const RoutineCreate = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: formatForCreate(values),
+                input: formatForCreate({ ...values, tags }),
                 onSuccess: (response) => { onCreated(response.data.routineCreate) },
                 onError: (response) => {
                     PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
