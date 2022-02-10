@@ -59,10 +59,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
         const isUpvotedArray = await prisma.vote.findMany({ where: { userId, routineId: { in: resultIds } } });
         const isStarredArray = await prisma.star.findMany({ where: { byId: userId, routineId: { in: resultIds } } });
-        console.log('isUpvotedArray', isUpvotedArray)
-        console.log('isStarredArray', isStarredArray)
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
-            console.log('ids', node.id, isUpvotedArray.map(({ routineId }) => routineId));
             const isUpvoted = isUpvotedArray.find(({ routineId }) => routineId === node.id)?.isUpvote ?? null;
             const isStarred = Boolean(isStarredArray.find(({ routineId }) => routineId === node.id));
             return { cursor, node: { ...node, isUpvoted, isStarred } };

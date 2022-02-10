@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { MemberRole } from "./globalTypes";
+
 // ====================================================
 // GraphQL fragment: organizationFields
 // ====================================================
@@ -26,4 +28,5 @@ export interface organizationFields {
   tags: organizationFields_tags[];
   stars: number;
   isStarred: boolean | null;
+  role: MemberRole | null;
 }

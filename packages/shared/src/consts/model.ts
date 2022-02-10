@@ -246,6 +246,7 @@ export const ResourceUsedFor = {
     Donation: "Donation",
     Learning: "Learning",
     OfficialWebsite: "OfficialWebsite",
+    Proposal: "Proposal",
     Related: "Related",
     Social: "Social",
     Tutorial: "Tutorial",

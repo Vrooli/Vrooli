@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput } from "./globalTypes";
+import { FindByIdInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: organization
@@ -28,6 +28,7 @@ export interface organization_organization {
   tags: organization_organization_tags[];
   stars: number;
   isStarred: boolean | null;
+  role: MemberRole | null;
 }
 
 export interface organization {

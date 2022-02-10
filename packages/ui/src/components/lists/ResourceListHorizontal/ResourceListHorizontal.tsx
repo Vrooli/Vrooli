@@ -12,6 +12,7 @@ import {
     ConnectWithoutContact as DefaultSocialIcon,
     Facebook as FacebookIcon,
     Help as TutorialIcon,
+    HowToVote as ProposalIcon,
     Info as ContextIcon,
     Instagram as InstagramIcon,
     Link as RelatedIcon,
@@ -85,6 +86,7 @@ const IconMap = {
     [ResourceUsedFor.Donation]: DonationIcon,
     [ResourceUsedFor.Learning]: LearningIcon,
     [ResourceUsedFor.OfficialWebsite]: OfficialWebsiteIcon,
+    [ResourceUsedFor.Proposal]: ProposalIcon,
     [ResourceUsedFor.Related]: RelatedIcon,
     [ResourceUsedFor.Tutorial]: TutorialIcon,
 }

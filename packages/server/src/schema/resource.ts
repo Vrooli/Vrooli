@@ -31,6 +31,7 @@ export const typeDef = gql`
         Donation
         Learning
         OfficialWebsite
+        Proposal
         Related
         Social
         Tutorial

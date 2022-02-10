@@ -31,6 +31,7 @@ const {
     SearchProjectsPage,
     SearchRoutinesPage,
     SearchStandardsPage,
+    SettingsPage,
     StandardViewPage,
     StartPage,
     StatsPage,
@@ -165,7 +166,11 @@ export const AllRoutes = (props: CommonProps) => {
                     </Page>}
                 </Route>
                 {/* =========  #endregion ========= */}
-
+                <Route path={LINKS.Settings}>
+                    <Page title={title('Settings')} {...props}>
+                        <SettingsPage session={props.session ?? {}} />
+                    </Page>
+                </Route>
                 <Route path={LINKS.Stats}>
                     <Page title={title('Stats📊')} {...props}>
                         <StatsPage />

@@ -236,6 +236,7 @@ model organization {
     updated_at      DateTime             @default(now()) @db.Timestamptz(6)
     bio             String?              @db.VarChar(2048)
     name            String               @db.VarChar(128)
+    openToNewMembers Boolean             @default(false)
     stars           Int                  @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
     comments        comment[]
     members         organization_users[]
@@ -767,6 +768,7 @@ enum ResourceUsedFor {
     Donation // e.g. Patreon link
     Learning // e.g. White Paper link
     OfficialWebsite // e.g. Website or Github link
+    Proposal // e.g. IdeaScale link
     Related // e.g. Anything that's related to the project, but doesn't fit into any of the other categories
     Social // e.g. Twitter, Facebook, Instagram
     Tutorial // e.g. Youtube video link

@@ -18,6 +18,7 @@ export const APP_LINKS = {
     SearchRoutines: '/search/routine', // Search routines
     SearchStandards: '/search/standard', // Search standards
     SearchUsers: '/search/user', // Search users
+    Settings: '/settings', // View or update settings
     Standard: '/standard', // View or update specific standard
     Start: '/start', // Provides options for entering application
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)

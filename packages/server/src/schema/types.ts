@@ -717,13 +717,13 @@ export type Organization = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isAdmin: Scalars['Boolean'];
   isStarred?: Maybe<Scalars['Boolean']>;
   members: Array<Member>;
   name: Scalars['String'];
   projects: Array<Project>;
   reports: Array<Report>;
   resources: Array<Resource>;
+  role?: Maybe<MemberRole>;
   routines: Array<Routine>;
   routinesCreated: Array<Routine>;
   starredBy: Array<User>;
@@ -1231,6 +1231,7 @@ export enum ResourceUsedFor {
   Donation = 'Donation',
   Learning = 'Learning',
   OfficialWebsite = 'OfficialWebsite',
+  Proposal = 'Proposal',
   Related = 'Related',
   Social = 'Social',
   Tutorial = 'Tutorial'

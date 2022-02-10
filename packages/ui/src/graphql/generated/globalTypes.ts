@@ -15,6 +15,12 @@ export enum CommentFor {
   User = "User",
 }
 
+export enum MemberRole {
+  Admin = "Admin",
+  Member = "Member",
+  Owner = "Owner",
+}
+
 export enum NodeType {
   Combine = "Combine",
   Decision = "Decision",
@@ -86,6 +92,7 @@ export enum ResourceUsedFor {
   Donation = "Donation",
   Learning = "Learning",
   OfficialWebsite = "OfficialWebsite",
+  Proposal = "Proposal",
   Related = "Related",
   Social = "Social",
   Tutorial = "Tutorial",

@@ -15,7 +15,7 @@ import { TagModel } from "./tag";
 /**
  * Handles the authorized adding, updating, and deleting of organizations.
  */
- const organizationer = (format: FormatConverter<Organization, organization>, sort: Sortable<OrganizationSortBy>, prisma: PrismaType) => ({
+const organizationer = (format: FormatConverter<Organization, organization>, sort: Sortable<OrganizationSortBy>, prisma: PrismaType) => ({
     async find(
         userId: string | null | undefined, // Of the user making the request, not the organization
         input: FindByIdInput,
@@ -30,8 +30,8 @@ import { TagModel } from "./tag";
         if (!userId) return { ...format.toGraphQL(organization), isStarred: false };
         const star = await prisma.star.findFirst({ where: { byId: userId, organizationId: organization.id } });
         const isStarred = Boolean(star) ?? false;
-        const isAdmin = await this.isOwnerOrAdmin(userId, organization.id);
-        return { ...format.toGraphQL(organization), isStarred, isAdmin };
+        const role = await this.getRole(userId, organization.id);
+        return { ...format.toGraphQL(organization), isStarred, role: role as any };
     },
     async search(
         where: { [x: string]: any },
@@ -39,6 +39,7 @@ import { TagModel } from "./tag";
         input: OrganizationSearchInput,
         info: InfoType = null,
     ): Promise<PaginatedSearchResult> {
+        console.log('search organizations', input)
         // Many-to-many search queries
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
         // One-to-many search queries
@@ -46,28 +47,33 @@ import { TagModel } from "./tag";
         const userIdQuery = input.userId ? { members: { some: { id: input.userId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
+        console.log('user query', userIdQuery)
         // Search
         const search = searcher<OrganizationSortBy, OrganizationSearchInput, Organization, organization>(MODEL_TYPES.Organization, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...projectIdQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...where }, input, info);
         // Compute "isStarred" fields for each organization
         // If userId not provided, then "isStarred" is false
         if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isStarred: false, isAdmin: false } }));
+            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isStarred: false } }));
             return searchResults;
         }
         // Otherwise, query votes for all search results in one query
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
         const isStarredArray = await prisma.star.findMany({ where: { byId: userId, organizationId: { in: resultIds } } });
-        const isAdminArray = await prisma.organization_users.findMany({ where: { 
-            organizationId: { in: resultIds },
-            user: { id: userId },
-            role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
-        } });
-        console.log('isStarredArray', isStarredArray);
+        const roleArray = await prisma.organization_users.findMany({
+            where: {
+                organizationId: { in: resultIds },
+                user: { id: userId },
+            },
+            select: {
+                organizationId: true,
+                role: true,
+            }
+        });
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
-            const isStarred = Boolean(isStarredArray.find(({ organizationId }) => organizationId === node.id));   
-            const isAdmin = Boolean(isAdminArray.find(({ organizationId }) => organizationId === node.id));
-            return { cursor, node: { ...node, isStarred, isAdmin } };
+            const isStarred = Boolean(isStarredArray.find(({ organizationId }) => organizationId === node.id));
+            const role: MemberRole | undefined = roleArray.find(({ organizationId }) => organizationId === node.id)?.role;
+            return { cursor, node: { ...node, isStarred, role } };
         });
         return searchResults;
     },
@@ -81,11 +87,11 @@ import { TagModel } from "./tag";
         // Check for censored words
         if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
-        let organizationData: { [x: string]: any } = { 
-            name: input.name, 
-            bio: input.bio ,
+        let organizationData: { [x: string]: any } = {
+            name: input.name,
+            bio: input.bio,
             // Add user as member
-            members: { create: { role: MemberRole.Owner, user: { connect: { id: userId }} } },
+            members: { create: { role: MemberRole.Owner, user: { connect: { id: userId } } } },
             // Handle resources
             resources: ResourceModel(prisma).relationshipBuilder(userId, input, true),
             // Handle tags
@@ -99,7 +105,7 @@ import { TagModel } from "./tag";
         console.log('organization here', organization);
         console.log('tags', (organization as any).tags[0]);
         // Return organization with "isStarred" field. This will be its default values.
-        return { ...format.toGraphQL(organization), isStarred: false, isAdmin: true };
+        return { ...format.toGraphQL(organization), isStarred: false, role: MemberRole.Owner as any };
     },
     async update(
         userId: string,
@@ -111,8 +117,8 @@ import { TagModel } from "./tag";
         // Check for censored words
         if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create organization data
-        let organizationData: { [x: string]: any } = { 
-            name: input.name, 
+        let organizationData: { [x: string]: any } = {
+            name: input.name,
             bio: input.bio,
             // Handle resources
             resources: ResourceModel(prisma).relationshipBuilder(userId, input, false),
@@ -142,7 +148,8 @@ import { TagModel } from "./tag";
         // Return organization with "isStarred" field. This must be queried separately.
         const star = await prisma.star.findFirst({ where: { byId: userId, organizationId: organization.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...format.toGraphQL(organization), isStarred, isAdmin: true };
+        const role = await this.getRole(userId, organization.id);
+        return { ...format.toGraphQL(organization), isStarred, role: role as any };
     },
     async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Make sure the user is an admin of this organization
@@ -153,8 +160,20 @@ import { TagModel } from "./tag";
         })
         return { success: true };
     },
-    async isOwnerOrAdmin (userId: string, organizationId: string): Promise<boolean> {
-        const memberData = await prisma.organization_users.findFirst({ 
+    async getRole(userId: string, organizationId: string): Promise<MemberRole | undefined> {
+        const memberData = await prisma.organization_users.findFirst({
+            where: {
+                organization: { id: organizationId },
+                user: { id: userId },
+            },
+            select: {
+                role: true,
+            }
+        });
+        return memberData?.role
+    },
+    async isOwnerOrAdmin(userId: string, organizationId: string): Promise<boolean> {
+        const memberData = await prisma.organization_users.findFirst({
             where: {
                 organization: { id: organizationId },
                 user: { id: userId },
@@ -168,7 +187,7 @@ import { TagModel } from "./tag";
 /**
  * Component for formatting between graphql and prisma types
  */
- export const organizationFormatter = (): FormatConverter<Organization, organization> => {
+export const organizationFormatter = (): FormatConverter<Organization, organization> => {
     const joinMapper = {
         projects: 'project',
         starredBy: 'user',
@@ -184,8 +203,9 @@ import { TagModel } from "./tag";
             console.log('add join tables', modified);
             modified = addCountQueries(modified, countMapper);
             console.log('add count queries', modified);
-            // Remove isStarred, as it is calculated in its own query
-            if (modified.isStarred) delete modified.isStarred;
+            // Remove isStarred and role, as they are calculated in its own query
+            delete modified.isStarred;
+            delete modified.role;
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<organization>): RecursivePartial<Organization> => {

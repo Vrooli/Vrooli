@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationSearchInput } from "./globalTypes";
+import { OrganizationSearchInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: organizations
@@ -34,6 +34,7 @@ export interface organizations_organizations_edges_node {
   tags: organizations_organizations_edges_node_tags[];
   stars: number;
   isStarred: boolean | null;
+  role: MemberRole | null;
 }
 
 export interface organizations_organizations_edges {

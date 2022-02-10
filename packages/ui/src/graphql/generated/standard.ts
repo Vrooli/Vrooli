@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, StandardType } from "./globalTypes";
+import { FindByIdInput, StandardType, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standard
@@ -38,6 +38,7 @@ export interface standard_standard_creator_Organization {
   tags: standard_standard_creator_Organization_tags[];
   stars: number;
   isStarred: boolean | null;
+  role: MemberRole | null;
 }
 
 export interface standard_standard_creator_User {

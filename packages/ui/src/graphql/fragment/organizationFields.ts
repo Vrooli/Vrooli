@@ -16,5 +16,6 @@ export const organizationFields = gql`
         }
         stars
         isStarred
+        role
     }
 `

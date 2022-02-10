@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationUpdateInput } from "./globalTypes";
+import { OrganizationUpdateInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: organizationUpdate
@@ -28,6 +28,7 @@ export interface organizationUpdate_organizationUpdate {
   tags: organizationUpdate_organizationUpdate_tags[];
   stars: number;
   isStarred: boolean | null;
+  role: MemberRole | null;
 }
 
 export interface organizationUpdate {

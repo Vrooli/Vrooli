@@ -15,14 +15,19 @@ import {
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
-import { TagSelector } from "components";
+import { TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { Organization } from "types";
 
 export const ProjectCreate = ({
     session,
     onCreated,
     onCancel,
 }: ProjectCreateProps) => {
+    // Handle user/organization switch
+    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
+    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
     const addTag = useCallback((tag: TagSelectorTag) => {
@@ -61,7 +66,7 @@ export const ProjectCreate = ({
     const actions: DialogActionItem[] = useMemo(() => {
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
         return [
-            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting || !formik.isValid), true, () => {}],
+            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting || !formik.isValid), true, () => { }],
             ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
         ] as DialogActionItem[]
     }, [formik, onCancel, session]);
@@ -73,6 +78,9 @@ export const ProjectCreate = ({
     return (
         <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
             <Grid container spacing={2} sx={{ padding: 2 }}>
+                <Grid item xs={12}>
+                    <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+                </Grid>
                 <Grid item xs={12}>
                     <TextField
                         fullWidth

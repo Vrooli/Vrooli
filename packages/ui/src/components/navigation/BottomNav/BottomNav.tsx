@@ -33,7 +33,7 @@ export const BottomNav = ({
     const classes = useStyles();
 
     let actions = actionsToBottomNav({
-        actions: getUserActions({ userRoles, exclude: [ACTION_TAGS.LogOut] }),
+        actions: getUserActions({ userRoles, exclude: [ACTION_TAGS.Settings] }),
         setLocation,
         classes: { root: classes.icon }
     });

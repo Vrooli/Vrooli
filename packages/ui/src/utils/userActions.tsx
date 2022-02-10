@@ -1,16 +1,14 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
 import {
     AccountCircle as ProfileIcon,
-    ExitToApp as LogOutIcon,
     Home as HomeIcon,
     PersonAdd as RegisterIcon,
     Handyman as DevelopIcon,
     School as LearnIcon,
     Science as ResearchIcon,
+    Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { APP_LINKS as LINKS } from '@local/shared';
-import { initializeApollo } from 'graphql/utils/initialize';
-import { logOutMutation } from 'graphql/mutation';
 import {
     Badge,
     BottomNavigationAction,
@@ -31,8 +29,8 @@ export const ACTION_TAGS = {
     Research: 'research',
     Develop: 'develop',
     Profile: 'profile',
+    Settings: 'settings',
     LogIn: 'logIn',
-    LogOut: 'logOut',
 }
 export type ACTION_TAGS = ValueOf<typeof ACTION_TAGS>;
 
@@ -66,13 +64,7 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
     } else {
         actions.push(
             ['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0],
-            ['Log Out', ACTION_TAGS.LogOut, LINKS.Home, async () => { 
-                PubSub.publish(Pubs.Loading, 1000);
-                const client = initializeApollo(); 
-                await client.mutate({ mutation: logOutMutation });
-                PubSub.publish(Pubs.Loading, false);
-                PubSub.publish(Pubs.LogOut);
-            }, LogOutIcon, 0]
+            ['Settings', ACTION_TAGS.Settings, LINKS.Settings, null, SettingsIcon, 0],
         );
     }
 

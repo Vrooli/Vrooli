@@ -1,6 +1,6 @@
-import { InputProps, SelectProps } from '@mui/material';
+import { InputProps, SelectProps, UseSwitchProps } from '@mui/material';
 import { ChangeEvent } from 'react';
-import { Session, Tag } from 'types';
+import { Organization, Session, Tag } from 'types';
 
 export interface DropzoneProps {
     acceptedFileTypes?: string[];
@@ -63,4 +63,11 @@ export interface TagSelectorProps {
     onTagAdd: (tag: TagSelectorTag) => any;
     onTagRemove: (tag: TagSelectorTag) => any;
     onTagsClear: () => any;
+}
+
+export interface UserOrganizationSwitchProps extends UseSwitchProps {
+    session: Session;
+    selected: Organization | null;
+    onChange: (value: Organization | null) => any;
+    disabled?: boolean;
 }

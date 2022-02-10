@@ -28,24 +28,6 @@ import { BaseObjectAction } from "components/dialogs/types";
 
 const tabLabels = ['Resources', 'Organizations', 'Projects', 'Routines', 'Standards'];
 
-// All available actions
-enum Actions {
-    Delete = "Delete",
-    Donate = "Donate",
-    Report = "Report",
-    Share = "Share",
-    Star = "Star",
-    Unstar = "Unstar",
-}
-const allOptionsMap: { [x: string]: [string, SvgIconComponent, string] } = ({
-    [Actions.Star]: ['Favorite', StarOutlineIcon, "#cbae30"],
-    [Actions.Unstar]: ['Unfavorite', StarFilledIcon, "#cbae30"],
-    [Actions.Donate]: ['Donate', DonateIcon, "default"],
-    [Actions.Share]: ['Share', ShareIcon, "default"],
-    [Actions.Report]: ['Report', ReportIcon, "default"],
-    [Actions.Delete]: ['Delete', DeleteForeverIcon, "default"],
-})
-
 export const UserView = ({
     session,
     partialData,

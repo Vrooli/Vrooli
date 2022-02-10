@@ -158,10 +158,8 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         // Otherwise, query votes for all search results in one query
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
         const isStarredArray = await prisma.star.findMany({ where: { byId: userId, tagId: { in: resultIds } } });
-        console.log('isStarredArray', isStarredArray);
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
             const isStarred = Boolean(isStarredArray.find(({ tagId }) => tagId === node.id));
-            console.log('isStarred', isStarred,);
             return { cursor, node: { ...node, isStarred } };
         });
         return searchResults;
