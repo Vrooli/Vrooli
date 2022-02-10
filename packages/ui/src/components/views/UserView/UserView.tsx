@@ -172,7 +172,6 @@ export const UserView = ({
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const moreMenuId = useMemo(() => `user-options-menu-${user?.id}`, [user]);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
         setMoreMenuAnchor(ev.currentTarget);
         ev.preventDefault();

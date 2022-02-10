@@ -6,9 +6,6 @@ import { useCallback } from 'react';
 import { APP_LINKS, RoutineSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from '..';
-import { useMutation } from '@apollo/client';
-import { voteMutation } from 'graphql/mutation';
-import { vote } from 'graphql/generated/vote';
 import { LabelledSortOption, labelledSortOptions } from 'utils';
 import { Routine } from 'types';
 
@@ -20,7 +17,6 @@ export function RoutineListItem({
     onClick,
 }: RoutineListItemProps) {
     const [, setLocation] = useLocation();
-    const [vote] = useMutation<vote>(voteMutation);
 
     const handleClick = useCallback(() => {
         // If onClick provided, call if
@@ -28,21 +24,6 @@ export function RoutineListItem({
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Routine}/${data.id}`)
     }, [onClick, data, setLocation]);
-
-    const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        // Send vote mutation
-        vote({
-            variables: {
-                input: {
-                    isUpvote,
-                    voteFor: VoteFor.Project,
-                    forId: data.id
-                }
-            }
-        });
-    }, [data.id, vote]);
 
     return (
         <Tooltip placement="top" title="View details">
@@ -57,9 +38,11 @@ export function RoutineListItem({
                 <ListItemButton component="div" onClick={handleClick}>
                     <UpvoteDownvote
                         session={session}
-                        score={data.score}
+                        objectId={data.id ?? ''}
+                        voteFor={VoteFor.Routine}
                         isUpvoted={data.isUpvoted}
-                        onVote={handleVote}
+                        score={data.score}
+                        onChange={(isUpvoted: boolean | null) => { }}
                     />
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         <ListItemText

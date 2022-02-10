@@ -6,9 +6,6 @@ import { useCallback } from 'react';
 import { APP_LINKS, ProjectSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from 'components';
-import { voteMutation } from 'graphql/mutation';
-import { vote } from 'graphql/generated/vote';
-import { useMutation } from '@apollo/client';
 import { LabelledSortOption, labelledSortOptions } from 'utils';
 import { Project } from 'types';
 
@@ -20,7 +17,6 @@ export function ProjectListItem({
     onClick,
 }: ProjectListItemProps) {
     const [, setLocation] = useLocation();
-    const [vote] = useMutation<vote>(voteMutation);
     console.log('projectlistitem', data);
 
     const handleClick = useCallback(() => {
@@ -29,21 +25,6 @@ export function ProjectListItem({
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Project}/${data.id}`)
     }, [onClick, setLocation, data]);
-
-    const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        // Send vote mutation
-        vote({
-            variables: {
-                input: {
-                    isUpvote,
-                    voteFor: VoteFor.Project,
-                    forId: data.id
-                }
-            }
-        });
-    }, [data.id, vote]);
 
     return (
         <Tooltip placement="top" title="View details">
@@ -58,9 +39,11 @@ export function ProjectListItem({
                 <ListItemButton component="div" onClick={handleClick}>
                     <UpvoteDownvote
                         session={session}
-                        score={data.score}
+                        objectId={data.id ?? ''}
+                        voteFor={VoteFor.Project}
                         isUpvoted={data.isUpvoted}
-                        onVote={handleVote}
+                        score={data.score}
+                        onChange={(isUpvoted: boolean | null) => { }}
                     />
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         <ListItemText

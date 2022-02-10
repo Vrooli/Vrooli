@@ -1,4 +1,8 @@
+import { useMutation } from '@apollo/client';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
+import { vote } from 'graphql/generated/vote';
+import { voteMutation } from 'graphql/mutation';
+import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UpvoteDownvoteProps } from '../types';
 
@@ -6,7 +10,9 @@ export const UpvoteDownvote = ({
     session,
     score,
     isUpvoted,
-    onVote,
+    objectId,
+    voteFor,
+    onChange,
 }: UpvoteDownvoteProps) => {
     // Used to respond to user clicks immediately, without having 
     // to wait for the mutation to complete
@@ -26,21 +32,33 @@ export const UpvoteDownvote = ({
         return scoreNum;
     }, [internalIsUpvoted, isUpvoted, score]);
 
+    const [mutation] = useMutation<vote>(voteMutation);
+    const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
+        // Prevent propagation of normal click event
+        e.stopPropagation();
+        // Send vote mutation
+        mutationWrapper({
+            mutation,
+            input: { isUpvote, voteFor, forId: objectId },
+            onSuccess: (response) => { onChange(response.data.vote) },
+        })
+    }, [objectId, voteFor]);
+
     const handleUpvoteClick = useCallback((event: any) => {
         if (!session.id) return;
         // If already upvoted, cancel the vote
         const vote = internalIsUpvoted === true ? null : true;
         setInternalIsUpvoted(vote);
-        onVote(event, vote);
-    }, [internalIsUpvoted, session.id, onVote]);
+        handleVote(event, vote);
+    }, [session.id, internalIsUpvoted, handleVote]);
 
     const handleDownvoteClick = useCallback((event: any) => {
         if (!session.id) return;
         // If already downvoted, cancel the vote
         const vote = internalIsUpvoted === false ? null : false;
         setInternalIsUpvoted(vote);
-        onVote(event, vote);
-    }, [internalIsUpvoted, session.id, onVote]);
+        handleVote(event, vote);
+    }, [session.id, internalIsUpvoted, handleVote]);
 
     const upvoteColor = useMemo(() => {
         if (!session.id) return "rgb(189 189 189)";

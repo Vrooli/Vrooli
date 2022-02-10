@@ -1,44 +1,24 @@
-import { Box, Grid, IconButton, Stack, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
-import { useQuery, useLazyQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { standard, standard_standard_creator_Organization, standard_standard_creator_User } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
-    ReportProblem as ReportIcon,
     Share as ShareIcon,
-    Star as StarIcon,
     StarOutline as StarOutlineIcon,
-    SvgIconComponent
 } from "@mui/icons-material";
-import { ListMenu, SearchBar } from "components";
-import { ListMenuItemData } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { StandardViewProps } from "../types";
-import { users, usersVariables } from "graphql/generated/users";
-import { organizations, organizationsVariables } from "graphql/generated/organizations";
-
-enum Actions {
-    Report = "Report",
-    Share = "Share",
-    Star = "Star",
-}
-const moreOptionsMap: { [x: string]: [string, SvgIconComponent] } = ({
-    [Actions.Star]: ['Favorite', StarOutlineIcon],
-    [Actions.Share]: ['Share', ShareIcon],
-    [Actions.Report]: ['Delete', ReportIcon],
-})
-const moreOptions: ListMenuItemData<string>[] = Object.keys(moreOptionsMap).map(o => ({
-    label: moreOptionsMap[o][0],
-    value: o,
-    Icon: moreOptionsMap[o][1]
-}));
+import { BaseObjectActionDialog } from "components";
+import { BaseObjectAction } from "components/dialogs/types";
 
 export const StandardView = ({
+    session,
     partialData,
 }: StandardViewProps) => {
     const [, setLocation] = useLocation();
@@ -49,27 +29,7 @@ export const StandardView = ({
     // Fetch data
     const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id } } });
     const standard = useMemo(() => data?.standard, [data]);
-
-    // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const moreMenuId = useMemo(() => `standard-options-menu-${standard?.id}`, [standard]);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
-        setMoreMenuAnchor(ev.currentTarget);
-        ev.preventDefault();
-    }, []);
-    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-    const onMoreMenuSelect = useCallback((value: string) => {
-        console.log('onMoreMenuSelect', value);
-        switch (value) {
-            case Actions.Star:
-                break;
-            case Actions.Share:
-                break;
-            case Actions.Report:
-                break;
-        }
-        closeMoreMenu();
-    }, [closeMoreMenu]);
+    const isOwn: boolean = useMemo(() => true, [standard]); // TODO standard.isOwn
 
     const contributedBy = useMemo(() => {
         if (!standard || !standard.creator) return null;
@@ -145,18 +105,47 @@ export const StandardView = ({
         </Box>
     ), [standard])
 
+    // Determine options available to object, in order
+    const moreOptions: BaseObjectAction[] = useMemo(() => {
+        // Initialize
+        let options: BaseObjectAction[] = [];
+        if (standard && session && !isOwn) {
+            options.push(standard.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
+            options.push(standard.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
+            options.push(BaseObjectAction.Copy);
+        }
+        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
+        if (session?.id) {
+            options.push(BaseObjectAction.Report);
+        }
+        if (isOwn) {
+            options.push(BaseObjectAction.Delete);
+        }
+        return options;
+    }, [standard, isOwn, session]);
+
+    // More menu
+    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
+    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
+        setMoreMenuAnchor(ev.currentTarget);
+        ev.preventDefault();
+    }, []);
+    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
+
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ListMenu
-                id={moreMenuId}
+            <BaseObjectActionDialog
+                objectId={id}
+                objectType={'Standard'}
                 anchorEl={moreMenuAnchor}
-                title='Standard options'
-                data={moreOptions}
-                onSelect={onMoreMenuSelect}
+                title='Standard Options'
+                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
             />
-            {overviewComponent}
+            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+                {overviewComponent}
+            </Box>
         </>
     )
 }

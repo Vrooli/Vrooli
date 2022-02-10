@@ -1,61 +1,30 @@
 import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, StarFor, VoteFor } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
+import { APP_LINKS, StarFor } from "@local/shared";
+import { useQuery } from "@apollo/client";
 import { project } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
-    DeleteForever as DeleteForeverIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
-    ReportProblem as ReportIcon,
     Share as ShareIcon,
-    Star as StarFilledIcon,
-    StarOutline as StarOutlineIcon,
-    SvgIconComponent,
-    ThumbUp as UpvoteIcon,
-    ThumbDown as DownvoteIcon,
 } from "@mui/icons-material";
-import { ListMenu, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { LabelledSortOption } from "utils";
 import { Routine, Standard } from "types";
-import { voteMutation } from "graphql/mutation";
-import { vote } from "graphql/generated/vote";
+import { BaseObjectAction } from "components/dialogs/types";
 
 const tabLabels = ['Resources', 'Routines', 'Standards'];
-
-// All available actions
-enum Actions {
-    Delete = "Delete",
-    Donate = "Donate",
-    Downvote = "Downvote",
-    Report = "Report",
-    Share = "Share",
-    Star = "Star",
-    Unstar = "Unstar",
-    Upvote = "Upvote",
-}
-const allOptionsMap: { [x: string]: [string, SvgIconComponent, string] } = ({
-    [Actions.Upvote]: ["Upvote", UpvoteIcon, "#34c38b"],
-    [Actions.Downvote]: ["Downvote", DownvoteIcon, "#af2929"],
-    [Actions.Star]: ['Favorite', StarOutlineIcon, "#cbae30"],
-    [Actions.Unstar]: ['Unfavorite', StarFilledIcon, "#cbae30"],
-    [Actions.Donate]: ['Donate', DonateIcon, "default"],
-    [Actions.Share]: ['Share', ShareIcon, "default"],
-    [Actions.Report]: ['Report', ReportIcon, "default"],
-    [Actions.Delete]: ['Delete', DeleteForeverIcon, "default"],
-})
 
 export const ProjectView = ({
     session,
     partialData,
 }: ProjectViewProps) => {
-    const [vote] = useMutation<vote>(voteMutation);
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Project}/:id`);
@@ -66,45 +35,31 @@ export const ProjectView = ({
     const project = useMemo(() => data?.project, [data]);
     const isOwn: boolean = useMemo(() => true, [project]); // TODO project.isOwn
 
-    // Vote object
-    const handleVote = useCallback((e: any, isUpvote: boolean | null) => {
-        // Prevent propagation of normal click event
-        e.stopPropagation();
-        // Send vote mutation
-        vote({
-            variables: {
-                input: {
-                    isUpvote,
-                    voteFor: VoteFor.Project,
-                    forId: project?.id ?? ''
-                }
-            }
-        });
-    }, [project?.id, vote]);
-
     // Determine options available to object, in order
-    const moreOptions = useMemo(() => {
+    const moreOptions: BaseObjectAction[] = useMemo(() => {
         // Initialize
-        let options: [string, SvgIconComponent, string][] = [];
+        let options: BaseObjectAction[] = [];
         if (project && session && !isOwn) {
-            options.push(project.isUpvoted ? allOptionsMap[Actions.Downvote] : allOptionsMap[Actions.Upvote]);
-            options.push(project.isStarred ? allOptionsMap[Actions.Unstar] : allOptionsMap[Actions.Star]);
+            options.push(project.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
+            options.push(project.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
         }
-        options.push(allOptionsMap[Actions.Donate], allOptionsMap[Actions.Share])
+        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
         if (session?.id) {
-            options.push(allOptionsMap[Actions.Report]);
+            options.push(BaseObjectAction.Report);
         }
         if (isOwn) {
-            options.push(allOptionsMap[Actions.Delete]);
+            options.push(BaseObjectAction.Delete);
         }
-        // Convert options to ListMenuItemData
-        return options.map(o => ({
-            label: o[0],
-            value: o[0],
-            Icon: o[1],
-            iconColor: o[2],
-        }));
-    }, [session, project])
+        return options;
+    }, [project, isOwn, session]);
+
+    // More menu
+    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
+    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
+        setMoreMenuAnchor(ev.currentTarget);
+        ev.preventDefault();
+    }, []);
+    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -179,29 +134,6 @@ export const ProjectView = ({
     useEffect(() => {
         setSortBy(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
     }, [defaultSortOption, sortOptions]);
-
-    // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const moreMenuId = useMemo(() => `project-options-menu-${project?.id}`, [project]);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
-        setMoreMenuAnchor(ev.currentTarget);
-        ev.preventDefault();
-    }, []);
-    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-    const onMoreMenuSelect = useCallback((value: string) => {
-        console.log('onMoreMenuSelect', value);
-        switch (value) {
-            case Actions.Star:
-                break;
-            case Actions.Share:
-                break;
-            case Actions.Donate:
-                break;
-            case Actions.Report:
-                break;
-        }
-        closeMoreMenu();
-    }, [closeMoreMenu]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -303,12 +235,12 @@ export const ProjectView = ({
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ListMenu
-                id={moreMenuId}
+            <BaseObjectActionDialog
+                objectId={id}
+                objectType={'Project'}
                 anchorEl={moreMenuAnchor}
                 title='Project Options'
-                data={moreOptions}
-                onSelect={onMoreMenuSelect}
+                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
             />
             <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>

@@ -1,47 +1,25 @@
 import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, StarFor } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { organization } from "graphql/generated/organization";
 import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
-    DeleteForever as DeleteForeverIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
-    ReportProblem as ReportIcon,
     Share as ShareIcon,
-    Star as StarFilledIcon,
-    StarOutline as StarOutlineIcon,
-    SvgIconComponent
 } from "@mui/icons-material";
-import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, ListMenu, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, BaseObjectActionDialog, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { LabelledSortOption } from "utils";
 import { User, Project, Routine, Standard } from "types";
+import { BaseObjectAction } from "components/dialogs/types";
 
 const tabLabels = ['Resources', 'Members', 'Projects', 'Routines', 'Standards'];
-
-// All available actions
-enum Actions {
-    Delete = "Delete",
-    Donate = "Donate",
-    Report = "Report",
-    Share = "Share",
-    Star = "Star",
-    Unstar = "Unstar",
-}
-const allOptionsMap: { [x: string]: [string, SvgIconComponent, string] } = ({
-    [Actions.Star]: ['Favorite', StarOutlineIcon, "#cbae30"],
-    [Actions.Unstar]: ['Unfavorite', StarFilledIcon, "#cbae30"],
-    [Actions.Donate]: ['Donate', DonateIcon, "default"],
-    [Actions.Share]: ['Share', ShareIcon, "default"],
-    [Actions.Report]: ['Report', ReportIcon, "default"],
-    [Actions.Delete]: ['Delete', DeleteForeverIcon, "default"],
-})
 
 export const OrganizationView = ({
     session,
@@ -56,29 +34,6 @@ export const OrganizationView = ({
     const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });
     const organization = useMemo(() => data?.organization, [data]);
     const isOwn: boolean = useMemo(() => true, [organization]); // TODO organization.isOwn
-
-    // Determine options available to object, in order
-    const moreOptions = useMemo(() => {
-        // Initialize
-        let options: [string, SvgIconComponent, string][] = [];
-        if (organization && session && !isOwn) {
-            options.push(organization.isStarred ? allOptionsMap[Actions.Unstar] : allOptionsMap[Actions.Star]);
-        }
-        options.push(allOptionsMap[Actions.Donate], allOptionsMap[Actions.Share])
-        if (session?.id) {
-            options.push(allOptionsMap[Actions.Report]);
-        }
-        if (isOwn) {
-            options.push(allOptionsMap[Actions.Delete]);
-        }
-        // Convert options to ListMenuItemData
-        return options.map(o => ({
-            label: o[0],
-            value: o[0],
-            Icon: o[1],
-            iconColor: o[2],
-        }));
-    }, [session, organization])
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -190,28 +145,30 @@ export const OrganizationView = ({
         setSortBy(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
     }, [defaultSortOption, sortOptions]);
 
+    // Determine options available to object, in order
+    const moreOptions: BaseObjectAction[] = useMemo(() => {
+        // Initialize
+        let options: BaseObjectAction[] = [];
+        if (organization && session && !isOwn) {
+            options.push(organization.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
+        }
+        options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
+        if (session?.id) {
+            options.push(BaseObjectAction.Report);
+        }
+        if (isOwn) {
+            options.push(BaseObjectAction.Delete);
+        }
+        return options;
+    }, [organization, isOwn, session]);
+
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const moreMenuId = useMemo(() => `organization-options-menu-${organization?.id}`, [organization]);
     const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
         setMoreMenuAnchor(ev.currentTarget);
         ev.preventDefault();
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-    const onMoreMenuSelect = useCallback((value: string) => {
-        console.log('onMoreMenuSelect', value);
-        switch (value) {
-            case Actions.Star:
-                break;
-            case Actions.Share:
-                break;
-            case Actions.Donate:
-                break;
-            case Actions.Report:
-                break;
-        }
-        closeMoreMenu();
-    }, [closeMoreMenu]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -313,12 +270,12 @@ export const OrganizationView = ({
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ListMenu
-                id={moreMenuId}
+            <BaseObjectActionDialog
+                objectId={id}
+                objectType={'Organization'}
                 anchorEl={moreMenuAnchor}
                 title='Organization Options'
-                data={moreOptions}
-                onSelect={onMoreMenuSelect}
+                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
             />
             <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>

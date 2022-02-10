@@ -1,4 +1,4 @@
-import { StarFor } from '@local/shared';
+import { StarFor, VoteFor } from '@local/shared';
 import { Organization, Project, Resource, Routine, Session, Standard, Tag, User } from 'types';
 
 export interface ObjectListItemProps {
@@ -75,7 +75,9 @@ export interface UpvoteDownvoteProps {
     session: Session;
     score?: number; // Net score - can be negative
     isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
-    onVote: (event: any, isUpvote: boolean | null) => void;
+    objectId: string;
+    voteFor: VoteFor;
+    onChange: (isUpvote: boolean | null) => void;
 }
 
 export interface StarButtonProps {

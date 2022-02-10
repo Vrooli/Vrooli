@@ -9,36 +9,18 @@ import {
     CardGiftcard as DonateIcon,
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
-    ReportProblem as ReportIcon,
     Share as ShareIcon,
-    Star as StarIcon,
     StarOutline as StarOutlineIcon,
-    SvgIconComponent
 } from "@mui/icons-material";
-import { ListMenu, SearchBar } from "components";
-import { ListMenuItemData } from "components/dialogs/types";
+import { BaseObjectActionDialog, SearchBar } from "components";
+import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { RoutineViewProps } from "../types";
 import { users, usersVariables } from "graphql/generated/users";
 import { organizations, organizationsVariables } from "graphql/generated/organizations";
 
-enum Actions {
-    Report = "Report",
-    Share = "Share",
-    Star = "Star",
-}
-const moreOptionsMap: { [x: string]: [string, SvgIconComponent] } = ({
-    [Actions.Star]: ['Favorite', StarOutlineIcon],
-    [Actions.Share]: ['Share', ShareIcon],
-    [Actions.Report]: ['Delete', ReportIcon],
-})
-const moreOptions: ListMenuItemData<string>[] = Object.keys(moreOptionsMap).map(o => ({
-    label: moreOptionsMap[o][0],
-    value: o,
-    Icon: moreOptionsMap[o][1]
-}));
-
 export const RoutineView = ({
+    session,
     partialData,
 }: RoutineViewProps) => {
     const [, setLocation] = useLocation();
@@ -49,6 +31,7 @@ export const RoutineView = ({
     // Fetch data
     const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const routine = useMemo(() => data?.routine, [data]);
+    const isOwn: boolean = useMemo(() => true, [routine]); // TODO routine.isOwn
 
     const [searchString, setSearchString] = useState<string>('');
     const updateSearch = useCallback((newValue: any) => setSearchString(newValue), []);
@@ -63,27 +46,6 @@ export const RoutineView = ({
     const organizationsSearchData = useMemo(() => organizationsData?.organizations ?? [], [organizationsData]);
     const onUserSelect = (_e, newValue) => setLocation(`${APP_LINKS.User}/${newValue.id}`);
     const onOrganizationSelect = (_e, newValue) => setLocation(`${APP_LINKS.Organization}/${newValue.id}`);
-
-    // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const moreMenuId = useMemo(() => `routine-options-menu-${routine?.id}`, [routine]);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
-        setMoreMenuAnchor(ev.currentTarget);
-        ev.preventDefault();
-    }, []);
-    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-    const onMoreMenuSelect = useCallback((value: string) => {
-        console.log('onMoreMenuSelect', value);
-        switch (value) {
-            case Actions.Star:
-                break;
-            case Actions.Share:
-                break;
-            case Actions.Report:
-                break;
-        }
-        closeMoreMenu();
-    }, [closeMoreMenu]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -149,18 +111,47 @@ export const RoutineView = ({
         </Box>
     ), [routine])
 
+        // Determine options available to object, in order
+        const moreOptions: BaseObjectAction[] = useMemo(() => {
+            // Initialize
+            let options: BaseObjectAction[] = [];
+            if (routine && session && !isOwn) {
+                options.push(routine.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
+                options.push(routine.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
+                options.push(BaseObjectAction.Fork);
+            }
+            options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
+            if (session?.id) {
+                options.push(BaseObjectAction.Report);
+            }
+            if (isOwn) {
+                options.push(BaseObjectAction.Delete);
+            }
+            return options;
+        }, [routine, isOwn, session]);
+    
+        // More menu
+        const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
+        const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
+            setMoreMenuAnchor(ev.currentTarget);
+            ev.preventDefault();
+        }, []);
+        const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
+
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ListMenu
-                id={moreMenuId}
+            <BaseObjectActionDialog
+                objectId={id}
+                objectType={'Routine'}
                 anchorEl={moreMenuAnchor}
-                title='Routine options'
-                data={moreOptions}
-                onSelect={onMoreMenuSelect}
+                title='Routine Options'
+                availableOptions={moreOptions}
                 onClose={closeMoreMenu}
             />
-            {overviewComponent}
+            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+                {overviewComponent}
+            </Box>
             {/* View routine contributors */}
             <Typography variant="h4" textAlign="center">Contributors</Typography>
             <Grid container spacing={2}>
