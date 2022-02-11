@@ -261,6 +261,7 @@ export const addOwnerField = (modified: any): any => {
         modified.owner = modified.organization;
     }
     else modified.owner = null;
+    console.log('addOwnerField result', modified.owner);
     delete modified.user;
     delete modified.organization;
     return modified;

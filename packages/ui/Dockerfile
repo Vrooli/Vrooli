@@ -32,6 +32,6 @@ RUN yarn install
 # Copy rest of repo over
 COPY --chown=node:node ${shared}/src ${shared}/
 COPY --chown=node:node ${main}/src ${main}/public ${main}/
-COPY --chown=node:node scripts/ui.sh scripts/wait-for.sh scripts/preconnect.sh ${scripts}/
+COPY --chown=node:node scripts/ui.sh scripts/wait-for.sh ${scripts}/
 
 USER root

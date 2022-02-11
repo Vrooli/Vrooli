@@ -55,7 +55,7 @@ interface SessionToken extends BasicToken {
  */
 const basicToken = (): BasicToken => ({
     iat: Date.now(),
-    iss: `https://app.${process.env.SITE_NAME}/`,
+    iss: `https://app.vrooli.com/`,
     exp: Date.now() + SESSION_MILLI,
 
 })

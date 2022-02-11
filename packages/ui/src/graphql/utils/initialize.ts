@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { SERVER_QUERY_URL } from '@local/shared';
 import {
     ApolloClient,
     ApolloLink,
@@ -31,7 +30,9 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
     });
     // Define link for handling file uploads
     const uploadLink = createUploadLink({
-        uri: SERVER_QUERY_URL,
+        uri: window.location.origin.includes('localhost:') ? 
+            `http://localhost:5329/api/v1` : 
+            `https://app.vrooli.com/api/v1`,
         credentials: 'include'
     });
     // Define link for removing '__typename'. This field cannot be in queries or mutations, 
