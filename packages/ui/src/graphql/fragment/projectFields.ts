@@ -27,6 +27,7 @@ export const projectFields = gql`
         stars
         isStarred
         score
+        role
         isUpvoted
     }
 `

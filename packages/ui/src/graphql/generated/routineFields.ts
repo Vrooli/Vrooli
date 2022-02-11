@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { MemberRole } from "./globalTypes";
+
 // ====================================================
 // GraphQL fragment: routineFields
 // ====================================================
@@ -14,7 +16,7 @@ export interface routineFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface routineFields {
@@ -25,9 +27,10 @@ export interface routineFields {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  role: MemberRole | null;
   tags: routineFields_tags[];
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
 }

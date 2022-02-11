@@ -269,13 +269,11 @@ export interface InputItemUpdateInput {
 
 export interface NodeCombineCreateInput {
   from: string[];
-  toId?: string | null;
 }
 
 export interface NodeCombineUpdateInput {
   id: string;
   from?: string[] | null;
-  toId?: string | null;
 }
 
 export interface NodeCreateInput {

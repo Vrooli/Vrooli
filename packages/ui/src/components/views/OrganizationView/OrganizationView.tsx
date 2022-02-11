@@ -1,6 +1,6 @@
 import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, StarFor } from "@local/shared";
+import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
 import { useQuery } from "@apollo/client";
 import { organization } from "graphql/generated/organization";
 import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
@@ -33,7 +33,7 @@ export const OrganizationView = ({
     // Fetch data
     const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });
     const organization = useMemo(() => data?.organization, [data]);
-    const isOwn: boolean = useMemo(() => true, [organization]); // TODO organization.isOwn
+    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(organization?.role ?? ''), [organization]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
@@ -71,7 +71,6 @@ export const OrganizationView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: User) => openLink(APP_LINKS.User, selected.id)}
                         />)
                 ];
@@ -89,7 +88,6 @@ export const OrganizationView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: Project) => openLink(APP_LINKS.Project, selected.id)}
                         />)
                 ];
@@ -107,7 +105,6 @@ export const OrganizationView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
                         />)
                 ];
@@ -125,7 +122,6 @@ export const OrganizationView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
                 ];
@@ -154,18 +150,18 @@ export const OrganizationView = ({
     const moreOptions: BaseObjectAction[] = useMemo(() => {
         // Initialize
         let options: BaseObjectAction[] = [];
-        if (organization && session && !isOwn) {
-            options.push(organization.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
+        if (session && !canEdit) {
+            options.push(organization?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
         }
         options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
         if (session?.id) {
             options.push(BaseObjectAction.Report);
         }
-        if (isOwn) {
+        if (canEdit) {
             options.push(BaseObjectAction.Delete);
         }
         return options;
-    }, [organization, isOwn, session]);
+    }, [session, canEdit, organization?.isStarred]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -225,7 +221,7 @@ export const OrganizationView = ({
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {
-                    isOwn ? (
+                    canEdit ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{organization?.name ?? partialData?.name}</Typography>
                             <Tooltip title="Edit organization">
@@ -257,7 +253,7 @@ export const OrganizationView = ({
                         </IconButton>
                     </Tooltip>
                     {
-                        !isOwn ? <StarButton
+                        !canEdit ? <StarButton
                             session={session}
                             objectId={organization?.id ?? ''}
                             starFor={StarFor.Organization}
@@ -270,7 +266,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [isOwn, organization, partialData]);
+    ), [session, organization, partialData, canEdit, onEdit]);
 
     return (
         <>

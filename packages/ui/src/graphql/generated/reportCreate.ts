@@ -14,6 +14,7 @@ export interface reportCreate_reportCreate {
   id: string | null;
   reason: string;
   details: string | null;
+  isOwn: boolean;
 }
 
 export interface reportCreate {

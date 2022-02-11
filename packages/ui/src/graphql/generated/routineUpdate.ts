@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RoutineUpdateInput } from "./globalTypes";
+import { RoutineUpdateInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: routineUpdate
@@ -16,7 +16,7 @@ export interface routineUpdate_routineUpdate_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface routineUpdate_routineUpdate {
@@ -27,9 +27,10 @@ export interface routineUpdate_routineUpdate {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  role: MemberRole | null;
   tags: routineUpdate_routineUpdate_tags[];
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
 }

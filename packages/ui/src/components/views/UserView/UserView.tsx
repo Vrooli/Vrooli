@@ -45,7 +45,7 @@ export const UserView = ({
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
-        setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile?editing=true` : `${APP_LINKS.SearchUsers}/edit/${id}`);
+        setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile&editing=true` : `${APP_LINKS.SearchUsers}/edit/${id}`);
     }, [setLocation, id]);
 
     // Determine options available to object, in order
@@ -96,7 +96,6 @@ export const UserView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: Organization) => openLink(APP_LINKS.Organization, selected.id)}
                         />)
                 ];
@@ -114,7 +113,6 @@ export const UserView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: Project) => openLink(APP_LINKS.Project, selected.id)}
                         />)
                 ];
@@ -132,7 +130,6 @@ export const UserView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
                         />)
                 ];
@@ -150,7 +147,6 @@ export const UserView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
                 ];

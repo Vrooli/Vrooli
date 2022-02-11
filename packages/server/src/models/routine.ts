@@ -2,12 +2,14 @@ import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreat
 import { PrismaType, RecursivePartial } from "types";
 import { addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
-import { CODE, routineCreate, routineUpdate } from "@local/shared";
+import { CODE, MemberRole, routineCreate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
 import { routine } from "@prisma/client";
 import { TagModel } from "./tag";
+import { StarModel } from "./star";
+import { VoteModel } from "./vote";
 
 //==============================================================
 /* #region Custom Components */
@@ -28,12 +30,9 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         let routine = await prisma.routine.findUnique({ where: { id: input.id }, ...select });
         // Return routine with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!routine) throw new CustomError(CODE.InternalError, 'Routine not found');
-        if (!userId) return { ...format.toGraphQL(routine), isUpvoted: false, isStarred: false };
-        const vote = await prisma.vote.findFirst({ where: { userId, routineId: routine.id } });
-        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        const star = await prisma.star.findFirst({ where: { byId: userId, routineId: routine.id } });
-        const isStarred = Boolean(star) ?? false;
-        return { ...format.toGraphQL(routine), isUpvoted, isStarred };
+        // Format and add supplemental/calculated fields
+        const formatted = await this.supplementalFields(userId, [format.toGraphQL(routine)], {});
+        return formatted[0];
     },
     async search(
         where: { [x: string]: any },
@@ -49,22 +48,12 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // Search
         const search = searcher<RoutineSortBy, RoutineSearchInput, Routine, routine>(MODEL_TYPES.Routine, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...where }, input, info);
-        // Compute "isUpvoted" and "isStarred" field for each routine
-        // If userId not provided, then "isUpvoted" is null and "isStarred" is false
-        if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null, isStarred: false } }));
-            return searchResults;
-        }
-        // Otherwise, query votes for all search results in one query
-        const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
-        const isUpvotedArray = await prisma.vote.findMany({ where: { userId, routineId: { in: resultIds } } });
-        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, routineId: { in: resultIds } } });
-        searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
-            const isUpvoted = isUpvotedArray.find(({ routineId }) => routineId === node.id)?.isUpvote ?? null;
-            const isStarred = Boolean(isStarredArray.find(({ routineId }) => routineId === node.id));
-            return { cursor, node: { ...node, isUpvoted, isStarred } };
-        });
-        return searchResults;
+        // Format and add supplemental/calculated fields to each result node
+        console.log('routine searchResults', searchResults);
+        let formattedNodes = searchResults.edges.map(({ node }) => node);
+        console.log('routine formatted nodes', formattedNodes);
+        formattedNodes = await this.supplementalFields(userId, formattedNodes, {});
+        return { pageInfo: searchResults.pageInfo, edges: searchResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
     },
     async create(
         userId: string,
@@ -114,8 +103,8 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             data: routineData as any,
             ...selectHelper<Routine, routine>(info, format.toDB)
         })
-        // Return routine with "isUpvoted" and "isStarred" fields. These will be their default values.
-        return { ...format.toGraphQL(routine), isUpvoted: null, isStarred: false };
+        // Return project with "role", "isUpvoted" and "isStarred" fields. These will be their default values.
+        return { ...format.toGraphQL(routine), role: MemberRole.Owner as any, isUpvoted: null, isStarred: false };
     },
     async update(
         userId: string,
@@ -135,12 +124,12 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             parentId: input.parentId,
             version: input.version,
             // Handle resources
-            contextualResources: ResourceModel(prisma).relationshipBuilder(userId, { 
+            contextualResources: ResourceModel(prisma).relationshipBuilder(userId, {
                 resourcesCreate: input.resourcesContextualCreate,
                 resourcesUpdate: input.resourcesContextualUpdate,
-                resourcesDelete: input.resourcesContextualDelete, 
+                resourcesDelete: input.resourcesContextualDelete,
             }, true),
-            externalResources: ResourceModel(prisma).relationshipBuilder(userId, { 
+            externalResources: ResourceModel(prisma).relationshipBuilder(userId, {
                 resourcesCreate: input.resourcesExternalCreate,
                 resourcesUpdate: input.resourcesExternalUpdate,
                 resourcesDelete: input.resourcesExternalDelete,
@@ -181,12 +170,9 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             data: routine as any,
             ...selectHelper<Routine, routine>(info, format.toDB)
         });
-        // Return routine with "isUpvoted" and "isStarred" field. These must be queried separately.
-        const vote = await prisma.vote.findFirst({ where: { userId, routineId: routine.id } });
-        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        const star = await prisma.star.findFirst({ where: { byId: userId, routineId: routine.id } });
-        const isStarred = Boolean(star) ?? false;
-        return { ...format.toGraphQL(routine), isUpvoted, isStarred };
+        // Format and add supplemental/calculated fields
+        const formatted = await this.supplementalFields(userId, [format.toGraphQL(routine)], {});
+        return formatted[0];
     },
     async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
@@ -210,7 +196,55 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             where: { id: routine.id },
         });
         return { success: true };
-    }
+    },
+    /**
+     * Supplemental fields are role, isUpvoted, and isStarred
+     */
+    async supplementalFields(
+        userId: string | null | undefined, // Of the user making the request
+        objects: RecursivePartial<Routine>[],
+        known: { [x: string]: any[] }, // Known values (i.e. don't need to query), in same order as objects
+    ): Promise<RecursivePartial<Routine>[]> {
+        // If userId not provided, return the input with isStarred false, isUpvoted null, and role null
+        if (!userId) return objects.map(x => ({ ...x, isStarred: false, isUpvoted: null, role: null }));
+        // Get all of the ids
+        const ids = objects.map(x => x.id) as string[];
+        // Check if isStarred is provided
+        if (known.isStarred) objects = objects.map((x, i) => ({ ...x, isStarred: known.isStarred[i] }));
+        // Otherwise, query for isStarred
+        else {
+            const isStarredArray = await StarModel(prisma).getIsStarreds(userId, ids, 'routine');
+            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+        }
+        // Check if isUpvoted is provided
+        if (known.isUpvoted) objects = objects.map((x, i) => ({ ...x, isUpvoted: known.isUpvoted[i] }));
+        // Otherwise, query for isStarred
+        else {
+            const isUpvotedArray = await VoteModel(prisma).getIsUpvoteds(userId, ids, 'routine');
+            objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
+        }
+        // Check is role is provided
+        if (known.role) objects = objects.map((x, i) => ({ ...x, role: known.role[i] }));
+        // Otherwise, query for role
+        else {
+            console.log('routine supplemental fields', objects)
+            // If owned by user, set role to owner if userId matches
+            // If owned by organization, set role user's role in organization
+            const organizationIds = objects
+                .filter(x => x.owner?.__typename === 'Organization')
+                .map(x => x.id)
+                .filter(x => Boolean(x)) as string[];
+            const roles = await OrganizationModel(prisma).getRoles(userId, organizationIds);
+            objects = objects.map((x) => {
+                const orgRoleIndex = organizationIds.findIndex(id => id === x.id);
+                if (orgRoleIndex >= 0) {
+                    return { ...x, role: roles[orgRoleIndex] };
+                }
+                return { ...x, role: x.owner?.id === userId ? MemberRole.Owner : undefined };
+            }) as any;
+        }
+        return objects;
+    },
 })
 
 /**
@@ -226,9 +260,10 @@ const formatter = (): FormatConverter<Routine, routine> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = removeCreatorField(modified);
             modified = removeOwnerField(modified);
-            // Remove isUpvoted and isStarred, as they are calculated in their own queries
-            if (modified.isUpvoted) delete modified.isUpvoted;
-            if (modified.isStarred) delete modified.isStarred;
+            // Remove calculated fields
+            delete modified.isUpvoted;
+            delete modified.isStarred;
+            delete modified.role
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<routine>): RecursivePartial<Routine> => {

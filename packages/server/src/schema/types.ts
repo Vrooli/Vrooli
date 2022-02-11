@@ -43,9 +43,10 @@ export type Comment = {
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
   id: Scalars['ID'];
-  isStarred?: Maybe<Scalars['Boolean']>;
+  isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   reports: Array<Report>;
+  role?: Maybe<MemberRole>;
   score?: Maybe<Scalars['Int']>;
   starredBy?: Maybe<Array<User>>;
   stars?: Maybe<Scalars['Int']>;
@@ -464,6 +465,7 @@ export type Node = {
   id: Scalars['ID'];
   next?: Maybe<Scalars['ID']>;
   previous?: Maybe<Scalars['ID']>;
+  role?: Maybe<MemberRole>;
   routine: Routine;
   routineId: Scalars['ID'];
   title: Scalars['String'];
@@ -475,18 +477,15 @@ export type NodeCombine = {
   __typename?: 'NodeCombine';
   from: Array<Scalars['ID']>;
   id: Scalars['ID'];
-  toId: Scalars['ID'];
 };
 
 export type NodeCombineCreateInput = {
   from: Array<Scalars['ID']>;
-  toId?: InputMaybe<Scalars['ID']>;
 };
 
 export type NodeCombineUpdateInput = {
   from?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
-  toId?: InputMaybe<Scalars['ID']>;
 };
 
 export type NodeCreateInput = {
@@ -736,7 +735,7 @@ export type Organization = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isStarred?: Maybe<Scalars['Boolean']>;
+  isStarred: Scalars['Boolean'];
   members: Array<Member>;
   name: Scalars['String'];
   projects: Array<Project>;
@@ -888,13 +887,14 @@ export type Project = {
   description?: Maybe<Scalars['String']>;
   forks: Array<Project>;
   id: Scalars['ID'];
-  isStarred?: Maybe<Scalars['Boolean']>;
+  isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   name: Scalars['String'];
   owner?: Maybe<Contributor>;
   parent?: Maybe<Project>;
   reports: Array<Report>;
   resources?: Maybe<Array<Resource>>;
+  role?: Maybe<MemberRole>;
   routines: Array<Routine>;
   score: Scalars['Int'];
   starredBy?: Maybe<Array<User>>;
@@ -1140,6 +1140,7 @@ export type Report = {
   __typename?: 'Report';
   details?: Maybe<Scalars['String']>;
   id?: Maybe<Scalars['ID']>;
+  isOwn: Scalars['Boolean'];
   reason: Scalars['String'];
 };
 
@@ -1283,7 +1284,7 @@ export type Routine = {
   inputs: Array<InputItem>;
   instructions?: Maybe<Scalars['String']>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
-  isStarred?: Maybe<Scalars['Boolean']>;
+  isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   nodeLists: Array<NodeRoutineList>;
   nodes: Array<Node>;
@@ -1292,6 +1293,7 @@ export type Routine = {
   parent?: Maybe<Routine>;
   project?: Maybe<Project>;
   reports: Array<Report>;
+  role?: Maybe<MemberRole>;
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
@@ -1416,10 +1418,11 @@ export type Standard = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isFile: Scalars['Boolean'];
-  isStarred?: Maybe<Scalars['Boolean']>;
+  isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   name: Scalars['String'];
   reports: Array<Report>;
+  role?: Maybe<MemberRole>;
   routineInputs: Array<Routine>;
   routineOutputs: Array<Routine>;
   schema: Scalars['String'];
@@ -1556,7 +1559,8 @@ export type Tag = {
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  isStarred?: Maybe<Scalars['Boolean']>;
+  isOwn: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tag: Scalars['String'];
@@ -1626,7 +1630,6 @@ export type User = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isOwn: Scalars['Boolean'];
   isStarred?: Maybe<Scalars['Boolean']>;
   projects: Array<Project>;
   reports: Array<Report>;

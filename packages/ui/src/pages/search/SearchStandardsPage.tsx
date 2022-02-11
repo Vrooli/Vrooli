@@ -1,10 +1,10 @@
-import { StandardListItem, StandardView, ShareDialog, BaseObjectDialog, StandardSortOptions, standardDefaultSortOption, standardOptionLabel, StandardDialog } from "components";
+import { StandardListItem, StandardSortOptions, standardDefaultSortOption, standardOptionLabel, StandardDialog } from "components";
 import { standardsQuery } from "graphql/query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Standard } from "types";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchStandardsPageProps } from "./types";
-import { useLocation, useRoute } from "wouter";
+import { useLocation } from "wouter";
 import { APP_LINKS, ROLES } from "@local/shared";
 import { Pubs } from "utils";
 
@@ -39,12 +39,7 @@ export const SearchStandardsPage = ({
             PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
             setLocation(APP_LINKS.Start)
         }
-    }, [setLocation]);
-
-    // Handles dialog for the button that appears after scrolling a certain distance
-    const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
-    const handleSurpriseDialogOpen = useCallback(() => setSurpriseDialogOpen(true), []);
-    const handleSurpriseDialogClose = useCallback(() => setSurpriseDialogOpen(false), []);
+    }, [session?.roles, setLocation]);
 
     const listItemFactory = (node: Standard, index: number) => (
         <StandardListItem
@@ -52,7 +47,6 @@ export const SearchStandardsPage = ({
             index={index}
             session={session}
             data={node}
-            isOwn={false}
             onClick={(selected: Standard) => setSelectedItem(selected)}
         />)
 
@@ -79,7 +73,7 @@ export const SearchStandardsPage = ({
                 onAddClick={handleAddDialogOpen}
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
-                onPopupButtonClick={handleSurpriseDialogOpen}
+                onPopupButtonClick={handleAddDialogOpen}
             />
         </>
     )

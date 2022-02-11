@@ -82,6 +82,17 @@ const voter = (prisma: PrismaType) => ({
             return true;
         }
     },
+    async getIsUpvoteds(
+        userId: string,
+        ids: string[],
+        voteFor: VoteFor
+    ): Promise<Array<boolean | null>> {
+        const fieldName = `${voteFor.toLowerCase()}Id`;
+        const isUpvotedArray = await prisma.vote.findMany({ where: { userId, [fieldName]: { in: ids } } });
+        return ids.map(id => {
+            return isUpvotedArray.find((x: any) => x[fieldName] === id)?.isUpvote ?? null
+        });
+    },
 })
 
 //==============================================================

@@ -81,7 +81,8 @@ export const typeDef = gql`
         description: String
         instructions: String
         isAutomatable: Boolean
-        isStarred: Boolean
+        isStarred: Boolean!
+        role: MemberRole
         isUpvoted: Boolean
         score: Int!
         stars: Int!

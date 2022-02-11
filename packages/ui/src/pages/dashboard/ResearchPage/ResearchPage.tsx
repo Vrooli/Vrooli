@@ -18,7 +18,6 @@ export const ResearchPage = ({
             index={index}
             session={session}
             data={o}
-            isOwn={false}
             onClick={() => {}}
         />
     )), []);
@@ -29,7 +28,6 @@ export const ResearchPage = ({
             index={index}
             session={session}
             data={o}
-            isOwn={false}
             onClick={() => {}}
         />
     )), []);
@@ -40,7 +38,6 @@ export const ResearchPage = ({
             index={index}
             session={session}
             data={o}
-            isOwn={false}
             onClick={() => {}}
         />
     )), []);
@@ -51,7 +48,6 @@ export const ResearchPage = ({
             index={index}
             session={session}
             data={o}
-            isOwn={false}
             onClick={() => {}}
         />
     )), []);
@@ -62,7 +58,6 @@ export const ResearchPage = ({
             index={index}
             session={session}
             data={o}
-            isOwn={false}
             onClick={() => {}}
         />
     )), []);

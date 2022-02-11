@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { CommentCreateInput } from "./globalTypes";
+import { CommentCreateInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: commentCreate
@@ -51,7 +51,8 @@ export interface commentCreate_commentCreate {
   updated_at: any;
   score: number | null;
   isUpvoted: boolean | null;
-  isStarred: boolean | null;
+  role: MemberRole | null;
+  isStarred: boolean;
   creator: commentCreate_commentCreate_creator | null;
   commentedOn: commentCreate_commentCreate_commentedOn;
 }

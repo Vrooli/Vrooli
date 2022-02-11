@@ -41,7 +41,7 @@ export const SearchOrganizationsPage = ({
             PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
             setLocation(APP_LINKS.Start)
         }
-    }, [session, setLocation]);
+    }, [session?.roles, setLocation]);
 
     // Handles dialog for the button that appears after scrolling a certain distance
     const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
@@ -54,7 +54,6 @@ export const SearchOrganizationsPage = ({
             index={index}
             session={session}
             data={node}
-            isOwn={false}
             onClick={(selected: Organization) => setSelectedItem(selected)}
         />)
 

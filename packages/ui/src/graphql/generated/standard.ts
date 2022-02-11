@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, StandardType, MemberRole } from "./globalTypes";
+import { FindByIdInput, MemberRole, StandardType } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standard
@@ -16,7 +16,7 @@ export interface standard_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface standard_standard_creator_Organization_tags {
@@ -26,7 +26,7 @@ export interface standard_standard_creator_Organization_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface standard_standard_creator_Organization {
@@ -37,7 +37,7 @@ export interface standard_standard_creator_Organization {
   created_at: any;
   tags: standard_standard_creator_Organization_tags[];
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   role: MemberRole | null;
 }
 
@@ -58,6 +58,7 @@ export interface standard_standard {
   id: string;
   name: string;
   description: string | null;
+  role: MemberRole | null;
   type: StandardType;
   schema: string;
   default: string | null;
@@ -66,7 +67,7 @@ export interface standard_standard {
   tags: standard_standard_tags[];
   creator: standard_standard_creator | null;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
 }

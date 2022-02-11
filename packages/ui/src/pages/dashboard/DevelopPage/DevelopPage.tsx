@@ -16,7 +16,6 @@ export const DevelopPage = ({
             index={index}
             session={session}
             data={o}
-            isOwn={false}
             onClick={() => { }}
         />
     )), []);
@@ -27,7 +26,6 @@ export const DevelopPage = ({
             index={index}
             session={session}
             data={o}
-            isOwn={false}
             onClick={() => { }}
         />
     )), []);
@@ -38,7 +36,6 @@ export const DevelopPage = ({
             index={index}
             session={session}
             data={o}
-            isOwn={false}
             onClick={() => { }}
         />
     )), []);

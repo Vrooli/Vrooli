@@ -37,10 +37,11 @@ export const typeDef = gql`
         commentedOn: CommentedOn!
         reports: [Report!]!
         stars: Int
-        isStarred: Boolean
+        isStarred: Boolean!
         starredBy: [User!]
         score: Int
         isUpvoted: Boolean
+        role: MemberRole
     }
 
     extend type Mutation {

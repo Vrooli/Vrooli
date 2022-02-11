@@ -114,17 +114,14 @@ model node {
     routine           routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
     Previous          node[]               @relation("node_previous")
     Next              node[]               @relation("node_next")
-    To                node_combine[]       @relation("node_combine_to")
     From              node_combine_from[]
     DecisionItem      node_decision_item[]
     WhileItem         node_loop_while[]
 }
 
-// Data for combine nodes (in addition to fields defined by node table) TODO complete
+// Data for combine nodes (in addition to fields defined by node table)
 model node_combine {
     id   String              @id @default(uuid()) @db.Uuid
-    toId String?             @db.Uuid
-    to   node?               @relation("node_combine_to", fields: [toId], references: [id], onDelete: SetNull)
     from node_combine_from[]
     node node[]
 }

@@ -59,6 +59,7 @@ export const typeDef = gql`
         routineId: ID!
         title: String!
         description: String
+        role: MemberRole
         type: NodeType!
         data: NodeData
         routine: Routine!
@@ -73,17 +74,14 @@ export const typeDef = gql`
 
     input NodeCombineCreateInput {
         from: [ID!]!
-        toId: ID
     }
     input NodeCombineUpdateInput {
         id: ID!
         from: [ID!]
-        toId: ID
     }
     type NodeCombine {
         id: ID!
         from: [ID!]!
-        toId: ID!
     }
 
     input NodeDecisionCreateInput {

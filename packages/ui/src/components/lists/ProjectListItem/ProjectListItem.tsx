@@ -2,8 +2,8 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { ProjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
-import { useCallback } from 'react';
-import { APP_LINKS, ProjectSortBy, StarFor, VoteFor } from '@local/shared';
+import { useCallback, useMemo } from 'react';
+import { APP_LINKS, MemberRole, ProjectSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from 'components';
 import { LabelledSortOption, labelledSortOptions } from 'utils';
@@ -13,10 +13,10 @@ export function ProjectListItem({
     session,
     index,
     data,
-    isOwn = false,
     onClick,
 }: ProjectListItemProps) {
     const [, setLocation] = useLocation();
+    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
     console.log('projectlistitem', data);
 
     const handleClick = useCallback(() => {
@@ -58,7 +58,7 @@ export function ProjectListItem({
                         {Array.isArray(data.tags) && data.tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} /> : null}
                     </Stack>
                     {
-                        isOwn ? null : <StarButton
+                        canEdit ? null : <StarButton
                             session={session}
                             objectId={data.id ?? ''}
                             starFor={StarFor.Project}

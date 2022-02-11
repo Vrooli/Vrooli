@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType } from "./globalTypes";
+import { MemberRole, NodeType } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: nodeFields
@@ -13,7 +13,6 @@ export interface nodeFields_data_NodeCombine {
   __typename: "NodeCombine";
   id: string;
   from: string[];
-  toId: string;
 }
 
 export interface nodeFields_data_NodeDecision_decisions_when {
@@ -55,7 +54,7 @@ export interface nodeFields_data_NodeRoutineList_routines_routine_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface nodeFields_data_NodeRoutineList_routines_routine {
@@ -66,9 +65,10 @@ export interface nodeFields_data_NodeRoutineList_routines_routine {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  role: MemberRole | null;
   tags: nodeFields_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -97,6 +97,7 @@ export interface nodeFields {
   id: string;
   created_at: any;
   description: string | null;
+  role: MemberRole | null;
   next: string | null;
   previous: string | null;
   title: string;

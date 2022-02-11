@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectCreateInput } from "./globalTypes";
+import { ProjectCreateInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: projectCreate
@@ -16,7 +16,7 @@ export interface projectCreate_projectCreate_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface projectCreate_projectCreate_owner_Organization {
@@ -42,8 +42,9 @@ export interface projectCreate_projectCreate {
   tags: projectCreate_projectCreate_tags[];
   owner: projectCreate_projectCreate_owner | null;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
+  role: MemberRole | null;
   isUpvoted: boolean | null;
 }
 

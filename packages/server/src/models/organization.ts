@@ -7,6 +7,7 @@ import { hasProfanity } from "../utils/censor";
 import { ResourceModel } from "./resource";
 import { organization } from "@prisma/client";
 import { TagModel } from "./tag";
+import { StarModel } from "./star";
 
 //==============================================================
 /* #region Custom Components */
@@ -25,13 +26,11 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
         const select = selectHelper<Organization, organization>(info, format.toDB);
         // Access database
         let organization = await prisma.organization.findUnique({ where: { id: input.id }, ...select });
-        // Return organization with "isStarred" field. This must be queried separately.
+        // Check if exists
         if (!organization) throw new CustomError(CODE.InternalError, 'Organization not found');
-        if (!userId) return { ...format.toGraphQL(organization), isStarred: false };
-        const star = await prisma.star.findFirst({ where: { byId: userId, organizationId: organization.id } });
-        const isStarred = Boolean(star) ?? false;
-        const role = await this.getRole(userId, organization.id);
-        return { ...format.toGraphQL(organization), isStarred, role: role as any };
+        // Format and add supplemental/calculated fields
+        const formatted = await this.supplementalFields(userId, [format.toGraphQL(organization)], {});
+        return formatted[0];
     },
     async search(
         where: { [x: string]: any },
@@ -51,31 +50,10 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
         // Search
         const search = searcher<OrganizationSortBy, OrganizationSearchInput, Organization, organization>(MODEL_TYPES.Organization, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...projectIdQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...where }, input, info);
-        // Compute "isStarred" fields for each organization
-        // If userId not provided, then "isStarred" is false
-        if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isStarred: false } }));
-            return searchResults;
-        }
-        // Otherwise, query votes for all search results in one query
-        const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
-        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, organizationId: { in: resultIds } } });
-        const roleArray = await prisma.organization_users.findMany({
-            where: {
-                organizationId: { in: resultIds },
-                user: { id: userId },
-            },
-            select: {
-                organizationId: true,
-                role: true,
-            }
-        });
-        searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
-            const isStarred = Boolean(isStarredArray.find(({ organizationId }) => organizationId === node.id));
-            const role: MemberRole | undefined = roleArray.find(({ organizationId }) => organizationId === node.id)?.role;
-            return { cursor, node: { ...node, isStarred, role } };
-        });
-        return searchResults;
+        // Format and add supplemental/calculated fields to each result node
+        let formattedNodes = searchResults.edges.map(({ node }) => node);
+        formattedNodes = await this.supplementalFields(userId, formattedNodes, {});
+        return { pageInfo: searchResults.pageInfo, edges: searchResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
     },
     async create(
         userId: string,
@@ -145,11 +123,9 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
             data: organizationData as any,
             ...selectHelper<Organization, organization>(info, format.toDB)
         });
-        // Return organization with "isStarred" field. This must be queried separately.
-        const star = await prisma.star.findFirst({ where: { byId: userId, organizationId: organization.id } });
-        const isStarred = Boolean(star) ?? false;
-        const role = await this.getRole(userId, organization.id);
-        return { ...format.toGraphQL(organization), isStarred, role: role as any };
+        // Format and add supplemental/calculated fields
+        const formatted = await this.supplementalFields(userId, [format.toGraphQL(organization)], {});
+        return formatted[0];
     },
     async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Make sure the user is an admin of this organization
@@ -160,17 +136,44 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
         })
         return { success: true };
     },
-    async getRole(userId: string, organizationId: string): Promise<MemberRole | undefined> {
-        const memberData = await prisma.organization_users.findFirst({
-            where: {
-                organization: { id: organizationId },
-                user: { id: userId },
-            },
-            select: {
-                role: true,
-            }
+    /**
+     * Supplemental fields are isOwn and role
+     */
+     async supplementalFields(
+        userId: string | null | undefined, // Of the user making the request
+        objects: RecursivePartial<Organization>[],
+        known: { [x: string]: any[] }, // Known values (i.e. don't need to query), in same order as objects
+    ): Promise<RecursivePartial<Organization>[]> {
+        // If userId not provided, return the input with isStarred false and role null
+        if (!userId) return objects.map(x => ({ ...x, isStarred: false, role: null }));
+        // Get all of the ids
+        const ids = objects.map(x => x.id) as string[];
+        // Check if isStarred is provided
+        if (known.isStarred) objects = objects.map((x, i) => ({ ...x, isStarred: known.isStarred[i] }));
+        // Otherwise, query for isStarred
+        else {
+            const isStarredArray = await StarModel(prisma).getIsStarreds(userId, ids, 'organization');
+            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+        }
+        // Check is role is provided
+        if (known.role) objects = objects.map((x, i) => ({ ...x, role: known.role[i] }));
+        // Otherwise, query for role
+        else {
+            const roles = await this.getRoles(userId, ids);
+            objects = objects.map((x, i) => ({ ...x, role: roles[i] })) as any;
+        }
+        return objects;
+    },
+    async getRoles(userId: string, ids: string[]): Promise<Array<MemberRole | undefined>> {
+        // Query member data for each ID
+        const roleArray = await prisma.organization_users.findMany({
+            where: { organizationId: { in: ids }, user: { id: userId } },
+            select: { organizationId: true, role: true }
         });
-        return memberData?.role
+        return ids.map(id => {
+            const role = roleArray.find(({ organizationId }) => organizationId === id);
+            return role?.role as MemberRole | undefined;
+        });
     },
     async isOwnerOrAdmin(userId: string, organizationId: string): Promise<boolean> {
         const memberData = await prisma.organization_users.findFirst({
@@ -203,7 +206,7 @@ export const organizationFormatter = (): FormatConverter<Organization, organizat
             console.log('add join tables', modified);
             modified = addCountQueries(modified, countMapper);
             console.log('add count queries', modified);
-            // Remove isStarred and role, as they are calculated in its own query
+            // Remove calculated fields
             delete modified.isStarred;
             delete modified.role;
             return modified;

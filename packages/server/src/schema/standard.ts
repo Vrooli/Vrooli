@@ -64,7 +64,8 @@ export const typeDef = gql`
         description: String
         name: String!
         isFile: Boolean!
-        isStarred: Boolean
+        isStarred: Boolean!
+        role: MemberRole
         isUpvoted: Boolean
         schema: String!
         score: Int!

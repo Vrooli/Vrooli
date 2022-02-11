@@ -16,7 +16,7 @@ export interface organizationCreate_organizationCreate_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface organizationCreate_organizationCreate {
@@ -27,7 +27,7 @@ export interface organizationCreate_organizationCreate {
   created_at: any;
   tags: organizationCreate_organizationCreate_tags[];
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   role: MemberRole | null;
 }
 

@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { MemberRole } from "./globalTypes";
+
 // ====================================================
 // GraphQL fragment: commentFields
 // ====================================================
@@ -49,7 +51,8 @@ export interface commentFields {
   updated_at: any;
   score: number | null;
   isUpvoted: boolean | null;
-  isStarred: boolean | null;
+  role: MemberRole | null;
+  isStarred: boolean;
   creator: commentFields_creator | null;
   commentedOn: commentFields_commentedOn;
 }

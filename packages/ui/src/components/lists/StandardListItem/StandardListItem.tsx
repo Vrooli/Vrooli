@@ -2,8 +2,8 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { StandardListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
-import { useCallback } from 'react';
-import { APP_LINKS, StandardSortBy, StarFor, VoteFor } from '@local/shared';
+import { useCallback, useMemo } from 'react';
+import { APP_LINKS, MemberRole, StandardSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from '..';
 import { LabelledSortOption, labelledSortOptions } from 'utils';
@@ -13,10 +13,10 @@ export function StandardListItem({
     session,
     index,
     data,
-    isOwn = false,
     onClick,
 }: StandardListItemProps) {
     const [, setLocation] = useLocation();
+    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
 
     const handleClick = useCallback(() => {
         // If onClick provided, call if
@@ -57,7 +57,7 @@ export function StandardListItem({
                         {Array.isArray(data.tags) && data.tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} /> : null}
                     </Stack>
                     {
-                        isOwn ? null : <StarButton
+                        canEdit ? null : <StarButton
                             session={session}
                             objectId={data.id ?? ''}
                             starFor={StarFor.Standard}

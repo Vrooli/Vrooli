@@ -14,7 +14,7 @@ export interface autocomplete_autocomplete_organizations {
   id: string;
   name: string;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface autocomplete_autocomplete_projects {
@@ -23,7 +23,7 @@ export interface autocomplete_autocomplete_projects {
   name: string;
   stars: number;
   isUpvoted: boolean | null;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface autocomplete_autocomplete_routines {
@@ -32,7 +32,7 @@ export interface autocomplete_autocomplete_routines {
   title: string | null;
   stars: number;
   isUpvoted: boolean | null;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface autocomplete_autocomplete_standards {
@@ -41,7 +41,7 @@ export interface autocomplete_autocomplete_standards {
   name: string;
   stars: number;
   isUpvoted: boolean | null;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface autocomplete_autocomplete_users {

@@ -16,12 +16,10 @@ const wasSuccessful = yup.boolean().optional();
 
 const nodeCombineCreate = yup.object().shape({
     from: idArray.required(),
-    toId: id,
 })
 const nodeCombineUpdate = yup.object().shape({
     id: id.required(),
     from: idArray,
-    toId: id,
 })
 
 const decisionWhenCreate = yup.array().of(yup.object().shape({

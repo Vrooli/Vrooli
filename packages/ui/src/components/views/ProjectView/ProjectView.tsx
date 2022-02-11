@@ -1,6 +1,6 @@
 import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, StarFor } from "@local/shared";
+import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
 import { useQuery } from "@apollo/client";
 import { project } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
@@ -33,7 +33,7 @@ export const ProjectView = ({
     // Fetch data
     const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
     const project = useMemo(() => data?.project, [data]);
-    const isOwn: boolean = useMemo(() => true, [project]); // TODO project.isOwn
+    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
@@ -44,19 +44,19 @@ export const ProjectView = ({
     const moreOptions: BaseObjectAction[] = useMemo(() => {
         // Initialize
         let options: BaseObjectAction[] = [];
-        if (project && session && !isOwn) {
-            options.push(project.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
-            options.push(project.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
+        if (session && !canEdit) {
+            options.push(project?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
+            options.push(project?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
         }
         options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
         if (session?.id) {
             options.push(BaseObjectAction.Report);
         }
-        if (isOwn) {
+        if (canEdit) {
             options.push(BaseObjectAction.Delete);
         }
         return options;
-    }, [project, isOwn, session]);
+    }, [session, canEdit, project?.isStarred, project?.isUpvoted]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -97,7 +97,6 @@ export const ProjectView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
                         />)
                 ];
@@ -115,7 +114,6 @@ export const ProjectView = ({
                             index={index}
                             session={session}
                             data={node}
-                            isOwn={false}
                             onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
                 ];
@@ -190,7 +188,7 @@ export const ProjectView = ({
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
                 {
-                    isOwn ? (
+                    canEdit ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{project?.name ?? partialData?.name}</Typography>
                             <Tooltip title="Edit project">
@@ -222,7 +220,7 @@ export const ProjectView = ({
                         </IconButton>
                     </Tooltip>
                     {
-                        !isOwn ? <StarButton
+                        !canEdit ? <StarButton
                             session={session}
                             objectId={project?.id ?? ''}
                             starFor={StarFor.Project}
@@ -235,7 +233,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [project, partialData, isOwn, session]);
+    ), [project, partialData, canEdit, openMoreMenu, session]);
 
     return (
         <>

@@ -116,8 +116,9 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
  * @param original - The orginal object fetched from the database, in query return format. Needed to exclude fields in the update object that 
  * haven't actually been updated
  * @param updated - The updated object, or partial update changes (which is a superset of the original)
+ * @param treatLikeConnects - Array of field names that should be treated as connections (i.e. if object has id, ignore extra fields)
  */
-export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, updated: Partial<T>): Partial<T> => {
+export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, updated: Partial<T>, treatLikeConnects: string[] = []): Partial<T> => {
     let changed = {};
     console.log('formatForUpdate start', original, updated);
     // Helper method to add to arrays which might not exist
@@ -149,15 +150,16 @@ export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, u
                 // Find the changed value at this index
                 const changedValue = _.isObject(curr) ? formatForUpdate(originalValue, curr) : curr;
                 // Check if create (i.e does not contain an id)
-                if (curr.id === undefined) {
+                if (!Boolean(curr.id)) {
                     addToChangedArray(`${key}Create`, changedValue);
                 }
-                // Check if connection (i.e. is an object with only an id, or simply an id)
-                else if (typeof curr === 'string' || (Object.keys(curr).length === 1 && curr.id)) {
+                // Check if connection (i.e. is an object with only an id, or simply an id, or in treatLikeConnects),
+                else if (typeof curr === 'string' || (Object.keys(curr).length === 1 && curr.id) || 
+                (treatLikeConnects.includes(key) && Boolean(curr?.id))) {
                     addToChangedArray(`${key}Connect`, curr.id);
                 }
                 // Check if update
-                else if (curr?.id !== undefined) {
+                else if (Boolean(curr?.id)) {
                     addToChangedArray(`${key}Update`, changedValue);
                 }
                 // Shouldn't hit this point under normal circumstances. But if you do,

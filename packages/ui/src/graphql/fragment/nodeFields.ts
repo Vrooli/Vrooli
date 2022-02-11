@@ -13,6 +13,7 @@ export const nodeFields = gql`
         description
         created_at
         isAutomatable
+        role
         tags {
             ...tagFields
         }
@@ -21,6 +22,7 @@ export const nodeFields = gql`
         id
         created_at
         description
+        role
         next
         previous
         title
@@ -30,7 +32,6 @@ export const nodeFields = gql`
             ... on NodeCombine {
                 id
                 from
-                toId
             }
             ... on NodeDecision {
                 id

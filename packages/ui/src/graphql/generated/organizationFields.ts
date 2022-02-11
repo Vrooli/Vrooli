@@ -16,7 +16,7 @@ export interface organizationFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface organizationFields {
@@ -27,6 +27,6 @@ export interface organizationFields {
   created_at: any;
   tags: organizationFields_tags[];
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   role: MemberRole | null;
 }

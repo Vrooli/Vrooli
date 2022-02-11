@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType, ResourceUsedFor } from "./globalTypes";
+import { MemberRole, NodeType, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: deepRoutineFields
@@ -16,7 +16,7 @@ export interface deepRoutineFields_inputs_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface deepRoutineFields_inputs_standard {
@@ -40,7 +40,6 @@ export interface deepRoutineFields_nodes_data_NodeCombine {
   __typename: "NodeCombine";
   id: string;
   from: string[];
-  toId: string;
 }
 
 export interface deepRoutineFields_nodes_data_NodeDecision_decisions_when {
@@ -82,7 +81,7 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_t
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
@@ -93,9 +92,10 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  role: MemberRole | null;
   tags: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_tags[];
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
 }
@@ -124,6 +124,7 @@ export interface deepRoutineFields_nodes {
   id: string;
   created_at: any;
   description: string | null;
+  role: MemberRole | null;
   next: string | null;
   previous: string | null;
   title: string;
@@ -153,7 +154,7 @@ export interface deepRoutineFields_outputs_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface deepRoutineFields_outputs_standard {
@@ -204,7 +205,7 @@ export interface deepRoutineFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface deepRoutineFields {
@@ -220,7 +221,8 @@ export interface deepRoutineFields {
   stars: number;
   score: number;
   isUpvoted: boolean | null;
-  isStarred: boolean | null;
+  role: MemberRole | null;
+  isStarred: boolean;
   inputs: deepRoutineFields_inputs[];
   nodes: deepRoutineFields_nodes[];
   owner: deepRoutineFields_owner | null;

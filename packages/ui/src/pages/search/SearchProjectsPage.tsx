@@ -1,5 +1,5 @@
 import { APP_LINKS, ROLES } from "@local/shared";
-import { projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ShareDialog, ProjectDialog } from "components";
+import { projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ProjectDialog } from "components";
 import { projectsQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
 import { Project } from "types";
@@ -39,12 +39,7 @@ export const SearchProjectsPage = ({
             PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
             setLocation(APP_LINKS.Start)
         }
-    }, [setLocation]);
-
-    // Handles dialog for the button that appears after scrolling a certain distance
-    const [surpriseDialogOpen, setSurpriseDialogOpen] = useState(false);
-    const handleSurpriseDialogOpen = useCallback(() => setSurpriseDialogOpen(true), []);
-    const handleSurpriseDialogClose = useCallback(() => setSurpriseDialogOpen(false), []);
+    }, [session?.roles, setLocation]);
 
     const listItemFactory = (node: Project, index: number) => (
         <ProjectListItem
@@ -52,7 +47,6 @@ export const SearchProjectsPage = ({
             index={index}
             session={session}
             data={node}
-            isOwn={false}
             onClick={(selected: Project) => setSelectedItem(selected)}
         />)
 
@@ -79,7 +73,7 @@ export const SearchProjectsPage = ({
                 onAddClick={handleAddDialogOpen}
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find wha you're looking for? Create it!😎"
-                onPopupButtonClick={handleSurpriseDialogOpen}
+                onPopupButtonClick={handleAddDialogOpen}
             />
         </>
     )

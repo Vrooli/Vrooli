@@ -39,7 +39,6 @@ export const SearchActorsPage = ({
             index={index}
             session={session}
             data={node}
-            isOwn={session?.id === node.id}
             onClick={(selected: User) => setSelectedItem(selected)}
         />)
 

@@ -14,6 +14,7 @@ export interface reportUpdate_reportUpdate {
   id: string | null;
   reason: string;
   details: string | null;
+  isOwn: boolean;
 }
 
 export interface reportUpdate {

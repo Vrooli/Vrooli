@@ -70,6 +70,18 @@ const starrer = (prisma: PrismaType) => ({
         }
         return true;
     },
+    async getIsStarreds(
+        userId: string,
+        ids: string[],
+        starFor: StarFor
+    ): Promise<boolean[]> {
+        const fieldName = `${starFor.toLowerCase()}Id`;
+        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, [fieldName]: { in: ids } } });
+        return ids.map(id => {
+            const isStarred = isStarredArray.find((star: any) => star[fieldName] === id);
+            return Boolean(isStarred);
+        });
+    },
 })
 
 //==============================================================

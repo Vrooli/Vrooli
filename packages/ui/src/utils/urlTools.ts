@@ -7,5 +7,10 @@
 export const parseSearchParams = (searchParams: string): { [key: string]: string } => {
     if (searchParams.length <= 1 || !searchParams.startsWith('?')) return {};
     const search = searchParams.substring(1);
-    return JSON.parse('{"' + decodeURI(search).replace(/"/g, '\\"').replace(/&/g, '","').replace(/=/g, '":"') + '"}')
+    try {
+        return JSON.parse('{"' + decodeURI(search).replace(/"/g, '\\"').replace(/&/g, '","').replace(/=/g, '":"') + '"}')
+    } catch(error) {
+        console.error('caught error in parseSearchParams', error);
+        return {};
+    }
 }

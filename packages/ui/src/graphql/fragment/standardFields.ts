@@ -10,6 +10,7 @@ export const standardFields = gql`
         id
         name
         description
+        role
         type
         schema
         default

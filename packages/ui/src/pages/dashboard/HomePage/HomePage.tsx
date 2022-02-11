@@ -154,7 +154,6 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            isOwn={false}
                             onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))
@@ -166,7 +165,6 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            isOwn={false}
                             onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))
@@ -178,7 +176,6 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            isOwn={false}
                             onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))
@@ -190,7 +187,6 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            isOwn={false}
                             onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))
@@ -202,7 +198,6 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            isOwn={false}
                             onClick={() => openSearch(linkMap[objectType], o.id)}
                         />
                     ))

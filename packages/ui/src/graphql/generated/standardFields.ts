@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardType } from "./globalTypes";
+import { MemberRole, StandardType } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: standardFields
@@ -16,7 +16,7 @@ export interface standardFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface standardFields_creator_Organization {
@@ -38,6 +38,7 @@ export interface standardFields {
   id: string;
   name: string;
   description: string | null;
+  role: MemberRole | null;
   type: StandardType;
   schema: string;
   default: string | null;
@@ -46,7 +47,7 @@ export interface standardFields {
   tags: standardFields_tags[];
   creator: standardFields_creator | null;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
 }

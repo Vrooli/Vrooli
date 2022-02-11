@@ -14,7 +14,7 @@ export interface outputFields_standard_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface outputFields_standard {

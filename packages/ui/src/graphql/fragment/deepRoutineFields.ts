@@ -38,6 +38,7 @@ export const deepRoutineFields = gql`
         id
         created_at
         description
+        role
         next
         previous
         title
@@ -47,7 +48,6 @@ export const deepRoutineFields = gql`
             ... on NodeCombine {
                 id
                 from
-                to
             }
             ... on NodeDecision {
                 id
@@ -106,6 +106,7 @@ export const deepRoutineFields = gql`
         stars
         score
         isUpvoted
+        role
         isStarred
         inputs {
             ...inputFields

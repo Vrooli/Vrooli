@@ -1,6 +1,6 @@
 import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS, MemberRole } from "@local/shared";
 import { useQuery } from "@apollo/client";
 import { standard, standard_standard_creator_Organization, standard_standard_creator_User } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
@@ -29,7 +29,7 @@ export const StandardView = ({
     // Fetch data
     const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id } } });
     const standard = useMemo(() => data?.standard, [data]);
-    const isOwn: boolean = useMemo(() => true, [standard]); // TODO standard.isOwn
+    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(standard?.role ?? ''), [standard]);
 
     const contributedBy = useMemo(() => {
         if (!standard || !standard.creator) return null;
@@ -109,20 +109,20 @@ export const StandardView = ({
     const moreOptions: BaseObjectAction[] = useMemo(() => {
         // Initialize
         let options: BaseObjectAction[] = [];
-        if (standard && session && !isOwn) {
-            options.push(standard.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
-            options.push(standard.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
+        if (session && !canEdit) {
+            options.push(standard?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
+            options.push(standard?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
             options.push(BaseObjectAction.Copy);
         }
         options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
         if (session?.id) {
             options.push(BaseObjectAction.Report);
         }
-        if (isOwn) {
+        if (canEdit) {
             options.push(BaseObjectAction.Delete);
         }
         return options;
-    }, [standard, isOwn, session]);
+    }, [standard, session, canEdit]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);

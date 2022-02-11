@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput } from "./globalTypes";
+import { FindByIdInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: project
@@ -16,7 +16,7 @@ export interface project_project_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface project_project_owner_Organization {
@@ -42,8 +42,9 @@ export interface project_project {
   tags: project_project_tags[];
   owner: project_project_owner | null;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
+  role: MemberRole | null;
   isUpvoted: boolean | null;
 }
 

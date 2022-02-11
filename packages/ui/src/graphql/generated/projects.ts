@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectSearchInput } from "./globalTypes";
+import { ProjectSearchInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: projects
@@ -22,7 +22,7 @@ export interface projects_projects_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface projects_projects_edges_node_owner_Organization {
@@ -48,8 +48,9 @@ export interface projects_projects_edges_node {
   tags: projects_projects_edges_node_tags[];
   owner: projects_projects_edges_node_owner | null;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
+  role: MemberRole | null;
   isUpvoted: boolean | null;
 }
 

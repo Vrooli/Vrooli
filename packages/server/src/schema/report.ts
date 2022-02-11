@@ -32,6 +32,7 @@ export const typeDef = gql`
 
     type Report {
         id: ID
+        isOwn: Boolean!
         reason: String!
         details: String
     }

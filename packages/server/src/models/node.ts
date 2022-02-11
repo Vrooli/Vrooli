@@ -1,10 +1,11 @@
 import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from "../schema/types";
-import { FormatConverter, InfoType, MODEL_TYPES, selectHelper } from "./base";
+import { addOwnerField, FormatConverter, InfoType, MODEL_TYPES, removeOwnerField, selectHelper } from "./base";
 import { CustomError } from "../error";
-import { CODE, nodeCreate, NodeType, nodeUpdate } from "@local/shared";
+import { CODE, MemberRole, nodeCreate, NodeType, nodeUpdate } from "@local/shared";
 import { PrismaType, RecursivePartial } from "types";
 import { node } from "@prisma/client";
 import { hasProfanityRecursive } from "../utils/censor";
+import { OrganizationModel } from "./organization";
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -19,13 +20,14 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
     return {
         toDB: (obj: RecursivePartial<Node>): RecursivePartial<node> => {
             let modified: any = obj;
+            // Add owner fields to routine, so we can calculate user's role later
+            modified.routine = removeOwnerField(modified.routine ?? {});
             // // Convert data field to select all data types TODO
             // if (modified.data) {
             //     modified.nodeCombine = {
             //         from: {
             //             fromId: true
             //         },
-            //         to:
             //     }
             //     modified.nodeDecision = {
 
@@ -47,11 +49,15 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
             //     }
             //     delete modified.data;
             // }
+            // Remove calculated fields
+            delete modified.role;
             return modified
         },
         toGraphQL: (obj: RecursivePartial<node>): RecursivePartial<Node> => {
             // Create data field from data types
             let modified: any = obj;
+            // Add owner fields to routine, so we can calculate user's role later
+            modified.routine = addOwnerField(modified.routine ?? {});
             // if (obj.nodeCombine) { TODO
             // }
             // else if (obj.nodeDecision) {
@@ -81,7 +87,7 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
 /**
  * Handles the authorized adding, updating, and deleting of nodes.
  */
- const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
+const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
     async create(
         userId: string,
         input: NodeCreateInput,
@@ -100,12 +106,12 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
         if (!nodeCount) throw new CustomError(CODE.ErrorUnknown);
         if (nodeCount._count.nodes >= MAX_NODES_IN_ROUTINE) throw new CustomError(CODE.MaxNodesReached);
         // Create node data
-        let nodeData: { [x: string]: any } = { 
-            description: input.description, 
+        let nodeData: { [x: string]: any } = {
+            description: input.description,
             nextId: input.nextId,
             previousId: input.previousId,
             routineId: input.routineId,
-            title: input.title, 
+            title: input.title,
             type: input.type,
         };
         // Create type-specific data
@@ -115,8 +121,8 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
             data: nodeData,
             ...selectHelper<Node, node>(info, format.toDB)
         })
-        // Return node
-        return format.toGraphQL(node);
+        // Return project with "role" field
+        return { ...format.toGraphQL(node), role: MemberRole.Owner } as any;
     },
     async update(
         userId: string,
@@ -128,12 +134,12 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
         // Check for censored words
         if (hasProfanityRecursive(input, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);
         // Create node data
-        let nodeData: { [x: string]: any } = { 
-            description: input.description, 
+        let nodeData: { [x: string]: any } = {
+            description: input.description,
             nextId: input.nextId,
             previousId: input.previousId,
             routineId: input.routineId,
-            title: input.title, 
+            title: input.title,
             type: input.type,
         };
         // Update type-specific data
@@ -156,7 +162,9 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
             data: nodeData,
             ...selectHelper<Node, node>(info, format.toDB)
         });
-        return format.toGraphQL(node);
+        // Format and add supplemental/calculated fields
+        const formatted = await this.supplementalFields(userId, [format.toGraphQL(node)], {});
+        return formatted[0];
     },
     async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Check if authorized TODO
@@ -166,6 +174,38 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
             where: { id: input.id }
         })
         return { success: true };
+    },
+    /**
+     * Supplemental field is role
+     */
+    async supplementalFields(
+        userId: string | null | undefined, // Of the user making the request
+        objects: RecursivePartial<Node>[],
+        known: { [x: string]: any[] }, // Known values (i.e. don't need to query), in same order as objects
+    ): Promise<RecursivePartial<Node>[]> {
+        // If userId not provided, return the input with role set to null
+        if (!userId) return objects.map(x => ({ ...x, role: null }));
+        // Check is role is provided
+        if (known.role) objects = objects.map((x, i) => ({ ...x, role: known.role[i] }));
+        // Otherwise, query for role
+        else {
+            console.log('node supplemental fields', objects[0]?.routine?.owner?.__typename)
+            // If owned by user, set role to owner if userId matches
+            // If owned by organization, set role user's role in organization
+            const organizationIds = objects
+                .filter(x => x.routine?.owner?.__typename === 'Organization')
+                .map(x => x.id)
+                .filter(x => Boolean(x)) as string[];
+            const roles = await OrganizationModel(prisma).getRoles(userId, organizationIds);
+            objects = objects.map((x) => {
+                const orgRoleIndex = organizationIds.findIndex(id => id === x.id);
+                if (orgRoleIndex >= 0) {
+                    return { ...x, role: roles[orgRoleIndex] };
+                }
+                return { ...x, role: x.routine?.owner?.id === userId ? MemberRole.Owner : undefined };
+            }) as any;
+        }
+        return objects;
     },
 })
 

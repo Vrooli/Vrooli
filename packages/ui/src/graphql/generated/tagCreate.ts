@@ -16,7 +16,7 @@ export interface tagCreate_tagCreate {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface tagCreate {

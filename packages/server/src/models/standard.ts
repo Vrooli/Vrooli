@@ -1,4 +1,4 @@
-import { CODE, standardCreate, standardUpdate } from "@local/shared";
+import { CODE, MemberRole, standardCreate, standardUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
 import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Success } from "../schema/types";
@@ -7,6 +7,8 @@ import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { standard } from "@prisma/client";
 import { TagModel } from "./tag";
+import { StarModel } from "./star";
+import { VoteModel } from "./vote";
 
 //==============================================================
 /* #region Custom Components */
@@ -28,9 +30,10 @@ const formatter = (): FormatConverter<Standard, standard> => {
             let modified = addJoinTables(obj, joinMapper);
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
-            // Remove isUpvoted and isStarred, as these are calculated in their own queries
-            if (modified.isUpvoted) delete modified.isUpvoted;
-            if (modified.isStarred) delete modified.isStarred;
+            // Remove calculated fields
+            delete modified.isUpvoted;
+            delete modified.isStarred;
+            delete modified.role;
             return modified;
         },
         toGraphQL: (obj: RecursivePartial<standard>): RecursivePartial<Standard> => {
@@ -90,12 +93,9 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         let standard = await prisma.standard.findUnique({ where: { id: input.id }, ...select });
         // Return standard with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!standard) throw new CustomError(CODE.InternalError, 'Standard not found');
-        if (!userId) return { ...format.toGraphQL(standard), isUpvoted: false, isStarred: false };
-        const vote = await prisma.vote.findFirst({ where: { userId, standardId: standard.id } });
-        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        const star = await prisma.star.findFirst({ where: { byId: userId, standardId: standard.id } });
-        const isStarred = Boolean(star) ?? false;
-        return { ...format.toGraphQL(standard), isUpvoted, isStarred };
+        // Format and add supplemental/calculated fields
+        const formatted = await this.supplementalFields(userId, [format.toGraphQL(standard)], {});
+        return formatted[0];
     },
     async search(
         where: { [x: string]: any },
@@ -116,24 +116,10 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         // Search
         const search = searcher<StandardSortBy, StandardSearchInput, Standard, standard>(MODEL_TYPES.Standard, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...reportIdQuery, ...routineIdQuery, ...where }, input, info);
-        // Compute "isUpvoted" and "isStarred" field for each standard
-        // If userId not provided, then "isUpvoted" is null and "isStarred" is false
-        if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isUpvoted: null, isStarred: null } }));
-            return searchResults;
-        }
-        // Otherwise, query votes for all search results in one query
-        const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
-        const isUpvotedArray = await prisma.vote.findMany({ where: { userId, standardId: { in: resultIds } } });
-        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, standardId: { in: resultIds } } });
-        console.log('isUpvotedArray', isUpvotedArray)
-        searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
-            console.log('ids', node.id, isUpvotedArray.map(({ standardId }) => standardId));
-            const isUpvoted = isUpvotedArray.find(({ standardId }) => standardId === node.id)?.isUpvote ?? null;
-            const isStarred = Boolean(isStarredArray.find(({ standardId }) => standardId === node.id));
-            return { cursor, node: { ...node, isUpvoted, isStarred } };
-        });
-        return searchResults;
+        // Format and add supplemental/calculated fields to each result node
+        let formattedNodes = searchResults.edges.map(({ node }) => node);
+        formattedNodes = await this.supplementalFields(userId, formattedNodes, {});
+        return { pageInfo: searchResults.pageInfo, edges: searchResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
     },
     async create(
         userId: string,
@@ -160,13 +146,13 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
             // Make sure the user is an admin of the organization
             const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-            standardData = { 
-                ...standardData, 
+            standardData = {
+                ...standardData,
                 createdByOrganization: { connect: { id: input.createdByOrganizationId } },
             };
         } else {
-            standardData = { 
-                ...standardData, 
+            standardData = {
+                ...standardData,
                 createdByUser: { connect: { id: userId } },
             };
         }
@@ -175,8 +161,8 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
             data: standardData as any,
             ...selectHelper<Standard, standard>(info, format.toDB)
         })
-        // Return standard with "isUpvoted" and "isStarred" fields. These will be their default values.
-        return { ...format.toGraphQL(standard), isUpvoted: null, isStarred: false };
+        // Return project with "role", "isUpvoted" and "isStarred" fields. These will be their default values.
+        return { ...format.toGraphQL(standard), role: MemberRole.Owner as any, isUpvoted: null, isStarred: false };
     },
     async update(
         userId: string,
@@ -187,7 +173,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         standardUpdate.validateSync(input, { abortEarly: false });
         if (!input.id) throw new CustomError(CODE.InternalError, 'No standard id provided');
         // Create standard data
-        let standardData: { [x: string]: any } = { 
+        let standardData: { [x: string]: any } = {
             description: input.description,
             // Handle tags
             tags: await TagModel(prisma).relationshipBuilder(userId, input, false),
@@ -213,12 +199,9 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
             data: standardData as any,
             ...selectHelper<Standard, standard>(info, format.toDB)
         });
-        // Return standard with "isUpvoted" and "isStarred" fields. These must be queried separately.
-        const vote = await prisma.vote.findFirst({ where: { userId, standardId: standard.id } });
-        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        const star = await prisma.star.findFirst({ where: { byId: userId, standardId: standard.id } });
-        const isStarred = Boolean(star) ?? false;
-        return { ...standard, isUpvoted, isStarred };
+        // Format and add supplemental/calculated fields
+        const formatted = await this.supplementalFields(userId, [format.toGraphQL(standard)], {});
+        return formatted[0];
     },
     async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Find
@@ -242,7 +225,55 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
             where: { id: standard.id },
         });
         return { success: true };
-    }
+    },
+    /**
+     * Supplemental fields are role, isUpvoted, and isStarred
+     */
+    async supplementalFields(
+        userId: string | null | undefined, // Of the user making the request
+        objects: RecursivePartial<Standard>[],
+        known: { [x: string]: any[] }, // Known values (i.e. don't need to query), in same order as objects
+    ): Promise<RecursivePartial<Standard>[]> {
+        // If userId not provided, return the input with isStarred false, isUpvoted null, and role null
+        if (!userId) return objects.map(x => ({ ...x, isStarred: false, isUpvoted: null, role: null }));
+        // Get all of the ids
+        const ids = objects.map(x => x.id) as string[];
+        // Check if isStarred is provided
+        if (known.isStarred) objects = objects.map((x, i) => ({ ...x, isStarred: known.isStarred[i] }));
+        // Otherwise, query for isStarred
+        else {
+            const isStarredArray = await StarModel(prisma).getIsStarreds(userId, ids, 'standard');
+            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+        }
+        // Check if isUpvoted is provided
+        if (known.isUpvoted) objects = objects.map((x, i) => ({ ...x, isUpvoted: known.isUpvoted[i] }));
+        // Otherwise, query for isStarred
+        else {
+            const isUpvotedArray = await VoteModel(prisma).getIsUpvoteds(userId, ids, 'standard');
+            objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
+        }
+        // Check is role is provided
+        if (known.role) objects = objects.map((x, i) => ({ ...x, role: known.role[i] }));
+        // Otherwise, query for role
+        else {
+            console.log('standard supplemental fields', objects)
+            // If owned by user, set role to owner if userId matches
+            // If owned by organization, set role user's role in organization
+            const organizationIds = objects
+                .filter(x => x.creator?.__typename === 'Organization')
+                .map(x => x.id)
+                .filter(x => Boolean(x)) as string[];
+            const roles = await OrganizationModel(prisma).getRoles(userId, organizationIds);
+            objects = objects.map((x) => {
+                const orgRoleIndex = organizationIds.findIndex(id => id === x.id);
+                if (orgRoleIndex >= 0) {
+                    return { ...x, role: roles[orgRoleIndex] };
+                }
+                return { ...x, role: x.creator?.id === userId ? MemberRole.Owner : undefined };
+            }) as any;
+        }
+        return objects;
+    },
 })
 
 //==============================================================

@@ -1,4 +1,4 @@
-import { Grid, TextField } from "@mui/material"
+import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
@@ -60,7 +60,7 @@ export const OrganizationUpdate = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(organization, { ...values, tags }),
+                input: formatForUpdate(organization, { id, ...values, tags }, ['tags']),
                 onSuccess: (response) => { onUpdated(response.data.organizationUpdate) },
             })
         },
@@ -75,47 +75,63 @@ export const OrganizationUpdate = ({
         setFormBottom(height);
     }, [setFormBottom]);
 
+    const formInput = useMemo(() => (
+        <Grid container spacing={2} sx={{ padding: 2 }}>
+            <Grid item xs={12}>
+                <TextField
+                    fullWidth
+                    id="name"
+                    name="name"
+                    label="Name"
+                    value={formik.values.name}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    error={formik.touched.name && Boolean(formik.errors.name)}
+                    helperText={formik.touched.name && formik.errors.name}
+                />
+            </Grid>
+            <Grid item xs={12}>
+                <TextField
+                    fullWidth
+                    id="bio"
+                    name="bio"
+                    label="Bio"
+                    multiline
+                    minRows={4}
+                    value={formik.values.bio}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    error={formik.touched.bio && Boolean(formik.errors.bio)}
+                    helperText={formik.touched.bio && formik.errors.bio}
+                />
+            </Grid>
+            <Grid item xs={12} marginBottom={4}>
+                <TagSelector
+                    session={session}
+                    tags={tags}
+                    onTagAdd={addTag}
+                    onTagRemove={removeTag}
+                    onTagsClear={clearTags}
+                />
+            </Grid>
+        </Grid>
+    ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
+
     return (
         <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
-            <Grid container spacing={2} sx={{ padding: 2 }}>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="name"
-                        name="name"
-                        label="Name"
-                        value={formik.values.name}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.name && Boolean(formik.errors.name)}
-                        helperText={formik.touched.name && formik.errors.name}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="bio"
-                        name="bio"
-                        label="Bio"
-                        multiline
-                        minRows={4}
-                        value={formik.values.bio}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.bio && Boolean(formik.errors.bio)}
-                        helperText={formik.touched.bio && formik.errors.bio}
-                    />
-                </Grid>
-                <Grid item xs={12} marginBottom={4}>
-                    <TagSelector
-                        session={session}
-                        tags={tags}
-                        onTagAdd={addTag}
-                        onTagRemove={removeTag}
-                        onTagsClear={clearTags}
-                    />
-                </Grid>
-            </Grid>
+            {loading ? (
+                <Box sx={{
+                    position: 'absolute',
+                    top: '-5vh', // Half of toolbar height
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}>
+                    <CircularProgress size={100} color="secondary" />
+                </Box>
+            ) : formInput}
             <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )

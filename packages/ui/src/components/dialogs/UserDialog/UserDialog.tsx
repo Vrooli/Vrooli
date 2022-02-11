@@ -33,7 +33,7 @@ export const UserDialog = ({
                 window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.Settings}?page=profile?editing=true`);
+                setLocation(`${APP_LINKS.Settings}?page=profile&editing=true`);
                 break;
             case ObjectDialogAction.Next:
                 break;

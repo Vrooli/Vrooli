@@ -38,7 +38,7 @@ export const SettingsProfile = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(profile, values),
+                input: formatForUpdate(profile, { ...values }),
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
             })
         },

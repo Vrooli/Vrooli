@@ -92,7 +92,7 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
             },
             ...selectHelper<CommentCreateInput | CommentUpdateInput, comment>(info, formatter().toDB)
         });
-        // Return comment with "isUpvoted" and "isStarred" fields. These will be their default values.
+        // Return comment with fields calculated outside of the query
         return { ...format.toGraphQL(comment), isUpvoted: null, isStarred: false };
     },
     async update(

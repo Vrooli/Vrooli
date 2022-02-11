@@ -1,10 +1,11 @@
 import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTables, counter, FormatConverter, InfoType, joinRelationshipToPrisma, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { addJoinTables, counter, FormatConverter, InfoType, joinRelationshipToPrisma, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { CODE, tagCreate, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { tag } from "@prisma/client";
+import { StarModel } from "./star";
 
 //==============================================================
 /* #region Custom Components */
@@ -24,11 +25,17 @@ export const tagFormatter = (): FormatConverter<Tag, tag> => {
     return {
         toDB: (obj: RecursivePartial<Tag>): RecursivePartial<tag> => {
             let modified = addJoinTables(obj, joinMapper)
-            // Remove isStarred, as it is calculated in its own query
-            if (modified.isStarred) delete modified.isStarred;
+            // Add creator field, so we can calculate isOwn
+            modified.createdByUserId = true;
+            // Remove calculated fields
+            delete modified.isStarred;
+            delete modified.isOwn;
             return modified
         },
-        toGraphQL: (obj: RecursivePartial<tag>): RecursivePartial<Tag> => removeJoinTables(obj, joinMapper)
+        toGraphQL: (obj: RecursivePartial<tag>): RecursivePartial<Tag> => {
+            let modified = removeJoinTables(obj, joinMapper);
+            return modified;
+        }
     }
 }
 
@@ -116,10 +123,9 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         let tag = await prisma.tag.findUnique({ where: { id: input.id }, ...select });
         // Return tag with "isStarred" field. This must be queried separately.
         if (!tag) throw new CustomError(CODE.InternalError, 'Tag not found');
-        if (!userId) return { ...format.toGraphQL(tag), isStarred: false };
-        const star = await prisma.star.findFirst({ where: { byId: userId, tagId: tag.id } });
-        const isStarred = Boolean(star) ?? false;
-        return { ...format.toGraphQL(tag), isStarred };
+        // Format and add supplemental/calculated fields
+        const formatted = await this.supplementalFields(userId, [format.toGraphQL(tag)], {});
+        return formatted[0];
     },
     async search(
         where: { [x: string]: any },
@@ -149,20 +155,10 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         // Search
         const search = searcher<TagSortBy, TagSearchInput, Tag, tag>(MODEL_TYPES.Tag, format.toDB, format.toGraphQL, sort, prisma);
         let searchResults = await search.search({ ...where }, { ...input, ids: idsLimit }, info);
-        // Compute "isStarred" field for each tag
-        // If userId not provided "isStarred" is false
-        if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isStarred: false } }));
-            return searchResults;
-        }
-        // Otherwise, query votes for all search results in one query
-        const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
-        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, tagId: { in: resultIds } } });
-        searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
-            const isStarred = Boolean(isStarredArray.find(({ tagId }) => tagId === node.id));
-            return { cursor, node: { ...node, isStarred } };
-        });
-        return searchResults;
+        // Format and add supplemental/calculated fields to each result node
+        let formattedNodes = searchResults.edges.map(({ node }) => node);
+        formattedNodes = await this.supplementalFields(userId, formattedNodes, {});
+        return { pageInfo: searchResults.pageInfo, edges: searchResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
     },
     async create(
         userId: string,
@@ -180,8 +176,8 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
             data: tagData,
             ...selectHelper<Tag, tag>(info, format.toDB)
         })
-        // Return tag with "isStarred" field. This will be its default value.
-        return { ...format.toGraphQL(tag), isStarred: false };
+        // Return tag with "isStarred" and "isOwn" fields. This will be its default value.
+        return { ...format.toGraphQL(tag), isStarred: false, isOwn: true };
     },
     async update(
         userId: string,
@@ -200,10 +196,9 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
             data: tagData,
             ...selectHelper<Tag, tag>(info, format.toDB)
         });
-        // Return tag with "isStarred" field. This must be queried separately.
-        const star = await prisma.star.findFirst({ where: { byId: userId, tagId: tag.id } });
-        const isStarred = Boolean(star) ?? false;
-        return { ...format.toGraphQL(tag), isStarred };
+        // Format and add supplemental/calculated fields
+        const formatted = await this.supplementalFields(userId, [format.toGraphQL(tag)], {});
+        return formatted[0];
     },
     async deleteMany(userId: string, input: DeleteManyInput): Promise<Count> {
         // Find
@@ -216,7 +211,32 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         return await prisma.tag.deleteMany({
             where: { id: { in: tags.map(t => t.id) } },
         });
-    }
+    },
+    /**
+     * Supplemental fields are isOwn and isStarred
+     */
+    async supplementalFields(
+        userId: string | null | undefined, // Of the user making the request
+        objects: RecursivePartial<Tag & { createdByUserId: string | null }>[],
+        known: { [x: string]: any[] }, // Known values (i.e. don't need to query), in same order as objects
+    ): Promise<RecursivePartial<Tag>[]> {
+        // If userId not provided, return the input with isOwn false
+        if (!userId) return objects.map(x => ({ ...x, isOwn: false, isStarred: false }));
+        // Get all of the ids
+        const ids = objects.map(x => x.id) as string[];
+        // Check if isStarred is provided
+        if (known.isStarred) objects = objects.map((x, i) => ({ ...x, isStarred: known.isStarred[i] }));
+        // Otherwise, query for isStarred
+        else {
+            const isStarredArray = await StarModel(prisma).getIsStarreds(userId, ids, 'tag');
+            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+        }
+        // Check is isOwn is provided
+        if (known.isOwn) objects = objects.map((x, i) => ({ ...x, isOwn: known.isOwn[i] }));
+        // Otherwise, query for isOwn
+        else objects = objects.map((x) => ({ ...x, isOwn: x.createdByUserId === userId }));
+        return objects;
+    },
 })
 
 //==============================================================
@@ -242,6 +262,10 @@ export function TagModel(prisma: PrismaType) {
     }
 }
 
+
+function AddCreatorField(modified: any): any {
+    throw new Error("Function not implemented.");
+}
 //==============================================================
 /* #endregion Model */
 //==============================================================

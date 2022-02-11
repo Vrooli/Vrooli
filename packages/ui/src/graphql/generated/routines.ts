@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RoutineSearchInput } from "./globalTypes";
+import { RoutineSearchInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routines
@@ -22,7 +22,7 @@ export interface routines_routines_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface routines_routines_edges_node {
@@ -33,9 +33,10 @@ export interface routines_routines_edges_node {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  role: MemberRole | null;
   tags: routines_routines_edges_node_tags[];
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
 }

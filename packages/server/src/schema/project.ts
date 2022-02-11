@@ -56,9 +56,10 @@ export const typeDef = gql`
         description: String
         name: String!
         stars: Int!
-        isStarred: Boolean
-        score: Int!
+        isStarred: Boolean!
+        role: MemberRole
         isUpvoted: Boolean
+        score: Int!
         comments: [Comment!]!
         creator: Contributor
         forks: [Project!]!

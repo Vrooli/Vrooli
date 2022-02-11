@@ -1,6 +1,6 @@
 import { Box, Grid, IconButton, Stack, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS, MemberRole } from "@local/shared";
 import { useQuery, useLazyQuery } from "@apollo/client";
 import { routine } from "graphql/generated/routine";
 import { usersQuery, organizationsQuery, routineQuery } from "graphql/query";
@@ -31,7 +31,7 @@ export const RoutineView = ({
     // Fetch data
     const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const routine = useMemo(() => data?.routine, [data]);
-    const isOwn: boolean = useMemo(() => true, [routine]); // TODO routine.isOwn
+    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role ?? ''), [routine]);
 
     const [searchString, setSearchString] = useState<string>('');
     const updateSearch = useCallback((newValue: any) => setSearchString(newValue), []);
@@ -115,20 +115,20 @@ export const RoutineView = ({
         const moreOptions: BaseObjectAction[] = useMemo(() => {
             // Initialize
             let options: BaseObjectAction[] = [];
-            if (routine && session && !isOwn) {
-                options.push(routine.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
-                options.push(routine.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
+            if (session && !canEdit) {
+                options.push(routine?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
+                options.push(routine?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
                 options.push(BaseObjectAction.Fork);
             }
             options.push(BaseObjectAction.Donate, BaseObjectAction.Share)
             if (session?.id) {
                 options.push(BaseObjectAction.Report);
             }
-            if (isOwn) {
+            if (canEdit) {
                 options.push(BaseObjectAction.Delete);
             }
             return options;
-        }, [routine, isOwn, session]);
+        }, [routine, canEdit, session]);
     
         // More menu
         const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);

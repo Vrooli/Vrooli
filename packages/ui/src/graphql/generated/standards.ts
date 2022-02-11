@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardSearchInput, StandardType } from "./globalTypes";
+import { StandardSearchInput, MemberRole, StandardType } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standards
@@ -22,7 +22,7 @@ export interface standards_standards_edges_node_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface standards_standards_edges_node_creator_Organization {
@@ -44,6 +44,7 @@ export interface standards_standards_edges_node {
   id: string;
   name: string;
   description: string | null;
+  role: MemberRole | null;
   type: StandardType;
   schema: string;
   default: string | null;
@@ -52,7 +53,7 @@ export interface standards_standards_edges_node {
   tags: standards_standards_edges_node_tags[];
   creator: standards_standards_edges_node_creator | null;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
 }

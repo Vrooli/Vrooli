@@ -27,10 +27,10 @@ export const ActorListItem = ({
     session,
     index,
     data,
-    isOwn = false,
     onClick,
 }: ActorListItemProps) => {
     const [, setLocation] = useLocation();
+    const isOwn = useMemo(() => data?.id == session?.id, [data, session]);
 
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
 

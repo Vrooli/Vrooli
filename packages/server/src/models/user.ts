@@ -329,13 +329,13 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         const select = selectHelper<User, user>(info, format.toDBUser);
         // Access database
         let user = await prisma.user.findUnique({ where: { id: input.id }, ...select });
-        // Return user with "isStarred" and "isOwn" fields
+        // Return user with "isStarred" field
         // If the user is querying themselves, 
         if (!user) throw new CustomError(CODE.InternalError, 'User not found');
         if (!userId || userId === user.id) return { ...format.toGraphQLUser(user), isStarred: false };
         const star = await prisma.star.findFirst({ where: { byId: userId, userId: user.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...format.toGraphQLUser(user), isStarred, isOwn: userId === user.id };
+        return { ...format.toGraphQLUser(user), isStarred };
     },
     async findProfile(
         userId: string,
@@ -345,7 +345,6 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         const select = selectHelper<Profile, user>(info, format.toDBProfile);
         // Access database
         const user = await prisma.user.findUnique({ where: { id: userId }, ...select });
-        // Return user with "isStarred" and "isOwn" fields. This "isStarred" will be false, since the user is querying themselves
         return user ? format.toGraphQLProfile(user) : null;
     },
     async searchUsers(
@@ -375,7 +374,7 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         const isStarredArray = await prisma.star.findMany({ where: { byId: userId, userId: { in: resultIds } } });
         searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
             const isStarred = Boolean(isStarredArray.find(({ userId }) => userId === node.id));
-            return { cursor, node: { ...node, isStarred, isOwn: node.id === userId } };
+            return { cursor, node: { ...node, isStarred } };
         });
         return searchResults;
     },

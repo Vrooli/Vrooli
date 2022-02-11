@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { MemberRole } from "./globalTypes";
+
 // ====================================================
 // GraphQL fragment: projectFields
 // ====================================================
@@ -14,7 +16,7 @@ export interface projectFields_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface projectFields_owner_Organization {
@@ -40,7 +42,8 @@ export interface projectFields {
   tags: projectFields_tags[];
   owner: projectFields_owner | null;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
+  role: MemberRole | null;
   isUpvoted: boolean | null;
 }

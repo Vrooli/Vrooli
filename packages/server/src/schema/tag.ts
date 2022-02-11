@@ -37,7 +37,8 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         stars: Int!
-        isStarred: Boolean
+        isStarred: Boolean!
+        isOwn: Boolean!
         starredBy: [User!]!
     }
 

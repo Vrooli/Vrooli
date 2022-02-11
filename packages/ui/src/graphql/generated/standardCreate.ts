@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardCreateInput, StandardType } from "./globalTypes";
+import { StandardCreateInput, MemberRole, StandardType } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: standardCreate
@@ -16,7 +16,7 @@ export interface standardCreate_standardCreate_tags {
   description: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface standardCreate_standardCreate_creator_Organization {
@@ -38,6 +38,7 @@ export interface standardCreate_standardCreate {
   id: string;
   name: string;
   description: string | null;
+  role: MemberRole | null;
   type: StandardType;
   schema: string;
   default: string | null;
@@ -46,7 +47,7 @@ export interface standardCreate_standardCreate {
   tags: standardCreate_standardCreate_tags[];
   creator: standardCreate_standardCreate_creator | null;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
 }

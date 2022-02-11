@@ -12,4 +12,5 @@ export interface reportFields {
   id: string | null;
   reason: string;
   details: string | null;
+  isOwn: boolean;
 }
