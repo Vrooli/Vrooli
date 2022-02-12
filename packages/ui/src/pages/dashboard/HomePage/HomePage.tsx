@@ -1,6 +1,6 @@
 import { Box, Button, Grid, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { centeredDiv, containerShadow } from 'styles';
+import { centeredDiv } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
 import { useQuery } from '@apollo/client';
 import { autocompleteQuery } from 'graphql/query';
@@ -258,7 +258,7 @@ export const HomePage = ({
                 {feeds}
                 {/* Advanced search prompt TODO */}
                 <Stack direction="column" spacing={2} justifyContent="center" alignItems="center">
-                    <Typography variant="h4" textAlign="center">Can't find what you're looking for?</Typography>
+                    <Typography component="h3" variant="h4" textAlign="center">Can't find what you're looking for?</Typography>
                     <Grid container spacing={2} sx={{ width: 'min(100%, 500px)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                         <Grid item xs={12} sm={6}>
                             <Button fullWidth startIcon={<SearchIcon />}>Advanced Search</Button>

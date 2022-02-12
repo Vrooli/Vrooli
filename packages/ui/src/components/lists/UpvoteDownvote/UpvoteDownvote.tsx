@@ -79,6 +79,8 @@ export const UpvoteDownvote = ({
                 <Box
                     display="inline-block"
                     onClick={handleUpvoteClick}
+                    role="button"
+                    aria-pressed={internalIsUpvoted === true}
                     sx={{
                         cursor: session.id ? 'pointer' : 'default',
                         '&:hover': {
@@ -99,6 +101,8 @@ export const UpvoteDownvote = ({
                 <Box
                     display="inline-block"
                     onClick={handleDownvoteClick}
+                    role="button"
+                    aria-pressed={internalIsUpvoted === false}
                     sx={{
                         cursor: session.id ? 'pointer' : 'default',
                         '&:hover': {
