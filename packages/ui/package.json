@@ -79,7 +79,7 @@
         "@storybook/preset-create-react-app": "^3.2.0",
         "@storybook/react": "^6.4.9",
         "@storybook/theming": "^6.4.9",
-        "@types/jest": "^27.0.2",
+        "@types/jest": "^27.4.0",
         "@types/node": "^16.10.4",
         "@types/pubsub-js": "^1.8.3",
         "@types/react": "^17.0.29",
