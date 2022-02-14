@@ -5,7 +5,7 @@ export const EMAIL = {
 }
 export const SUPPORT_EMAIL = {
     Label: 'support@vrooli.com',
-    Link: 'mailto:support@info.vrooli.com'
+    Link: 'mailto:support@vrooli.com'
 }
 export const SOCIALS = {
     Discord: 'https://discord.gg/kgxfyxVY',
