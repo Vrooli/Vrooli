@@ -340,6 +340,9 @@ export const resolvers = {
                         username: `user${randomString(8)}`,
                         roles: {
                             create: [{ role: { connect: { id: actorRoleId } } }]
+                        },
+                        wallets: {
+                            connect: { id: walletData.id }
                         }
                     },
                     select: { id: true, theme: true }

@@ -116,7 +116,7 @@ export const StartPage = ({
         }
         // Validate wallet
         const walletCompleteResult = await validateWallet(provider);
-        console.log('wallet validation', walletCompleteResult?.session);
+        console.log('wallet validation', walletCompleteResult);
         if (walletCompleteResult) {
             PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
             // Set actor role

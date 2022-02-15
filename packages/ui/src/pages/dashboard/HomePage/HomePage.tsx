@@ -44,8 +44,8 @@ const examples = [
     'Learn about Project Catalyst',
     'Fund your project',
     'Create a Cardano native asset token',
-].map(example => (
-    <Typography component="p" variant="h6" sx={{
+].map((example, index) => (
+    <Typography key={index} component="p" variant="h6" sx={{
         color: (t) => t.palette.text.secondary,
         fontStyle: 'italics'
     }}>"{example}"</Typography>
@@ -247,7 +247,7 @@ export const HomePage = ({
                 />
                 {/* =========  #endregion ========= */}
             </Stack>
-            {/* Examples stack TODO */}
+            {/* Examples stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '40px', paddingBottom: '40px' }}>
                 <Typography component="h2" variant="h5" pb={1}>Examples</Typography>
                 {examples}

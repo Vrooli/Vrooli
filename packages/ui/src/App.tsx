@@ -51,6 +51,18 @@ const useStyles = makeStyles(() => ({
             src: `local('Lato'), url(${SakBunderan}) format('truetype')`,
             fontDisplay: 'swap',
         },
+        '@keyframes gradient': {
+            '0%': {
+                backgroundPosition: '0% 50%',
+            },
+            '50%': {
+                backgroundPosition: '100% 50%',
+            },
+            '100%': {
+                backgroundPosition: '0% 50%',
+            },
+        }
+        
     },
     spinner: {
         position: 'absolute',
