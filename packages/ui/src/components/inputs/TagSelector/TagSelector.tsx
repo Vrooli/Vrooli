@@ -11,6 +11,7 @@ import { Pubs } from 'utils';
 export const TagSelector = ({
     session,
     tags,
+    placeholder = 'Enter tags, followed by commas...',
     onTagAdd,
     onTagRemove,
     onTagsClear
@@ -133,7 +134,7 @@ export const TagSelector = ({
                     sx={{ paddingRight: 0 }}
                     value={inputValue}
                     onChange={onChange}
-                    placeholder="Enter tags, followed by commas..."
+                    placeholder={placeholder}
                     autoFocus
                     fullWidth
                     InputProps={params.InputProps}

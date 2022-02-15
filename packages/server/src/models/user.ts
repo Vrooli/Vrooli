@@ -1,4 +1,4 @@
-import { Session, User, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, UserDeleteInput, FindByIdInput, ProfileUpdateInput } from "../schema/types";
+import { Session, User, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, UserDeleteInput, FindByIdInput, ProfileUpdateInput, Tag, ProfileEmailUpdateInput } from "../schema/types";
 import { addJoinTables, counter, InfoType, JoinMap, MODEL_TYPES, PaginatedSearchResult, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { AccountStatus, CODE, ROLES } from '@local/shared';
@@ -7,6 +7,8 @@ import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/que
 import { PrismaType, RecursivePartial } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { user } from "@prisma/client";
+import { TagModel } from "./tag";
+import { EmailModel } from "./email";
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
 const HASHING_ROUNDS = 8;
@@ -40,14 +42,23 @@ export const userFormatter = (): UserFormatConverter => {
         roles: 'role',
     };
     return {
-        toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<user> => addJoinTables(obj, joinMapper),
+        toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<user> => {
+            let modified = addJoinTables(obj, joinMapper);
+            // Remove starredTags and hiddenTags, as they are calculated in their own queries
+            delete modified.starredTags;
+            delete modified.hiddenTags;
+            return modified;
+        },
         toDBUser: (obj: RecursivePartial<User>): RecursivePartial<user> => {
             let modified = addJoinTables(obj, joinMapper);
             // Remove isStarred, as it is calculated in its own query
             if (modified.isStarred) delete modified.isStarred;
             return modified;
         },
-        toGraphQLProfile: (obj: RecursivePartial<user>): RecursivePartial<Profile> => removeJoinTables(obj, joinMapper),
+        toGraphQLProfile: (obj: RecursivePartial<user>): RecursivePartial<Profile> => {
+            let modified = removeJoinTables(obj, joinMapper);
+            return modified;
+        },
         toGraphQLUser: (obj: RecursivePartial<user>): RecursivePartial<User> => {
             let modified = removeJoinTables(obj, joinMapper);
             return modified;
@@ -331,7 +342,7 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         let user = await prisma.user.findUnique({ where: { id: input.id }, ...select });
         // Return user with "isStarred" field
         // If the user is querying themselves, 
-        if (!user) throw new CustomError(CODE.InternalError, 'User not found');
+        if (!user) throw new CustomError(CODE.InternalError, 'User not found.');
         if (!userId || userId === user.id) return { ...format.toGraphQLUser(user), isStarred: false };
         const star = await prisma.star.findFirst({ where: { byId: userId, userId: user.id } });
         const isStarred = Boolean(star) ?? false;
@@ -345,7 +356,40 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         const select = selectHelper<Profile, user>(info, format.toDBProfile);
         // Access database
         const user = await prisma.user.findUnique({ where: { id: userId }, ...select });
-        return user ? format.toGraphQLProfile(user) : null;
+        // Return user with "starredTags" and "hiddenTags" fields
+        if (!user) throw new CustomError(CODE.InternalError, 'Error accessing profile.');
+        const starredTags: Tag[] = await (await prisma.star.findMany({
+            where: {
+                AND: [
+                    { byId: userId },
+                    { NOT: { tagId: null } }
+                ]
+            },
+            select: {
+                tag: {
+                    select: {
+                        id: true,
+                        tag: true,
+                        description: true,
+                        stars: true,
+                    }
+                }
+            }
+        })).map(({ tag }) => tag) as Tag[]
+        const hiddenTags: Tag[] = (await prisma.user_tag_hidden.findMany({
+            where: { userId: userId },
+            select: {
+                tag: {
+                    select: {
+                        id: true,
+                        tag: true,
+                        description: true,
+                        stars: true,
+                    }
+                }
+            }
+        })).map(({ tag }) => tag) as Tag[]
+        return { ...format.toGraphQLProfile(user), starredTags, hiddenTags };
     },
     async searchUsers(
         where: { [x: string]: any },
@@ -385,22 +429,59 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
     ): Promise<RecursivePartial<Profile>> {
         // Check for valid arguments
         if (!input.username || input.username.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
+        // Check for censored words
+        if (hasProfanity(input.username, input.bio)) throw new CustomError(CODE.BannedWord);
+        // Create user data
+        let userData: { [x: string]: any } = {
+            username: input.username,
+            bio: input.bio,
+            theme: input.theme,
+            // Handle tags
+            stars: await TagModel(prisma).relationshipBuilder(userId, {
+                tagsCreate: input.starredTagsCreate,
+                tagsConnect: input.starredTagsConnect,
+                tagsDisconnect: input.starredTagsDisconnect,
+            }, true),
+            hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
+                tagsCreate: input.hiddenTagsCreate,
+                tagsConnect: input.hiddenTagsConnect,
+                tagsDisconnect: input.hiddenTagsDisconnect,
+            }, true),
+        };
+        // Update user
+        const user = await prisma.user.update({
+            where: { id: userId },
+            data: userData,
+            ...selectHelper<Profile, user>(info, format.toDBProfile)
+        });
+        return format.toGraphQLProfile(user)
+    },
+    async updateEmails(
+        userId: string,
+        input: ProfileEmailUpdateInput,
+        info: InfoType = null,
+    ): Promise<RecursivePartial<Profile>> {
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new CustomError(CODE.InternalError, 'User not found');
         if (!UserModel(prisma).validatePassword(input.currentPassword, user)) throw new CustomError(CODE.BadCredentials);
-        // Check for censored words
-        if (hasProfanity(input.username, input.bio)) throw new CustomError(CODE.BannedWord);
         // Create user data
-        let userData: { [x: string]: any } = { username: input.username, bio: input.bio, theme: input.theme };
-        // TODO emails
+        let userData: { [x: string]: any } = {
+            password: input.newPassword ? UserModel(prisma).hashPassword(input.newPassword) : undefined,
+            emails: await EmailModel(prisma).relationshipBuilder(userId, input, true),
+        };
+        // Send verification emails
+        if (Array.isArray(input.emailsCreate)) {
+            for (const email of input.emailsCreate) {
+                await UserModel(prisma).setupVerificationCode(email.emailAddress);
+            }
+        }
         // Update user
         user = await prisma.user.update({
             where: { id: userId },
             data: userData,
             ...selectHelper<Profile, user>(info, format.toDBProfile)
         });
-        // Return user with "isStarred" field. This will return false, since the user cannot star themselves
         return format.toGraphQLProfile(user)
     },
     async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {

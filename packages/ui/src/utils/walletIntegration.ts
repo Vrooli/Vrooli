@@ -109,10 +109,10 @@ const signPayload = async (provider: WalletProvider, walletActions: any, publicA
 
 /**
  * Establish trust between a user's wallet and the backend
- * @returns Session object or null
+ * @returns WalletCompleteResult or null
  */
-export const validateWallet = async (provider: WalletProvider): Promise<Session | null> => {
-    let session: Session | null = null;
+export const validateWallet = async (provider: WalletProvider): Promise<WalletCompleteResult | null> => {
+    let result: WalletCompleteResult | null = null;
     try {
         // Connect to wallet extension
         const walletActions = await connectWallet(provider);
@@ -133,7 +133,7 @@ export const validateWallet = async (provider: WalletProvider): Promise<Session 
         console.log('signed payload', signedPayload);
         if (!signedPayload) return null;
         // Send signed payload to backend for verification
-        session = (await walletComplete(rewardAddresses[0], signedPayload))?.session ?? null;
+        result = (await walletComplete(rewardAddresses[0], signedPayload));
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
         PubSub.publish(Pubs.AlertDialog, {
@@ -141,6 +141,6 @@ export const validateWallet = async (provider: WalletProvider): Promise<Session 
             buttons: [{ text: 'OK' }]
         });
     } finally {
-        return session;
+        return result;
     }
 }

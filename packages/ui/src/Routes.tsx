@@ -19,6 +19,7 @@ const {
     ResearchPage,
     DevelopPage,
 } = lazily(() => import('./pages/dashboard'));
+const { WelcomePage } = lazily(() => import('./pages/WelcomePage/WelcomePage'));
 const { SettingsPage } = lazily(() => import('./pages/SettingsPage/SettingsPage'));
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/dashboard/StatsPage/StatsPage'));
@@ -213,6 +214,13 @@ export const AllRoutes = (props: CommonProps) => {
                     <Suspense fallback={<div>Loading...</div>}>
                         <Page title={title('Settings')} {...props} restrictedToRoles={[ROLES.Actor]}>
                             <SettingsPage session={props.session ?? {}} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={LINKS.Welcome}>
+                    <Suspense fallback={<div>Loading...</div>}>
+                        <Page title={title('Welcome')} {...props}>
+                            <WelcomePage />
                         </Page>
                     </Suspense>
                 </Route>

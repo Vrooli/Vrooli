@@ -600,7 +600,7 @@ model tag {
     updated_at      DateTime            @default(now()) @db.Timestamptz(6)
     tag             String              @unique @db.VarChar(128)
     description     String?             @db.VarChar(2048)
-    createdByUserId String?             @db.Uuid // User who created the standard, if exists (could have been created anonymously or by an organization)
+    createdByUserId String?             @db.Uuid // User who created the tag
     createdByUser   user?               @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
     organizations   organization_tags[]
     projects        project_tags[]

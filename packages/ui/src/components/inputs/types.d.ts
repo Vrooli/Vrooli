@@ -60,6 +60,7 @@ export type TagSelectorTag = Partial<Tag> & {
 export interface TagSelectorProps {
     session: Session;
     tags: TagSelectorTag[];
+    placeholder?: string;
     onTagAdd: (tag: TagSelectorTag) => any;
     onTagRemove: (tag: TagSelectorTag) => any;
     onTagsClear: () => any;

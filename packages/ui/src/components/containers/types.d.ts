@@ -1,4 +1,5 @@
 export interface TitleContainerProps {
+    id?: string;
     title?: string;
     onClick?: () => void;
     loading?: boolean;
@@ -13,6 +14,7 @@ export interface TitleContainerProps {
 export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 
 export interface DialogActionsContainerProps {
+    fixed?: boolean; // if true, the actions will be fixed to the bottom of the window
     actions: DialogActionItem[];
-    onResize: ({ height: number, width: number }) => any;
+    onResize?: ({ height: number, width: number }) => any;
 }

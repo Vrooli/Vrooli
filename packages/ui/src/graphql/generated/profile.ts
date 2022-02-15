@@ -15,12 +15,42 @@ export interface profile_profile_emails {
   receivesBusinessUpdates: boolean;
 }
 
+export interface profile_profile_wallets {
+  __typename: "Wallet";
+  publicAddress: string;
+  verified: boolean;
+}
+
+export interface profile_profile_starredTags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+  stars: number;
+  isStarred: boolean;
+}
+
+export interface profile_profile_hiddenTags {
+  __typename: "Tag";
+  id: string;
+  tag: string;
+  description: string | null;
+  created_at: any;
+  stars: number;
+  isStarred: boolean;
+}
+
 export interface profile_profile {
   __typename: "Profile";
   id: string;
   username: string | null;
-  theme: string;
+  bio: string | null;
   emails: profile_profile_emails[];
+  wallets: profile_profile_wallets[];
+  theme: string;
+  starredTags: profile_profile_starredTags[] | null;
+  hiddenTags: profile_profile_hiddenTags[] | null;
 }
 
 export interface profile {

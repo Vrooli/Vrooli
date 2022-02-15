@@ -52,7 +52,7 @@ export const SignUpForm = ({
                     onSessionUpdate(response.data.emailSignUp);
                     PubSub.publish(Pubs.AlertDialog, {
                         message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
-                        buttons: [{ text: 'OK', onClick: () => setLocation(APP_LINKS.Profile) }]
+                        buttons: [{ text: 'OK', onClick: () => setLocation(APP_LINKS.Welcome) }]
                     });
                 },
                 onError: (response) => {

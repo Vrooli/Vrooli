@@ -6,8 +6,6 @@ import { Organization, Project, Routine, Session, Standard, User } from 'types';
 
 export interface AlertDialogProps extends DialogProps {};
 
-export interface ComponentWrapperDialogProps extends DialogProps {};
-
 export interface FormDialogProps {
     title: string;
     children: JSX.Element;
@@ -56,13 +54,6 @@ export interface BaseObjectDialogProps extends DialogProps {
     onAction: (state: ObjectDialogAction) => any; // Callback when option button or close button is pressed
     children: JSX.Element | JSX.Element[];
 };
-
-export interface SelectInterestsDialogProps extends DialogProps {
-    session: Session;
-    open: boolean;
-    onClose: () => any;
-    showHidden?: boolean; // Show section for tags to hide
-}
 
 export interface ShareDialogProps extends DialogProps {
     open: boolean;

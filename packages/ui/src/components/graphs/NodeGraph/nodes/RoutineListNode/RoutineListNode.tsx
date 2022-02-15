@@ -191,6 +191,7 @@ export const RoutineListNode = ({
                         position: 'relative',
                         display: 'block',
                         borderRadius: '12px',
+                        overflow: 'overlay',
                         backgroundColor: (t) => t.palette.background.paper,
                         color: (t) => t.palette.background.textPrimary,
                         boxShadow: '0px 0px 12px gray',
@@ -220,7 +221,6 @@ export const RoutineListNode = ({
                                 display: 'flex',
                                 height: '48px', // Lighthouse SEO requirement
                                 alignItems: 'center',
-                                borderRadius: '12px 12px 0 0',
                                 backgroundColor: (t) => t.palette.primary.dark,
                                 color: (t) => t.palette.primary.contrastText,
                                 padding: '0.1em',

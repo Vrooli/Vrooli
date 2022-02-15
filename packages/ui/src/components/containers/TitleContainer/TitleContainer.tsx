@@ -5,6 +5,7 @@ import { clickSize, containerShadow } from 'styles';
 import { HelpButton } from 'components';
 
 export function TitleContainer({
+    id,
     title = 'Popular Items',
     onClick,
     loading = false,
@@ -16,12 +17,13 @@ export function TitleContainer({
 }: TitleContainerProps) {
     return (
         <Tooltip placement="bottom" title={tooltip}>
-            <Box display="flex" justifyContent="center">
+            <Box id={id} display="flex" justifyContent="center">
                 <Box
                     onClick={onClick ? onClick : () => {}}
                     sx={{
                         ...containerShadow,
                         borderRadius: '8px',
+                        overflow: 'overlay',
                         background: (t) => t.palette.background.default,
                         width: 'min(100%, 700px)',
                         cursor: onClick ? 'pointer' : 'default',
@@ -35,7 +37,6 @@ export function TitleContainer({
                     <Box sx={{
                         background: (t) => t.palette.primary.dark,
                         color: (t) => t.palette.primary.contrastText,
-                        borderRadius: '8px 8px 0 0',
                         padding: 0.5,
                     }}>
                         {/* Title */}

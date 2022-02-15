@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { CODE, UserSortBy } from '@local/shared';
 import { CustomError } from '../error';
 import { UserModel } from '../models';
-import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput, UserSearchResult, User } from './types';
+import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -39,6 +39,8 @@ export const typeDef = gql`
         routinesCreated: [Routine!]!
         stars: [Stars!]!
         starredBy: [User!]!
+        starredTags: [Tag!]
+        hiddenTags: [Tag!]
         sentReports: [Report!]!
         reports: [Report!]!
     }
@@ -64,8 +66,19 @@ export const typeDef = gql`
     input ProfileUpdateInput {
         username: String
         bio: String
-        emails: [EmailUpdateInput!]
         theme: String
+        starredTagsConnect: [ID!]
+        starredTagsDisconnect: [ID!]
+        starredTagsCreate: [TagCreateInput!]
+        hiddenTagsConnect: [ID!]
+        hiddenTagsDisconnect: [ID!]
+        hiddenTagsCreate: [TagCreateInput!]
+    }
+
+    input ProfileEmailUpdateInput {
+        emailsCreate: [EmailCreateInput!]
+        emailsUpdate: [EmailUpdateInput!]
+        emailsDelete: [ID!]
         currentPassword: String!
         newPassword: String
     }
@@ -116,6 +129,7 @@ export const typeDef = gql`
 
     extend type Mutation {
         profileUpdate(input: ProfileUpdateInput!): Profile!
+        profileEmailUpdate(input: ProfileEmailUpdateInput!): Profile!
         userDeleteOne(input: UserDeleteInput!): Success!
         exportData: String!
     }
@@ -151,6 +165,14 @@ export const resolvers = {
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
             const updated = await UserModel(prisma).updateProfile(req.userId, input, info);
+            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            return updated;
+        },
+        profileEmailUpdate: async (_parent: undefined, { input }: IWrap<ProfileEmailUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
+            // Must be logged in with an account
+            if (!req.userId) throw new CustomError(CODE.Unauthorized);
+            // Update object
+            const updated = await UserModel(prisma).updateEmails(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },

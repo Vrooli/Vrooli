@@ -270,6 +270,7 @@ export const HomePage = ({
                 </Stack>
                 {/* FAQ */}
                 <TitleContainer
+                    id="faq"
                     key={`faq-container`}
                     title={'FAQ'}
                     sx={{

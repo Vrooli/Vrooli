@@ -1,6 +1,7 @@
 // Defines common props
 import { organization_organization } from 'graphql/generated/organization';
 import { project_project } from 'graphql/generated/project';
+import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { resource_resource } from 'graphql/generated/resource';
 import { routine_routine } from 'graphql/generated/routine';
 import { routines_routines_edges_node } from 'graphql/generated/routines';
@@ -30,7 +31,7 @@ export type Email = any; //TODO
 export type Node = any; //TODO
 export type Organization = organization_organization;
 export type Project = project_project;
-export type Report = any; //TODO
+export type Report = reportCreate_reportCreate;
 export type Resource = resource_resource;
 export type Routine = routine_routine;
 export type Standard = standard_standard;

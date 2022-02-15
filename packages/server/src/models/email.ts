@@ -3,9 +3,10 @@ import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { DeleteOneInput, Email, EmailCreateInput, EmailUpdateInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { MODEL_TYPES } from "./base";
+import { MODEL_TYPES, relationshipToPrisma } from "./base";
 import bcrypt from 'bcrypt';
 import { sendVerificationLink } from "../worker/email/queue";
+import { hasProfanity } from "../utils/censor";
 
 //==============================================================
 /* #region Custom Components */
@@ -16,7 +17,7 @@ import { sendVerificationLink } from "../worker/email/queue";
  * A user can only add/update/delete their own email, and must leave at least
  * one authentication method (either an email or wallet).
  */
- const emailer = (prisma: PrismaType) => ({
+const emailer = (prisma: PrismaType) => ({
     /**
     * Sends a verification email to the user's email address.
     */
@@ -34,6 +35,56 @@ import { sendVerificationLink } from "../worker/email/queue";
         // Send new verification email
         sendVerificationLink(emailAddress, email.userId, verificationCode);
         // TODO send email to existing emails from user, warning of new email
+    },
+    /**
+     * Add, update, or remove an email relationship from your profile
+     */
+    async relationshipBuilder(
+        userId: string | null,
+        input: { [x: string]: any },
+        isAdd: boolean = true,
+    ): Promise<{ [x: string]: any } | undefined> {
+        // Convert input to Prisma shape
+        // Also remove anything that's not an create, update, or delete, as connect/disconnect
+        // are not supported by emails (since they can only be applied to one object)
+        let formattedInput = relationshipToPrisma(input, 'emails', isAdd, [], false);
+        delete formattedInput.connect;
+        delete formattedInput.disconnect;
+        // Validate create
+        if (Array.isArray(formattedInput.create)) {
+            // Make sure emails aren't already in use
+            const emails = await prisma.email.findMany({
+                where: { emailAddress: { in: formattedInput.create.map(email => email.emailAddress) } },
+            });
+            if (emails.length > 0) throw new CustomError(CODE.EmailInUse);
+            // Perform other checks
+            for (const email of formattedInput.create) {
+                // Check for valid arguments
+                emailCreate.validateSync(input, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(email.emailAddress)) throw new CustomError(CODE.BannedWord);
+            }
+        }
+        // Validate update
+        if (Array.isArray(formattedInput.update)) {
+            // Make sure emails are owned by user
+            const emails = await prisma.email.findMany({
+                where: {
+                    AND: [
+                        { emailAddress: { in: formattedInput.update.map(email => email.emailAddress) } },
+                        { userId },
+                    ],
+                },
+            });
+            if (emails.length !== formattedInput.update.length) throw new CustomError(CODE.EmailInUse, 'At least one of these emails is not yours');
+            for (const email of formattedInput.update) {
+                // Check for valid arguments
+                emailUpdate.validateSync(input, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(email.emailAddress)) throw new CustomError(CODE.BannedWord);
+            }
+        }
+        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async create(
         userId: string,
@@ -95,7 +146,7 @@ import { sendVerificationLink } from "../worker/email/queue";
         if (!email) throw new CustomError(CODE.NotFound, "Email not found");
         // Check if user has at least one verified authentication method, besides the one being deleted
         const verifiedEmailsCount = await prisma.email.count({
-            where: { 
+            where: {
                 userId,
                 verified: true,
             }
@@ -127,7 +178,7 @@ import { sendVerificationLink } from "../worker/email/queue";
 
 export function EmailModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Email;
-    
+
     return {
         prisma,
         model,

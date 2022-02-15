@@ -2,6 +2,8 @@ import { ValueOf } from '.';
 
 export const APP_LINKS = {
     Develop: '/develop', // Develop dashboard
+    Example: '/orchestrate/example', // Links to example routine that is designed to showcase the UI
+    FAQ: '/#faq', // FAQ section of home page
     ForgotPassword: '/forgot-password', // Page for sending password reset request emails
     Home: '/', // Main dashboard for logged in users
     Learn: '/learn', // Learn dashboard
@@ -23,6 +25,7 @@ export const APP_LINKS = {
     Start: '/start', // Provides options for entering application
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
     User: '/user', // View a user's profile
+    Welcome: '/welcome', // Displays the first time you enter the application (either as guest or as logged in user)
 }
 export type APP_LINKS = ValueOf<typeof APP_LINKS>;
 

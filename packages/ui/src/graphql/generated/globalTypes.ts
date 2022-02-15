@@ -490,10 +490,13 @@ export interface OutputItemUpdateInput {
 export interface ProfileUpdateInput {
   username?: string | null;
   bio?: string | null;
-  emails?: EmailUpdateInput[] | null;
   theme?: string | null;
-  currentPassword: string;
-  newPassword?: string | null;
+  starredTagsConnect?: string[] | null;
+  starredTagsDisconnect?: string[] | null;
+  starredTagsCreate?: TagCreateInput[] | null;
+  hiddenTagsConnect?: string[] | null;
+  hiddenTagsDisconnect?: string[] | null;
+  hiddenTagsCreate?: TagCreateInput[] | null;
 }
 
 export interface ProjectCountInput {

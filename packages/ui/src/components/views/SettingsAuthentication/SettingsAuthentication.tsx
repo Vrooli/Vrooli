@@ -8,27 +8,28 @@ import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { formatForUpdate } from "utils";
 import {
-    Restore as CancelIcon,
+    Restore as RevertIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { SettingsProfileProps } from "../types";
+import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from "wouter";
 import { containerShadow } from "styles";
 
-export const SettingsProfile = ({
+export const SettingsAuthentication = ({
     profile,
     onUpdated,
-}: SettingsProfileProps) => {
+}: SettingsAuthenticationProps) => {
     const [, setLocation] = useLocation();
 
     // Handle update
     const [mutation] = useMutation<user>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            bio: profile?.bio ?? "",
-            username: profile?.username ?? "",
+            currentPassword: '',
+            newPassword: '',
+            newPasswordConfirmation: '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -44,7 +45,7 @@ export const SettingsProfile = ({
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, !formik.touched || formik.isSubmitting, true, () => { }],
-        ['Cancel', CancelIcon, !formik.touched || formik.isSubmitting, false, () => { setLocation(`${APP_LINKS.Settings}/?page=profile`, { replace: true }) }],
+        ['Cancel', RevertIcon, !formik.touched || formik.isSubmitting, false, () => { formik.resetForm() }],
     ], [formik, setLocation]);
 
     return (
@@ -65,36 +66,59 @@ export const SettingsProfile = ({
                         padding: 0.5,
                         marginBottom: 2,
                     }}>
-                        <Typography component="h1" variant="h3" textAlign="center">Update Profile</Typography>
+                        <Typography component="h1" variant="h3" textAlign="center">Authentication Settings</Typography>
                     </Box>
+                    <Typography component="h2" variant="h4" textAlign="center">Connected Wallets</Typography>
                     <Container sx={{ paddingBottom: 2 }}>
+                        {/* TODO Wallets */}
+                    </Container>
+                    <Typography component="h2" variant="h4" textAlign="center">Connected Emails</Typography>
+                    <Container sx={{ paddingBottom: 2 }}>
+                        {/* TODO Emails */}
                         <Grid container spacing={2}>
                             <Grid item xs={12}>
                                 <TextField
                                     fullWidth
-                                    id="username"
-                                    name="username"
-                                    label="Username"
-                                    value={formik.values.username}
+                                    id="currentPassword"
+                                    name="currentPassword"
+                                    type="password"
+                                    autoComplete="password"
+                                    label="Current Password"
+                                    value={formik.values.currentPassword}
                                     onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
-                                    error={formik.touched.username && Boolean(formik.errors.username)}
-                                    helperText={formik.touched.username && formik.errors.username}
+                                    error={formik.touched.currentPassword && Boolean(formik.errors.currentPassword)}
+                                    helperText={formik.touched.currentPassword && formik.errors.currentPassword}
                                 />
                             </Grid>
                             <Grid item xs={12}>
                                 <TextField
                                     fullWidth
-                                    id="bio"
-                                    name="bio"
-                                    label="Bio"
-                                    multiline
-                                    minRows={4}
-                                    value={formik.values.bio}
+                                    id="newPassword"
+                                    name="newPassword"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    label="New Password"
+                                    value={formik.values.newPassword}
                                     onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
-                                    error={formik.touched.bio && Boolean(formik.errors.bio)}
-                                    helperText={formik.touched.bio && formik.errors.bio}
+                                    error={formik.touched.newPassword && Boolean(formik.errors.newPassword)}
+                                    helperText={formik.touched.newPassword && formik.errors.newPassword}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    id="newPasswordConfirmation"
+                                    name="newPasswordConfirmation"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    label="Confirm New Password"
+                                    value={formik.values.newPasswordConfirmation}
+                                    onBlur={formik.handleBlur}
+                                    onChange={formik.handleChange}
+                                    error={formik.touched.newPasswordConfirmation && Boolean(formik.errors.newPasswordConfirmation)}
+                                    helperText={formik.touched.newPasswordConfirmation && formik.errors.newPasswordConfirmation}
                                 />
                             </Grid>
                         </Grid>

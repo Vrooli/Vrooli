@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
-import { openLink, Pubs } from 'utils';
+import { openLink } from 'utils';
 import { Path } from 'wouter';
 
 export const ACTION_TAGS = {

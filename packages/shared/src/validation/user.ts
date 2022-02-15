@@ -1,4 +1,5 @@
 import { description, idArray, id, title } from './base';
+import { tagsCreate } from './tag';
 import * as yup from 'yup';
 import { AccountStatus } from '../consts';
 
@@ -50,6 +51,12 @@ export const profileSchema = yup.object().shape({
     username: usernameSchema.required(),
     email: yup.string().email().required(),
     theme: yup.string().max(128).required(),
+    starredTagsCreate: tagsCreate,
+    starredTagsConnect: idArray,
+    starredTagsDisconnect: idArray,
+    hiddenTagsCreate: tagsCreate,
+    hiddenTagsConnect: idArray,
+    hiddenTagsDisconnect: idArray,
     // Don't apply validation to current password. If you change password requirements, users would be unable to change their password
     currentPassword: yup.string().max(128).required(),
     newPassword: passwordSchema.optional(),

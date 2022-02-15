@@ -115,14 +115,14 @@ export const StartPage = ({
             return;
         }
         // Validate wallet
-        const session = await validateWallet(provider);
-        console.log('wallet validation', session);
-        if (session) {
+        const walletCompleteResult = await validateWallet(provider);
+        console.log('wallet validation', walletCompleteResult?.session);
+        if (walletCompleteResult) {
             PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
             // Set actor role
-            onSessionUpdate(session)
+            onSessionUpdate(walletCompleteResult?.session)
             // Redirect to main dashboard
-            setLocation(APP_LINKS.Home);
+            setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : APP_LINKS.Home);
         }
     }, [downloadExtension, setLocation, onSessionUpdate, toEmailLogIn])
 
@@ -131,7 +131,7 @@ export const StartPage = ({
             mutation: guestLogIn,
             onSuccess: () => {
                 onSessionUpdate({ roles: [{ role: { title: ROLES.Guest } }] });
-                setLocation(APP_LINKS.Home);
+                setLocation(APP_LINKS.Welcome);
             },
         })
     }, [guestLogIn, setLocation, onSessionUpdate]);

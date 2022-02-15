@@ -43,8 +43,13 @@ export interface SettingsBaseProps {
     profile: profile_profile | undefined;
     onUpdated: (profile: profile) => void;
 }
-export interface SettingsConnectProps extends SettingsBaseProps {}
-export interface SettingsDisplayProps extends SettingsBaseProps {}
-export interface SettingsNotificationsProps extends SettingsBaseProps {}
-export interface SettingsPrivacyProps extends SettingsBaseProps {}
+export interface SettingsAuthenticationProps extends SettingsBaseProps {
+    session: Session
+}
+export interface SettingsDisplayProps extends SettingsBaseProps {
+    session: Session;
+}
+export interface SettingsNotificationsProps extends SettingsBaseProps {
+    session: Session
+}
 export interface SettingsProfileProps extends SettingsBaseProps {}

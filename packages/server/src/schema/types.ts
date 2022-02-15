@@ -208,6 +208,7 @@ export type Mutation = {
   organizationCreate: Organization;
   organizationDeleteOne: Success;
   organizationUpdate: Organization;
+  profileEmailUpdate: Profile;
   profileUpdate: Profile;
   projectCreate: Project;
   projectDeleteOne: Success;
@@ -320,6 +321,11 @@ export type MutationOrganizationDeleteOneArgs = {
 
 export type MutationOrganizationUpdateArgs = {
   input: OrganizationUpdateInput;
+};
+
+
+export type MutationProfileEmailUpdateArgs = {
+  input: ProfileEmailUpdateInput;
 };
 
 
@@ -852,6 +858,7 @@ export type Profile = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   emails: Array<Email>;
+  hiddenTags?: Maybe<Array<Tag>>;
   id: Scalars['ID'];
   projects: Array<Project>;
   projectsCreated: Array<Project>;
@@ -862,6 +869,7 @@ export type Profile = {
   routinesCreated: Array<Routine>;
   sentReports: Array<Report>;
   starredBy: Array<User>;
+  starredTags?: Maybe<Array<Tag>>;
   stars: Array<Stars>;
   status: AccountStatus;
   theme: Scalars['String'];
@@ -870,11 +878,22 @@ export type Profile = {
   wallets: Array<Wallet>;
 };
 
+export type ProfileEmailUpdateInput = {
+  currentPassword: Scalars['String'];
+  emailsCreate?: InputMaybe<Array<EmailCreateInput>>;
+  emailsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  emailsUpdate?: InputMaybe<Array<EmailUpdateInput>>;
+  newPassword?: InputMaybe<Scalars['String']>;
+};
+
 export type ProfileUpdateInput = {
   bio?: InputMaybe<Scalars['String']>;
-  currentPassword: Scalars['String'];
-  emails?: InputMaybe<Array<EmailUpdateInput>>;
-  newPassword?: InputMaybe<Scalars['String']>;
+  hiddenTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  hiddenTagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  hiddenTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  starredTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  starredTagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  starredTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   theme?: InputMaybe<Scalars['String']>;
   username?: InputMaybe<Scalars['String']>;
 };

@@ -4,12 +4,13 @@ import { useCallback, useMemo } from "react";
 import Measure from "react-measure";
 
 export const DialogActionsContainer = ({
+    fixed = true,
     actions,
     onResize,
 }: DialogActionsContainerProps) => {
 
     const handleResize = useCallback(({ bounds }: any) => {
-        onResize({ width: bounds.width, height: bounds.height });
+        if (onResize) onResize({ width: bounds.width, height: bounds.height });
     }, [onResize]);
 
     /**
@@ -29,7 +30,7 @@ export const DialogActionsContainer = ({
         }
 
         return actions.map(([label, Icon, disabled, isSubmit, onClick]: DialogActionItem, index) => (
-            <Grid item key={label} {...gridItemSizes} sx={{ padding: 2 }}>
+            <Grid item key={label} {...gridItemSizes} p={1} sx={{paddingTop: 0}}>
                 <Button
                     fullWidth
                     startIcon={<Icon />}
@@ -47,11 +48,12 @@ export const DialogActionsContainer = ({
             onResize={handleResize}
         >
             {({ measureRef }) => (
-                <Grid container ref={measureRef} spacing={2} sx={{ 
-                    position: 'fixed', 
-                    bottom: '0', 
+                <Grid container ref={measureRef} spacing={2} sx={{
+                    position: fixed ? 'fixed' : 'relative',
+                    bottom: fixed ? '0' : 'auto',
                     background: (t) => t.palette.primary.main,
-                    marginLeft: -1,
+                    margin: 0,
+                    width: 'auto',
                 }}>
                     {gridItems}
                 </Grid>

@@ -7,7 +7,6 @@ import {
     LightMode as DisplayIcon,
     Notifications as NotificationsIcon,
     ChevronRight as OpenIcon,
-    Shield as PrivacyIcon,
     AccountCircle as ProfileIcon,
     SvgIconComponent
 } from '@mui/icons-material';
@@ -23,12 +22,14 @@ import { parseSearchParams } from 'utils/urlTools';
 import { profile, profile_profile } from 'graphql/generated/profile';
 import { profileQuery } from 'graphql/query';
 import { UserView } from 'components';
+import { SettingsAuthentication } from 'components/views/SettingsAuthentication/SettingsAuthentication';
+import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
+import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
 
 const settingPages: { [x: string]: [string, string, SvgIconComponent] } = {
     'profile': ['profile', 'Profile', ProfileIcon],
     'display': ['display', 'Display', DisplayIcon],
     'notifications': ['notifications', 'Notifications', NotificationsIcon],
-    'privacy': ['privacy', 'Privacy', PrivacyIcon],
     'authentication': ['authentication', 'Authentication', AuthenticationIcon],
 }
 
@@ -46,7 +47,9 @@ export function SettingsPage({
         if (data?.profile) setProfile(data.profile);
     }, [data]);
     const onUpdated = useCallback((updatedProfile: profile_profile | undefined) => {
+        console.log('onUpdated', updatedProfile);
         if (updatedProfile) setProfile(updatedProfile);
+        PubSub.publish(Pubs.Snack, { message: 'Update successful.' });
     }, []);
 
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -88,13 +91,11 @@ export function SettingsPage({
     const mainContent: JSX.Element = useMemo(() => {
         switch (selectedPage) {
             case 'display':
-                return <div>Display</div>;
+                return <SettingsDisplay session={session} profile={profile} onUpdated={onUpdated} />
             case 'notifications':
-                return <div>Notifications</div>;
-            case 'privacy':
-                return <div>Privacy</div>;
+                return <SettingsNotifications session={session} profile={profile} onUpdated={onUpdated} />
             case 'authentication':
-                return <div>Authentication</div>;
+                return <SettingsAuthentication session={session} profile={profile} onUpdated={onUpdated} />
             default:
                 return editing ? <SettingsProfile profile={profile} onUpdated={onUpdated} /> : <UserView partialData={profile as any} session={session} />
         }
