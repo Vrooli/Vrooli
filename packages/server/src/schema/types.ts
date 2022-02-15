@@ -1338,6 +1338,7 @@ export type RoutineCreateInput = {
   nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
   outputsCreate?: InputMaybe<Array<OutputItemCreateInput>>;
   parentId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
   resourcesContextualCreate?: InputMaybe<Array<ResourceCreateInput>>;
   resourcesExternalCreate?: InputMaybe<Array<ResourceCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;

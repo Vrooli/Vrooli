@@ -197,9 +197,9 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
             // Make sure the user is an admin of the organization
             const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-            projectData = { ...projectData, organization: { connect: { id: input.organizationId } }, userId: null };
+            projectData = { ...projectData, organization: { connect: { id: input.organizationId } }, userId: undefined };
         } else {
-            projectData = { ...projectData, user: { connect: { id: userId } }, organizationId: null };
+            projectData = { ...projectData, user: { connect: { id: userId } }, organizationId: undefined };
         }
         // Find project
         let project = await prisma.project.findFirst({

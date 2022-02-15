@@ -32,6 +32,7 @@ export const typeDef = gql`
         title: String!
         version: String
         parentId: ID
+        projectId: ID
         createdByUserId: ID
         createdByOrganizationId: ID
         nodesConnect: [ID!]

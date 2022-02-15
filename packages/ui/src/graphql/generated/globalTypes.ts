@@ -613,6 +613,7 @@ export interface RoutineCreateInput {
   title: string;
   version?: string | null;
   parentId?: string | null;
+  projectId?: string | null;
   createdByUserId?: string | null;
   createdByOrganizationId?: string | null;
   nodesConnect?: string[] | null;
