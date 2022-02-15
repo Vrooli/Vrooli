@@ -1,3 +1,44 @@
 {
-    
+    "maptz.regionfolder": {
+        "[prisma]": { //Language selector
+            "foldEnd": "//==============================================================\n// #endregion\n//==============================================================", //Text inserted at the end of the fold
+            "foldEndRegex": "[\\s]*//[\\s]*#[\\s]*endregion", //Regex used to find fold end text.
+            "foldStart": "//==============================================================\n// #region [NAME]\n//==============================================================", //Text inserted at the start of the fold.
+            //Use the `[NAME]` placeholder to indicate
+            //where the cursor should be placed after
+            //insertion
+            "foldStartRegex": "^[\\s]*//[\\s]*#[\\s]*region[\\s]*(.*)[\\s]*$", ////Regex used to find fold start text.
+            "disableFolding": false //Turn off #region folding for this language
+        },
+        "[graphql]": { //Language selector
+            "foldEnd": "\"\"\" #endregion \"\"\"", //Text inserted at the end of the fold
+            "foldEndRegex": "[\\s]*\"\"\"[\\s]*#[\\s]*endregion", //Regex used to find fold end text.
+            "foldStart": "\"\"\" #region [NAME] \"\"\"", //Text inserted at the start of the fold.
+            //Use the `[NAME]` placeholder to indicate
+            //where the cursor should be placed after
+            //insertion
+            "foldStartRegex": "^[\\s]*\"\"\"[\\s]*#[\\s]*region[\\s]*(.*)$", ////Regex used to find fold start text.
+            "disableFolding": false //Turn off #region folding for this language
+        },
+        "[typescript]": { //Language selector
+            "foldEnd": "//==============================================================\n/* #endregion */\n//==============================================================", //Text inserted at the end of the fold
+            "foldEndRegex": "[\\s]*/\\*[\\s]*#[\\s]*endregion", //Regex used to find fold end text.
+            "foldStart": "//==============================================================\n/* #region [NAME] */\n//==============================================================", //Text inserted at the start of the fold.
+            //Use the `[NAME]` placeholder to indicate
+            //where the cursor should be placed after
+            //insertion
+            "foldStartRegex": "^[\\s]*/\\*[\\s]*#[\\s]*region[\\s]*(.*)[\\s]*$", ////Regex used to find fold start text.
+            "disableFolding": false //Turn off #region folding for this language
+        },
+        "[typescriptreact]": { //Language selector
+            "foldEnd": "{/* =========  #endregion ========= */}", //Text inserted at the end of the fold
+            "foldEndRegex": "[\\s]*\\{/\\*[\\s]*\\=*[\\s]*#[\\s]*endregion", //Regex used to find fold end text.
+            "foldStart": "{/* ========= #region [NAME] ========= */}", //Text inserted at the start of the fold.
+            //Use the `[NAME]` placeholder to indicate
+            //where the cursor should be placed after
+            //insertion
+            "foldStartRegex": "^[\\s]*\\{/\\*[\\s]*\\=*[\\s]*#[\\s]*region[\\s]*(.*)[\\s]*$", ////Regex used to find fold start text.
+            "disableFolding": false //Turn off #region folding for this language
+        }
+    }
 }

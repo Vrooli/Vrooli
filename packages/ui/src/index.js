@@ -1,7 +1,6 @@
-import React from 'react';
 import ReactDOM from 'react-dom';
 import { App } from './App';
-import { BrowserRouter } from 'react-router-dom';
+import { Router } from 'wouter';
 import { ApolloProvider } from '@apollo/client';
 import { initializeApollo } from 'graphql/utils/initialize';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
@@ -10,11 +9,11 @@ import reportWebVitals from './reportWebVitals';
 const client = initializeApollo();
 
 ReactDOM.render(
-    <BrowserRouter>
+    <Router>
         <ApolloProvider client={client}>
             <App />
         </ApolloProvider>
-    </BrowserRouter>,
+    </Router>,
     document.getElementById('root')
 );
 

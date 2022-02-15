@@ -1,6 +1,7 @@
 {
     "name": "Vrooli - Visual Work Routines",
     "short_name": "Vrooli",
+    "categories": ["education", "personalization", "productivity"],
     "icons": [
         {
             "src": "/android-chrome-192x192.png",
@@ -22,6 +23,36 @@
     "theme_color": "#ffffff",
     "background_color": "#ffffff",
     "display": "standalone",
+    "orientation": "any",
     "scope": "/",
-    "start_url": "/"
+    "start_url": "/",
+    "screenshots": [
+        {
+            "src": "TODO",
+            "sizes": "687×974",
+            "type": "image/png"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "My Projects",
+            "url": "/projects",
+            "description": "Collection of created and saved projects"
+        },
+        {
+            "name": "Learn",
+            "url": "/learn",
+            "description": "Personal learning dashboard"
+        },
+        {
+            "name": "Research",
+            "url": "/research",
+            "description": "Research dashboard"
+        },
+        {
+            "name": "Develop",
+            "url": "/develop",
+            "description": "Create and run routines"
+        }
+    ]
 }

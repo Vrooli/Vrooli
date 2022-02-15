@@ -1,0 +1,5 @@
+schema: "http://localhost:5329/api/v1"
+generates:
+  generatedTypes.ts:
+    plugins:
+      - "@graphql-codegen/typescript"

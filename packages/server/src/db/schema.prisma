@@ -1,0 +1,795 @@
+//==============================================================
+// #region Prisma Configuration
+//==============================================================
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DB_URL")
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Comment
+//==============================================================
+// Comments can be submitted by either a user or an organization.
+// They can be associated with a project, routine, or standard.
+//==============================================================
+
+model comment {
+    id             String        @id @default(uuid()) @db.Uuid
+    text           String        @db.VarChar(128)
+    created_at     DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime      @default(now()) @db.Timestamptz(6)
+    // Comment created by one of these foreign ids
+    userId         String?       @db.Uuid
+    organizationId String?       @db.Uuid
+    // Comment posted to an object with this foreign id
+    projectId      String?       @db.Uuid
+    routineId      String?       @db.Uuid
+    standardId     String?       @db.Uuid
+    user           user?         @relation(fields: [userId], references: [id])
+    organization   organization? @relation(fields: [organizationId], references: [id])
+    project        project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    routine        routine?      @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    standard       standard?     @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    reports        report[]
+    stars          Int           @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy      star[]        @relation("star_comment")
+    score          Int           @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    votes          vote[]        @relation("vote_comment")
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Email
+//==============================================================
+
+//==============================================================
+// #region Email
+//==============================================================
+// Email data
+model email {
+    id                                 String    @id @default(uuid()) @db.Uuid
+    emailAddress                       String    @unique @db.VarChar(128)
+    receivesAccountUpdates             Boolean   @default(true) // Account-level notifications
+    receivesBusinessUpdates            Boolean   @default(true) // Newsletters, promos, etc.
+    verified                           Boolean   @default(false)
+    verificationCode                   String?   @unique @db.VarChar(256)
+    lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
+    userId                             String?   @db.Uuid
+    user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Node
+//==============================================================
+// Nodes describe the structure of a routine orchestration.
+// Nodes come in 7 varieties:
+// 1. COMBINE
+// 2. DECISION
+// 3. END
+// 4. LOOP
+// 5. ROUTINE_LIST
+// 6. REDIRECT
+// 7. START
+//==============================================================
+
+// One item in a routine orchestration
+// Redirect and start nodes have no extra data, so they do not have their own custom data fields
+model node {
+    id                String               @id @default(uuid()) @db.Uuid
+    created_at        DateTime             @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime             @default(now()) @db.Timestamptz(6)
+    description       String?              @db.VarChar(2048)
+    title             String               @default("Name Me") @db.VarChar(128)
+    type              NodeType
+    nodeCombineId     String?              @db.Uuid
+    nodeDecisionId    String?              @db.Uuid
+    nodeEndId         String?              @db.Uuid
+    nodeLoopId        String?              @db.Uuid
+    nodeRoutineListId String?              @db.Uuid
+    previousId        String?              @db.Uuid
+    nextId            String?              @db.Uuid
+    routineId         String               @db.Uuid
+    nodeCombine       node_combine?        @relation(fields: [nodeCombineId], references: [id], onDelete: Cascade)
+    nodeDecision      node_decision?       @relation(fields: [nodeDecisionId], references: [id], onDelete: Cascade)
+    nodeEnd           node_end?            @relation(fields: [nodeEndId], references: [id], onDelete: Cascade)
+    nodeLoop          node_loop?           @relation(fields: [nodeLoopId], references: [id], onDelete: Cascade)
+    nodeRoutineList   node_routine_list?   @relation(fields: [nodeRoutineListId], references: [id], onDelete: Cascade)
+    previous          node?                @relation("node_previous", fields: [previousId], references: [id], onDelete: SetNull)
+    next              node?                @relation("node_next", fields: [nextId], references: [id], onDelete: SetNull)
+    routine           routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    Previous          node[]               @relation("node_previous")
+    Next              node[]               @relation("node_next")
+    From              node_combine_from[]
+    DecisionItem      node_decision_item[]
+    WhileItem         node_loop_while[]
+}
+
+// Data for combine nodes (in addition to fields defined by node table)
+model node_combine {
+    id   String              @id @default(uuid()) @db.Uuid
+    from node_combine_from[]
+    node node[]
+}
+
+// One to many relationship between a combine node and nodes it is combining
+model node_combine_from {
+    id        String       @id @default(uuid()) @db.Uuid
+    combineId String       @unique @db.Uuid
+    fromId    String       @db.Uuid
+    combine   node_combine @relation(fields: [combineId], references: [id])
+    from      node         @relation(fields: [fromId], references: [id], onDelete: Cascade)
+
+    @@unique([combineId, fromId], name: "node_combine_from_combineid_fromid_unique")
+}
+
+// Data for decision nodes (in addition to fields defined by node table)
+model node_decision {
+    id        String               @id @default(uuid()) @db.Uuid
+    decisions node_decision_item[]
+    node      node[]
+}
+
+// A specific decision in a decision node
+model node_decision_item {
+    id          String                    @id @default(uuid()) @db.Uuid
+    description String?                   @db.VarChar(2048)
+    title       String                    @db.VarChar(128)
+    decisionId  String                    @db.Uuid
+    toId        String?                   @db.Uuid
+    decision    node_decision             @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+    when        node_decision_item_case[] // All cases must be true for this item to be available
+    to          node?                     @relation(fields: [toId], references: [id], onDelete: SetNull)
+}
+
+// A condition which must be true for a decision item to be available
+model node_decision_item_case {
+    id        String             @id @default(uuid()) @db.Uuid
+    condition String             @db.VarChar(2048) // TODO make this a JSON object
+    itemId    String             @db.Uuid
+    item      node_decision_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+// Data for end nodes (in addition to fields defined by node table)
+model node_end {
+    id            String  @id @default(uuid()) @db.Uuid
+    wasSuccessful Boolean @default(true)
+    node          node[]
+}
+
+// Data for loop nodes (in addition to fields defined by node table) TODO complete
+model node_loop {
+    id       String            @id @default(uuid()) @db.Uuid
+    node     node[]
+    loops    Int?              @default(1) // Number of times to loop
+    maxLoops Int?              @default(1) // Maximum number of times to loop=
+    whiles   node_loop_while[] // Conditions which must be true for loop to continue
+}
+
+// A specific "while" condition in a loop node
+model node_loop_while {
+    id          String                 @id @default(uuid()) @db.Uuid
+    description String?                @db.VarChar(2048)
+    title       String                 @db.VarChar(128)
+    loopId      String                 @db.Uuid
+    toId        String?                @db.Uuid
+    loop        node_loop              @relation(fields: [loopId], references: [id], onDelete: Cascade)
+    when        node_loop_while_case[] // All cases must be true for this while condition to be true
+    to          node?                  @relation(fields: [toId], references: [id], onDelete: SetNull)
+}
+
+// A condition which must be true for the loop while item to be true
+model node_loop_while_case {
+    id        String          @id @default(uuid()) @db.Uuid
+    condition String          @db.VarChar(2048) // TODO make this a JSON object
+    itemId    String          @db.Uuid
+    item      node_loop_while @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+// Data for routine list nodes (in addition to fields defined by node table) TODO complete
+model node_routine_list {
+    id         String                   @id @default(uuid()) @db.Uuid
+    isOrdered  Boolean                  @default(false)
+    isOptional Boolean                  @default(false)
+    routines   node_routine_list_item[]
+    node       node[]
+}
+
+// Many-to-many relationship between routine lists and routines
+model node_routine_list_item {
+    id          String            @id @default(uuid()) @db.Uuid
+    description String?           @db.VarChar(1024) // Optional description to override routine description
+    isOptional  Boolean           @default(false)
+    title       String?           @db.VarChar(128) // Optional title to override routine title
+    listId      String            @db.Uuid
+    routineId   String            @db.Uuid
+    list        node_routine_list @relation(fields: [listId], references: [id], onDelete: Cascade)
+    routine     routine           @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+    @@unique([listId, routineId], name: "node_routine_list_item_listid_routineid_unique")
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Organization
+//==============================================================
+// An organization is any group of one or more users that work
+// together to accomplish a common goal/goals. In the crypto
+// world, these are preferably Decentralized Autonomous
+// Organizations (DAOs). But any organization can use this platform.
+//==============================================================
+
+model organization {
+    id               String               @id @default(uuid()) @db.Uuid
+    created_at       DateTime             @default(now()) @db.Timestamptz(6)
+    updated_at       DateTime             @default(now()) @db.Timestamptz(6)
+    bio              String?              @db.VarChar(2048)
+    name             String               @db.VarChar(128)
+    openToNewMembers Boolean              @default(false)
+    stars            Int                  @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    comments         comment[]
+    members          organization_users[]
+    projects         project[]            @relation("project_organization_owner") // Projects the organization can contorl
+    projectsCreated  project[]            @relation("project_organization_creator") // Projects the organization created, but cannot necessarily control
+    reports          report[]
+    resources        resource[]           @relation("resource_organization") // Links displayed on the organization's page
+    routines         routine[]            @relation("routine_organization_owner") // Routines the organization can control
+    routinesCreated  routine[]            @relation("routine_organization_creator") // Routines the organization created, but cannot necessarily control
+    standards        standard[]
+    starredBy        star[]               @relation("star_organization")
+    tags             organization_tags[] // Categorical tags set by creators or community-voted
+    wallets          wallet[]
+}
+
+// Many-to-many relationship between organizations and tags
+model organization_tags {
+    id       String       @id @default(uuid()) @db.Uuid
+    taggedId String       @db.Uuid
+    tagId    String       @db.Uuid
+    tagged   organization @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+    tag      tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+    @@unique([taggedId, tagId], name: "organization_tags_taggedid_tagid_unique")
+}
+
+// Many-to-many relationship between organizaitons and users
+model organization_users {
+    id             String       @id @default(uuid()) @db.Uuid
+    organizationId String       @db.Uuid
+    userId         String       @db.Uuid
+    role           MemberRole   @default(Member)
+    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([organizationId, userId], name: "organization_users_organizationid_userid_unique")
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Project
+//==============================================================
+
+// A project is "owned" by an organization and/or user,
+// and it can be "starred" by many users
+model project {
+    id                      String         @id @default(uuid()) @db.Uuid
+    created_at              DateTime       @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime       @default(now()) @db.Timestamptz(6)
+    description             String?        @db.VarChar(2048)
+    name                    String         @db.VarChar(128)
+    score                   Int            @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    stars                   Int            @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    createdByUserId         String?        @db.Uuid // User who created this
+    createdByOrganizationId String?        @db.Uuid // Organization who created this
+    userId                  String?        @db.Uuid // User who can edit this
+    organizationId          String?        @db.Uuid // Organization who can edit this
+    parentId                String?        @db.Uuid // Parent project, if any
+    createdByUser           user?          @relation("project_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+    createdByOrganization   organization?  @relation("project_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+    user                    user?          @relation("project_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+    organization            organization?  @relation("project_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+    comments                comment[]
+    forks                   project[]      @relation("project_fork")
+    parent                  project?       @relation("project_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    reports                 report[]
+    resources               resource[]     @relation("resource_project")
+    routines                routine[] // Routines created by this project
+    starredBy               star[]         @relation("star_project")
+    tags                    project_tags[] // Categorical tags set by creators or community-voted
+    votes                   vote[]         @relation("vote_project")
+    wallets                 wallet[]
+}
+
+// Many-to-many relationship between projects and tags
+model project_tags {
+    id       String  @id @default(uuid()) @db.Uuid
+    taggedId String  @db.Uuid
+    tagId    String  @db.Uuid
+    tagged   project @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+    tag      tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+    @@unique([taggedId, tagId], name: "project_tags_taggedid_tagid_unique")
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Report
+//==============================================================
+
+model report {
+    id             String        @id @default(uuid()) @db.Uuid
+    reason         String        @db.VarChar(128)
+    details        String?       @db.VarChar(1024)
+    created_at     DateTime      @default(now()) @db.Timestamptz(6)
+    fromId         String        @db.Uuid
+    from           user          @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
+    commentId      String?       @db.Uuid
+    organizationId String?       @db.Uuid
+    projectId      String?       @db.Uuid
+    routineId      String?       @db.Uuid
+    standardId     String?       @db.Uuid
+    tagId          String?       @db.Uuid
+    userId         String?       @db.Uuid
+    comment        comment?      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+    organization   organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    project        project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    routine        routine?      @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    standard       standard?     @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    tag            tag?          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+    user           user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Resource
+//==============================================================
+// A resource is a link or address that provides context to
+// whatever object it is associated with. This may be a user's social
+// media links, a project's website, a routine's instruction video, etc.
+// A resource can be of the following types:
+// - AdaHandle - Must start with "$". See https://adahandle.com/
+// - Cardano RECEIVE address - Must start with "addr:"
+// - An IPFS address - Must start with "ipfs:"
+// - A typical url - Must start with "http://", "https://", or "www."
+//==============================================================
+
+model resource {
+    id                  String          @id @default(uuid()) @db.Uuid
+    created_at          DateTime        @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime        @default(now()) @db.Timestamptz(6)
+    title               String?         @db.VarChar(128)
+    description         String?         @db.VarChar(2048)
+    link                String          @db.VarChar(1024) // The actual link
+    usedFor             ResourceUsedFor @default(Context)
+    organizationId      String?         @db.Uuid
+    projectId           String?         @db.Uuid
+    routineContextualId String?         @db.Uuid
+    routineExternalId   String?         @db.Uuid
+    userId              String?         @db.Uuid
+    organization        organization?   @relation("resource_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    project             project?        @relation("resource_project", fields: [projectId], references: [id], onDelete: Cascade)
+    routineContextual   routine?        @relation("resource_contextual_routine", fields: [routineContextualId], references: [id], onDelete: Cascade)
+    routineExternal     routine?        @relation("resource_external_routine", fields: [routineExternalId], references: [id], onDelete: Cascade)
+    user                user?           @relation("resource_user", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Role
+//==============================================================
+
+// A user role. Each user can have multiple roles
+model role {
+    id          String       @id @default(uuid()) @db.Uuid
+    title       String       @unique @db.VarChar(128)
+    description String?      @db.VarChar(2048)
+    created_at  DateTime     @default(now()) @db.Timestamptz(6)
+    updated_at  DateTime     @default(now()) @db.Timestamptz(6)
+    users       user_roles[]
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Routine
+//==============================================================
+// The most important object in the system. A routine is a way to
+// describe the process for completing some task. It may consist of
+// subroutines, which are themselves routines.
+// A routine is owned by either a user or organization. It can be
+// transferred to another user or organization.
+//==============================================================
+
+model routine {
+    id                      String                   @id @default(uuid()) @db.Uuid
+    created_at              DateTime                 @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
+    description             String                   @db.VarChar(2048)
+    instructions            String                   @db.VarChar(8192) // Plaintext or markdown instructions
+    isAutomatable           Boolean                  @default(false) // Indicates if the routine can be run automatically, if all conditions are met
+    title                   String                   @db.VarChar(128)
+    version                 String                   @default("1.0.0") @db.VarChar(16) // Arbitrary version number
+    createdByUserId         String?                  @db.Uuid // User who created this routine
+    createdByOrganizationId String?                  @db.Uuid // Organization who created this routine
+    userId                  String?                  @db.Uuid // User who can edit this routine
+    organizationId          String?                  @db.Uuid // Organization who can edit this routine
+    parentId                String?                  @db.Uuid // Parent routine, if any
+    projectId               String?                  @db.Uuid // Project this routine belongs to, if any
+    createdByUser           user?                    @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+    createdByOrganization   organization?            @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+    user                    user?                    @relation("routine_user_owner", fields: [userId], references: [id], onDelete: Cascade)
+    organization            organization?            @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: Cascade)
+    project                 project?                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    inputs                  routine_input[]
+    outputs                 routine_output[]
+    nodes                   node[] // Defines an orchestration (i.e. routine is made up of subroutines)
+    contextualResources     resource[]               @relation("resource_contextual_routine") // Resources to provide context to the routine
+    externalResources       resource[]               @relation("resource_external_routine") // Resources for completing steps outside of Vrooli
+    forks                   routine[]                @relation("routine_fork")
+    parent                  routine?                 @relation("routine_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    tags                    routine_tags[] // Categorical tags set by creators or community-voted
+    stars                   Int                      @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy               star[]                   @relation("star_routine")
+    nodeLists               node_routine_list_item[] // Routine list nodes the routine is a part of
+    reports                 report[]
+    comments                comment[]
+    score                   Int                      @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    votes                   vote[]                   @relation("vote_routine")
+}
+
+// Data for a routine input
+model routine_input {
+    id          String    @id @default(uuid()) @db.Uuid
+    description String?   @db.VarChar(2048) // Optional description to override standard's description
+    isRequired  Boolean   @default(true) // Indicates if the input is required to run the routine
+    name        String?   @db.VarChar(128) // Optional name to override standard's name
+    routineId   String    @db.Uuid
+    standardId  String?   @db.Uuid
+    routine     routine   @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    standard    standard? @relation(fields: [standardId], references: [id], onDelete: Cascade)
+}
+
+// Data for a routine output
+model routine_output {
+    id          String   @id @default(uuid()) @db.Uuid
+    name        String?  @db.VarChar(128) // Optional name to override standard's name
+    description String?  @db.VarChar(2048) // Optional description to override standard's description
+    routineId   String   @db.Uuid
+    standardId  String   @db.Uuid
+    routine     routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    standard    standard @relation(fields: [standardId], references: [id], onDelete: Cascade)
+}
+
+// Many-to-many relationship between routines and tags
+model routine_tags {
+    id       String  @id @default(uuid()) @db.Uuid
+    taggedId String  @db.Uuid
+    tagId    String  @db.Uuid
+    tagged   routine @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+    tag      tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+    @@unique([taggedId, tagId], name: "routine_tags_taggedid_tagid_unique")
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Standard
+//==============================================================
+
+// Data standard for a routine input or output
+model standard {
+    id                      String           @id @default(uuid()) @db.Uuid
+    created_at              DateTime         @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime         @default(now()) @db.Timestamptz(6)
+    default                 String?          @db.VarChar(1024) // Default value
+    description             String?          @db.VarChar(2048)
+    isFile                  Boolean          @default(false) // Indicates if the data is a file. If this is the case, then the schema is interpreted as file metadata
+    name                    String           @db.VarChar(128)
+    schema                  String           @db.VarChar(8192) // JSON object describing the shape of the data
+    type                    StandardType
+    version                 String           @default("1.0.0") @db.VarChar(16) // Arbitrary version number
+    createdByUserId         String?          @db.Uuid // User who created the standard, if exists (could have been created anonymously or by an organization)
+    createdByOrganizationId String?          @db.Uuid // Organization who created the standard, if exists (could have been created anonymously or by a user)
+    createdByUser           user?            @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+    createdByOrganization   organization?    @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+    tags                    standard_tags[] // Categorical tags set by creators or community-voted
+    // TODO add relationships to routines that use this standard
+    routineInputs           routine_input[]
+    routineOutputs          routine_output[]
+    stars                   Int              @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy               star[]           @relation("star_standard")
+    reports                 report[]
+    comments                comment[]
+    score                   Int              @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    votes                   vote[]           @relation("vote_standard")
+
+    // A user or organization cannot update a standard once it has been published (except for its description and tags).
+    // Therefore, it must create the standard with a new version number.
+    @@unique([createdByUserId, createdByOrganizationId, name, version], name: "standard_createdByUserId_createdByOrganizationId_name_version_unique")
+}
+
+// Many-to-many relationship between standards and tags
+model standard_tags {
+    id       String   @id @default(uuid()) @db.Uuid
+    taggedId String   @db.Uuid
+    tagId    String   @db.Uuid
+    tagged   standard @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+    tag      tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+    @@unique([taggedId, tagId], name: "standard_tags_taggedid_tagid_unique")
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Star
+//==============================================================
+// Objects can only by a user, not an organization.
+// If a user wants to promote another's work, they can put it in a resource list.
+// Votes can be applied to comments, projects, routines, standards, and tags.
+//==============================================================
+
+model star {
+    id             String        @id @default(uuid()) @db.Uuid
+    byId           String        @db.Uuid // ID of user who voted
+    commentId      String?       @db.Uuid
+    organizationId String?       @db.Uuid
+    projectId      String?       @db.Uuid
+    routineId      String?       @db.Uuid
+    standardId     String?       @db.Uuid
+    tagId          String?       @db.Uuid
+    userId         String?       @db.Uuid // ID of user being starred
+    by             user          @relation("star_by", fields: [byId], references: [id])
+    comment        comment?      @relation("star_comment", fields: [commentId], references: [id])
+    organization   organization? @relation("star_organization", fields: [organizationId], references: [id])
+    project        project?      @relation("star_project", fields: [projectId], references: [id], onDelete: Cascade)
+    routine        routine?      @relation("star_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    standard       standard?     @relation("star_standard", fields: [standardId], references: [id], onDelete: Cascade)
+    tag            tag?          @relation("star_tag", fields: [tagId], references: [id], onDelete: Cascade)
+    user           user?         @relation("star_user", fields: [userId], references: [id])
+}
+
+//==============================================================
+// #endregion Vote
+//==============================================================
+
+//==============================================================
+// #region Tag
+//==============================================================
+
+// Tags are used to categorize an object
+model tag {
+    id              String              @id @default(uuid()) @db.Uuid
+    created_at      DateTime            @default(now()) @db.Timestamptz(6)
+    updated_at      DateTime            @default(now()) @db.Timestamptz(6)
+    tag             String              @unique @db.VarChar(128)
+    description     String?             @db.VarChar(2048)
+    createdByUserId String?             @db.Uuid // User who created the tag
+    createdByUser   user?               @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+    organizations   organization_tags[]
+    projects        project_tags[]
+    routines        routine_tags[]
+    standards       standard_tags[]
+    hiddenBy        user_tag_hidden[] // Users who are hiding the tag
+    stars           Int                 @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    starredBy       star[]              @relation("star_tag")
+    reports         report[]
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region User
+//==============================================================
+
+// A user of the system
+model user {
+    id                             String               @id @default(uuid()) @db.Uuid
+    bio                            String?              @db.VarChar(2048)
+    username                       String?              @unique @db.VarChar(128)
+    theme                          String               @default("light") @db.VarChar(255)
+    password                       String?              @db.VarChar(256)
+    logInAttempts                  Int                  @default(0)
+    lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6)
+    numExports                     Int                  @default(0)
+    lastExport                     DateTime?            @db.Timestamptz(6)
+    sessionToken                   String?              @db.VarChar(1024)
+    confirmationCode               String?              @unique @db.VarChar(256)
+    confirmationCodeDate           DateTime?            @db.Timestamptz(6)
+    resetPasswordCode              String?              @unique @db.VarChar(256)
+    lastResetPasswordReqestAttempt DateTime?            @db.Timestamptz(6)
+    status                         AccountStatus        @default(Unlocked)
+    created_at                     DateTime             @default(now()) @db.Timestamptz(6)
+    updated_at                     DateTime             @default(now()) @db.Timestamptz(6)
+    comments                       comment[]
+    roles                          user_roles[]
+    emails                         email[]
+    wallets                        wallet[]
+    standards                      standard[]
+    tags                           tag[] // Tags the user CREATED - not tags applied to the user's profile
+    resources                      resource[]           @relation("resource_user") // Resources associated with user profile
+    organizations                  organization_users[] // Projects the user is a member of
+    projects                       project[]            @relation("project_user_owner") // Projects that the user can control
+    projectsCreated                project[]            @relation("project_user_creator") // Projects that the user created, but cannot necessarily control
+    routines                       routine[]            @relation("routine_user_owner") // Routines the user can control
+    routinesCreated                routine[]            @relation("routine_user_creator") // Routines the user created, but cannot necessarily control
+    stars                          Int                  @default(0) // Count of all stars the user has RECEIVED, not given. Makes queries easier than counting the relationship every time
+    starredBy                      star[]               @relation("star_user")
+    starred                        star[]               @relation("star_by")
+    hiddenTags                     user_tag_hidden[]
+    sentReports                    report[]             @relation("report_from")
+    reports                        report[]
+    votes                          vote[]               @relation("vote_user") // Votes the user has cast, NOT votes the user has received (since users can't be voted on)
+}
+
+// Joining table to apply roles to user
+model user_roles {
+    id     String @id @default(uuid()) @db.Uuid
+    userId String @db.Uuid
+    roleId String @db.Uuid
+    user   user   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    role   role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
+}
+
+// Many-to-many relationship between users and tags they have hidden/blurred
+model user_tag_hidden {
+    id     String  @id @default(uuid()) @db.Uuid
+    isBlur Boolean @default(true) // Determines if content with this tag is hidden completely, or blurred
+    userId String  @db.Uuid
+    tagId  String  @db.Uuid
+    user   user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    tag    tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, tagId], name: "user_tags_hidden_userid_tagid_unique")
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Vote
+//==============================================================
+// Votes can be submitted only by a user, not an organization.
+// This is to prevent users from voting multiple times for the same object.
+// Votes can be applied to comments, projects, routines, standards, and tags.
+//==============================================================
+
+model vote {
+    id         String    @id @default(uuid()) @db.Uuid
+    isUpvote   Boolean   @default(true) // Determines if vote is upvote or downvote
+    userId     String    @db.Uuid // ID of user who voted
+    commentId  String?   @db.Uuid
+    projectId  String?   @db.Uuid
+    routineId  String?   @db.Uuid
+    standardId String?   @db.Uuid
+    user       user      @relation("vote_user", fields: [userId], references: [id])
+    comment    comment?  @relation("vote_comment", fields: [commentId], references: [id])
+    project    project?  @relation("vote_project", fields: [projectId], references: [id], onDelete: Cascade)
+    routine    routine?  @relation("vote_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    standard   standard? @relation("vote_standard", fields: [standardId], references: [id], onDelete: Cascade)
+}
+
+//==============================================================
+// #endregion Vote
+//==============================================================
+
+//==============================================================
+// #region Wallet
+//==============================================================
+
+// Wallet data
+model wallet {
+    id                String        @id @default(uuid()) @db.Uuid
+    publicAddress     String        @unique @db.VarChar(128)
+    nonce             String?       @db.VarChar(8092)
+    nonceCreationTime DateTime?     @db.Timestamptz(6)
+    verified          Boolean       @default(false)
+    lastVerifiedTime  DateTime?     @db.Timestamptz(6)
+    wasReported       Boolean       @default(false) // Indicates if the wallet was part of an account which was taken down
+    userId            String?       @db.Uuid
+    user              user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    organizationId    String?       @db.Uuid
+    organization      organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    projectId         String?       @db.Uuid
+    project           project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    created_at        DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime      @default(now()) @db.Timestamptz(6)
+}
+
+//==============================================================
+// #endregion
+//==============================================================
+
+//==============================================================
+// #region Enums
+//==============================================================
+
+enum AccountStatus {
+    Deleted
+    Unlocked
+    SoftLocked
+    HardLocked
+}
+
+enum MemberRole {
+    Admin
+    Member
+    Owner
+}
+
+enum NodeType {
+    Combine
+    Decision
+    End
+    Loop
+    RoutineList
+    Redirect
+    Start
+}
+
+enum ResourceUsedFor {
+    Community // e.g. Discord invite link
+    Context // e.g. Pitch video link
+    Donation // e.g. Patreon link
+    Learning // e.g. White Paper link
+    OfficialWebsite // e.g. Website or Github link
+    Proposal // e.g. IdeaScale link
+    Related // e.g. Anything that's related to the project, but doesn't fit into any of the other categories
+    Social // e.g. Twitter, Facebook, Instagram
+    Tutorial // e.g. Youtube video link
+}
+
+enum StandardType {
+    String
+    Number
+    Boolean
+    Object
+    Array
+    File
+    Url
+}
+
+//==============================================================
+// #endregion
+//==============================================================

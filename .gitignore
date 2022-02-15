@@ -2,6 +2,10 @@
 # Created by https://www.toptal.com/developers/gitignore/api/react,node
 # Edit at https://www.toptal.com/developers/gitignore?templates=react,node
 
+### Zipped ###
+*.tar
+*.tar.gz
+
 ### Node ###
 # Logs
 logs
@@ -148,12 +152,8 @@ build/
 #Database
 *.db
 
-#Postgres
-*data/postgres/
-*data/certbot/
-
-#Assets
-assets/images/
+#Persistent data
+data/
 
 .eslintcache
 package-lock.json
