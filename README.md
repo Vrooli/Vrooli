@@ -13,6 +13,7 @@ A collaborative tool for visualizing and automating tasks
 **How can Vrooli be used to automate tasks?** Vrooli has visions of becoming the "glue" of the automated world. If you're using routines to plan everything, connecting data and computation is the next logical step. The [project roadmap](#roadmap) details the timeline for this functionality.
 
 ## Quick Links
+- [White paper (plus long-term vision for Vrooli and the future of society)](https://docs.google.com/document/d/1BO3Q5ADavWKaK0RSdeDVXfYOHtBF-cMr7S-XxKiGJ8g/edit?usp=sharing)
 - [Explaining the problem and our solution](https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e)
 - [First project proposal](https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088)
 - [Join the discussion on Discord!](https://discord.gg/RzDCvUDK)
@@ -98,3 +99,5 @@ If you'd like to work with me on this project, or create your own proposal for a
 
 ## Workflow setup
 See [this guide](https://github.com/MattHalloran/ReactGraphQLTemplate#how-to-start) for setting up the development workflow and general development tips.
+
+If you'd like to work with me on this project, or create your own proposal for a feature on the roadmap, don't hesitate to reach out! My contact links can be found [here](https://matthalloran.info).
