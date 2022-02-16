@@ -3,7 +3,7 @@ export * from './search';
 export * from './view';
 export * from './wrapper';
 export * from './NotFoundPage';
-export * from './RoutineOrchestratorPage';
+export * from './RoutineOrchestratorPage/RoutineOrchestratorPage';
 export * from './SettingsPage/SettingsPage';
 export * from './StartPage/StartPage';
 export * from './WelcomePage/WelcomePage';

@@ -11,6 +11,7 @@ import {
 import { ScrollToTop } from 'components';
 import { CommonProps } from 'types';
 import { Page } from 'pages/wrapper/Page';
+import { Box, CircularProgress } from '@mui/material';
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
@@ -38,8 +39,17 @@ const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
 const { RunRoutinePage } = lazily(() => import('./pages/wrapper/RunRoutinePage'));
 const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
-const { RoutineOrchestratorPage } = lazily(() => import('./pages/RoutineOrchestratorPage'));
+const { RoutineOrchestratorPage } = lazily(() => import('./pages/RoutineOrchestratorPage/RoutineOrchestratorPage'));
 
+const Fallback = <Box sx={{
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    zIndex: 100000,
+}}>
+    <CircularProgress size={100} />
+</Box>
 
 export const AllRoutes = (props: CommonProps) => {
 
@@ -56,28 +66,28 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #region Dashboard Routes ========= */}
                 {/* Customizable pages available to logged in users */}
                 <Route path={LINKS.Home}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Home')} {...props}>
                             <HomePage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={LINKS.Learn} >
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Learn')} {...props}>
                             <LearnPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={LINKS.Research}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Research')} {...props}>
                             <ResearchPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={LINKS.Develop}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Develop')} {...props}>
                             <DevelopPage session={props.session ?? {}} />
                         </Page>
@@ -87,35 +97,35 @@ export const AllRoutes = (props: CommonProps) => {
 
                 {/* ========= #region Search Routes ========= */}
                 <Route path={`${LINKS.SearchUsers}/:params*`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Users Search')} {...props}>
                             <SearchActorsPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.SearchOrganizations}/:params*`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Organizations Search')} {...props}>
                             <SearchOrganizationsPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.SearchProjects}/:params*`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Projects Search')} {...props}>
                             <SearchProjectsPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.SearchRoutines}/:params*`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Routines Search')} {...props}>
                             <SearchRoutinesPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.SearchStandards}/:params*`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Standards Search')} {...props}>
                             <SearchStandardsPage session={props.session ?? {}} />
                         </Page>
@@ -126,14 +136,14 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #region Orchestration Routes ========= */}
                 {/* Pages for creating and running routine orchestrations */}
                 <Route path={`${LINKS.Orchestrate}/:id`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Plan Routine')} {...props} restrictedToRoles={[ROLES.Actor]}>
                             <RoutineOrchestratorPage />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Run}/:id?`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Run Routine')} {...props}>
                             <RunRoutinePage />
                         </Page>
@@ -145,35 +155,35 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* Views for main Vrooli components (organizations, actors, projects, routines, resources, data) */}
                 {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
                 <Route path={`${LINKS.Organization}/:id?`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Organization')} {...props}>
                             <OrganizationViewPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Project}/:id?`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Project')} {...props}>
                             <ProjectViewPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Routine}/:id?`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Routine')} {...props}>
                             <RoutineViewPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Standard}/:id?`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Standard')} {...props}>
                             <StandardViewPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.User}/:id?`}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('User')} {...props}>
                             <UserViewPage session={props.session ?? {}} />
                         </Page>
@@ -183,14 +193,14 @@ export const AllRoutes = (props: CommonProps) => {
 
                 {/* ========= #region Authentication Routes ========= */}
                 <Route path={LINKS.Start}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Start')} {...props}>
                             <StartPage {...props} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.ForgotPassword}/:code?`} >
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Forgot Password')} {...props}>
                             <FormPage title="Forgot Password" maxWidth="700px">
                                 <ForgotPasswordForm />
@@ -200,7 +210,7 @@ export const AllRoutes = (props: CommonProps) => {
                 </Route>
                 <Route path={`${LINKS.ResetPassword}/:userId?/:code?`}>
                     {(params: any) => (
-                        <Suspense fallback={<div>Loading...</div>}>
+                        <Suspense fallback={Fallback}>
                             <Page title={title('Reset Password')} {...props}>
                                 <FormPage title="Reset Password" maxWidth="700px">
                                     <ResetPasswordForm userId={params.userId} code={params.code} onSessionUpdate={props.onSessionUpdate} />
@@ -211,28 +221,28 @@ export const AllRoutes = (props: CommonProps) => {
                 </Route>
                 {/* =========  #endregion ========= */}
                 <Route path={LINKS.Settings}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Settings')} {...props} restrictedToRoles={[ROLES.Actor]}>
                             <SettingsPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={LINKS.Welcome}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Welcome')} {...props}>
                             <WelcomePage />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={LINKS.Stats}>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('Stats📊')} {...props}>
                             <StatsPage />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense fallback={Fallback}>
                         <Page title={title('404')} {...props}>
                             <NotFoundPage />
                         </Page>

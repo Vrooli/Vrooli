@@ -7,8 +7,9 @@ import { Close as CloseIcon } from '@mui/icons-material';
 
 export const HelpButton = ({
     id = 'help-details-menu',
-    markdown, // Markdown to display in the menu
-    sx, // Styles to apply to the question mark icon
+    markdown,
+    sxRoot,
+    sx,
 }: HelpButtonProps) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
@@ -48,6 +49,7 @@ export const HelpButton = ({
         <Box
             sx={{
                 display: 'inline',
+                ...sxRoot,
             }}
         >
             <Tooltip placement='top' title={!open ? "Open Help Menu" : ''}>

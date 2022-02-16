@@ -394,8 +394,36 @@ export const NodeGraphContainer = ({
             cursor: 'move',
             minWidth: '100%',
             minHeight: '100%',
-            overflowX: 'scroll',
-            overflowY: 'scroll',
+            overflowX: 'auto',
+            overflowY: 'auto',
+            margin: 0,
+            padding: 0,
+            height: `100%`,
+            backgroundColor: `#a8b6c3`,
+            // Create grid background pattern
+            '--line-color': `rgba(0 0 0 / .05)`,
+            '--line-thickness': `1px`,
+            '--minor-length': `${2*((scale*100 % 250) + 1)}px`,
+            '--major-length': `${20*((scale*100 % 250) + 1)}px`,
+            '--line': `var(--line-color) 0 var(--line-thickness)`,
+            '--small-body': `transparent var(--line-thickness) var(--minor-length)`,
+            '--large-body': `transparent var(--line-thickness) var(--major-length)`,
+          
+            '--small-squares': `repeating-linear-gradient(to bottom, var(--line), var(--small-body)), repeating-linear-gradient(to right, var(--line), var(--small-body))`,
+          
+            '--large-squares': `repeating-linear-gradient(to bottom, var(--line), var(--large-body)), repeating-linear-gradient(to right, var(--line), var(--large-body))`,
+            background: `var(--small-squares), var(--large-squares)`,
+            // Customize scrollbar
+            "&::-webkit-scrollbar": {
+                width: 10,
+            },
+            "&::-webkit-scrollbar-track": {
+                backgroundColor: '#dae5f0',
+            },
+            "&::-webkit-scrollbar-thumb": {
+                borderRadius: '100px',
+                backgroundColor: "#409590",
+            },
         }}>
             {/* Edges */}
             {edges}

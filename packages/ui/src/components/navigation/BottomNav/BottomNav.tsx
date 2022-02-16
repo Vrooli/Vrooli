@@ -18,7 +18,7 @@ const useStyles = makeStyles((theme: Theme) => ({
             color: theme.palette.secondary.light,
         },
     },
-    [theme.breakpoints.up(1000)]: {
+    [theme.breakpoints.up('md')]: {
         root: {
             display: 'none',
         }

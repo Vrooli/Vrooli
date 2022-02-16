@@ -1,6 +1,6 @@
 import { Box, Button, Grid, IconButton, Slider, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { NodeType, OrchestrationData } from '@local/shared';
-import { NodeGraphContainer } from 'components';
+import { HelpButton, NodeGraphContainer } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
@@ -18,6 +18,14 @@ import {
 } from '@mui/icons-material';
 import { Routine } from 'types';
 import isEqual from 'lodash/isEqual';
+import { withStyles } from '@mui/styles';
+import helpMarkdown from './OrchestratorHelp.md';
+
+const TERTIARY_COLOR = '#95f3cd';
+const STATUS_COLOR = {
+    Valid: '#00d51e',
+    Invalid: '#c72121',
+}
 
 //TEMP
 const data: OrchestrationData = {
@@ -240,6 +248,14 @@ const data: OrchestrationData = {
     ]
 }
 
+const CustomSlider = withStyles({
+    root: {
+        color: '#dc697d',
+        width: 'calc(100% - 32px)',
+        left: '11px', // 16px - 1/4 of thumb diameter
+    },
+})(Slider);
+
 export const RoutineOrchestratorPage = () => {
     // Queries routine data
     const { data: routineData } = useQuery<routine>(routineQuery, { variables: { input: { id: 'TODO' } } });
@@ -257,6 +273,14 @@ export const RoutineOrchestratorPage = () => {
     // Used for editing the title of the routine
     const [titleActive, setTitleActive] = useState<boolean>(false);
     const toggleTitle = useCallback(() => setTitleActive(a => !a), []);
+    const saveTitle= useCallback(() => {
+        //TODO
+        setTitleActive(false);
+    }, []);
+    const cancelTitle = useCallback(() => {
+        //TODO
+        setTitleActive(false);
+    }, []);
 
     useEffect(() => {
         setTitle(routineData?.routine?.title ?? '');
@@ -300,6 +324,12 @@ export const RoutineOrchestratorPage = () => {
         setChangedRoutine(routine);
     }, [routine])
 
+    // Parse markdown from .md file
+    const [helpText, setHelpText] = useState<string>('');
+    useEffect(() => {
+        fetch(helpMarkdown).then((r) => r.text()).then((text) => { setHelpText(text) });
+    }, []);
+
     /**
      * Displays metadata about the routine orchestration.
      * On the left is a status indicator, which lets you know if the routine is valid or not.
@@ -323,60 +353,64 @@ export const RoutineOrchestratorPage = () => {
                     sx={{ cursor: 'pointer' }}
                 />
                 {/* Buttons for saving/cancelling edit */}
-                <IconButton aria-label="confirm-title-change" onClick={() => { }} color="secondary">
-                    <DoneIcon />
+                <IconButton aria-label="confirm-title-change" onClick={saveTitle}>
+                    <DoneIcon sx={{ fill: '#40dd43' }} />
                 </IconButton>
-                <IconButton aria-label="cancel-title-change" onClick={() => { }} color="secondary">
-                    <CloseIcon />
+                <IconButton aria-label="cancel-title-change" onClick={cancelTitle} color="secondary">
+                    <CloseIcon sx={{ fill: '#ff2a2a' }} />
                 </IconButton>
             </Stack>
         ) : (
-            <Stack direction="row" spacing={1} alignItems="center">
-                {/* Component for viewing routine title */}
-                <Typography
-                    onClick={toggleTitle}
-                    component="h2"
-                    variant="h5"
-                    textAlign="center"
-                    sx={{ cursor: 'pointer' }}
-                >{data.title}</Typography>
-                {/* Component for editing routine title. Can also click on routine name to edit */}
-                <IconButton aria-label="change-title" onClick={() => { }} color="secondary">
-                    <EditIcon />
-                </IconButton>
-            </Stack>
+            <Typography
+                onClick={toggleTitle}
+                component="h2"
+                variant="h5"
+                textAlign="center"
+                sx={{ cursor: 'pointer' }}
+            >{data.title}</Typography>
         );
         return (
-            <Stack direction="row" spacing={2} justifyContent="space-between" width="100%" color="white">
+            <Stack
+                direction="row"
+                spacing={2}
+                width="100%"
+                justifyContent="space-between"
+                sx={{
+                    background: (t) => t.palette.primary.light,
+                    color: (t) => t.palette.primary.contrastText,
+                }}
+            >
                 {/* Status indicator */}
                 <Tooltip title={isValid ? "Routine is valid" : "Routine is invalid"}>
                     <Box sx={{
                         borderRadius: 1,
-                        padding: 0.5,
-                        border: `2px solid ${isValid ? '#6ef04e' : '#e74242'}`,
-                        color: isValid ? '#6ef04e' : '#e74242',
+                        border: `2px solid ${isValid ? STATUS_COLOR.Valid : STATUS_COLOR.Invalid}`,
+                        color: isValid ? STATUS_COLOR.Valid : STATUS_COLOR.Invalid,
                         height: 'fit-content',
                         margin: 'auto 8px',
+                        fontWeight: 'bold',
                     }}>{isValid ? 'Valid' : 'Invalid'}</Box>
                 </Tooltip>
                 {/* Routine title label/TextField and action buttons */}
                 {title}
-                {/* Switch to routine metadata page */}
-                <IconButton aria-label="show-routine-metadata" onClick={() => { }} color="secondary">
-                    <InfoIcon />
-                </IconButton>
+                <Stack direction="row" spacing={1}>
+                    {/* Help button */}
+                    <HelpButton markdown={helpText} sxRoot={{ margin: "auto" }} sx={{ color: TERTIARY_COLOR }} />
+                    {/* Switch to routine metadata page */}
+                    <IconButton aria-label="show-routine-metadata" onClick={() => { }} color="secondary">
+                        <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                    </IconButton>
+                </Stack>
             </Stack>
         )
     }, [isValid, title, titleActive, toggleTitle]);
 
-    let options = useMemo(() => (
+    let optionsBar = useMemo(() => (
         <Grid
             container
+            p={2}
             sx={{
-                position: 'fixed',
-                bottom: { xs: '56px', md: '0px' },
-                zIndex: 15,
-                background: "#22334f",
+                background: (t) => t.palette.primary.light,
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
@@ -387,19 +421,18 @@ export const RoutineOrchestratorPage = () => {
                     (
                         <>
                             <Grid item xs={12} sm={6} pt={0}>
-                                <Slider
+                                <CustomSlider
                                     aria-label="graph-scale"
-                                    min={0.01}
+                                    min={0.25}
                                     max={1}
                                     defaultValue={1}
                                     step={0.01}
                                     value={scale}
                                     valueLabelDisplay="auto"
                                     onChange={handleScaleChange}
-                                    sx={{paddingLeft: '12px', paddingRight: '10px', color: '#23eaed'}}
                                 />
                             </Grid>
-                            <Grid item xs={12} sm={3} sx={{padding: 1}}>
+                            <Grid item xs={12} sm={3} sx={{ padding: 1 }}>
                                 <Button
                                     fullWidth
                                     startIcon={<UpdateIcon />}
@@ -420,7 +453,7 @@ export const RoutineOrchestratorPage = () => {
                     (
                         <>
                             <Grid item xs={12} sm={9}>
-                                <Slider
+                                <CustomSlider
                                     aria-label="graph-scale"
                                     min={0.01}
                                     max={1}
@@ -445,31 +478,20 @@ export const RoutineOrchestratorPage = () => {
     ), [changedRoutine, isEditing, loading, revertChanges, routine, scale, startEditing, updateRoutine])
 
     return (
-        <Box sx={{
+        <Stack direction="column" spacing={0} sx={{
             minWidth: '100%',
-            minHeight: '100%',
-            paddingTop: '10vh'
+            paddingTop: '10vh',
+            height: { xs: 'calc(90vh - 56px)', md: '90vh' },
         }}>
             {/* Information bar */}
-            <Stack
-                direction="row"
-                spacing={2}
-                width="100%"
-                height="5vh"
-                justifyContent="space-around"
-                sx={{ background: "#22334f" }}
-            >
-                {informationBar}
-            </Stack>
-            <Box sx={{ width: "102%", height: 'calc(80vh - 56px)', }}>
-                <NodeGraphContainer
-                    scale={scale}
-                    isEditable={true}
-                    labelVisible={true}
-                    nodes={data?.nodes}
-                />
-            </Box>
-            {options}
-        </Box>
+            {informationBar}
+            <NodeGraphContainer
+                scale={scale}
+                isEditable={true}
+                labelVisible={true}
+                nodes={data?.nodes}
+            />
+            {optionsBar}
+        </Stack>
     )
 };

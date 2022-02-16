@@ -9,7 +9,7 @@ import { useLocation } from 'wouter';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
 
-const SHOW_HAMBURGER_AT = 1000;
+const SHOW_HAMBURGER_AT = 900;
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
