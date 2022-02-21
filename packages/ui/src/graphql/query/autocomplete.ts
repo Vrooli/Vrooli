@@ -1,6 +1,11 @@
 import { gql } from 'graphql-tag';
 
 export const autocompleteQuery = gql`
+    fragment autocompleteTagFields on Tag {
+        id
+        description
+        tag
+    }
     query autocomplete($input: AutocompleteInput!) {
         autocomplete(input: $input) {
             organizations {
@@ -8,6 +13,9 @@ export const autocompleteQuery = gql`
                 name
                 stars
                 isStarred
+                tags {
+                    ...autocompleteTagFields
+                }
             }
             projects {
                 id
@@ -15,6 +23,9 @@ export const autocompleteQuery = gql`
                 stars
                 isUpvoted
                 isStarred
+                tags {
+                    ...autocompleteTagFields
+                }
             }
             routines {
                 id
@@ -22,6 +33,9 @@ export const autocompleteQuery = gql`
                 stars
                 isUpvoted
                 isStarred
+                tags {
+                    ...autocompleteTagFields
+                }
             }
             standards {
                 id
@@ -29,6 +43,9 @@ export const autocompleteQuery = gql`
                 stars
                 isUpvoted
                 isStarred
+                tags {
+                    ...autocompleteTagFields
+                }
             }
             users {
                 id

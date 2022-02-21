@@ -200,7 +200,7 @@ model node_loop_while_case {
     item      node_loop_while @relation(fields: [itemId], references: [id], onDelete: Cascade)
 }
 
-// Data for routine list nodes (in addition to fields defined by node table) TODO complete
+// Data for routine list nodes (in addition to fields defined by node table)
 model node_routine_list {
     id         String                   @id @default(uuid()) @db.Uuid
     isOrdered  Boolean                  @default(false)

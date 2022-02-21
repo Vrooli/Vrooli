@@ -193,6 +193,11 @@ export const resolvers = {
                     name: true,
                     stars: true,
                     isStarred: true,
+                    tags: {
+                        id: true,
+                        description: true,
+                        tag: true,
+                    },
                 })).edges.map(({ node }: any) => node);
             // Query projects
             const projects = (await ProjectModel(prisma).search(
@@ -206,6 +211,11 @@ export const resolvers = {
                     score: true,
                     isStarred: true,
                     isUpvoted: true,
+                    tags: {
+                        id: true,
+                        description: true,
+                        tag: true,
+                    },
                 }
             )).edges.map(({ node }: any) => node);
             // Query routines
@@ -220,6 +230,11 @@ export const resolvers = {
                     score: true,
                     isStarred: true,
                     isUpvoted: true,
+                    tags: {
+                        id: true,
+                        description: true,
+                        tag: true,
+                    },
                 }
             )).edges.map(({ node }: any) => node);
             // Query standards
@@ -234,6 +249,11 @@ export const resolvers = {
                     score: true,
                     isStarred: true,
                     isUpvoted: true,
+                    tags: {
+                        id: true,
+                        description: true,
+                        tag: true,
+                    },
                 }
             )).edges.map(({ node }: any) => node);
             // Query users

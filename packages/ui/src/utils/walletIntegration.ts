@@ -137,7 +137,7 @@ export const validateWallet = async (provider: WalletProvider): Promise<WalletCo
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
         PubSub.publish(Pubs.AlertDialog, {
-            message: error.message ?? 'Unknown error occurred',
+            message: 'Unknown error occurred. Please check that the extension you chose is connected to a DApp-enabled wallet',
             buttons: [{ text: 'OK' }]
         });
     } finally {

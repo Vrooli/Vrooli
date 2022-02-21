@@ -48,8 +48,8 @@ export function TitleContainer({
                     {/* Main content */}
                     <Stack direction="column">
                         <Box sx={{
-                            minHeight: 'min(300px, 25vh)',
                             ...(loading ? {
+                                minHeight: 'min(300px, 25vh)',
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',

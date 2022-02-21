@@ -56,6 +56,7 @@ export const NavList = ({
         <Button 
             className={classes.button} 
             onClick={() => openLink(setLocation, enter_action.link)}
+            sx={{background: '#5ea956'}}
             >
                 {enter_action.label}
         </Button>

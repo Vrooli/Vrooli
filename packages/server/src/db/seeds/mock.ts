@@ -25,23 +25,12 @@ export async function mock(prisma: PrismaType) {
     // - Bios and lack of bios are displayed correctly
     // - Organizations, projects, standards, and routines are displayed correctly
     //==============================================================
-    const admin = await prisma.user.create({
-        data: {
-            username: 'admin',
-            password: userModel.hashPassword('admin'),
-            status: AccountStatus.Unlocked,
-            emails: {
-                create: [
-                    { emailAddress: "admin@admin.com", verified: true },
-                ]
-            },
-            roles: {
-                create: [{ role: { connect: { id: actorRoleId } } }]
-            }
-        }
-    })
-    const user1 = await prisma.user.create({
-        data: {
+    const user1 = await prisma.user.upsert({
+        where: {
+            username: 'Elon Tusk🦏',
+        },
+        update: {},
+        create: {
             username: "Elon Tusk🦏",
             password: userModel.hashPassword("Elon"),
             status: AccountStatus.Unlocked,
@@ -53,12 +42,16 @@ export async function mock(prisma: PrismaType) {
                 ]
             },
             roles: {
-                create: [{ role: { connect: { id: actorRoleId } } }]
+                create: [{ roleId: actorRoleId }]
             }
-        }
+        },
     })
-    const user2 = await prisma.user.create({
-        data: {
+    const user2 = await prisma.user.upsert({
+        where: {
+            username: 'HAL 9000🤖',
+        },
+        update: {},
+        create: {
             username: "HAL 9000🤖",
             password: userModel.hashPassword("HAL"),
             status: AccountStatus.Deleted,
@@ -69,12 +62,16 @@ export async function mock(prisma: PrismaType) {
                 ]
             },
             roles: {
-                create: [{ role: { connect: { id: actorRoleId } } }]
+                create: [{ roleId: actorRoleId }]
             }
-        }
-    });
-    const user3 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user3 = await prisma.user.upsert({
+        where: {
+            username: 'Spongebob Squarepants',
+        },
+        update: {},
+        create: {
             username: "Spongebob Squarepants",
             password: userModel.hashPassword("Spongebob"),
             status: AccountStatus.Unlocked,
@@ -84,12 +81,16 @@ export async function mock(prisma: PrismaType) {
                 ]
             },
             roles: {
-                create: [{ role: { connect: { id: actorRoleId } } }]
+                create: [{ roleId: actorRoleId }]
             }
-        }
-    });
-    const user4 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user4 = await prisma.user.upsert({
+        where: {
+            username: 'Patrick Star',
+        },
+        update: {},
+        create: {
             username: "Patrick Star",
             password: userModel.hashPassword("Patrick"),
             status: AccountStatus.Unlocked,
@@ -101,10 +102,14 @@ export async function mock(prisma: PrismaType) {
             roles: {
                 create: [{ role: { connect: { id: actorRoleId } } }]
             }
-        }
-    });
-    const user5 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user5 = await prisma.user.upsert({
+        where: {
+            username: 'Mr. Krabs',
+        },
+        update: {},
+        create: {
             username: "Mr. Krabs",
             password: userModel.hashPassword("Mr"),
             status: AccountStatus.Unlocked,
@@ -116,10 +121,14 @@ export async function mock(prisma: PrismaType) {
             roles: {
                 create: [{ role: { connect: { id: actorRoleId } } }]
             }
-        }
-    });
-    const user6 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user6 = await prisma.user.upsert({
+        where: {
+            username: 'Plankton (Sheldon)',
+        },
+        update: {},
+        create: {
             username: "Plankton (Sheldon)",
             password: userModel.hashPassword("Plankton"),
             status: AccountStatus.Unlocked,
@@ -131,10 +140,14 @@ export async function mock(prisma: PrismaType) {
             roles: {
                 create: [{ role: { connect: { id: actorRoleId } } }]
             }
-        }
-    });
-    const user7 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user7 = await prisma.user.upsert({
+        where: {
+            username: 'Daisy Buchanan',
+        },
+        update: {},
+        create: {
             username: "Daisy Buchanan",
             password: userModel.hashPassword("Daisy"),
             status: AccountStatus.Unlocked,
@@ -146,10 +159,14 @@ export async function mock(prisma: PrismaType) {
             roles: {
                 create: [{ role: { connect: { id: actorRoleId } } }]
             }
-        }
-    });
-    const user8 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user8 = await prisma.user.upsert({
+        where: {
+            username: 'John Galt',
+        },
+        update: {},
+        create: {
             username: "John Galt",
             password: userModel.hashPassword("John"),
             status: AccountStatus.Unlocked,
@@ -161,10 +178,14 @@ export async function mock(prisma: PrismaType) {
             roles: {
                 create: [{ role: { connect: { id: actorRoleId } } }]
             }
-        }
-    });
-    const user9 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user9 = await prisma.user.upsert({
+        where: {
+            username: "Fancisco d'Anconia",
+        },
+        update: {},
+        create: {
             username: "Fancisco d'Anconia",
             password: userModel.hashPassword("Francisco"),
             status: AccountStatus.Unlocked,
@@ -176,10 +197,14 @@ export async function mock(prisma: PrismaType) {
             roles: {
                 create: [{ role: { connect: { id: actorRoleId } } }]
             }
-        }
-    });
-    const user10 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user10 = await prisma.user.upsert({
+        where: {
+            username: 'James Taggart',
+        },
+        update: {},
+        create: {
             username: "James Taggart",
             password: userModel.hashPassword("James"),
             status: AccountStatus.Deleted,
@@ -191,25 +216,14 @@ export async function mock(prisma: PrismaType) {
             roles: {
                 create: [{ role: { connect: { id: actorRoleId } } }]
             }
-        }
-    });
-    const user11 = await prisma.user.create({
-        data: {
-            username: "Gregor Samsa",
-            password: userModel.hashPassword("Gregor"),
-            status: AccountStatus.Unlocked,
-            emails: {
-                create: [
-                    { emailAddress: "sadbug@afakesite.com", verified: true }
-                ]
-            },
-            roles: {
-                create: [{ role: { connect: { id: actorRoleId } } }]
-            }
-        }
-    });
-    const user12 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user11 = await prisma.user.upsert({
+        where: {
+            username: 'Aang',
+        },
+        update: {},
+        create: {
             username: "Aang",
             password: userModel.hashPassword("Aang"),
             status: AccountStatus.Unlocked,
@@ -221,10 +235,14 @@ export async function mock(prisma: PrismaType) {
             roles: {
                 create: [{ role: { connect: { id: actorRoleId } } }]
             }
-        }
-    });
-    const user13 = await prisma.user.create({
-        data: {
+        },
+    })
+    const user12 = await prisma.user.upsert({
+        where: {
+            username: 'Zuko',
+        },
+        update: {},
+        create: {
             username: "Zuko",
             password: userModel.hashPassword("Zuko"),
             status: AccountStatus.Unlocked,
@@ -236,8 +254,27 @@ export async function mock(prisma: PrismaType) {
             roles: {
                 create: [{ role: { connect: { id: actorRoleId } } }]
             }
-        }
-    });
+        },
+    })
+    const user13 = await prisma.user.upsert({
+        where: {
+            username: 'Gregor Samsa',
+        },
+        update: {},
+        create: {
+            username: "Gregor Samsa",
+            password: userModel.hashPassword("Gregor"),
+            status: AccountStatus.Unlocked,
+            emails: {
+                create: [
+                    { emailAddress: "sadbug@afakesite.com", verified: true }
+                ]
+            },
+            roles: {
+                create: [{ role: { connect: { id: actorRoleId } } }]
+            }
+        },
+    })
     //==============================================================
     /* #endregion Create users*/
     //==============================================================
@@ -292,7 +329,7 @@ export async function mock(prisma: PrismaType) {
     })
     const organization5 = await prisma.organization.create({
         data: {
-            name: "Vrooli 2",
+            name: "Vrooli 3",
             bio: "Competitor to Vrooli, now on Vrooli!",
             members: {
                 create: [
@@ -313,7 +350,7 @@ export async function mock(prisma: PrismaType) {
     // - Organizations and users display correctly
     const project1 = await prisma.project.create({
         data: {
-            name: "Vrooli",
+            name: "Fake project 1",
             description: "This is getting meta!",
             createdByOrganization: { connect: { id: organization1?.id } },
             organization: { connect: { id: organization1?.id } },
@@ -321,7 +358,7 @@ export async function mock(prisma: PrismaType) {
     })
     const project2 = await prisma.project.create({
         data: {
-            name: "Vrooli 2",
+            name: "Fake project 2",
             description: "This is getting meta!",
             createdByOrganization: { connect: { id: organization2?.id } },
             organization: { connect: { id: organization2?.id } },
@@ -336,12 +373,16 @@ export async function mock(prisma: PrismaType) {
     //==============================================================
     // Make sure to test the following:
     // - Short and long tags display correctly
-    await prisma.tag.create({ data: { tag: 'Cardano' } });
-    await prisma.tag.create({ data: { tag: 'Entrepreneurship' } });
-    await prisma.tag.create({ data: { tag: 'Vrooli' } });
-    await prisma.tag.create({ data: { tag: 'Idea Validation' } });
-    await prisma.tag.create({ data: { tag: 'Learn' } });
-    await prisma.tag.create({ data: { tag: 'Research' } });
+    await prisma.tag.upsert({
+        where: { tag: '123456789012345678901234567890' },
+        update: {},
+        create: { tag: '123456789012345678901234567890' },
+    })
+    await prisma.tag.upsert({
+        where: { tag: '123' },
+        update: {},
+        create: { tag: '123' },
+    })
     //==============================================================
     /* #endregion Create tags */
     //==============================================================
