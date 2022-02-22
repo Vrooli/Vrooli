@@ -7,6 +7,7 @@ import { AccountStatus, NodeType, ROLES, StandardType } from '@local/shared';
 import { UserModel } from '../../models';
 import { envVariableExists } from '../../utils';
 import { PrismaType } from '../../types';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function init(prisma: PrismaType) {
     console.info('🌱 Starting database intial seed...');
@@ -212,64 +213,9 @@ export async function init(prisma: PrismaType) {
         })
     }
 
-    // //TODO temp section
-    // await prisma.routine.create({
-    //     data: {
-    //         title: 'Test Routine',
-    //         description: 'Hash out your new business idea.',
-    //         instructions: 'Fill out the following forms to collect your thoughts and decide if your business idea is worth pursuing.',
-    //         isAutomatable: true,
-    //         version: '1.0.0',
-    //         createdByOrganization: { connect: { id: vrooli.id } },
-    //         organization: { connect: { id: vrooli.id } },
-    //         inputs: {
-    //             create: [
-    //                 {
-    //                     isRequired: true,
-    //                     standard: { connect: { id: standardCip0025.id } },
-    //                 }
-    //             ]
-    //         },
-    //         outputs: {}, //TODO
-    //         nodes: {
-    //             create: [
-    //                 {
-    //                     title: 'Explain Idea',
-    //                     type: NodeType.RoutineList,
-    //                     nodeRoutineList: {
-    //                         create: {
-    //                             isOrdered: false,
-    //                             isOptional: true,
-    //                             routines: {
-    //                                 create: [
-    //                                     {
-    //                                         routine: {
-    //                                             create: {
-    //                                                 title: 'Overview - Starting New Business Frameworks',
-    //                                                 description: 'Hash out your new business idea.',
-    //                                                 instructions: 'Fill out the form below',
-    //                                                 isAutomatable: true,
-    //                                                 version: '1.0.0',
-    //                                                 createdByOrganization: { connect: { id: vrooli.id } },
-    //                                                 organization: { connect: { id: vrooli.id } },
-    //                                                 inputs: {}, //TODO
-    //                                                 outputs: {}, //TODO
-    //                                             }
-    //                                         }
-    //                                     }
-    //                                 ]
-    //                             }
-    //                         }
-    //                     }
-    //                 }
-    //             ]
-    //         }
-    //     }
-    // })
-    // console.log('successful temp')
-
     // Create routines
-    let frameworkBusinessIdea = await prisma.routine.findFirst({
+    // NOTE: Previous and Next relationships must be set after the routine is created
+    let frameworkBusinessIdea: any = await prisma.routine.findFirst({
         where: {
             AND: [
                 { organizationId: vrooli.id },
@@ -281,6 +227,7 @@ export async function init(prisma: PrismaType) {
         console.info('📚 Creating Starting New Business Frameworks');
         frameworkBusinessIdea = await prisma.routine.create({
             data: {
+                id: '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9', // Set ID so we can know ahead of time this routine's URL (to link for example)
                 title: 'Starting New Business Frameworks',
                 description: 'Hash out your new business idea.',
                 instructions: 'Fill out the following forms to collect your thoughts and decide if your business idea is worth pursuing.',
@@ -295,7 +242,7 @@ export async function init(prisma: PrismaType) {
                         // Start node
                         {
                             title: 'Start',
-                            type: NodeType.Start
+                            type: NodeType.Start,
                         },
                         // Idea routine list TODO
                         {
@@ -498,8 +445,18 @@ export async function init(prisma: PrismaType) {
                         },
                     ]
                 }
+            },
+            select: {
+                id: true,
+                nodes: {
+                    select: {
+                        previousId: true,
+                        nextId: true
+                    }
+                }
             }
         })
+        console.log('frameworkBusinessIdea', frameworkBusinessIdea)
     }
 
     console.info(`✅ Database seeding complete.`);

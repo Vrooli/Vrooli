@@ -1,7 +1,7 @@
 import { CODE, resourceCreate, ResourceFor, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, DeleteManyInput, Count, FindByIdInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, searcher, selectHelper, Sortable } from "./base";
+import { counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, RelationshipTypes, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { CustomError } from "../error";
 import { resource } from "@prisma/client";
@@ -39,19 +39,17 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        const omittedFields = ['createdFor', 'createdForId'];
+        const fieldExcludes = ['createdFor', 'createdForId'];
         // Convert input to Prisma shape, excluding "createdFor" and "createdForId" fields
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by resources (since they can only be applied to one object, and 
         // it's not worth developing a way to transfer them between objects)
-        let formattedInput = relationshipToPrisma(input, 'resources', isAdd, omittedFields, false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'resources', isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const resource of formattedInput.create) {
                 // Check for valid arguments
-                resourceCreate.omit(omittedFields).validateSync(resource, { abortEarly: false });
+                resourceCreate.omit(fieldExcludes).validateSync(resource, { abortEarly: false });
                 // Check for censored words
                 this.profanityCheck(resource as ResourceCreateInput);
             }
@@ -60,7 +58,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         if (Array.isArray(formattedInput.update)) {
             for (const resource of formattedInput.update) {
                 // Check for valid arguments
-                resourceUpdate.omit(omittedFields).validateSync(resource, { abortEarly: false });
+                resourceUpdate.omit(fieldExcludes).validateSync(resource, { abortEarly: false });
                 // Check for censored words
                 this.profanityCheck(resource as ResourceUpdateInput);
             }

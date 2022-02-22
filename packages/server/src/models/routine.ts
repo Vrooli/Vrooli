@@ -1,6 +1,6 @@
 import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
+import { addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { CODE, inputCreate, inputUpdate, MemberRole, routineCreate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -29,16 +29,17 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        // If nodes provides, calculate input from nodes. Otherwise, use input TODO
+        // If nodes field provided, calculate input from nodes. Otherwise, use given input TODO
+        // Also calculate each node's previous and next nodes, if those fields are using a UUID 
+        // that refers to a new node (i.e. not added to the database before). These UUIDs will
+        // look something like 'new-uuid-12345' instead of 'f5f5f5f5-f5f5-f5f5-f5f5-f5f5f5f5f5f5' TODO
         if (Object.keys(input).some(key => key.startsWith('nodes'))) {
 
         }
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported in this case (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'inputs', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        // are not supported in this case (since they can only be applied to one routine)
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'inputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         const standardModel = StandardModel(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
@@ -72,16 +73,17 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        // If nodes provides, calculate output from nodes. Otherwise, use output TODO
+        // If nodes provided, calculate output from nodes. Otherwise, use output TODO
+        // Also calculate each node's previous and next nodes, if those fields are using a UUID 
+        // that refers to a new node (i.e. not added to the database before). These UUIDs will
+        // look something like 'new-uuid-12345' instead of 'f5f5f5f5-f5f5-f5f5-f5f5-f5f5f5f5f5f5' TODO
         if (Object.keys(input).some(key => key.startsWith('nodes'))) {
             
         }
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported in this case (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'outputs', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        // are not supported in this case (since they can only be applied to one routine)
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'outputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         const standardModel = StandardModel(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
@@ -89,7 +91,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
                 // Check for valid arguments
                 inputCreate.validateSync(data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
+                this.profanityCheck(data as RoutineCreateInput);
                 // Convert nested relationships
                 data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
             }
@@ -100,7 +102,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
                 // Check for valid arguments
                 inputUpdate.validateSync(data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
+                this.profanityCheck(data as RoutineUpdateInput);
                 // Convert nested relationships
                 data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
             }
@@ -115,16 +117,16 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        const omittedFields = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
+        const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
         // Convert input to Prisma shape, excluding nodes and auth fields
-        let formattedInput = relationshipToPrisma(input, 'routine', isAdd, omittedFields, false);
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'routine', isAdd, fieldExcludes })
         const resourceModel = ResourceModel(prisma);
         const tagModel = TagModel(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
                 // Check for valid arguments
-                routineCreate.omit(omittedFields).validateSync(data, { abortEarly: false });
+                routineCreate.omit(fieldExcludes).validateSync(data, { abortEarly: false });
                 // Check for censored words
                 this.profanityCheck(data as RoutineCreateInput);
                 // Handle resources
@@ -141,7 +143,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         if (Array.isArray(formattedInput.update)) {
             for (const data of formattedInput.update) {
                 // Check for valid arguments
-                routineUpdate.omit(omittedFields).validateSync(data, { abortEarly: false });
+                routineUpdate.omit(fieldExcludes).validateSync(data, { abortEarly: false });
                 // Check for censored words
                 this.profanityCheck(data as RoutineUpdateInput)
                 // Handle resources

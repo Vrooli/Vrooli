@@ -3,7 +3,7 @@ import { CustomError } from "../error";
 import { GraphQLResolveInfo } from "graphql";
 import { DeleteOneInput, Email, EmailCreateInput, EmailUpdateInput, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { MODEL_TYPES, relationshipToPrisma } from "./base";
+import { MODEL_TYPES, relationshipToPrisma, RelationshipTypes } from "./base";
 import bcrypt from 'bcrypt';
 import { sendVerificationLink } from "../worker/email/queue";
 import { hasProfanity } from "../utils/censor";
@@ -47,9 +47,7 @@ const emailer = (prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by emails (since they can only be applied to one object)
-        let formattedInput = relationshipToPrisma(input, 'emails', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'emails', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] });
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             // Make sure emails aren't already in use

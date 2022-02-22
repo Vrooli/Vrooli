@@ -90,15 +90,15 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        const omittedFields: string[] = [];
+        const fieldExcludes: string[] = [];
         // Convert input to Prisma shape, excluding nodes and auth fields
-        let formattedInput = relationshipToPrisma(input, 'standard', isAdd, omittedFields, false);
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'standard', isAdd, fieldExcludes })
         const tagModel = TagModel(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
                 // Check for valid arguments
-                standardCreate.omit(omittedFields).validateSync(data, { abortEarly: false });
+                standardCreate.omit(fieldExcludes).validateSync(data, { abortEarly: false });
                 // Check for censored words
                 this.profanityCheck(data as StandardCreateInput);
                 // Handle tags
@@ -109,7 +109,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         if (Array.isArray(formattedInput.update)) {
             for (const data of formattedInput.update) {
                 // Check for valid arguments
-                standardUpdate.omit(omittedFields).validateSync(data, { abortEarly: false });
+                standardUpdate.omit(fieldExcludes).validateSync(data, { abortEarly: false });
                 // Check for censored words
                 this.profanityCheck(data as StandardUpdateInput)
                 // Handle tags

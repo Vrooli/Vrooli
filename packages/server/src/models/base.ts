@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
 import graphqlFields from 'graphql-fields';
 import pkg from 'lodash';
+import _ from 'lodash';
 const { isObject } = pkg;
 
 
@@ -521,6 +522,23 @@ const shapeRelationshipData = (data: any, excludes: string[] = []): any => {
     }
 }
 
+export enum RelationshipTypes {
+    connect = 'connect',
+    disconnect = 'disconnect',
+    create = 'create',
+    update = 'update',
+    delete = 'delete',
+}
+
+export interface RelationshipToPrismaArgs {
+    data: { [x: string]: any },
+    relationshipName: string,
+    isAdd: boolean,
+    fieldExcludes?: string[],
+    relExcludes?: RelationshipTypes[],
+    softDelete?: boolean,
+}
+
 /**
  * Converts an add or update's data to proper Prisma format. 
  * NOTE1: Must authenticate before calling this function!
@@ -530,23 +548,27 @@ const shapeRelationshipData = (data: any, excludes: string[] = []): any => {
  * @param data The data to convert
  * @param relationshipName The name of the relationship to convert (since data may contain irrelevant fields)
  * @param isAdd True if data is being converted for an add operation. This limits the prisma operations to only "connect" and "create"
- * @param exclues Fields to exclude from the conversion
+ * @param fieldExcludes Fields to exclude from the conversion
+ * @param relExcludes Relationship types to exclude from the conversion
  * @param softDelete True if deletes should be converted to soft deletes
  */
-export const relationshipToPrisma = (
-    data: { [x: string]: any },
-    relationshipName: string,
-    isAdd: boolean,
-    excludes: string[] = [],
-    softDelete: boolean = false): {
-        connect?: { [x: string]: any }[],
-        disconnect?: { [x: string]: any }[],
-        delete?: { [x: string]: any }[],
-        create?: { [x: string]: any }[],
-        update?: { [x: string]: any }[],
-    } => {
-    // Determine valid operations
-    const ops = isAdd ? ['Connect', 'Create'] : ['Connect', 'Disconnect', 'Delete', 'Create', 'Update'];
+export const relationshipToPrisma = ({
+    data,
+    relationshipName,
+    isAdd,
+    fieldExcludes = [],
+    relExcludes = [],
+    softDelete = false
+}: RelationshipToPrismaArgs): {
+    connect?: { [x: string]: any }[],
+    disconnect?: { [x: string]: any }[],
+    delete?: { [x: string]: any }[],
+    create?: { [x: string]: any }[],
+    update?: { [x: string]: any }[],
+} => {
+    // Determine valid operations, and remove operations that should be excluded
+    let ops = isAdd ? [RelationshipTypes.connect, RelationshipTypes.create] : Object.values(RelationshipTypes);
+    ops = _.difference(ops, relExcludes)
     // Create result object
     let converted: { [x: string]: any } = {};
     console.log('relationshipToPrisma', data, relationshipName);
@@ -554,17 +576,20 @@ export const relationshipToPrisma = (
     for (const [key, value] of Object.entries(data)) {
         console.log('relationshipToPrisma loop', relationshipName, key, value);
         // Skip if not matching relationship or not a valid operation
-        if (!key.startsWith(relationshipName) || !ops.some(o => key.endsWith(o))) continue;
+        if (!key.startsWith(relationshipName) || !ops.some(o => key.toLowerCase().endsWith(o))) continue;
         console.log('made it past check')
         // Determine operation
-        const currOp = key.replace(relationshipName, '');
-        console.log('currOp', currOp);
+        const currOp = key.replace(relationshipName, '').toLowerCase();
         // TODO handle soft delete
         // Add operation to result object
-        const shapedData = shapeRelationshipData(value, excludes);
-        converted[currOp.toLowerCase()] = Array.isArray(converted[currOp.toLowerCase()]) ? [...converted[currOp.toLowerCase()], ...shapedData] : shapedData;
+        const shapedData = shapeRelationshipData(value, fieldExcludes);
+        converted[currOp] = Array.isArray(converted[currOp]) ? [...converted[currOp], ...shapedData] : shapedData;
     };
     return converted;
+}
+
+export interface JoinRelationshipToPrismaArgs extends RelationshipToPrismaArgs {
+    joinFieldName: string
 }
 
 /**
@@ -574,25 +599,28 @@ export const relationshipToPrisma = (
  * @param relationshipName The name of the relationship to convert (since data may contain irrelevant fields)
  * @param joinFieldName The name of the field in the join table associated with the child object
  * @param isAdd True if data is being converted for an add operation. This limits the prisma operations to only "connect" and "create"
- * @param exclues Fields to exclude from the conversion
+ * @param fieldExcludes Fields to exclude from the conversion
+ * @param relExcludes Relationship types to exclude from the conversion
  * @param softDelete True if deletes should be converted to soft deletes
  */
-export const joinRelationshipToPrisma = (
-    data: { [x: string]: any },
-    relationshipName: string,
-    joinFieldName: string,
-    isAdd: boolean,
-    excludes: string[] = [],
-    softDelete: boolean = false): {
-        disconnect?: { [x: string]: any }[],
-        delete?: { [x: string]: any }[],
-        create?: { [x: string]: any }[],
-        update?: { [x: string]: any }[],
-    } => {
+export const joinRelationshipToPrisma = ({
+    data,
+    relationshipName,
+    joinFieldName,
+    isAdd,
+    fieldExcludes = [],
+    relExcludes = [],
+    softDelete = false
+}: JoinRelationshipToPrismaArgs): {
+    disconnect?: { [x: string]: any }[],
+    delete?: { [x: string]: any }[],
+    create?: { [x: string]: any }[],
+    update?: { [x: string]: any }[],
+} => {
     console.log('in joinRelationshipToPrisma', relationshipName, joinFieldName);
     let converted: { [x: string]: any } = {};
     // Call relationshipToPrisma to get join data used for one-to-many relationships
-    const normalJoinData = relationshipToPrisma(data, relationshipName, isAdd, excludes, softDelete);
+    const normalJoinData = relationshipToPrisma({ data, relationshipName, isAdd, fieldExcludes, relExcludes, softDelete })
     console.log('normalJoinData', normalJoinData);
     // Convert this to support a join table
     if (normalJoinData.hasOwnProperty('connect')) {

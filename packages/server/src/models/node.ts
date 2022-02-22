@@ -1,5 +1,5 @@
 import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from "../schema/types";
-import { addOwnerField, FormatConverter, InfoType, MODEL_TYPES, relationshipToPrisma, removeOwnerField, selectHelper } from "./base";
+import { addOwnerField, FormatConverter, InfoType, MODEL_TYPES, relationshipToPrisma, RelationshipTypes, removeOwnerField, selectHelper } from "./base";
 import { CustomError } from "../error";
 import { CODE, condition, decisionsCreate, decisionsUpdate, MemberRole, nodeCombineCreate, nodeCombineUpdate, nodeCreate, nodeDecisionCreate, nodeDecisionUpdate, nodeEndCreate, nodeEndUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, NodeType, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
 import { PrismaType, RecursivePartial } from "types";
@@ -100,9 +100,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'nodeCombine', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeCombine', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -130,9 +128,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'when', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'when', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (let data of formattedInput.create) {
@@ -164,9 +160,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'decisions', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'decisions', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -198,9 +192,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'nodeDecision', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeDecision', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -232,9 +224,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'nodeEnd', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeEnd', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -262,9 +252,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'when', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'when', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (let data of formattedInput.create) {
@@ -296,9 +284,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'whiles', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'whiles', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -330,9 +316,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'nodeLoop', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeLoop', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -364,9 +348,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'routines', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'routines', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         const routineModel = RoutineModel(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
@@ -399,9 +381,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma(input, 'nodeRoutineList', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeRoutineList', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -433,9 +413,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by nodes (since they can only be applied to one routine)
-        let formattedInput = relationshipToPrisma(input, 'nodes', isAdd, [], false);
-        delete formattedInput.connect;
-        delete formattedInput.disconnect;
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodes', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             // Check if routine will pass max nodes
@@ -474,8 +452,8 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         let nodeData: { [x: string]: any } = {
             description: input.description,
             nextId: input.nextId,
-            previousId: input.previousId,
-            routineId: input.routineId,
+            previousId: input.previousId, // When creating a node by itself (which is the case when calling this function), previousId should refer to a real node ID
+            routineId: input.routineId, // When creating a node by itself (which is the case when calling this function), previousId should refer to a real node ID
             title: input.title,
             type: input.type,
         };
@@ -523,8 +501,8 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         let nodeData: { [x: string]: any } = {
             description: input.description,
             nextId: input.nextId,
-            previousId: input.previousId,
-            routineId: input.routineId,
+            previousId: input.previousId, // When creating a node by itself (which is the case when calling this function), previousId should refer to a real node ID
+            routineId: input.routineId, // When creating a node by itself (which is the case when calling this function), previousId should refer to a real node ID
             title: input.title,
             type: input.type,
         };

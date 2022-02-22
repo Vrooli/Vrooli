@@ -1,6 +1,6 @@
 import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTables, counter, FormatConverter, InfoType, joinRelationshipToPrisma, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { addJoinTables, counter, FormatConverter, InfoType, joinRelationshipToPrisma, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { CODE, tagCreate, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -107,9 +107,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         }
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
-        let formattedInput = joinRelationshipToPrisma(input, 'tags', 'tag', isAdd, [], false);
-        delete formattedInput.update;
-        delete formattedInput.delete;
+        let formattedInput = joinRelationshipToPrisma({ data: input, relationshipName: 'tags', joinFieldName: 'tag', isAdd, relExcludes: [RelationshipTypes.update, RelationshipTypes.delete] })
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async find(
