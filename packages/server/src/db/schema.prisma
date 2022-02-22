@@ -90,40 +90,36 @@ model email {
 // One item in a routine orchestration
 // Redirect and start nodes have no extra data, so they do not have their own custom data fields
 model node {
-    id                String               @id @default(uuid()) @db.Uuid
-    created_at        DateTime             @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime             @default(now()) @db.Timestamptz(6)
-    description       String?              @db.VarChar(2048)
-    title             String               @default("Name Me") @db.VarChar(128)
-    type              NodeType
-    nodeCombineId     String?              @db.Uuid
-    nodeDecisionId    String?              @db.Uuid
-    nodeEndId         String?              @db.Uuid
-    nodeLoopId        String?              @db.Uuid
-    nodeRoutineListId String?              @db.Uuid
-    previousId        String?              @db.Uuid
-    nextId            String?              @db.Uuid
-    routineId         String               @db.Uuid
-    nodeCombine       node_combine?        @relation(fields: [nodeCombineId], references: [id], onDelete: Cascade)
-    nodeDecision      node_decision?       @relation(fields: [nodeDecisionId], references: [id], onDelete: Cascade)
-    nodeEnd           node_end?            @relation(fields: [nodeEndId], references: [id], onDelete: Cascade)
-    nodeLoop          node_loop?           @relation(fields: [nodeLoopId], references: [id], onDelete: Cascade)
-    nodeRoutineList   node_routine_list?   @relation(fields: [nodeRoutineListId], references: [id], onDelete: Cascade)
-    previous          node?                @relation("node_previous", fields: [previousId], references: [id], onDelete: SetNull)
-    next              node?                @relation("node_next", fields: [nextId], references: [id], onDelete: SetNull)
-    routine           routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    Previous          node[]               @relation("node_previous")
-    Next              node[]               @relation("node_next")
-    From              node_combine_from[]
-    DecisionItem      node_decision_item[]
-    WhileItem         node_loop_while[]
+    id              String               @id @default(uuid()) @db.Uuid
+    created_at      DateTime             @default(now()) @db.Timestamptz(6)
+    updated_at      DateTime             @default(now()) @db.Timestamptz(6)
+    description     String?              @db.VarChar(2048)
+    title           String               @default("Name Me") @db.VarChar(128)
+    type            NodeType
+    previousId      String?              @db.Uuid
+    nextId          String?              @db.Uuid
+    routineId       String               @db.Uuid
+    nodeCombine     node_combine?
+    nodeDecision    node_decision?
+    nodeEnd         node_end?
+    nodeLoop        node_loop?
+    nodeRoutineList node_routine_list?
+    previous        node?                @relation("node_previous", fields: [previousId], references: [id], onDelete: SetNull)
+    next            node?                @relation("node_next", fields: [nextId], references: [id], onDelete: SetNull)
+    routine         routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    Previous        node[]               @relation("node_previous")
+    Next            node[]               @relation("node_next")
+    From            node_combine_from[]
+    DecisionItem    node_decision_item[]
+    WhileItem       node_loop_while[]
 }
 
 // Data for combine nodes (in addition to fields defined by node table)
 model node_combine {
-    id   String              @id @default(uuid()) @db.Uuid
-    from node_combine_from[]
-    node node[]
+    id     String              @id @default(uuid()) @db.Uuid
+    from   node_combine_from[]
+    nodeId String              @db.Uuid@unique
+    node   node                @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
 // One to many relationship between a combine node and nodes it is combining
@@ -141,7 +137,8 @@ model node_combine_from {
 model node_decision {
     id        String               @id @default(uuid()) @db.Uuid
     decisions node_decision_item[]
-    node      node[]
+    nodeId    String               @db.Uuid@unique
+    node      node                 @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
 // A specific decision in a decision node
@@ -168,16 +165,18 @@ model node_decision_item_case {
 model node_end {
     id            String  @id @default(uuid()) @db.Uuid
     wasSuccessful Boolean @default(true)
-    node          node[]
+    nodeId        String  @db.Uuid@unique
+    node          node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
 // Data for loop nodes (in addition to fields defined by node table) TODO complete
 model node_loop {
     id       String            @id @default(uuid()) @db.Uuid
-    node     node[]
     loops    Int?              @default(1) // Number of times to loop
     maxLoops Int?              @default(1) // Maximum number of times to loop=
     whiles   node_loop_while[] // Conditions which must be true for loop to continue
+    nodeId   String            @db.Uuid@unique
+    node     node              @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
 // A specific "while" condition in a loop node
@@ -206,7 +205,8 @@ model node_routine_list {
     isOrdered  Boolean                  @default(false)
     isOptional Boolean                  @default(false)
     routines   node_routine_list_item[]
-    node       node[]
+    nodeId     String                   @db.Uuid@unique
+    node       node                     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
 // Many-to-many relationship between routine lists and routines

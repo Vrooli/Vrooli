@@ -1,6 +1,6 @@
 import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Success } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
+import { addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { CODE, MemberRole, routineCreate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -19,6 +19,53 @@ import { VoteModel } from "./vote";
  * Handles the authorized adding, updating, and deleting of routines.
  */
 const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<RoutineSortBy>, prisma: PrismaType) => ({
+    /**
+     * Add, update, or remove a routine relationship from a routine list
+     */
+    relationshipBuilder(
+        userId: string | null,
+        input: { [x: string]: any },
+        isAdd: boolean = true,
+    ): { [x: string]: any } | undefined {
+        const omittedFields = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
+        // Convert input to Prisma shape, excluding nodes and auth fields
+        let formattedInput = relationshipToPrisma(input, 'routine', isAdd, omittedFields, false);
+        const resourceModel = ResourceModel(prisma);
+        const tagModel = TagModel(prisma);
+        // Validate create
+        if (Array.isArray(formattedInput.create)) {
+            for (const data of formattedInput.create) {
+                // Check for valid arguments
+                routineCreate.omit(omittedFields).validateSync(data, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(data.title, data.description, data.instructions)) throw new CustomError(CODE.BannedWord);
+                // Handle resources
+                data.contextualResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesContextualCreate }, true);
+                data.externalResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesExternalCreate }, true);
+                // Handle tags
+                data.tags = tagModel.relationshipBuilder(userId, data, true);
+                // Handle inputs TODO
+                // Handle outputs TODO
+            }
+        }
+        // Validate update
+        if (Array.isArray(formattedInput.update)) {
+            for (const data of formattedInput.update) {
+                // Check for valid arguments
+                routineUpdate.omit(omittedFields).validateSync(data, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(data.title, data.description, data.instructions)) throw new CustomError(CODE.BannedWord);
+                // Handle resources
+                data.contextualResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesContextualCreate }, true);
+                data.externalResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesExternalCreate }, true);
+                // Handle tags
+                data.tags = tagModel.relationshipBuilder(userId, data, true);
+                // Handle inputs TODO
+                // Handle outputs TODO
+            }
+        }
+        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+    },
     async find(
         userId: string | null | undefined, // Of the user making the request, not the routine
         input: FindByIdInput,
@@ -63,7 +110,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // Check for valid arguments
         routineCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.title, input.description, input.instructions)) throw new CustomError(CODE.BannedWord);
         // Create routine data
         let routineData: { [x: string]: any } = {
             description: input.description,
@@ -81,7 +128,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // Associate with either organization or user
         if (input.createdByOrganizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
+            const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             routineData = {
                 ...routineData,
@@ -114,7 +161,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // Check for valid arguments
         routineUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.title, input.description, input.instructions)) throw new CustomError(CODE.BannedWord);
         // Create routine data
         let routineData: { [x: string]: any } = {
             description: input.description,
@@ -140,11 +187,19 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // Associate with either organization or user. This will remove the association with the other.
         if (input.organizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
+            const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-            routineData = { ...routineData, organization: { connect: { id: input.organizationId } } };
+            routineData = {
+                ...routineData,
+                organization: { connect: { id: input.organizationId } },
+                user: { disconnect: true },
+            };
         } else {
-            routineData = { ...routineData, user: { connect: { id: userId } } };
+            routineData = {
+                ...routineData,
+                user: { connect: { id: userId } },
+                organization: { disconnect: true },
+            };
         }
         // TODO inputs
         // TODO outputs
@@ -188,7 +243,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // Check if user is authorized
         let authorized = userId === routine.userId;
         if (!authorized && routine.organizationId) {
-            authorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, routine.organizationId);
+            [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, routine.organizationId);
         }
         if (!authorized) throw new CustomError(CODE.Unauthorized);
         // Delete

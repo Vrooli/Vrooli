@@ -150,7 +150,7 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         // Associate with either organization or user
         if (input.createdByOrganizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
+            const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             projectData = { 
                 ...projectData, 
@@ -195,11 +195,19 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         // Associate with either organization or user. This will remove the association with the other.
         if (input.organizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
+            const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.organizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-            projectData = { ...projectData, organization: { connect: { id: input.organizationId } }, userId: undefined };
+            projectData = { 
+                ...projectData, 
+                organization: { connect: { id: input.organizationId } },
+                user: { disconnect: true },
+            };
         } else {
-            projectData = { ...projectData, user: { connect: { id: userId } }, organizationId: undefined };
+            projectData = { 
+                ...projectData, 
+                user: { connect: { id: userId } },
+                organization: { disconnect: true },
+            };
         }
         // Find project
         let project = await prisma.project.findFirst({
@@ -238,7 +246,7 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         // Check if user is authorized
         let authorized = userId === project.userId;
         if (!authorized && project.organizationId) {
-            authorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, project.organizationId);
+            [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, project.organizationId);
         }
         if (!authorized) throw new CustomError(CODE.Unauthorized);
         // Delete

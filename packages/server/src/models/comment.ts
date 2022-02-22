@@ -136,7 +136,7 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
         // Check if user is authorized
         let authorized = userId === comment.userId;
         if (!authorized && comment.organizationId) {
-            authorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, comment.organizationId);
+            [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, comment.organizationId);
         }
         if (!authorized) throw new CustomError(CODE.Unauthorized);
         // Delete

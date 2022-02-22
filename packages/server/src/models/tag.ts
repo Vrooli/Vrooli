@@ -100,7 +100,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         if (Array.isArray(input.tagCreate)) {
             for (const tag of input.tagCreate) {
                 // Check for valid arguments
-                tagCreate.validateSync(input, { abortEarly: false });
+                tagCreate.validateSync(tag, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(tag.tag, tag.description)) throw new CustomError(CODE.BannedWord);
             }

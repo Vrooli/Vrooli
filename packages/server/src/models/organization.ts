@@ -5,7 +5,7 @@ import { CustomError } from "../error";
 import { CODE, MemberRole, organizationCreate, organizationUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { ResourceModel } from "./resource";
-import { organization } from "@prisma/client";
+import { organization, organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 
@@ -104,7 +104,7 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
             tags: await TagModel(prisma).relationshipBuilder(userId, input, false),
         };
         // Check if user is allowed to update
-        const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.id);
+        const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.id);
         if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
         // Handle members TODO
         // Find organization
@@ -129,7 +129,7 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
     },
     async delete(userId: string, input: DeleteOneInput): Promise<Success> {
         // Make sure the user is an admin of this organization
-        const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.id);
+        const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.id);
         if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
         await prisma.organization.delete({
             where: { id: input.id }
@@ -175,7 +175,7 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
             return role?.role as MemberRole | undefined;
         });
     },
-    async isOwnerOrAdmin(userId: string, organizationId: string): Promise<boolean> {
+    async isOwnerOrAdmin(userId: string, organizationId: string): Promise<[boolean, organization_users | null]> {
         const memberData = await prisma.organization_users.findFirst({
             where: {
                 organization: { id: organizationId },
@@ -183,7 +183,7 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
                 role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
             }
         });
-        return Boolean(memberData);
+        return [Boolean(memberData), memberData];
     }
 })
 

@@ -60,7 +60,7 @@ const emailer = (prisma: PrismaType) => ({
             // Perform other checks
             for (const email of formattedInput.create) {
                 // Check for valid arguments
-                emailCreate.validateSync(input, { abortEarly: false });
+                emailCreate.validateSync(email, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(email.emailAddress)) throw new CustomError(CODE.BannedWord);
             }
@@ -79,7 +79,7 @@ const emailer = (prisma: PrismaType) => ({
             if (emails.length !== formattedInput.update.length) throw new CustomError(CODE.EmailInUse, 'At least one of these emails is not yours');
             for (const email of formattedInput.update) {
                 // Check for valid arguments
-                emailUpdate.validateSync(input, { abortEarly: false });
+                emailUpdate.validateSync(email, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(email.emailAddress)) throw new CustomError(CODE.BannedWord);
             }

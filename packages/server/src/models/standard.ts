@@ -144,7 +144,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         // Associate with either organization or user
         if (input.createdByOrganizationId) {
             // Make sure the user is an admin of the organization
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
+            const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
             standardData = {
                 ...standardData,
@@ -190,7 +190,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         if (!standard) throw new CustomError(CODE.NotFound, 'Standard not found');
         if (standard.createdByUserId && standard.createdByUserId !== userId) throw new CustomError(CODE.Unauthorized);
         if (standard.createdByOrganizationId) {
-            const isAuthorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, standard.createdByOrganizationId);
+            const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, standard.createdByOrganizationId);
             if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
         }
         // Update standard
@@ -217,7 +217,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         // Check if user is authorized
         let authorized = userId === standard.createdByUserId;
         if (!authorized && standard.createdByOrganizationId) {
-            authorized = await OrganizationModel(prisma).isOwnerOrAdmin(userId, standard.createdByOrganizationId);
+            [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, standard.createdByOrganizationId);
         }
         if (!authorized) throw new CustomError(CODE.Unauthorized);
         // Delete

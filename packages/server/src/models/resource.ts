@@ -50,7 +50,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         if (Array.isArray(formattedInput.create)) {
             for (const resource of formattedInput.create) {
                 // Check for valid arguments
-                resourceCreate.omit(['createdFor', 'createdForId']).validateSync(input, { abortEarly: false });
+                resourceCreate.omit(['createdFor', 'createdForId']).validateSync(resource, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(resource.title, resource.description)) throw new CustomError(CODE.BannedWord);
             }
@@ -59,7 +59,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         if (Array.isArray(formattedInput.update)) {
             for (const resource of formattedInput.update) {
                 // Check for valid arguments
-                resourceUpdate.omit(['createdFor', 'createdForId']).validateSync(input, { abortEarly: false });
+                resourceUpdate.omit(['createdFor', 'createdForId']).validateSync(resource, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(resource.title, resource.description)) throw new CustomError(CODE.BannedWord);
             }
