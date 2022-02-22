@@ -2,7 +2,7 @@ import { CODE, MemberRole, standardCreate, standardUpdate } from "@local/shared"
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
 import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Success } from "../schema/types";
-import { addCountQueries, addCreatorField, addJoinTables, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { addCountQueries, addCreatorField, addJoinTables, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { standard } from "@prisma/client";
@@ -82,6 +82,42 @@ const sorter = (): Sortable<StandardSortBy> => ({
  * Handles the authorized adding, updating, and deleting of standards.
  */
 const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<StandardSortBy>, prisma: PrismaType) => ({
+    /**
+     * Add, update, or remove a routine relationship from a routine list
+     */
+    relationshipBuilder(
+        userId: string | null,
+        input: { [x: string]: any },
+        isAdd: boolean = true,
+    ): { [x: string]: any } | undefined {
+        const omittedFields: string[] = [];
+        // Convert input to Prisma shape, excluding nodes and auth fields
+        let formattedInput = relationshipToPrisma(input, 'standard', isAdd, omittedFields, false);
+        const tagModel = TagModel(prisma);
+        // Validate create
+        if (Array.isArray(formattedInput.create)) {
+            for (const data of formattedInput.create) {
+                // Check for valid arguments
+                standardCreate.omit(omittedFields).validateSync(data, { abortEarly: false });
+                // Check for censored words
+                this.profanityCheck(data as StandardCreateInput);
+                // Handle tags
+                data.tags = tagModel.relationshipBuilder(userId, data, isAdd);
+            }
+        }
+        // Validate update
+        if (Array.isArray(formattedInput.update)) {
+            for (const data of formattedInput.update) {
+                // Check for valid arguments
+                standardUpdate.omit(omittedFields).validateSync(data, { abortEarly: false });
+                // Check for censored words
+                this.profanityCheck(data as StandardUpdateInput)
+                // Handle tags
+                data.tags = tagModel.relationshipBuilder(userId, data, isAdd);
+            }
+        }
+        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+    },
     async find(
         userId: string | null | undefined, // Of the user making the request, not the standard
         input: FindByIdInput,
@@ -129,7 +165,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         // Check for valid arguments
         standardCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Create standard data
         let standardData: { [x: string]: any } = {
             name: input.name,
@@ -171,7 +207,8 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
     ): Promise<RecursivePartial<Standard>> {
         // Check for valid arguments
         standardUpdate.validateSync(input, { abortEarly: false });
-        if (!input.id) throw new CustomError(CODE.InternalError, 'No standard id provided');
+        // Check for censored words
+        this.profanityCheck(input);
         // Create standard data
         let standardData: { [x: string]: any } = {
             description: input.description,
@@ -273,6 +310,9 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
             }) as any;
         }
         return objects;
+    },
+    profanityCheck(data: StandardCreateInput | StandardUpdateInput): void {
+        if (hasProfanity((data as any)?.name ?? '', data.description)) throw new CustomError(CODE.BannedWord);
     },
 })
 

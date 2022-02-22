@@ -2,7 +2,7 @@ import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreat
 import { PrismaType, RecursivePartial } from "types";
 import { addCreatorField, addJoinTables, addOwnerField, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeCreatorField, removeJoinTables, removeOwnerField, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
-import { CODE, MemberRole, routineCreate, routineUpdate } from "@local/shared";
+import { CODE, inputCreate, inputUpdate, MemberRole, routineCreate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
@@ -10,6 +10,8 @@ import { routine } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
+import { NodeModel } from "./node";
+import { StandardModel } from "./standard";
 
 //==============================================================
 /* #region Custom Components */
@@ -19,6 +21,92 @@ import { VoteModel } from "./vote";
  * Handles the authorized adding, updating, and deleting of routines.
  */
 const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<RoutineSortBy>, prisma: PrismaType) => ({
+    /**
+     * Add, update, or remove routine inputs from a routine
+     */
+    relationshipBuilderInput(
+        userId: string | null,
+        input: { [x: string]: any },
+        isAdd: boolean = true,
+    ): { [x: string]: any } | undefined {
+        // If nodes provides, calculate input from nodes. Otherwise, use input TODO
+        if (Object.keys(input).some(key => key.startsWith('nodes'))) {
+
+        }
+        // Convert input to Prisma shape
+        // Also remove anything that's not an create, update, or delete, as connect/disconnect
+        // are not supported in this case (since they can only be applied to one node)
+        let formattedInput = relationshipToPrisma(input, 'inputs', isAdd, [], false);
+        delete formattedInput.connect;
+        delete formattedInput.disconnect;
+        const standardModel = StandardModel(prisma);
+        // Validate create
+        if (Array.isArray(formattedInput.create)) {
+            for (const data of formattedInput.create) {
+                // Check for valid arguments
+                inputCreate.validateSync(data, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
+                // Convert nested relationships
+                data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
+            }
+        }
+        // Validate update
+        if (Array.isArray(formattedInput.update)) {
+            for (const data of formattedInput.update) {
+                // Check for valid arguments
+                inputUpdate.validateSync(data, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
+                // Convert nested relationships
+                data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
+            }
+        }
+        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+    },
+    /**
+     * Add, update, or remove routine outputs from a routine
+     */
+    relationshipBuilderOutput(
+        userId: string | null,
+        input: { [x: string]: any },
+        isAdd: boolean = true,
+    ): { [x: string]: any } | undefined {
+        // If nodes provides, calculate output from nodes. Otherwise, use output TODO
+        if (Object.keys(input).some(key => key.startsWith('nodes'))) {
+            
+        }
+        // Convert input to Prisma shape
+        // Also remove anything that's not an create, update, or delete, as connect/disconnect
+        // are not supported in this case (since they can only be applied to one node)
+        let formattedInput = relationshipToPrisma(input, 'outputs', isAdd, [], false);
+        delete formattedInput.connect;
+        delete formattedInput.disconnect;
+        const standardModel = StandardModel(prisma);
+        // Validate create
+        if (Array.isArray(formattedInput.create)) {
+            for (const data of formattedInput.create) {
+                // Check for valid arguments
+                inputCreate.validateSync(data, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
+                // Convert nested relationships
+                data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
+            }
+        }
+        // Validate update
+        if (Array.isArray(formattedInput.update)) {
+            for (const data of formattedInput.update) {
+                // Check for valid arguments
+                inputUpdate.validateSync(data, { abortEarly: false });
+                // Check for censored words
+                if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
+                // Convert nested relationships
+                data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
+            }
+        }
+        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+    },
     /**
      * Add, update, or remove a routine relationship from a routine list
      */
@@ -38,14 +126,15 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
                 // Check for valid arguments
                 routineCreate.omit(omittedFields).validateSync(data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(data.title, data.description, data.instructions)) throw new CustomError(CODE.BannedWord);
+                this.profanityCheck(data as RoutineCreateInput);
                 // Handle resources
-                data.contextualResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesContextualCreate }, true);
-                data.externalResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesExternalCreate }, true);
+                data.contextualResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesContextualCreate }, isAdd);
+                data.externalResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesExternalCreate }, isAdd);
                 // Handle tags
-                data.tags = tagModel.relationshipBuilder(userId, data, true);
-                // Handle inputs TODO
-                // Handle outputs TODO
+                data.tags = tagModel.relationshipBuilder(userId, data, isAdd);
+                // Handle input/outputs
+                data.inputs = this.relationshipBuilderInput(userId, data, isAdd);
+                data.outpus = this.relationshipBuilderOutput(userId, data, isAdd);
             }
         }
         // Validate update
@@ -54,14 +143,15 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
                 // Check for valid arguments
                 routineUpdate.omit(omittedFields).validateSync(data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(data.title, data.description, data.instructions)) throw new CustomError(CODE.BannedWord);
+                this.profanityCheck(data as RoutineUpdateInput)
                 // Handle resources
                 data.contextualResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesContextualCreate }, true);
                 data.externalResources = resourceModel.relationshipBuilder(userId, { resourcesCreate: data.resourcesExternalCreate }, true);
                 // Handle tags
                 data.tags = tagModel.relationshipBuilder(userId, data, true);
-                // Handle inputs TODO
-                // Handle outputs TODO
+                // Handle input/outputs
+                data.inputs = this.relationshipBuilderInput(userId, data, isAdd);
+                data.outpus = this.relationshipBuilderOutput(userId, data, isAdd);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -110,7 +200,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // Check for valid arguments
         routineCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.title, input.description, input.instructions)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input)
         // Create routine data
         let routineData: { [x: string]: any } = {
             description: input.description,
@@ -124,6 +214,9 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             externalResources: ResourceModel(prisma).relationshipBuilder(userId, { resourcesCreate: input.resourcesExternalCreate }, true),
             // Handle tags
             tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
+            // Handle input/outputs
+            inputs: this.relationshipBuilderInput(userId, input, true),
+            outpus: this.relationshipBuilderOutput(userId, input, true),
         };
         // Associate with either organization or user
         if (input.createdByOrganizationId) {
@@ -142,14 +235,18 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
                 createdByUser: { connect: { id: userId } },
             };
         }
-        // Handle inputs TODO
-        // Handle outputs TODO
-        // Handle nodes TODO
         // Create routine
         const routine = await prisma.routine.create({
             data: routineData as any,
             ...selectHelper<Routine, routine>(info, format.toDB)
         })
+        // Handle nodes TODO
+        if (input.nodesCreate || input.nodesConnect) {
+            // Check if routine will pass max nodes
+            const createCount = Array.isArray(input.nodesCreate) ? input.nodesCreate.length : 0;
+            const connectCount = Array.isArray(input.nodesConnect) ? input.nodesConnect.length : 0;
+            NodeModel(prisma).nodeCountCheck(routine.id, createCount + connectCount);
+        }
         // Return project with "role", "isUpvoted" and "isStarred" fields. These will be their default values.
         return { ...format.toGraphQL(routine), role: MemberRole.Owner as any, isUpvoted: null, isStarred: false };
     },
@@ -161,7 +258,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // Check for valid arguments
         routineUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.title, input.description, input.instructions)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input)
         // Create routine data
         let routineData: { [x: string]: any } = {
             description: input.description,
@@ -175,14 +272,17 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
                 resourcesCreate: input.resourcesContextualCreate,
                 resourcesUpdate: input.resourcesContextualUpdate,
                 resourcesDelete: input.resourcesContextualDelete,
-            }, true),
+            }, false),
             externalResources: ResourceModel(prisma).relationshipBuilder(userId, {
                 resourcesCreate: input.resourcesExternalCreate,
                 resourcesUpdate: input.resourcesExternalUpdate,
                 resourcesDelete: input.resourcesExternalDelete,
-            }, true),
+            }, false),
             // Handle tags
-            tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, false),
+            // Handle input/outputs
+            inputs: this.relationshipBuilderInput(userId, input, false),
+            outpus: this.relationshipBuilderOutput(userId, input, false),
         };
         // Associate with either organization or user. This will remove the association with the other.
         if (input.organizationId) {
@@ -201,9 +301,6 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
                 organization: { disconnect: true },
             };
         }
-        // TODO inputs
-        // TODO outputs
-        // Handle nodes TODO
         // Find routine
         let routine = await prisma.routine.findFirst({
             where: {
@@ -225,6 +322,15 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             data: routine as any,
             ...selectHelper<Routine, routine>(info, format.toDB)
         });
+        // Handle nodes TODO
+        if (input.nodesCreate || input.nodesConnect) {
+            // Check if routine will pass max nodes
+            const createCount = Array.isArray(input.nodesCreate) ? input.nodesCreate.length : 0;
+            const connectCount = Array.isArray(input.nodesConnect) ? input.nodesConnect.length : 0;
+            const deleteCount = Array.isArray(input.nodesDelete) ? input.nodesDelete.length : 0;
+            const disconnectCount = Array.isArray(input.nodesDisconnect) ? input.nodesDisconnect.length : 0;
+            NodeModel(prisma).nodeCountCheck(routine.id, createCount + connectCount - deleteCount - disconnectCount);
+        }
         // Format and add supplemental/calculated fields
         const formatted = await this.supplementalFields(userId, [format.toGraphQL(routine)], {});
         return formatted[0];
@@ -299,6 +405,9 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             }) as any;
         }
         return objects;
+    },
+    profanityCheck(data: RoutineCreateInput | RoutineUpdateInput): void {
+        if (hasProfanity(data.title, data.description, data.instructions)) throw new CustomError(CODE.BannedWord);
     },
 })
 

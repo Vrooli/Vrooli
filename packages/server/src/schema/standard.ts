@@ -49,7 +49,7 @@ export const typeDef = gql`
         tagsCreate: [TagCreateInput!]
     }
     input StandardUpdateInput {
-        id: ID
+        id: ID!
         description: String
         makeAnonymous: Boolean
         tagsConnect: [ID!]

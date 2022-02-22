@@ -136,10 +136,8 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (let data of formattedInput.create) {
-                // Check for valid arguments
+                // Check for valid arguments (censored words must be checked in earlier function)
                 condition.validateSync(data.condition, { abortEarly: false });
-                // Check for censored words
-                if (hasProfanity(data.condition)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
                 data = { create: { condition: data.condition } }
             }
@@ -147,10 +145,8 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             for (let data of formattedInput.update) {
-                // Check for valid arguments
+                // Check for valid arguments (censored words must be checked in earlier function)
                 decisionsUpdate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                if (hasProfanity(data.condition)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
                 data = { update: { condition: data.condition } }
             }
@@ -174,10 +170,8 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
-                // Check for valid arguments
+                // Check for valid arguments (censored words must be checked in earlier function)
                 decisionsCreate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                if (hasProfanity(data.title, data.description)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
                 data.when = this.relationshipBuilderDecisionNodeItemCase(userId, data, isAdd);
             }
@@ -185,10 +179,8 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             for (const data of formattedInput.update) {
-                // Check for valid arguments
+                // Check for valid arguments (censored words must be checked in earlier function)
                 decisionsUpdate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                if (hasProfanity(data.title, data.description)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
                 data.when = this.relationshipBuilderDecisionNodeItemCase(userId, data, isAdd);
             }
@@ -276,10 +268,8 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (let data of formattedInput.create) {
-                // Check for valid arguments
+                // Check for valid arguments (censored words must be checked in earlier function)
                 condition.validateSync(data.condition, { abortEarly: false });
-                // Check for censored words
-                if (hasProfanity(data.condition)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
                 data = { create: { condition: data.condition } }
             }
@@ -287,10 +277,8 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             for (let data of formattedInput.update) {
-                // Check for valid arguments
+                // Check for valid arguments (censored words must be checked in earlier function)
                 decisionsUpdate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                if (hasProfanity(data.condition)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
                 data = { update: { condition: data.condition } }
             }
@@ -314,10 +302,8 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
-                // Check for valid arguments
+                // Check for valid arguments (censored words must be checked in earlier function)
                 whilesCreate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                if (hasProfanity(data.title, data.description)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
                 data.when = this.relationshipBuilderLoopNodeWhileCase(userId, data, isAdd);
             }
@@ -327,8 +313,6 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
             for (const data of formattedInput.update) {
                 // Check for valid arguments
                 whilesUpdate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                if (hasProfanity(data.title, data.description)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
                 data.when = this.relationshipBuilderLoopNodeWhileCase(userId, data, isAdd);
             }
@@ -438,6 +422,42 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
+    /**
+     * Add, update, or remove a node relationship from a routine
+     */
+    relationshipBuilder(
+        userId: string | null,
+        input: { [x: string]: any },
+        isAdd: boolean = true,
+    ): { [x: string]: any } | undefined {
+        // Convert input to Prisma shape
+        // Also remove anything that's not an create, update, or delete, as connect/disconnect
+        // are not supported by nodes (since they can only be applied to one routine)
+        let formattedInput = relationshipToPrisma(input, 'nodes', isAdd, [], false);
+        delete formattedInput.connect;
+        delete formattedInput.disconnect;
+        // Validate create
+        if (Array.isArray(formattedInput.create)) {
+            // Check if routine will pass max nodes
+            this.nodeCountCheck(input.routineId, formattedInput.create.length);
+            for (const data of formattedInput.create) {
+                // Check for valid arguments
+                nodeCreate.validateSync(data, { abortEarly: false });
+                // Check for censored words
+                this.profanityCheck(data as NodeCreateInput);
+            }
+        }
+        // Validate update
+        if (Array.isArray(formattedInput.update)) {
+            for (const data of formattedInput.update) {
+                // Check for valid arguments
+                nodeUpdate.validateSync(data, { abortEarly: false });
+                // Check for censored words
+                this.profanityCheck(data as NodeUpdateInput);
+            }
+        }
+        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+    },
     async create(
         userId: string,
         input: NodeCreateInput,
@@ -446,15 +466,10 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Check for valid arguments
         nodeCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanityRecursive(input, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Check if authorized TODO
-        // Check if routine has reached max nodes
-        const nodeCount = await prisma.routine.findUnique({
-            where: { id: input.routineId },
-            include: { _count: { select: { nodes: true } } }
-        });
-        if (!nodeCount) throw new CustomError(CODE.ErrorUnknown);
-        if (nodeCount._count.nodes >= MAX_NODES_IN_ROUTINE) throw new CustomError(CODE.MaxNodesReached);
+        // Check if routine will pass max nodes
+        this.nodeCountCheck(input.routineId, 1);
         // Create node data
         let nodeData: { [x: string]: any } = {
             description: input.description,
@@ -503,7 +518,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Check for valid arguments
         nodeUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanityRecursive(input, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Create node data
         let nodeData: { [x: string]: any } = {
             description: input.description,
@@ -599,6 +614,26 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         }
         return objects;
     },
+    profanityCheck(data: NodeCreateInput | NodeUpdateInput): void {
+        if (hasProfanityRecursive(data, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);
+    },
+    /**
+     * Checks if nodes being added surpass node limit
+     */
+    async nodeCountCheck(
+        routineId: string,
+        numAdding: number = 1,
+    ): Promise<void> {
+        // Validate input
+        if (!routineId) throw new CustomError(CODE.InvalidArgs, 'routineId must be provided in nodeCountCheck');
+        // Check if routine has reached max nodes
+        const nodeCount = await prisma.routine.findUnique({
+            where: { id: routineId },
+            include: { _count: { select: { nodes: true } } }
+        });
+        if (!nodeCount) throw new CustomError(CODE.ErrorUnknown);
+        if (nodeCount._count.nodes + numAdding > MAX_NODES_IN_ROUTINE) throw new CustomError(CODE.MaxNodesReached);
+    }
 })
 
 //==============================================================

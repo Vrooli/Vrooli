@@ -63,7 +63,7 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
         // Check for valid arguments
         organizationCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Create organization data
         let organizationData: { [x: string]: any } = {
             name: input.name,
@@ -93,7 +93,7 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
         // Check for valid arguments
         organizationUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.name, input.bio)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Create organization data
         let organizationData: { [x: string]: any } = {
             name: input.name,
@@ -184,7 +184,10 @@ const organizationer = (format: FormatConverter<Organization, organization>, sor
             }
         });
         return [Boolean(memberData), memberData];
-    }
+    },
+    profanityCheck(data: OrganizationCreateInput | OrganizationUpdateInput): void {
+        if (hasProfanity(data.name, data.bio)) throw new CustomError(CODE.BannedWord);
+    },
 })
 
 /**

@@ -10,14 +10,14 @@ const isRequired = yup.boolean().optional();
 const instructions = yup.string().max(8192).optional();
 const version = yup.string().max(16).optional();
 
-const inputCreate = yup.object().shape({
+export const inputCreate = yup.object().shape({
     description,
     isRequired,
     name,
     standardConnect: id,
     standardCreate,
 })
-const inputUpdate = yup.object().shape({
+export const inputUpdate = yup.object().shape({
     description,
     isRequired,
     name,
@@ -27,13 +27,13 @@ const inputUpdate = yup.object().shape({
     standardCreate,
 })
 
-const outputCreate = yup.object().shape({
+export const outputCreate = yup.object().shape({
     description,
     name,
     standardConnect: id,
     standardCreate,
 })
-const outputUpdate = yup.object().shape({
+export const outputUpdate = yup.object().shape({
     description,
     name,
     // There is purposely no option to delete or update a standard from here

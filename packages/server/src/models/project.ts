@@ -136,7 +136,7 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         // Check for valid arguments
         projectCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Create project data
         let projectData: { [x: string]: any } = { 
             name: input.name, 
@@ -181,7 +181,7 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
         // Check for valid arguments
         projectUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.name, input.description)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Create project data
         let projectData: { [x: string]: any } = { 
             name: input.name, 
@@ -302,6 +302,9 @@ const projecter = (format: FormatConverter<Project, project>, sort: Sortable<Pro
             }) as any;
         }
         return objects;
+    },
+    profanityCheck(data: ProjectCreateInput | ProjectUpdateInput): void {
+        if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
     },
 })
 

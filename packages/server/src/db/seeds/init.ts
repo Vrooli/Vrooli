@@ -212,212 +212,295 @@ export async function init(prisma: PrismaType) {
         })
     }
 
-    //TODO temp section
-    await prisma.routine.create({
-        data: {
-            title: 'Test Routine',
-            description: 'Hash out your new business idea.',
-            instructions: 'Fill out the following forms to collect your thoughts and decide if your business idea is worth pursuing.',
-            isAutomatable: true,
-            version: '1.0.0',
-            createdByOrganization: { connect: { id: vrooli.id } },
-            organization: { connect: { id: vrooli.id } },
-            inputs: {}, //TODO
-            outputs: {}, //TODO
-            nodes: {
-                create: [
-                    {
-                        title: 'Explain Idea',
-                        type: NodeType.RoutineList,
-                        nodeRoutineList: {
-                            create: {
-                                isOrdered: false,
-                                isOptional: true,
-                                routines: {
-                                    create: [
-                                        {
-                                            routine: {
-                                                create: {
-                                                    title: 'Overview - Starting New Business Frameworks',
-                                                    description: 'Hash out your new business idea.',
-                                                    instructions: 'Fill out the form below',
-                                                    isAutomatable: true,
-                                                    version: '1.0.0',
-                                                    createdByOrganization: { connect: { id: vrooli.id } },
-                                                    organization: { connect: { id: vrooli.id } },
-                                                    inputs: {}, //TODO
-                                                    outputs: {}, //TODO
-                                                }
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                ]
-            }
-        }
-    })
-    console.log('successful temp')
-
-    // Create routines
-    // let frameworkBusinessIdea = await prisma.routine.findFirst({
-    //     where: {
-    //         AND: [
-    //             { organizationId: vrooli.id },
-    //             { title: 'Starting New Business Frameworks' },
-    //         ]
+    // //TODO temp section
+    // await prisma.routine.create({
+    //     data: {
+    //         title: 'Test Routine',
+    //         description: 'Hash out your new business idea.',
+    //         instructions: 'Fill out the following forms to collect your thoughts and decide if your business idea is worth pursuing.',
+    //         isAutomatable: true,
+    //         version: '1.0.0',
+    //         createdByOrganization: { connect: { id: vrooli.id } },
+    //         organization: { connect: { id: vrooli.id } },
+    //         inputs: {
+    //             create: [
+    //                 {
+    //                     isRequired: true,
+    //                     standard: { connect: { id: standardCip0025.id } },
+    //                 }
+    //             ]
+    //         },
+    //         outputs: {}, //TODO
+    //         nodes: {
+    //             create: [
+    //                 {
+    //                     title: 'Explain Idea',
+    //                     type: NodeType.RoutineList,
+    //                     nodeRoutineList: {
+    //                         create: {
+    //                             isOrdered: false,
+    //                             isOptional: true,
+    //                             routines: {
+    //                                 create: [
+    //                                     {
+    //                                         routine: {
+    //                                             create: {
+    //                                                 title: 'Overview - Starting New Business Frameworks',
+    //                                                 description: 'Hash out your new business idea.',
+    //                                                 instructions: 'Fill out the form below',
+    //                                                 isAutomatable: true,
+    //                                                 version: '1.0.0',
+    //                                                 createdByOrganization: { connect: { id: vrooli.id } },
+    //                                                 organization: { connect: { id: vrooli.id } },
+    //                                                 inputs: {}, //TODO
+    //                                                 outputs: {}, //TODO
+    //                                             }
+    //                                         }
+    //                                     }
+    //                                 ]
+    //                             }
+    //                         }
+    //                     }
+    //                 }
+    //             ]
+    //         }
     //     }
     // })
-    // if (!frameworkBusinessIdea) {
-    //     console.info('📚 Creating Starting New Business Frameworks');
-    //     frameworkBusinessIdea = await prisma.routine.create({
-    //         data: {
-    //             title: 'Starting New Business Frameworks',
-    //             description: 'Hash out your new business idea.',
-    //             instructions: 'Fill out the following forms to collect your thoughts and decide if your business idea is worth pursuing.',
-    //             isAutomatable: true,
-    //             version: '1.0.0',
-    //             createdByOrganization: { connect: { id: vrooli.id } },
-    //             organization: { connect: { id: vrooli.id } },
-    //             inputs: {}, //TODO
-    //             outputs: {}, //TODO
-    //             nodes: {
-    //                 create: [
-    //                     // Start node
-    //                     {
-    //                         title: 'Start',
-    //                         type: NodeType.Start
-    //                     },
-    //                     // Idea routine list TODO
-    //                     {
-    //                         title: 'Explain Idea',
-    //                         type: NodeType.RoutineList,
-    //                         nodeRoutineList: {
-    //                             create: {
-    //                                 isOrdered: false,
-    //                                 isOptional: true,
-    //                                 routines: {
-    //                                     create: [
-    //                                         {
-    //                                             title: 'Overview - Starting New Business Frameworks',
-    //                                             description: 'Hash out your new business idea.',
-    //                                             instructions: 'Fill out the form below',
-    //                                             isAutomatable: true,
-    //                                             version: '1.0.0',
-    //                                             createdByOrganization: { connect: { id: vrooli.id } },
-    //                                             organization: { connect: { id: vrooli.id } },
-    //                                             inputs: {}, //TODO
-    //                                             outputs: {}, //TODO
-    //                                         },
-    //                                         {
-    //                                             title: 'Roadmap - Starting New Business Frameworks',
-    //                                             description: 'Develop a roadmap for your new business',
-    //                                             instructions: 'Fill out the form below',
-    //                                             isAutomatable: true,
-    //                                             version: '1.0.0',
-    //                                             createdByOrganization: { connect: { id: vrooli.id } },
-    //                                             organization: { connect: { id: vrooli.id } },
-    //                                             inputs: {}, //TODO
-    //                                             outputs: {}, //TODO
-    //                                         },
-    //                                         // {
-    //                                         //     title: 'Decide Profitability - Starting New Business Frameworks',
-    //                                         //     description: "Decide what type of business you'd like to create",
-    //                                         //     instructions: 'What type of bueinss would you like to ',
-    //                                         //     isAutomatable: true,
-    //                                         //     version: '1.0.0',
-    //                                         //     createdByOrganization: { connect: { id: vrooli.id } },
-    //                                         //     organization: { connect: { id: vrooli.id } },
-    //                                         //     inputs: {}, //TODO
-    //                                         //     outputs: {}, //TODO
-    //                                         // },
-    //                                         {
-    //                                             title: 'Monetization - Starting New Business Frameworks',
-    //                                             description: 'Determine how your for-profit business will make money',
-    //                                             instructions: 'Fill out the form below',
-    //                                             isAutomatable: true,
-    //                                             version: '1.0.0',
-    //                                             createdByOrganization: { connect: { id: vrooli.id } },
-    //                                             organization: { connect: { id: vrooli.id } },
-    //                                             inputs: {}, //TODO
-    //                                             outputs: {}, //TODO
-    //                                         },
-    //                                         {
-    //                                             title: 'Marketing and Sales - Starting New Business Frameworks',
-    //                                             //TODO
-    //                                         },
-    //                                         {
-    //                                             title: 'Company - Starting New Business Frameworks',
-    //                                             //TODO
-    //                                         },
-    //                                         {
-    //                                             title: 'Validation - Starting New Business Frameworks',
-    //                                             //TODO
-    //                                         },
-    //                                         {
-    //                                             title: 'Pitch Deck - Starting New Business Frameworks',
-    //                                         },
-    //                                     ]
-    //                                 }
-    //                             }
-    //                         }
-    //                     },
-    //                     // Venture routine list TODO
-    //                     {
-    //                         title: 'Explain Business',
-    //                         type: NodeType.RoutineList,
-    //                         nodeRoutineList: {
-    //                             create: {
-    //                                 isOrdered: false,
-    //                                 isOptional: true,
-    //                                 routines: {
-    //                                     create: [
-    //                                         {
-    //                                             title: 'Culture - Starting New Business Frameworks',
-    //                                         },
-    //                                         {
-    //                                             title: 'Sales Playbook - Starting New Business Frameworks',
-    //                                         },
-    //                                         {
-    //                                             title: 'Product Market Fit - Starting New Business Frameworks',
-    //                                         },
-    //                                         {
-    //                                             title: 'Growth State Machine - Starting New Business Frameworks',
-    //                                         },
-    //                                     ]
-    //                                 }
-    //                             }
-    //                         }
-    //                     },
-    //                     // Scale routine list TODO
-    //                     {
-    //                         title: 'Scale Business',
-    //                         type: NodeType.RoutineList,
-    //                         nodeRoutineList: {
-    //                             create: {
-    //                                 isOrdered: false,
-    //                                 isOptional: true,
-    //                                 routines: {
-    //                                     create: [
-    //                                         {
-    //                                             title: 'Scale Playbook - Starting New Business Frameworks',
-    //                                         },
-    //                                     ]
-    //                                 }
-    //                             }
-    //                         }
-    //                     },
-    //                     {
-    //                         title: 'End',
-    //                         type: NodeType.End
-    //                     },
-    //                 ]
-    //             }
-    //         }
-    //     })
-    // }
+    // console.log('successful temp')
+
+    // Create routines
+    let frameworkBusinessIdea = await prisma.routine.findFirst({
+        where: {
+            AND: [
+                { organizationId: vrooli.id },
+                { title: 'Starting New Business Frameworks' },
+            ]
+        }
+    })
+    if (!frameworkBusinessIdea) {
+        console.info('📚 Creating Starting New Business Frameworks');
+        frameworkBusinessIdea = await prisma.routine.create({
+            data: {
+                title: 'Starting New Business Frameworks',
+                description: 'Hash out your new business idea.',
+                instructions: 'Fill out the following forms to collect your thoughts and decide if your business idea is worth pursuing.',
+                isAutomatable: true,
+                version: '1.0.0',
+                createdByOrganization: { connect: { id: vrooli.id } },
+                organization: { connect: { id: vrooli.id } },
+                inputs: {}, //TODO
+                outputs: {}, //TODO
+                nodes: {
+                    create: [
+                        // Start node
+                        {
+                            title: 'Start',
+                            type: NodeType.Start
+                        },
+                        // Idea routine list TODO
+                        {
+                            title: 'Explain Idea',
+                            type: NodeType.RoutineList,
+                            nodeRoutineList: {
+                                create: {
+                                    isOrdered: false,
+                                    isOptional: true,
+                                    routines: {
+                                        create: [
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Overview - Starting New Business Frameworks',
+                                                        description: 'Hash out your new business idea.',
+                                                        instructions: 'Fill out the form below',
+                                                        isAutomatable: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Roadmap - Starting New Business Frameworks',
+                                                        description: 'Develop a roadmap for your new business',
+                                                        instructions: 'Fill out the form below',
+                                                        isAutomatable: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
+                                                    }
+                                                }
+                                            },
+                                            // {
+                                            //     routine: {
+                                            //         create: {
+                                            //             title: 'Decide Profitability - Starting New Business Frameworks',
+                                            //             description: "Decide what type of business you'd like to create",
+                                            //             instructions: 'What type of bueinss would you like to ',
+                                            //             isAutomatable: true,
+                                            //             version: '1.0.0',
+                                            //             createdByOrganization: { connect: { id: vrooli.id } },
+                                            //             organization: { connect: { id: vrooli.id } },
+                                            //             inputs: {}, //TODO
+                                            //             outputs: {}, //TODO
+                                            //         }
+                                            //     }
+                                            // }
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Monetization - Starting New Business Frameworks',
+                                                        description: 'Determine how your for-profit business will make money',
+                                                        instructions: 'Fill out the form below',
+                                                        isAutomatable: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Marketing and Sales - Starting New Business Frameworks',
+                                                        description: 'Define a marketing strategy for your business',
+                                                        instructions: 'Fill out the form below',
+                                                        //TODO
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Company - Starting New Business Frameworks',
+                                                        description: "Define your company's structure",
+                                                        instructions: 'Fill out the form below',
+                                                        //TODO
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Validation - Starting New Business Frameworks',
+                                                        description: 'Reflect on your new business idea and decide if it is worth pursuing',
+                                                        instructions: 'Fill out the form below',
+                                                        //TODO
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Pitch Deck - Starting New Business Frameworks',
+                                                        description: 'Determine key plans and metrics to measure success',
+                                                        instructions: 'Fill out the form below',
+                                                        //TODO
+                                                    }
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        // Venture routine list TODO
+                        {
+                            title: 'Explain Business',
+                            type: NodeType.RoutineList,
+                            nodeRoutineList: {
+                                create: {
+                                    isOrdered: false,
+                                    isOptional: true,
+                                    routines: {
+                                        create: [
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Culture - Starting New Business Frameworks',
+                                                        description: "Define your team's culture",
+                                                        instructions: 'Fill out the form below',
+                                                        //TODO
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Sales Playbook - Starting New Business Frameworks',
+                                                        description: 'Further defines your sales strategy',
+                                                        instructions: 'Fill out the form below',
+                                                        //TODO
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Product Market Fit - Starting New Business Frameworks',
+                                                        description: "Determine your product's market fit",
+                                                        instructions: 'Fill out the form below',
+                                                        //TODO
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Growth State Machine - Starting New Business Frameworks',
+                                                        description: 'Define a plan to scale your business',
+                                                        instructions: 'Fill out the form below',
+                                                        //TODO
+                                                    }
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        // Scale routine list TODO
+                        {
+                            title: 'Scale Business',
+                            type: NodeType.RoutineList,
+                            nodeRoutineList: {
+                                create: {
+                                    isOrdered: false,
+                                    isOptional: true,
+                                    routines: {
+                                        create: [
+                                            {
+                                                routine: {
+                                                    create: {
+                                                        title: 'Scale Playbook - Starting New Business Frameworks',
+                                                        description: 'Summarize and reformulate key insights you have gained',
+                                                        instructions: 'Fill out the form below',
+                                                        //TODO
+                                                    }
+                                                }
+                                            },
+                                        ]
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            title: 'End',
+                            type: NodeType.End
+                        },
+                    ]
+                }
+            }
+        })
+    }
 
     console.info(`✅ Database seeding complete.`);
 }

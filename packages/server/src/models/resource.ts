@@ -39,29 +39,30 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
+        const omittedFields = ['createdFor', 'createdForId'];
         // Convert input to Prisma shape, excluding "createdFor" and "createdForId" fields
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by resources (since they can only be applied to one object, and 
         // it's not worth developing a way to transfer them between objects)
-        let formattedInput = relationshipToPrisma(input, 'resources', isAdd, ['createdFor', 'createdForId'], false);
+        let formattedInput = relationshipToPrisma(input, 'resources', isAdd, omittedFields, false);
         delete formattedInput.connect;
         delete formattedInput.disconnect;
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const resource of formattedInput.create) {
                 // Check for valid arguments
-                resourceCreate.omit(['createdFor', 'createdForId']).validateSync(resource, { abortEarly: false });
+                resourceCreate.omit(omittedFields).validateSync(resource, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(resource.title, resource.description)) throw new CustomError(CODE.BannedWord);
+                this.profanityCheck(resource as ResourceCreateInput);
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             for (const resource of formattedInput.update) {
                 // Check for valid arguments
-                resourceUpdate.omit(['createdFor', 'createdForId']).validateSync(resource, { abortEarly: false });
+                resourceUpdate.omit(omittedFields).validateSync(resource, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(resource.title, resource.description)) throw new CustomError(CODE.BannedWord);
+                this.profanityCheck(resource as ResourceUpdateInput);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -98,7 +99,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         // Check for valid arguments
         resourceCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Filter out for and forId, since they are not part of the resource object
         const { createdFor, createdForId, ...resourceData } = input;
         // Map forId to correct field
@@ -117,7 +118,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         // Check for valid arguments
         resourceUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.title, input.description)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Filter out for and forId, since they are not part of the resource object
         const { createdFor, createdForId, ...resourceData } = input;
         // Map forId to correct field, and remove any old associations
@@ -143,7 +144,10 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         return await prisma.resource.deleteMany({
             where: { id: { in: input.ids } },
         });
-    }
+    },
+    profanityCheck(data: ResourceCreateInput | ResourceUpdateInput): void {
+        if (hasProfanity(data.title, data.description)) throw new CustomError(CODE.BannedWord);
+    },
 })
 
 /**

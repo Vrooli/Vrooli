@@ -82,7 +82,7 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
         // Check for valid arguments
         commentCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Add comment
         let comment = await prisma.comment.create({
             data: {
@@ -103,7 +103,7 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
         // Check for valid arguments
         commentUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.text)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Find comment
         let comment = await prisma.comment.findUnique({ where: { id: input.id } });
         if (!comment) throw new CustomError(CODE.NotFound, "Comment not found");
@@ -144,7 +144,10 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
             where: { id: comment.id },
         });
         return { success: true };
-    }
+    },
+    profanityCheck(data: CommentCreateInput | CommentUpdateInput): void {
+        if (hasProfanity(data.text)) throw new CustomError(CODE.BannedWord);
+    },
 })
 
 //==============================================================

@@ -1526,7 +1526,7 @@ export enum StandardType {
 
 export type StandardUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
-  id?: InputMaybe<Scalars['ID']>;
+  id: string;
   makeAnonymous?: InputMaybe<Scalars['Boolean']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;

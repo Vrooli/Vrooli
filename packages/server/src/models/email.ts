@@ -62,7 +62,7 @@ const emailer = (prisma: PrismaType) => ({
                 // Check for valid arguments
                 emailCreate.validateSync(email, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(email.emailAddress)) throw new CustomError(CODE.BannedWord);
+                this.profanityCheck(email as EmailCreateInput);
             }
         }
         // Validate update
@@ -80,8 +80,6 @@ const emailer = (prisma: PrismaType) => ({
             for (const email of formattedInput.update) {
                 // Check for valid arguments
                 emailUpdate.validateSync(email, { abortEarly: false });
-                // Check for censored words
-                if (hasProfanity(email.emailAddress)) throw new CustomError(CODE.BannedWord);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -93,6 +91,8 @@ const emailer = (prisma: PrismaType) => ({
     ): Promise<RecursivePartial<Email>> {
         // Check for valid arguments
         emailCreate.validateSync(input, { abortEarly: false });
+        // Check for censored words
+        this.profanityCheck(input);
         // Check for existing email
         const existing = await prisma.email.findUnique({ where: { emailAddress: input.emailAddress } });
         if (existing) throw new CustomError(CODE.EmailInUse)
@@ -165,7 +165,10 @@ const emailer = (prisma: PrismaType) => ({
             where: { id: email.id },
         });
         return { success: true };
-    }
+    },
+    profanityCheck(data: EmailCreateInput): void {
+        if (hasProfanity(data.emailAddress)) throw new CustomError(CODE.BannedWord);
+    },
 })
 
 //==============================================================

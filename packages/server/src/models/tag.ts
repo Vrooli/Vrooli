@@ -102,7 +102,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
                 // Check for valid arguments
                 tagCreate.validateSync(tag, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(tag.tag, tag.description)) throw new CustomError(CODE.BannedWord);
+                this.profanityCheck(tag as TagCreateInput);
             }
         }
         // Convert input to Prisma shape
@@ -168,7 +168,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         // Check for valid arguments
         tagCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.tag, input.description)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Create tag data
         let tagData: { [x: string]: any } = { name: input.tag, description: input.description, createdByUserId: userId };
         // Create tag
@@ -187,7 +187,7 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         // Check for valid arguments
         tagUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.tag, input.description)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Create tag data
         let tagData: { [x: string]: any } = { name: input.tag, description: input.description };
         // Update tag
@@ -236,6 +236,9 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
         // Otherwise, query for isOwn
         else objects = objects.map((x) => ({ ...x, isOwn: x.createdByUserId === userId }));
         return objects;
+    },
+    profanityCheck(data: TagCreateInput | TagUpdateInput): void {
+        if (hasProfanity(data.tag, data.description)) throw new CustomError(CODE.BannedWord);
     },
 })
 

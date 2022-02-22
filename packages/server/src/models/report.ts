@@ -54,7 +54,7 @@ const reporter = (format: FormatConverter<Report, report>, prisma: PrismaType) =
         // Check for valid arguments
         reportCreate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.reason, input.details)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Add report
         const report = await prisma.report.create({
             data: {
@@ -74,7 +74,7 @@ const reporter = (format: FormatConverter<Report, report>, prisma: PrismaType) =
         // Check for valid arguments
         reportUpdate.validateSync(input, { abortEarly: false });
         // Check for censored words
-        if (hasProfanity(input.reason, input.details)) throw new CustomError(CODE.BannedWord);
+        this.profanityCheck(input);
         // Find report
         let report = await prisma.report.findFirst({
             where: {
@@ -121,6 +121,9 @@ const reporter = (format: FormatConverter<Report, report>, prisma: PrismaType) =
         // Otherwise, query for isOwn
         else objects = objects.map((x) => ({ ...x, isOwn: x.fromId === userId }));
         return objects;
+    },
+    profanityCheck(data: ReportCreateInput | ReportUpdateInput): void {
+        if (hasProfanity(data.reason, data.details)) throw new CustomError(CODE.BannedWord);
     },
 })
 
