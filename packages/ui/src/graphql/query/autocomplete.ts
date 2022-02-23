@@ -3,7 +3,10 @@ import { gql } from 'graphql-tag';
 export const autocompleteQuery = gql`
     fragment autocompleteTagFields on Tag {
         id
+        created_at
         description
+        isStarred
+        stars
         tag
     }
     query autocomplete($input: AutocompleteInput!) {

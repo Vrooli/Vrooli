@@ -180,6 +180,14 @@ export const resolvers = {
             console.log('Autocomplete input', input);
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } }
+            const tagSelect = {
+                id: true,
+                created_at: true,
+                description: true,
+                tag: true,
+                stars: true,
+                isStarred: true,
+            }
             // Query organizations
             const organizations = (await OrganizationModel(prisma).search(
                 { ...starsQuery },
@@ -193,11 +201,7 @@ export const resolvers = {
                     name: true,
                     stars: true,
                     isStarred: true,
-                    tags: {
-                        id: true,
-                        description: true,
-                        tag: true,
-                    },
+                    tags: tagSelect,
                 })).edges.map(({ node }: any) => node);
             // Query projects
             const projects = (await ProjectModel(prisma).search(
@@ -211,11 +215,7 @@ export const resolvers = {
                     score: true,
                     isStarred: true,
                     isUpvoted: true,
-                    tags: {
-                        id: true,
-                        description: true,
-                        tag: true,
-                    },
+                    tags: tagSelect,
                 }
             )).edges.map(({ node }: any) => node);
             // Query routines
@@ -230,11 +230,7 @@ export const resolvers = {
                     score: true,
                     isStarred: true,
                     isUpvoted: true,
-                    tags: {
-                        id: true,
-                        description: true,
-                        tag: true,
-                    },
+                    tags: tagSelect,
                 }
             )).edges.map(({ node }: any) => node);
             // Query standards
@@ -249,11 +245,7 @@ export const resolvers = {
                     score: true,
                     isStarred: true,
                     isUpvoted: true,
-                    tags: {
-                        id: true,
-                        description: true,
-                        tag: true,
-                    },
+                    tags: tagSelect,
                 }
             )).edges.map(({ node }: any) => node);
             // Query users

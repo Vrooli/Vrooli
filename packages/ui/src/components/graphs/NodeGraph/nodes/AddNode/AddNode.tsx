@@ -4,19 +4,15 @@ import { AddNodeProps } from '../types';
 import { ListMenu } from 'components';
 import {
     Add as AddIcon,
-    AltRoute as DecisionIcon,
     Done as EndIcon,
     List as RoutineListIcon,
     Loop as LoopIcon,
-    MergeType as CombineIcon,
     SvgIconComponent,
     UTurnLeft as RedirectIcon
 } from '@mui/icons-material';
-import { NodeType } from '@local/shared';
+import { NodeType } from 'graphql/generated/globalTypes';
 
 const optionsMap: { [x: string]: [string, SvgIconComponent] } = {
-    [NodeType.Combine]: ['Combine', CombineIcon],
-    [NodeType.Decision]: ['Decision', DecisionIcon],
     [NodeType.End]: ['End', EndIcon],
     [NodeType.Loop]: ['Loop', LoopIcon],
     [NodeType.RoutineList]: ['Routine List', RoutineListIcon],

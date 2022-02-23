@@ -90,83 +90,58 @@ model email {
 // One item in a routine orchestration
 // Redirect and start nodes have no extra data, so they do not have their own custom data fields
 model node {
-    id              String               @id @default(uuid()) @db.Uuid
-    created_at      DateTime             @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime             @default(now()) @db.Timestamptz(6)
-    description     String?              @db.VarChar(2048)
-    title           String               @default("Name Me") @db.VarChar(128)
+    id              String             @id @default(uuid()) @db.Uuid
+    created_at      DateTime           @default(now()) @db.Timestamptz(6)
+    updated_at      DateTime           @default(now()) @db.Timestamptz(6)
+    description     String?            @db.VarChar(2048)
+    title           String             @default("Name Me") @db.VarChar(128)
     type            NodeType
-    previousId      String?              @db.Uuid
-    nextId          String?              @db.Uuid
-    routineId       String               @db.Uuid
-    nodeCombine     node_combine?
-    nodeDecision    node_decision?
+    routineId       String             @db.Uuid
     nodeEnd         node_end?
     nodeLoop        node_loop?
     nodeRoutineList node_routine_list?
-    previous        node?                @relation("node_previous", fields: [previousId], references: [id], onDelete: SetNull)
-    next            node?                @relation("node_next", fields: [nextId], references: [id], onDelete: SetNull)
-    routine         routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    Previous        node[]               @relation("node_previous")
-    Next            node[]               @relation("node_next")
-    From            node_combine_from[]
-    DecisionItem    node_decision_item[]
+    routine         routine            @relation(fields: [routineId], references: [id], onDelete: Cascade)
     WhileItem       node_loop_while[]
-}
-
-// Data for combine nodes (in addition to fields defined by node table)
-model node_combine {
-    id     String              @id @default(uuid()) @db.Uuid
-    from   node_combine_from[]
-    nodeId String              @db.Uuid@unique
-    node   node                @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-}
-
-// One to many relationship between a combine node and nodes it is combining
-model node_combine_from {
-    id        String       @id @default(uuid()) @db.Uuid
-    combineId String       @unique @db.Uuid
-    fromId    String       @db.Uuid
-    combine   node_combine @relation(fields: [combineId], references: [id])
-    from      node         @relation(fields: [fromId], references: [id], onDelete: Cascade)
-
-    @@unique([combineId, fromId], name: "node_combine_from_combineid_fromid_unique")
-}
-
-// Data for decision nodes (in addition to fields defined by node table)
-model node_decision {
-    id        String               @id @default(uuid()) @db.Uuid
-    decisions node_decision_item[]
-    nodeId    String               @db.Uuid@unique
-    node      node                 @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-}
-
-// A specific decision in a decision node
-model node_decision_item {
-    id          String                    @id @default(uuid()) @db.Uuid
-    description String?                   @db.VarChar(2048)
-    title       String                    @db.VarChar(128)
-    decisionId  String                    @db.Uuid
-    toId        String?                   @db.Uuid
-    decision    node_decision             @relation(fields: [decisionId], references: [id], onDelete: Cascade)
-    when        node_decision_item_case[] // All cases must be true for this item to be available
-    to          node?                     @relation(fields: [toId], references: [id], onDelete: SetNull)
-}
-
-// A condition which must be true for a decision item to be available
-model node_decision_item_case {
-    id        String             @id @default(uuid()) @db.Uuid
-    condition String             @db.VarChar(2048) // TODO make this a JSON object
-    itemId    String             @db.Uuid
-    item      node_decision_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+    previous        node_link[]        @relation("node_previous")
+    next            node_link[]        @relation("node_next")
 }
 
 // Data for end nodes (in addition to fields defined by node table)
 model node_end {
     id            String  @id @default(uuid()) @db.Uuid
     wasSuccessful Boolean @default(true)
-    nodeId        String  @db.Uuid@unique
+    nodeId        String  @unique @db.Uuid
     node          node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+}
+
+// Links two nodes together
+// Any nodes that are not linked can still be associated with a routine,
+// but they will be put in an "unlinked" state and the routine will not be able to be run
+model node_link {
+    id         String                @id @default(uuid()) @db.Uuid
+    fromId     String                @db.Uuid
+    toId       String                @db.Uuid
+    conditions node_link_condition[]
+    from       node                  @relation("node_previous", fields: [fromId], references: [id], onDelete: Cascade)
+    to         node                  @relation("node_next", fields: [toId], references: [id], onDelete: Cascade)
+}
+
+// A specific condition for a link to be available. If all links fail their conditions, then the user cannot proceed
+model node_link_condition {
+    id          String                     @id @default(uuid()) @db.Uuid
+    description String?                    @db.VarChar(2048)
+    title       String                     @db.VarChar(128)
+    linkId      String                     @db.Uuid
+    link        node_link                  @relation(fields: [linkId], references: [id], onDelete: Cascade)
+    when        node_link_condition_case[] // All cases must be true for this item to be available
+}
+
+// A condition which must be true for a link to be available
+model node_link_condition_case {
+    id        String              @id @default(uuid()) @db.Uuid
+    condition String              @db.VarChar(2048) // TODO make this a JSON object
+    parentId  String              @db.Uuid
+    parent    node_link_condition @relation(fields: [parentId], references: [id], onDelete: Cascade)
 }
 
 // Data for loop nodes (in addition to fields defined by node table) TODO complete
@@ -175,7 +150,7 @@ model node_loop {
     loops    Int?              @default(1) // Number of times to loop
     maxLoops Int?              @default(1) // Maximum number of times to loop=
     whiles   node_loop_while[] // Conditions which must be true for loop to continue
-    nodeId   String            @db.Uuid@unique
+    nodeId   String            @unique @db.Uuid
     node     node              @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
@@ -205,7 +180,7 @@ model node_routine_list {
     isOrdered  Boolean                  @default(false)
     isOptional Boolean                  @default(false)
     routines   node_routine_list_item[]
-    nodeId     String                   @db.Uuid@unique
+    nodeId     String                   @unique @db.Uuid
     node       node                     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
@@ -759,8 +734,6 @@ enum MemberRole {
 }
 
 enum NodeType {
-    Combine
-    Decision
     End
     Loop
     RoutineList

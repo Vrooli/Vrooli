@@ -16,7 +16,6 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { RoutineListNodeData } from '@local/shared';
 import { NodeContextMenu, NodeWidth } from '../..';
 import {
     routineNodeCheckboxOption,
@@ -25,6 +24,7 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import Measure from 'react-measure';
+import { NodeDataRoutineList } from 'types';
 
 export const RoutineListNode = ({
     node,
@@ -103,7 +103,7 @@ export const RoutineListNode = ({
                             name='isOrderedCheckbox'
                             value='isOrderedCheckbox'
                             color='secondary'
-                            checked={(node?.data as RoutineListNodeData)?.isOrdered}
+                            checked={(node?.data as NodeDataRoutineList)?.isOrdered}
                             onChange={() => { }}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
@@ -122,7 +122,7 @@ export const RoutineListNode = ({
                             name='isOptionalCheckbox'
                             value='isOptionalCheckbox'
                             color='secondary'
-                            checked={(node?.data as RoutineListNodeData)?.isOptional}
+                            checked={(node?.data as NodeDataRoutineList)?.isOptional}
                             onChange={() => { }}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
@@ -133,7 +133,7 @@ export const RoutineListNode = ({
         </Collapse>
     ), [collapseOpen, node?.data, isEditable, label]);
 
-    const routines = useMemo(() => (node?.data as RoutineListNodeData)?.routines?.map(routine => (
+    const routines = useMemo(() => (node?.data as NodeDataRoutineList)?.routines?.map(routine => (
         <RoutineSubnode
             key={`${routine.id}`}
             scale={scale}

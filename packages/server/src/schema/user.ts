@@ -52,7 +52,7 @@ export const typeDef = gql`
         username: String
         bio: String
         stars: Int!
-        isStarred: Boolean
+        isStarred: Boolean!
         comments: [Comment!]!
         roles: [Role!]!
         resources: [Resource!]!

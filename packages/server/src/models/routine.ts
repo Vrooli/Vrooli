@@ -243,11 +243,10 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             ...selectHelper<Routine, routine>(info, format.toDB)
         })
         // Handle nodes TODO
-        if (input.nodesCreate || input.nodesConnect) {
+        if (input.nodesCreate) {
             // Check if routine will pass max nodes
             const createCount = Array.isArray(input.nodesCreate) ? input.nodesCreate.length : 0;
-            const connectCount = Array.isArray(input.nodesConnect) ? input.nodesConnect.length : 0;
-            NodeModel(prisma).nodeCountCheck(routine.id, createCount + connectCount);
+            NodeModel(prisma).nodeCountCheck(routine.id, createCount);
         }
         // Return project with "role", "isUpvoted" and "isStarred" fields. These will be their default values.
         return { ...format.toGraphQL(routine), role: MemberRole.Owner as any, isUpvoted: null, isStarred: false };
@@ -325,13 +324,11 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
             ...selectHelper<Routine, routine>(info, format.toDB)
         });
         // Handle nodes TODO
-        if (input.nodesCreate || input.nodesConnect) {
+        if (input.nodesCreate) {
             // Check if routine will pass max nodes
             const createCount = Array.isArray(input.nodesCreate) ? input.nodesCreate.length : 0;
-            const connectCount = Array.isArray(input.nodesConnect) ? input.nodesConnect.length : 0;
             const deleteCount = Array.isArray(input.nodesDelete) ? input.nodesDelete.length : 0;
-            const disconnectCount = Array.isArray(input.nodesDisconnect) ? input.nodesDisconnect.length : 0;
-            NodeModel(prisma).nodeCountCheck(routine.id, createCount + connectCount - deleteCount - disconnectCount);
+            NodeModel(prisma).nodeCountCheck(routine.id, createCount - deleteCount);
         }
         // Format and add supplemental/calculated fields
         const formatted = await this.supplementalFields(userId, [format.toGraphQL(routine)], {});

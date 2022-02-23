@@ -35,8 +35,8 @@ export const typeDef = gql`
         projectId: ID
         createdByUserId: ID
         createdByOrganizationId: ID
-        nodesConnect: [ID!]
         nodesCreate: [NodeCreateInput!]
+        nodeLinksCreate: [NodeLinkCreateInput!]
         inputsCreate: [InputItemCreateInput!]
         outputsCreate: [OutputItemCreateInput!]
         resourcesContextualCreate: [ResourceCreateInput!]
@@ -54,11 +54,12 @@ export const typeDef = gql`
         parentId: ID
         userId: ID
         organizationId: ID
-        nodesConnect: [ID!]
-        nodesDisconnect: [ID!]
         nodesDelete: [ID!]
         nodesCreate: [NodeCreateInput!]
         nodesUpdate: [NodeUpdateInput!]
+        nodeLinksDelete: [ID!]
+        nodeLinksCreate: [NodeLinkCreateInput!]
+        nodeLinksUpdate: [NodeLinkUpdateInput!]
         inputsCreate: [InputItemCreateInput!]
         inputsUpdate: [InputItemUpdateInput!]
         inputsDelete: [ID!]
@@ -97,6 +98,7 @@ export const typeDef = gql`
         inputs: [InputItem!]!
         nodeLists: [NodeRoutineList!]!
         nodes: [Node!]!
+        nodeLinks: [NodeLink!]!
         outputs: [OutputItem!]!
         owner: Contributor
         parent: Routine

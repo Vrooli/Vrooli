@@ -1,5 +1,5 @@
 import { description, idArray, id, name, title } from './base';
-import { nodesCreate, nodesUpdate } from './node';
+import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourcesCreate, resourcesUpdate } from './resource';
 import { standardCreate } from './standard';
 import { tagsCreate } from './tag';
@@ -54,8 +54,8 @@ export const routineCreate = yup.object().shape({
     parentId: id, // If forked, the parent's id
     createdByUserId: id, // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id, // If associating with an organization you are an admin of, the organization's id
-    nodesConnect: idArray,
     nodesCreate,
+    nodeLinksCreate,
     inputsCreate: inputCreate.optional(),
     outputsCreate: outputCreate.optional(),
     resourcesContextualCreate: resourcesCreate,
@@ -76,11 +76,12 @@ export const routineUpdate = yup.object().shape({
     parentId: id, // If forked, the parent's id
     userId: id, // If associating with yourself, your own id. Cannot associate with another user
     organizationId: id, // If associating with an organization you are an admin of, the organization's id
-    nodesConnect: idArray,
-    nodesDisconnect: idArray,
     nodesDelete: idArray,
     nodesCreate,
     nodesUpdate,
+    nodeLinksDelete: idArray,
+    nodeLinksCreate,
+    nodeLinksUpdate,
     inputsDelete: idArray,
     inputsCreate: inputCreate,
     inputsUpdate: inputUpdate,

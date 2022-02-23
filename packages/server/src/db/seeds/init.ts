@@ -2,12 +2,13 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-
-import { AccountStatus, NodeType, ROLES, StandardType } from '@local/shared';
+import { AccountStatus, ROLES, StandardType } from '@local/shared';
 import { UserModel } from '../../models';
 import { envVariableExists } from '../../utils';
 import { PrismaType } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
+import pkg from '@prisma/client';
+const { NodeType } = pkg;
 
 export async function init(prisma: PrismaType) {
     console.info('🌱 Starting database intial seed...');
@@ -213,8 +214,7 @@ export async function init(prisma: PrismaType) {
         })
     }
 
-    // Create routines
-    // NOTE: Previous and Next relationships must be set after the routine is created
+    // Create routines with nodes
     let frameworkBusinessIdea: any = await prisma.routine.findFirst({
         where: {
             AND: [
@@ -450,13 +450,16 @@ export async function init(prisma: PrismaType) {
                 id: true,
                 nodes: {
                     select: {
-                        previousId: true,
-                        nextId: true
+                        id: true,
                     }
                 }
             }
         })
+        // Create node links
         console.log('frameworkBusinessIdea', frameworkBusinessIdea)
+        // console.log('Setting frameworkBusinessIdea previous and next node ids')
+        // const links = 
+        // const frameworkBusinessIdeaNodes = frameworkBusinessIdea.nodes;
     }
 
     console.info(`✅ Database seeding complete.`);

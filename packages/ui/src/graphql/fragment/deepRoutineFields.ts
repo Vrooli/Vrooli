@@ -39,29 +39,10 @@ export const deepRoutineFields = gql`
         created_at
         description
         role
-        next
-        previous
         title
         type
         updated_at
         data {
-            ... on NodeCombine {
-                id
-                from
-            }
-            ... on NodeDecision {
-                id
-                decisions {
-                    id
-                    description
-                    title
-                    toId
-                    when {
-                        id
-                        condition
-                    }
-                }
-            }
             ... on NodeEnd {
                 id
                 wasSuccessful
@@ -83,6 +64,20 @@ export const deepRoutineFields = gql`
                         title
                     }
                 }
+            }
+        }
+    }
+    fragment nodeLinkFields on NodeLink {
+        id
+        nextId
+        previousId
+        conditions {
+            id
+            description
+            title
+            when {
+                id
+                condition
             }
         }
     }
@@ -113,6 +108,9 @@ export const deepRoutineFields = gql`
         }
         nodes {
             ...nodeFields
+        }
+        nodeLinks {
+            ...nodeLinkFields
         }
         owner {
             ... on Organization {

@@ -1,12 +1,12 @@
-import { NodeData, NodeType } from "@local/shared";
-import { NodeData, RoutineListNodeItemData } from '@local/shared';
 import { BoxProps } from '@mui/material';
+import { NodeType } from 'graphql/generated/globalTypes';
+import { Node, NodeDataRoutineListItem } from "types";
 
 /**
  * Props for all nodes (besides the Add node)
  */
 export interface NodeDataProps {
-    node: NodeData;
+    node: Node;
 }
 
 /**
@@ -40,20 +40,6 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
 }
 
 /**
- * Props for the Combine node
- */
-export interface CombineNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-
-}
-
-/**
- * Props for the Decision node
- */
-export interface DecisionNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    text?: string;
-}
-
-/**
  * Props for the End node
  */
 export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
@@ -78,7 +64,7 @@ export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledPr
  * Props for the Routine List node
  */
 export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    onAdd: (data: RoutineListNodeItemData) => void;
+    onAdd: (data: NodeDataRoutineListItem) => void;
     /**
      * Callback for cell resize
      */
@@ -89,7 +75,7 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
  * Props for a Routine List's subroutine
  */
 export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, EditableProps {
-    data?: RoutineListNodeItemData;
+    data?: NodeDataRoutineListItem;
 }
 
 /**

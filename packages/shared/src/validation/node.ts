@@ -5,54 +5,13 @@
  */
 import { description, idArray, id, title } from './base';
 import * as yup from 'yup';
-import { NodeType } from '../consts';
 
 export const condition = yup.string().max(2048).optional();
 const isOptional = yup.boolean().optional();
 const loops = yup.number().integer().min(0).max(100).optional();
 const maxLoops = yup.number().integer().min(1).max(100).optional();
-const type = yup.string().oneOf(Object.values(NodeType)).optional();
+const type = yup.string().oneOf(["End", "Loop", "RoutineList", "Redirect", "Start"]).optional();
 const wasSuccessful = yup.boolean().optional();
-
-export const nodeCombineCreate = yup.object().shape({
-    from: idArray.required(),
-})
-export const nodeCombineUpdate = yup.object().shape({
-    id: id.required(),
-    from: idArray,
-})
-
-export const decisionWhenCreate = yup.array().of(yup.object().shape({
-    condition: condition.required(),
-}).required()).optional();
-export const decisionWhenUpdate = yup.array().of(yup.object().shape({
-    id: id.required(),
-    condition: condition.required(),
-}).required()).optional();
-export const decisionsCreate = yup.array().of(yup.object().shape({
-    description,
-    title: title.required(),
-    whenCreate: decisionWhenCreate,
-    toId: id,
-}).required()).optional();
-export const decisionsUpdate = yup.array().of(yup.object().shape({
-    id: id.required(),
-    description,
-    title,
-    toId: id,
-    whenCreate: decisionWhenCreate,
-    whenUpdate: decisionWhenUpdate,
-    whenDelete: idArray,
-}).required()).optional();
-export const nodeDecisionCreate = yup.object().shape({
-    decisionsCreate: decisionsCreate.required(),
-})
-export const nodeDecisionUpdate = yup.object().shape({
-    id: id.required(),
-    decisionsCreate,
-    decisionsUpdate,
-    decisionsDelete: idArray,
-})
 
 export const nodeEndCreate = yup.object().shape({
     wasSuccessful,
@@ -61,6 +20,41 @@ export const nodeEndUpdate = yup.object().shape({
     id: id.required(),
     wasSuccessful,
 })
+
+export const conditionWhenCreate = yup.array().of(yup.object().shape({
+    condition: condition.required(),
+}).required()).optional();
+export const conditionWhenUpdate = yup.array().of(yup.object().shape({
+    id: id.required(),
+    condition: condition.required(),
+}).required()).optional();
+export const conditionsCreate = yup.array().of(yup.object().shape({
+    description,
+    title: title.required(),
+    whenCreate: conditionWhenCreate,
+    toId: id,
+}).required()).optional();
+export const conditionsUpdate = yup.array().of(yup.object().shape({
+    id: id.required(),
+    description,
+    title,
+    whenCreate: conditionWhenCreate,
+    whenUpdate: conditionWhenUpdate,
+    whenDelete: idArray,
+}).required()).optional();
+export const nodeLinkCreate = yup.object().shape({
+    conditionsCreate,
+    fromId: id.required(),
+    toId: id.required(),
+})
+export const nodeLinkUpdate = yup.object().shape({
+    id: id.required(),
+    conditionsCreate,
+    conditionsUpdate,
+    conditionsDelete: idArray,
+})
+export const nodeLinksCreate = yup.array().of(nodeLinkCreate.required()).optional();
+export const nodeLinksUpdate = yup.array().of(nodeLinkUpdate.required()).optional();
 
 export const loopWhenCreate = yup.array().of(yup.object().shape({
     condition: condition.required(),
@@ -95,7 +89,7 @@ export const nodeLoopUpdate = yup.object().shape({
     maxLoops,
     whilesCreate,
     whilesUpdate,
-    decisionsDelete: idArray,
+    whilesDelete: idArray,
 })
 
 export const nodeRoutineListItemsCreate = yup.array().of(yup.object().shape({
@@ -136,13 +130,9 @@ export const nodeCreate = yup.object().shape({
     description,
     title: title.required(),
     type: type.required(),
-    nodeCombineCreate,
-    nodeDecisionCreate,
     nodeEndCreate,
     nodeLoopCreate,
     nodeRoutineListCreate,
-    nextId: id,
-    previousId: id,
     routineId: id.required(),
 })
 /**
@@ -154,18 +144,12 @@ export const nodeUpdate = yup.object().shape({
     description,
     title,
     type,
-    nodeCombineCreate,
-    nodeCombineUpdate,
-    nodeDecisionCreate,
-    nodeDecisionUpdate,
     nodeEndCreate,
     nodeEndUpdate,
     nodeLoopCreate,
     nodeLoopUpdate,
     nodeRoutineListCreate,
     nodeRoutineListUpdate,
-    nextId: id,
-    previousId: id,
     routineId: id,
 })
 

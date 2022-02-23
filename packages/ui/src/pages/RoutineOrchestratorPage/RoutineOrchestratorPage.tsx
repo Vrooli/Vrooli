@@ -1,5 +1,4 @@
 import { Box, Button, Grid, IconButton, Slider, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import { NodeType, OrchestrationData } from '@local/shared';
 import { HelpButton, NodeGraphContainer } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
@@ -20,6 +19,9 @@ import { Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { withStyles } from '@mui/styles';
 import helpMarkdown from './OrchestratorHelp.md';
+import { NodeType } from 'graphql/generated/globalTypes';
+import { useRoute } from 'wouter';
+import { APP_LINKS } from '@local/shared';
 
 const TERTIARY_COLOR = '#95f3cd';
 const STATUS_COLOR = {
@@ -28,43 +30,94 @@ const STATUS_COLOR = {
 }
 
 //TEMP
-const data: OrchestrationData = {
+const nodeBase = {
+    __typename: 'Node' as any,
+    created_at: 0,
+    updated_at: 0,
+    role: '' as any,
+}
+const routineBase = {
+    __typename: 'Routine' as any,
+    created_at: 0,
+    updated_at: 0,
+    role: '' as any,
+    version: '1.0.0',
+    isStarred: false,
+    isUpvoted: false,
+    isOwn: true,
+    tags: [],
+    stars: 420,
+    score: 69,
+}
+const routineListBase = {
+    __typename: 'Routine' as any,
+    created_at: 0,
+    updated_at: 0,
+}
+const endNodeBase = {
+    __typename: 'asdf' as any,
+    id: 'asdf',
+}
+const linkBase = {
+    __typename: '' as any,
+    conditions: [],
+}
+const data: Routine = {
+    __typename: 'Routine' as any,
+    created_at: 0,
+    updated_at: 0,
+    id: 'fake-routine-id',
+    isAutomatable: true,
+    isStarred: false,
+    isUpvoted: false,
+    stars: 69,
+    score: 420,
+    role: '' as any,
+    inputs: [],
+    outputs: [],
+    version: '1.0.0',
+    owner: null,
+    parent: null,
+    contextualResources: [],
+    externalResources: [],
+    tags: [],
     title: 'Validate business idea',
     description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+    instructions: 'some fake instructions blah blah blah',
     // Unordered list of top-level nodes
     // Page renders nodes starting at the start node
     nodes: [
         // Start node
         {
-            id: '1',
+            ...nodeBase,
+            id: 'start-id',
             type: NodeType.Start,
-            title: null,
+            title: 'Start',
             description: null,
-            // ID of previous node
-            previous: null,
-            // ID of next node
-            next: '2',
             // Additional data specific to the node type
             data: null
         },
         // Routine List node
         {
-            id: '2',
+            ...nodeBase,
+            id: 'routine-list-basic-info-id',
             type: NodeType.RoutineList,
             title: 'Provide Basic Info',
             description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
-            previous: '1',
-            next: '3',
             data: {
+                ...routineListBase,
+                id: 'fdsafdsafdasf',
                 isOrdered: false,
                 isOptional: false,
                 routines: [
                     {
+                        ...routineListBase,
                         id: '1',
                         title: 'Provide Basic Info',
                         description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
                         isOptional: false,
                         routine: {
+                            ...routineBase,
                             id: '1',
                             title: 'Provide Basic Info',
                             description: null,
@@ -76,22 +129,25 @@ const data: OrchestrationData = {
         },
         // Routine List node
         {
-            id: '3',
+            ...nodeBase,
+            id: 'routine-list-knowledge-management-id',
             type: NodeType.RoutineList,
             title: 'Knowledge management',
             description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
-            previous: '2',
-            next: '4',
             data: {
+                ...routineListBase,
+                id: 'ffffffff',
                 isOrdered: false,
                 isOptional: false,
                 routines: [
                     {
+                        ...routineListBase,
                         id: '2',
                         title: 'Create task list',
                         description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
                         isOptional: true,
                         routine: {
+                            ...routineBase,
                             id: '1',
                             title: 'Provide Basic Info',
                             description: null,
@@ -99,11 +155,13 @@ const data: OrchestrationData = {
                         }
                     },
                     {
+                        ...routineListBase,
                         id: '3',
                         title: 'Generate forecasts',
                         description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
                         isOptional: true,
                         routine: {
+                            ...routineBase,
                             id: '1',
                             title: 'Provide Basic Info',
                             description: null,
@@ -111,11 +169,13 @@ const data: OrchestrationData = {
                         }
                     },
                     {
+                        ...routineListBase,
                         id: '4',
                         title: 'List objectives',
                         description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
                         isOptional: false,
                         routine: {
+                            ...routineBase,
                             id: '1',
                             title: 'Provide Basic Info',
                             description: null,
@@ -123,60 +183,32 @@ const data: OrchestrationData = {
                         }
                     },
                     {
+                        ...routineListBase,
                         id: '5',
                         title: 'Create business model',
                         description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt',
                         isOptional: true,
                         routine: {
+                            ...routineBase,
                             id: '1',
                             title: 'Provide Basic Info',
                             description: null,
                             isAutomatable: false,
                         }
-                    }
-                ]
-            }
-        },
-        // Decision node
-        {
-            id: '4',
-            type: NodeType.Decision,
-            title: 'Worth pursuing?',
-            description: null,
-            previous: '3',
-            // Decision nodes have no definitive next node
-            // Instead, next node is determined by the decision
-            next: null,
-            data: {
-                decisions: [
-                    {
-                        id: '1',
-                        title: 'Yes',
-                        description: null,
-                        next: '5',
-                        // List of cases which must return true in order for this decision to be available
-                        // If empty, decision is always available
-                        when: []
-                    },
-                    {
-                        id: '2',
-                        title: 'No',
-                        description: null,
-                        next: '6',
-                        when: []
                     }
                 ]
             }
         },
         // Routine List node
         {
-            id: '5',
+            ...nodeBase,
+            id: 'routine-list-empty-id',
             type: NodeType.RoutineList,
             title: 'todo',
             description: null,
-            previous: '4',
-            next: '7',
             data: {
+                ...routineListBase,
+                id: 'fdasfdas',
                 isOrdered: false,
                 isOptional: false,
                 routines: []
@@ -184,67 +216,45 @@ const data: OrchestrationData = {
         },
         // End node
         {
-            id: '6',
+            ...nodeBase,
+            id: 'end-wasnt-worth-it-id',
             type: NodeType.End,
             title: 'Wasnt worth pursuing',
             description: 'afda',
-            previous: '4',
-            next: null,
             data: {
+                ...endNodeBase,
                 wasSuccessful: true,
-            }
-        },
-        // Decision node
-        {
-            id: '7',
-            type: NodeType.Decision,
-            title: 'Try again?',
-            description: null,
-            previous: '5',
-            next: null,
-            data: {
-                decisions: [
-                    {
-                        id: '3',
-                        title: 'Yes',
-                        description: null,
-                        next: '8',
-                        // List of cases which must return true in order for this decision to be available
-                        // If empty, decision is always available
-                        when: []
-                    },
-                    {
-                        id: '4',
-                        title: 'No',
-                        description: null,
-                        next: '9',
-                        when: []
-                    }
-                ]
             }
         },
         // Redirect node
         {
+            ...nodeBase,
             id: '8',
             type: NodeType.Redirect,
-            title: null,
+            title: 'Redirect',
             description: null,
-            previous: '7',
-            next: '1',
             data: null,
         },
         // End node
         {
-            id: '9',
+            ...nodeBase,
+            id: 'end-node-good-id',
             type: NodeType.End,
             title: 'The good end',
             description: 'asdf',
-            previous: '7',
-            next: null,
             data: {
+                ...endNodeBase,
                 wasSuccessful: true,
             }
         },
+    ],
+    nodeLinks: [
+        { ...linkBase, id: 'a', previousId: 'start-id', nextId: 'routine-list-basic-info-id' },
+        { ...linkBase, id: 'b', previousId: 'routine-list-basic-info-id', nextId: 'routine-list-knowledge-management-id' },
+        { ...linkBase, id: 'c', previousId: 'routine-list-knowledge-management-id', nextId: 'routine-list-empty-id', conditions: [{ title: 'Is worth pursuing' }] as any },
+        { ...linkBase, id: 'c', previousId: 'routine-list-knowledge-management-id', nextId: 'end-wasnt-worth-it-id', conditions: [{ title: 'Is not worth pursuing' }] as any },
+        { ...linkBase, id: 'c', previousId: 'routine-list-empty-id', nextId: 'routine-list-basic-info-id', conditions: [{ title: 'Try again' }] as any },
+        { ...linkBase, id: 'c', previousId: 'routine-list-empty-id', nextId: 'end-node-good-id', conditions: [{ title: 'I am finished' }] as any },
     ]
 }
 
@@ -257,23 +267,25 @@ const CustomSlider = withStyles({
 })(Slider);
 
 export const RoutineOrchestratorPage = () => {
+    // Get routine ID from URL
+    const [, params] = useRoute(`${APP_LINKS.SearchUsers}/view/:id`);
+    const id: string = useMemo(() => params?.id ?? '', [params]);
     // Queries routine data
-    const { data: routineData } = useQuery<routine>(routineQuery, { variables: { input: { id: 'TODO' } } });
+    const { data: routineData } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const [routine, setRoutine] = useState<Routine | null>(null);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
+    useEffect(() => { setRoutine(routineData?.routine ?? null) }, [routineData]);
     // Routine mutator
     const [routineUpdate, { loading }] = useMutation<any>(routineUpdateMutation);
     // The routine's status (valid/invalid)
     const [isValid, setIsValid] = useState<boolean>(false);
-    // The routine's title
-    const [title, setTitle] = useState<string>('');
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const [isEditing, setIsEditing] = useState<boolean>(false);
     // Used for editing the title of the routine
     const [titleActive, setTitleActive] = useState<boolean>(false);
     const toggleTitle = useCallback(() => setTitleActive(a => !a), []);
-    const saveTitle= useCallback(() => {
+    const saveTitle = useCallback(() => {
         //TODO
         setTitleActive(false);
     }, []);
@@ -281,11 +293,6 @@ export const RoutineOrchestratorPage = () => {
         //TODO
         setTitleActive(false);
     }, []);
-
-    useEffect(() => {
-        setTitle(routineData?.routine?.title ?? '');
-        setRoutine(routineData?.routine ?? null);
-    }, [routineData]);
 
     useEffect(() => {
         setChangedRoutine(routine);
@@ -312,13 +319,10 @@ export const RoutineOrchestratorPage = () => {
         }
         mutationWrapper({
             mutation: routineUpdate,
-            input: {
-                id: changedRoutine.id,
-                title,
-            },
+            input: changedRoutine,
             successMessage: () => 'Routine updated.',
         })
-    }, [changedRoutine, routine, routineUpdate, title])
+    }, [changedRoutine, routine, routineUpdate])
 
     const revertChanges = useCallback(() => {
         setChangedRoutine(routine);
@@ -348,7 +352,7 @@ export const RoutineOrchestratorPage = () => {
                     name="title"
                     autoComplete="routine-title"
                     label="Title"
-                    value={routine?.title ?? ''}
+                    value={changedRoutine?.title ?? ''}
                     onChange={() => { }}
                     sx={{ cursor: 'pointer' }}
                 />
@@ -367,7 +371,7 @@ export const RoutineOrchestratorPage = () => {
                 variant="h5"
                 textAlign="center"
                 sx={{ cursor: 'pointer' }}
-            >{data.title}</Typography>
+            >{changedRoutine?.title ?? ''}</Typography>
         );
         return (
             <Stack
@@ -403,7 +407,7 @@ export const RoutineOrchestratorPage = () => {
                 </Stack>
             </Stack>
         )
-    }, [isValid, title, titleActive, toggleTitle]);
+    }, [isValid, titleActive, toggleTitle]);
 
     let optionsBar = useMemo(() => (
         <Grid
@@ -489,7 +493,8 @@ export const RoutineOrchestratorPage = () => {
                 scale={scale}
                 isEditable={true}
                 labelVisible={true}
-                nodes={data?.nodes}
+                nodes={changedRoutine?.nodes ?? []}
+                links={changedRoutine?.nodeLinks ?? []}
             />
             {optionsBar}
         </Stack>

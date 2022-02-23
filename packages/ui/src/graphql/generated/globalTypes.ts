@@ -22,8 +22,6 @@ export enum MemberRole {
 }
 
 export enum NodeType {
-  Combine = "Combine",
-  Decision = "Decision",
   End = "End",
   Loop = "Loop",
   Redirect = "Redirect",
@@ -267,64 +265,16 @@ export interface InputItemUpdateInput {
   standardCreate?: StandardCreateInput | null;
 }
 
-export interface NodeCombineCreateInput {
-  from: string[];
-}
-
-export interface NodeCombineUpdateInput {
-  id: string;
-  from?: string[] | null;
-}
-
 export interface NodeCreateInput {
   description?: string | null;
   title?: string | null;
   type?: NodeType | null;
-  nodeCombineCreate?: NodeCombineCreateInput | null;
-  nodeDecisionCreate?: NodeDecisionCreateInput | null;
   nodeEndCreate?: NodeEndCreateInput | null;
   nodeLoopCreate?: NodeLoopCreateInput | null;
   nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
   previousId?: string | null;
   nextId?: string | null;
   routineId: string;
-}
-
-export interface NodeDecisionCreateInput {
-  decisionsCreate: NodeDecisionItemCreateInput[];
-}
-
-export interface NodeDecisionItemCreateInput {
-  description?: string | null;
-  title: string;
-  whenCreate: NodeDecisionItemWhenCreateInput[];
-  toId?: string | null;
-}
-
-export interface NodeDecisionItemUpdateInput {
-  id: string;
-  description?: string | null;
-  title?: string | null;
-  whenCreate?: NodeDecisionItemWhenCreateInput[] | null;
-  whenUpdate?: NodeDecisionItemWhenUpdateInput[] | null;
-  whenDelete?: string[] | null;
-  toId?: string | null;
-}
-
-export interface NodeDecisionItemWhenCreateInput {
-  condition: string;
-}
-
-export interface NodeDecisionItemWhenUpdateInput {
-  id: string;
-  condition?: string | null;
-}
-
-export interface NodeDecisionUpdateInput {
-  id: string;
-  decisionsCreate?: NodeDecisionItemCreateInput[] | null;
-  decisionsUpdate?: NodeDecisionItemUpdateInput[] | null;
-  decisionsDelete?: string[] | null;
 }
 
 export interface NodeEndCreateInput {
@@ -334,6 +284,47 @@ export interface NodeEndCreateInput {
 export interface NodeEndUpdateInput {
   id: string;
   wasSuccessful?: boolean | null;
+}
+
+export interface NodeLinkConditionCaseCreateInput {
+  condition: string;
+}
+
+export interface NodeLinkConditionCaseUpdateInput {
+  id: string;
+  condition?: string | null;
+}
+
+export interface NodeLinkConditionCreateInput {
+  description?: string | null;
+  title: string;
+  whenCreate: NodeLinkConditionCaseCreateInput[];
+  toId?: string | null;
+}
+
+export interface NodeLinkConditionUpdateInput {
+  id: string;
+  description?: string | null;
+  title?: string | null;
+  whenCreate?: NodeLinkConditionCaseCreateInput[] | null;
+  whenUpdate?: NodeLinkConditionCaseUpdateInput[] | null;
+  whenDelete?: string[] | null;
+  toId?: string | null;
+}
+
+export interface NodeLinkCreateInput {
+  conditions: NodeLinkConditionCreateInput[];
+  previousId: string;
+  nextId: string;
+}
+
+export interface NodeLinkUpdateInput {
+  id: string;
+  conditionsCreate?: NodeLinkConditionCreateInput[] | null;
+  conditionsUpdate?: NodeLinkConditionUpdateInput[] | null;
+  conditionsDelete?: string[] | null;
+  previousId?: string | null;
+  nextId?: string | null;
 }
 
 export interface NodeLoopCreateInput {
@@ -415,10 +406,6 @@ export interface NodeUpdateInput {
   description?: string | null;
   title?: string | null;
   type?: NodeType | null;
-  nodeCombineCreate?: NodeCombineCreateInput | null;
-  nodeCombineUpdate?: NodeCombineUpdateInput | null;
-  nodeDecisionCreate?: NodeDecisionCreateInput | null;
-  nodeDecisionUpdate?: NodeDecisionUpdateInput | null;
   nodeEndCreate?: NodeEndCreateInput | null;
   nodeEndUpdate?: NodeEndUpdateInput | null;
   nodeLoopCreate?: NodeLoopCreateInput | null;
@@ -616,8 +603,8 @@ export interface RoutineCreateInput {
   projectId?: string | null;
   createdByUserId?: string | null;
   createdByOrganizationId?: string | null;
-  nodesConnect?: string[] | null;
   nodesCreate?: NodeCreateInput[] | null;
+  nodeLinksCreate?: NodeLinkCreateInput[] | null;
   inputsCreate?: InputItemCreateInput[] | null;
   outputsCreate?: OutputItemCreateInput[] | null;
   resourcesContextualCreate?: ResourceCreateInput[] | null;
@@ -650,11 +637,12 @@ export interface RoutineUpdateInput {
   parentId?: string | null;
   userId?: string | null;
   organizationId?: string | null;
-  nodesConnect?: string[] | null;
-  nodesDisconnect?: string[] | null;
   nodesDelete?: string[] | null;
   nodesCreate?: NodeCreateInput[] | null;
   nodesUpdate?: NodeUpdateInput[] | null;
+  nodeLinksDelete?: string[] | null;
+  nodeLinksCreate?: NodeLinkCreateInput[] | null;
+  nodeLinksUpdate?: NodeLinkUpdateInput[] | null;
   inputsCreate?: InputItemCreateInput[] | null;
   inputsUpdate?: InputItemUpdateInput[] | null;
   inputsDelete?: string[] | null;
@@ -706,7 +694,7 @@ export interface StandardSearchInput {
 }
 
 export interface StandardUpdateInput {
-  id?: string | null;
+  id: string;
   description?: string | null;
   makeAnonymous?: boolean | null;
   tagsConnect?: string[] | null;

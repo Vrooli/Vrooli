@@ -1,5 +1,5 @@
-import { NodeData } from '@local/shared';
 import { BoxProps } from '@mui/material';
+import { Node, NodeLink } from 'types';
 
 /**
  * Describes the data and general position of a node in the graph. 
@@ -12,26 +12,27 @@ export type NodePos = {
     column: number; // column in which node is displayed
     // rows: number; // number of rows in the column the node is displayed in
     // pos: number; // relative position in column. 0 is top, 1 is bottom
-    node: NodeData;
+    node: Node;
 }
 
 export interface NodeContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
-    node: NodeData;
+    node: Node;
     onClose: () => void;
-    onAddBefore: (node: NodeData) => void;
-    onAddAfter: (node: NodeData) => void;
-    onEdit: (node: NodeData) => void;
-    onDelete: (node: NodeData) => void;
-    onMove: (node: NodeData) => void;
+    onAddBefore: (node: Node) => void;
+    onAddAfter: (node: Node) => void;
+    onEdit: (node: Node) => void;
+    onDelete: (node: Node) => void;
+    onMove: (node: Node) => void;
 }
 
 export interface NodeGraphProps {
     scale?: number;
     isEditable?: boolean;
     labelVisible?: boolean;
-    nodes?: NodeData[]
+    nodes: Node[]
+    links: NodeLink[];
 }
 
 /**
@@ -43,7 +44,7 @@ export interface NodeGraphColumnProps {
     isEditable?: boolean;
     labelVisible?: boolean;
     columnNumber: number;
-    nodes: NodeData[];
+    nodes: Node[];
     /**
     * Callback for cell resize
     */

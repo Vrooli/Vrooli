@@ -36,33 +36,6 @@ export interface deepRoutineFields_inputs {
   standard: deepRoutineFields_inputs_standard | null;
 }
 
-export interface deepRoutineFields_nodes_data_NodeCombine {
-  __typename: "NodeCombine";
-  id: string;
-  from: string[];
-}
-
-export interface deepRoutineFields_nodes_data_NodeDecision_decisions_when {
-  __typename: "NodeDecisionItemWhen";
-  id: string;
-  condition: string;
-}
-
-export interface deepRoutineFields_nodes_data_NodeDecision_decisions {
-  __typename: "NodeDecisionItem";
-  id: string;
-  description: string | null;
-  title: string;
-  toId: string | null;
-  when: deepRoutineFields_nodes_data_NodeDecision_decisions_when[];
-}
-
-export interface deepRoutineFields_nodes_data_NodeDecision {
-  __typename: "NodeDecision";
-  id: string;
-  decisions: deepRoutineFields_nodes_data_NodeDecision_decisions[];
-}
-
 export interface deepRoutineFields_nodes_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
@@ -117,7 +90,7 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList {
   routines: deepRoutineFields_nodes_data_NodeRoutineList_routines[];
 }
 
-export type deepRoutineFields_nodes_data = deepRoutineFields_nodes_data_NodeCombine | deepRoutineFields_nodes_data_NodeDecision | deepRoutineFields_nodes_data_NodeEnd | deepRoutineFields_nodes_data_NodeLoop | deepRoutineFields_nodes_data_NodeRoutineList;
+export type deepRoutineFields_nodes_data = deepRoutineFields_nodes_data_NodeEnd | deepRoutineFields_nodes_data_NodeLoop | deepRoutineFields_nodes_data_NodeRoutineList;
 
 export interface deepRoutineFields_nodes {
   __typename: "Node";
@@ -125,12 +98,32 @@ export interface deepRoutineFields_nodes {
   created_at: any;
   description: string | null;
   role: MemberRole | null;
-  next: string | null;
-  previous: string | null;
   title: string;
   type: NodeType;
   updated_at: any;
   data: deepRoutineFields_nodes_data | null;
+}
+
+export interface deepRoutineFields_nodeLinks_conditions_when {
+  __typename: "NodeLinkConditionCase";
+  id: string;
+  condition: string;
+}
+
+export interface deepRoutineFields_nodeLinks_conditions {
+  __typename: "NodeLinkCondition";
+  id: string;
+  description: string | null;
+  title: string;
+  when: deepRoutineFields_nodeLinks_conditions_when[];
+}
+
+export interface deepRoutineFields_nodeLinks {
+  __typename: "NodeLink";
+  id: string;
+  nextId: string;
+  previousId: string;
+  conditions: deepRoutineFields_nodeLinks_conditions[];
 }
 
 export interface deepRoutineFields_owner_Organization {
@@ -225,6 +218,7 @@ export interface deepRoutineFields {
   isStarred: boolean;
   inputs: deepRoutineFields_inputs[];
   nodes: deepRoutineFields_nodes[];
+  nodeLinks: deepRoutineFields_nodeLinks[];
   owner: deepRoutineFields_owner | null;
   outputs: deepRoutineFields_outputs[];
   parent: deepRoutineFields_parent | null;

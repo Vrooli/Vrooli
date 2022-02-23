@@ -9,33 +9,6 @@ import { NodeCreateInput, MemberRole, NodeType } from "./globalTypes";
 // GraphQL mutation operation: nodeCreate
 // ====================================================
 
-export interface nodeCreate_nodeCreate_data_NodeCombine {
-  __typename: "NodeCombine";
-  id: string;
-  from: string[];
-}
-
-export interface nodeCreate_nodeCreate_data_NodeDecision_decisions_when {
-  __typename: "NodeDecisionItemWhen";
-  id: string;
-  condition: string;
-}
-
-export interface nodeCreate_nodeCreate_data_NodeDecision_decisions {
-  __typename: "NodeDecisionItem";
-  id: string;
-  description: string | null;
-  title: string;
-  toId: string | null;
-  when: nodeCreate_nodeCreate_data_NodeDecision_decisions_when[];
-}
-
-export interface nodeCreate_nodeCreate_data_NodeDecision {
-  __typename: "NodeDecision";
-  id: string;
-  decisions: nodeCreate_nodeCreate_data_NodeDecision_decisions[];
-}
-
 export interface nodeCreate_nodeCreate_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
@@ -90,7 +63,7 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList {
   routines: nodeCreate_nodeCreate_data_NodeRoutineList_routines[];
 }
 
-export type nodeCreate_nodeCreate_data = nodeCreate_nodeCreate_data_NodeCombine | nodeCreate_nodeCreate_data_NodeDecision | nodeCreate_nodeCreate_data_NodeEnd | nodeCreate_nodeCreate_data_NodeLoop | nodeCreate_nodeCreate_data_NodeRoutineList;
+export type nodeCreate_nodeCreate_data = nodeCreate_nodeCreate_data_NodeEnd | nodeCreate_nodeCreate_data_NodeLoop | nodeCreate_nodeCreate_data_NodeRoutineList;
 
 export interface nodeCreate_nodeCreate {
   __typename: "Node";
@@ -98,8 +71,6 @@ export interface nodeCreate_nodeCreate {
   created_at: any;
   description: string | null;
   role: MemberRole | null;
-  next: string | null;
-  previous: string | null;
   title: string;
   type: NodeType;
   updated_at: any;

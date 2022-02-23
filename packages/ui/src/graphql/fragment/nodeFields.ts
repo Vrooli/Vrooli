@@ -23,29 +23,10 @@ export const nodeFields = gql`
         created_at
         description
         role
-        next
-        previous
         title
         type
         updated_at
         data {
-            ... on NodeCombine {
-                id
-                from
-            }
-            ... on NodeDecision {
-                id
-                decisions {
-                    id
-                    description
-                    title
-                    toId
-                    when {
-                        id
-                        condition
-                    }
-                }
-            }
             ... on NodeEnd {
                 id
                 wasSuccessful

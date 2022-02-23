@@ -15,7 +15,7 @@ export interface user_user {
   username: string | null;
   created_at: any;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
   bio: string | null;
 }
 

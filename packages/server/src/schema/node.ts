@@ -1,16 +1,16 @@
 import { gql } from 'apollo-server-express';
-import { CODE, NodeType } from '@local/shared';
+import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { NodeModel } from '../models';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
+import pkg from '@prisma/client';
+const { NodeType } = pkg;
 
 export const typeDef = gql`
     enum NodeType {
-        Combine
-        Decision
         End
         Loop
         RoutineList
@@ -18,14 +18,12 @@ export const typeDef = gql`
         Start
     }
 
-    union NodeData = NodeCombine | NodeDecision | NodeEnd | NodeLoop | NodeRoutineList
+    union NodeData = NodeEnd | NodeLoop | NodeRoutineList
 
     input NodeCreateInput {
         description: String
         title: String
         type: NodeType
-        nodeCombineCreate: NodeCombineCreateInput
-        nodeDecisionCreate: NodeDecisionCreateInput
         nodeEndCreate: NodeEndCreateInput
         nodeLoopCreate: NodeLoopCreateInput
         nodeRoutineListCreate: NodeRoutineListCreateInput
@@ -38,10 +36,6 @@ export const typeDef = gql`
         description: String
         title: String
         type: NodeType
-        nodeCombineCreate: NodeCombineCreateInput
-        nodeCombineUpdate: NodeCombineUpdateInput
-        nodeDecisionCreate: NodeDecisionCreateInput
-        nodeDecisionUpdate: NodeDecisionUpdateInput
         nodeEndCreate: NodeEndCreateInput
         nodeEndUpdate: NodeEndUpdateInput
         nodeLoopCreate: NodeLoopCreateInput
@@ -63,72 +57,8 @@ export const typeDef = gql`
         type: NodeType!
         data: NodeData
         routine: Routine!
-        previous: ID
-        next: ID
-        To: [Node!]!
-        From: [Node!]!
-        Previous: [Node!]!
-        Next: [Node!]!
-        DecisionItem: [NodeDecisionItem!]!
-    }
-
-    input NodeCombineCreateInput {
-        from: [ID!]!
-    }
-    input NodeCombineUpdateInput {
-        id: ID!
-        from: [ID!]
-    }
-    type NodeCombine {
-        id: ID!
-        from: [ID!]!
-    }
-
-    input NodeDecisionCreateInput {
-        decisionsCreate: [NodeDecisionItemCreateInput!]!
-    }
-    input NodeDecisionUpdateInput {
-        id: ID!
-        decisionsCreate: [NodeDecisionItemCreateInput!]
-        decisionsUpdate: [NodeDecisionItemUpdateInput!]
-        decisionsDelete: [ID!]
-    }
-    type NodeDecision {
-        id: ID!
-        decisions: [NodeDecisionItem!]!
-    }
-    input NodeDecisionItemCreateInput {
-        description: String
-        title: String!
-        whenCreate: [NodeDecisionItemWhenCreateInput!]!
-        toId: ID
-    }
-    input NodeDecisionItemUpdateInput {
-        id: ID!
-        description: String
-        title: String
-        whenCreate: [NodeDecisionItemWhenCreateInput!]
-        whenUpdate: [NodeDecisionItemWhenUpdateInput!]
-        whenDelete: [ID!]
-        toId: ID
-    }
-    type NodeDecisionItem {
-        id: ID!
-        description: String
-        title: String!
-        when: [NodeDecisionItemWhen!]!
-        toId: ID
-    } 
-    input NodeDecisionItemWhenCreateInput {
-        condition: String!
-    }
-    input NodeDecisionItemWhenUpdateInput {
-        id: ID!
-        condition: String
-    }
-    type NodeDecisionItemWhen {
-        id: ID!
-        condition: String!
+        previous: [NodeLink!]!
+        next: [NodeLink!]!
     }
 
     input NodeEndCreateInput {
@@ -239,6 +169,58 @@ export const typeDef = gql`
         routine: Routine!
     }
 
+    input NodeLinkCreateInput {
+        conditions: [NodeLinkConditionCreateInput!]!
+        previousId: ID!
+        nextId: ID!
+    }
+    input NodeLinkUpdateInput {
+        id: ID!
+        conditionsCreate: [NodeLinkConditionCreateInput!]
+        conditionsUpdate: [NodeLinkConditionUpdateInput!]
+        conditionsDelete: [ID!]
+        previousId: ID
+        nextId: ID
+    }
+    type NodeLink{
+        id: ID!
+        conditions: [NodeLinkCondition!]!
+        previousId: ID!
+        nextId: ID!
+    }
+    input NodeLinkConditionCreateInput {
+        description: String
+        title: String!
+        whenCreate: [NodeLinkConditionCaseCreateInput!]!
+        toId: ID
+    }
+    input NodeLinkConditionUpdateInput {
+        id: ID!
+        description: String
+        title: String
+        whenCreate: [NodeLinkConditionCaseCreateInput!]
+        whenUpdate: [NodeLinkConditionCaseUpdateInput!]
+        whenDelete: [ID!]
+        toId: ID
+    }
+    type NodeLinkCondition {
+        id: ID!
+        description: String
+        title: String!
+        when: [NodeLinkConditionCase!]!
+    } 
+    input NodeLinkConditionCaseCreateInput {
+        condition: String!
+    }
+    input NodeLinkConditionCaseUpdateInput {
+        id: ID!
+        condition: String
+    }
+    type NodeLinkConditionCase {
+        id: ID!
+        condition: String!
+    }
+
     extend type Mutation {
         nodeCreate(input: NodeCreateInput!): Node!
         nodeUpdate(input: NodeUpdateInput!): Node!
@@ -251,10 +233,6 @@ export const resolvers = {
     NodeData: {
         __resolveType(obj: any) {
             console.log('IN NODEDATA __resolveType', obj);
-            // Only NodeCombine has from and toId fields
-            if (obj.hasOwnProperty('from') && obj.hasOwnProperty('toId')) return 'NodeCombine';
-            // Only NodeDecision has decisions field
-            if (obj.hasOwnProperty('decisions')) return 'NodeDecision';
             // Only NodeEnd has wasSuccessful field
             if (obj.hasOwnProperty('wasSuccessful')) return 'NodeEnd';
             // Only NodeLoop has loop field

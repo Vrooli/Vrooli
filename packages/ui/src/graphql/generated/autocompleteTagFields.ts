@@ -4,15 +4,15 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL fragment: userFields
+// GraphQL fragment: autocompleteTagFields
 // ====================================================
 
-export interface userFields {
-  __typename: "User";
+export interface autocompleteTagFields {
+  __typename: "Tag";
   id: string;
-  username: string | null;
   created_at: any;
-  stars: number;
+  description: string | null;
   isStarred: boolean;
-  bio: string | null;
+  stars: number;
+  tag: string;
 }

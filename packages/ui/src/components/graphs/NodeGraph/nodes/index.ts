@@ -1,6 +1,4 @@
 export * from './AddNode/AddNode';
-export * from './CombineNode/CombineNode';
-export * from './DecisionNode/DecisionNode';
 export * from './DraggableNode/DraggableNode';
 export * from './EndNode/EndNode';
 export * from './LoopNode/LoopNode';

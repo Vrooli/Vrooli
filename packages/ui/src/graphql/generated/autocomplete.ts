@@ -9,12 +9,33 @@ import { AutocompleteInput } from "./globalTypes";
 // GraphQL query operation: autocomplete
 // ====================================================
 
+export interface autocomplete_autocomplete_organizations_tags {
+  __typename: "Tag";
+  id: string;
+  created_at: any;
+  description: string | null;
+  isStarred: boolean;
+  stars: number;
+  tag: string;
+}
+
 export interface autocomplete_autocomplete_organizations {
   __typename: "Organization";
   id: string;
   name: string;
   stars: number;
   isStarred: boolean;
+  tags: autocomplete_autocomplete_organizations_tags[];
+}
+
+export interface autocomplete_autocomplete_projects_tags {
+  __typename: "Tag";
+  id: string;
+  created_at: any;
+  description: string | null;
+  isStarred: boolean;
+  stars: number;
+  tag: string;
 }
 
 export interface autocomplete_autocomplete_projects {
@@ -24,6 +45,17 @@ export interface autocomplete_autocomplete_projects {
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  tags: autocomplete_autocomplete_projects_tags[];
+}
+
+export interface autocomplete_autocomplete_routines_tags {
+  __typename: "Tag";
+  id: string;
+  created_at: any;
+  description: string | null;
+  isStarred: boolean;
+  stars: number;
+  tag: string;
 }
 
 export interface autocomplete_autocomplete_routines {
@@ -33,6 +65,17 @@ export interface autocomplete_autocomplete_routines {
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  tags: autocomplete_autocomplete_routines_tags[];
+}
+
+export interface autocomplete_autocomplete_standards_tags {
+  __typename: "Tag";
+  id: string;
+  created_at: any;
+  description: string | null;
+  isStarred: boolean;
+  stars: number;
+  tag: string;
 }
 
 export interface autocomplete_autocomplete_standards {
@@ -42,6 +85,7 @@ export interface autocomplete_autocomplete_standards {
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
+  tags: autocomplete_autocomplete_standards_tags[];
 }
 
 export interface autocomplete_autocomplete_users {
@@ -49,7 +93,7 @@ export interface autocomplete_autocomplete_users {
   id: string;
   username: string | null;
   stars: number;
-  isStarred: boolean | null;
+  isStarred: boolean;
 }
 
 export interface autocomplete_autocomplete {

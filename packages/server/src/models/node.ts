@@ -1,7 +1,7 @@
-import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from "../schema/types";
+import { DeleteOneInput, Node, NodeCreateInput, NodeType, NodeUpdateInput, Success } from "../schema/types";
 import { addOwnerField, FormatConverter, InfoType, MODEL_TYPES, relationshipToPrisma, RelationshipTypes, removeOwnerField, selectHelper } from "./base";
 import { CustomError } from "../error";
-import { CODE, condition, decisionsCreate, decisionsUpdate, MemberRole, nodeCombineCreate, nodeCombineUpdate, nodeCreate, nodeDecisionCreate, nodeDecisionUpdate, nodeEndCreate, nodeEndUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, NodeType, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
+import { CODE, condition, conditionsCreate, conditionsUpdate, MemberRole, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
 import { PrismaType, RecursivePartial } from "types";
 import { node } from "@prisma/client";
 import { hasProfanity, hasProfanityRecursive } from "../utils/censor";
@@ -25,14 +25,6 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
             modified.routine = removeOwnerField(modified.routine ?? {});
             // // Convert data field to select all data types TODO
             // if (modified.data) {
-            //     modified.nodeCombine = {
-            //         from: {
-            //             fromId: true
-            //         },
-            //     }
-            //     modified.nodeDecision = {
-
-            //     }
             //     modified.nodeEnd = {
 
             //     }
@@ -59,11 +51,7 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
             let modified: any = obj;
             // Add owner fields to routine, so we can calculate user's role later
             modified.routine = addOwnerField(modified.routine ?? {});
-            // if (obj.nodeCombine) { TODO
-            // }
-            // else if (obj.nodeDecision) {
-            // }
-            // else if (obj.nodeEnd) {
+            // else if (obj.nodeEnd) { TODO
             // }
             // else if (obj.nodeLoop) {
             // }
@@ -73,8 +61,6 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
             // }
             // else if (obj.nodeStart) {
             // }
-            delete modified.nodeCombine;
-            delete modified.nodeDecision;
             delete modified.nodeEnd;
             delete modified.nodeLoop;
             delete modified.nodeRoutineList;
@@ -90,44 +76,16 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
  */
 const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
     /**
-     * Add, update, or remove combine node data from a node
+     * Add, update, or remove node link condition case from a routine
      */
-    relationshipBuilderCombineNode(
+    relationshipBuilderNodeLinkConditionCase(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeCombine', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            for (const data of formattedInput.create) {
-                // Check for valid arguments
-                nodeCombineCreate.validateSync(data, { abortEarly: false });
-            }
-        }
-        // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
-                // Check for valid arguments
-                nodeCombineUpdate.validateSync(data, { abortEarly: false });
-            }
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
-    },
-    /**
-     * Add, update, or remove decision node item whens data from a node
-     */
-    relationshipBuilderDecisionNodeItemCase(
-        userId: string | null,
-        input: { [x: string]: any },
-        isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
+        // are not supported by node links (since they can only be applied to one node orchestration)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'when', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
@@ -142,7 +100,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         if (Array.isArray(formattedInput.update)) {
             for (let data of formattedInput.update) {
                 // Check for valid arguments (censored words must be checked in earlier function)
-                decisionsUpdate.validateSync(data, { abortEarly: false });
+                condition.validateSync(data.condition, { abortEarly: false });
                 // Convert nested relationships
                 data = { update: { condition: data.condition } }
             }
@@ -150,41 +108,41 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
-     * Add, update, or remove decision node items data from a node
+     * Add, update, or remove node link condition from a routine
      */
-    relationshipBuilderDecisionNodeItem(
+    relationshipBuilderNodeLinkCondition(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'decisions', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        // are not supported by node links (since they can only be applied to one node orchestration)
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'conditions', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
                 // Check for valid arguments (censored words must be checked in earlier function)
-                decisionsCreate.validateSync(data, { abortEarly: false });
+                conditionsCreate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
-                data.when = this.relationshipBuilderDecisionNodeItemCase(userId, data, isAdd);
+                data.when = this.relationshipBuilderNodeLinkConditionCase(userId, data, isAdd);
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             for (const data of formattedInput.update) {
                 // Check for valid arguments (censored words must be checked in earlier function)
-                decisionsUpdate.validateSync(data, { abortEarly: false });
+                conditionsUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
-                data.when = this.relationshipBuilderDecisionNodeItemCase(userId, data, isAdd);
+                data.when = this.relationshipBuilderNodeLinkConditionCase(userId, data, isAdd);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
-     * Add, update, or remove decision node data from a node
+     * Add, update, or remove node link from a node orchestration
      */
-    relationshipBuilderDecisionNode(
+    relationshipBuilderNodeLink(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
@@ -192,23 +150,35 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeDecision', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeLinks', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
                 // Check for valid arguments
-                nodeDecisionCreate.validateSync(data, { abortEarly: false });
+                nodeLinksCreate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
-                data.decisions = this.relationshipBuilderDecisionNodeItem(userId, data, isAdd);
+                data.decisions = this.relationshipBuilderNodeLinkCondition(userId, data, isAdd);
+                data.previous = { connect: { id: data.previousId } };
+                delete data.previousId;
+                data.next = { connect: { id: data.nextId } };
+                delete data.nextId;
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             for (const data of formattedInput.update) {
                 // Check for valid arguments
-                nodeDecisionUpdate.validateSync(data, { abortEarly: false });
+                nodeLinksUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
-                data.decisions = this.relationshipBuilderDecisionNodeItem(userId, data, isAdd);
+                data.decisions = this.relationshipBuilderNodeLinkCondition(userId, data, isAdd);
+                if (data.previousId) {
+                    data.previous = { connect: { id: data.previousId } };
+                    delete data.previousId;
+                }
+                if (data.nextId) {
+                    data.next = { connect: { id: data.nextId } };
+                    delete data.nextId;
+                }
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -266,7 +236,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         if (Array.isArray(formattedInput.update)) {
             for (let data of formattedInput.update) {
                 // Check for valid arguments (censored words must be checked in earlier function)
-                decisionsUpdate.validateSync(data, { abortEarly: false });
+                condition.validateSync(data.condition, { abortEarly: false });
                 // Convert nested relationships
                 data = { update: { condition: data.condition } }
             }
@@ -459,14 +429,6 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         };
         // Create type-specific data
         switch (input.type) {
-            case NodeType.Combine:
-                if (!input.nodeCombineCreate) throw new CustomError(CODE.InvalidArgs, 'If type is combine, nodeCombineCreate must be provided');
-                nodeData.nodeCombine = this.relationshipBuilderCombineNode(userId, input, true);
-                break;
-            case NodeType.Decision:
-                if (!input.nodeDecisionCreate) throw new CustomError(CODE.InvalidArgs, 'If type is decision, nodeDecisionCreate must be provided');
-                nodeData.nodeDecision = this.relationshipBuilderDecisionNode(userId, input, true);
-                break;
             case NodeType.End:
                 if (!input.nodeEndCreate) throw new CustomError(CODE.InvalidArgs, 'If type is end, nodeEndCreate must be provided');
                 nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, true);
@@ -508,14 +470,6 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         };
         // Create type-specific data
         switch (input.type) {
-            case NodeType.Combine:
-                if (Boolean(input.nodeCombineCreate) === Boolean(input.nodeCombineUpdate)) throw new CustomError(CODE.InvalidArgs, 'If type is combine, nodeCombineCreate xor nodeCombineUpdate must be provided');
-                nodeData.nodeCombine = this.relationshipBuilderCombineNode(userId, input, false);
-                break;
-            case NodeType.Decision:
-                if (Boolean(input.nodeDecisionCreate) === Boolean(input.nodeDecisionUpdate)) throw new CustomError(CODE.InvalidArgs, 'If type is decision, nodeDecisionCreate xor nodeDecisionUpdate must be provided');
-                nodeData.nodeDecision = this.relationshipBuilderDecisionNode(userId, input, false);
-                break;
             case NodeType.End:
                 if (Boolean(input.nodeEndCreate) === Boolean(input.nodeEndUpdate)) throw new CustomError(CODE.InvalidArgs, 'If type is end, nodeEndCreate xor nodeEndUpdate must be provided');
                 nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, false);

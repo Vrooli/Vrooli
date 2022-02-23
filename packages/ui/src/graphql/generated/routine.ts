@@ -36,33 +36,6 @@ export interface routine_routine_inputs {
   standard: routine_routine_inputs_standard | null;
 }
 
-export interface routine_routine_nodes_data_NodeCombine {
-  __typename: "NodeCombine";
-  id: string;
-  from: string[];
-}
-
-export interface routine_routine_nodes_data_NodeDecision_decisions_when {
-  __typename: "NodeDecisionItemWhen";
-  id: string;
-  condition: string;
-}
-
-export interface routine_routine_nodes_data_NodeDecision_decisions {
-  __typename: "NodeDecisionItem";
-  id: string;
-  description: string | null;
-  title: string;
-  toId: string | null;
-  when: routine_routine_nodes_data_NodeDecision_decisions_when[];
-}
-
-export interface routine_routine_nodes_data_NodeDecision {
-  __typename: "NodeDecision";
-  id: string;
-  decisions: routine_routine_nodes_data_NodeDecision_decisions[];
-}
-
 export interface routine_routine_nodes_data_NodeEnd {
   __typename: "NodeEnd";
   id: string;
@@ -117,7 +90,7 @@ export interface routine_routine_nodes_data_NodeRoutineList {
   routines: routine_routine_nodes_data_NodeRoutineList_routines[];
 }
 
-export type routine_routine_nodes_data = routine_routine_nodes_data_NodeCombine | routine_routine_nodes_data_NodeDecision | routine_routine_nodes_data_NodeEnd | routine_routine_nodes_data_NodeLoop | routine_routine_nodes_data_NodeRoutineList;
+export type routine_routine_nodes_data = routine_routine_nodes_data_NodeEnd | routine_routine_nodes_data_NodeLoop | routine_routine_nodes_data_NodeRoutineList;
 
 export interface routine_routine_nodes {
   __typename: "Node";
@@ -125,12 +98,32 @@ export interface routine_routine_nodes {
   created_at: any;
   description: string | null;
   role: MemberRole | null;
-  next: string | null;
-  previous: string | null;
   title: string;
   type: NodeType;
   updated_at: any;
   data: routine_routine_nodes_data | null;
+}
+
+export interface routine_routine_nodeLinks_conditions_when {
+  __typename: "NodeLinkConditionCase";
+  id: string;
+  condition: string;
+}
+
+export interface routine_routine_nodeLinks_conditions {
+  __typename: "NodeLinkCondition";
+  id: string;
+  description: string | null;
+  title: string;
+  when: routine_routine_nodeLinks_conditions_when[];
+}
+
+export interface routine_routine_nodeLinks {
+  __typename: "NodeLink";
+  id: string;
+  nextId: string;
+  previousId: string;
+  conditions: routine_routine_nodeLinks_conditions[];
 }
 
 export interface routine_routine_owner_Organization {
@@ -225,6 +218,7 @@ export interface routine_routine {
   isStarred: boolean;
   inputs: routine_routine_inputs[];
   nodes: routine_routine_nodes[];
+  nodeLinks: routine_routine_nodeLinks[];
   owner: routine_routine_owner | null;
   outputs: routine_routine_outputs[];
   parent: routine_routine_parent | null;

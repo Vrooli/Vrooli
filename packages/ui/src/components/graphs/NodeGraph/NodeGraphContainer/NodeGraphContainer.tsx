@@ -1,10 +1,11 @@
 import { Box, Stack } from '@mui/material';
-import { CombineNodeData, DecisionNodeData, DecisionNodeDataDecision, NodeData, NodeType } from '@local/shared';
 import { NodeGraphColumn, NodeGraphEdge } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pubs } from 'utils';
 import { NodeGraphProps, NodePos } from '../types';
 import { NodeWidth } from '..';
+import { NodeType } from 'graphql/generated/globalTypes';
+import { Node } from 'types';
 
 type Positions = {
     x: number;
@@ -21,6 +22,7 @@ export const NodeGraphContainer = ({
     isEditable = true,
     labelVisible = true,
     nodes,
+    links,
 }: NodeGraphProps) => {
     // Stores positions and sizes of node cells, which can be used to calculate dragIsOver
     const [cellPositions, setCellPositions] = useState<{ [x: string]: Positions }>({});
@@ -122,79 +124,46 @@ export const NodeGraphContainer = ({
     }, [handleDragStart, handleDragStop]);
 
     /**
-     * Dictionary of node data and their columns
+     * 1st return - Dictionary of node data and their columns
+     * 2nd return - List of nodes which are not yet linked
+     * If nodeDataMap is same length as nodes, and unlinkedList is empty, then all nodes are linked 
+     * and the graph is valid
      */
-    const nodeDataMap: { [id: string]: NodePos } = useMemo(() => {
+    const [nodeDataMap, unlinkedList] = useMemo<[{ [id: string]: NodePos }, Node[]]>(() => {
         // Position map for calculating node positions
         let posMap: { [id: string]: NodePos } = {};
-        if (!nodes) return posMap;
+        if (!nodes || !links) return [posMap, nodes ?? []];
         let startNodeId: string | null = null;
-        console.log('node data map', nodes);
+        console.log('node data map', nodes, links);
         // First pass of raw node data, to locate start node and populate position map
         for (let i = 0; i < nodes.length; i++) {
-            console.log('raw data', nodes[i]);
             const currId = nodes[i].id;
             // If start node, must be in first column
             if (nodes[i].type === NodeType.Start) {
                 startNodeId = currId;
-                posMap[currId] = {
-                    column: 0,
-                    node: nodes[i],
-                }
+                posMap[currId] = { column: 0, node: nodes[i] }
             }
-            // Otherwise, node's column is currently unknown
-            else {
-                posMap[currId] = {
-                    column: -1,
-                    node: nodes[i],
+        }
+        // If start node was found
+        if (startNodeId) {
+            // Loop through links. Each loop finds every node that belongs in the next column
+            // We set the max number of columns to be 100, but this is arbitrary
+            for (let currColumn = 0; currColumn < 100; currColumn++) {
+                // Calculate the IDs of each node in the next column TODO this should be sorted in some way so it shows the same order every time
+                const nextNodes = links.filter(link => posMap[link.previousId]?.column === currColumn).map(link => nodes.find(node => node.id === link.nextId)).filter(node => node) as Node[];
+                // Add each node to the position map
+                for (let i = 0; i < nextNodes.length; i++) {
+                    const curr = nextNodes[i];
+                    posMap[curr.id] = { column: currColumn + 1, node: curr };
+                }
+                // If not nodes left, or if all of the next nodes are end nodes, stop looping
+                if (nextNodes.length === 0 || nextNodes.every(n => n.type === NodeType.End)) {
+                    break;
                 }
             }
         }
-        // If no start node was found, throw error
-        if (!startNodeId) {
-            PubSub.publish(Pubs.Snack, { message: 'No start node found', severity: 'error' });
-            return posMap;
-        }
-        // Helper function for recursively updating position map
-        const addNode = (nodeId: string) => {
-            // Find node data
-            const curr: NodePos = posMap[nodeId];
-            console.log('addNode', nodeId, curr);
-            // If node not found or column already calculated (exception being the start node at column 0), skip
-            if (!curr || curr.column > 0) return;
-            console.log('a')
-            // Calculate node's column (unless it is the start node). This is the same for all node types EXCEPT for combine nodes
-            if (curr.node.type === NodeType.Combine) {
-                console.log('b.1')
-                const previousNodes = (curr.node.data as CombineNodeData | null)?.from ?? [];
-                const farthestPreviousNode = Math.max(...previousNodes.map(prev => posMap[prev].column));
-                posMap[nodeId].column = farthestPreviousNode === -1 ? -1 : farthestPreviousNode + 1;
-            }
-            else if (curr.node.type !== NodeType.Start) {
-                console.log('b.2')
-                const prevNode = posMap[curr.node.previous ?? ''];
-                console.log('prevNode', prevNode);
-                if (!prevNode) return;
-                posMap[nodeId].column = prevNode.column === -1 ? -1 : prevNode.column + 1;
-                console.log('calculated column', posMap[nodeId].column);
-            }
-            // Call addNode on each next node. Thiss is the same for all node types EXCEPT for decision nodes
-            if (curr.node.type === NodeType.Decision) {
-                console.log('in decision logic', curr?.node?.data)
-                const decisions: DecisionNodeDataDecision[] | undefined = (curr.node.data as DecisionNodeData | undefined)?.decisions;
-                if (!decisions) return;
-                for (let i = 0; i < decisions.length; i++) {
-                    addNode(decisions[i].next);
-                }
-            }
-            else {
-                if (curr.node.next) addNode(curr.node.next);
-            }
-        }
-        // Starting with the start node, search for other nodes
-        addNode(startNodeId);
-        return posMap;
-    }, [nodes]);
+        return [posMap, nodes.filter(node => !posMap[node.id])];
+    }, [nodes, links]);
 
     /**
      * Updates known node dimensions. 
@@ -224,7 +193,7 @@ export const NodeGraphContainer = ({
     const columnData = useMemo(() => {
         // 2D node data array, ordered by column. 
         // Each column is ordered in a consistent way, so that the nodes in a column are always in the same order
-        let list: NodeData[][] = [];
+        let list: Node[][] = [];
         // Iterate through node data map
         for (const value of Object.values(nodeDataMap)) {
             // Skips nodes that did not receive a column
@@ -303,39 +272,36 @@ export const NodeGraphContainer = ({
     }, [columnData, cellDimensions]);
 
     /**
-     * Edges displayed between nodes. If editing, the midpoint of an edge
+     * Edges (links) displayed between nodes. If editing, the midpoint of an edge
      * contains an "Add Node" button
      */
     const edges = useMemo(() => {
         // If data required to render edges is not yet available
-        if (!nodes ||
-            Object.keys(nodes).length !== Object.keys(cellPositions).length ||
-            Object.keys(nodes).length !== Object.keys(cellDimensions).length) return [];
-        console.log('calculating edges', nodes);
-        return nodes.map(node => {
-            if (!node.previous || !node.next) return null;
-            console.log('creating edge for:', node)
-            console.log('previous', nodes.find(n => n.id === node.previous));
-            console.log('next', nodes.find(n => n.id === node.next));
+        // (i.e. no links, or number of links is more than the number of data available about nodes)
+        if (!links ||
+            links.length > Object.keys(cellPositions).length + 1 ||
+            links.length > Object.keys(cellDimensions).length + 1) return [];
+        console.log('calculating edges', links);
+        return links?.map(link => {
             // Center of cells the edge is attached to
             const startPos: Positions = {
-                x: cellPositions[node.previous].x + cellDimensions[node.previous].width / 2,
-                y: cellPositions[node.previous].y + cellDimensions[node.previous].height / 2,
+                x: cellPositions[link.previousId].x + cellDimensions[link.previousId].width / 2,
+                y: cellPositions[link.previousId].y + cellDimensions[link.previousId].height / 2,
             }
             const endPos: Positions = {
-                x: cellPositions[node.next].x + cellDimensions[node.next].width / 2,
-                y: cellPositions[node.next].y + cellDimensions[node.next].height / 2,
+                x: cellPositions[link.nextId].x + cellDimensions[link.nextId].width / 2,
+                y: cellPositions[link.nextId].y + cellDimensions[link.nextId].height / 2,
             }
             console.log('start/end', startPos, endPos)
             return <NodeGraphEdge
-                key={`edge-${node.id}`}
+                key={`edge-${link.id}`}
                 start={startPos}
                 end={endPos}
                 isEditable={isEditable}
                 onAdd={() => { }}
             />
         })
-    }, [nodes, cellPositions, cellDimensions, isEditable]);
+    }, [cellPositions, cellDimensions, isEditable, links]);
 
     /**
      * Highlight the areas of the graph that a node can be dropped into
@@ -403,14 +369,14 @@ export const NodeGraphContainer = ({
             // Create grid background pattern
             '--line-color': `rgba(0 0 0 / .05)`,
             '--line-thickness': `1px`,
-            '--minor-length': `${2*((scale*100 % 250) + 1)}px`,
-            '--major-length': `${20*((scale*100 % 250) + 1)}px`,
+            '--minor-length': `${2 * ((scale * 100 % 250) + 1)}px`,
+            '--major-length': `${20 * ((scale * 100 % 250) + 1)}px`,
             '--line': `var(--line-color) 0 var(--line-thickness)`,
             '--small-body': `transparent var(--line-thickness) var(--minor-length)`,
             '--large-body': `transparent var(--line-thickness) var(--major-length)`,
-          
+
             '--small-squares': `repeating-linear-gradient(to bottom, var(--line), var(--small-body)), repeating-linear-gradient(to right, var(--line), var(--small-body))`,
-          
+
             '--large-squares': `repeating-linear-gradient(to bottom, var(--line), var(--large-body)), repeating-linear-gradient(to right, var(--line), var(--large-body))`,
             background: `var(--small-squares), var(--large-squares)`,
             // Customize scrollbar

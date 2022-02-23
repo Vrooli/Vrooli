@@ -15,17 +15,6 @@ export const AccountStatus: { [x: string]: "Deleted" | "Unlocked" | "SoftLocked"
 }
 export type AccountStatus = ValueOf<typeof AccountStatus>;
 
-export const NodeType: { [x: string]: "Combine" | "Decision" | "End" | "Loop" | "RoutineList" | "Redirect" | "Start" } = {
-    Combine: "Combine",
-    Decision: "Decision",
-    End: "End",
-    Loop: "Loop",
-    RoutineList: "RoutineList",
-    Redirect: "Redirect",
-    Start: "Start",
-}
-export type NodeType = ValueOf<typeof NodeType>;
-
 export const StandardType: { [x: string]: "String" | "Number" | "Boolean" | "Object" | "Array" | "File" | "Url" } = {
     String: "String",
     Number: "Number",
@@ -143,74 +132,6 @@ export enum UserSortBy {
 /* #endregion Sort Options */
 //==============================================================
 
-//==============================================================
-/* #region Node Data */
-//==============================================================
-export type CombineNodeData = {
-    from: string[],
-    to: string[],
-}
-
-export type DecisionNodeDataDecision = {
-    id: string,
-    title: string,
-    description: string | null,
-    next: string,
-    when: {
-        id: string,
-        condition: string,
-    }
-}
-
-export type DecisionNodeData = {
-    decisions: DecisionNodeDataDecision[]
-}
-
-export type EndNodeData = {
-    wasSuccessful: boolean,
-}
-
-//TODO: define loop data
-export type LoopNodeData = {}
-
-export type RoutineListNodeData = {
-    isOrdered: boolean,
-    isOptional: boolean,
-    routines: RoutineListNodeItemData[]
-};
-
-export type RoutineListNodeItemData = {
-    id: string,
-    isOptional: boolean,
-    title: string | null,
-    description: string | null,
-    routine: {
-        id: string,
-        title: string,
-        description: string | null,
-        isAutomatable: boolean,
-    }
-}
-
-export type RedirectNodeData = {}
-
-export type StartNodeData = {}
-
-export type NodeDataData = CombineNodeData | DecisionNodeData | EndNodeData | LoopNodeData | RoutineListNodeData | RedirectNodeData | StartNodeData;
-
-export type NodeData = {
-    id: string,
-    type: NodeType,
-    title: string | null,
-    description: string | null,
-    previous: string | null,
-    next: string | null,
-    data: NodeDataData | null,
-}
-//==============================================================
-/* #endregion Node Data */
-//==============================================================
-
 export const CommentFor = {
     Organization: "Organization",
     Project: "Project",
@@ -265,12 +186,6 @@ export const ROLES = {
     Guest: "Guest",
 }
 export type ROLES = ValueOf<typeof ROLES>;
-
-export type OrchestrationData = {
-    title: string,
-    description?: string,
-    nodes: NodeData[],
-}
 
 export const VoteFor = {
     Comment: "Comment",

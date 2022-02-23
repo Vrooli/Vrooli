@@ -1,8 +1,8 @@
 import { Stack } from '@mui/material';
 import { useMemo } from 'react';
 import { NodeGraphColumnProps } from '../types';
-import { NodeType } from '@local/shared';
-import { CombineNode, DecisionNode, EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
+import { EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
+import { NodeType } from 'graphql/generated/globalTypes';
 
 export const NodeGraphColumn = ({
     id,
@@ -31,10 +31,6 @@ export const NodeGraphColumn = ({
         }
         // Determine node to display based on node type
         switch (node.type) {
-            case NodeType.Combine:
-                return <CombineNode {...nodeProps} />
-            case NodeType.Decision:
-                return <DecisionNode {...nodeProps} />
             case NodeType.End:
                 return <EndNode {...nodeProps} />
             case NodeType.Loop:
