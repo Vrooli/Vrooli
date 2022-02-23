@@ -20,4 +20,3 @@ To report security update, you may do one of the following:
 - [DM us on Twitter](https://twitter.com/VrooliOfficial)  
 
 We will get back to you as soon as we can. This should be within 1-2 days, but expect longer if it is the weekend.
-Use this section to tell people how to report a vulnerability.
