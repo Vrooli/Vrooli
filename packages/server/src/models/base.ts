@@ -207,7 +207,6 @@ export const addCountQueries = (obj: any, map: CountMap): any => {
  * Helper function for converting creator GraphQL field to Prisma createdByUser/createdByOrganization fields
  */
 export const removeCreatorField = (modified: any): any => {
-    console.log('in removeCreatorField');
     modified.createdByUser = {
         id: true,
         username: true,
@@ -217,7 +216,6 @@ export const removeCreatorField = (modified: any): any => {
         name: true,
     }
     delete modified.creator;
-    console.log('removeCreatorField result', modified);
     return modified;
 }
 
@@ -335,10 +333,12 @@ export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } =>
 export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB']): any => {
     // Return undefined if info not set
     if (!info) return undefined;
+    console.log('in selectHelper', info.hasOwnProperty('fieldName'));
     // Find select fields in info object
     let select = info.hasOwnProperty('fieldName') ?
         formatGraphQLFields(graphqlFields((info as GraphQLResolveInfo), {}, {})) :
         info;
+    console.log('select here', select);
     // If fields are in the shape of a paginated search query, then convert to a Prisma select object
     if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
         select = select.edges.node;

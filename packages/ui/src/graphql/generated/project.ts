@@ -12,11 +12,8 @@ import { FindByIdInput, MemberRole } from "./globalTypes";
 export interface project_project_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface project_project_owner_Organization {

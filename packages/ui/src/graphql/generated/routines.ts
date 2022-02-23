@@ -18,11 +18,8 @@ export interface routines_routines_pageInfo {
 export interface routines_routines_edges_node_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface routines_routines_edges_node {

@@ -12,11 +12,8 @@ import { RoutineUpdateInput, MemberRole } from "./globalTypes";
 export interface routineUpdate_routineUpdate_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface routineUpdate_routineUpdate {

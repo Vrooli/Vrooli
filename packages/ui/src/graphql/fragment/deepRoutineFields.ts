@@ -1,12 +1,12 @@
 import { gql } from 'graphql-tag';
 
 export const deepRoutineFields = gql`
-    fragment tagFields on Tag {
+    fragment deepRoutineTagFields on Tag {
         id
         description
         tag
     }
-    fragment inputFields on InputItem {
+    fragment deepRoutineInputFields on InputItem {
         id
         standard {
             id
@@ -16,11 +16,11 @@ export const deepRoutineFields = gql`
             name
             schema
             tags {
-                ...tagFields
+                ...deepRoutineTagFields
             }
         }
     }
-    fragment outputFields on OutputItem {
+    fragment deepRoutineOutputFields on OutputItem {
         id
         standard {
             id
@@ -30,15 +30,14 @@ export const deepRoutineFields = gql`
             name
             schema
             tags {
-                ...tagFields
+                ...deepRoutineTagFields
             }
         }
     }
-    fragment nodeFields on Node {
+    fragment deepRoutineNodeFields on Node {
         id
         created_at
         description
-        role
         title
         type
         updated_at
@@ -67,10 +66,10 @@ export const deepRoutineFields = gql`
             }
         }
     }
-    fragment nodeLinkFields on NodeLink {
+    fragment deepRoutineNodeLinkFields on NodeLink {
         id
-        nextId
-        previousId
+        fromId
+        toId
         conditions {
             id
             description
@@ -81,7 +80,7 @@ export const deepRoutineFields = gql`
             }
         }
     }
-    fragment resourceFields on Resource {
+    fragment deepRoutineResourceFields on Resource {
         id
         created_at
         description
@@ -104,13 +103,13 @@ export const deepRoutineFields = gql`
         role
         isStarred
         inputs {
-            ...inputFields
+            ...deepRoutineInputFields
         }
         nodes {
-            ...nodeFields
+            ...deepRoutineNodeFields
         }
         nodeLinks {
-            ...nodeLinkFields
+            ...deepRoutineNodeLinkFields
         }
         owner {
             ... on Organization {
@@ -123,20 +122,20 @@ export const deepRoutineFields = gql`
             }
         }
         outputs {
-            ...outputFields
+            ...deepRoutineOutputFields
         }
         parent {
             id
             title
         }
         contextualResources {
-            ...resourceFields
+            ...deepRoutineResourceFields
         }
         externalResources {
-            ...resourceFields
+            ...deepRoutineResourceFields
         }
         tags {
-            ...tagFields
+            ...deepRoutineTagFields
         }
     }
 `

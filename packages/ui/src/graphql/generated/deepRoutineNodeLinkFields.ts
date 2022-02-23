@@ -4,27 +4,27 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL fragment: nodeLinkFields
+// GraphQL fragment: deepRoutineNodeLinkFields
 // ====================================================
 
-export interface nodeLinkFields_conditions_when {
+export interface deepRoutineNodeLinkFields_conditions_when {
   __typename: "NodeLinkConditionCase";
   id: string;
   condition: string;
 }
 
-export interface nodeLinkFields_conditions {
+export interface deepRoutineNodeLinkFields_conditions {
   __typename: "NodeLinkCondition";
   id: string;
   description: string | null;
   title: string;
-  when: nodeLinkFields_conditions_when[];
+  when: deepRoutineNodeLinkFields_conditions_when[];
 }
 
-export interface nodeLinkFields {
+export interface deepRoutineNodeLinkFields {
   __typename: "NodeLink";
   id: string;
-  toId: string;
   fromId: string;
-  conditions: nodeLinkFields_conditions[];
+  toId: string;
+  conditions: deepRoutineNodeLinkFields_conditions[];
 }

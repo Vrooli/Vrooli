@@ -10,7 +10,7 @@ import { FormatConverter, addJoinTables, removeJoinTables, MODEL_TYPES } from ".
 /**
  * Component for formatting between graphql and prisma types
  */
- const formatter = (): FormatConverter<Role, role> => {
+export const roleFormatter = (): FormatConverter<Role, role> => {
     const joinMapper = {
         users: 'user',
     };
@@ -30,13 +30,12 @@ import { FormatConverter, addJoinTables, removeJoinTables, MODEL_TYPES } from ".
 
 export function RoleModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Role;
-    const format = formatter();
+    const format = roleFormatter();
 
     return {
         prisma,
         model,
         ...format,
-        ...formatter(),
     }
 }
 

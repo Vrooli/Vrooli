@@ -272,8 +272,6 @@ export interface NodeCreateInput {
   nodeEndCreate?: NodeEndCreateInput | null;
   nodeLoopCreate?: NodeLoopCreateInput | null;
   nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
-  previousId?: string | null;
-  nextId?: string | null;
   routineId: string;
 }
 
@@ -314,8 +312,8 @@ export interface NodeLinkConditionUpdateInput {
 
 export interface NodeLinkCreateInput {
   conditions: NodeLinkConditionCreateInput[];
-  previousId: string;
-  nextId: string;
+  fromId: string;
+  toId: string;
 }
 
 export interface NodeLinkUpdateInput {
@@ -323,8 +321,8 @@ export interface NodeLinkUpdateInput {
   conditionsCreate?: NodeLinkConditionCreateInput[] | null;
   conditionsUpdate?: NodeLinkConditionUpdateInput[] | null;
   conditionsDelete?: string[] | null;
-  previousId?: string | null;
-  nextId?: string | null;
+  fromId?: string | null;
+  toId?: string | null;
 }
 
 export interface NodeLoopCreateInput {
@@ -412,8 +410,6 @@ export interface NodeUpdateInput {
   nodeLoopUpdate?: NodeLoopUpdateInput | null;
   nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
   nodeRoutineListUpdate?: NodeRoutineListUpdateInput | null;
-  previousId?: string | null;
-  nextId?: string | null;
   routineId?: string | null;
 }
 

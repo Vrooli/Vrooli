@@ -1,7 +1,7 @@
 import { gql } from 'graphql-tag';
 
 export const routineFields = gql`
-    fragment tagFields on Tag {
+    fragment routineTagFields on Tag {
         id
         description
         tag
@@ -15,7 +15,7 @@ export const routineFields = gql`
         isAutomatable
         role
         tags {
-            ...tagFields
+            ...routineTagFields
         }
         stars
         isStarred

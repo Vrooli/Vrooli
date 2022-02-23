@@ -18,11 +18,8 @@ export interface standards_standards_pageInfo {
 export interface standards_standards_edges_node_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface standards_standards_edges_node_creator_Organization {

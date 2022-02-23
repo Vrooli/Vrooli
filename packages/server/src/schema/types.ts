@@ -464,9 +464,6 @@ export type Node = {
   data?: Maybe<NodeData>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  next: Array<NodeLink>;
-  previous: Array<NodeLink>;
-  role?: Maybe<MemberRole>;
   routine: Routine;
   routineId: Scalars['ID'];
   title: Scalars['String'];
@@ -476,11 +473,9 @@ export type Node = {
 
 export type NodeCreateInput = {
   description?: InputMaybe<Scalars['String']>;
-  nextId?: InputMaybe<Scalars['ID']>;
   nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
   nodeLoopCreate?: InputMaybe<NodeLoopCreateInput>;
   nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
-  previousId?: InputMaybe<Scalars['ID']>;
   routineId: Scalars['ID'];
   title?: InputMaybe<Scalars['String']>;
   type?: InputMaybe<NodeType>;
@@ -506,9 +501,9 @@ export type NodeEndUpdateInput = {
 export type NodeLink = {
   __typename?: 'NodeLink';
   conditions: Array<NodeLinkCondition>;
+  fromId: Scalars['ID'];
   id: Scalars['ID'];
-  nextId: Scalars['ID'];
-  previousId: Scalars['ID'];
+  toId: Scalars['ID'];
 };
 
 export type NodeLinkCondition = {
@@ -553,17 +548,17 @@ export type NodeLinkConditionUpdateInput = {
 
 export type NodeLinkCreateInput = {
   conditions: Array<NodeLinkConditionCreateInput>;
-  nextId: Scalars['ID'];
-  previousId: Scalars['ID'];
+  fromId: Scalars['ID'];
+  toId: Scalars['ID'];
 };
 
 export type NodeLinkUpdateInput = {
   conditionsCreate?: InputMaybe<Array<NodeLinkConditionCreateInput>>;
   conditionsDelete?: InputMaybe<Array<Scalars['ID']>>;
   conditionsUpdate?: InputMaybe<Array<NodeLinkConditionUpdateInput>>;
+  fromId?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
-  nextId?: InputMaybe<Scalars['ID']>;
-  previousId?: InputMaybe<Scalars['ID']>;
+  toId?: InputMaybe<Scalars['ID']>;
 };
 
 export type NodeLoop = {
@@ -691,14 +686,12 @@ export enum NodeType {
 export type NodeUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  nextId?: InputMaybe<Scalars['ID']>;
   nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
   nodeEndUpdate?: InputMaybe<NodeEndUpdateInput>;
   nodeLoopCreate?: InputMaybe<NodeLoopCreateInput>;
   nodeLoopUpdate?: InputMaybe<NodeLoopUpdateInput>;
   nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   nodeRoutineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
-  previousId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   title?: InputMaybe<Scalars['String']>;
   type?: InputMaybe<NodeType>;

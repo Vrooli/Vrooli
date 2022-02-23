@@ -12,11 +12,8 @@ import { StandardUpdateInput, MemberRole, StandardType } from "./globalTypes";
 export interface standardUpdate_standardUpdate_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface standardUpdate_standardUpdate_creator_Organization {

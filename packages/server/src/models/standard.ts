@@ -17,7 +17,7 @@ import { VoteModel } from "./vote";
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Standard, standard> => {
+export const standardFormatter = (): FormatConverter<Standard, standard> => {
     const joinMapper = {
         tags: 'tag',
         starredBy: 'user',
@@ -90,10 +90,12 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
+        console.log('in standarder.relationshipBuilder');
         const fieldExcludes: string[] = [];
         // Convert input to Prisma shape, excluding nodes and auth fields
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'standard', isAdd, fieldExcludes })
         const tagModel = TagModel(prisma);
+        console.log('standarder.relationshipBuilder formattedInput', formattedInput);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -124,7 +126,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         info: InfoType = null,
     ): Promise<RecursivePartial<Standard> | null> {
         // Create selector
-        const select = selectHelper<Standard, standard>(info, formatter().toDB);
+        const select = selectHelper<Standard, standard>(info, standardFormatter().toDB);
         // Access database
         let standard = await prisma.standard.findUnique({ where: { id: input.id }, ...select });
         // Return standard with "isUpvoted" and "isStarred" fields. These must be queried separately.
@@ -326,7 +328,7 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
 
 export function StandardModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Standard;
-    const format = formatter();
+    const format = standardFormatter();
     const sort = sorter();
 
     return {

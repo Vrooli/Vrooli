@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole, NodeType, ResourceUsedFor } from "./globalTypes";
+import { FindByIdInput, MemberRole, NodeType } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routine
@@ -12,11 +12,8 @@ import { FindByIdInput, MemberRole, NodeType, ResourceUsedFor } from "./globalTy
 export interface routine_routine_inputs_standard_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface routine_routine_inputs_standard {
@@ -47,30 +44,10 @@ export interface routine_routine_nodes_data_NodeLoop {
   id: string;
 }
 
-export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
-}
-
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
-  version: string | null;
   title: string | null;
-  description: string | null;
-  created_at: any;
-  isAutomatable: boolean | null;
-  role: MemberRole | null;
-  tags: routine_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
-  stars: number;
-  isStarred: boolean;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines {
@@ -97,7 +74,6 @@ export interface routine_routine_nodes {
   id: string;
   created_at: any;
   description: string | null;
-  role: MemberRole | null;
   title: string;
   type: NodeType;
   updated_at: any;
@@ -121,8 +97,8 @@ export interface routine_routine_nodeLinks_conditions {
 export interface routine_routine_nodeLinks {
   __typename: "NodeLink";
   id: string;
-  nextId: string;
-  previousId: string;
+  fromId: string;
+  toId: string;
   conditions: routine_routine_nodeLinks_conditions[];
 }
 
@@ -143,11 +119,8 @@ export type routine_routine_owner = routine_routine_owner_Organization | routine
 export interface routine_routine_outputs_standard_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface routine_routine_outputs_standard {
@@ -176,29 +149,28 @@ export interface routine_routine_parent {
 export interface routine_routine_contextualResources {
   __typename: "Resource";
   id: string;
-  title: string;
+  created_at: any;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor | null;
+  title: string;
+  updated_at: any;
 }
 
 export interface routine_routine_externalResources {
   __typename: "Resource";
   id: string;
-  title: string;
+  created_at: any;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor | null;
+  title: string;
+  updated_at: any;
 }
 
 export interface routine_routine_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface routine_routine {

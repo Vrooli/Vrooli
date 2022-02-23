@@ -1,7 +1,7 @@
 import { gql } from 'graphql-tag';
 
 export const projectFields = gql`
-    fragment tagFields on Tag {
+    fragment projectTagFields on Tag {
         id
         description
         tag
@@ -12,7 +12,7 @@ export const projectFields = gql`
         description
         created_at
         tags {
-            ...tagFields
+            ...projectTagFields
         }
         owner {
             ... on Organization {

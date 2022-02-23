@@ -12,21 +12,15 @@ import { FindByIdInput, MemberRole, StandardType } from "./globalTypes";
 export interface standard_standard_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface standard_standard_creator_Organization_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface standard_standard_creator_Organization {

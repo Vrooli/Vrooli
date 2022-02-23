@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeCreateInput, MemberRole, NodeType } from "./globalTypes";
+import { NodeCreateInput, NodeType, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: nodeCreate
@@ -23,11 +23,8 @@ export interface nodeCreate_nodeCreate_data_NodeLoop {
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine {
@@ -40,10 +37,6 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine {
   isAutomatable: boolean | null;
   role: MemberRole | null;
   tags: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags[];
-  stars: number;
-  isStarred: boolean;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines {
@@ -70,7 +63,6 @@ export interface nodeCreate_nodeCreate {
   id: string;
   created_at: any;
   description: string | null;
-  role: MemberRole | null;
   title: string;
   type: NodeType;
   updated_at: any;

@@ -8,6 +8,8 @@ import { GraphQLResolveInfo } from "graphql";
 import { OrganizationModel } from "./organization";
 import { comment } from "@prisma/client";
 
+export const commentDBFields = ['id', 'text', 'created_at', 'updated_at', 'userId', 'organizationId', 'projectId', 'routineId', 'standardId', 'score', 'stars']
+
 //==============================================================
 /* #region Custom Components */
 //==============================================================
@@ -15,7 +17,7 @@ import { comment } from "@prisma/client";
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Comment, comment> => {
+export const commentFormatter = (): FormatConverter<Comment, comment> => {
     const joinMapper = {
         starredBy: 'user',
     };
@@ -90,7 +92,7 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
                 userId,
                 [forMapper[input.createdFor]]: input.forId,
             },
-            ...selectHelper<CommentCreateInput | CommentUpdateInput, comment>(info, formatter().toDB)
+            ...selectHelper<CommentCreateInput | CommentUpdateInput, comment>(info, commentFormatter().toDB)
         });
         // Return comment with fields calculated outside of the query
         return { ...format.toGraphQL(comment), isUpvoted: null, isStarred: false };
@@ -113,7 +115,7 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
             data: {
                 text: input.text,
             },
-            ...selectHelper<CommentCreateInput | CommentUpdateInput, comment>(info, formatter().toDB)
+            ...selectHelper<CommentCreateInput | CommentUpdateInput, comment>(info, commentFormatter().toDB)
         });
         // Return comment with "isUpvoted" and "isStarred" fields. These must be queried separately.
         const vote = await prisma.vote.findFirst({ where: { userId, commentId: comment.id } });
@@ -160,7 +162,7 @@ const commenter = (format: FormatConverter<Comment, comment>, prisma: PrismaType
 
 export function CommentModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Comment;
-    const format = formatter();
+    const format = commentFormatter();
 
     return {
         prisma,

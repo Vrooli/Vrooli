@@ -18,11 +18,8 @@ export interface projects_projects_pageInfo {
 export interface projects_projects_edges_node_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface projects_projects_edges_node_owner_Organization {

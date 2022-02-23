@@ -1,7 +1,7 @@
 import { gql } from 'graphql-tag';
 
 export const organizationFields = gql`
-    fragment tagFields on Tag {
+    fragment organizationTagFields on Tag {
         id
         description
         tag
@@ -12,7 +12,7 @@ export const organizationFields = gql`
         bio
         created_at
         tags {
-            ...tagFields
+            ...organizationTagFields
         }
         stars
         isStarred

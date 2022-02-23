@@ -1,7 +1,7 @@
 import { gql } from 'graphql-tag';
 
 export const standardFields = gql`
-    fragment tagFields on Tag {
+    fragment standardTagFields on Tag {
         id
         description
         tag
@@ -17,7 +17,7 @@ export const standardFields = gql`
         isFile
         created_at
         tags {
-            ...tagFields
+            ...standardTagFields
         }
         creator {
             ... on Organization {

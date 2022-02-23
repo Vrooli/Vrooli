@@ -3,20 +3,20 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RoutineCreateInput, MemberRole } from "./globalTypes";
+import { MemberRole } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: routineCreate
+// GraphQL fragment: nodeRoutineFields
 // ====================================================
 
-export interface routineCreate_routineCreate_tags {
+export interface nodeRoutineFields_tags {
   __typename: "Tag";
   id: string;
   description: string | null;
   tag: string;
 }
 
-export interface routineCreate_routineCreate {
+export interface nodeRoutineFields {
   __typename: "Routine";
   id: string;
   version: string | null;
@@ -25,17 +25,5 @@ export interface routineCreate_routineCreate {
   created_at: any;
   isAutomatable: boolean | null;
   role: MemberRole | null;
-  tags: routineCreate_routineCreate_tags[];
-  stars: number;
-  isStarred: boolean;
-  score: number;
-  isUpvoted: boolean | null;
-}
-
-export interface routineCreate {
-  routineCreate: routineCreate_routineCreate;
-}
-
-export interface routineCreateVariables {
-  input: RoutineCreateInput;
+  tags: nodeRoutineFields_tags[];
 }

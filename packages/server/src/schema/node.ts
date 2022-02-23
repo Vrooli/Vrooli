@@ -27,8 +27,6 @@ export const typeDef = gql`
         nodeEndCreate: NodeEndCreateInput
         nodeLoopCreate: NodeLoopCreateInput
         nodeRoutineListCreate: NodeRoutineListCreateInput
-        previousId: ID
-        nextId: ID
         routineId: ID!
     }
     input NodeUpdateInput {
@@ -42,8 +40,6 @@ export const typeDef = gql`
         nodeLoopUpdate: NodeLoopUpdateInput
         nodeRoutineListCreate: NodeRoutineListCreateInput
         nodeRoutineListUpdate: NodeRoutineListUpdateInput
-        previousId: ID
-        nextId: ID
         routineId: ID
     }
     type Node {
@@ -53,12 +49,9 @@ export const typeDef = gql`
         routineId: ID!
         title: String!
         description: String
-        role: MemberRole
         type: NodeType!
         data: NodeData
         routine: Routine!
-        previous: [NodeLink!]!
-        next: [NodeLink!]!
     }
 
     input NodeEndCreateInput {
@@ -171,22 +164,22 @@ export const typeDef = gql`
 
     input NodeLinkCreateInput {
         conditions: [NodeLinkConditionCreateInput!]!
-        previousId: ID!
-        nextId: ID!
+        fromId: ID!
+        toId: ID!
     }
     input NodeLinkUpdateInput {
         id: ID!
         conditionsCreate: [NodeLinkConditionCreateInput!]
         conditionsUpdate: [NodeLinkConditionUpdateInput!]
         conditionsDelete: [ID!]
-        previousId: ID
-        nextId: ID
+        fromId: ID
+        toId: ID
     }
     type NodeLink{
         id: ID!
         conditions: [NodeLinkCondition!]!
-        previousId: ID!
-        nextId: ID!
+        fromId: ID!
+        toId: ID!
     }
     input NodeLinkConditionCreateInput {
         description: String

@@ -10,8 +10,10 @@ import { routine } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { NodeModel } from "./node";
-import { StandardModel } from "./standard";
+import { nodeFormatter, NodeModel } from "./node";
+import { standardFormatter, StandardModel } from "./standard";
+
+export const routineDBFields = ['id', 'created_at', 'updated_at', 'description', 'instructions', 'isAutomatable', 'title', 'version', 'createdByUserId', 'createdByOrganizationId', 'userId', 'organizationId', 'parentId', 'projectId', 'score', 'stars']
 
 //==============================================================
 /* #region Custom Components */
@@ -29,6 +31,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
+        console.log('in relationshipBuilderInput');
         // If nodes field provided, calculate input from nodes. Otherwise, use given input TODO
         // Also calculate each node's previous and next nodes, if those fields are using a UUID 
         // that refers to a new node (i.e. not added to the database before). These UUIDs will
@@ -41,6 +44,7 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         // are not supported in this case (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'inputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         const standardModel = StandardModel(prisma);
+        console.log('relationshipBuilderInput formattedInput', formattedInput);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -163,14 +167,18 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
         input: FindByIdInput,
         info: InfoType = null,
     ): Promise<RecursivePartial<Routine> | null> {
+        console.log('routine find');
         // Create selector
-        const select = selectHelper<Routine, routine>(info, formatter().toDB);
+        const select = selectHelper<Routine, routine>(info, routineFormatter().toDB);
+        console.log('routine find select', select);
         // Access database
         let routine = await prisma.routine.findUnique({ where: { id: input.id }, ...select });
+        console.log('routine find routine', routine);
         // Return routine with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!routine) throw new CustomError(CODE.InternalError, 'Routine not found');
         // Format and add supplemental/calculated fields
         const formatted = await this.supplementalFields(userId, [format.toGraphQL(routine)], {});
+        console.log('routine find formatted[0]', formatted[0]);
         return formatted[0];
     },
     async search(
@@ -413,16 +421,31 @@ const routiner = (format: FormatConverter<Routine, routine>, sort: Sortable<Rout
 /**
  * Component for formatting between graphql and prisma types
  */
-const formatter = (): FormatConverter<Routine, routine> => {
+export const routineFormatter = (): FormatConverter<Routine, routine> => {
     const joinMapper = {
         tags: 'tag',
         starredBy: 'user',
     };
     return {
         toDB: (obj: RecursivePartial<Routine>): RecursivePartial<routine> => {
+            console.log('in routine toDB', obj)
             let modified = addJoinTables(obj, joinMapper);
             modified = removeCreatorField(modified);
             modified = removeOwnerField(modified);
+            // Convert relationships
+            if ((obj as any).inputs?.standard) {
+                modified.inputs.standard = standardFormatter().toDB((obj as any).inputs.standard);
+            }
+            if ((obj as any).outputs?.standard) {
+                modified.outputs.standard = standardFormatter().toDB((obj as any).outputs.standard);
+            }
+            if ((obj as any).nodes?.data) {
+                modified.nodes = nodeFormatter().toDB((obj as any).nodes);
+            }
+            if ((obj as any).parent) {
+                modified.parent = routineFormatter().toDB((obj as any).parent);
+            }
+            //TODO
             // Remove calculated fields
             delete modified.isUpvoted;
             delete modified.isStarred;
@@ -484,7 +507,7 @@ const sorter = (): Sortable<RoutineSortBy> => ({
 
 export function RoutineModel(prisma: PrismaType) {
     const model = MODEL_TYPES.Routine;
-    const format = formatter();
+    const format = routineFormatter();
     const sort = sorter();
 
     return {
@@ -496,7 +519,6 @@ export function RoutineModel(prisma: PrismaType) {
         ...routiner(format, sort, prisma),
     }
 }
-
 //==============================================================
 /* #endregion Model */
 //==============================================================

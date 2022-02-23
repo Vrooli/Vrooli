@@ -78,13 +78,11 @@ model email {
 //==============================================================
 // Nodes describe the structure of a routine orchestration.
 // Nodes come in 7 varieties:
-// 1. COMBINE
-// 2. DECISION
-// 3. END
-// 4. LOOP
-// 5. ROUTINE_LIST
-// 6. REDIRECT
-// 7. START
+// 1. END
+// 2. LOOP
+// 3. ROUTINE_LIST
+// 4. REDIRECT
+// 5. START
 //==============================================================
 
 // One item in a routine orchestration
@@ -98,10 +96,10 @@ model node {
     type            NodeType
     routineId       String             @db.Uuid
     nodeEnd         node_end?
-    nodeLoop        node_loop?
+    nodeLoopFrom    node_loop?         @relation("node_loop_from")
+    nodeLoopTo      node_loop?         @relation("node_loop_to")
     nodeRoutineList node_routine_list?
     routine         routine            @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    WhileItem       node_loop_while[]
     previous        node_link[]        @relation("node_previous")
     next            node_link[]        @relation("node_next")
 }
@@ -120,9 +118,11 @@ model node_end {
 model node_link {
     id         String                @id @default(uuid()) @db.Uuid
     fromId     String                @db.Uuid
+    routineId  String                @db.Uuid
     toId       String                @db.Uuid
     conditions node_link_condition[]
     from       node                  @relation("node_previous", fields: [fromId], references: [id], onDelete: Cascade)
+    routine    routine               @relation(fields: [routineId], references: [id], onDelete: Cascade)
     to         node                  @relation("node_next", fields: [toId], references: [id], onDelete: Cascade)
 }
 
@@ -148,10 +148,12 @@ model node_link_condition_case {
 model node_loop {
     id       String            @id @default(uuid()) @db.Uuid
     loops    Int?              @default(1) // Number of times to loop
-    maxLoops Int?              @default(1) // Maximum number of times to loop=
+    maxLoops Int?              @default(1) // Maximum number of times to loop
+    toId     String?           @db.Uuid@unique
     whiles   node_loop_while[] // Conditions which must be true for loop to continue
     nodeId   String            @unique @db.Uuid
-    node     node              @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+    node     node              @relation("node_loop_from", fields: [nodeId], references: [id], onDelete: Cascade)
+    to       node?             @relation("node_loop_to", fields: [toId], references: [id], onDelete: SetNull)
 }
 
 // A specific "while" condition in a loop node
@@ -160,10 +162,8 @@ model node_loop_while {
     description String?                @db.VarChar(2048)
     title       String                 @db.VarChar(128)
     loopId      String                 @db.Uuid
-    toId        String?                @db.Uuid
     loop        node_loop              @relation(fields: [loopId], references: [id], onDelete: Cascade)
     when        node_loop_while_case[] // All cases must be true for this while condition to be true
-    to          node?                  @relation(fields: [toId], references: [id], onDelete: SetNull)
 }
 
 // A condition which must be true for the loop while item to be true
@@ -428,7 +428,8 @@ model routine {
     project                 project?                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
     inputs                  routine_input[]
     outputs                 routine_output[]
-    nodes                   node[] // Defines an orchestration (i.e. routine is made up of subroutines)
+    nodes                   node[] // Defines the nodes of an orchestration (i.e. routine is made up of subroutines)
+    nodeLinks               node_link[] // Defines the links of an orchestration
     contextualResources     resource[]               @relation("resource_contextual_routine") // Resources to provide context to the routine
     externalResources       resource[]               @relation("resource_external_routine") // Resources for completing steps outside of Vrooli
     forks                   routine[]                @relation("routine_fork")

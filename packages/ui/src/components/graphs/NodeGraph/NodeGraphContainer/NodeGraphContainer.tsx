@@ -150,7 +150,7 @@ export const NodeGraphContainer = ({
             // We set the max number of columns to be 100, but this is arbitrary
             for (let currColumn = 0; currColumn < 100; currColumn++) {
                 // Calculate the IDs of each node in the next column TODO this should be sorted in some way so it shows the same order every time
-                const nextNodes = links.filter(link => posMap[link.previousId]?.column === currColumn).map(link => nodes.find(node => node.id === link.nextId)).filter(node => node) as Node[];
+                const nextNodes = links.filter(link => posMap[link.fromId]?.column === currColumn).map(link => nodes.find(node => node.id === link.toId)).filter(node => node) as Node[];
                 // Add each node to the position map
                 for (let i = 0; i < nextNodes.length; i++) {
                     const curr = nextNodes[i];
@@ -285,12 +285,12 @@ export const NodeGraphContainer = ({
         return links?.map(link => {
             // Center of cells the edge is attached to
             const startPos: Positions = {
-                x: cellPositions[link.previousId].x + cellDimensions[link.previousId].width / 2,
-                y: cellPositions[link.previousId].y + cellDimensions[link.previousId].height / 2,
+                x: cellPositions[link.fromId].x + cellDimensions[link.fromId].width / 2,
+                y: cellPositions[link.fromId].y + cellDimensions[link.fromId].height / 2,
             }
             const endPos: Positions = {
-                x: cellPositions[link.nextId].x + cellDimensions[link.nextId].width / 2,
-                y: cellPositions[link.nextId].y + cellDimensions[link.nextId].height / 2,
+                x: cellPositions[link.toId].x + cellDimensions[link.toId].width / 2,
+                y: cellPositions[link.toId].y + cellDimensions[link.toId].height / 2,
             }
             console.log('start/end', startPos, endPos)
             return <NodeGraphEdge

@@ -12,11 +12,8 @@ import { MemberRole } from "./globalTypes";
 export interface projectFields_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface projectFields_owner_Organization {

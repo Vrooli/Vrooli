@@ -12,11 +12,8 @@ import { MemberRole, StandardType } from "./globalTypes";
 export interface standardFields_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface standardFields_creator_Organization {

@@ -12,11 +12,8 @@ import { OrganizationUpdateInput, MemberRole } from "./globalTypes";
 export interface organizationUpdate_organizationUpdate_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface organizationUpdate_organizationUpdate {

@@ -66,7 +66,6 @@ const determineDepth: any = (node: any, fragments: any, depthSoFar: any, maxDept
                 determineDepth(selection, fragments, depthSoFar + 1, maxDepth, context, operationName, options)
             ))
         case Kind.FRAGMENT_SPREAD:
-            console.log('fragment spread', node.name, operationName, depthSoFar, fragments);
             return determineDepth(fragments[node.name.value], fragments, depthSoFar, maxDepth, context, operationName, options)
         case Kind.INLINE_FRAGMENT:
         case Kind.FRAGMENT_DEFINITION:

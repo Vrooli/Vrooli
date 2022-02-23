@@ -118,5 +118,5 @@ export interface SearchListProps<DataType, SortBy> {
 export interface TagListProps {
     session: Seession;
     parentId: string;
-    tags: Tag[];
+    tags: Partial<Tag>[];
 }

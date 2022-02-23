@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole, NodeType, ResourceUsedFor } from "./globalTypes";
+import { MemberRole, NodeType } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: deepRoutineFields
@@ -12,11 +12,8 @@ import { MemberRole, NodeType, ResourceUsedFor } from "./globalTypes";
 export interface deepRoutineFields_inputs_standard_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface deepRoutineFields_inputs_standard {
@@ -47,30 +44,10 @@ export interface deepRoutineFields_nodes_data_NodeLoop {
   id: string;
 }
 
-export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_tags {
-  __typename: "Tag";
-  id: string;
-  tag: string;
-  description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
-}
-
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
-  version: string | null;
   title: string | null;
-  description: string | null;
-  created_at: any;
-  isAutomatable: boolean | null;
-  role: MemberRole | null;
-  tags: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_tags[];
-  stars: number;
-  isStarred: boolean;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines {
@@ -97,7 +74,6 @@ export interface deepRoutineFields_nodes {
   id: string;
   created_at: any;
   description: string | null;
-  role: MemberRole | null;
   title: string;
   type: NodeType;
   updated_at: any;
@@ -121,8 +97,8 @@ export interface deepRoutineFields_nodeLinks_conditions {
 export interface deepRoutineFields_nodeLinks {
   __typename: "NodeLink";
   id: string;
-  nextId: string;
-  previousId: string;
+  fromId: string;
+  toId: string;
   conditions: deepRoutineFields_nodeLinks_conditions[];
 }
 
@@ -143,11 +119,8 @@ export type deepRoutineFields_owner = deepRoutineFields_owner_Organization | dee
 export interface deepRoutineFields_outputs_standard_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface deepRoutineFields_outputs_standard {
@@ -176,29 +149,28 @@ export interface deepRoutineFields_parent {
 export interface deepRoutineFields_contextualResources {
   __typename: "Resource";
   id: string;
-  title: string;
+  created_at: any;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor | null;
+  title: string;
+  updated_at: any;
 }
 
 export interface deepRoutineFields_externalResources {
   __typename: "Resource";
   id: string;
-  title: string;
+  created_at: any;
   description: string | null;
   link: string;
-  usedFor: ResourceUsedFor | null;
+  title: string;
+  updated_at: any;
 }
 
 export interface deepRoutineFields_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface deepRoutineFields {

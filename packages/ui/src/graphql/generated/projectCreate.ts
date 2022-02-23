@@ -12,11 +12,8 @@ import { ProjectCreateInput, MemberRole } from "./globalTypes";
 export interface projectCreate_projectCreate_tags {
   __typename: "Tag";
   id: string;
-  tag: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  tag: string;
 }
 
 export interface projectCreate_projectCreate_owner_Organization {
