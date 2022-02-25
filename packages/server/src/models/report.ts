@@ -1,10 +1,11 @@
 import { CODE, reportCreate, ReportFor, reportUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { DeleteOneInput, Report, ReportCreateInput, ReportUpdateInput, Success } from "../schema/types";
-import { PrismaType, RecursivePartial } from "types";
+import { PartialSelectConvert, PrismaType, RecursivePartial } from "types";
 import { hasProfanity } from "../utils/censor";
-import { FormatConverter, MODEL_TYPES } from "./base";
+import { FormatConverter, infoToPartialSelect, InfoType, MODEL_TYPES } from "./base";
 import { report } from "@prisma/client";
+import _ from "lodash";
 
 //==============================================================
 /* #region Custom Components */
@@ -20,23 +21,33 @@ const forMapper = {
     [ReportFor.User]: 'userId',
 }
 
+type ReportFormatterType = FormatConverter<Report, report>;
 /**
  * Component for formatting between graphql and prisma types
  */
- export const reportFormatter = (): FormatConverter<Report, report> => {
+export const reportFormatter = (): ReportFormatterType => {
     return {
-        toDB: (obj: RecursivePartial<Report>): RecursivePartial<report> => {
-            let modified = obj;
-            // Remove calculated fields
-            delete modified.isOwn;
+        dbShape: (partial: PartialSelectConvert<Report>): PartialSelectConvert<report> => {
+            let modified = partial;
             // Add userId for calculating isOwn
-            return { ...obj, userId: true } as any;
+            return { ...modified, userId: partial.isOwn ? true : undefined };
         },
-        toGraphQL: (obj: RecursivePartial<report>): RecursivePartial<Report> => {
-            // Dont't show who submitted the report
-            let modified = obj;
-            delete modified.userId;
+        dbPrune: (info: InfoType): PartialSelectConvert<report> => {
+            // Convert GraphQL info object to a partial select object
+            let modified = infoToPartialSelect(info);
+            // Remove calculated fields
+            let { isOwn, ...rest } = modified;
+            modified = rest;
             return modified;
+        },
+        selectToDB: (info: InfoType): PartialSelectConvert<report> => {
+            return reportFormatter().dbShape(reportFormatter().dbPrune(info));
+        },
+        selectToGraphQL: (obj: RecursivePartial<report>): RecursivePartial<Report> => {
+            // Remove userId to hide who submitted the report
+            let { userId, ...rest } = obj;
+            // NOTE: "Add calculated fields" is done in the supplementalFields function. Allows results to batch their database queries.
+            return rest;
         },
     }
 }
@@ -46,7 +57,7 @@ const forMapper = {
  * Only users can add reports, and they can only do so once per object. 
  * They can technically report their own objects, but why would they?
  */
-const reporter = (format: FormatConverter<Report, report>, prisma: PrismaType) => ({
+const reporter = (format: ReportFormatterType, prisma: PrismaType) => ({
     async create(
         userId: string,
         input: ReportCreateInput,
@@ -65,11 +76,12 @@ const reporter = (format: FormatConverter<Report, report>, prisma: PrismaType) =
             }
         })
         // Return report with "isOwn" field
-        return { ...format.toGraphQL(report), isOwn: true };
+        return { ...format.selectToGraphQL(report), isOwn: true };
     },
     async update(
         userId: string,
         input: ReportUpdateInput,
+        info: InfoType,
     ): Promise<RecursivePartial<Report>> {
         // Check for valid arguments
         reportUpdate.validateSync(input, { abortEarly: false });
@@ -92,7 +104,7 @@ const reporter = (format: FormatConverter<Report, report>, prisma: PrismaType) =
             }
         });
         // Format and add supplemental/calculated fields
-        const formatted = await this.supplementalFields(userId, [format.toGraphQL(report)], {});
+        const formatted = await this.supplementalFields(userId, [report], info);
         return formatted[0];
     },
     async delete(userId: string, input: DeleteOneInput): Promise<Success> {
@@ -111,16 +123,15 @@ const reporter = (format: FormatConverter<Report, report>, prisma: PrismaType) =
      */
     async supplementalFields(
         userId: string | null | undefined, // Of the user making the request
-        objects: RecursivePartial<Report & { fromId: string | null }>[],
-        known: { [x: string]: any[] }, // Known values (i.e. don't need to query), in same order as objects
+        objects: RecursivePartial<any>[],
+        info: InfoType, // GraphQL select info
     ): Promise<RecursivePartial<Report>[]> {
-        // If userId not provided, return the input with isOwn false
-        if (!userId) return objects.map(x => ({ ...x, isOwn: false }));
-        // Check is isOwn is provided
-        if (known.isOwn) objects = objects.map((x, i) => ({ ...x, isOwn: known.isOwn[i] }));
-        // Otherwise, query for isOwn
-        else objects = objects.map((x) => ({ ...x, isOwn: x.fromId === userId }));
-        return objects;
+        // Convert GraphQL info object to a partial select object
+        const partial = infoToPartialSelect(info);
+        // Query for isOwn
+        if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.fromId === userId }));
+        // Convert Prisma objects to GraphQL objects
+        return objects.map(format.selectToGraphQL);
     },
     profanityCheck(data: ReportCreateInput | ReportUpdateInput): void {
         if (hasProfanity(data.reason, data.details)) throw new CustomError(CODE.BannedWord);

@@ -13,6 +13,6 @@ export interface deepRoutineResourceFields {
   created_at: any;
   description: string | null;
   link: string;
-  title: string;
+  title: string | null;
   updated_at: any;
 }

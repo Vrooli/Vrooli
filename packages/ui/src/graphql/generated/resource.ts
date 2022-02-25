@@ -12,7 +12,7 @@ import { FindByIdInput, ResourceUsedFor } from "./globalTypes";
 export interface resource_resource {
   __typename: "Resource";
   id: string;
-  title: string;
+  title: string | null;
   description: string | null;
   link: string;
   usedFor: ResourceUsedFor | null;

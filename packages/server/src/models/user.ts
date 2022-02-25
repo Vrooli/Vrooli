@@ -1,14 +1,17 @@
 import { Session, User, Success, Profile, UserSortBy, UserSearchInput, UserCountInput, UserDeleteInput, FindByIdInput, ProfileUpdateInput, Tag, ProfileEmailUpdateInput } from "../schema/types";
-import { addJoinTables, counter, InfoType, JoinMap, MODEL_TYPES, PaginatedSearchResult, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { addJoinTables, counter, FormatterMap, infoToPartialSelect, InfoType, JoinMap, MODEL_TYPES, PaginatedSearchResult, relationshipFormatter, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { CustomError } from "../error";
 import { AccountStatus, CODE, ROLES } from '@local/shared';
 import bcrypt from 'bcrypt';
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
-import { PrismaType, RecursivePartial } from "../types";
+import { PartialSelectConvert, PrismaType, RecursivePartial } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { user } from "@prisma/client";
 import { TagModel } from "./tag";
 import { EmailModel } from "./email";
+import _ from "lodash";
+
+export const userDBFields = ['id', 'created_at', 'updated_at', 'bio', 'username', 'theme', 'numExports', 'lastExport', 'status', 'stars'];
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
 const HASHING_ROUNDS = 8;
@@ -27,10 +30,12 @@ const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
  */
 export type UserFormatConverter = {
     joinMapper?: JoinMap;
-    toDBProfile: (obj: RecursivePartial<Profile>) => RecursivePartial<user>;
-    toDBUser: (obj: RecursivePartial<User>) => RecursivePartial<user>;
-    toGraphQLProfile: (obj: RecursivePartial<user>) => RecursivePartial<Profile>;
-    toGraphQLUser: (obj: RecursivePartial<user>) => RecursivePartial<User>;
+    selectToDBProfile: (obj: RecursivePartial<Profile>) => RecursivePartial<user>;
+    dbShapeUser: (obj: PartialSelectConvert<User>) => PartialSelectConvert<user>;
+    dbPruneUser: (obj: PartialSelectConvert<User>) => PartialSelectConvert<user>;
+    selectToDBUser: (obj: PartialSelectConvert<User>) => PartialSelectConvert<user>;
+    selectToGraphQLProfile: (obj: RecursivePartial<user>) => RecursivePartial<Profile>;
+    selectToGraphQLUser: (obj: RecursivePartial<user>) => RecursivePartial<User>;
 }
 
 /**
@@ -39,28 +44,113 @@ export type UserFormatConverter = {
  */
 export const userFormatter = (): UserFormatConverter => {
     const joinMapper = {
+        hiddenTags: 'tag',
         roles: 'role',
+        starredBy: 'user',
     };
     return {
-        toDBProfile: (obj: RecursivePartial<Profile>): RecursivePartial<user> => {
-            let modified = addJoinTables(obj, joinMapper);
-            // Remove starredTags and hiddenTags, as they are calculated in their own queries
-            delete modified.starredTags;
-            delete modified.hiddenTags;
+        selectToDBProfile: (partial: RecursivePartial<Profile>): RecursivePartial<user> => {
+            let modified = partial;
+            // Convert relationships
+            modified = relationshipFormatter(modified, [
+                ['comments', FormatterMap.Comment.selectToDB],
+                ['hiddenTags', FormatterMap.Tag.selectToDB],
+                ['projects', FormatterMap.Project.selectToDB],
+                ['projectsCreated', FormatterMap.Project.selectToDB],
+                ['reports', FormatterMap.Report.selectToDB],
+                ['resources', FormatterMap.Resource.selectToDB],
+                ['routines', FormatterMap.Routine.selectToDB],
+                ['routinesCreated', FormatterMap.Routine.selectToDB],
+                ['sentReports', FormatterMap.Report.selectToDB],
+                ['starred', FormatterMap.Star.selectToDB],
+                ['starredBy', FormatterMap.User.selectToDBUser],
+                ['tags', FormatterMap.Tag.selectToDB],
+                ['votes', FormatterMap.Vote.selectToDB],
+            ]);
+            // Add join tables not present in GraphQL type, but present in Prisma
+            modified = addJoinTables(modified, joinMapper);
+            // Remove calculated fields
+            let { starredTags, hiddenTags, ...rest } = modified;
+            return rest as any;
+        },
+        dbShapeUser: (partial: PartialSelectConvert<User>): PartialSelectConvert<user> => {
+            // Convert relationships
+            let modified = relationshipFormatter(partial, [
+                ['comments', FormatterMap.Comment.dbShape],
+                ['projects', FormatterMap.Project.dbShape],
+                ['projectsCreated', FormatterMap.Project.dbShape],
+                ['reports', FormatterMap.Report.dbShape],
+                ['resources', FormatterMap.Resource.dbShape],
+                ['routines', FormatterMap.Routine.dbShape],
+                ['routinesCreated', FormatterMap.Routine.dbShape],
+                ['starredBy', FormatterMap.User.dbShapeUser],
+                ['tags', FormatterMap.Tag.dbShape],
+            ]);
+            // Add join tables not present in GraphQL type, but present in Prisma
+            modified = addJoinTables(modified, joinMapper);
             return modified;
         },
-        toDBUser: (obj: RecursivePartial<User>): RecursivePartial<user> => {
-            let modified = addJoinTables(obj, joinMapper);
-            // Remove isStarred, as it is calculated in its own query
-            if (modified.isStarred) delete modified.isStarred;
+        dbPruneUser: (info: InfoType): PartialSelectConvert<user> => {
+            // Convert GraphQL info object to a partial select object
+            let modified = infoToPartialSelect(info);
+            // Remove calculated fields
+            let { isStarred, ...rest } = modified;
+            modified = rest;
+            // Convert relationships
+            modified = relationshipFormatter(modified, [
+                ['comments', FormatterMap.Comment.dbPrune],
+                ['projects', FormatterMap.Project.dbPrune],
+                ['projectsCreated', FormatterMap.Project.dbPrune],
+                ['reports', FormatterMap.Report.dbPrune],
+                ['resources', FormatterMap.Resource.dbPrune],
+                ['routines', FormatterMap.Routine.dbPrune],
+                ['routinesCreated', FormatterMap.Routine.dbPrune],
+                ['starredBy', FormatterMap.User.dbPruneUser],
+                ['tags', FormatterMap.Tag.dbPrune],
+            ]);
             return modified;
         },
-        toGraphQLProfile: (obj: RecursivePartial<user>): RecursivePartial<Profile> => {
-            let modified = removeJoinTables(obj, joinMapper);
+        selectToDBUser: (info: InfoType): PartialSelectConvert<user> => {
+            return userFormatter().dbShapeUser(userFormatter().dbPruneUser(info));
+        },
+        selectToGraphQLProfile: (obj: RecursivePartial<user>): RecursivePartial<Profile> => {
+            if (!_.isObject(obj)) return obj;
+            // Convert relationships
+            let modified = relationshipFormatter(obj, [
+                ['comments', FormatterMap.Comment.selectToGraphQL],
+                ['hiddenTags', FormatterMap.Tag.selectToGraphQL],
+                ['projects', FormatterMap.Project.selectToGraphQL],
+                ['projectsCreated', FormatterMap.Project.selectToGraphQL],
+                ['reports', FormatterMap.Report.selectToGraphQL],
+                ['resources', FormatterMap.Resource.selectToGraphQL],
+                ['routines', FormatterMap.Routine.selectToGraphQL],
+                ['routinesCreated', FormatterMap.Routine.selectToGraphQL],
+                ['sentReports', FormatterMap.Report.selectToGraphQL],
+                ['starred', FormatterMap.Star.selectToGraphQL],
+                ['starredBy', FormatterMap.User.selectToGraphQLUser],
+                ['tags', FormatterMap.Tag.selectToGraphQL],
+                ['votes', FormatterMap.Vote.selectToGraphQL],
+            ]);
+            // Remove join tables that are not present in GraphQL type, but present in Prisma
+            modified = removeJoinTables(modified, joinMapper);
             return modified;
         },
-        toGraphQLUser: (obj: RecursivePartial<user>): RecursivePartial<User> => {
-            let modified = removeJoinTables(obj, joinMapper);
+        selectToGraphQLUser: (obj: RecursivePartial<user>): RecursivePartial<User> => {
+            if (!_.isObject(obj)) return obj;
+            // Convert relationships
+            let modified = relationshipFormatter(obj, [
+                ['comments', FormatterMap.Comment.selectToGraphQL],
+                ['projects', FormatterMap.Project.selectToGraphQL],
+                ['projectsCreated', FormatterMap.Project.selectToGraphQL],
+                ['reports', FormatterMap.Report.selectToGraphQL],
+                ['resources', FormatterMap.Resource.selectToGraphQL],
+                ['routines', FormatterMap.Routine.selectToGraphQL],
+                ['routinesCreated', FormatterMap.Routine.selectToGraphQL],
+                ['starredBy', FormatterMap.User.selectToGraphQLUser],
+                ['tags', FormatterMap.Tag.selectToGraphQL],
+            ]);
+            // Remove join tables that are not present in GraphQL type, but present in Prisma
+            modified = removeJoinTables(modified, joinMapper);
             return modified;
         },
     }
@@ -79,8 +169,8 @@ export const userSorter = (): Sortable<UserSortBy> => ({
             [UserSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [UserSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [UserSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [UserSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
-            [UserSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
+            [UserSortBy.StarsAsc]: { stars: 'asc' },
+            [UserSortBy.StarsDesc]: { stars: 'desc' },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string): any => {
@@ -334,26 +424,26 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
     async findUser(
         userId: string | null | undefined, // Of the user making the request, not the requested user
         input: FindByIdInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<User> | null> {
         // Create selector. Make sure not to select private data
-        const select = selectHelper<User, user>(info, format.toDBUser);
+        const select = selectHelper(info, format.selectToDBUser);
         // Access database
         let user = await prisma.user.findUnique({ where: { id: input.id }, ...select });
         // Return user with "isStarred" field
         // If the user is querying themselves, 
         if (!user) throw new CustomError(CODE.InternalError, 'User not found.');
-        if (!userId || userId === user.id) return { ...format.toGraphQLUser(user), isStarred: false };
+        if (!userId || userId === user.id) return { ...format.selectToGraphQLUser(user), isStarred: false };
         const star = await prisma.star.findFirst({ where: { byId: userId, userId: user.id } });
         const isStarred = Boolean(star) ?? false;
-        return { ...format.toGraphQLUser(user), isStarred };
+        return { ...format.selectToGraphQLUser(user), isStarred };
     },
     async findProfile(
         userId: string,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Profile> | null> {
         // Create selector. Make sure not to select private data
-        const select = selectHelper<Profile, user>(info, format.toDBProfile);
+        const select = selectHelper(info, format.selectToDBProfile);
         // Access database
         const user = await prisma.user.findUnique({ where: { id: userId }, ...select });
         // Return user with "starredTags" and "hiddenTags" fields
@@ -389,13 +479,13 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
                 }
             }
         })).map(({ tag }) => tag) as Tag[]
-        return { ...format.toGraphQLProfile(user), starredTags, hiddenTags };
+        return { ...format.selectToGraphQLProfile(user), starredTags, hiddenTags };
     },
     async searchUsers(
         where: { [x: string]: any },
         userId: string | null | undefined,
         input: UserSearchInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<PaginatedSearchResult> {
         // Many-to-many search queries
         const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
@@ -405,27 +495,23 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
         // Search
-        const search = searcher<UserSortBy, UserSearchInput, User, user>(MODEL_TYPES.User, format.toDBUser, format.toGraphQLUser, sort, prisma);
+        const search = searcher<UserSortBy, UserSearchInput, User, user>(MODEL_TYPES.User, format.selectToDBUser, sort, prisma);
+        console.log('calling user search...')
         let searchResults = await search.search({ ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery, ...where }, input, info);
         // Compute "isStarred" field for each user
-        // If userId not provided, then "isStarred" is false
-        if (!userId) {
-            searchResults.edges = searchResults.edges.map(({ cursor, node }) => ({ cursor, node: { ...node, isStarred: false } }));
-            return searchResults;
-        }
-        // Otherwise, query votes for all search results in one query
         const resultIds = searchResults.edges.map(({ node }) => node.id).filter(id => Boolean(id));
-        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, userId: { in: resultIds } } });
-        searchResults.edges = searchResults.edges.map(({ cursor, node }) => {
-            const isStarred = Boolean(isStarredArray.find(({ userId }) => userId === node.id));
-            return { cursor, node: { ...node, isStarred } };
-        });
+        const isStarredArray = userId
+            ? await prisma.star.findMany({ where: { byId: userId, userId: { in: resultIds } } })
+            : Array(resultIds.length).fill(null);
+        searchResults.edges = searchResults.edges.map(({ cursor, node }, i) => ({
+            cursor, node: { ...node, isStarred: isStarredArray[i] }
+        }));
         return searchResults;
     },
     async updateProfile(
         userId: string,
         input: ProfileUpdateInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Profile>> {
         // Check for valid arguments
         if (!input.username || input.username.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
@@ -452,14 +538,14 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         const user = await prisma.user.update({
             where: { id: userId },
             data: userData,
-            ...selectHelper<Profile, user>(info, format.toDBProfile)
+            ...selectHelper(info, format.selectToDBProfile)
         });
-        return format.toGraphQLProfile(user)
+        return format.selectToGraphQLProfile(user)
     },
     async updateEmails(
         userId: string,
         input: ProfileEmailUpdateInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Profile>> {
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
@@ -480,9 +566,9 @@ const userer = (format: UserFormatConverter, sort: Sortable<UserSortBy>, prisma:
         user = await prisma.user.update({
             where: { id: userId },
             data: userData,
-            ...selectHelper<Profile, user>(info, format.toDBProfile)
+            ...selectHelper(info, format.selectToDBProfile)
         });
-        return format.toGraphQLProfile(user)
+        return format.selectToGraphQLProfile(user)
     },
     async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
         // Check for correct password

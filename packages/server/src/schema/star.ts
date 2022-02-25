@@ -18,12 +18,16 @@ export const typeDef = gql`
         User
     }   
 
-    union Stars = Comment | Organization | Project | Routine | Standard | Tag
+    union StarTo = Comment | Organization | Project | Routine | Standard | Tag
 
     input StarInput {
         isStar: Boolean!
         starFor: StarFor!
         forId: ID!
+    }
+    type Star {
+        from: User!
+        to: StarTo!
     }
 
     extend type Mutation {
@@ -33,10 +37,9 @@ export const typeDef = gql`
 
 export const resolvers = {
     StarFor: StarFor,
-    Stars: {
+    Star: {
         __resolveType(obj: any) {
             console.log('IN STAR __resolveType', obj);
-            console.log('IN Contributor __resolveType', obj);
             // Only an Organization has a name and bio field
             if (obj.hasOwnProperty('name') && obj.hasOwnProperty('bio')) return 'Organization';
             // Only a Project has a name and description field

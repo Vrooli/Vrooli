@@ -152,7 +152,7 @@ export interface deepRoutineFields_contextualResources {
   created_at: any;
   description: string | null;
   link: string;
-  title: string;
+  title: string | null;
   updated_at: any;
 }
 
@@ -162,7 +162,7 @@ export interface deepRoutineFields_externalResources {
   created_at: any;
   description: string | null;
   link: string;
-  title: string;
+  title: string | null;
   updated_at: any;
 }
 

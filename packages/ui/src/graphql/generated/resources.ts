@@ -18,7 +18,7 @@ export interface resources_resources_pageInfo {
 export interface resources_resources_edges_node {
   __typename: "Resource";
   id: string;
-  title: string;
+  title: string | null;
   description: string | null;
   link: string;
   usedFor: ResourceUsedFor | null;

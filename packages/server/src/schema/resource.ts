@@ -43,7 +43,7 @@ export const typeDef = gql`
         description: String
         link: String!
         title: String
-        usedFor: ResourceUsedFor
+        usedFor: ResourceUsedFor!
     }
     input ResourceUpdateInput {
         id: ID!
@@ -62,7 +62,7 @@ export const typeDef = gql`
         createdForId: ID!
         description: String
         link: String!
-        title: String!
+        title: String
         usedFor: ResourceUsedFor
     }
 

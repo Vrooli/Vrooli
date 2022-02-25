@@ -559,7 +559,7 @@ export interface ResourceCreateInput {
   description?: string | null;
   link: string;
   title?: string | null;
-  usedFor?: ResourceUsedFor | null;
+  usedFor: ResourceUsedFor;
 }
 
 export interface ResourceSearchInput {

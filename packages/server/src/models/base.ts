@@ -1,11 +1,24 @@
 // Components for providing basic functionality to model objects
 import { PageInfo, TimeFrame } from '../schema/types';
-import { PrismaType, RecursivePartial } from '../types';
+import { PartialSelectConvert, PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
 import graphqlFields from 'graphql-fields';
 import pkg from 'lodash';
 import _ from 'lodash';
+import { commentFormatter } from './comment';
+import { nodeFormatter } from './node';
+import { organizationFormatter } from './organization';
+import { projectFormatter } from './project';
+import { reportFormatter } from './report';
+import { resourceFormatter } from './resource';
+import { roleFormatter } from './role';
+import { routineFormatter } from './routine';
+import { standardFormatter } from './standard';
+import { tagFormatter } from './tag';
+import { userFormatter } from './user';
+import { starFormatter } from './star';
+import { voteFormatter } from './vote';
 const { isObject } = pkg;
 
 
@@ -28,15 +41,25 @@ export type FormatConverter<GraphQLModel, FullDBModel> = {
      */
     countMapper?: CountMap;
     /**
-     * Converts object from GraphQL representation to Prisma
+     * Reshapes GraphQL select to match Prisma select query
      * @param obj GraphQL object to convert
      */
-    toDB: (obj: RecursivePartial<GraphQLModel>) => RecursivePartial<FullDBModel>;
+    dbShape: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>;
     /**
-     * Converts object from Prisma representation to GraphQL
-     * @param obj - Prisma object to convert
+    * Deletes calculated/virtual fields from GraphQL object
+    * @param obj GraphQL object to convert
+    */
+    dbPrune: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>;
+    /**
+     * Calls dbShape and dbPrune
+     * @param obj GraphQL object to convert
      */
-    toGraphQL: (obj: RecursivePartial<FullDBModel>) => RecursivePartial<GraphQLModel>;
+    selectToDB: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>;
+    /**
+     * Reshapes Prisma select result to match GraphQL
+     * * @param obj Prisma object to convert
+     */
+    selectToGraphQL: (obj: RecursivePartial<FullDBModel>) => RecursivePartial<GraphQLModel>;
 }
 
 /**
@@ -73,6 +96,7 @@ export const MODEL_TYPES = {
     Role: 'role',
     Routine: 'routine',
     Standard: 'standard',
+    Star: 'star',
     Tag: 'tag',
     User: 'user',
     Vote: 'vote',
@@ -129,7 +153,8 @@ export type CountInputBase = {
  * @param obj - GraphQL-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
-export const addJoinTables = (obj: any, map: JoinMap): any => {
+export const addJoinTables = (obj: any, map: JoinMap | undefined): any => {
+    if (!map) return obj;
     // Create result object
     let result: any = {};
     // Iterate over join map
@@ -158,7 +183,8 @@ export const addJoinTables = (obj: any, map: JoinMap): any => {
  * @param obj - DB-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
-export const removeJoinTables = (obj: any, map: JoinMap): any => {
+export const removeJoinTables = (obj: any, map: JoinMap | undefined): any => {
+    if (!map) return obj;
     // Create result object
     let result: any = {};
     // Iterate over join map
@@ -186,7 +212,8 @@ export const removeJoinTables = (obj: any, map: JoinMap): any => {
  * @param obj - GraphQL-shaped object
  * @param map - Mapping of GraphQL field names to Prisma relationship names
  */
-export const addCountQueries = (obj: any, map: CountMap): any => {
+export const addCountQueries = (obj: any, map: CountMap | undefined): any => {
+    if (!map) return obj;
     // Create result object
     let result: any = {};
     // Iterate over join map
@@ -206,64 +233,69 @@ export const addCountQueries = (obj: any, map: CountMap): any => {
 /**
  * Helper function for converting creator GraphQL field to Prisma createdByUser/createdByOrganization fields
  */
-export const removeCreatorField = (modified: any): any => {
-    modified.createdByUser = {
-        id: true,
-        username: true,
+export const removeCreatorField = (select: any): any => {
+    let { creator, ...rest } = select;
+    return {
+        ...rest,
+        createdByUser: {
+            id: true,
+            username: true,
+        },
+        createdByOrganization: {
+            id: true,
+            name: true,
+        }
     }
-    modified.createdByOrganization = {
-        id: true,
-        name: true,
-    }
-    delete modified.creator;
-    return modified;
 }
 
 /**
  * Helper function for Prisma createdByUser/createdByOrganization fields to GraphQL creator field
  */
-export const addCreatorField = (modified: any): any => {
-    if (modified.createdByUser?.id) {
-        modified.creator = modified.createdByUser;
-    } else if (modified.createdByOrganization?.id) {
-        modified.creator = modified.createdByOrganization;
+export const addCreatorField = (data: any): any => {
+    let { createdByUser, createdByOrganization, ...rest } = data;
+    return {
+        ...rest,
+        creator: 
+            createdByUser?.id
+            ? userFormatter().selectToGraphQLUser(createdByUser)
+            : createdByOrganization?.id
+            ? organizationFormatter().selectToGraphQL(createdByOrganization)
+            : null
     }
-    else modified.creator = null;
-    delete modified.createdByUser;
-    delete modified.createdByOrganization;
-    return modified;
 }
 
 /**
  * Helper function for converting owner GraphQL field to Prisma user/organization fields
  */
-export const removeOwnerField = (modified: any): any => {
-    modified.user = {
-        id: true,
-        username: true,
+export const removeOwnerField = (select: any): any => {
+    let { creator, ...rest } = select;
+    return {
+        ...rest,
+        user: {
+            id: true,
+            username: true,
+        },
+        organization: {
+            id: true,
+            name: true,
+        }
     }
-    modified.organization = {
-        id: true,
-        name: true,
-    }
-    delete modified.owner;
-    return modified;
 }
 
 /**
  * Helper function for Prisma user/organization fields to GraphQL owner field
  */
-export const addOwnerField = (modified: any): any => {
-    if (modified.user?.id) {
-        modified.owner = modified.user;
-    } else if (modified.organization?.id) {
-        modified.owner = modified.organization;
+export const addOwnerField = (data: any): any => {
+    let { user, organization, ...rest } = data;
+    return {
+        ...rest,
+        owner: 
+            user?.id
+            ? userFormatter().selectToGraphQLUser(user)
+            : organization?.id
+            ? organizationFormatter().selectToGraphQL(organization)
+            : null
     }
-    else modified.owner = null;
-    console.log('addOwnerField result', modified.owner);
-    delete modified.user;
-    delete modified.organization;
-    return modified;
 }
 
 /**
@@ -325,29 +357,83 @@ export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } =>
 }
 
 /**
+ * Converts a GraphQL info object to a partial Prisma select. 
+ * This is then passed into a model-specific converter to handle virtual/calculated fields,
+ * unions, and other special cases.
+ * NOTE: If this function is applied to an object multiple times, it will return the same object
+ */
+export const infoToPartialSelect = (info: InfoType): any => {
+    // Return undefined if info not set
+    if (!info) return undefined;
+    // Find select fields in info object
+    let select = info.hasOwnProperty('fieldName') ?
+        formatGraphQLFields(graphqlFields((info as GraphQLResolveInfo), {}, {})) :
+        info;
+    // If fields are in the shape of a paginated search query, then convert to a Prisma select object
+    if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
+        select = select.edges.node;
+    }
+    return select;
+}
+
+/**
  * Helper function for creating a Prisma select object. 
  * If the select object is in the shape of a paginated search query, 
  * then it will be converted to a prisma select object.
  * @returns select object for Prisma operations
  */
-export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB']): any => {
-    // Return undefined if info not set
-    if (!info) return undefined;
-    console.log('in selectHelper', info.hasOwnProperty('fieldName'));
-    // Find select fields in info object
-    let select = info.hasOwnProperty('fieldName') ?
-        formatGraphQLFields(graphqlFields((info as GraphQLResolveInfo), {}, {})) :
-        info;
-    console.log('select here', select);
-    // If fields are in the shape of a paginated search query, then convert to a Prisma select object
-    if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
-        select = select.edges.node;
+export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>): any => {
+    // Convert partial's special cases (virtual/calculated fields, unions, etc.)
+    let partial = toDB(info);
+    if (!_.isObject(partial)) return undefined;
+    // Delete __typename fields
+    partial = removeTypenames(partial);
+    // Pad every relationship with "select"
+    const padded = padSelect(partial);
+    return padded;
+}
+
+export const FormatterMap = {
+    'Comment': commentFormatter(),
+    'Node': nodeFormatter(),
+    'Organization': organizationFormatter(),
+    'Profile': userFormatter(),
+    'Project': projectFormatter(),
+    'Report': reportFormatter(),
+    'Resource': resourceFormatter(),
+    'Role': roleFormatter(),
+    'Routine': routineFormatter(),
+    'Standard': standardFormatter(),
+    'Star': starFormatter(),
+    'Tag': tagFormatter(),
+    'User': userFormatter(),
+    'Vote': voteFormatter(),
+}
+/**
+ * Calls specified formatter function on every relationship field that appears in partial info object
+ * @param partial - partial select object
+ * @param relationshipTuples - [name of relationship's field, formatter function]
+ * @returns partial with relationships converted
+ */
+export const relationshipFormatter = (partial: any, relationshipTuples: [string, (obj: any) => any][]): any => {
+    console.log('relationshipFormatter', partial)
+    let modified = partial;
+    // If no relationships, return
+    if (!relationshipTuples) return modified;
+    // Iterate over relationships
+    for (const [field, format] of relationshipTuples) {
+        // Check if relationship exists
+        if (modified[field]) {
+            // If array, format each element
+            if (Array.isArray(modified[field])) {
+                modified[field] = modified[field].map(format);
+            } else {
+                modified[field] = format(modified[field]);
+            }
+            console.log('relationshipformatter modified field', field, partial)
+        }
     }
-    // Convert select from graphQL to database
-    select = toDB(select as any);
-    // Make sure to delete all occurrences of the __typename field
-    select = removeTypenames(select);
-    return padSelect(select);
+    return modified;
 }
 
 /**
@@ -357,8 +443,7 @@ export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: Fo
  */
 export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, GraphQLModel, FullDBModel>(
     model: keyof PrismaType,
-    toDB: FormatConverter<GraphQLModel, FullDBModel>['toDB'],
-    toGraphQL: FormatConverter<GraphQLModel, FullDBModel>['toGraphQL'],
+    selectToDB: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>,
     sorter: Sortable<any>,
     prisma: PrismaType) => ({
         /**
@@ -368,11 +453,9 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
          * @param info Requested return information
          */
         async search(where: { [x: string]: any }, input: SearchInput, info: InfoType): Promise<PaginatedSearchResult> {
-            const boop = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
-            console.log('SEARCH BOIII', boop)
-            console.log('SEARCH BOIII _COUNT', boop._count)
             // Create selector
-            const select = selectHelper<GraphQLModel, FullDBModel>(info, toDB);
+            const select = selectHelper(info, selectToDB);
+            console.log('search select', select)
             // Create query for specified ids
             const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
             // Determine sort order
@@ -419,7 +502,7 @@ export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, Gr
                     },
                     edges: searchResults.map((result: any) => ({
                         cursor: result.id,
-                        node: toGraphQL(result),
+                        node: result,
                     }))
                 }
             }
@@ -659,4 +742,45 @@ export const joinRelationshipToPrisma = ({
         converted.update = Array.isArray(converted.update) ? [...converted.update, ...dataArray] : dataArray;
     }
     return converted;
+}
+
+/**
+ * Recursively removes fields which are not present in both objects
+ * @param a First object
+ * @param b Second object
+ * @returns Recursive intersection of a and b
+ */
+export function omitDeep(a: { [x: string]: any }, b: { [x: string]: any }): { [x: string]: any } {
+    const keys = Object.keys(a);
+    const result: { [x: string]: any } = {};
+    for (const key of keys) {
+        if (b[key] !== undefined) {
+            if (typeof a[key] === 'object') {
+                result[key] = omitDeep(a[key], b[key]);
+            } else {
+                result[key] = a[key];
+            }
+        }
+    }
+    return result;
+}
+
+/**
+ * Converts a GraphQL union into a Prisma select.
+ * All possible union fields which the user wants to select are in the info partial, but they are not separated by type.
+ * This function performs a nested intersection between each union type's avaiable fields, and the fields which were 
+ * requested by the user.
+ * @param partial - partial select object
+ * @param unionField - Name of the union field
+ * @param relationshipTuples - [name of Prisma relationship field, fields which should be selected if they are in partial]
+ * @returns partial select object with GraphQL union converted into Prisma relationship selects
+ */
+export const deconstructUnion = (partial: any, unionField: string, relationshipTuples: [string, { [x: string]: any }][]): any => {
+    let { [unionField]: unionData, ...rest } = partial;
+    // If field in partial is not an object, return partial unmodified
+    if (!unionData) return partial;
+    for (const [relationshipName, selectFields] of relationshipTuples) {
+        rest[relationshipName] = omitDeep(selectFields, partial);
+    }
+    return rest;
 }

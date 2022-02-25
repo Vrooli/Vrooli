@@ -149,7 +149,7 @@ model node_loop {
     id       String            @id @default(uuid()) @db.Uuid
     loops    Int?              @default(1) // Number of times to loop
     maxLoops Int?              @default(1) // Maximum number of times to loop
-    toId     String?           @db.Uuid@unique
+    toId     String?           @unique @db.Uuid
     whiles   node_loop_while[] // Conditions which must be true for loop to continue
     nodeId   String            @unique @db.Uuid
     node     node              @relation("node_loop_from", fields: [nodeId], references: [id], onDelete: Cascade)
@@ -633,7 +633,7 @@ model user {
     hiddenTags                     user_tag_hidden[]
     sentReports                    report[]             @relation("report_from")
     reports                        report[]
-    votes                          vote[]               @relation("vote_user") // Votes the user has cast, NOT votes the user has received (since users can't be voted on)
+    votes                          vote[]               @relation("vote_by") // Votes the user has cast, NOT votes the user has received (since users can't be voted on)
 }
 
 // Joining table to apply roles to user
@@ -674,12 +674,12 @@ model user_tag_hidden {
 model vote {
     id         String    @id @default(uuid()) @db.Uuid
     isUpvote   Boolean   @default(true) // Determines if vote is upvote or downvote
-    userId     String    @db.Uuid // ID of user who voted
+    byId       String    @db.Uuid // ID of user who voted
     commentId  String?   @db.Uuid
     projectId  String?   @db.Uuid
     routineId  String?   @db.Uuid
     standardId String?   @db.Uuid
-    user       user      @relation("vote_user", fields: [userId], references: [id])
+    by         user      @relation("vote_by", fields: [byId], references: [id])
     comment    comment?  @relation("vote_comment", fields: [commentId], references: [id])
     project    project?  @relation("vote_project", fields: [projectId], references: [id], onDelete: Cascade)
     routine    routine?  @relation("vote_routine", fields: [routineId], references: [id], onDelete: Cascade)

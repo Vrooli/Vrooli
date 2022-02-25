@@ -55,7 +55,7 @@ export const resolvers = {
         reportUpdate: async (_parent: undefined, { input }: IWrap<ReportUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report>> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await ReportModel(prisma).update(req.userId, input);
+            return await ReportModel(prisma).update(req.userId, input, info);
         },
         reportDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account

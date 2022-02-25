@@ -1,10 +1,11 @@
 import { CODE, resourceCreate, ResourceFor, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, DeleteManyInput, Count, FindByIdInput } from "../schema/types";
-import { PrismaType, RecursivePartial } from "types";
-import { counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, RelationshipTypes, searcher, selectHelper, Sortable } from "./base";
+import { PartialSelectConvert, PrismaType, RecursivePartial } from "types";
+import { counter, FormatConverter, infoToPartialSelect, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, RelationshipTypes, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { CustomError } from "../error";
 import { resource } from "@prisma/client";
+import _ from "lodash";
 
 //==============================================================
 /* #region Custom Components */
@@ -19,18 +20,32 @@ const forMap = {
     [ResourceFor.User]: 'userId',
 }
 
+type ResourceFormatterType = FormatConverter<Resource, resource>;
 /**
  * Component for formatting between graphql and prisma types
  */
-export const resourceFormatter = (): FormatConverter<Resource, resource> => ({
-    toDB: (obj: RecursivePartial<Resource>): RecursivePartial<resource> => (obj as any), //TODO
-    toGraphQL: (obj: RecursivePartial<resource>): RecursivePartial<Resource> => (obj as any) //TODO
+export const resourceFormatter = (): ResourceFormatterType => ({
+    dbShape: (partial: PartialSelectConvert<Resource>): PartialSelectConvert<resource> => {
+        let modified = partial;
+        return modified;
+    },
+    dbPrune: (info: InfoType): PartialSelectConvert<resource> => {
+        // Convert GraphQL info object to a partial select object
+        let modified = infoToPartialSelect(info);
+        return modified;
+    },
+    selectToDB: (info: InfoType): PartialSelectConvert<resource> => {
+        return resourceFormatter().dbShape(resourceFormatter().dbPrune(info));
+    },
+    selectToGraphQL: (obj: RecursivePartial<resource>): RecursivePartial<Resource> => {
+        return obj as any;
+    },
 })
 
 /**
  * Handles the authorized adding, updating, and deleting of resources.
  */
-const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<ResourceSortBy>, prisma: PrismaType) => ({
+const resourcer = (format: ResourceFormatterType, sort: Sortable<ResourceSortBy>, prisma: PrismaType) => ({
     /**
      * Add, update, or remove a resource relationship from an organization, project, routine, or user
      */
@@ -68,30 +83,31 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
     async find(
         userId: string | null | undefined, // Of the user making the request, not the organization
         input: FindByIdInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Resource> | null> {
         // Create selector
-        const select = selectHelper<Resource, resource>(info, format.toDB);
+        const select = selectHelper(info, format.selectToDB);
         // Access database
         const resource = await prisma.resource.findUnique({ where: { id: input.id }, ...select });
-        return resource ? format.toGraphQL(resource) : null;
+        return resource ? format.selectToGraphQL(resource) : null;
     },
     async search(
         where: { [x: string]: any },
         userId: string | null | undefined,
         input: ResourceSearchInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<PaginatedSearchResult> {
         const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
         // Search
-        const search = searcher<ResourceSortBy, ResourceSearchInput, Resource, resource>(MODEL_TYPES.Resource, format.toDB, format.toGraphQL, sort, prisma);
+        const search = searcher<ResourceSortBy, ResourceSearchInput, Resource, resource>(MODEL_TYPES.Resource, format.selectToDB, sort, prisma);
+        console.log('calling resource search...')
         let searchResults = await search.search({ ...forQuery, ...where }, input, info);
         return searchResults;
     },
     async create(
         userId: string,
         input: ResourceCreateInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Resource>> {
         // TODO authorize user
         // Check for valid arguments
@@ -101,16 +117,18 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         // Filter out for and forId, since they are not part of the resource object
         const { createdFor, createdForId, ...resourceData } = input;
         // Map forId to correct field
-        const data = { ...resourceData, [forMap[createdFor]]: createdForId }
+        const data = { ...resourceData, [forMap[createdFor]]: createdForId as any }
         // Create
-        const resource = await prisma.resource.create({ data: data as any });
-        // Return query
-        return await prisma.resource.findFirst({ where: { id: resource.id }, ...selectHelper<Resource, resource>(info, format.toDB) }) as any;
+        const resource = await prisma.resource.create({
+            data: data,
+            ...selectHelper(info, format.selectToDB)
+        });
+        return { ...format.selectToGraphQL(resource) }
     },
     async update(
         userId: string,
         input: ResourceUpdateInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Resource>> {
         // TODO authorize user
         // Check for valid arguments
@@ -133,7 +151,7 @@ const resourcer = (format: FormatConverter<Resource, resource>, sort: Sortable<R
         return await prisma.resource.update({
             where: { id: input.id },
             data,
-            ...selectHelper<Resource, resource>(info, format.toDB)
+            ...selectHelper(info, format.selectToDB)
         }) as any;
     },
     async delete(userId: string, input: DeleteManyInput): Promise<Count> {

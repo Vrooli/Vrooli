@@ -12,7 +12,7 @@ import { ResourceCreateInput, ResourceUsedFor } from "./globalTypes";
 export interface resourceCreate_resourceCreate {
   __typename: "Resource";
   id: string;
-  title: string;
+  title: string | null;
   description: string | null;
   link: string;
   usedFor: ResourceUsedFor | null;

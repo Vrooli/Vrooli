@@ -1,11 +1,12 @@
 import { DeleteOneInput, Node, NodeCreateInput, NodeType, NodeUpdateInput, Success } from "../schema/types";
-import { addOwnerField, FormatConverter, InfoType, MODEL_TYPES, relationshipToPrisma, RelationshipTypes, removeOwnerField, selectHelper } from "./base";
+import { deconstructUnion, FormatConverter, FormatterMap, infoToPartialSelect, InfoType, MODEL_TYPES, omitDeep, relationshipFormatter, relationshipToPrisma, RelationshipTypes, removeOwnerField, selectHelper } from "./base";
 import { CustomError } from "../error";
 import { CODE, condition, conditionsCreate, conditionsUpdate, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
-import { PrismaType, RecursivePartial } from "types";
+import { PartialSelectConvert, PrismaType, RecursivePartial } from "types";
 import { node } from "@prisma/client";
 import { hasProfanityRecursive } from "../utils/censor";
 import { routineDBFields, RoutineModel } from "./routine";
+import _ from "lodash";
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -13,19 +14,21 @@ const MAX_NODES_IN_ROUTINE = 100;
 /* #region Custom Components */
 //==============================================================
 
+type NodeFormatterType = FormatConverter<Node, node>;
 /**
  * Component for formatting between graphql and prisma types
  */
-export const nodeFormatter = (): FormatConverter<Node, node> => {
+export const nodeFormatter = (): NodeFormatterType => {
     return {
-        toDB: (obj: RecursivePartial<Node>): RecursivePartial<node> => {
-            let modified: any = obj;
-            // Convert data field to select all data types
-            if (modified.data) {
-                modified.nodeEnd = {
+        dbShape: (partial: PartialSelectConvert<Node>): PartialSelectConvert<node> => {
+            let modified = partial;
+            console.log('in nodeFormatter.selectToDB', modified);
+            // Deconstruct GraphQL unions
+            modified = deconstructUnion(modified, 'data', [
+                ['nodeEnd', {
                     wasSuccessful: true,
-                }
-                modified.nodeLoopFrom = {
+                }],
+                ['nodeLoopFrom', {
                     loops: true,
                     maxLoops: true,
                     toId: true,
@@ -36,8 +39,8 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
                             condition: true,
                         }
                     }
-                }
-                modified.nodeRoutineList = {
+                }],
+                ['nodeRoutineList', {
                     isOrdered: true,
                     isOptional: true,
                     routines: {
@@ -49,32 +52,49 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
                             ...Object.fromEntries(routineDBFields.map(f => [f, true])),
                         }
                     }
-                }
-                // modified.nodeRedirect = {
-                //     //TODO
-                // }
-                delete modified.data;
-            }
-            return modified
+                }],
+                // TODO modified.nodeRedirect
+            ]);
+            // Convert relationships
+            modified = relationshipFormatter(modified, [
+                ['routine', FormatterMap.Routine.dbShape],
+            ]);
+            return modified;
         },
-        toGraphQL: (obj: RecursivePartial<node>): RecursivePartial<Node> => {
-            // Create data field from data types
-            let modified: any = obj;
-            // else if (obj.nodeEnd) { TODO
+        dbPrune: (info: InfoType): PartialSelectConvert<node> => {
+            // Convert GraphQL info into to a partial select infoect
+            let modified = infoToPartialSelect(info);
+            // Convert relatÎionships
+            modified = relationshipFormatter(modified, [
+                ['routine', FormatterMap.Routine.dbPrune],
+            ]);
+            return modified;
+        },
+        selectToDB: (info: InfoType): PartialSelectConvert<node> => {
+            return nodeFormatter().dbShape(nodeFormatter().dbPrune(info));
+        },
+        selectToGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Node> => {
+            // Create unions
+            let { nodeEnd, nodeLoopFrom, nodeRoutineList, nodeRedirect, ...modified } = obj;
+            if (nodeEnd) {
+                modified.data = nodeEnd;
+            }
+            else if (nodeLoopFrom) {
+                modified.data = nodeLoopFrom;
+            }
+            else if (nodeRoutineList) {
+                modified.data = {
+                    ...nodeRoutineList,
+                    routines: nodeRoutineList.routines.map((r: any) => FormatterMap.Routine.selectToGraphQL(r)),
+                }
+            }
+            // else if (nodeRedirect) { TODO
             // }
-            // else if (obj.nodeLoopFrom) {
-            // }
-            // else if (obj.nodeRoutineList) {
-            // }
-            // else if (obj.nodeRedirect) {
-            // }
-            // else if (obj.nodeStart) {
-            // }
-            delete modified.nodeEnd;
-            delete modified.nodeLoop;
-            delete modified.nodeRoutineList;
-            delete modified.nodeRedirect;
-            delete modified.nodeStart;
+            // Convert relationships 
+            modified = relationshipFormatter(modified, [
+                ['routine', FormatterMap.Routine.selectToGraphQL],
+            ]);
+            // NOTE: "Add calculated fields" is done in the supplementalFields function. Allows results to batch their database queries.
             return modified;
         },
     }
@@ -83,7 +103,7 @@ export const nodeFormatter = (): FormatConverter<Node, node> => {
 /**
  * Handles the authorized adding, updating, and deleting of nodes.
  */
-const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
+const noder = (format: NodeFormatterType, prisma: PrismaType) => ({
     /**
      * Add, update, or remove node link condition case from a routine
      */
@@ -162,31 +182,31 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeLinks', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
-            for (const data of formattedInput.create) {
+            for (let data of formattedInput.create) {
                 // Check for valid arguments
                 nodeLinksCreate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.decisions = this.relationshipBuilderNodeLinkCondition(userId, data, isAdd);
-                data.from = { connect: { id: data.fromId } };
-                delete data.fromId;
-                data.to = { connect: { id: data.toId } };
-                delete data.toId;
+                let { fromId, toId, ...rest } = data;
+                data = {
+                    ...rest,
+                    from: { connect: { id: data.fromId } },
+                    to: { connect: { id: data.toId } },
+                };
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
+            for (let data of formattedInput.update) {
                 // Check for valid arguments
                 nodeLinksUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.decisions = this.relationshipBuilderNodeLinkCondition(userId, data, isAdd);
-                if (data.fromId) {
-                    data.from = { connect: { id: data.fromId } };
-                    delete data.fromId;
-                }
-                if (data.toId) {
-                    data.to = { connect: { id: data.toId } };
-                    delete data.toId;
+                let { fromId, toId, ...rest } = data;
+                data = {
+                    ...rest,
+                    from: fromId ? { connect: { id: data.fromId } } : undefined,
+                    to: toId ? { connect: { id: data.toId } } : undefined,
                 }
             }
         }
@@ -418,7 +438,7 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
     async create(
         userId: string,
         input: NodeCreateInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Node>> {
         // Check for valid arguments
         nodeCreate.validateSync(input, { abortEarly: false });
@@ -452,15 +472,15 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         // Create node
         const node = await prisma.node.create({
             data: nodeData,
-            ...selectHelper<Node, node>(info, format.toDB)
+            ...selectHelper(info, format.selectToDB)
         })
         // Return project
-        return { ...format.toGraphQL(node) } as any;
+        return { ...format.selectToGraphQL(node) } as any;
     },
     async update(
         userId: string,
         input: NodeUpdateInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Node>> {
         // Check for valid arguments
         nodeUpdate.validateSync(input, { abortEarly: false });
@@ -504,10 +524,10 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
         node = await prisma.node.update({
             where: { id: node.id },
             data: nodeData,
-            ...selectHelper<Node, node>(info, format.toDB)
+            ...selectHelper(info, format.selectToDB)
         });
         // Format and add supplemental/calculated fields
-        const formatted = await this.supplementalFields(userId, [format.toGraphQL(node)], {});
+        const formatted = await this.supplementalFields(userId, [node], info);
         return formatted[0];
     },
     async delete(userId: string, input: DeleteOneInput): Promise<Success> {
@@ -524,10 +544,11 @@ const noder = (format: FormatConverter<Node, node>, prisma: PrismaType) => ({
      */
     async supplementalFields(
         userId: string | null | undefined, // Of the user making the request
-        objects: RecursivePartial<Node>[],
-        known: { [x: string]: any[] }, // Known values (i.e. don't need to query), in same order as objects
+        objects: RecursivePartial<any>[],
+        info: InfoType, // GraphQL select info
     ): Promise<RecursivePartial<Node>[]> {
-        return objects;
+        // Convert Prisma objects to GraphQL objects
+        return objects.map(format.selectToGraphQL);
     },
     profanityCheck(data: NodeCreateInput | NodeUpdateInput): void {
         if (hasProfanityRecursive(data, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);

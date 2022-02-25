@@ -1,23 +1,27 @@
 import { CODE, MemberRole, standardCreate, standardUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { PrismaType, RecursivePartial } from "types";
+import { PartialSelectConvert, PrismaType, RecursivePartial } from "types";
 import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Success } from "../schema/types";
-import { addCountQueries, addCreatorField, addJoinTables, counter, FormatConverter, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { addCountQueries, addCreatorField, addJoinTables, counter, FormatConverter, FormatterMap, infoToPartialSelect, InfoType, MODEL_TYPES, PaginatedSearchResult, relationshipFormatter, relationshipToPrisma, removeCountQueries, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { standard } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
+import _ from "lodash";
+
+export const standardDBFields = ['id', 'created_at', 'updated_at', 'default', 'description', 'isFile', 'name', 'schema', 'type', 'version', 'createdByUserId', 'createdByOrganizationId', 'stars', 'score']
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
+type StandardFormatterType = FormatConverter<Standard, standard>;
 /**
  * Component for formatting between graphql and prisma types
  */
-export const standardFormatter = (): FormatConverter<Standard, standard> => {
+export const standardFormatter = (): StandardFormatterType => {
     const joinMapper = {
         tags: 'tag',
         starredBy: 'user',
@@ -26,20 +30,85 @@ export const standardFormatter = (): FormatConverter<Standard, standard> => {
         stars: 'starredBy',
     }
     return {
-        toDB: (obj: RecursivePartial<Standard>): RecursivePartial<standard> => {
-            let modified = addJoinTables(obj, joinMapper);
+        dbShape: (partial: PartialSelectConvert<Standard>): PartialSelectConvert<standard> => {
+            let modified = partial;
+            // Deconstruct GraphQL unions
             modified = addCountQueries(modified, countMapper);
             modified = removeCreatorField(modified);
-            // Remove calculated fields
-            delete modified.isUpvoted;
-            delete modified.isStarred;
-            delete modified.role;
+            // Convert relationships
+            modified = relationshipFormatter(modified, [
+                ['comments', FormatterMap.Comment.dbShape],
+                ['reports', FormatterMap.Report.dbShape],
+                ['resources', FormatterMap.Resource.dbShape],
+                ['routineInputs', (d: any) => ({
+                    ...d,
+                    routine: FormatterMap.Routine.dbShape(d.routine),
+                })],
+                ['routineOutputs', (d: any) => ({
+                    ...d,
+                    routine: FormatterMap.Routine.dbShape(d.routine),
+                })],
+                ['routines', FormatterMap.Routine.dbShape],
+                ['starredBy', FormatterMap.User.dbShapeUser],
+                ['tags', FormatterMap.Tag.dbShape],
+            ]);
+            // Add join tables not present in GraphQL type, but present in Prisma
+            modified = addJoinTables(modified, joinMapper);
             return modified;
         },
-        toGraphQL: (obj: RecursivePartial<standard>): RecursivePartial<Standard> => {
-            let modified = removeJoinTables(obj, joinMapper);
-            modified = removeCountQueries(modified, countMapper);
+        dbPrune: (info: InfoType): PartialSelectConvert<standard> => {
+            // Convert GraphQL info object to a partial select object
+            let modified = infoToPartialSelect(info);
+            // Remove calculated fields
+            let { isUpvoted, isStarred, role, ...rest } = modified;
+            modified = rest;
+            // Convert relationships
+            modified = relationshipFormatter(modified, [
+                ['comments', FormatterMap.Comment.dbPrune],
+                ['reports', FormatterMap.Report.dbPrune],
+                ['resources', FormatterMap.Resource.dbPrune],
+                ['routineInputs', (d: any) => ({
+                    ...d,
+                    routine: FormatterMap.Routine.dbPrune(d.routine),
+                })],
+                ['routineOutputs', (d: any) => ({
+                    ...d,
+                    routine: FormatterMap.Routine.dbPrune(d.routine),
+                })],
+                ['routines', FormatterMap.Routine.dbPrune],
+                ['starredBy', FormatterMap.User.dbPruneUser],
+                ['tags', FormatterMap.Tag.dbPrune],
+            ]);
+            return modified;
+        },
+        selectToDB: (info: InfoType): PartialSelectConvert<standard> => {
+            return standardFormatter().dbShape(standardFormatter().dbPrune(info));
+        },
+        selectToGraphQL: (obj: RecursivePartial<standard>): RecursivePartial<Standard> => {
+            if (!_.isObject(obj)) return obj;
+            // Create unions
+            let modified = removeCountQueries(obj, countMapper);
             modified = addCreatorField(modified);
+            // Remove join tables that are not present in GraphQL type, but present in Prisma
+            modified = removeJoinTables(modified, joinMapper);
+            // Convert relationships
+            modified = relationshipFormatter(modified, [
+                ['comments', FormatterMap.Comment.selectToGraphQL],
+                ['reports', FormatterMap.Report.selectToGraphQL],
+                ['resources', FormatterMap.Resource.selectToGraphQL],
+                ['routineInputs', (d: any) => ({
+                    ...d,
+                    routine: FormatterMap.Routine.selectToGraphQL(d.routine),
+                })],
+                ['routineOutputs', (d: any) => ({
+                    ...d,
+                    routine: FormatterMap.Routine.selectToGraphQL(d.routine),
+                })],
+                ['routines', FormatterMap.Routine.selectToGraphQL],
+                ['starredBy', FormatterMap.User.selectToGraphQLUser],
+                ['tags', FormatterMap.Tag.selectToGraphQL],
+            ]);
+            // NOTE: "Add calculated fields" is done in the supplementalFields function. Allows results to batch their database queries.
             return modified;
         },
     }
@@ -60,8 +129,8 @@ const sorter = (): Sortable<StandardSortBy> => ({
             [StandardSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [StandardSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [StandardSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [StandardSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
-            [StandardSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
+            [StandardSortBy.StarsAsc]: { stars: 'asc' },
+            [StandardSortBy.StarsDesc]: { stars: 'desc' },
             [StandardSortBy.VotesAsc]: { score: 'asc' },
             [StandardSortBy.VotesDesc]: { score: 'desc' },
         }[sortBy]
@@ -81,7 +150,7 @@ const sorter = (): Sortable<StandardSortBy> => ({
 /**
  * Handles the authorized adding, updating, and deleting of standards.
  */
-const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<StandardSortBy>, prisma: PrismaType) => ({
+const standarder = (format: StandardFormatterType, sort: Sortable<StandardSortBy>, prisma: PrismaType) => ({
     /**
      * Add, update, or remove a routine relationship from a routine list
      */
@@ -123,23 +192,23 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
     async find(
         userId: string | null | undefined, // Of the user making the request, not the standard
         input: FindByIdInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Standard> | null> {
         // Create selector
-        const select = selectHelper<Standard, standard>(info, standardFormatter().toDB);
+        const select = selectHelper(info, format.selectToDB);
         // Access database
         let standard = await prisma.standard.findUnique({ where: { id: input.id }, ...select });
         // Return standard with "isUpvoted" and "isStarred" fields. These must be queried separately.
         if (!standard) throw new CustomError(CODE.InternalError, 'Standard not found');
         // Format and add supplemental/calculated fields
-        const formatted = await this.supplementalFields(userId, [format.toGraphQL(standard)], {});
+        const formatted = await this.supplementalFields(userId, [standard], info);
         return formatted[0];
     },
     async search(
         where: { [x: string]: any },
         userId: string | null | undefined,
         input: StandardSearchInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<PaginatedSearchResult> {
         // Create where clauses
         const userIdQuery = input.userId ? { userId: input.userId } : {};
@@ -152,17 +221,18 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
             ]
         } : {};
         // Search
-        const search = searcher<StandardSortBy, StandardSearchInput, Standard, standard>(MODEL_TYPES.Standard, format.toDB, format.toGraphQL, sort, prisma);
+        const search = searcher<StandardSortBy, StandardSearchInput, Standard, standard>(MODEL_TYPES.Standard, format.selectToDB, sort, prisma);
+        console.log('calling standard search...')
         let searchResults = await search.search({ ...userIdQuery, ...organizationIdQuery, ...reportIdQuery, ...routineIdQuery, ...where }, input, info);
         // Format and add supplemental/calculated fields to each result node
         let formattedNodes = searchResults.edges.map(({ node }) => node);
-        formattedNodes = await this.supplementalFields(userId, formattedNodes, {});
+        formattedNodes = await this.supplementalFields(userId, formattedNodes, info);
         return { pageInfo: searchResults.pageInfo, edges: searchResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
     },
     async create(
         userId: string,
         input: StandardCreateInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Standard>> {
         // Check for valid arguments
         standardCreate.validateSync(input, { abortEarly: false });
@@ -197,15 +267,15 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         // Create standard
         const standard = await prisma.standard.create({
             data: standardData as any,
-            ...selectHelper<Standard, standard>(info, format.toDB)
+            ...selectHelper(info, format.selectToDB)
         })
         // Return project with "role", "isUpvoted" and "isStarred" fields. These will be their default values.
-        return { ...format.toGraphQL(standard), role: MemberRole.Owner as any, isUpvoted: null, isStarred: false };
+        return { ...format.selectToGraphQL(standard), role: MemberRole.Owner as any, isUpvoted: null, isStarred: false };
     },
     async update(
         userId: string,
         input: StandardUpdateInput,
-        info: InfoType = null,
+        info: InfoType,
     ): Promise<RecursivePartial<Standard>> {
         // Check for valid arguments
         standardUpdate.validateSync(input, { abortEarly: false });
@@ -236,10 +306,10 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
         standard = await prisma.standard.update({
             where: { id: standard.id },
             data: standardData as any,
-            ...selectHelper<Standard, standard>(info, format.toDB)
+            ...selectHelper(info, format.selectToDB)
         });
         // Format and add supplemental/calculated fields
-        const formatted = await this.supplementalFields(userId, [format.toGraphQL(standard)], {});
+        const formatted = await this.supplementalFields(userId, [standard], info);
         return formatted[0];
     },
     async delete(userId: string, input: DeleteOneInput): Promise<Success> {
@@ -270,31 +340,29 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
      */
     async supplementalFields(
         userId: string | null | undefined, // Of the user making the request
-        objects: RecursivePartial<Standard>[],
-        known: { [x: string]: any[] }, // Known values (i.e. don't need to query), in same order as objects
+        objects: RecursivePartial<any>[],
+        info: InfoType, // GraphQL select info
     ): Promise<RecursivePartial<Standard>[]> {
-        // If userId not provided, return the input with isStarred false, isUpvoted null, and role null
-        if (!userId) return objects.map(x => ({ ...x, isStarred: false, isUpvoted: null, role: null }));
+        // Convert GraphQL info object to a partial select object
+        const partial = infoToPartialSelect(info);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
-        // Check if isStarred is provided
-        if (known.isStarred) objects = objects.map((x, i) => ({ ...x, isStarred: known.isStarred[i] }));
-        // Otherwise, query for isStarred
-        else {
-            const isStarredArray = await StarModel(prisma).getIsStarreds(userId, ids, 'standard');
+        // Query for isStarred
+        if (partial.isStarred) {
+            const isStarredArray = userId
+                ? await StarModel(prisma).getIsStarreds(userId, ids, 'standard')
+                : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
-        // Check if isUpvoted is provided
-        if (known.isUpvoted) objects = objects.map((x, i) => ({ ...x, isUpvoted: known.isUpvoted[i] }));
-        // Otherwise, query for isStarred
-        else {
-            const isUpvotedArray = await VoteModel(prisma).getIsUpvoteds(userId, ids, 'standard');
+        // Query for isUpvoted
+        if (partial.isUpvoted) {
+            const isUpvotedArray = userId
+                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, 'standard')
+                : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
         }
-        // Check is role is provided
-        if (known.role) objects = objects.map((x, i) => ({ ...x, role: known.role[i] }));
-        // Otherwise, query for role
-        else {
+        // Query for role
+        if (partial.role) {
             console.log('standard supplemental fields', objects)
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
@@ -302,7 +370,9 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
                 .filter(x => x.creator?.__typename === 'Organization')
                 .map(x => x.id)
                 .filter(x => Boolean(x)) as string[];
-            const roles = await OrganizationModel(prisma).getRoles(userId, organizationIds);
+            const roles = userId
+                ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
+                : [];
             objects = objects.map((x) => {
                 const orgRoleIndex = organizationIds.findIndex(id => id === x.id);
                 if (orgRoleIndex >= 0) {
@@ -311,7 +381,8 @@ const standarder = (format: FormatConverter<Standard, standard>, sort: Sortable<
                 return { ...x, role: x.creator?.id === userId ? MemberRole.Owner : undefined };
             }) as any;
         }
-        return objects;
+        // Convert Prisma objects to GraphQL objects
+        return objects.map(format.selectToGraphQL);
     },
     profanityCheck(data: StandardCreateInput | StandardUpdateInput): void {
         if (hasProfanity((data as any)?.name ?? '', data.description)) throw new CustomError(CODE.BannedWord);

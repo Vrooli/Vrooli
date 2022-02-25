@@ -37,12 +37,13 @@ export const typeDef = gql`
         projectsCreated: [Project!]!
         routines: [Routine!]!
         routinesCreated: [Routine!]!
-        stars: [Stars!]!
+        stars: [Star!]!
         starredBy: [User!]!
         starredTags: [Tag!]
         hiddenTags: [Tag!]
         sentReports: [Report!]!
         reports: [Report!]!
+        votes: [Vote!]!
     }
 
     # User information available for other accounts

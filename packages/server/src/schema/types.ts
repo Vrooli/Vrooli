@@ -840,11 +840,12 @@ export type Profile = {
   sentReports: Array<Report>;
   starredBy: Array<User>;
   starredTags?: Maybe<Array<Tag>>;
-  stars: Array<Stars>;
+  stars: Array<Star>;
   status: AccountStatus;
   theme: Scalars['String'];
   updated_at: Scalars['Date'];
   username?: Maybe<Scalars['String']>;
+  votes: Array<Vote>;
   wallets: Array<Wallet>;
 };
 
@@ -1164,7 +1165,7 @@ export type Resource = {
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   link: Scalars['String'];
-  title: Scalars['String'];
+  title?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
   usedFor?: Maybe<ResourceUsedFor>;
 };
@@ -1180,7 +1181,7 @@ export type ResourceCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   link: Scalars['String'];
   title?: InputMaybe<Scalars['String']>;
-  usedFor?: InputMaybe<ResourceUsedFor>;
+  usedFor: ResourceUsedFor;
 };
 
 export type ResourceEdge = {
@@ -1505,6 +1506,12 @@ export type StandardUpdateInput = {
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
 };
 
+export type Star = {
+  __typename?: 'Star';
+  from: User;
+  to: StarTo;
+};
+
 export enum StarFor {
   Comment = 'Comment',
   Organization = 'Organization',
@@ -1521,7 +1528,7 @@ export type StarInput = {
   starFor: StarFor;
 };
 
-export type Stars = Comment | Organization | Project | Routine | Standard | Tag;
+export type StarTo = Comment | Organization | Project | Routine | Standard | Tag;
 
 export type StatisticsResult = {
   __typename?: 'StatisticsResult';
@@ -1687,6 +1694,13 @@ export enum UserSortBy {
   StarsDesc = 'StarsDesc'
 }
 
+export type Vote = {
+  __typename?: 'Vote';
+  from: User;
+  isUpvote?: Maybe<Scalars['Boolean']>;
+  to: StarTo;
+};
+
 export enum VoteFor {
   Comment = 'Comment',
   Project = 'Project',
@@ -1700,6 +1714,8 @@ export type VoteInput = {
   isUpvote?: InputMaybe<Scalars['Boolean']>;
   voteFor: VoteFor;
 };
+
+export type VoteTo = Comment | Project | Routine | Standard | Tag;
 
 export type Wallet = {
   __typename?: 'Wallet';
