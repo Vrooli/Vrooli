@@ -1,10 +1,9 @@
 import { CODE, VoteFor } from "@local/shared";
 import { CustomError } from "../error";
 import { Vote, VoteInput } from "schema/types";
-import { PartialSelectConvert, PrismaType, RecursivePartial } from "../types";
-import { BaseType, deconstructUnion, FormatConverter, FormatterMap, infoToPartialSelect, InfoType, MODEL_TYPES, relationshipFormatter } from "./base";
+import { PrismaType } from "../types";
+import { BaseType, deconstructUnion, FormatConverter, ModelTypes } from "./base";
 import _ from "lodash";
-import { vote } from "@prisma/client";
 import { standardDBFields } from "./standard";
 import { commentDBFields } from "./comment";
 import { projectDBFields } from "./project";
@@ -14,65 +13,34 @@ import { routineDBFields } from "./routine";
 /* #region Custom Components */
 //==============================================================
 
-type VoteFormatterType = FormatConverter<Vote, vote>;
-/**
- * Component for formatting between graphql and prisma types
- */
-export const voteFormatter = (): VoteFormatterType => {
-    return {
-        dbShape: (partial: PartialSelectConvert<Vote>): PartialSelectConvert<vote> => {
-            let modified = partial;
-            console.log('vote toDB', modified);
-            // Deconstruct GraphQL unions
-            modified = deconstructUnion(modified, 'to', [
-                ['comment', {
-                    ...Object.fromEntries(commentDBFields.map(f => [f, true]))
-                }],
-                ['project', {
-                    ...Object.fromEntries(projectDBFields.map(f => [f, true]))
-                }],
-                ['routine', {
-                    ...Object.fromEntries(routineDBFields.map(f => [f, true]))
-                }],
-                ['standard', {
-                    ...Object.fromEntries(standardDBFields.map(f => [f, true]))
-                }],
-            ]);
-            // Convert relationships
-            modified = relationshipFormatter(modified, [
-                ['from', FormatterMap.User.dbShapeUser],
-            ]);
-            return modified;
-        },
-        dbPrune: (info: InfoType): PartialSelectConvert<vote> => {
-            // Convert GraphQL info object to a partial select object
-            let modified = infoToPartialSelect(info);
-            // Convert relationships
-            modified = relationshipFormatter(modified, [
-                ['from', FormatterMap.User.dbPruneUser],
-            ]);
-            return modified;
-        },
-        selectToDB: (info: InfoType): PartialSelectConvert<vote> => {
-            return voteFormatter().dbShape(voteFormatter().dbPrune(info));
-        },
-        selectToGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Vote> => {
-            console.log('voteFormatter.toGraphQL start', obj);
-            // Create unions
-            let { comment, project, routine, standard, ...modified } = obj;
-            if (comment) modified.to = FormatterMap.Comment.selectToGraphQL(comment);
-            else if (project) modified.to = FormatterMap.Project.selectToGraphQL(project);
-            else if (routine) modified.to = FormatterMap.Routine.selectToGraphQL(routine);
-            else if (standard) modified.to = FormatterMap.Standard.selectToGraphQL(standard);
-            // Convert relationships
-            modified = relationshipFormatter(modified, [
-                ['from', FormatterMap.User.selectToGraphQLUser],
-            ]);
-            console.log('voteFormatter.toGraphQL finished', modified);
-            return modified;
-        },
-    }
-}
+export const voteFormatter = (): FormatConverter<Vote> => ({
+    constructUnions: (data) => {
+        let { comment, project, routine, standard, ...modified } = data;
+        if (comment) modified.to = comment;
+        else if (project) modified.to = project;
+        else if (routine) modified.to = routine;
+        else if (standard) modified.to = standard;
+        console.log('voteFormatter.toGraphQL finished', modified);
+        return modified;
+    },
+    deconstructUnions: (partial) => {
+        let modified = deconstructUnion(partial, 'to', [
+            ['comment', {
+                ...Object.fromEntries(commentDBFields.map(f => [f, true]))
+            }],
+            ['project', {
+                ...Object.fromEntries(projectDBFields.map(f => [f, true]))
+            }],
+            ['routine', {
+                ...Object.fromEntries(routineDBFields.map(f => [f, true]))
+            }],
+            ['standard', {
+                ...Object.fromEntries(standardDBFields.map(f => [f, true]))
+            }],
+        ]);
+        return modified;
+    },
+})
 
 const forMapper = {
     [VoteFor.Comment]: 'comment',
@@ -172,12 +140,13 @@ const voter = (prisma: PrismaType) => ({
 //==============================================================
 
 export function VoteModel(prisma: PrismaType) {
-    const model = MODEL_TYPES.Vote;
+    const model = ModelTypes.Vote;
+    const prismaObject = prisma.vote;
     const format = voteFormatter();
 
     return {
-        prisma,
         model,
+        prismaObject,
         ...format,
         ...voter(prisma),
     }

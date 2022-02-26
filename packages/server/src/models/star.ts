@@ -1,10 +1,9 @@
 import { CODE, StarFor } from "@local/shared";
 import { CustomError } from "../error";
 import { Star, StarInput } from "../schema/types";
-import { PartialSelectConvert, PrismaType, RecursivePartial } from "../types";
-import { BaseType, deconstructUnion, FormatConverter, FormatterMap, infoToPartialSelect, InfoType, MODEL_TYPES, relationshipFormatter } from "./base";
+import { PrismaType } from "../types";
+import { BaseType, deconstructUnion, FormatConverter, ModelTypes } from "./base";
 import _ from "lodash";
-import { star } from "@prisma/client";
 import { commentDBFields } from "./comment";
 import { projectDBFields } from "./project";
 import { routineDBFields } from "./routine";
@@ -17,77 +16,46 @@ import { userDBFields } from "./user";
 /* #region Custom Components */
 //==============================================================
 
-type StarFormatterType = FormatConverter<Star, star>;
-/**
- * Component for formatting between graphql and prisma types
- */
-export const starFormatter = (): StarFormatterType => {
-    return {
-        dbShape: (partial: PartialSelectConvert<Star>): PartialSelectConvert<star> => {
-            let modified = partial;
-            console.log('star toDB', modified);
-            // Deconstruct GraphQL unions
-            modified = deconstructUnion(modified, 'to', [
-                ['comment', {
-                    ...Object.fromEntries(commentDBFields.map(f => [f, true]))
-                }],
-                ['organization', {
-                    ...Object.fromEntries(organizationDBFields.map(f => [f, true]))
-                }],
-                ['project', {
-                    ...Object.fromEntries(projectDBFields.map(f => [f, true]))
-                }],
-                ['routine', {
-                    ...Object.fromEntries(routineDBFields.map(f => [f, true]))
-                }],
-                ['standard', {
-                    ...Object.fromEntries(standardDBFields.map(f => [f, true]))
-                }],
-                ['tag', {
-                    ...Object.fromEntries(tagDBFields.map(f => [f, true]))
-                }],
-                ['user', {
-                    ...Object.fromEntries(userDBFields.map(f => [f, true]))
-                }],
-            ]);
-            // Convert relationships
-            modified = relationshipFormatter(modified, [
-                ['from', FormatterMap.User.dbShapeUser],
-            ]);
-            return modified;
-        },
-        dbPrune: (info: InfoType): PartialSelectConvert<star> => {
-            // Convert GraphQL info object to a partial select object
-            let modified = infoToPartialSelect(info);
-            // Convert relationships
-            modified = relationshipFormatter(modified, [
-                ['from', FormatterMap.User.dbPruneUser],
-            ]);
-            return modified;
-        },
-        selectToDB: (info: InfoType): PartialSelectConvert<star> => {
-            return starFormatter().dbShape(starFormatter().dbPrune(info));
-        },
-        selectToGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Star> => {
-            console.log('starFormatter.toGraphQL start', obj);
-            // Create unions
-            let { comment, organization, project, routine, standard, tag, user, ...modified } = obj;
-            if (comment) modified.to = FormatterMap.Comment.selectToGraphQL(comment);
-            else if (organization) modified.to = FormatterMap.Organization.selectToGraphQL(organization);
-            else if (project) modified.to = FormatterMap.Project.selectToGraphQL(project);
-            else if (routine) modified.to = FormatterMap.Routine.selectToGraphQL(routine);
-            else if (standard) modified.to = FormatterMap.Standard.selectToGraphQL(standard);
-            else if (tag) modified.to = FormatterMap.Tag.selectToGraphQL(tag);
-            else if (user) modified.to = FormatterMap.User.selectToGraphQLUser(user);
-            // Convert relationships
-            modified = relationshipFormatter(modified, [
-                ['from', FormatterMap.User.selectToGraphQLUser],
-            ]);
-            console.log('starFormatter.toGraphQL finished', modified);
-            return modified;
-        },
-    }
-}
+export const starFormatter = (): FormatConverter<Star> => ({
+    constructUnions: (data) => {
+        let { comment, organization, project, routine, standard, tag, user, ...modified } = data;
+        if (comment) modified.to = comment;
+        else if (organization) modified.to = organization;
+        else if (project) modified.to = project;
+        else if (routine) modified.to = routine;
+        else if (standard) modified.to = standard;
+        else if (tag) modified.to = tag;
+        else if (user) modified.to = user;
+        console.log('starFormatter.toGraphQL finished', modified);
+        return modified;
+    },
+    deconstructUnions: (partial) => {
+        let modified = deconstructUnion(partial, 'to', [
+            ['comment', {
+                ...Object.fromEntries(commentDBFields.map(f => [f, true]))
+            }],
+            ['organization', {
+                ...Object.fromEntries(organizationDBFields.map(f => [f, true]))
+            }],
+            ['project', {
+                ...Object.fromEntries(projectDBFields.map(f => [f, true]))
+            }],
+            ['routine', {
+                ...Object.fromEntries(routineDBFields.map(f => [f, true]))
+            }],
+            ['standard', {
+                ...Object.fromEntries(standardDBFields.map(f => [f, true]))
+            }],
+            ['tag', {
+                ...Object.fromEntries(tagDBFields.map(f => [f, true]))
+            }],
+            ['user', {
+                ...Object.fromEntries(userDBFields.map(f => [f, true]))
+            }],
+        ]);
+        return modified;
+    },
+})
 
 const forMapper = {
     [StarFor.Comment]: 'comment',
@@ -174,12 +142,13 @@ const starrer = (prisma: PrismaType) => ({
 //==============================================================
 
 export function StarModel(prisma: PrismaType) {
-    const model = MODEL_TYPES.Star;
+    const model = ModelTypes.Star;
+    const prismaObject = prisma.star;
     const format = starFormatter();
 
     return {
-        prisma,
         model,
+        prismaObject,
         ...format,
         ...starrer(prisma),
     }

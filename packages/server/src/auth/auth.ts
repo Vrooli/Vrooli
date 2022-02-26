@@ -31,9 +31,9 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         }
         // Now, set token and role variables for other middleware to use
         req.validToken = true;
-        req.userId = payload.userId;
-        req.roles = payload.roles;
-        req.isLoggedIn = payload.isLoggedIn;
+        req.userId = payload.userId ?? null;
+        req.roles = payload.roles ?? [];
+        req.isLoggedIn = payload.isLoggedIn ?? false;
         console.log('no jwt error', req.validToken, req.userId, req.roles, req.isLoggedIn)
         next();
     })
@@ -45,7 +45,7 @@ interface BasicToken {
     exp: number;
 }
 interface SessionToken extends BasicToken {
-    userId?: string;
+    userId: string | null;
     roles: string[];
     isLoggedIn: boolean;
 }
@@ -71,7 +71,7 @@ export async function generateSessionToken(res: Response, session: RecursivePart
     console.log('generateSessionToken', session);
     const tokenContents: SessionToken = {
         ...basicToken(),
-        userId: session.id || undefined,
+        userId: session.id ?? null,
         roles: (session.roles as string[]) ?? [],
         isLoggedIn: Array.isArray(session.roles) ? session.roles.includes(ROLES.Actor) : false,
     }

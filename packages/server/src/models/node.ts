@@ -1,9 +1,9 @@
-import { DeleteOneInput, Node, NodeCreateInput, NodeType, NodeUpdateInput, Success } from "../schema/types";
-import { deconstructUnion, FormatConverter, FormatterMap, infoToPartialSelect, InfoType, MODEL_TYPES, omitDeep, relationshipFormatter, relationshipToPrisma, RelationshipTypes, removeOwnerField, selectHelper } from "./base";
+import { Count, Node, NodeCreateInput, NodeType, NodeUpdateInput } from "../schema/types";
+import { addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatConverter, ModelTypes, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
 import { CODE, condition, conditionsCreate, conditionsUpdate, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
-import { PartialSelectConvert, PrismaType, RecursivePartial } from "types";
-import { node } from "@prisma/client";
+import { PrismaType } from "types";
+import { MemberRole } from "@prisma/client";
 import { hasProfanityRecursive } from "../utils/censor";
 import { routineDBFields, RoutineModel } from "./routine";
 import _ from "lodash";
@@ -14,96 +14,132 @@ const MAX_NODES_IN_ROUTINE = 100;
 /* #region Custom Components */
 //==============================================================
 
-type NodeFormatterType = FormatConverter<Node, node>;
-/**
- * Component for formatting between graphql and prisma types
- */
-export const nodeFormatter = (): NodeFormatterType => {
-    return {
-        dbShape: (partial: PartialSelectConvert<Node>): PartialSelectConvert<node> => {
-            let modified = partial;
-            console.log('in nodeFormatter.selectToDB', modified);
-            // Deconstruct GraphQL unions
-            modified = deconstructUnion(modified, 'data', [
-                ['nodeEnd', {
-                    wasSuccessful: true,
-                }],
-                ['nodeLoopFrom', {
-                    loops: true,
-                    maxLoops: true,
-                    toId: true,
-                    whiles: {
-                        description: true,
-                        title: true,
-                        when: {
-                            condition: true,
-                        }
+export const nodeFormatter = (): FormatConverter<Node> => ({
+    constructUnions: (data) => {
+        let { nodeEnd, nodeLoopFrom, nodeRoutineList, nodeRedirect, ...modified } = data;
+        if (nodeEnd) {
+            modified.data = nodeEnd;
+        }
+        else if (nodeLoopFrom) {
+            modified.data = nodeLoopFrom;
+        }
+        else if (nodeRoutineList) {
+            modified.data = nodeRoutineList;
+        }
+        // else if (nodeRedirect) { TODO
+        // }
+        return modified;
+    },
+    deconstructUnions: (partial) => {
+        let modified = deconstructUnion(partial, 'data', [
+            ['nodeEnd', {
+                wasSuccessful: true,
+            }],
+            ['nodeLoopFrom', {
+                loops: true,
+                maxLoops: true,
+                toId: true,
+                whiles: {
+                    description: true,
+                    title: true,
+                    when: {
+                        condition: true,
                     }
-                }],
-                ['nodeRoutineList', {
-                    isOrdered: true,
-                    isOptional: true,
-                    routines: {
-                        description: true,
-                        isOptional: true,
-                        title: true,
-                        routineId: true,
-                        routine: {
-                            ...Object.fromEntries(routineDBFields.map(f => [f, true])),
-                        }
-                    }
-                }],
-                // TODO modified.nodeRedirect
-            ]);
-            // Convert relationships
-            modified = relationshipFormatter(modified, [
-                ['routine', FormatterMap.Routine.dbShape],
-            ]);
-            return modified;
-        },
-        dbPrune: (info: InfoType): PartialSelectConvert<node> => {
-            // Convert GraphQL info into to a partial select infoect
-            let modified = infoToPartialSelect(info);
-            // Convert relatÎionships
-            modified = relationshipFormatter(modified, [
-                ['routine', FormatterMap.Routine.dbPrune],
-            ]);
-            return modified;
-        },
-        selectToDB: (info: InfoType): PartialSelectConvert<node> => {
-            return nodeFormatter().dbShape(nodeFormatter().dbPrune(info));
-        },
-        selectToGraphQL: (obj: RecursivePartial<any>): RecursivePartial<Node> => {
-            // Create unions
-            let { nodeEnd, nodeLoopFrom, nodeRoutineList, nodeRedirect, ...modified } = obj;
-            if (nodeEnd) {
-                modified.data = nodeEnd;
-            }
-            else if (nodeLoopFrom) {
-                modified.data = nodeLoopFrom;
-            }
-            else if (nodeRoutineList) {
-                modified.data = {
-                    ...nodeRoutineList,
-                    routines: nodeRoutineList.routines.map((r: any) => FormatterMap.Routine.selectToGraphQL(r)),
                 }
-            }
-            // else if (nodeRedirect) { TODO
-            // }
-            // Convert relationships 
-            modified = relationshipFormatter(modified, [
-                ['routine', FormatterMap.Routine.selectToGraphQL],
-            ]);
-            // NOTE: "Add calculated fields" is done in the supplementalFields function. Allows results to batch their database queries.
-            return modified;
-        },
-    }
-}
+            }],
+            ['nodeRoutineList', {
+                isOrdered: true,
+                isOptional: true,
+                routines: {
+                    description: true,
+                    isOptional: true,
+                    title: true,
+                    routineId: true,
+                    routine: {
+                        ...Object.fromEntries(routineDBFields.map(f => [f, true])),
+                    }
+                }
+            }],
+            // TODO modified.nodeRedirect
+        ]);
+        return modified;
+    },
+})
 
 /**
- * Handles the authorized adding, updating, and deleting of nodes.
+ * Authorization checks
  */
-const noder = (format: NodeFormatterType, prisma: PrismaType) => ({
+export const nodeVerifier = () => ({
+    /**
+     * Verify that the user can modify the routine of the node(s)
+     */
+    async authorizedCheck(userId: string, routineId: string, prisma: PrismaType): Promise<void> {
+        let routine = await prisma.routine.findFirst({
+            where: {
+                AND: [
+                    { id: routineId },
+                    {
+                        OR: [
+                            { userId },
+                            {
+                                organization: {
+                                    members: {
+                                        some: {
+                                            userId,
+                                            role: { in: [MemberRole.Owner, MemberRole.Admin] }
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        })
+        if (!routine) throw new CustomError(CODE.Unauthorized, 'User does not own the routine, or is not an admin of its organization');
+    },
+    /**
+     * Verify that the maximum number of nodes on a routine will not be exceeded
+     */
+    async maximumCheck(routineId: string, numAdding: number, prisma: PrismaType): Promise<void> {
+        // If removing, no need to check
+        if (numAdding < 0) return;
+        const existingCount = await prisma.routine.findUnique({
+            where: { id: routineId },
+            include: { _count: { select: { nodes: true } } }
+        });
+        if ((existingCount?._count.nodes ?? 0) + numAdding > MAX_NODES_IN_ROUTINE) {
+            throw new CustomError(CODE.ErrorUnknown, `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`);
+        }
+    },
+    profanityCheck(data: NodeCreateInput | NodeUpdateInput): void {
+        if (hasProfanityRecursive(data, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);
+    },
+})
+
+export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
+    /**
+     * Add, update, or remove a node relationship from a routine
+     */
+    async relationshipBuilder(
+        userId: string | null,
+        input: { [x: string]: any },
+        isAdd: boolean = true,
+    ): Promise<{ [x: string]: any } | undefined> {
+        // Convert input to Prisma shape
+        // Also remove anything that's not an create, update, or delete, as connect/disconnect
+        // are not supported by nodes (since they can only be applied to one routine)
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodes', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        // Validate input
+        const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
+        await this.validateMutations({ 
+            userId, 
+            createMany: createMany as NodeCreateInput[], 
+            updateMany: updateMany as NodeUpdateInput[], 
+            deleteMany: deleteMany?.map(d => d.id) 
+        });
+        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+    },
     /**
      * Add, update, or remove node link condition case from a routine
      */
@@ -402,174 +438,120 @@ const noder = (format: NodeFormatterType, prisma: PrismaType) => ({
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
-     * Add, update, or remove a node relationship from a routine
+     * NOTE: Nodes must all be applied to the same routine
      */
-    relationshipBuilder(
-        userId: string | null,
-        input: { [x: string]: any },
-        isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by nodes (since they can only be applied to one routine)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodes', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            // Check if routine will pass max nodes
-            this.nodeCountCheck(input.routineId, formattedInput.create.length);
-            for (const data of formattedInput.create) {
-                // Check for valid arguments
-                nodeCreate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                this.profanityCheck(data as NodeCreateInput);
-            }
+    async validateMutations({
+        userId, createMany, updateMany, deleteMany
+    }: ValidateMutationsInput<NodeCreateInput, NodeUpdateInput>): Promise<void> {
+        if (!userId) throw new CustomError(CODE.Unauthorized);
+        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        // Make sure every node applies to the same routine
+        const routineId = Array.isArray(createMany) && createMany.length > 0
+            ? createMany[0].routineId
+            : Array.isArray(updateMany) && updateMany.length > 0
+                ? updateMany[0].routineId
+                : Array.isArray(deleteMany) && deleteMany.length > 0
+                    ? deleteMany[0] : null;
+        if (!routineId ||
+            createMany?.some(n => n.routineId !== routineId) ||
+            updateMany?.some(n => n.routineId !== routineId ||
+                deleteMany?.some(n => n !== routineId))) throw new CustomError(CODE.InvalidArgs, 'All nodes must be in the same routine!');
+        // Make sure the user has access to the routine
+        await verifier.authorizedCheck(userId, routineId, prisma);
+        if (createMany) {
+            createMany.forEach(input => nodeCreate.validateSync(input, { abortEarly: false }));
+            createMany.forEach(input => verifier.profanityCheck(input));
+            // Check if will pass max nodes (on routine) limit
+            await verifier.maxNodesCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
         }
-        // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
-                // Check for valid arguments
-                nodeUpdate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                this.profanityCheck(data as NodeUpdateInput);
-            }
+        if (updateMany) {
+            updateMany.forEach(input => nodeUpdate.validateSync(input, { abortEarly: false }));
+            updateMany.forEach(input => verifier.profanityCheck(input));
         }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
-    async create(
-        userId: string,
-        input: NodeCreateInput,
-        info: InfoType,
-    ): Promise<RecursivePartial<Node>> {
-        // Check for valid arguments
-        nodeCreate.validateSync(input, { abortEarly: false });
-        // Check for censored words
-        this.profanityCheck(input);
-        // Check if authorized TODO
-        // Check if routine will pass max nodes
-        this.nodeCountCheck(input.routineId, 1);
-        // Create node data
-        let nodeData: { [x: string]: any } = {
-            description: input.description,
-            routineId: input.routineId,
-            title: input.title,
-            type: input.type,
-        };
-        // Create type-specific data
-        switch (input.type) {
-            case NodeType.End:
-                if (!input.nodeEndCreate) throw new CustomError(CODE.InvalidArgs, 'If type is end, nodeEndCreate must be provided');
-                nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, true);
-                break;
-            case NodeType.Loop:
-                if (!input.nodeLoopCreate) throw new CustomError(CODE.InvalidArgs, 'If type is loop, nodeLoopCreate must be provided');
-                nodeData.nodeLoop = this.relationshipBuilderLoopNode(userId, input, true);
-                break;
-            case NodeType.RoutineList:
-                if (!input.nodeRoutineListCreate) throw new CustomError(CODE.InvalidArgs, 'If type is routineList, nodeRoutineListCreate must be provided');
-                nodeData.nodeRoutineList = this.relationshipBuilderRoutineListNode(userId, input, true);
-                break;
-        }
-        // Create node
-        const node = await prisma.node.create({
-            data: nodeData,
-            ...selectHelper(info, format.selectToDB)
-        })
-        // Return project
-        return { ...format.selectToGraphQL(node) } as any;
-    },
-    async update(
-        userId: string,
-        input: NodeUpdateInput,
-        info: InfoType,
-    ): Promise<RecursivePartial<Node>> {
-        // Check for valid arguments
-        nodeUpdate.validateSync(input, { abortEarly: false });
-        // Check for censored words
-        this.profanityCheck(input);
-        // Create node data
-        let nodeData: { [x: string]: any } = {
-            description: input.description,
-            routineId: input.routineId,
-            title: input.title,
-            type: input.type,
-        };
-        // Create type-specific data
-        switch (input.type) {
-            case NodeType.End:
-                if (Boolean(input.nodeEndCreate) === Boolean(input.nodeEndUpdate)) throw new CustomError(CODE.InvalidArgs, 'If type is end, nodeEndCreate xor nodeEndUpdate must be provided');
-                nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, false);
-                break;
-            case NodeType.Loop:
-                if (Boolean(input.nodeLoopCreate) === Boolean(input.nodeLoopUpdate)) throw new CustomError(CODE.InvalidArgs, 'If type is loop, nodeLoopCreate xor nodeLoopUpdate must be provided');
-                nodeData.nodeLoop = this.relationshipBuilderLoopNode(userId, input, false);
-                break;
-            case NodeType.RoutineList:
-                if (Boolean(input.nodeRoutineListCreate) === Boolean(input.nodeRoutineListUpdate)) throw new CustomError(CODE.InvalidArgs, 'If type is routineList, nodeRoutineListCreate xor nodeRoutineListUpdate must be provided');
-                nodeData.nodeRoutineList = this.relationshipBuilderRoutineListNode(userId, input, false);
-                break;
-        }
-        // Delete old type-specific data, if needed
-        // TODO
-        // Find node
-        let node = await prisma.node.findFirst({
-            where: {
-                AND: [
-                    { id: input.id },
-                    { routine: { userId } }
-                ]
+    /**
+     * Performs adds, updates, and deletes of nodes. First validates that every action is allowed.
+     */
+    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<NodeCreateInput, NodeUpdateInput>): Promise<CUDResult<Node>> {
+        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
+        /**
+         * Helper function for creating create/update Prisma value
+         */
+        const createData = async (input: NodeCreateInput | NodeUpdateInput): Promise<{ [x: string]: any }> => {
+            let nodeData: { [x: string]: any } = {
+                description: input.description,
+                routineId: input.routineId,
+                title: input.title,
+                type: input.type,
+            };
+            // Create type-specific data, and make sure other types are null
+            nodeData.nodeEnd = null;
+            nodeData.nodeLoopFrom = null;
+            nodeData.nodeRoutineList = null;
+            switch (input.type) {
+                case NodeType.End:
+                    if (!input.nodeEndCreate) throw new CustomError(CODE.InvalidArgs, 'If type is end, nodeEndCreate must be provided');
+                    nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, true);
+                    break;
+                case NodeType.Loop:
+                    if (!input.nodeLoopCreate) throw new CustomError(CODE.InvalidArgs, 'If type is loop, nodeLoopCreate must be provided');
+                    nodeData.nodeLoopFrom = this.relationshipBuilderLoopNode(userId, input, true);
+                    break;
+                case NodeType.RoutineList:
+                    if (!input.nodeRoutineListCreate) throw new CustomError(CODE.InvalidArgs, 'If type is routineList, nodeRoutineListCreate must be provided');
+                    nodeData.nodeRoutineList = this.relationshipBuilderRoutineListNode(userId, input, true);
+                    break;
             }
-        })
-        if (!node) throw new CustomError(CODE.ErrorUnknown);
-        // Update node
-        node = await prisma.node.update({
-            where: { id: node.id },
-            data: nodeData,
-            ...selectHelper(info, format.selectToDB)
-        });
+            return nodeData;
+        }
+        // Perform mutations
+        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
+        if (createMany) {
+            // Loop through each create input
+            for (const input of createMany) {
+                // Call createData helper function
+                const data = await createData(input);
+                // Create object
+                const currCreated = await prisma.node.create({ data, ...selectHelper(info) });
+                // Convert to GraphQL
+                const converted = modelToGraphQL(currCreated, info);
+                // Add to created array
+                created = created ? [...created, converted] : [converted];
+            }
+        }
+        if (updateMany) {
+            // Loop through each update input
+            for (const input of updateMany) {
+                // Call createData helper function
+                const data = await createData(input);
+                // Update object
+                const currUpdated = await prisma.node.update({
+                    where: { id: input.id },
+                    data,
+                    ...selectHelper(info)
+                });
+                // Convert to GraphQL
+                const converted = modelToGraphQL(currUpdated, info);
+                // Add to updated array
+                updated = updated ? [...updated, converted] : [converted];
+            }
+        }
+        if (deleteMany) {
+            deleted = await prisma.node.deleteMany({
+                where: { id: { in: deleteMany } }
+            })
+        }
         // Format and add supplemental/calculated fields
-        const formatted = await this.supplementalFields(userId, [node], info);
-        return formatted[0];
+        const createdLength = created.length;
+        const supplemental = await addSupplementalFields(prisma, userId, [...created, ...updated], info);
+        created = supplemental.slice(0, createdLength);
+        updated = supplemental.slice(createdLength);
+        return {
+            created: createMany ? created : undefined,
+            updated: updateMany ? updated : undefined,
+            deleted: deleteMany ? deleted : undefined,
+        };
     },
-    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
-        // Check if authorized TODO
-        const isAuthorized = true;
-        if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
-        await prisma.node.delete({
-            where: { id: input.id }
-        })
-        return { success: true };
-    },
-    /**
-     * Currently no supplemental fields
-     */
-    async supplementalFields(
-        userId: string | null | undefined, // Of the user making the request
-        objects: RecursivePartial<any>[],
-        info: InfoType, // GraphQL select info
-    ): Promise<RecursivePartial<Node>[]> {
-        // Convert Prisma objects to GraphQL objects
-        return objects.map(format.selectToGraphQL);
-    },
-    profanityCheck(data: NodeCreateInput | NodeUpdateInput): void {
-        if (hasProfanityRecursive(data, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);
-    },
-    /**
-     * Checks if nodes being added surpass node limit
-     */
-    async nodeCountCheck(
-        routineId: string,
-        numAdding: number = 1,
-    ): Promise<void> {
-        // Validate input
-        if (!routineId) throw new CustomError(CODE.InvalidArgs, 'routineId must be provided in nodeCountCheck');
-        // Check if routine has reached max nodes
-        const nodeCount = await prisma.routine.findUnique({
-            where: { id: routineId },
-            include: { _count: { select: { nodes: true } } }
-        });
-        if (!nodeCount) throw new CustomError(CODE.ErrorUnknown);
-        if (nodeCount._count.nodes + numAdding > MAX_NODES_IN_ROUTINE) throw new CustomError(CODE.MaxNodesReached);
-    }
 })
 
 //==============================================================
@@ -581,14 +563,18 @@ const noder = (format: NodeFormatterType, prisma: PrismaType) => ({
 //==============================================================
 
 export function NodeModel(prisma: PrismaType) {
-    const model = MODEL_TYPES.Node;
+    const model = ModelTypes.Node;
+    const prismaObject = prisma.node;
     const format = nodeFormatter();
+    const verify = nodeVerifier();
+    const mutate = nodeMutater(prisma, verify);
 
     return {
-        prisma,
         model,
+        prismaObject,
         ...format,
-        ...noder(format, prisma),
+        ...verify,
+        ...mutate,
     }
 }
 

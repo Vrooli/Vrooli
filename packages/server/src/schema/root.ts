@@ -7,7 +7,7 @@ import { AutocompleteInput, AutocompleteResult, OpenGraphResponse } from './type
 import { CODE, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { OrganizationModel, ProjectModel, RoutineModel, StandardModel, UserModel } from '../models';
+import { organizationSearcher, projectSearcher, readManyHelper, routineSearcher, standardSearcher, userSearcher } from '../models';
 import { CustomError } from '../error';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
@@ -181,6 +181,7 @@ export const resolvers = {
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } }
             const tagSelect = {
+                __typename: 'Tag',
                 id: true,
                 created_at: true,
                 description: true,
@@ -189,27 +190,28 @@ export const resolvers = {
                 isStarred: true,
             }
             // Query organizations
-            const organizations = (await OrganizationModel(prisma).search(
-                { ...starsQuery },
-                req.userId,
+            const organizations = (await readManyHelper(
+                req.userId, 
+                { ...input, sortBy: OrganizationSortBy.StarsDesc }, 
                 {
-                    ...input,
-                    sortBy: OrganizationSortBy.StarsDesc
-                },
-                {
+                    __typename: 'Organization',
                     id: true,
                     name: true,
                     stars: true,
                     isStarred: true,
                     tags: tagSelect,
-                })).edges.map(({ node }: any) => node);
+                },
+                prisma, 
+                organizationSearcher(),
+                { ...starsQuery }
+            )).edges.map(({ node }: any) => node);
             console.log('autocomplete GOT ORGANIZATIONS', organizations, organizations.map(o => Array.isArray(o.tags) && o.tags.length > 0 ? o.tags[0] : null));
             // Query projects
-            const projects = (await ProjectModel(prisma).search(
-                { ...starsQuery },
-                req.userId,
-                { ...input, sortBy: ProjectSortBy.StarsDesc },
+            const projects = (await readManyHelper(
+                req.userId, 
+                { ...input, sortBy: ProjectSortBy.StarsDesc }, 
                 {
+                    __typename: 'Project',
                     id: true,
                     name: true,
                     stars: true,
@@ -217,14 +219,17 @@ export const resolvers = {
                     isStarred: true,
                     isUpvoted: true,
                     tags: tagSelect,
-                }
+                },
+                prisma, 
+                projectSearcher(),
+                { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query routines
-            const routines = (await RoutineModel(prisma).search(
-                { ...starsQuery },
-                req.userId,
-                { ...input, sortBy: RoutineSortBy.StarsDesc },
+            const routines = (await readManyHelper(
+                req.userId, 
+                { ...input, sortBy: RoutineSortBy.StarsDesc }, 
                 {
+                    __typename: 'Routine',
                     id: true,
                     title: true,
                     stars: true,
@@ -232,14 +237,17 @@ export const resolvers = {
                     isStarred: true,
                     isUpvoted: true,
                     tags: tagSelect,
-                }
+                },
+                prisma, 
+                routineSearcher(),
+                { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query standards
-            const standards = (await StandardModel(prisma).search(
-                { ...starsQuery },
-                req.userId,
-                { ...input, sortBy: StandardSortBy.StarsDesc },
+            const standards = (await readManyHelper(
+                req.userId, 
+                { ...input, sortBy: StandardSortBy.StarsDesc }, 
                 {
+                    __typename: 'Standard',
                     id: true,
                     name: true,
                     stars: true,
@@ -247,22 +255,25 @@ export const resolvers = {
                     isStarred: true,
                     isUpvoted: true,
                     tags: tagSelect,
-                }
+                },
+                prisma, 
+                standardSearcher(),
+                { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query users
-            const users = (await UserModel(prisma).searchUsers(
-                { ...starsQuery },
-                req.userId,
+            const users = (await readManyHelper(
+                req.userId, 
+                { ...input, sortBy: UserSortBy.StarsDesc }, 
                 {
-                    ...input,
-                    sortBy: UserSortBy.StarsDesc
-                },
-                {
+                    __typename: 'User',
                     id: true,
                     username: true,
                     stars: true,
                     isStarred: true,
-                }
+                },
+                prisma, 
+                userSearcher(),
+                { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             return {
                 organizations,

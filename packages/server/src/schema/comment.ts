@@ -1,9 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { CODE, CommentFor } from '@local/shared';
-import { CustomError } from '../error';
+import { CommentFor } from '@local/shared';
 import { Comment, CommentCreateInput, CommentUpdateInput, DeleteOneInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
-import { CommentModel } from '../models';
+import { CommentModel, createHelper, deleteOneHelper, updateHelper } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -67,26 +66,13 @@ export const resolvers = {
     },
     Mutation: {
         commentCreate: async (_parent: undefined, { input }: IWrap<CommentCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            const created = await CommentModel(prisma).create(req.userId, input, info);
-            if (!created) throw new CustomError(CODE.ErrorUnknown);
-            return created;
+            return createHelper(req.userId, input, info, CommentModel(prisma).cud);
         },
         commentUpdate: async (_parent: undefined, { input }: IWrap<CommentUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Update object
-            const updated = await CommentModel(prisma).update(req.userId, input, info);
-            if (!updated) throw new CustomError(CODE.ErrorUnknown);
-            return updated;
+            return updateHelper(req.userId, input, info, CommentModel(prisma).cud);
         },
         commentDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Delete object
-            return await CommentModel(prisma).delete(req.userId, input);
+            return deleteOneHelper(req.userId, input, CommentModel(prisma).cud);
         },
     }
 }

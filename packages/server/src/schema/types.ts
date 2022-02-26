@@ -1613,6 +1613,7 @@ export enum TagSortBy {
 }
 
 export type TagUpdateInput = {
+    id: string;
   anonymous?: InputMaybe<Scalars['Boolean']>;
   description?: InputMaybe<Scalars['String']>;
   tag?: InputMaybe<Scalars['String']>;

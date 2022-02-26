@@ -1,6 +1,6 @@
 // Components for providing basic functionality to model objects
-import { PageInfo, TimeFrame } from '../schema/types';
-import { PartialSelectConvert, PrismaType, RecursivePartial } from '../types';
+import { Count, FindByIdInput, PageInfo, Success, TimeFrame } from '../schema/types';
+import { PrismaType, RecursivePartial } from '../types';
 import { Prisma } from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
 import graphqlFields from 'graphql-fields';
@@ -8,17 +8,21 @@ import pkg from 'lodash';
 import _ from 'lodash';
 import { commentFormatter } from './comment';
 import { nodeFormatter } from './node';
-import { organizationFormatter } from './organization';
-import { projectFormatter } from './project';
+import { organizationFormatter, organizationSearcher } from './organization';
+import { projectFormatter, projectSearcher } from './project';
 import { reportFormatter } from './report';
-import { resourceFormatter } from './resource';
+import { resourceFormatter, resourceSearcher } from './resource';
 import { roleFormatter } from './role';
-import { routineFormatter } from './routine';
-import { standardFormatter } from './standard';
-import { tagFormatter } from './tag';
+import { routineFormatter, routineSearcher } from './routine';
+import { standardFormatter, standardSearcher } from './standard';
+import { tagFormatter, tagSearcher } from './tag';
 import { userFormatter } from './user';
 import { starFormatter } from './star';
 import { voteFormatter } from './vote';
+import { emailFormatter } from './email';
+import { CustomError } from '../error';
+import { CODE } from '@local/shared';
+import { profileFormatter } from './profile';
 const { isObject } = pkg;
 
 
@@ -27,48 +31,52 @@ const { isObject } = pkg;
 //======================================================================================================================
 
 /**
- * Describes shape of component that converts between Prisma and GraphQL object types.
- * This is often used for removing the extra nesting caused by joining tables
- * (e.g. User -> UserRole -> Role becomes UserRole -> Role)
+ * Helper functions for converting between Prisma types and GraphQL types
  */
-export type FormatConverter<GraphQLModel, FullDBModel> = {
+export type FormatConverter<GraphQLModel> = {
     /**
-     * Helps add/remove many-to-many join tables, since they are not included in GraphQL
+     * Removes fields which are not in the database
      */
-    joinMapper?: JoinMap;
+    removeCalculatedFields?: (partial: { [x: string]: any }) => any;
     /**
-     * Helps add/remove fields for relationship counts, since they are not included formatted the same in GraphQL vs. Prisma
+     * Convert database fields to GraphQL union types
      */
-    countMapper?: CountMap;
+    constructUnions?: (data: { [x: string]: any }) => any;
     /**
-     * Reshapes GraphQL select to match Prisma select query
-     * @param obj GraphQL object to convert
+     * Convert GraphQL unions to database fields
      */
-    dbShape: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>;
+    deconstructUnions?: (partial: { [x: string]: any }) => any;
     /**
-    * Deletes calculated/virtual fields from GraphQL object
-    * @param obj GraphQL object to convert
-    */
-    dbPrune: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>;
-    /**
-     * Calls dbShape and dbPrune
-     * @param obj GraphQL object to convert
+     * Add join tables which are not present in GraphQL object
      */
-    selectToDB: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>;
+    addJoinTables?: (partial: { [x: string]: any }) => any;
     /**
-     * Reshapes Prisma select result to match GraphQL
-     * * @param obj Prisma object to convert
+     * Remove join tables which are not present in GraphQL object
      */
-    selectToGraphQL: (obj: RecursivePartial<FullDBModel>) => RecursivePartial<GraphQLModel>;
+    removeJoinTables?: (data: { [x: string]: any }) => any;
+    /**
+     * Adds fields which are calculated after the main query
+     * @param userId ID of the user making the request
+     * @param objects
+     * @param info GraphQL info object or partial info object
+     * @returns objects ready to be sent through GraphQL
+     */
+    addSupplementalFields?: (
+        prisma: PrismaType,
+        userId: string | null,
+        objects: RecursivePartial<any>[],
+        info: InfoType,
+    ) => Promise<RecursivePartial<GraphQLModel>[]>;
 }
 
 /**
  * Describes shape of component that can be sorted in a specific order
  */
-export type Sortable<SortBy> = {
+export type Searcher<SearchInput> = {
     defaultSort: any;
     getSortQuery: (sortBy: string) => any;
     getSearchStringQuery: (searchString: string) => any;
+    customQueries?: (input: SearchInput) => { [x: string]: any };
 }
 
 /**
@@ -85,36 +93,36 @@ export type CountMap = { [key: string]: string };
 export type BaseType = PrismaModels['comment']; // It doesn't matter what PrismaType is used here, it's just to help TypeScript handle Prisma operations
 
 // Strings for accessing model functions from Prisma
-export const MODEL_TYPES = {
-    Comment: 'comment',
-    Email: 'email',
-    Node: 'node',
-    Organization: 'organization',
-    Project: 'project',
-    Report: 'report',
-    Resource: 'resource',
-    Role: 'role',
-    Routine: 'routine',
-    Standard: 'standard',
-    Star: 'star',
-    Tag: 'tag',
-    User: 'user',
-    Vote: 'vote',
-} as const
+export enum ModelTypes {
+    Comment = 'comment',
+    Email = 'email',
+    Node = 'node',
+    Organization = 'organization',
+    Project = 'project',
+    Report = 'report',
+    Resource = 'resource',
+    Role = 'role',
+    Routine = 'routine',
+    Standard = 'standard',
+    Star = 'star',
+    Tag = 'tag',
+    User = 'user',
+    Vote = 'vote',
+}
 
 // Types for Prisma model objects. These are required when indexing the Prisma model without using dot notation
 type Models<T> = {
-    [MODEL_TYPES.Comment]: Prisma.commentDelegate<T>;
-    [MODEL_TYPES.Email]: Prisma.emailDelegate<T>;
-    [MODEL_TYPES.Node]: Prisma.nodeDelegate<T>;
-    [MODEL_TYPES.Organization]: Prisma.organizationDelegate<T>;
-    [MODEL_TYPES.Project]: Prisma.projectDelegate<T>;
-    [MODEL_TYPES.Resource]: Prisma.resourceDelegate<T>;
-    [MODEL_TYPES.Role]: Prisma.roleDelegate<T>;
-    [MODEL_TYPES.Routine]: Prisma.routineDelegate<T>;
-    [MODEL_TYPES.Standard]: Prisma.standardDelegate<T>;
-    [MODEL_TYPES.Tag]: Prisma.tagDelegate<T>;
-    [MODEL_TYPES.User]: Prisma.userDelegate<T>;
+    [ModelTypes.Comment]: Prisma.commentDelegate<T>;
+    [ModelTypes.Email]: Prisma.emailDelegate<T>;
+    [ModelTypes.Node]: Prisma.nodeDelegate<T>;
+    [ModelTypes.Organization]: Prisma.organizationDelegate<T>;
+    [ModelTypes.Project]: Prisma.projectDelegate<T>;
+    [ModelTypes.Resource]: Prisma.resourceDelegate<T>;
+    [ModelTypes.Role]: Prisma.roleDelegate<T>;
+    [ModelTypes.Routine]: Prisma.routineDelegate<T>;
+    [ModelTypes.Standard]: Prisma.standardDelegate<T>;
+    [ModelTypes.Tag]: Prisma.tagDelegate<T>;
+    [ModelTypes.User]: Prisma.userDelegate<T>;
 }
 export type PrismaModels = Models<Prisma.RejectOnNotFound | Prisma.RejectPerOperation | undefined>
 
@@ -143,6 +151,27 @@ export type CountInputBase = {
     updatedTimeFrame?: Partial<TimeFrame> | null;
 }
 
+export interface ValidateMutationsInput<C, U> {
+    userId: string | null,
+    createMany?: C[] | null | undefined,
+    updateMany?: U[] | null | undefined,
+    deleteMany?: string[] | null | undefined,
+}
+
+export interface CUDInput<Create, Update> {
+    userId: string | null,
+    createMany?: Create[] | null | undefined,
+    updateMany?: Update[] | null | undefined,
+    deleteMany?: string[] | null | undefined,
+    info: InfoType,
+}
+
+export interface CUDResult<GraphQLObject> {
+    created?: RecursivePartial<GraphQLObject>[],
+    updated?: RecursivePartial<GraphQLObject>[],
+    deleted?: Count, // Number of deleted organizations
+}
+
 //======================================================================================================================
 /* #endregion Type Definitions */
 //======================================================================================================================
@@ -153,7 +182,7 @@ export type CountInputBase = {
  * @param obj - GraphQL-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
-export const addJoinTables = (obj: any, map: JoinMap | undefined): any => {
+export const addJoinTablesHelper = (obj: any, map: JoinMap | undefined): any => {
     if (!map) return obj;
     // Create result object
     let result: any = {};
@@ -183,7 +212,7 @@ export const addJoinTables = (obj: any, map: JoinMap | undefined): any => {
  * @param obj - DB-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
-export const removeJoinTables = (obj: any, map: JoinMap | undefined): any => {
+export const removeJoinTablesHelper = (obj: any, map: JoinMap | undefined): any => {
     if (!map) return obj;
     // Create result object
     let result: any = {};
@@ -255,12 +284,12 @@ export const addCreatorField = (data: any): any => {
     let { createdByUser, createdByOrganization, ...rest } = data;
     return {
         ...rest,
-        creator: 
+        creator:
             createdByUser?.id
-            ? userFormatter().selectToGraphQLUser(createdByUser)
-            : createdByOrganization?.id
-            ? organizationFormatter().selectToGraphQL(createdByOrganization)
-            : null
+                ? createdByUser
+                : createdByOrganization?.id
+                    ? createdByOrganization
+                    : null
     }
 }
 
@@ -289,12 +318,12 @@ export const addOwnerField = (data: any): any => {
     let { user, organization, ...rest } = data;
     return {
         ...rest,
-        owner: 
+        owner:
             user?.id
-            ? userFormatter().selectToGraphQLUser(user)
-            : organization?.id
-            ? organizationFormatter().selectToGraphQL(organization)
-            : null
+                ? user
+                : organization?.id
+                    ? organization
+                    : null
     }
 }
 
@@ -357,10 +386,10 @@ export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } =>
 }
 
 /**
+ * NOTE: This function is idempotent. 
  * Converts a GraphQL info object to a partial Prisma select. 
  * This is then passed into a model-specific converter to handle virtual/calculated fields,
  * unions, and other special cases.
- * NOTE: If this function is applied to an object multiple times, it will return the same object
  */
 export const infoToPartialSelect = (info: InfoType): any => {
     // Return undefined if info not set
@@ -382,9 +411,9 @@ export const infoToPartialSelect = (info: InfoType): any => {
  * then it will be converted to a prisma select object.
  * @returns select object for Prisma operations
  */
-export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>): any => {
+export const selectHelper = (info: InfoType): any => {
     // Convert partial's special cases (virtual/calculated fields, unions, etc.)
-    let partial = toDB(info);
+    let partial = selectToDB(info);
     if (!_.isObject(partial)) return undefined;
     // Delete __typename fields
     partial = removeTypenames(partial);
@@ -393,11 +422,13 @@ export const selectHelper = <GraphQLModel, FullDBModel>(info: InfoType, toDB: (o
     return padded;
 }
 
-export const FormatterMap = {
+export const FormatterMap: { [x: string]: FormatConverter<any> } = {
     'Comment': commentFormatter(),
+    'Email': emailFormatter(),
+    'Member': memberFormatter(),
     'Node': nodeFormatter(),
     'Organization': organizationFormatter(),
-    'Profile': userFormatter(),
+    'Profile': profileFormatter(),
     'Project': projectFormatter(),
     'Report': reportFormatter(),
     'Resource': resourceFormatter(),
@@ -409,115 +440,40 @@ export const FormatterMap = {
     'User': userFormatter(),
     'Vote': voteFormatter(),
 }
-/**
- * Calls specified formatter function on every relationship field that appears in partial info object
- * @param partial - partial select object
- * @param relationshipTuples - [name of relationship's field, formatter function]
- * @returns partial with relationships converted
- */
-export const relationshipFormatter = (partial: any, relationshipTuples: [string, (obj: any) => any][]): any => {
-    console.log('relationshipFormatter', partial)
-    let modified = partial;
-    // If no relationships, return
-    if (!relationshipTuples) return modified;
-    // Iterate over relationships
-    for (const [field, format] of relationshipTuples) {
-        // Check if relationship exists
-        if (modified[field]) {
-            // If array, format each element
-            if (Array.isArray(modified[field])) {
-                modified[field] = modified[field].map(format);
-            } else {
-                modified[field] = format(modified[field]);
-            }
-            console.log('relationshipformatter modified field', field, partial)
-        }
-    }
-    return modified;
+
+export const SearcherMap: { [x: string]: Searcher<any> } = {
+    'Comment': commentSearcher(),
+    'Member': memberSearcher(),
+    'Organization': organizationSearcher(),
+    'Project': projectSearcher(),
+    'Report': reportSearcher(),
+    'Resource': resourceSearcher(),
+    'Routine': routineSearcher(),
+    'Standard': standardSearcher(),
+    'Star': starSearcher(),
+    'Tag': tagSearcher(),
+    'User': userSearcher(),
+    'Vote': voteSearcher(),
 }
 
-/**
- * Compositional component for models which can be searched
- * @param state 
- * @returns 
- */
-export const searcher = <SortBy, SearchInput extends SearchInputBase<SortBy>, GraphQLModel, FullDBModel>(
-    model: keyof PrismaType,
-    selectToDB: (obj: PartialSelectConvert<GraphQLModel>) => PartialSelectConvert<FullDBModel>,
-    sorter: Sortable<any>,
-    prisma: PrismaType) => ({
-        /**
-         * Cursor-based search. Supports pagination, sorting, and filtering by string.
-         * @param where Additional where clauses to apply to the search
-         * @param input GraphQL-provided search parameters
-         * @param info Requested return information
-         */
-        async search(where: { [x: string]: any }, input: SearchInput, info: InfoType): Promise<PaginatedSearchResult> {
-            // Create selector
-            const select = selectHelper(info, selectToDB);
-            console.log('search select', select)
-            // Create query for specified ids
-            const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
-            // Determine sort order
-            const sortQuery = sorter.getSortQuery(input.sortBy ?? sorter.defaultSort);
-            // Determine text search query
-            const searchQuery = input.searchString ? sorter.getSearchStringQuery(input.searchString) : undefined;
-            // Determine createdTimeFrame query
-            const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
-            // Determine updatedTimeFrame query
-            const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
-            // Find requested search array
-            const searchResults = await (prisma[model] as BaseType).findMany({
-                where: {
-                    ...where,
-                    ...idQuery,
-                    ...searchQuery,
-                    ...createdQuery,
-                    ...updatedQuery,
-                },
-                orderBy: sortQuery,
-                take: input.take ?? 20,
-                skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
-                cursor: input.after ? {
-                    id: input.after
-                } : undefined,
-                ...select
-            });
-            // If there are results
-            if (searchResults.length > 0) {
-                // Find cursor
-                const cursor = searchResults[searchResults.length - 1].id;
-                // Query after the cursor to check if there are more results
-                const hasNextPage = await (prisma[model] as BaseType).findMany({
-                    take: 1,
-                    cursor: {
-                        id: cursor
-                    }
-                });
-                // Return results
-                return {
-                    pageInfo: {
-                        hasNextPage: hasNextPage.length > 0,
-                        endCursor: cursor,
-                    },
-                    edges: searchResults.map((result: any) => ({
-                        cursor: result.id,
-                        node: result,
-                    }))
-                }
-            }
-            // If there are no results
-            else {
-                return {
-                    pageInfo: {
-                        endCursor: null,
-                        hasNextPage: false,
-                    },
-                    edges: []
-                }
-            }
-        }
-    })
+export const PrismaMap: { [x: string]: (prisma: PrismaType) => any } = {
+    'Comment': (prisma: PrismaType) => prisma.comment,
+    'Email': (prisma: PrismaType) => prisma.email,
+    'Member': (prisma: PrismaType) => prisma.organization_users,
+    'Node': (prisma: PrismaType) => prisma.node,
+    'Organization': (prisma: PrismaType) => prisma.organization,
+    'Profile': (prisma: PrismaType) => prisma.user,
+    'Project': (prisma: PrismaType) => prisma.project,
+    'Report': (prisma: PrismaType) => prisma.report,
+    'Resource': (prisma: PrismaType) => prisma.resource,
+    'Role': (prisma: PrismaType) => prisma.role,
+    'Routine': (prisma: PrismaType) => prisma.routine,
+    'Standard': (prisma: PrismaType) => prisma.standard,
+    'Star': (prisma: PrismaType) => prisma.star,
+    'Tag': (prisma: PrismaType) => prisma.tag,
+    'User': (prisma: PrismaType) => prisma.user,
+    'Vote': (prisma: PrismaType) => prisma.vote,
+}
 
 /**
  * Converts time frame to Prisma "where" query
@@ -783,4 +739,373 @@ export const deconstructUnion = (partial: any, unionField: string, relationshipT
         rest[relationshipName] = omitDeep(selectFields, partial);
     }
     return rest;
+}
+
+/**
+ * Combines supplemental fields from a Prisma object with arbitrarily nested relationships
+ * @param data GraphQL-shaped data, where each object contains at least an ID
+ * @param info GraphQL info object, INCLUDING typenames (which is used to determine each object type)
+ * @returns [objectDict, selectFieldsDict], where objectDict is a dictionary of object arrays (sorted by type), 
+ * and selectFieldsDict is a dictionary of select fields for each type (unioned if they show up in multiple places)
+ */
+const groupSupplementsByType = (data: { [x: string]: any }, info: InfoType): [{ [x: string]: object[] }, { [x: string]: any }] => {
+    // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
+    const partial = infoToPartialSelect(info);
+    // Skip if __typename not in partial
+    if (!partial.hasOwnProperty('__typename')) return [{}, {}];
+    // Objects sorted by type. For now, objects keep their primitive fields to avoid recursion.
+    // If in the future supplemental field requires nested data, this could be changed to call a 
+    // custom formatter for each type.
+    let objectDict: { [x: string]: object[] } = {};
+    // Select fields for each type. If a type appears twice, the fields are combined.
+    let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
+    // Store primitives in a separate array
+    const dataPrimitives: object[] = [];
+    // Loop through each key/value pair in data
+    for (const [key, value] of Object.entries(data)) {
+        // If value is an array, add each element to the correct key in objectDict
+        if (Array.isArray(value)) {
+            selectFieldsDict[partial[key].__typename] = _.merge(selectFieldsDict[partial[key].__typename] ?? {}, partial[key]);
+            // Pass each element through groupSupplementsByType
+            for (const v of value) {
+                const [childObjectsDict, childSelectFieldsDict] = groupSupplementsByType(v, partial[key]);
+                objectDict = _.merge(objectDict, childObjectsDict);
+                selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
+            }
+        }
+        // If value is an object, add it to the correct key in objectDict
+        else if (_.isObject(value)) {
+            selectFieldsDict[partial[key].__typename] = _.merge(selectFieldsDict[partial[key].__typename] ?? {}, partial[key]);
+            // Pass value through groupSupplementsByType
+            const [childObjectsDict, childSelectFieldsDict] = groupSupplementsByType(value, partial[key]);
+            objectDict = _.merge(objectDict, childObjectsDict);
+            selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
+        }
+        // Otherwise, add it to the primitives array
+        else {
+            dataPrimitives.push(value);
+        }
+    }
+    // Handle base case
+    // Remove anything that's not a primitive from partial and data
+    const partialPrimitives = Object.keys(partial)
+        .filter(key => !Array.isArray(partial[key]) && !partial[key]?.__typename)
+        .reduce((res: any, key) => (res[key] = partial[key], res), {});
+    // Finally, add the base object to objectDict (primitives only) and selectFieldsDict
+    objectDict[partial.__typename] = objectDict[partial.__typename] ? [...objectDict[partial.__typename], dataPrimitives] : [dataPrimitives];
+    selectFieldsDict[partial.__typename] = _.merge(selectFieldsDict[partial.__typename] ?? [], partialPrimitives);
+    // Return objectDict and selectFieldsDict
+    return [objectDict, selectFieldsDict];
+}
+
+/**
+ * Recombines objects from supplementalFields calls into shape that matches info
+ * @param data Original, unsupplemented data, where each object has an ID
+ * @param objectsById Dictionary of objects with supplemental fields added, where each value contains at least an ID
+ * @returns data with supplemental fields added
+ */
+const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: string]: any }) => {
+    // Loop through each key/value pair in data
+    for (const [key, value] of Object.entries(data)) {
+        // If value is an array, add each element to the correct key in objectDict
+        if (Array.isArray(value)) {
+            // Pass each element through combineSupplements
+            data[key] = data[key].map((v: any) => combineSupplements(v, objectsById));
+        }
+        // If value is an object, add it to the correct key in objectDict
+        else if (_.isObject(value)) {
+            // Pass value through combineSupplements
+            data[key] = combineSupplements(value, objectsById);
+        }
+    }
+    // Handle base case
+    return { ...data, ...objectsById[data.id] }
+}
+
+/**
+ * Adds supplemental fields to the select object, and all of its relationships (and their relationships, etc.)
+ * Groups objects types together, so database is called only once for each type.
+ * @param prisma Prisma client
+ * @param userId Requesting user's ID
+ * @param data Array of GraphQL-shaped data, where each object contains at least an ID
+ * @param info GraphQL info object, INCLUDING typenames (which is used to determine each object type)
+ * @returns data array with supplemental fields added to each object
+ */
+export const addSupplementalFields = async (prisma: PrismaType, userId: string | null, data: { [x: string]: any }[], info: InfoType): Promise<{ [x: string]: any }[]> => {
+    // Group objects by type
+    let objectDict: { [x: string]: object[] } = {};
+    let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
+    for (const d of data) {
+        const [childObjectsDict, childSelectFieldsDict] = groupSupplementsByType(d, info);
+        objectDict = _.merge(objectDict, childObjectsDict);
+        selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
+    }
+    // Dictionary to store objects by ID
+    const objectsById: { [x: string]: any } = {};
+    // Pass each objectDict value through the correct custom supplemental field function
+    for (const [key, value] of Object.entries(objectDict)) {
+        if (key in FormatterMap) {
+            const valuesWithSupplements = FormatterMap[key].addSupplementalFields
+                ? await (FormatterMap[key] as any).addSupplementalFields(prisma, userId, value, selectFieldsDict[key])
+                : value;
+            // Add each value to objectsById
+            for (const v of valuesWithSupplements) {
+                objectsById[v.id] = v;
+            }
+        }
+    }
+    // Recursively add supplemental fields to data, using the ID dictionary
+    return data.map(d => combineSupplements(d, objectsById));
+}
+
+/**
+ * Shapes GraphQL info object to become a valid Prisma select
+ * @param info GraphQL info object, INCLUDING typenames (which is used to determine each object type)
+ * @returns Valid Prisma select object
+ */
+export const selectToDB = (info: InfoType): { [x: string]: any } => {
+    // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
+    let partial = infoToPartialSelect(info);
+    // Loop through each key/value pair in info
+    for (const [key, value] of Object.entries(partial)) {
+        // If value is an object, recursively call selectToDB
+        if (_.isObject(value)) {
+            partial[key] = selectToDB(value);
+        }
+    }
+    // Handle base case
+    if (partial.__typename in FormatterMap) {
+        const formatter = FormatterMap[partial.__typename];
+        // Remove calculated fields and/or add fields for calculating
+        if (formatter.removeCalculatedFields) partial = formatter.removeCalculatedFields(partial);
+        // Deconstruct unions
+        if (formatter.deconstructUnions) partial = formatter.deconstructUnions(partial);
+        // Add join tables
+        if (formatter.addJoinTables) partial = formatter.addJoinTables(partial);
+    }
+    return partial;
+}
+
+/**
+ * Shapes Prisma model object to become a valid GraphQL model object
+ * @param data Prisma object
+ * @param info GraphQL info object, INCLUDING typenames (which is used to determine each object type)
+ * @returns Valid GraphQL object
+ */
+export const modelToGraphQL = (data: { [x: string]: any }, info: InfoType): { [x: string]: any } => {
+    // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
+    let partial = infoToPartialSelect(info);
+    // Loop through each key/value pair in data
+    for (const [key, value] of Object.entries(data)) {
+        // If value is an array, call modelToGraphQL on each element
+        if (Array.isArray(value)) {
+            // Pass each element through modelToGraphQL
+            data[key] = data[key].map((v: any) => modelToGraphQL(v, partial[key]));
+        }
+        // If value is an object, call modelToGraphQL on it
+        else if (_.isObject(value)) {
+            data[key] = modelToGraphQL(value, partial[key]);
+        }
+    }
+    // Handle base case
+    if (partial.__typename in FormatterMap) {
+        const formatter = FormatterMap[partial.__typename];
+        // Construct unions
+        if (formatter.constructUnions) data = formatter.constructUnions(data);
+        // Remove join tables
+        if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
+    }
+    return data;
+}
+
+/**
+ * Helper function for creating one object in a single line.
+ * Throws error if not successful.
+ * @param userId ID of user making the request
+ * @param input GraphQL create input object
+ * @param info GraphQL info object
+ * @param cud Object's CUD helper function
+ * @returns GraphQL response object
+ */
+export async function createHelper<CreateInput, UpdateInput, GraphQLOutput>(
+    userId: string | null,
+    input: any,
+    info: InfoType,
+    cud: (input: CUDInput<CreateInput, UpdateInput>) => Promise<CUDResult<GraphQLOutput>>,
+): Promise<RecursivePartial<GraphQLOutput>> {
+    if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object');
+    const { created } = await cud({ info, userId, createMany: [input] });
+    if (created && created.length > 0) return created[0];
+    throw new CustomError(CODE.ErrorUnknown);
+}
+
+/**
+ * Helper function for reading one object in a single line
+ * @param userId ID of user making the request
+ * @param input GraphQL find by ID input object
+ * @param info GraphQL info object
+ * @param prisma Prisma object
+ * @returns GraphQL response object
+ */
+export async function readOneHelper<GraphQLModel>(
+    userId: string | null,
+    input: FindByIdInput,
+    info: InfoType,
+    prisma: PrismaType
+): Promise<RecursivePartial<GraphQLModel>> {
+    // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
+    let partial = infoToPartialSelect(info);
+    // Uses __typename to determine which Prisma object is being queried
+    const objectType = partial.__typename;
+    if (!(objectType in PrismaMap)) throw new CustomError(CODE.InternalError, `${objectType} not found`);
+    // Get the Prisma object
+    let object = await PrismaMap[objectType](prisma).findUnique(prisma, { where: { id: input.id }, ...selectHelper(info) });
+    if (!object) throw new CustomError(CODE.NotFound, `${objectType} not found`);
+    // Return formatted for GraphQL
+    return (await addSupplementalFields(prisma, userId, [object], info))[0] as RecursivePartial<GraphQLModel>;
+}
+
+/**
+ * Helper function for reading many objects in a single line.
+ * Cursor-based search. Supports pagination, sorting, and filtering by string.
+ * @param userId ID of user making the request
+ * @param input GraphQL search input object
+ * @param info GraphQL info object
+ * @param prisma Prisma object
+ * @param searcher Searcher object
+ * @param additionalQueries Additional where clauses to apply to the search
+ * @returns Paginated search result
+ */
+export async function readManyHelper<SearchInput extends SearchInputBase<any>>(
+    userId: string | null,
+    input: SearchInput,
+    info: InfoType,
+    prisma: PrismaType,
+    searcher: Searcher<SearchInput>,
+    additionalQueries?: { [x: string]: any },
+): Promise<PaginatedSearchResult> {
+    // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
+    let partial = infoToPartialSelect(info);
+    // Uses __typename to determine which Prisma object is being queried
+    const objectType = partial.__typename;
+    if (!(objectType in PrismaMap)) throw new CustomError(CODE.InternalError, `${objectType} not found`);
+    // Create query for specified ids
+    const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
+    // Determine text search query
+    const searchQuery = input.searchString ? searcher.getSearchStringQuery(input.searchString) : undefined;
+    // Determine createdTimeFrame query
+    const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
+    // Determine updatedTimeFrame query
+    const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
+    // Create type-specific queries
+    const typeQuery = SearcherMap[objectType].customQueries ? (SearcherMap[objectType] as any).customQueries(input) : undefined;
+    // Combine queries
+    const where = { ...additionalQueries, ...idQuery, ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
+    // Determine sort order
+    const orderBy = searcher.getSortQuery(input.sortBy ?? searcher.defaultSort);
+    // Find requested search array
+    const searchResults = await PrismaMap[objectType](prisma).findMany({
+        where,
+        orderBy,
+        take: input.take ?? 20,
+        skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
+        cursor: input.after ? {
+            id: input.after
+        } : undefined,
+        ...selectHelper(info)
+    });
+    // If there are results
+    let paginatedResults: PaginatedSearchResult;
+    if (searchResults.length > 0) {
+        // Find cursor
+        const cursor = searchResults[searchResults.length - 1].id;
+        // Query after the cursor to check if there are more results
+        const hasNextPage = await PrismaMap[objectType](prisma).findMany({
+            take: 1,
+            cursor: {
+                id: cursor
+            }
+        });
+        paginatedResults = {
+            pageInfo: {
+                hasNextPage: hasNextPage.length > 0,
+                endCursor: cursor,
+            },
+            edges: searchResults.map((result: any) => ({
+                cursor: result.id,
+                node: result,
+            }))
+        }
+    }
+    // If there are no results
+    else {
+        paginatedResults = {
+            pageInfo: {
+                endCursor: null,
+                hasNextPage: false,
+            },
+            edges: []
+        }
+    }
+    // Return formatted for GraphQL
+    let formattedNodes = paginatedResults.edges.map(({ node }) => node);
+    formattedNodes = await addSupplementalFields(prisma, userId, formattedNodes, info);
+    return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
+}
+
+/**
+ * Helper function for updating one object in a single line
+ * @param userId ID of user making the request
+ * @param input GraphQL update input object
+ * @param info GraphQL info object
+ * @param cud Object's CUD helper function
+ * @returns GraphQL response object
+ */
+export async function updateHelper<CreateInput, UpdateInput, GraphQLModel>(
+    userId: string | null,
+    input: any,
+    info: InfoType,
+    cud: (input: CUDInput<CreateInput, UpdateInput>) => Promise<CUDResult<GraphQLModel>>,
+): Promise<RecursivePartial<GraphQLModel>> {
+    if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object');
+    const { updated } = await cud({ info, userId, updateMany: [input] });
+    if (updated && updated.length > 0) return updated[0];
+    throw new CustomError(CODE.ErrorUnknown);
+}
+
+/**
+ * Helper function for deleting one object in a single line
+ * @param userId ID of user making the request
+ * @param input GraphQL delete one input object
+ * @param info GraphQL info object
+ * @param cud Object's CUD helper function
+ * @returns GraphQL Success response object
+ */
+export async function deleteOneHelper<CreateInput, UpdateInput, GraphQLModel>(
+    userId: string | null,
+    input: any,
+    cud: (input: CUDInput<CreateInput, UpdateInput>) => Promise<CUDResult<GraphQLModel>>,
+): Promise<Success> {
+    if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object');
+    const { deleted } = await cud({ info: {}, userId, deleteMany: [input.id] });
+    return { success: Boolean((deleted as any)?.count > 0) };
+}
+
+/**
+ * Helper function for deleting many of the same object in a single line
+ * @param userId ID of user making the request
+ * @param input GraphQL delete one input object
+ * @param info GraphQL info object
+ * @param cud Object's CUD helper function
+ * @returns GraphQL Count response object
+ */
+export async function deleteManyHelper<CreateInput, UpdateInput, GraphQLModel>(
+    userId: string | null,
+    input: any,
+    cud: (input: CUDInput<CreateInput, UpdateInput>) => Promise<CUDResult<GraphQLModel>>,
+): Promise<Count> {
+    if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects');
+    const { deleted } = await cud({ info: {}, userId, deleteMany: [input.id] });
+    if (!deleted) throw new CustomError(CODE.ErrorUnknown);
+    return deleted
 }

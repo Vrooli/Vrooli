@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, UserSortBy } from '@local/shared';
 import { CustomError } from '../error';
-import { UserModel } from '../models';
+import { ProfileModel, readManyHelper, readOneHelper, UserModel, userSearcher } from '../models';
 import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
@@ -140,21 +140,14 @@ export const resolvers = {
     UserSortBy: UserSortBy,
     Query: {
         profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            const data = await UserModel(prisma).findProfile(req.userId, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readOneHelper(req.userId, { id: req.userId }, info, prisma);
         },
         user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
-            const data = await UserModel(prisma).findUser(req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readOneHelper(req.userId, input, info, prisma);
         },
         users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
-            const data = await UserModel(prisma).searchUsers({}, req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readManyHelper(req.userId, input, info, prisma, userSearcher());
         },
         usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
             return await UserModel(prisma).count({}, input);
@@ -165,7 +158,7 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const updated = await UserModel(prisma).updateProfile(req.userId, input, info);
+            const updated = await ProfileModel(prisma).updateProfile(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
@@ -173,14 +166,14 @@ export const resolvers = {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
             // Update object
-            const updated = await UserModel(prisma).updateEmails(req.userId, input, info);
+            const updated = await ProfileModel(prisma).updateEmails(req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Must be logged in with an account
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await UserModel(prisma).deleteProfile(req.userId, input);
+            return await ProfileModel(prisma).deleteProfile(req.userId, input);
         },
         /**
          * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).
@@ -190,7 +183,7 @@ export const resolvers = {
         exportData: async (_parent: undefined, _args: undefined, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<string> => {
             // Must be logged in
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await UserModel(prisma).exportData(req.userId);
+            return await ProfileModel(prisma).exportData(req.userId);
         }
     }
 }

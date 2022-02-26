@@ -1,16 +1,15 @@
 import { CODE, commentCreate, CommentFor, commentUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { Comment, CommentCreateInput, CommentUpdateInput, DeleteOneInput, Success } from "../schema/types";
-import { PartialSelectConvert, PrismaType, RecursivePartial } from "types";
-import { addCreatorField, addJoinTables, deconstructUnion, FormatConverter, FormatterMap, infoToPartialSelect, InfoType, MODEL_TYPES, relationshipFormatter, removeCreatorField, removeJoinTables, selectHelper } from "./base";
+import { Comment, CommentCreateInput, CommentUpdateInput, Count } from "../schema/types";
+import { PrismaType } from "types";
+import { addCreatorField, addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatConverter, ModelTypes, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
-import { GraphQLResolveInfo } from "graphql";
-import { OrganizationModel } from "./organization";
-import { comment } from "@prisma/client";
+import { organizationVerifier } from "./organization";
 import { routineDBFields } from "./routine";
 import _ from "lodash";
 import { projectDBFields } from "./project";
 import { standardDBFields } from "./standard";
+import { MemberRole } from "@prisma/client";
 
 export const commentDBFields = ['id', 'text', 'created_at', 'updated_at', 'userId', 'organizationId', 'projectId', 'routineId', 'standardId', 'score', 'stars']
 
@@ -18,19 +17,22 @@ export const commentDBFields = ['id', 'text', 'created_at', 'updated_at', 'userI
 /* #region Custom Components */
 //==============================================================
 
-type CommentFormatterType = FormatConverter<Comment, comment>;
-/**
- * Component for formatting between graphql and prisma types
- */
-export const commentFormatter = (): CommentFormatterType => ({
-    joinMapper: ({
-        starredBy: 'user',
-    }),
-    dbShape: (partial: PartialSelectConvert<Comment>): PartialSelectConvert<comment> => {
-        let modified = partial;
-        // Deconstruct GraphQL unions
-        modified = removeCreatorField(modified);
-        modified = deconstructUnion(modified, 'commentedOn', [
+const joinMapper = { starredBy: 'user' };
+export const commentFormatter = (): FormatConverter<Comment> => ({
+    removeCalculatedFields: (partial) => {
+        let { isUpvoted, isStarred, ...rest } = partial;
+        return rest;
+    },
+    constructUnions: (data) => {
+        let { project, routine, standard, ...modified } = addCreatorField(data);
+        if (project) modified.commentedOn = modified.project;
+        else if (routine) modified.commentedOn = modified.routine;
+        else if (standard) modified.commentedOn = modified.standard;
+        return modified;
+    },
+    deconstructUnions: (partial) => {
+        let modified = removeCreatorField(partial);
+        modified = deconstructUnion(partial, 'commentedOn', [
             ['project', {
                 ...Object.fromEntries(projectDBFields.map(f => [f, true]))
             }],
@@ -41,48 +43,21 @@ export const commentFormatter = (): CommentFormatterType => ({
                 ...Object.fromEntries(standardDBFields.map(f => [f, true]))
             }],
         ]);
-        // Convert relationships
-        modified = relationshipFormatter(modified, [
-            ['reports', FormatterMap.Report.dbShape],
-            ['starredBy', FormatterMap.User.dbShapeUser],
-        ]);
-        // Add join tables not present in GraphQL type, but present in Prisma
-        modified = addJoinTables(modified, commentFormatter().joinMapper);
         return modified;
     },
-    dbPrune: (info: InfoType): PartialSelectConvert<comment> => {
-        // Convert GraphQL info object to a partial select object
-        let modified = infoToPartialSelect(info);
-        // Remove calculated fields
-        let { isUpvoted, isStarred, ...rest } = modified;
-        modified = rest;
-        // Convert relationships
-        modified = relationshipFormatter(modified, [
-            ['reports', FormatterMap.Report.dbPrune],
-            ['starredBy', FormatterMap.User.dbPruneUser],
-        ]);
-        return modified;
+    addJoinTables: (partial) => {
+        return addJoinTablesHelper(partial, joinMapper);
     },
-    selectToDB: (info: InfoType): PartialSelectConvert<comment> => {
-        return commentFormatter().dbShape(commentFormatter().dbPrune(info));
+    removeJoinTables: (data) => {
+        return removeJoinTablesHelper(data, joinMapper);
     },
-    selectToGraphQL: (obj: RecursivePartial<comment>): RecursivePartial<Comment> => {
-        if (!_.isObject(obj)) return obj;
-        // Create unions
-        let { project, routine, standard, ...modified } = addCreatorField(obj);
-        if (project) modified.commentedOn = FormatterMap.Project.selectToGraphQL(modified.project);
-        else if (routine) modified.commentedOn = FormatterMap.Routine.selectToGraphQL(modified.routine);
-        else if (standard) modified.commentedOn = FormatterMap.Standard.selectToGraphQL(modified.standard);
-        // Remove join tables that are not present in GraphQL type, but present in Prisma
-        modified = removeJoinTables(modified, commentFormatter().joinMapper);
-        // Convert relationships
-        modified = relationshipFormatter(modified, [
-            ['reports', FormatterMap.Report.selectToGraphQL],
-            ['starredBy', FormatterMap.User.selectToGraphQLUser],
-        ]);
-        return modified;
+})
+
+export const commentVerifier = () => ({
+    profanityCheck(data: CommentCreateInput | CommentUpdateInput): void {
+        if (hasProfanity(data.text)) throw new CustomError(CODE.BannedWord);
     },
-});
+})
 
 const forMapper = {
     [CommentFor.Project]: 'projectId',
@@ -91,84 +66,107 @@ const forMapper = {
 }
 
 /**
- * Handles the authorized adding, updating, and deleting of comments.
- * Only users can add comments, and they can do so multiple times on 
- * the same object.
+ * Handles authorized creates, updates, and deletes
  */
-const commenter = (format: CommentFormatterType, prisma: PrismaType) => ({
-    async create(
-        userId: string,
-        input: CommentCreateInput,
-        info: GraphQLResolveInfo | null = null,
-    ): Promise<RecursivePartial<Comment>> {
-        // Check for valid arguments
-        commentCreate.validateSync(input, { abortEarly: false });
-        // Check for censored words
-        this.profanityCheck(input);
-        // Add comment
-        let comment: any = await prisma.comment.create({
-            data: {
-                text: input.text,
-                userId,
-                [forMapper[input.createdFor]]: input.forId,
-            },
-            ...selectHelper(info, format.selectToDB)
-        });
-        // Return comment with fields calculated outside of the query
-        return { ...format.selectToGraphQL(comment), isUpvoted: null, isStarred: false };
-    },
-    async update(
-        userId: string,
-        input: CommentUpdateInput,
-        info: GraphQLResolveInfo | null = null,
-    ): Promise<RecursivePartial<Comment>> {
-        // Check for valid arguments
-        commentUpdate.validateSync(input, { abortEarly: false });
-        // Check for censored words
-        this.profanityCheck(input);
-        // Find comment
-        let comment = await prisma.comment.findUnique({ where: { id: input.id } });
-        if (!comment) throw new CustomError(CODE.NotFound, "Comment not found");
-        // Update comment
-        comment = await prisma.comment.update({
-            where: { id: comment.id },
-            data: {
-                text: input.text,
-            },
-            ...selectHelper(info, format.selectToDB)
-        });
-        // Return comment with "isUpvoted" and "isStarred" fields. These must be queried separately.
-        const vote = await prisma.vote.findFirst({ where: { byId: userId, commentId: comment.id } });
-        const isUpvoted = vote?.isUpvote ?? null; // Null means no vote, false means downvote, true means upvote
-        const star = await prisma.star.findFirst({ where: { byId: userId, commentId: comment.id } });
-        const isStarred = Boolean(star) ?? false;
-        return { ...format.selectToGraphQL(comment), isUpvoted, isStarred };
-    },
-    async delete(userId: string, input: DeleteOneInput): Promise<Success> {
-        // Find
-        const comment = await prisma.comment.findFirst({
-            where: { id: input.id },
-            select: {
-                id: true,
-                userId: true,
-                organizationId: true,
-            }
-        })
-        if (!comment) throw new CustomError(CODE.NotFound, "Comment not found");
-        // Check if user is authorized
-        let authorized = userId === comment.userId;
-        if (!authorized && comment.organizationId) {
-            [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, comment.organizationId);
+export const commentMutater = (prisma: PrismaType, verifier: any) => ({
+    /**
+     * Validate adds, updates, and deletes
+     */
+    async validateMutations({
+        userId, createMany, updateMany, deleteMany
+    }: ValidateMutationsInput<CommentCreateInput, CommentUpdateInput>): Promise<void> {
+        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if (createMany) {
+            createMany.forEach(input => commentCreate.validateSync(input, { abortEarly: false }));
+            createMany.forEach(input => verifier.profanityCheck(input));
+            // TODO check limits on comments to prevent spam
         }
-        if (!authorized) throw new CustomError(CODE.Unauthorized);
-        // Delete
-        await prisma.comment.delete({
-            where: { id: comment.id },
-        });
-        return { success: true };
+        if (updateMany) {
+            updateMany.forEach(input => commentUpdate.validateSync(input, { abortEarly: false }));
+            updateMany.forEach(input => verifier.profanityCheck(input));
+        }
+        if (deleteMany) {
+            // Check that user created each comment
+            const comments = await prisma.comment.findMany({
+                where: { id: { in: deleteMany } },
+                select: {
+                    id: true,
+                    userId: true,
+                    organizationId: true,
+                }
+            })
+            // Filter out comments that user created
+            const notCreatedByThisUser = comments.filter(c => c.userId !== userId);
+            // If any comments not created by this user have a null organizationId, throw error
+            if (notCreatedByThisUser.some(c => c.organizationId === null)) throw new CustomError(CODE.Unauthorized);
+            // Of the remaining comments, check that user is an admin of the organization
+            const organizationIds = notCreatedByThisUser.map(c => c.organizationId).filter(id => id !== null) as string[];
+            const roles = userId
+                ? await organizationVerifier(prisma).getRoles(userId, organizationIds)
+                : Array(deleteMany.length).fill(null);
+            if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin)) throw new CustomError(CODE.Unauthorized);
+        }
     },
-    profanityCheck(data: CommentCreateInput | CommentUpdateInput): void {
-        if (hasProfanity(data.text)) throw new CustomError(CODE.BannedWord);
+    /**
+     * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
+     */
+    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<CommentCreateInput, CommentUpdateInput>): Promise<CUDResult<Comment>> {
+        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
+        // Perform mutations
+        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
+        if (createMany) {
+            // Loop through each create input
+            for (const input of createMany) {
+                // Create object
+                const currCreated = await prisma.comment.create({
+                    data: {
+                        text: input.text,
+                        userId,
+                        [forMapper[input.createdFor]]: input.forId,
+                    },
+                    ...selectHelper(info)
+                })
+                // Convert to GraphQL
+                const converted = modelToGraphQL(currCreated, info);
+                // Add to created array
+                created = created ? [...created, converted] : [converted];
+            }
+        }
+        if (updateMany) {
+            // Loop through each update input
+            for (const input of updateMany) {
+                // Find comment
+                let comment = await prisma.comment.findUnique({ where: { id: input.id } });
+                if (!comment) throw new CustomError(CODE.NotFound, "Comment not found");
+                // Update comment
+                const currUpdated = await prisma.comment.update({
+                    where: { id: comment.id },
+                    data: {
+                        text: input.text,
+                    },
+                    ...selectHelper(info)
+                });
+                // Convert to GraphQL
+                const converted = modelToGraphQL(currUpdated, info);
+                // Add to updated array
+                updated = updated ? [...updated, converted] : [converted];
+            }
+        }
+        if (deleteMany) {
+            deleted = await prisma.comment.deleteMany({
+                where: { id: { in: deleteMany } }
+            })
+        }
+        // Format and add supplemental/calculated fields
+        const createdLength = created.length;
+        const supplemental = await addSupplementalFields(prisma, userId, [...created, ...updated], info);
+        created = supplemental.slice(0, createdLength);
+        updated = supplemental.slice(createdLength);
+        return {
+            created: createMany ? created : undefined,
+            updated: updateMany ? updated : undefined,
+            deleted: deleteMany ? deleted : undefined,
+        };
     },
 })
 
@@ -181,14 +179,18 @@ const commenter = (format: CommentFormatterType, prisma: PrismaType) => ({
 //==============================================================
 
 export function CommentModel(prisma: PrismaType) {
-    const model = MODEL_TYPES.Comment;
+    const model = ModelTypes.Comment;
+    const prismaObject = prisma.comment;
     const format = commentFormatter();
+    const verifier = commentVerifier();
+    const mutater = commentMutater(prisma, verifier);
 
     return {
-        prisma,
         model,
+        prismaObject,
         ...format,
-        ...commenter(format, prisma),
+        ...verifier,
+        ...mutater,
     }
 }
 

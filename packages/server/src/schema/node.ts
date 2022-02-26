@@ -1,7 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
-import { CustomError } from '../error';
-import { NodeModel } from '../models';
+import { createHelper, deleteOneHelper, NodeModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from './types';
 import { Context } from '../context';
@@ -242,25 +240,13 @@ export const resolvers = {
          * @returns Updated node
          */
         nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            const created = await NodeModel(prisma).create(req.userId, input, info);
-            if (!created) throw new CustomError(CODE.ErrorUnknown);
-            return created;
+            return createHelper(req.userId, input, info, NodeModel(prisma).cud);
         },
         nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Update object
-            const updated = await NodeModel(prisma).update(req.userId, input, info);
-            if (!updated) throw new CustomError(CODE.ErrorUnknown);
-            return updated;
+            return updateHelper(req.userId, input, info, NodeModel(prisma).cud);
         },
         nodeDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await NodeModel(prisma).delete(req.userId, input);
+            return deleteOneHelper(req.userId, input, NodeModel(prisma).cud);
         }
     }
 }

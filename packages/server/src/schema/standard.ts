@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, StandardSortBy } from '@local/shared';
 import { CustomError } from '../error';
-import { StandardModel } from '../models';
+import { createHelper, deleteOneHelper, readManyHelper, readOneHelper, StandardModel, standardSearcher, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
 import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult } from './types';
 import { Context } from '../context';
@@ -130,14 +130,10 @@ export const resolvers = {
     StandardSortBy: StandardSortBy,
     Query: {
         standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
-            const data = await StandardModel(prisma).find(req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readOneHelper(req.userId, input, info, prisma);
         },
         standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
-            const data = await StandardModel(prisma).search({}, req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readManyHelper(req.userId, input, info, prisma, standardSearcher());
         },
         standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
             // Return count query
@@ -150,12 +146,7 @@ export const resolvers = {
          * @returns Standard object if successful
          */
         standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            const created = await StandardModel(prisma).create(req.userId, input, info);
-            if (!created) throw new CustomError(CODE.ErrorUnknown);
-            return created;
+            return createHelper(req.userId, input, info, StandardModel(prisma).cud);
         },
         /**
          * Update a standard you created.
@@ -165,21 +156,14 @@ export const resolvers = {
          * @returns Standard object if successful
          */
         standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Update object
-            const updated = await StandardModel(prisma).update(req.userId, input, info);
-            if (!updated) throw new CustomError(CODE.ErrorUnknown);
-            return updated;
+            return updateHelper(req.userId, input, info, StandardModel(prisma).cud);
         },
         /**
          * Delete a standard you've created. Other standards must go through a reporting system
          * @returns 
          */
         standardDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await StandardModel(prisma).delete(req.userId, input);
+            return deleteOneHelper(req.userId, input, StandardModel(prisma).cud);
         },
     }
 }

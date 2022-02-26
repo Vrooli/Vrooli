@@ -1,43 +1,20 @@
-import { role } from "@prisma/client";
-import _ from "lodash";
-import { RecursivePartial, PrismaType, PartialSelectConvert } from "types";
+import { PrismaType } from "types";
 import { Role } from "../schema/types";
-import { FormatConverter, addJoinTables, removeJoinTables, MODEL_TYPES, InfoType, infoToPartialSelect } from "./base";
+import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper, ModelTypes } from "./base";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-type RoleFormatterType = FormatConverter<Role, role>;
-/**
- * Component for formatting between graphql and prisma types
- */
-export const roleFormatter = (): RoleFormatterType => {
-    const joinMapper = {
-        users: 'user',
-    };
-    return {
-        dbShape: (partial: PartialSelectConvert<Role>): PartialSelectConvert<role> => {
-            let modified = partial;
-            // Add join tables not present in GraphQL type, but present in Prisma
-            modified = addJoinTables(modified, joinMapper);
-            return modified;
-        },
-        dbPrune: (info: InfoType): PartialSelectConvert<role> => {
-            // Convert GraphQL info object to a partial select object
-            let modified = infoToPartialSelect(info);
-            return modified;
-        },
-        selectToDB: (info: InfoType): PartialSelectConvert<role> => {
-            return roleFormatter().dbShape(roleFormatter().dbPrune(info));
-        },
-        selectToGraphQL: (obj: RecursivePartial<role>): RecursivePartial<Role> => {
-            // Remove join tables that are not present in GraphQL type, but present in Prisma
-            let modified = removeJoinTables(obj, joinMapper)
-            return modified;
-        }
-    }
-}
+const joinMapper = { users: 'user' };
+export const roleFormatter = (): FormatConverter<Role> => ({
+    addJoinTables: (partial) => {
+        return addJoinTablesHelper(partial, joinMapper);
+    },
+    removeJoinTables: (data) => {
+        return removeJoinTablesHelper(data, joinMapper);
+    },
+})
 
 //==============================================================
 /* #endregion Custom Components */
@@ -48,12 +25,13 @@ export const roleFormatter = (): RoleFormatterType => {
 //==============================================================
 
 export function RoleModel(prisma: PrismaType) {
-    const model = MODEL_TYPES.Role;
+    const model = ModelTypes.Role;
+    const prismaObject = prisma.role;
     const format = roleFormatter();
 
     return {
-        prisma,
         model,
+        prismaObject,
         ...format,
     }
 }

@@ -1,11 +1,10 @@
 import { gql } from 'apollo-server-express';
-import { CODE, ReportFor } from '@local/shared';
-import { CustomError } from '../error';
+import { ReportFor } from '@local/shared';
 import { DeleteOneInput, Report, ReportCreateInput, ReportUpdateInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { ReportModel } from '../models';
+import { createHelper, deleteOneHelper, ReportModel, updateHelper } from '../models';
 
 export const typeDef = gql`
     enum ReportFor {
@@ -48,19 +47,13 @@ export const resolvers = {
     ReportFor: ReportFor,
     Mutation: {
         reportCreate: async (_parent: undefined, { input }: IWrap<ReportCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await ReportModel(prisma).create(req.userId, input);
+            return createHelper(req.userId, input, info, ReportModel(prisma).cud);
         },
         reportUpdate: async (_parent: undefined, { input }: IWrap<ReportUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await ReportModel(prisma).update(req.userId, input, info);
+            return updateHelper(req.userId, input, info, ReportModel(prisma).cud);
         },
         reportDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await ReportModel(prisma).delete(req.userId, input);
+            return deleteOneHelper(req.userId, input, ReportModel(prisma).cud);
         },
     }
 }
