@@ -1,7 +1,6 @@
 import { gql } from 'apollo-server-express';
-import { CODE, StandardSortBy } from '@local/shared';
-import { CustomError } from '../error';
-import { createHelper, deleteOneHelper, readManyHelper, readOneHelper, StandardModel, standardSearcher, updateHelper } from '../models';
+import { StandardSortBy } from '@local/shared';
+import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, StandardModel, standardSearcher, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
 import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult } from './types';
 import { Context } from '../context';
@@ -136,8 +135,7 @@ export const resolvers = {
             return readManyHelper(req.userId, input, info, prisma, standardSearcher());
         },
         standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            // Return count query
-            return await StandardModel(prisma).count({}, input);
+            return countHelper(input, 'Standard', prisma);
         },
     },
     Mutation: {

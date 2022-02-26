@@ -1,5 +1,5 @@
 import { Count, Node, NodeCreateInput, NodeType, NodeUpdateInput } from "../schema/types";
-import { addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatConverter, ModelTypes, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
 import { CODE, condition, conditionsCreate, conditionsUpdate, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
 import { PrismaType } from "types";
@@ -563,14 +563,12 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function NodeModel(prisma: PrismaType) {
-    const model = ModelTypes.Node;
     const prismaObject = prisma.node;
     const format = nodeFormatter();
     const verify = nodeVerifier();
     const mutate = nodeMutater(prisma, verify);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...verify,

@@ -3,7 +3,7 @@ import { MemberRole, OrganizationSortBy } from '@local/shared';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult } from './types';
 import { Context } from '../context';
-import { createHelper, deleteOneHelper, OrganizationModel, organizationSearcher, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, OrganizationModel, organizationSearcher, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
@@ -127,7 +127,7 @@ export const resolvers = {
             return readManyHelper(req.userId, input, info, prisma, organizationSearcher());
         },
         organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return await OrganizationModel(prisma).count({}, input);
+            return countHelper(input, 'Organization', prisma);
         },
     },
     Mutation: {

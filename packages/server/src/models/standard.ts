@@ -2,7 +2,7 @@ import { CODE, MemberRole, standardCreate, standardUpdate } from "@local/shared"
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../schema/types";
-import { addCreatorField, addJoinTablesHelper, addSupplementalFields, counter, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, ModelTypes, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -307,22 +307,19 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function StandardModel(prisma: PrismaType) {
-    const model = ModelTypes.Standard;
-    const prismaObject = prisma[model];
+    const prismaObject = prisma.standard
     const format = standardFormatter();
     const search = standardSearcher();
     const verify = standardVerifier();
     const mutate = standardMutater(prisma, verify);
 
     return {
-        model,
         prismaObject,
         format,
         ...format,
         ...search,
         ...verify,
         ...mutate,
-        ...counter<StandardCountInput>(model, prisma),
     }
 }
 

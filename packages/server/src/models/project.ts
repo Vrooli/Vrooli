@@ -2,7 +2,7 @@ import { CODE, MemberRole, projectCreate, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCountInput, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count } from "../schema/types";
-import { addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, counter, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, ModelTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
@@ -295,7 +295,6 @@ export const projectMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function ProjectModel(prisma: PrismaType) {
-    const model = ModelTypes.Project;
     const prismaObject = prisma.project;
     const format = projectFormatter();
     const search = projectSearcher();
@@ -303,13 +302,11 @@ export function ProjectModel(prisma: PrismaType) {
     const mutate = projectMutater(prisma, verify);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...search,
         ...verify,
         ...mutate,
-        ...counter<ProjectCountInput>(model, prisma),
     }
 }
 

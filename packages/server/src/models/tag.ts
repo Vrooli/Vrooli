@@ -1,6 +1,6 @@
-import { Count, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
+import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTablesHelper, addSupplementalFields, counter, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, joinRelationshipToPrisma, modelToGraphQL, ModelTypes, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, joinRelationshipToPrisma, modelToGraphQL, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
 import { CODE, tagCreate, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -209,7 +209,6 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function TagModel(prisma: PrismaType) {
-    const model = ModelTypes.Tag;
     const prismaObject = prisma.tag;
     const format = tagFormatter();
     const search = tagSearcher();
@@ -217,13 +216,11 @@ export function TagModel(prisma: PrismaType) {
     const mutate = tagMutater(prisma, verify);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...search,
         ...verify,
         ...mutate,
-        ...counter<TagCountInput>(model, prisma),
     }
 }
 

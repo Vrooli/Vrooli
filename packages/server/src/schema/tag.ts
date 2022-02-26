@@ -1,7 +1,6 @@
 import { gql } from 'apollo-server-express';
-import { CODE, TagSortBy } from '@local/shared';
-import { CustomError } from '../error';
-import { createHelper, deleteManyHelper, readManyHelper, readOneHelper, TagModel, tagSearcher, updateHelper } from '../models';
+import { TagSortBy } from '@local/shared';
+import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, TagModel, tagSearcher, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSearchResult } from './types';
 import { Context } from '../context';
@@ -96,7 +95,7 @@ export const resolvers = {
             return readManyHelper(req.userId, input, info, prisma, tagSearcher());
         },
         tagsCount: async (_parent: undefined, { input }: IWrap<TagCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return await TagModel(prisma).count({}, input);
+            return countHelper(input, 'Tag', prisma);
         },
     },
     Mutation: {

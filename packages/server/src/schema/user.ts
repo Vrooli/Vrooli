@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
 import { CODE, UserSortBy } from '@local/shared';
 import { CustomError } from '../error';
-import { ProfileModel, readManyHelper, readOneHelper, UserModel, userSearcher } from '../models';
-import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, Count, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput } from './types';
+import { countHelper, ProfileModel, readManyHelper, readOneHelper, userSearcher } from '../models';
+import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -150,7 +150,7 @@ export const resolvers = {
             return readManyHelper(req.userId, input, info, prisma, userSearcher());
         },
         usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return await UserModel(prisma).count({}, input);
+            return countHelper(input, 'User', prisma);
         },
     },
     Mutation: {

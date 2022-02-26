@@ -2,7 +2,7 @@ import { CODE, emailCreate, emailUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, modelToGraphQL, ModelTypes, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { profileValidater } from "./profile";
 
@@ -91,7 +91,7 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
                     ...selectHelper(info)
                 });
                 // Send verification email
-                await profileValidater(prisma).setupVerificationCode(input.emailAddress);
+                await profileValidater().setupVerificationCode(input.emailAddress, prisma);
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currCreated, info);
                 // Add to created array
@@ -176,14 +176,12 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function EmailModel(prisma: PrismaType) {
-    const model = ModelTypes.Email;
     const prismaObject = prisma.email;
     const format = emailFormatter();
     const verify = emailVerifier();
     const mutate = emailMutater(prisma, verify);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...verify,

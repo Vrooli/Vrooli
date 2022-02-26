@@ -2,7 +2,7 @@ import { CODE, StarFor } from "@local/shared";
 import { CustomError } from "../error";
 import { Star, StarInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { BaseType, deconstructUnion, FormatConverter, ModelTypes } from "./base";
+import { deconstructUnion, FormatConverter } from "./base";
 import _ from "lodash";
 import { commentDBFields } from "./comment";
 import { projectDBFields } from "./project";
@@ -76,7 +76,7 @@ const starrer = (prisma: PrismaType) => ({
     async star(userId: string, input: StarInput): Promise<boolean> {
         console.log('going to star', input)
         // Define prisma type for object being starred
-        const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as BaseType);
+        const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as any);
         console.log('prismaFor', prismaFor)
         // Check if object being starred exists
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
@@ -142,12 +142,10 @@ const starrer = (prisma: PrismaType) => ({
 //==============================================================
 
 export function StarModel(prisma: PrismaType) {
-    const model = ModelTypes.Star;
     const prismaObject = prisma.star;
     const format = starFormatter();
 
     return {
-        model,
         prismaObject,
         ...format,
         ...starrer(prisma),

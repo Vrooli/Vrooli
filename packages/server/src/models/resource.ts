@@ -1,7 +1,7 @@
 import { CODE, resourceCreate, ResourceFor, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../schema/types";
 import { PrismaType } from "types";
-import { addSupplementalFields, counter, CUDInput, CUDResult, FormatConverter, modelToGraphQL, ModelTypes, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { CustomError } from "../error";
 import _ from "lodash";
@@ -189,7 +189,6 @@ export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function ResourceModel(prisma: PrismaType) {
-    const model = ModelTypes.Resource;
     const prismaObject = prisma.resource;
     const format = resourceFormatter();
     const search = resourceSearcher();
@@ -197,13 +196,11 @@ export function ResourceModel(prisma: PrismaType) {
     const mutate = resourceMutater(prisma, verify);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...search,
         ...verify,
         ...mutate,
-        ...counter<ResourceCountInput>(model, prisma),
     }
 }
 

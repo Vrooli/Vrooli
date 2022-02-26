@@ -3,7 +3,7 @@ import { CustomError } from "../error";
 import { Count, Report, ReportCreateInput, ReportUpdateInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { hasProfanity } from "../utils/censor";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, ModelTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, selectHelper, ValidateMutationsInput } from "./base";
 
 //==============================================================
 /* #region Custom Components */
@@ -154,14 +154,12 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function ReportModel(prisma: PrismaType) {
-    const model = ModelTypes.Report;
     const prismaObject = prisma.report;
     const format = reportFormatter();
     const verify = reportVerifier();
     const mutate = reportMutater(prisma, verify);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...verify,

@@ -3,7 +3,7 @@ import { ProjectSortBy } from '@local/shared';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, FindByIdInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult } from './types';
 import { Context } from '../context';
-import { createHelper, deleteOneHelper, ProjectModel, projectSearcher, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, ProjectModel, projectSearcher, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
@@ -127,7 +127,7 @@ export const resolvers = {
             return readManyHelper(req.userId, input, info, prisma, projectSearcher());
         },
         projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return await ProjectModel(prisma).count({}, input);
+            return countHelper(input, 'Project', prisma);
         },
     },
     Mutation: {

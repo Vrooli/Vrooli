@@ -1,7 +1,7 @@
 import { PrismaType, RecursivePartial } from "types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagSearchInput, User, UserDeleteInput } from "../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
-import { addJoinTablesHelper, FormatConverter, InfoType, modelToGraphQL, ModelTypes, PaginatedSearchResult, readManyHelper, readOneHelper, removeJoinTablesHelper, selectHelper } from "./base";
+import { addJoinTablesHelper, FormatConverter, InfoType, modelToGraphQL, PaginatedSearchResult, readManyHelper, readOneHelper, removeJoinTablesHelper, selectHelper } from "./base";
 import { AccountStatus, user } from "@prisma/client";
 import { CODE, ROLES } from "@local/shared";
 import { CustomError } from "../error";
@@ -34,10 +34,8 @@ export const profileFormatter = (): FormatConverter<User> => ({
 
 /**
  * Custom component for email/password validation
- * @param state 
- * @returns 
  */
-export const profileValidater = (prisma: PrismaType) => ({
+export const profileValidater = () => ({
     /**
      * Generates a URL-safe code for account confirmations and password resets
      * @returns Hashed and salted code, with invalid characters removed
@@ -90,7 +88,7 @@ export const profileValidater = (prisma: PrismaType) => ({
      * @param info Prisma query info
      * @returns Session data
      */
-    async logIn(password: string, user: any): Promise<Session | null> {
+    async logIn(password: string, user: any, prisma: PrismaType): Promise<Session | null> {
         // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
         // If account is not deleted or hard-locked, and lockout duration has passed
@@ -139,7 +137,7 @@ export const profileValidater = (prisma: PrismaType) => ({
      * Updated user object with new password reset code, and sends email to user with reset link
      * @param user User object
      */
-    async setupPasswordReset(user: any): Promise<boolean> {
+    async setupPasswordReset(user: any, prisma: PrismaType): Promise<boolean> {
         // Generate new code
         const resetPasswordCode = this.generateCode();
         // Store code and request time in user row
@@ -158,7 +156,7 @@ export const profileValidater = (prisma: PrismaType) => ({
     * Updates email object with new verification code, and sends email to user with link
     * @param user User object
     */
-    async setupVerificationCode(emailAddress: string): Promise<void> {
+    async setupVerificationCode(emailAddress: string, prisma: PrismaType): Promise<void> {
         // Generate new code
         const verificationCode = this.generateCode();
         // Store code and request time in email row
@@ -180,7 +178,7 @@ export const profileValidater = (prisma: PrismaType) => ({
      * @param code Verification code
      * @returns Updated user object
      */
-    async validateVerificationCode(emailAddress: string, userId: string, code: string): Promise<boolean> {
+    async validateVerificationCode(emailAddress: string, userId: string, code: string, prisma: PrismaType): Promise<boolean> {
         // Find email data
         const email: any = prisma.email.findUnique({
             where: { emailAddress },
@@ -213,7 +211,7 @@ export const profileValidater = (prisma: PrismaType) => ({
             }
             // If code is incorrect or expired, create new code and send email
             else {
-                await this.setupVerificationCode(emailAddress);
+                await this.setupVerificationCode(emailAddress, prisma);
             }
         }
         return true;
@@ -407,16 +405,14 @@ const profileMutater = (validater: any, prisma: PrismaType) => ({
 
 
 export function ProfileModel(prisma: PrismaType) {
-    const model = ModelTypes.User;
     const prismaObject = prisma.user;
     const format = profileFormatter();
-    const validate = profileValidater(prisma);
+    const validate = profileValidater();
     const port = porter(prisma);
     const mutate = profileMutater(validate, prisma);
     const query = profileQuerier(prisma);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...validate,

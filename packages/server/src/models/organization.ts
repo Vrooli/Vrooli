@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../types";
 import { Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count } from "../schema/types";
-import { addJoinTablesHelper, addSupplementalFields, counter, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, ModelTypes, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
 import { CODE, MemberRole, organizationCreate, organizationUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -234,7 +234,6 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function OrganizationModel(prisma: PrismaType) {
-    const model = ModelTypes.Organization;
     const prismaObject = prisma.organization;
     const format = organizationFormatter();
     const search = organizationSearcher();
@@ -242,13 +241,11 @@ export function OrganizationModel(prisma: PrismaType) {
     const mutate = organizationMutater(prisma, verify);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...search,
         ...verify,
         ...mutate,
-        ...counter<OrganizationCountInput>(model, prisma),
     }
 }
 

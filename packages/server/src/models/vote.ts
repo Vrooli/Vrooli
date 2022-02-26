@@ -2,7 +2,7 @@ import { CODE, VoteFor } from "@local/shared";
 import { CustomError } from "../error";
 import { Vote, VoteInput } from "schema/types";
 import { PrismaType } from "../types";
-import { BaseType, deconstructUnion, FormatConverter, ModelTypes } from "./base";
+import { deconstructUnion, FormatConverter } from "./base";
 import _ from "lodash";
 import { standardDBFields } from "./standard";
 import { commentDBFields } from "./comment";
@@ -58,7 +58,7 @@ const forMapper = {
 const voter = (prisma: PrismaType) => ({
     async vote(userId: string, input: VoteInput): Promise<boolean> {
         // Define prisma type for voted-on object
-        const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as BaseType);
+        const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);
         // Check if object being voted on exists
         const votingFor: null | { id: string, score: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, score: true } });
         if (!votingFor) throw new CustomError(CODE.ErrorUnknown);
@@ -140,12 +140,10 @@ const voter = (prisma: PrismaType) => ({
 //==============================================================
 
 export function VoteModel(prisma: PrismaType) {
-    const model = ModelTypes.Vote;
     const prismaObject = prisma.vote;
     const format = voteFormatter();
 
     return {
-        model,
         prismaObject,
         ...format,
         ...voter(prisma),

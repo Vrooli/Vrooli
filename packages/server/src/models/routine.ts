@@ -1,6 +1,6 @@
 import { Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, counter, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, ModelTypes, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
 import { CODE, inputCreate, inputUpdate, MemberRole, routineCreate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -448,7 +448,6 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function RoutineModel(prisma: PrismaType) {
-    const model = ModelTypes.Routine;
     const prismaObject = prisma.routine;
     const format = routineFormatter();
     const search = routineSearcher();
@@ -456,13 +455,11 @@ export function RoutineModel(prisma: PrismaType) {
     const mutate = routineMutater(prisma, verify);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...search,
         ...verify,
         ...mutate,
-        ...counter<RoutineCountInput>(model, prisma),
     }
 }
 //==============================================================

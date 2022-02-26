@@ -1,5 +1,5 @@
-import { User, UserSortBy, UserSearchInput, UserCountInput, } from "../schema/types";
-import { addJoinTablesHelper, counter, FormatConverter, infoToPartialSelect, InfoType, ModelTypes, removeJoinTablesHelper, Searcher } from "./base";
+import { User, UserSortBy, UserSearchInput, } from "../schema/types";
+import { addJoinTablesHelper, FormatConverter, infoToPartialSelect, InfoType, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../types";
 import { StarModel } from "./star";
 
@@ -83,17 +83,14 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
 //==============================================================
 
 export function UserModel(prisma: PrismaType) {
-    const model = ModelTypes.User;
     const prismaObject = prisma.user;
     const format = userFormatter();
     const search = userSearcher();
 
     return {
-        model,
         prismaObject,
         ...format,
         ...search,
-        ...counter<UserCountInput>(model, prisma),
     }
 }
 

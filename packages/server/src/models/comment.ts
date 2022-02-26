@@ -2,7 +2,7 @@ import { CODE, commentCreate, CommentFor, commentUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { Comment, CommentCreateInput, CommentUpdateInput, Count } from "../schema/types";
 import { PrismaType } from "types";
-import { addCreatorField, addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatConverter, ModelTypes, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { organizationVerifier } from "./organization";
 import { routineDBFields } from "./routine";
@@ -179,14 +179,12 @@ export const commentMutater = (prisma: PrismaType, verifier: any) => ({
 //==============================================================
 
 export function CommentModel(prisma: PrismaType) {
-    const model = ModelTypes.Comment;
     const prismaObject = prisma.comment;
     const format = commentFormatter();
     const verifier = commentVerifier();
     const mutater = commentMutater(prisma, verifier);
 
     return {
-        model,
         prismaObject,
         ...format,
         ...verifier,

@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { ResourceFor, ResourceSortBy, ResourceUsedFor } from '@local/shared';
-import { createHelper, deleteManyHelper, readManyHelper, readOneHelper, ResourceModel, resourceSearcher, updateHelper } from '../models';
+import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, ResourceModel, resourceSearcher, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from 'types';
 import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult } from './types';
 import { Context } from '../context';
@@ -120,7 +120,7 @@ export const resolvers = {
             return readManyHelper(req.userId, input, info, prisma, resourceSearcher());
         },
         resourcesCount: async (_parent: undefined, { input }: IWrap<ResourceCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return await ResourceModel(prisma).count({}, input);
+            return countHelper(input, 'Resource', prisma);
         },
     },
     Mutation: {

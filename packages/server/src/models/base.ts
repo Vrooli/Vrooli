@@ -23,6 +23,7 @@ import { emailFormatter } from './email';
 import { CustomError } from '../error';
 import { CODE } from '@local/shared';
 import { profileFormatter } from './profile';
+import { memberFormatter } from './member';
 const { isObject } = pkg;
 
 
@@ -89,42 +90,6 @@ export type JoinMap = { [key: string]: string };
  * Mapper for associating a model's GraphQL count fields to the relationships they count
  */
 export type CountMap = { [key: string]: string };
-
-export type BaseType = PrismaModels['comment']; // It doesn't matter what PrismaType is used here, it's just to help TypeScript handle Prisma operations
-
-// Strings for accessing model functions from Prisma
-export enum ModelTypes {
-    Comment = 'comment',
-    Email = 'email',
-    Node = 'node',
-    Organization = 'organization',
-    Project = 'project',
-    Report = 'report',
-    Resource = 'resource',
-    Role = 'role',
-    Routine = 'routine',
-    Standard = 'standard',
-    Star = 'star',
-    Tag = 'tag',
-    User = 'user',
-    Vote = 'vote',
-}
-
-// Types for Prisma model objects. These are required when indexing the Prisma model without using dot notation
-type Models<T> = {
-    [ModelTypes.Comment]: Prisma.commentDelegate<T>;
-    [ModelTypes.Email]: Prisma.emailDelegate<T>;
-    [ModelTypes.Node]: Prisma.nodeDelegate<T>;
-    [ModelTypes.Organization]: Prisma.organizationDelegate<T>;
-    [ModelTypes.Project]: Prisma.projectDelegate<T>;
-    [ModelTypes.Resource]: Prisma.resourceDelegate<T>;
-    [ModelTypes.Role]: Prisma.roleDelegate<T>;
-    [ModelTypes.Routine]: Prisma.routineDelegate<T>;
-    [ModelTypes.Standard]: Prisma.standardDelegate<T>;
-    [ModelTypes.Tag]: Prisma.tagDelegate<T>;
-    [ModelTypes.User]: Prisma.userDelegate<T>;
-}
-export type PrismaModels = Models<Prisma.RejectOnNotFound | Prisma.RejectPerOperation | undefined>
 
 export type InfoType = GraphQLResolveInfo | { [x: string]: any } | null;
 
@@ -442,18 +407,18 @@ export const FormatterMap: { [x: string]: FormatConverter<any> } = {
 }
 
 export const SearcherMap: { [x: string]: Searcher<any> } = {
-    'Comment': commentSearcher(),
-    'Member': memberSearcher(),
+    // 'Comment': commentSearcher(), TODO create searchers for all these
+    // 'Member': memberSearcher(),
     'Organization': organizationSearcher(),
     'Project': projectSearcher(),
-    'Report': reportSearcher(),
+    // 'Report': reportSearcher(),
     'Resource': resourceSearcher(),
     'Routine': routineSearcher(),
     'Standard': standardSearcher(),
-    'Star': starSearcher(),
+    // 'Star': starSearcher(),
     'Tag': tagSearcher(),
-    'User': userSearcher(),
-    'Vote': voteSearcher(),
+    // 'User': userSearcher(),
+    // 'Vote': voteSearcher(),
 }
 
 export const PrismaMap: { [x: string]: (prisma: PrismaType) => any } = {
@@ -487,34 +452,6 @@ export const timeFrameToPrisma = (fieldName: string, time?: TimeFrame | null | u
     if (time.after) where[fieldName].gte = time.after;
     return where;
 }
-
-/**
- * Compositional component for models which can be counted (e.g. for metrics)
- * @param state 
- * @returns 
- */
-export const counter = <CountInput extends CountInputBase>(model: keyof PrismaModels, prisma: PrismaType) => ({
-    /**
-     * Counts the number of objects in the database, optionally filtered by a where clauses
-     * @param where Additional where clauses, in addition to the createdMetric and updatedMetric passed into input
-     * @param input Count metrics common to all models
-     * @returns The number of matching objects
-     */
-    async count(where: { [x: string]: any }, input: CountInput): Promise<number> {
-        // Create query for created metric
-        const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
-        // Create query for created metric
-        const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
-        // Count objects that match queries
-        return await (prisma[model] as BaseType).count({
-            where: {
-                ...where,
-                ...createdQuery,
-                ...updatedQuery,
-            },
-        });
-    }
-})
 
 /**
  * Filters excluded fields from an object
@@ -1051,6 +988,29 @@ export async function readManyHelper<SearchInput extends SearchInputBase<any>>(
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = await addSupplementalFields(prisma, userId, formattedNodes, info);
     return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
+}
+
+/**
+ * Counts the number of objects in the database, optionally filtered by a where clauses
+ * @param input Count metrics common to all models
+ * @param objectType __typename of object
+ * @param prisma Prisma object
+ * @param where Additional where clauses, in addition to the createdMetric and updatedMetric passed into input
+ * @returns The number of matching objects
+ */
+ export async function countHelper<CountInput extends CountInputBase>(input: CountInput, objectType: string, prisma: PrismaType, where?: { [x: string]: any }): Promise < number > {
+    // Create query for created metric
+    const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
+    // Create query for created metric
+    const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
+    // Count objects that match queries
+    return await PrismaMap[objectType](prisma).count({
+        where: {
+            ...where,
+            ...createdQuery,
+            ...updatedQuery,
+        },
+    });
 }
 
 /**

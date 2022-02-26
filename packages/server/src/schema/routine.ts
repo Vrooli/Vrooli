@@ -1,11 +1,10 @@
 import { gql } from 'apollo-server-express';
-import { CODE, RoutineSortBy } from '@local/shared';
-import { CustomError } from '../error';
+import { RoutineSortBy } from '@local/shared';
 import { IWrap, RecursivePartial } from '../types';
 import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, routineSearcher, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, routineSearcher, updateHelper } from '../models';
 
 export const typeDef = gql`
     enum RoutineSortBy {
@@ -208,8 +207,7 @@ export const resolvers = {
             return readManyHelper(req.userId, input, info, prisma, routineSearcher());
         },
         routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            // Return count query
-            return await RoutineModel(prisma).count({}, input);
+            return countHelper(input, 'Routine', prisma);
         },
     },
     Mutation: {
