@@ -6,8 +6,8 @@ import { ROLES, StandardType } from '@local/shared';
 import { ProfileModel } from '../../models';
 import { envVariableExists } from '../../utils';
 import { PrismaType } from '../../types';
-import pkg, { ResourceUsedFor } from '@prisma/client';
-const { AccountStatus, NodeType } = pkg;
+import pkg from '@prisma/client';
+const { AccountStatus, NodeType, ResourceUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
 

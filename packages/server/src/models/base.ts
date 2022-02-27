@@ -2,7 +2,6 @@
 import { Count, FindByIdInput, PageInfo, Success, TimeFrame } from '../schema/types';
 import { PrismaType, RecursivePartial } from '../types';
 import { GraphQLResolveInfo } from 'graphql';
-import graphqlFields from 'graphql-fields';
 import pkg from 'lodash';
 import _ from 'lodash';
 import { commentFormatter, commentSearcher } from './comment';
@@ -23,6 +22,7 @@ import { CustomError } from '../error';
 import { CODE } from '@local/shared';
 import { profileFormatter } from './profile';
 import { memberFormatter } from './member';
+import { resolveGraphQLInfo } from '../utils';
 const { isObject } = pkg;
 
 
@@ -320,12 +320,14 @@ export const removeCountQueries = (obj: any, map: CountMap): any => {
 }
 
 /**
- * Converts the {} values of a graphqlFields object to true
+ * Converts the {} values of a graphqlFields object to true. 
+ * Skips formatting __typename
  */
 export const formatGraphQLFields = (fields: { [x: string]: any }): { [x: string]: any } => {
     let converted: { [x: string]: any } = {};
     Object.keys(fields).forEach((key) => {
-        if (Object.keys(fields[key]).length === 0) converted[key] = true;
+        if (key === '__typename') converted[key] = fields[key];
+        else if (Object.keys(fields[key]).length === 0) converted[key] = true;
         else converted[key] = formatGraphQLFields(fields[key]);
     });
     return converted;
@@ -358,19 +360,27 @@ export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } =>
  * Converts a GraphQL info object to a partial Prisma select. 
  * This is then passed into a model-specific converter to handle virtual/calculated fields,
  * unions, and other special cases.
+ * @param info - GraphQL info object, or result of this function
+ * @param typemapper - Object that contains __typename of returning object 
+ * and keys that map to typemappers for each possible relationship
  */
-export const infoToPartialSelect = (info: InfoType): any => {
-    if ((info as any)?.__typaname === 'Tag') console.log('TAGGER infotopartialselect', info)
+export const infoToPartialSelect = (info: InfoType, typeMapper): any => {
+    //TODO temp
+    console.log('WOOHOO NEW METHOD', resolveGraphQLInfo(info as GraphQLResolveInfo));
     // Return undefined if info not set
     if (!info) return undefined;
     // Find select fields in info object
     let select = info.hasOwnProperty('fieldName') ?
-        formatGraphQLFields(graphqlFields((info as GraphQLResolveInfo), {}, {})) :
+        resolveGraphQLInfo(info as GraphQLResolveInfo) :
         info;
-    // If fields are in the shape of a paginated search query, then convert to a Prisma select object
+    // The actual select we want is inside the "select" field
+    select = select[Object.keys(select)[0]];
+    // If fields are in the shape of a paginated search query, convert to a Prisma select object
     if (select.hasOwnProperty('pageInfo') && select.hasOwnProperty('edges')) {
         select = select.edges.node;
     }
+    // Inject __typename fields
+    //TODO
     return select;
 }
 
@@ -381,14 +391,14 @@ export const infoToPartialSelect = (info: InfoType): any => {
  * @returns select object for Prisma operations
  */
 export const selectHelper = (info: InfoType): any => {
-    console.log('in selecthelper', info)
+    console.log('in selecthelper start', info)
     // Convert partial's special cases (virtual/calculated fields, unions, etc.)
     let partial = selectToDB(info);
     console.log('in selecthelper partial, info', partial, info)
     if (!_.isObject(partial)) return undefined;
     // Delete __typename fields
     partial = removeTypenames(partial);
-    console.log('in selecthelper partial, info', partial, info)
+    console.log('in selecthelper partial2, info', partial, info)
     // Pad every relationship with "select"
     const padded = padSelect(partial);
     console.log('in selecthelper padded, info', padded, info)
@@ -719,34 +729,34 @@ const mergeObjectTypeDict = (
             }
         }
     }
-        // for (const key of Object.keys(b)) {
-        //     console.log('curr key', key);
-        //     // If key shows up in both a and b, merge the arrays
-        //     if (result[key]) {
-        //         console.log(`key in both. Merging ${key}`);
-        //         const curr = Array.isArray(b[key]) ? b[key] : [b[key]];
-        //         console.log('curr', curr);
-        //         // Loop through b array
-        //         for (const item of curr) {
-        //             console.log('in loopqwer', item);
-        //             // Check if item in b array is already in result array for this key. If so, merge its values
-        //             const index = result[key].findIndex(e => e.id === item.id);
-        //             if (index !== -1) {
-        //                 result[key][index] = { ...result[key][index], ...item };
-        //             }
-        //             // Otherwise, add it to the array
-        //             else {
-        //                 result[key].push(item);
-        //             }
-        //         }
-        //         result[key] = a[key].concat(b[key]);
-        //     }
-        //     // Otherwise, just add it to the result 
-        //     else {
-        //         console.log('result[key] does not exist. just adding without merge', key);
-        //         result[key] = Array.isArray(b[key]) ? [...b[key]] : [b[key]];
-        //     }
-        // }
+    // for (const key of Object.keys(b)) {
+    //     console.log('curr key', key);
+    //     // If key shows up in both a and b, merge the arrays
+    //     if (result[key]) {
+    //         console.log(`key in both. Merging ${key}`);
+    //         const curr = Array.isArray(b[key]) ? b[key] : [b[key]];
+    //         console.log('curr', curr);
+    //         // Loop through b array
+    //         for (const item of curr) {
+    //             console.log('in loopqwer', item);
+    //             // Check if item in b array is already in result array for this key. If so, merge its values
+    //             const index = result[key].findIndex(e => e.id === item.id);
+    //             if (index !== -1) {
+    //                 result[key][index] = { ...result[key][index], ...item };
+    //             }
+    //             // Otherwise, add it to the array
+    //             else {
+    //                 result[key].push(item);
+    //             }
+    //         }
+    //         result[key] = a[key].concat(b[key]);
+    //     }
+    //     // Otherwise, just add it to the result 
+    //     else {
+    //         console.log('result[key] does not exist. just adding without merge', key);
+    //         result[key] = Array.isArray(b[key]) ? [...b[key]] : [b[key]];
+    //     }
+    // }
     return result;
 }
 
@@ -1010,7 +1020,10 @@ export async function readOneHelper<GraphQLModel>(
     let partial = infoToPartialSelect(info);
     // Uses __typename to determine which Prisma object is being queried
     const objectType = partial.__typename;
-    if (!(objectType in PrismaMap)) throw new CustomError(CODE.InternalError, `${objectType} not found`);
+    if (!(objectType in PrismaMap)) {
+        console.log('uh oh spaghetti o\'', partial);
+        throw new CustomError(CODE.InternalError, `${objectType} not found`);
+    }
     // Get the Prisma object
     let object = await PrismaMap[objectType](prisma).findUnique(prisma, { where: { id: input.id }, ...selectHelper(info) });
     if (!object) throw new CustomError(CODE.NotFound, `${objectType} not found`);
