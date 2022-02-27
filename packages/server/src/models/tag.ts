@@ -32,11 +32,11 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         objects: RecursivePartial<any>[],
         info: InfoType, // GraphQL select info
     ): Promise<RecursivePartial<Tag>[]> {
+        console.log('in tag supplemental fields', info, objects)
         // Convert GraphQL info object to a partial select object
         const partial = infoToPartialSelect(info);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
-        console.log('in tag supplemental fields', partial, ids)
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
@@ -47,6 +47,7 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         // Query for isOwn
         if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.createdByUserId === userId }));
         // Convert Prisma objects to GraphQL objects
+        console.log('tag supplemental fields COMPLETE', objects)
         return objects as RecursivePartial<Tag>[];
     },
 })
@@ -187,11 +188,6 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
                 where: { id: { in: tags.map(t => t.id) } },
             });
         }
-        // Format and add supplemental/calculated fields
-        const createdLength = created.length;
-        const supplemental = await addSupplementalFields(prisma, userId, [...created, ...updated], info);
-        created = supplemental.slice(0, createdLength);
-        updated = supplemental.slice(createdLength);
         return {
             created: createMany ? created : undefined,
             updated: updateMany ? updated : undefined,

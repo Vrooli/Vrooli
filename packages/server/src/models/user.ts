@@ -27,6 +27,7 @@ export const userFormatter = (): FormatConverter<User> => ({
         objects: RecursivePartial<any>[],
         info: InfoType, // GraphQL select info
     ): Promise<RecursivePartial<User>[]> {
+        console.log('user addSupplementalFields', info, objects);
         // Convert GraphQL info object to a partial select object
         const partial = infoToPartialSelect(info);
         // Get all of the ids

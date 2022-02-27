@@ -1,15 +1,15 @@
-import { CODE, commentCreate, CommentFor, commentUpdate } from "@local/shared";
+import { CODE, commentCreate, CommentSortBy, commentUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { Comment, CommentCreateInput, CommentUpdateInput, Count } from "../schema/types";
+import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, Count } from "../schema/types";
 import { PrismaType } from "types";
-import { addCreatorField, addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { organizationVerifier } from "./organization";
 import { routineDBFields } from "./routine";
-import _ from "lodash";
 import { projectDBFields } from "./project";
 import { standardDBFields } from "./standard";
-import { MemberRole } from "@prisma/client";
+import pkg from '@prisma/client';
+const { MemberRole } = pkg;
 
 export const commentDBFields = ['id', 'text', 'created_at', 'updated_at', 'userId', 'organizationId', 'projectId', 'routineId', 'standardId', 'score', 'stars']
 
@@ -50,6 +50,40 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
+    },
+})
+
+export const commentSearcher = (): Searcher<CommentSearchInput> => ({
+    defaultSort: CommentSortBy.VotesDesc,
+    getSortQuery: (sortBy: string): any => {
+        return {
+            [CommentSortBy.AlphabeticalAsc]: { text: 'asc' },
+            [CommentSortBy.AlphabeticalDesc]: { text: 'desc' },
+            [CommentSortBy.DateCreatedAsc]: { created_at: 'asc' },
+            [CommentSortBy.DateCreatedDesc]: { created_at: 'desc' },
+            [CommentSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
+            [CommentSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
+            [CommentSortBy.StarsAsc]: { stars: 'asc' },
+            [CommentSortBy.StarsDesc]: { stars: 'desc' },
+            [CommentSortBy.VotesAsc]: { score: 'asc' },
+            [CommentSortBy.VotesDesc]: { score: 'desc' },
+        }[sortBy]
+    },
+    getSearchStringQuery: (searchString: string): any => {
+        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
+        return ({
+            OR: [
+                { text: { ...insensitive } },
+            ]
+        })
+    },
+    customQueries(input: CommentSearchInput): { [x: string]: any } {
+        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
+        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
+        const projectIdQuery = input.projectId ? { projectId: input.projectId } : undefined;
+        const routineIdQuery = input.routineId ? { routineId: input.routineId } : undefined;
+        const standardIdQuery = input.standardId ? { standardId: input.standardId } : undefined;
+        return { ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery };
     },
 })
 
@@ -157,11 +191,6 @@ export const commentMutater = (prisma: PrismaType, verifier: any) => ({
                 where: { id: { in: deleteMany } }
             })
         }
-        // Format and add supplemental/calculated fields
-        const createdLength = created.length;
-        const supplemental = await addSupplementalFields(prisma, userId, [...created, ...updated], info);
-        created = supplemental.slice(0, createdLength);
-        updated = supplemental.slice(createdLength);
         return {
             created: createMany ? created : undefined,
             updated: updateMany ? updated : undefined,
@@ -181,12 +210,14 @@ export const commentMutater = (prisma: PrismaType, verifier: any) => ({
 export function CommentModel(prisma: PrismaType) {
     const prismaObject = prisma.comment;
     const format = commentFormatter();
+    const search = commentSearcher();
     const verifier = commentVerifier();
     const mutater = commentMutater(prisma, verifier);
 
     return {
         prismaObject,
         ...format,
+        ...search,
         ...verifier,
         ...mutater,
     }

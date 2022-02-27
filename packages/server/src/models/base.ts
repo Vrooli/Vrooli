@@ -1,22 +1,21 @@
 // Components for providing basic functionality to model objects
 import { Count, FindByIdInput, PageInfo, Success, TimeFrame } from '../schema/types';
 import { PrismaType, RecursivePartial } from '../types';
-import { Prisma } from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';
 import graphqlFields from 'graphql-fields';
 import pkg from 'lodash';
 import _ from 'lodash';
-import { commentFormatter } from './comment';
+import { commentFormatter, commentSearcher } from './comment';
 import { nodeFormatter } from './node';
 import { organizationFormatter, organizationSearcher } from './organization';
 import { projectFormatter, projectSearcher } from './project';
-import { reportFormatter } from './report';
+import { reportFormatter, reportSearcher } from './report';
 import { resourceFormatter, resourceSearcher } from './resource';
 import { roleFormatter } from './role';
 import { routineFormatter, routineSearcher } from './routine';
 import { standardFormatter, standardSearcher } from './standard';
 import { tagFormatter, tagSearcher } from './tag';
-import { userFormatter } from './user';
+import { userFormatter, userSearcher } from './user';
 import { starFormatter } from './star';
 import { voteFormatter } from './vote';
 import { emailFormatter } from './email';
@@ -178,7 +177,7 @@ export const addJoinTablesHelper = (obj: any, map: JoinMap | undefined): any => 
  * @param map - Mapping of many-to-many relationship names to join table names
  */
 export const removeJoinTablesHelper = (obj: any, map: JoinMap | undefined): any => {
-    if (!map) return obj;
+    if (!obj || !map) return obj;
     // Create result object
     let result: any = {};
     // Iterate over join map
@@ -232,10 +231,12 @@ export const removeCreatorField = (select: any): any => {
     return {
         ...rest,
         createdByUser: {
+            __typename: 'User',
             id: true,
             username: true,
         },
         createdByOrganization: {
+            __typename: 'Organization',
             id: true,
             name: true,
         }
@@ -266,10 +267,12 @@ export const removeOwnerField = (select: any): any => {
     return {
         ...rest,
         user: {
+            __typename: 'User',
             id: true,
             username: true,
         },
         organization: {
+            __typename: 'Organization',
             id: true,
             name: true,
         }
@@ -357,6 +360,7 @@ export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } =>
  * unions, and other special cases.
  */
 export const infoToPartialSelect = (info: InfoType): any => {
+    if ((info as any)?.__typaname === 'Tag') console.log('TAGGER infotopartialselect', info)
     // Return undefined if info not set
     if (!info) return undefined;
     // Find select fields in info object
@@ -377,13 +381,17 @@ export const infoToPartialSelect = (info: InfoType): any => {
  * @returns select object for Prisma operations
  */
 export const selectHelper = (info: InfoType): any => {
+    console.log('in selecthelper', info)
     // Convert partial's special cases (virtual/calculated fields, unions, etc.)
     let partial = selectToDB(info);
+    console.log('in selecthelper partial, info', partial, info)
     if (!_.isObject(partial)) return undefined;
     // Delete __typename fields
     partial = removeTypenames(partial);
+    console.log('in selecthelper partial, info', partial, info)
     // Pad every relationship with "select"
     const padded = padSelect(partial);
+    console.log('in selecthelper padded, info', padded, info)
     return padded;
 }
 
@@ -407,17 +415,17 @@ export const FormatterMap: { [x: string]: FormatConverter<any> } = {
 }
 
 export const SearcherMap: { [x: string]: Searcher<any> } = {
-    // 'Comment': commentSearcher(), TODO create searchers for all these
-    // 'Member': memberSearcher(),
+    'Comment': commentSearcher(),
+    // 'Member': memberSearcher(),TODO create searchers for all these
     'Organization': organizationSearcher(),
     'Project': projectSearcher(),
-    // 'Report': reportSearcher(),
+    'Report': reportSearcher(),
     'Resource': resourceSearcher(),
     'Routine': routineSearcher(),
     'Standard': standardSearcher(),
     // 'Star': starSearcher(),
     'Tag': tagSearcher(),
-    // 'User': userSearcher(),
+    'User': userSearcher(),
     // 'Vote': voteSearcher(),
 }
 
@@ -482,7 +490,6 @@ const filterFields = (data: { [x: string]: any }, excludes: string[]): { [x: str
  * @param excludes The fields to exclude from the shape
  */
 const shapeRelationshipData = (data: any, excludes: string[] = []): any => {
-    console.log('shapeRelationshipData', data, excludes)
     if (Array.isArray(data)) {
         return data.map(e => {
             if (isObject(e)) {
@@ -547,13 +554,10 @@ export const relationshipToPrisma = ({
     ops = _.difference(ops, relExcludes)
     // Create result object
     let converted: { [x: string]: any } = {};
-    console.log('relationshipToPrisma', data, relationshipName);
     // Loop through object's keys
     for (const [key, value] of Object.entries(data)) {
-        console.log('relationshipToPrisma loop', relationshipName, key, value);
         // Skip if not matching relationship or not a valid operation
         if (!key.startsWith(relationshipName) || !ops.some(o => key.toLowerCase().endsWith(o))) continue;
-        console.log('made it past check')
         // Determine operation
         const currOp = key.replace(relationshipName, '').toLowerCase();
         // TODO handle soft delete
@@ -593,20 +597,16 @@ export const joinRelationshipToPrisma = ({
     create?: { [x: string]: any }[],
     update?: { [x: string]: any }[],
 } => {
-    console.log('in joinRelationshipToPrisma', relationshipName, joinFieldName);
     let converted: { [x: string]: any } = {};
     // Call relationshipToPrisma to get join data used for one-to-many relationships
     const normalJoinData = relationshipToPrisma({ data, relationshipName, isAdd, fieldExcludes, relExcludes, softDelete })
-    console.log('normalJoinData', normalJoinData);
     // Convert this to support a join table
     if (normalJoinData.hasOwnProperty('connect')) {
-        console.log('in connect', normalJoinData.connect);
         // ex: create: [{ tag: { connect: { id: '123' } } }]
         // Note that the connect is technically a create, since the join table row is created
         const dataArray = normalJoinData.connect?.map(e => ({
             [joinFieldName]: { connect: e }
         })) ?? [];
-        console.log('connect dataArray', dataArray);
         converted.create = Array.isArray(converted.create) ? [...converted.create, ...dataArray] : dataArray;
     }
     if (normalJoinData.hasOwnProperty('disconnect')) {
@@ -679,6 +679,78 @@ export const deconstructUnion = (partial: any, unionField: string, relationshipT
 }
 
 /**
+ * Custom merge for object type dictionary arrays (e.g. { 'User': [{ id: '321' }], 'Standard': [{ id: '123' }, { id: '555'}] }). 
+ * If an object within a type array appears in both a and b, its fields are merged.
+ * @param a First object 
+ * @param b Second object
+ * @returns a and b merged together
+ */
+const mergeObjectTypeDict = (
+    a: { [x: string]: { [x: string]: any }[] },
+    b: { [x: string]: { [x: string]: any }[] }
+): { [x: string]: { [x: string]: any }[] } => {
+    const result: { [x: string]: { [x: string]: any }[] } = {};
+    console.log('start of mergeObjectTypeDict', a, b);
+    // Initialize result with a. If any of a's values are not arrays, make them arrays
+    for (const [key, value] of Object.entries(a)) {
+        if (Array.isArray(value)) {
+            result[key] = value;
+        } else {
+            result[key] = [value];
+        }
+    }
+    console.log('result after initializing', result);
+    // Loop through b
+    for (const [key, value] of Object.entries(b)) {
+        // If key is not in result, add it
+        if (!result[key]) {
+            result[key] = value;
+        }
+        // If key is in result, merge values
+        else {
+            // Check if item in b array is already in result array for this key. If so, merge its values
+            for (const item of value) {
+                const index = result[key].findIndex(e => e.id === item.id);
+                if (index !== -1) {
+                    result[key][index] = { ...result[key][index], ...item };
+                } else {
+                    result[key].push(item);
+                }
+            }
+        }
+    }
+        // for (const key of Object.keys(b)) {
+        //     console.log('curr key', key);
+        //     // If key shows up in both a and b, merge the arrays
+        //     if (result[key]) {
+        //         console.log(`key in both. Merging ${key}`);
+        //         const curr = Array.isArray(b[key]) ? b[key] : [b[key]];
+        //         console.log('curr', curr);
+        //         // Loop through b array
+        //         for (const item of curr) {
+        //             console.log('in loopqwer', item);
+        //             // Check if item in b array is already in result array for this key. If so, merge its values
+        //             const index = result[key].findIndex(e => e.id === item.id);
+        //             if (index !== -1) {
+        //                 result[key][index] = { ...result[key][index], ...item };
+        //             }
+        //             // Otherwise, add it to the array
+        //             else {
+        //                 result[key].push(item);
+        //             }
+        //         }
+        //         result[key] = a[key].concat(b[key]);
+        //     }
+        //     // Otherwise, just add it to the result 
+        //     else {
+        //         console.log('result[key] does not exist. just adding without merge', key);
+        //         result[key] = Array.isArray(b[key]) ? [...b[key]] : [b[key]];
+        //     }
+        // }
+    return result;
+}
+
+/**
  * Combines supplemental fields from a Prisma object with arbitrarily nested relationships
  * @param data GraphQL-shaped data, where each object contains at least an ID
  * @param info GraphQL info object, INCLUDING typenames (which is used to determine each object type)
@@ -693,34 +765,45 @@ const groupSupplementsByType = (data: { [x: string]: any }, info: InfoType): [{ 
     // Objects sorted by type. For now, objects keep their primitive fields to avoid recursion.
     // If in the future supplemental field requires nested data, this could be changed to call a 
     // custom formatter for each type.
-    let objectDict: { [x: string]: object[] } = {};
+    let objectDict: { [x: string]: { [x: string]: any }[] } = {};
     // Select fields for each type. If a type appears twice, the fields are combined.
-    let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
-    // Store primitives in a separate array
-    const dataPrimitives: object[] = [];
+    let selectFieldsDict: { [x: string]: { [x: string]: { [x: string]: any } } } = {};
+    // Store primitives in a separate object
+    const dataPrimitives: any = {};
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
         // If value is an array, add each element to the correct key in objectDict
         if (Array.isArray(value)) {
+            // TODO temp
+            if (key === 'tags') console.log('groupsupplementsbytype isarray tags', partial[key]);
+            // If __typename for key does not exist (i.e. it was not requested), skip
+            if (!partial.hasOwnProperty(key) || !partial[key]?.__typename) continue;
+            if (key === 'tags') console.log('made it past check');
             selectFieldsDict[partial[key].__typename] = _.merge(selectFieldsDict[partial[key].__typename] ?? {}, partial[key]);
             // Pass each element through groupSupplementsByType
             for (const v of value) {
+                if (key === 'tags') console.log('passing element through groupSupplementsByType', v);
                 const [childObjectsDict, childSelectFieldsDict] = groupSupplementsByType(v, partial[key]);
-                objectDict = _.merge(objectDict, childObjectsDict);
+                if (key === 'tags') console.log('passed element through groupsupplementstype', childObjectsDict);
+                if (key === 'tags') console.log('objectdict before child merge:', objectDict);
+                objectDict = mergeObjectTypeDict(objectDict, childObjectsDict);
+                if (key === 'tags') console.log('merged objectdict!', objectDict);
                 selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
             }
         }
-        // If value is an object, add it to the correct key in objectDict
-        else if (_.isObject(value)) {
+        // If value is an object (and not date), add it to the correct key in objectDict
+        else if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
+            // If __typename for key does not exist (i.e. it was not requested), skip
+            if (!partial.hasOwnProperty(key) || !partial[key]?.__typename) continue;
             selectFieldsDict[partial[key].__typename] = _.merge(selectFieldsDict[partial[key].__typename] ?? {}, partial[key]);
             // Pass value through groupSupplementsByType
             const [childObjectsDict, childSelectFieldsDict] = groupSupplementsByType(value, partial[key]);
-            objectDict = _.merge(objectDict, childObjectsDict);
+            objectDict = mergeObjectTypeDict(objectDict, childObjectsDict);
             selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
         }
         // Otherwise, add it to the primitives array
         else {
-            dataPrimitives.push(value);
+            dataPrimitives[key] = value;
         }
     }
     // Handle base case
@@ -729,8 +812,12 @@ const groupSupplementsByType = (data: { [x: string]: any }, info: InfoType): [{ 
         .filter(key => !Array.isArray(partial[key]) && !partial[key]?.__typename)
         .reduce((res: any, key) => (res[key] = partial[key], res), {});
     // Finally, add the base object to objectDict (primitives only) and selectFieldsDict
-    objectDict[partial.__typename] = objectDict[partial.__typename] ? [...objectDict[partial.__typename], dataPrimitives] : [dataPrimitives];
-    selectFieldsDict[partial.__typename] = _.merge(selectFieldsDict[partial.__typename] ?? [], partialPrimitives);
+    if (partial.__typename in objectDict) {
+        objectDict[partial.__typename].push(dataPrimitives);
+    } else {
+        objectDict[partial.__typename] = [dataPrimitives];
+    }
+    selectFieldsDict[partial.__typename] = _.merge(selectFieldsDict[partial.__typename] ?? {}, partialPrimitives);
     // Return objectDict and selectFieldsDict
     return [objectDict, selectFieldsDict];
 }
@@ -742,6 +829,7 @@ const groupSupplementsByType = (data: { [x: string]: any }, info: InfoType): [{ 
  * @returns data with supplemental fields added
  */
 const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: string]: any }) => {
+    console.log('in combinesupplements start')
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
         // If value is an array, add each element to the correct key in objectDict
@@ -749,14 +837,15 @@ const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: strin
             // Pass each element through combineSupplements
             data[key] = data[key].map((v: any) => combineSupplements(v, objectsById));
         }
-        // If value is an object, add it to the correct key in objectDict
-        else if (_.isObject(value)) {
+        // If value is an object (and not a date), add it to the correct key in objectDict
+        else if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
             // Pass value through combineSupplements
             data[key] = combineSupplements(value, objectsById);
         }
     }
+    console.log('combinesupplements base case ;)', _.merge(data, objectsById[data.id]));
     // Handle base case
-    return { ...data, ...objectsById[data.id] }
+    return _.merge(data, objectsById[data.id])
 }
 
 /**
@@ -769,30 +858,45 @@ const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: strin
  * @returns data array with supplemental fields added to each object
  */
 export const addSupplementalFields = async (prisma: PrismaType, userId: string | null, data: { [x: string]: any }[], info: InfoType): Promise<{ [x: string]: any }[]> => {
+    console.log('addsupplementalfields start', (info as any)?.__typename);
     // Group objects by type
     let objectDict: { [x: string]: object[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
     for (const d of data) {
+        //TODO temp. check all tags which should be in objectdict.currently only 'Cardano' shows up
+        if (d.tags && d.tags.length > 0) console.log('addsupplementalfields d.tags start', d.tags);
         const [childObjectsDict, childSelectFieldsDict] = groupSupplementsByType(d, info);
-        objectDict = _.merge(objectDict, childObjectsDict);
+        // Merge each array in childObjectsDict into objectDict
+        objectDict = mergeObjectTypeDict(objectDict, childObjectsDict);//TODO temp. something wrong with merging. make sure all tags return correctly in one array
+        if (d.tags && d.tags.length > 0) console.log('addsupplementalfields d.tags objectsdict merged', objectDict);
+        // Merge each object in childSelectFieldsDict into selectFieldsDict
         selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
     }
+    console.log('objectDict', (info as any)?.__typename, objectDict); //TODO check here if all tags are there
     // Dictionary to store objects by ID
     const objectsById: { [x: string]: any } = {};
     // Pass each objectDict value through the correct custom supplemental field function
     for (const [key, value] of Object.entries(objectDict)) {
+        console.log('keeeeeeeeeeeey', key)
         if (key in FormatterMap) {
-            const valuesWithSupplements = FormatterMap[key].addSupplementalFields
+            const valuesWithSupplements = FormatterMap[key]?.addSupplementalFields
                 ? await (FormatterMap[key] as any).addSupplementalFields(prisma, userId, value, selectFieldsDict[key])
                 : value;
+            console.log('called object addSupplementalFields', key, valuesWithSupplements);
             // Add each value to objectsById
             for (const v of valuesWithSupplements) {
+                console.log('adding to objectsById', v.id);
                 objectsById[v.id] = v;
             }
         }
     }
-    // Recursively add supplemental fields to data, using the ID dictionary
-    return data.map(d => combineSupplements(d, objectsById));
+    console.log('going to recursive combineSupplements', objectsById); //TODO only 9ea8 Cardano tag shows up here
+    let result = data.map(d => combineSupplements(d, objectsById));
+    console.log('got result', (info as any)?.__typename, result);
+    //TODO temp
+    if (result?.length > 0 && result[0].tags) console.log('got result tags', result[0].tags); // TODO isStarred missing on FIRST tag in result
+    // Convert objectsById dictionary back into shape of data
+    return result
 }
 
 /**
@@ -802,11 +906,12 @@ export const addSupplementalFields = async (prisma: PrismaType, userId: string |
  */
 export const selectToDB = (info: InfoType): { [x: string]: any } => {
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
-    let partial = infoToPartialSelect(info);
+    // Also perform clone to make sure that info is not modified
+    let partial = infoToPartialSelect(JSON.parse(JSON.stringify(info)));
     // Loop through each key/value pair in info
     for (const [key, value] of Object.entries(partial)) {
-        // If value is an object, recursively call selectToDB
-        if (_.isObject(value)) {
+        // If value is an object (and not date), recursively call selectToDB
+        if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
             partial[key] = selectToDB(value);
         }
     }
@@ -830,27 +935,34 @@ export const selectToDB = (info: InfoType): { [x: string]: any } => {
  * @returns Valid GraphQL object
  */
 export const modelToGraphQL = (data: { [x: string]: any }, info: InfoType): { [x: string]: any } => {
+    console.log('in modelToGraphQL', (info as any)?.__typename, data);
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = infoToPartialSelect(info);
-    // Loop through each key/value pair in data
+    console.log('partial in modeltographql', partial);
+    // First convert data to usable shape
+    if (partial?.__typename in FormatterMap) {
+        const formatter = FormatterMap[partial.__typename];
+        // Construct unions
+        if (formatter.constructUnions) data = formatter.constructUnions(data);
+        console.log('constructed union', data)
+        // Remove join tables
+        if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
+        console.log('removed tables', data)
+    }
+    // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {
+        console.log('modeltographql loop', key, partial[key], value);
+        // If key doesn't exist in partial, skip
+        if (!_.isObject(partial) || !(partial as any)[key]) continue;
         // If value is an array, call modelToGraphQL on each element
         if (Array.isArray(value)) {
             // Pass each element through modelToGraphQL
             data[key] = data[key].map((v: any) => modelToGraphQL(v, partial[key]));
         }
-        // If value is an object, call modelToGraphQL on it
-        else if (_.isObject(value)) {
-            data[key] = modelToGraphQL(value, partial[key]);
+        // If value is an object (and not date), call modelToGraphQL on it
+        else if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
+            data[key] = modelToGraphQL(value, (partial as any)[key]);
         }
-    }
-    // Handle base case
-    if (partial.__typename in FormatterMap) {
-        const formatter = FormatterMap[partial.__typename];
-        // Construct unions
-        if (formatter.constructUnions) data = formatter.constructUnions(data);
-        // Remove join tables
-        if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
     }
     return data;
 }
@@ -862,6 +974,7 @@ export const modelToGraphQL = (data: { [x: string]: any }, info: InfoType): { [x
  * @param input GraphQL create input object
  * @param info GraphQL info object
  * @param cud Object's CUD helper function
+ * @param prisma Prisma client
  * @returns GraphQL response object
  */
 export async function createHelper<CreateInput, UpdateInput, GraphQLOutput>(
@@ -869,10 +982,13 @@ export async function createHelper<CreateInput, UpdateInput, GraphQLOutput>(
     input: any,
     info: InfoType,
     cud: (input: CUDInput<CreateInput, UpdateInput>) => Promise<CUDResult<GraphQLOutput>>,
+    prisma: PrismaType
 ): Promise<RecursivePartial<GraphQLOutput>> {
     if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object');
     const { created } = await cud({ info, userId, createMany: [input] });
-    if (created && created.length > 0) return created[0];
+    if (created && created.length > 0) {
+        return await addSupplementalFields(prisma, userId, created, info) as any;
+    }
     throw new CustomError(CODE.ErrorUnknown);
 }
 
@@ -899,7 +1015,8 @@ export async function readOneHelper<GraphQLModel>(
     let object = await PrismaMap[objectType](prisma).findUnique(prisma, { where: { id: input.id }, ...selectHelper(info) });
     if (!object) throw new CustomError(CODE.NotFound, `${objectType} not found`);
     // Return formatted for GraphQL
-    return (await addSupplementalFields(prisma, userId, [object], info))[0] as RecursivePartial<GraphQLModel>;
+    let formatted = modelToGraphQL(object, info);
+    return (await addSupplementalFields(prisma, userId, [formatted], info))[0] as RecursivePartial<GraphQLModel>;
 }
 
 /**
@@ -921,8 +1038,10 @@ export async function readManyHelper<SearchInput extends SearchInputBase<any>>(
     searcher: Searcher<SearchInput>,
     additionalQueries?: { [x: string]: any },
 ): Promise<PaginatedSearchResult> {
+    console.log('readmanyhelper start', info)
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = infoToPartialSelect(info);
+    console.log('readmanyhelper partial info', partial, info)
     // Uses __typename to determine which Prisma object is being queried
     const objectType = partial.__typename;
     if (!(objectType in PrismaMap)) throw new CustomError(CODE.InternalError, `${objectType} not found`);
@@ -935,7 +1054,7 @@ export async function readManyHelper<SearchInput extends SearchInputBase<any>>(
     // Determine updatedTimeFrame query
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Create type-specific queries
-    const typeQuery = SearcherMap[objectType].customQueries ? (SearcherMap[objectType] as any).customQueries(input) : undefined;
+    const typeQuery = SearcherMap[objectType]?.customQueries ? (SearcherMap[objectType] as any).customQueries(input) : undefined;
     // Combine queries
     const where = { ...additionalQueries, ...idQuery, ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
     // Determine sort order
@@ -984,9 +1103,27 @@ export async function readManyHelper<SearchInput extends SearchInputBase<any>>(
             edges: []
         }
     }
+    console.log('chicken bobicken partial info', partial, info)
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
+    console.log('findmany nodes before modeltographql', formattedNodes);
+    formattedNodes = formattedNodes.map(n => modelToGraphQL(n, info));
+    console.log('findmany nodes before addSupplementalFields', formattedNodes);
     formattedNodes = await addSupplementalFields(prisma, userId, formattedNodes, info);
+    console.log('findmany nodes after addSupplementalFields', formattedNodes);
+    //TODO temp
+    if (formattedNodes.length >= 20) {
+        console.log('20th item tag', formattedNodes[19]?.tags);
+        if (formattedNodes[19]?.tags?.length > 0) {
+            console.log('20th item FIRST TAG', formattedNodes[19]?.tags[0]);
+        }
+        if (formattedNodes[19]?.tags?.length > 1) {
+            console.log('20th item SECOND TAG', formattedNodes[19]?.tags[1]);
+        }
+        if (formattedNodes[19]?.tags?.length > 2) {
+            console.log('20th item THIRD TAG', formattedNodes[19]?.tags[2]);
+        }
+    }
     return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
 }
 
@@ -998,7 +1135,7 @@ export async function readManyHelper<SearchInput extends SearchInputBase<any>>(
  * @param where Additional where clauses, in addition to the createdMetric and updatedMetric passed into input
  * @returns The number of matching objects
  */
- export async function countHelper<CountInput extends CountInputBase>(input: CountInput, objectType: string, prisma: PrismaType, where?: { [x: string]: any }): Promise < number > {
+export async function countHelper<CountInput extends CountInputBase>(input: CountInput, objectType: string, prisma: PrismaType, where?: { [x: string]: any }): Promise<number> {
     // Create query for created metric
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Create query for created metric
@@ -1019,6 +1156,7 @@ export async function readManyHelper<SearchInput extends SearchInputBase<any>>(
  * @param input GraphQL update input object
  * @param info GraphQL info object
  * @param cud Object's CUD helper function
+ * @param prisma Prisma client
  * @returns GraphQL response object
  */
 export async function updateHelper<CreateInput, UpdateInput, GraphQLModel>(
@@ -1026,10 +1164,13 @@ export async function updateHelper<CreateInput, UpdateInput, GraphQLModel>(
     input: any,
     info: InfoType,
     cud: (input: CUDInput<CreateInput, UpdateInput>) => Promise<CUDResult<GraphQLModel>>,
+    prisma: PrismaType,
 ): Promise<RecursivePartial<GraphQLModel>> {
     if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object');
     const { updated } = await cud({ info, userId, updateMany: [input] });
-    if (updated && updated.length > 0) return updated[0];
+    if (updated && updated.length > 0) {
+        return await addSupplementalFields(prisma, userId, updated, info) as any;
+    }
     throw new CustomError(CODE.ErrorUnknown);
 }
 

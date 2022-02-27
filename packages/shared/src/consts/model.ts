@@ -7,14 +7,6 @@ import { ValueOf } from ".";
 // For more information, see: https://github.com/prisma/prisma/discussions/9215
 //==============================================================
 
-export const AccountStatus: { [x: string]: "Deleted" | "Unlocked" | "SoftLocked" | "HardLocked" } = {
-    Deleted: "Deleted",
-    Unlocked: "Unlocked",
-    SoftLocked: "SoftLocked",
-    HardLocked: "HardLocked"
-}
-export type AccountStatus = ValueOf<typeof AccountStatus>;
-
 export const StandardType: { [x: string]: "String" | "Number" | "Boolean" | "Object" | "Array" | "File" | "Url" } = {
     String: "String",
     Number: "Number",
@@ -36,6 +28,19 @@ export type StandardType = ValueOf<typeof StandardType>;
 // Each sort option should be ordered in the order they should appear in, 
 // NOT alphabetically
 //==============================================================
+
+export enum CommentSortBy {
+    VotesAsc = "VotesAsc",
+    VotesDesc = "VotesDesc",
+    StarsDesc = "StarsDesc",
+    StarsAsc = "StarsAsc",
+    DateCreatedDesc = "DateCreatedDesc",
+    DateCreatedAsc = "DateCreatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+    AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
+}
 
 export enum OrganizationSortBy {
     AlphabeticalAsc = "AlphabeticalAsc",
@@ -63,6 +68,15 @@ export enum ProjectSortBy {
     DateCreatedAsc = "DateCreatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
+}
+
+export enum ReportSortBy {
+    DateCreatedDesc = "DateCreatedDesc",
+    DateCreatedAsc = "DateCreatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+    AlphabeticalAsc = "AlphabeticalAsc",
+    AlphabeticalDesc = "AlphabeticalDesc",
 }
 
 export enum ResourceSortBy {
@@ -131,15 +145,6 @@ export enum UserSortBy {
 //==============================================================
 /* #endregion Sort Options */
 //==============================================================
-
-export const CommentFor = {
-    Organization: "Organization",
-    Project: "Project",
-    Routine: "Routine",
-    Standard: "Standard",
-    User: "User",
-}
-export type CommentFor = ValueOf<typeof CommentFor>;
 
 export const ReportFor = {
     Comment: "Comment",

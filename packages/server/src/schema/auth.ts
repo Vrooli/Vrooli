@@ -3,7 +3,7 @@
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
 import { gql } from 'apollo-server-express';
-import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES, AccountStatus } from '@local/shared';
+import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES } from '@local/shared';
 import { CustomError } from '../error';
 import { generateNonce, randomString, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionToken } from '../auth/auth.js';
@@ -13,6 +13,8 @@ import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
 import { profileValidater } from '../models';
 import { hasProfanity } from '../utils/censor';
+import pkg from '@prisma/client';
+const { AccountStatus } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 

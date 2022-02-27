@@ -503,7 +503,6 @@ model standard {
     createdByUser           user?            @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
     createdByOrganization   organization?    @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
     tags                    standard_tags[] // Categorical tags set by creators or community-voted
-    // TODO add relationships to routines that use this standard
     routineInputs           routine_input[]
     routineOutputs          routine_output[]
     stars                   Int              @default(0) // Count of all stars. Makes queries easier than counting the relationship every time

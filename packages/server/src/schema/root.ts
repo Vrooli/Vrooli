@@ -177,7 +177,6 @@ export const resolvers = {
          * Autocomplete endpoint for main page. Combines search queries for all main objects
          */
         autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
-            console.log('Autocomplete input', input, req.userId);
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } }
             const tagSelect = {

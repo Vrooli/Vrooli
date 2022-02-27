@@ -2,13 +2,15 @@ import { PrismaType, RecursivePartial } from "types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagSearchInput, User, UserDeleteInput } from "../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
 import { addJoinTablesHelper, FormatConverter, InfoType, modelToGraphQL, PaginatedSearchResult, readManyHelper, readOneHelper, removeJoinTablesHelper, selectHelper } from "./base";
-import { AccountStatus, user } from "@prisma/client";
+import { user } from "@prisma/client";
 import { CODE, ROLES } from "@local/shared";
 import { CustomError } from "../error";
 import bcrypt from 'bcrypt';
 import { hasProfanity } from "../utils/censor";
 import { TagModel, tagSearcher } from "./tag";
 import { EmailModel } from "./email";
+import pkg from '@prisma/client';
+const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
 const HASHING_ROUNDS = 8;

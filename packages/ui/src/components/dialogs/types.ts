@@ -1,4 +1,4 @@
-import { DialogProps, MenuProps } from '@mui/material';
+import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';

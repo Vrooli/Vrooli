@@ -144,7 +144,7 @@ export const resolvers = {
          * @returns Standard object if successful
          */
         standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            return createHelper(req.userId, input, info, StandardModel(prisma).cud);
+            return createHelper(req.userId, input, info, StandardModel(prisma).cud, prisma);
         },
         /**
          * Update a standard you created.
@@ -154,7 +154,7 @@ export const resolvers = {
          * @returns Standard object if successful
          */
         standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            return updateHelper(req.userId, input, info, StandardModel(prisma).cud);
+            return updateHelper(req.userId, input, info, StandardModel(prisma).cud, prisma);
         },
         /**
          * Delete a standard you've created. Other standards must go through a reporting system

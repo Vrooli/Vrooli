@@ -1,8 +1,7 @@
 import { id } from './base';
 import * as yup from 'yup';
-import { CommentFor } from '../consts';
 
-const createdFor = yup.string().oneOf(Object.values(CommentFor)).optional();
+const createdFor = yup.string().oneOf(['Project', 'Routine', 'Standard']).optional();
 const text = yup.string().min(1).max(8192).optional();
 
 /**

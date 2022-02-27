@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count } from "../schema/types";
-import { addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count } from "../schema/types";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
 import { CODE, MemberRole, organizationCreate, organizationUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -8,7 +8,6 @@ import { ResourceModel } from "./resource";
 import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
-import _ from "lodash";
 
 export const organizationDBFields = ['id', 'created_at', 'updated_at', 'bio', 'name', 'openToNewMembers', 'stars'];
 
@@ -26,6 +25,7 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {
+        console.log('in organization removeJoinTables', data);
         return removeJoinTablesHelper(data, joinMapper);
     },
     async addSupplementalFields(
@@ -36,12 +36,10 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
     ): Promise<RecursivePartial<Organization>[]> {
         // Convert GraphQL info object to a partial select object
         const partial = infoToPartialSelect(info);
-        console.log('organization supplementalfields', objects)
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
         if (partial.isStarred) {
-            console.log('organization isStarred query');
             const isStarredArray = userId
                 ? await StarModel(prisma).getIsStarreds(userId, ids, 'organization')
                 : Array(ids.length).fill(false);
@@ -212,11 +210,6 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
                 where: { id: { in: deleteMany } }
             })
         }
-        // Format and add supplemental/calculated fields
-        const createdLength = created.length;
-        const supplemental = await addSupplementalFields(prisma, userId, [...created, ...updated], info);
-        created = supplemental.slice(0, createdLength);
-        updated = supplemental.slice(createdLength);
         return {
             created: createMany ? created : undefined,
             updated: updateMany ? updated : undefined,

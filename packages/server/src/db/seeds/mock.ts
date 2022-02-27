@@ -4,8 +4,10 @@
  */
 
 import { PrismaType } from "../../types";
-import { AccountStatus, ROLES } from "@local/shared";
-import { UserModel } from "../../models";
+import { ROLES } from "@local/shared";
+import { ProfileModel } from "../../models";
+import pkg from '@prisma/client';
+const { AccountStatus } = pkg;
 
 export async function mock(prisma: PrismaType) {
     console.info("🎭 Creating mock data...");
@@ -15,7 +17,7 @@ export async function mock(prisma: PrismaType) {
     const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
     console.log('actorRoleId', actorRoleId);
 
-    const userModel = UserModel(prisma);
+    const profileModel = ProfileModel(prisma);
 
     //==============================================================
     /* #region Create users */
@@ -32,7 +34,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Elon Tusk🦏",
-            password: userModel.hashPassword("Elon"),
+            password: profileModel.hashPassword("Elon"),
             status: AccountStatus.Unlocked,
             bio: "I am the greatest",
             emails: {
@@ -53,7 +55,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "HAL 9000🤖",
-            password: userModel.hashPassword("HAL"),
+            password: profileModel.hashPassword("HAL"),
             status: AccountStatus.Deleted,
             bio: "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?",
             emails: {
@@ -73,7 +75,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Spongebob Squarepants",
-            password: userModel.hashPassword("Spongebob"),
+            password: profileModel.hashPassword("Spongebob"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -92,7 +94,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Patrick Star",
-            password: userModel.hashPassword("Patrick"),
+            password: profileModel.hashPassword("Patrick"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -111,7 +113,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Mr. Krabs",
-            password: userModel.hashPassword("Mr"),
+            password: profileModel.hashPassword("Mr"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -130,7 +132,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Plankton (Sheldon)",
-            password: userModel.hashPassword("Plankton"),
+            password: profileModel.hashPassword("Plankton"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -149,7 +151,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Daisy Buchanan",
-            password: userModel.hashPassword("Daisy"),
+            password: profileModel.hashPassword("Daisy"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -168,7 +170,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "John Galt",
-            password: userModel.hashPassword("John"),
+            password: profileModel.hashPassword("John"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -187,7 +189,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Fancisco d'Anconia",
-            password: userModel.hashPassword("Francisco"),
+            password: profileModel.hashPassword("Francisco"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -206,7 +208,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "James Taggart",
-            password: userModel.hashPassword("James"),
+            password: profileModel.hashPassword("James"),
             status: AccountStatus.Deleted,
             emails: {
                 create: [
@@ -225,7 +227,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Aang",
-            password: userModel.hashPassword("Aang"),
+            password: profileModel.hashPassword("Aang"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -244,7 +246,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Zuko",
-            password: userModel.hashPassword("Zuko"),
+            password: profileModel.hashPassword("Zuko"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -263,7 +265,7 @@ export async function mock(prisma: PrismaType) {
         update: {},
         create: {
             username: "Gregor Samsa",
-            password: userModel.hashPassword("Gregor"),
+            password: profileModel.hashPassword("Gregor"),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [

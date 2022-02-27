@@ -1,8 +1,8 @@
 import { CODE, MemberRole, projectCreate, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
-import { Project, ProjectCountInput, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count } from "../schema/types";
-import { addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count } from "../schema/types";
+import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
@@ -26,8 +26,10 @@ export const projectFormatter = (): FormatConverter<Project> => ({
     constructUnions: (data) => {
         let modified = addCreatorField(data);
         modified = addOwnerField(modified);
+        return modified;
     },
     deconstructUnions: (partial) => {
+        console.log('IN DECONSTRUCT UNIONS PROJECT', partial);
         let modified = removeCreatorField(partial);
         modified = removeOwnerField(modified);
         return modified;
@@ -36,6 +38,7 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {
+        console.log('in project removeJoinTables', data);
         return removeJoinTablesHelper(data, joinMapper);
     },
     async addSupplementalFields(
@@ -273,11 +276,6 @@ export const projectMutater = (prisma: PrismaType, verifier: any) => ({
                 where: { id: { in: deleteMany } }
             })
         }
-        // Format and add supplemental/calculated fields
-        const createdLength = created.length;
-        const supplemental = await addSupplementalFields(prisma, userId, [...created, ...updated], info);
-        created = supplemental.slice(0, createdLength);
-        updated = supplemental.slice(createdLength);
         return {
             created: createMany ? created : undefined,
             updated: updateMany ? updated : undefined,

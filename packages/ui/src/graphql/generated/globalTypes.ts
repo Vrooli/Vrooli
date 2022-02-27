@@ -8,11 +8,9 @@
 //==============================================================
 
 export enum CommentFor {
-  Organization = "Organization",
   Project = "Project",
   Routine = "Routine",
   Standard = "Standard",
-  User = "User",
 }
 
 export enum MemberRole {
@@ -728,6 +726,7 @@ export interface TagSearchInput {
 }
 
 export interface TagUpdateInput {
+  id: string;
   anonymous?: boolean | null;
   description?: string | null;
   tag?: string | null;

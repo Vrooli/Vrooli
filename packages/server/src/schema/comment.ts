@@ -1,19 +1,30 @@
 import { gql } from 'apollo-server-express';
-import { CommentFor } from '@local/shared';
-import { Comment, CommentCreateInput, CommentUpdateInput, DeleteOneInput, Success } from './types';
+import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentUpdateInput, DeleteOneInput, FindByIdInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
-import { CommentModel, createHelper, deleteOneHelper, updateHelper } from '../models';
+import { CommentModel, commentSearcher, countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
+import { CommentSortBy } from '@local/shared';
 
 export const typeDef = gql`
     enum CommentFor {
-        Organization
         Project
         Routine
         Standard
-        User
     }   
+
+    enum CommentSortBy {
+        AlphabeticalAsc
+        AlphabeticalDesc
+        DateCreatedAsc
+        DateCreatedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
+        StarsAsc
+        StarsDesc
+        VotesAsc
+        VotesDesc
+    }
 
     input CommentCreateInput {
         text: String!
@@ -43,6 +54,45 @@ export const typeDef = gql`
         role: MemberRole
     }
 
+    input CommentSearchInput {
+        userId: ID
+        organizationId: ID
+        projectId: ID
+        routineId: ID
+        standardId: ID
+        ids: [ID!]
+        sortBy: CommentSortBy
+        createdTimeFrame: TimeFrame
+        updatedTimeFrame: TimeFrame
+        searchString: String
+        after: String
+        take: Int
+    }
+
+    # Return type for search result
+    type CommentSearchResult {
+        pageInfo: PageInfo!
+        edges: [CommentEdge!]!
+    }
+
+    # Return type for search result edge
+    type CommentEdge {
+        cursor: String!
+        node: Comment!
+    }
+
+    # Input for count
+    input CommentCountInput {
+        createdTimeFrame: TimeFrame
+        updatedTimeFrame: TimeFrame
+    }
+
+    extend type Query {
+        comment(input: FindByIdInput!): Comment
+        comments(input: CommentSearchInput!): CommentSearchResult!
+        commentsCount(input: CommentCountInput!): Int!
+    }
+
     extend type Mutation {
         commentCreate(input: CommentCreateInput!): Comment!
         commentUpdate(input: CommentUpdateInput!): Comment!
@@ -52,6 +102,7 @@ export const typeDef = gql`
 
 export const resolvers = {
     CommentFor: CommentFor,
+    CommentSortBy: CommentSortBy,
     CommentedOn: {
         __resolveType(obj: any) {
             console.log('IN COMMENT __resolveType', obj);
@@ -64,12 +115,23 @@ export const resolvers = {
             return null; // GraphQLError is thrown
         },
     },
+    Query: {
+        comment: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment> | null> => {
+            return readOneHelper(req.userId, input, info, prisma);
+        },
+        comments: async (_parent: undefined, { input }: IWrap<CommentSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<CommentSearchResult> => {
+            return readManyHelper(req.userId, input, info, prisma, commentSearcher());
+        },
+        commentsCount: async (_parent: undefined, { input }: IWrap<CommentCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
+            return countHelper(input, 'Count', prisma);
+        },
+    },
     Mutation: {
         commentCreate: async (_parent: undefined, { input }: IWrap<CommentCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
-            return createHelper(req.userId, input, info, CommentModel(prisma).cud);
+            return createHelper(req.userId, input, info, CommentModel(prisma).cud, prisma);
         },
         commentUpdate: async (_parent: undefined, { input }: IWrap<CommentUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
-            return updateHelper(req.userId, input, info, CommentModel(prisma).cud);
+            return updateHelper(req.userId, input, info, CommentModel(prisma).cud, prisma);
         },
         commentDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             return deleteOneHelper(req.userId, input, CommentModel(prisma).cud);

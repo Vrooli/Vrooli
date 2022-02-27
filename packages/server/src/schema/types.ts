@@ -54,18 +54,61 @@ export type Comment = {
   updated_at: Scalars['Date'];
 };
 
+export type CommentCountInput = {
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+};
+
 export type CommentCreateInput = {
   createdFor: CommentFor;
   forId: Scalars['ID'];
   text: Scalars['String'];
 };
 
+export type CommentEdge = {
+  __typename?: 'CommentEdge';
+  cursor: Scalars['String'];
+  node: Comment;
+};
+
 export enum CommentFor {
-  Organization = 'Organization',
   Project = 'Project',
   Routine = 'Routine',
-  Standard = 'Standard',
-  User = 'User'
+  Standard = 'Standard'
+}
+
+export type CommentSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<CommentSortBy>;
+  standardId?: InputMaybe<Scalars['ID']>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+};
+
+export type CommentSearchResult = {
+  __typename?: 'CommentSearchResult';
+  edges: Array<CommentEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum CommentSortBy {
+  AlphabeticalAsc = 'AlphabeticalAsc',
+  AlphabeticalDesc = 'AlphabeticalDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  StarsAsc = 'StarsAsc',
+  StarsDesc = 'StarsDesc',
+  VotesAsc = 'VotesAsc',
+  VotesDesc = 'VotesDesc'
 }
 
 export type CommentUpdateInput = {
@@ -971,6 +1014,9 @@ export type ProjectUpdateInput = {
 export type Query = {
   __typename?: 'Query';
   autocomplete: AutocompleteResult;
+  comment?: Maybe<Comment>;
+  comments: CommentSearchResult;
+  commentsCount: Scalars['Int'];
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
   organizationsCount: Scalars['Int'];
@@ -980,6 +1026,9 @@ export type Query = {
   projectsCount: Scalars['Int'];
   readAssets: Array<Maybe<Scalars['String']>>;
   readOpenGraph: OpenGraphResponse;
+  report?: Maybe<Report>;
+  reports: ReportSearchResult;
+  reportsCount: Scalars['Int'];
   resource?: Maybe<Resource>;
   resources: ResourceSearchResult;
   resourcesCount: Scalars['Int'];
@@ -1001,6 +1050,21 @@ export type Query = {
 
 export type QueryAutocompleteArgs = {
   input: AutocompleteInput;
+};
+
+
+export type QueryCommentArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryCommentsArgs = {
+  input: CommentSearchInput;
+};
+
+
+export type QueryCommentsCountArgs = {
+  input: CommentCountInput;
 };
 
 
@@ -1041,6 +1105,21 @@ export type QueryReadAssetsArgs = {
 
 export type QueryReadOpenGraphArgs = {
   input: ReadOpenGraphInput;
+};
+
+
+export type QueryReportArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryReportsArgs = {
+  input: ReportSearchInput;
+};
+
+
+export type QueryReportsCountArgs = {
+  input: ReportCountInput;
 };
 
 
@@ -1134,11 +1213,22 @@ export type Report = {
   reason: Scalars['String'];
 };
 
+export type ReportCountInput = {
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+};
+
 export type ReportCreateInput = {
   createdFor: ReportFor;
   createdForId: Scalars['ID'];
   details?: InputMaybe<Scalars['String']>;
   reason: Scalars['String'];
+};
+
+export type ReportEdge = {
+  __typename?: 'ReportEdge';
+  cursor: Scalars['String'];
+  node: Report;
 };
 
 export enum ReportFor {
@@ -1149,6 +1239,37 @@ export enum ReportFor {
   Standard = 'Standard',
   Tag = 'Tag',
   User = 'User'
+}
+
+export type ReportSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ReportSortBy>;
+  standardId?: InputMaybe<Scalars['ID']>;
+  tagId?: InputMaybe<Scalars['ID']>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+};
+
+export type ReportSearchResult = {
+  __typename?: 'ReportSearchResult';
+  edges: Array<ReportEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ReportSortBy {
+  AlphabeticalAsc = 'AlphabeticalAsc',
+  AlphabeticalDesc = 'AlphabeticalDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
 export type ReportUpdateInput = {
@@ -1613,9 +1734,9 @@ export enum TagSortBy {
 }
 
 export type TagUpdateInput = {
-    id: string;
   anonymous?: InputMaybe<Scalars['Boolean']>;
   description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
   tag?: InputMaybe<Scalars['String']>;
 };
 

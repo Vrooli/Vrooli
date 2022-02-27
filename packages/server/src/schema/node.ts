@@ -240,10 +240,10 @@ export const resolvers = {
          * @returns Updated node
          */
         nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            return createHelper(req.userId, input, info, NodeModel(prisma).cud);
+            return createHelper(req.userId, input, info, NodeModel(prisma).cud, prisma);
         },
         nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            return updateHelper(req.userId, input, info, NodeModel(prisma).cud);
+            return updateHelper(req.userId, input, info, NodeModel(prisma).cud, prisma);
         },
         nodeDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             return deleteOneHelper(req.userId, input, NodeModel(prisma).cud);

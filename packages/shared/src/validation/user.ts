@@ -1,7 +1,6 @@
 import { description, idArray, id, title } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
-import { AccountStatus } from '../consts';
 
 export const MIN_USERNAME_LENGTH = 3;
 export const MAX_USERNAME_LENGTH = 25;
@@ -33,7 +32,7 @@ export const userSchema = yup.object().shape({
     id,
     username: yup.string().max(128).required(),
     emails: yup.array().of(emailSchema).required(),
-    status: yup.mixed().oneOf(Object.values(AccountStatus)).optional(),
+    status: yup.mixed().oneOf(["Deleted", "Unlocked", "SoftLocked", "HardLocked"]).optional(),
 });
 
 

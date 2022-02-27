@@ -104,14 +104,14 @@ export const resolvers = {
          * @returns Tag object if successful
          */
         tagCreate: async (_parent: undefined, { input }: IWrap<TagCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
-            return createHelper(req.userId, input, info, TagModel(prisma).cud);
+            return createHelper(req.userId, input, info, TagModel(prisma).cud, prisma);
         },
         /**
          * Update tags you've created
          * @returns 
          */
         tagUpdate: async (_parent: undefined, { input }: IWrap<TagUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
-            return updateHelper(req.userId, input, info, TagModel(prisma).cud);
+            return updateHelper(req.userId, input, info, TagModel(prisma).cud, prisma);
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system

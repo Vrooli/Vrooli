@@ -132,10 +132,10 @@ export const resolvers = {
     },
     Mutation: {
         organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            return createHelper(req.userId, input, info, OrganizationModel(prisma).cud);
+            return createHelper(req.userId, input, info, OrganizationModel(prisma).cud, prisma);
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            return updateHelper(req.userId, input, info, OrganizationModel(prisma).cud);
+            return updateHelper(req.userId, input, info, OrganizationModel(prisma).cud, prisma);
         },
         organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             return deleteOneHelper(req.userId, input, OrganizationModel(prisma).cud);

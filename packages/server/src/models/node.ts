@@ -3,10 +3,10 @@ import { addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatCon
 import { CustomError } from "../error";
 import { CODE, condition, conditionsCreate, conditionsUpdate, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
 import { PrismaType } from "types";
-import { MemberRole } from "@prisma/client";
 import { hasProfanityRecursive } from "../utils/censor";
 import { routineDBFields, RoutineModel } from "./routine";
-import _ from "lodash";
+import pkg from '@prisma/client';
+const { MemberRole } = pkg;
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -541,11 +541,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
                 where: { id: { in: deleteMany } }
             })
         }
-        // Format and add supplemental/calculated fields
-        const createdLength = created.length;
-        const supplemental = await addSupplementalFields(prisma, userId, [...created, ...updated], info);
-        created = supplemental.slice(0, createdLength);
-        updated = supplemental.slice(createdLength);
         return {
             created: createMany ? created : undefined,
             updated: updateMany ? updated : undefined,

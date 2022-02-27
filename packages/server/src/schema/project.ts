@@ -132,10 +132,10 @@ export const resolvers = {
     },
     Mutation: {
         projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            return createHelper(req.userId, input, info, ProjectModel(prisma).cud);
+            return createHelper(req.userId, input, info, ProjectModel(prisma).cud, prisma);
         },
         projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            return updateHelper(req.userId, input, info, ProjectModel(prisma).cud);
+            return updateHelper(req.userId, input, info, ProjectModel(prisma).cud, prisma);
         },
         projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             return deleteOneHelper(req.userId, input, ProjectModel(prisma).cud);

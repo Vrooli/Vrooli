@@ -2,15 +2,18 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { AccountStatus, ROLES, StandardType } from '@local/shared';
-import { UserModel } from '../../models';
+import { ROLES, StandardType } from '@local/shared';
+import { ProfileModel } from '../../models';
 import { envVariableExists } from '../../utils';
 import { PrismaType } from '../../types';
-import { v4 as uuidv4 } from 'uuid';
-import pkg from '@prisma/client';
-const { NodeType } = pkg;
+import pkg, { ResourceUsedFor } from '@prisma/client';
+const { AccountStatus, NodeType } = pkg;
 
 export async function init(prisma: PrismaType) {
+
+    //==============================================================
+    /* #region Initialization */
+    //==============================================================
     console.info('🌱 Starting database intial seed...');
 
     // Check for required .env variables
@@ -20,16 +23,26 @@ export async function init(prisma: PrismaType) {
     };
 
     // Initialize models
-    const userModel = UserModel(prisma);
+    const profileModel = ProfileModel(prisma);
+    //==============================================================
+    /* #endregion Initialization */
+    //==============================================================
 
-    // Create roles
+    //==============================================================
+    /* #region Create Roles */
+    //==============================================================
     const actorRole = await prisma.role.upsert({
         where: { title: ROLES.Actor },
         update: {},
         create: { title: ROLES.Actor, description: 'This role allows a user to create routines and save their progress.' },
     })
+    //==============================================================
+    /* #endregion Create Roles*/
+    //==============================================================
 
-    // Create tags
+    //==============================================================
+    /* #region Create Tags */
+    //==============================================================
     const tagCardano = await prisma.tag.upsert({
         where: { tag: 'Cardano' },
         update: {},
@@ -65,8 +78,13 @@ export async function init(prisma: PrismaType) {
         update: {},
         create: { tag: 'Research' },
     })
+    //==============================================================
+    /* #endregion Create Tags */
+    //==============================================================
 
-    // Create admin
+    //==============================================================
+    /* #region Create Admin */
+    //==============================================================
     const admin = await prisma.user.upsert({
         where: {
             username: 'admin',
@@ -74,7 +92,7 @@ export async function init(prisma: PrismaType) {
         update: {},
         create: {
             username: 'admin',
-            password: userModel.hashPassword('admin'),
+            password: profileModel.hashPassword('admin'),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -91,8 +109,17 @@ export async function init(prisma: PrismaType) {
             }
         },
     })
+    //==============================================================
+    /* #endregion Create Admin */
+    //==============================================================
 
-    // Create Vrooli organization
+    //==============================================================
+    /* #endregion Create Resources */
+    //==============================================================
+
+    //==============================================================
+    /* #region Create Organizations */
+    //==============================================================
     let vrooli = await prisma.organization.findFirst({
         where: {
             AND: [
@@ -118,12 +145,23 @@ export async function init(prisma: PrismaType) {
                         { tagId: tagEntrepreneurship.id },
                         { tagId: tagCardano.id },
                     ]
+                },
+                resources: {
+                    create: [
+                        { title: 'Twitter', usedFor: ResourceUsedFor.Social as any, link: 'https://twitter.com/VrooliOfficial' },
+                        { title: 'Website', usedFor: ResourceUsedFor.OfficialWebsite as any, link: 'https://vrooli.com' },
+                    ]
                 }
             }
         })
     }
+    //==============================================================
+    /* #endregion Create Organizations */
+    //==============================================================
 
-    // Create projects
+    //==============================================================
+    /* #region Create Projects */
+    //==============================================================
     let projectEntrepreneur = await prisma.project.findFirst({
         where: {
             AND: [
@@ -143,8 +181,13 @@ export async function init(prisma: PrismaType) {
             }
         })
     }
+    //==============================================================
+    /* #endregion Create Projects */
+    //==============================================================
 
-    // Create standards
+    //==============================================================
+    /* #region Create Standards */
+    //==============================================================
     let standardCip0025 = await prisma.standard.findFirst({
         where: {
             AND: [
@@ -213,8 +256,13 @@ export async function init(prisma: PrismaType) {
             }
         })
     }
+    //==============================================================
+    /* #endregion Create Standards */
+    //==============================================================
 
-    // Create routines with nodes
+    //==============================================================
+    /* #region Create Routines */
+    //==============================================================
     let frameworkBusinessIdea: any = await prisma.routine.findFirst({
         where: {
             AND: [
@@ -227,7 +275,7 @@ export async function init(prisma: PrismaType) {
         console.info('📚 Creating Starting New Business Frameworks');
         frameworkBusinessIdea = await prisma.routine.create({
             data: {
-                id: '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9', // Set ID so we can know ahead of time this routine's URL (to link for example)
+                id: '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9', // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
                 title: 'Starting New Business Frameworks',
                 description: 'Hash out your new business idea.',
                 instructions: 'Fill out the following forms to collect your thoughts and decide if your business idea is worth pursuing.',
@@ -461,6 +509,9 @@ export async function init(prisma: PrismaType) {
         // const links = 
         // const frameworkBusinessIdeaNodes = frameworkBusinessIdea.nodes;
     }
+    //==============================================================
+    /* #endregion Create Routines */
+    //==============================================================
 
     console.info(`✅ Database seeding complete.`);
 }

@@ -212,10 +212,10 @@ export const resolvers = {
     },
     Mutation: {
         routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            return createHelper(req.userId, input, info, RoutineModel(prisma).cud);
+            return createHelper(req.userId, input, info, RoutineModel(prisma).cud, prisma);
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            return updateHelper(req.userId, input, info, RoutineModel(prisma).cud);
+            return updateHelper(req.userId, input, info, RoutineModel(prisma).cud, prisma);
         },
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             return deleteOneHelper(req.userId, input, RoutineModel(prisma).cud);

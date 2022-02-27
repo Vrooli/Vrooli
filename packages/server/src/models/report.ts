@@ -1,9 +1,9 @@
 import { CODE, reportCreate, ReportFor, reportUpdate } from "@local/shared";
 import { CustomError } from "../error";
-import { Count, Report, ReportCreateInput, ReportUpdateInput } from "../schema/types";
+import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { hasProfanity } from "../utils/censor";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 
 //==============================================================
 /* #region Custom Components */
@@ -32,6 +32,38 @@ export const reportFormatter = (): FormatConverter<Report> => ({
         if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.fromId === userId }));
         // Convert Prisma objects to GraphQL objects
         return objects as RecursivePartial<Report>[];
+    },
+})
+
+export const reportSearcher = (): Searcher<ReportSearchInput> => ({
+    defaultSort: ReportSortBy.DateCreatedDesc,
+    getSortQuery: (sortBy: string): any => {
+        return {
+            [ReportSortBy.AlphabeticalAsc]: { reason: 'asc' },
+            [ReportSortBy.AlphabeticalDesc]: { reason: 'desc' },
+            [ReportSortBy.DateCreatedAsc]: { created_at: 'asc' },
+            [ReportSortBy.DateCreatedDesc]: { created_at: 'desc' },
+            [ReportSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
+            [ReportSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
+        }[sortBy]
+    },
+    getSearchStringQuery: (searchString: string): any => {
+        const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
+        return ({
+            OR: [
+                { reason: { ...insensitive } },
+                { details: { ...insensitive } },
+            ]
+        })
+    },
+    customQueries(input: ReportSearchInput): { [x: string]: any } {
+        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
+        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
+        const projectIdQuery = input.projectId ? { projectId: input.projectId } : undefined;
+        const routineIdQuery = input.routineId ? { routineId: input.routineId } : undefined;
+        const standardIdQuery = input.standardId ? { standardId: input.standardId } : undefined;
+        const tagIdQuery = input.tagId ? { tagId: input.tagId } : undefined;
+        return { ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery, ...tagIdQuery };
     },
 })
 
@@ -132,11 +164,6 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
                 }
             })
         }
-        // Format and add supplemental/calculated fields
-        const createdLength = created.length;
-        const supplemental = await addSupplementalFields(prisma, userId, [...created, ...updated], info);
-        created = supplemental.slice(0, createdLength);
-        updated = supplemental.slice(createdLength);
         return {
             created: createMany ? created : undefined,
             updated: updateMany ? updated : undefined,
@@ -156,12 +183,14 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
 export function ReportModel(prisma: PrismaType) {
     const prismaObject = prisma.report;
     const format = reportFormatter();
+    const search = reportSearcher();
     const verify = reportVerifier();
     const mutate = reportMutater(prisma, verify);
 
     return {
         prismaObject,
         ...format,
+        ...search,
         ...verify,
         ...mutate,
     }

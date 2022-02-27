@@ -285,11 +285,6 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
                 where: { id: { in: deleteMany } },
             });
         }
-        // Format and add supplemental/calculated fields
-        const createdLength = created.length;
-        const supplemental = await addSupplementalFields(prisma, userId, [...created, ...updated], info);
-        created = supplemental.slice(0, createdLength);
-        updated = supplemental.slice(createdLength);
         return {
             created: createMany ? created : undefined,
             updated: updateMany ? updated : undefined,
