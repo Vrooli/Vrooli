@@ -41,16 +41,16 @@ export const resolvers = {
          * Associate a new email address to your account.
          */
         emailCreate: async (_parent: undefined, { input }: IWrap<EmailCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            return createHelper(req.userId, input, info, EmailModel(prisma).cud, prisma);
+            return createHelper(req.userId, input, info, EmailModel(prisma));
         },
         /**
          * Update an existing email address that is associated with your account.
          */
         emailUpdate: async (_parent: undefined, { input }: IWrap<EmailUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            return updateHelper(req.userId, input, info, EmailModel(prisma).cud, prisma);
+            return updateHelper(req.userId, input, info, EmailModel(prisma));
         },
         emailDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, EmailModel(prisma).cud);
+            return deleteOneHelper(req.userId, input, EmailModel(prisma));
         }
     }
 }

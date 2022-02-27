@@ -2,7 +2,7 @@ import { CODE, StarFor } from "@local/shared";
 import { CustomError } from "../error";
 import { Star, StarInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { deconstructUnion, FormatConverter } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
 import { commentDBFields } from "./comment";
 import { projectDBFields } from "./project";
@@ -17,6 +17,19 @@ import { userDBFields } from "./user";
 //==============================================================
 
 export const starFormatter = (): FormatConverter<Star> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Star,
+        'from': GraphQLModelType.User,
+        'to': {
+            '...Comment': GraphQLModelType.Comment,
+            '...Organization': GraphQLModelType.Organization,
+            '...Project': GraphQLModelType.Project,
+            '...Routine': GraphQLModelType.Routine,
+            '...Standard': GraphQLModelType.Standard,
+            '...Tag': GraphQLModelType.Tag,
+            '...User': GraphQLModelType.User,
+        }
+    },
     constructUnions: (data) => {
         let { comment, organization, project, routine, standard, tag, user, ...modified } = data;
         if (comment) modified.to = comment;
@@ -146,6 +159,7 @@ export function StarModel(prisma: PrismaType) {
     const format = starFormatter();
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...starrer(prisma),

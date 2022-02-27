@@ -1,13 +1,13 @@
 import { PrismaType, RecursivePartial } from "types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagSearchInput, User, UserDeleteInput } from "../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
-import { addJoinTablesHelper, FormatConverter, InfoType, modelToGraphQL, PaginatedSearchResult, readManyHelper, readOneHelper, removeJoinTablesHelper, selectHelper } from "./base";
+import { addJoinTablesHelper, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, PaginatedSearchResult, readManyHelper, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialSelect } from "./base";
 import { user } from "@prisma/client";
 import { CODE, ROLES } from "@local/shared";
 import { CustomError } from "../error";
 import bcrypt from 'bcrypt';
 import { hasProfanity } from "../utils/censor";
-import { TagModel, tagSearcher } from "./tag";
+import { TagModel } from "./tag";
 import { EmailModel } from "./email";
 import pkg from '@prisma/client';
 const { AccountStatus } = pkg;
@@ -22,6 +22,27 @@ const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
 export const profileFormatter = (): FormatConverter<User> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Profile,
+        'comments': GraphQLModelType.Comment,
+        'roles': GraphQLModelType.Role,
+        'emails': GraphQLModelType.Email,
+        'wallets': GraphQLModelType.Wallet,
+        'standards': GraphQLModelType.Standard,
+        'tags': GraphQLModelType.Tag,
+        'resources': GraphQLModelType.Resource,
+        'organizations': GraphQLModelType.Member,
+        'projects': GraphQLModelType.Project,
+        'projectsCreated': GraphQLModelType.Project,
+        'routines': GraphQLModelType.Routine,
+        'routinesCreated': GraphQLModelType.Routine,
+        'starredBy': GraphQLModelType.User,
+        'starred': GraphQLModelType.Star,
+        'hiddenTags': GraphQLModelType.TagHidden,
+        'sentReports': GraphQLModelType.Report,
+        'reports': GraphQLModelType.Report,
+        'votes': GraphQLModelType.Vote,
+    },
     removeCalculatedFields: (partial) => {
         let { starredTags, hiddenTags, ...rest } = partial;
         return rest;
@@ -264,7 +285,7 @@ const profileQuerier = (prisma: PrismaType) => ({
         userId: string,
         info: InfoType,
     ): Promise<RecursivePartial<Profile> | null> {
-        const profileData = await readOneHelper(userId, { id: userId }, info, prisma);
+        const profileData = await readOneHelper<Profile>(userId, { id: userId }, info, ProfileModel(prisma) as any);
         const starredTags: Tag[] = (await prisma.star.findMany({
             where: {
                 AND: [
@@ -326,11 +347,11 @@ const profileQuerier = (prisma: PrismaType) => ({
                 where: { userId }
             })).map(s => s.tagId).filter(s => s !== null) as string[]
         }
-        return await readManyHelper(userId, { ...input, ids: idsLimit }, info, prisma, tagSearcher())
+        return await readManyHelper(userId, { ...input, ids: idsLimit }, info, TagModel(prisma))
     },
 })
 
-const profileMutater = (validater: any, prisma: PrismaType) => ({
+const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma: PrismaType) => ({
     async updateProfile(
         userId: string,
         input: ProfileUpdateInput,
@@ -340,6 +361,9 @@ const profileMutater = (validater: any, prisma: PrismaType) => ({
         if (!input.username || input.username.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
         // Check for censored words
         if (hasProfanity(input.username, input.bio)) throw new CustomError(CODE.BannedWord);
+        // Convert info to partial select
+        const partial = toPartialSelect(info, formatter.relationshipMap);
+        if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
         // Create user data
         let userData: { [x: string]: any } = {
             username: input.username,
@@ -361,9 +385,9 @@ const profileMutater = (validater: any, prisma: PrismaType) => ({
         const user = await prisma.user.update({
             where: { id: userId },
             data: userData,
-            ...selectHelper(info)
+            ...selectHelper(partial)
         });
-        return modelToGraphQL(user, info);
+        return modelToGraphQL(user, partial);
     },
     async updateEmails(
         userId: string,
@@ -374,6 +398,9 @@ const profileMutater = (validater: any, prisma: PrismaType) => ({
         let user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new CustomError(CODE.InternalError, 'User not found');
         if (!validater.validatePassword(input.currentPassword, user)) throw new CustomError(CODE.BadCredentials);
+        // Convert input to partial select
+        const partial = toPartialSelect(info, formatter.relationshipMap);
+        if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
         // Create user data
         let userData: { [x: string]: any } = {
             password: input.newPassword ? validater.hashPassword(input.newPassword) : undefined,
@@ -389,9 +416,9 @@ const profileMutater = (validater: any, prisma: PrismaType) => ({
         user = await prisma.user.update({
             where: { id: userId },
             data: userData,
-            ...selectHelper(info)
+            ...selectHelper(partial)
         });
-        return modelToGraphQL(user, info);
+        return modelToGraphQL(user, partial);
     },
     async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
         // Check for correct password
@@ -411,10 +438,11 @@ export function ProfileModel(prisma: PrismaType) {
     const format = profileFormatter();
     const validate = profileValidater();
     const port = porter(prisma);
-    const mutate = profileMutater(validate, prisma);
+    const mutate = profileMutater(format, validate, prisma);
     const query = profileQuerier(prisma);
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...validate,

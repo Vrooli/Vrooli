@@ -3,13 +3,14 @@ import { CustomError } from "../error";
 import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, ReportUpdateInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { hasProfanity } from "../utils/censor";
-import { CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
 export const reportFormatter = (): FormatConverter<Report> => ({
+    relationshipMap: { '__typename': GraphQLModelType.Report },
     removeCalculatedFields: (partial) => {
         let { isOwn, ...rest } = partial;
         // Add userId field so we can calculate isOwn
@@ -24,10 +25,8 @@ export const reportFormatter = (): FormatConverter<Report> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        info: InfoType, // GraphQL select info
+        partial: PartialInfo,
     ): Promise<RecursivePartial<Report>[]> {
-        // Convert GraphQL info object to a partial select object
-        const partial = infoToPartialSelect(info);
         // Query for isOwn
         if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.fromId === userId }));
         // Convert Prisma objects to GraphQL objects
@@ -112,7 +111,7 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
             updateMany.forEach(input => verifier.profanityCheck(input));
         }
     },
-    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -122,9 +121,9 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
                 // Call createData helper function
                 const data = await this.toDBShapeAdd(userId, input);
                 // Create object
-                const currCreated = await prisma.report.create({ data, ...selectHelper(info) });
+                const currCreated = await prisma.report.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, info);
+                const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -146,10 +145,10 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
                 const currUpdated = await prisma.report.update({
                     where: { id: object.id },
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, info);
+                const converted = modelToGraphQL(currUpdated, partial);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -188,6 +187,7 @@ export function ReportModel(prisma: PrismaType) {
     const mutate = reportMutater(prisma, verify);
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...search,

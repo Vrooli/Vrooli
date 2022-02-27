@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, UserSortBy } from '@local/shared';
 import { CustomError } from '../error';
-import { countHelper, ProfileModel, readManyHelper, readOneHelper, userSearcher } from '../models';
+import { countHelper, ProfileModel, readManyHelper, readOneHelper, UserModel } from '../models';
 import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
@@ -40,7 +40,7 @@ export const typeDef = gql`
         stars: [Star!]!
         starredBy: [User!]!
         starredTags: [Tag!]
-        hiddenTags: [Tag!]
+        hiddenTags: [TagHidden!]
         sentReports: [Report!]!
         reports: [Report!]!
         votes: [Vote!]!
@@ -55,9 +55,9 @@ export const typeDef = gql`
         stars: Int!
         isStarred: Boolean!
         comments: [Comment!]!
-        roles: [Role!]!
         resources: [Resource!]!
         projects: [Project!]!
+        projectsCreated: [Project!]!
         starredBy: [User!]!
         reports: [Report!]!
         routines: [Routine!]!
@@ -141,16 +141,16 @@ export const resolvers = {
     Query: {
         profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
             if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return readOneHelper(req.userId, { id: req.userId }, info, prisma);
+            return readOneHelper<Profile>(req.userId, { id: req.userId }, info, ProfileModel(prisma) as any);
         },
         user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
-            return readOneHelper(req.userId, input, info, prisma);
+            return readOneHelper(req.userId, input, info, UserModel(prisma));
         },
         users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
-            return readManyHelper(req.userId, input, info, prisma, userSearcher());
+            return readManyHelper(req.userId, input, info, UserModel(prisma));
         },
         usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, 'User', prisma);
+            return countHelper(input, UserModel(prisma));
         },
     },
     Mutation: {

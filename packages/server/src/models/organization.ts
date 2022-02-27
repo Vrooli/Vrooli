@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count } from "../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialInfo } from "./base";
 import { CustomError } from "../error";
 import { CODE, MemberRole, organizationCreate, organizationUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -17,6 +17,20 @@ export const organizationDBFields = ['id', 'created_at', 'updated_at', 'bio', 'n
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
 export const organizationFormatter = (): FormatConverter<Organization> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Organization,
+        'comments': GraphQLModelType.Comment,
+        'members': GraphQLModelType.Member,
+        'projects': GraphQLModelType.Project,
+        'projectsCreated': GraphQLModelType.Project,
+        'reports': GraphQLModelType.Report,
+        'resources': GraphQLModelType.Resource,
+        'routines': GraphQLModelType.Routine,
+        'routersCreated': GraphQLModelType.Routine,
+        'standards': GraphQLModelType.Standard,
+        'starredBy': GraphQLModelType.User,
+        'tags': GraphQLModelType.Tag,
+    },
     removeCalculatedFields: (partial) => {
         let { isStarred, role, ...rest } = partial;
         return rest;
@@ -32,10 +46,8 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        info: InfoType, // GraphQL select info
+        partial: PartialInfo,
     ): Promise<RecursivePartial<Organization>[]> {
-        // Convert GraphQL info object to a partial select object
-        const partial = infoToPartialSelect(info);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -160,7 +172,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
     /**
      * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
      */
-    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<CUDResult<Organization>> {
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<CUDResult<Organization>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -170,9 +182,9 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
                 // Call createData helper function
                 const data = await this.toDBShape(userId, input);
                 // Create object
-                const currCreated = await prisma.organization.create({ data, ...selectHelper(info) });
+                const currCreated = await prisma.organization.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, info);
+                const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -197,10 +209,10 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
                 const currUpdated = await prisma.organization.update({
                     where: { id: object.id },
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, info);
+                const converted = modelToGraphQL(currUpdated, partial);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -234,6 +246,7 @@ export function OrganizationModel(prisma: PrismaType) {
     const mutate = organizationMutater(prisma, verify);
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...search,

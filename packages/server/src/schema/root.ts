@@ -7,7 +7,7 @@ import { AutocompleteInput, AutocompleteResult, OpenGraphResponse } from './type
 import { CODE, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { organizationSearcher, projectSearcher, readManyHelper, routineSearcher, standardSearcher, userSearcher } from '../models';
+import { OrganizationModel, ProjectModel, readManyHelper, RoutineModel, StandardModel, UserModel } from '../models';
 import { CustomError } from '../error';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
@@ -200,8 +200,7 @@ export const resolvers = {
                     isStarred: true,
                     tags: tagSelect,
                 },
-                prisma, 
-                organizationSearcher(),
+                OrganizationModel(prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             console.log('autocomplete GOT ORGANIZATIONS', organizations, organizations.map(o => Array.isArray(o.tags) && o.tags.length > 0 ? o.tags[0] : null));
@@ -219,8 +218,7 @@ export const resolvers = {
                     isUpvoted: true,
                     tags: tagSelect,
                 },
-                prisma, 
-                projectSearcher(),
+                ProjectModel(prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query routines
@@ -237,8 +235,7 @@ export const resolvers = {
                     isUpvoted: true,
                     tags: tagSelect,
                 },
-                prisma, 
-                routineSearcher(),
+                RoutineModel(prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query standards
@@ -255,8 +252,7 @@ export const resolvers = {
                     isUpvoted: true,
                     tags: tagSelect,
                 },
-                prisma, 
-                standardSearcher(),
+                StandardModel(prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query users
@@ -270,8 +266,7 @@ export const resolvers = {
                     stars: true,
                     isStarred: true,
                 },
-                prisma, 
-                userSearcher(),
+                UserModel(prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             return {

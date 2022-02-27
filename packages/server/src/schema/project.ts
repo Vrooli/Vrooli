@@ -3,7 +3,7 @@ import { ProjectSortBy } from '@local/shared';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, FindByIdInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult } from './types';
 import { Context } from '../context';
-import { countHelper, createHelper, deleteOneHelper, ProjectModel, projectSearcher, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
@@ -121,24 +121,24 @@ export const resolvers = {
     ProjectSortBy: ProjectSortBy,
     Query: {
         project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
-            return readOneHelper(req.userId, input, info, prisma);
+            return readOneHelper(req.userId, input, info, ProjectModel(prisma));
         },
         projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
-            return readManyHelper(req.userId, input, info, prisma, projectSearcher());
+            return readManyHelper(req.userId, input, info, ProjectModel(prisma));
         },
         projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, 'Project', prisma);
+            return countHelper(input, ProjectModel(prisma));
         },
     },
     Mutation: {
         projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            return createHelper(req.userId, input, info, ProjectModel(prisma).cud, prisma);
+            return createHelper(req.userId, input, info, ProjectModel(prisma));
         },
         projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            return updateHelper(req.userId, input, info, ProjectModel(prisma).cud, prisma);
+            return updateHelper(req.userId, input, info, ProjectModel(prisma));
         },
         projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, ProjectModel(prisma).cud);
+            return deleteOneHelper(req.userId, input, ProjectModel(prisma));
         },
     }
 }

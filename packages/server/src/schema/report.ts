@@ -4,7 +4,7 @@ import { DeleteOneInput, FindByIdInput, Report, ReportCountInput, ReportCreateIn
 import { IWrap, RecursivePartial } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, ReportModel, reportSearcher, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, ReportModel, updateHelper } from '../models';
 
 export const typeDef = gql`
     enum ReportFor {
@@ -97,24 +97,24 @@ export const resolvers = {
     ReportSortBy: ReportSortBy,
     Query: {
         report: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report> | null> => {
-            return readOneHelper(req.userId, input, info, prisma);
+            return readOneHelper(req.userId, input, info, ReportModel(prisma));
         },
         reports: async (_parent: undefined, { input }: IWrap<ReportSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ReportSearchResult> => {
-            return readManyHelper(req.userId, input, info, prisma, reportSearcher());
+            return readManyHelper(req.userId, input, info, ReportModel(prisma));
         },
         reportsCount: async (_parent: undefined, { input }: IWrap<ReportCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, 'Report', prisma);
+            return countHelper(input, ReportModel(prisma));
         },
     },
     Mutation: {
         reportCreate: async (_parent: undefined, { input }: IWrap<ReportCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report>> => {
-            return createHelper(req.userId, input, info, ReportModel(prisma).cud, prisma);
+            return createHelper(req.userId, input, info, ReportModel(prisma));
         },
         reportUpdate: async (_parent: undefined, { input }: IWrap<ReportUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report>> => {
-            return updateHelper(req.userId, input, info, ReportModel(prisma).cud, prisma);
+            return updateHelper(req.userId, input, info, ReportModel(prisma));
         },
         reportDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, ReportModel(prisma).cud);
+            return deleteOneHelper(req.userId, input, ReportModel(prisma));
         },
     }
 }

@@ -26,7 +26,7 @@ export const typeDef = gql`
     type Vote {
         isUpvote: Boolean
         from: User!
-        to: StarTo!
+        to: VoteTo!
     }
 
     extend type Mutation {

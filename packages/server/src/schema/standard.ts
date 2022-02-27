@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { StandardSortBy } from '@local/shared';
-import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, StandardModel, standardSearcher, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, StandardModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
 import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult } from './types';
 import { Context } from '../context';
@@ -129,13 +129,13 @@ export const resolvers = {
     StandardSortBy: StandardSortBy,
     Query: {
         standard: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
-            return readOneHelper(req.userId, input, info, prisma);
+            return readOneHelper(req.userId, input, info, StandardModel(prisma));
         },
         standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
-            return readManyHelper(req.userId, input, info, prisma, standardSearcher());
+            return readManyHelper(req.userId, input, info, StandardModel(prisma));
         },
         standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, 'Standard', prisma);
+            return countHelper(input, StandardModel(prisma));
         },
     },
     Mutation: {
@@ -144,7 +144,7 @@ export const resolvers = {
          * @returns Standard object if successful
          */
         standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            return createHelper(req.userId, input, info, StandardModel(prisma).cud, prisma);
+            return createHelper(req.userId, input, info, StandardModel(prisma));
         },
         /**
          * Update a standard you created.
@@ -154,14 +154,14 @@ export const resolvers = {
          * @returns Standard object if successful
          */
         standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
-            return updateHelper(req.userId, input, info, StandardModel(prisma).cud, prisma);
+            return updateHelper(req.userId, input, info, StandardModel(prisma));
         },
         /**
          * Delete a standard you've created. Other standards must go through a reporting system
          * @returns 
          */
         standardDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, StandardModel(prisma).cud);
+            return deleteOneHelper(req.userId, input, StandardModel(prisma));
         },
     }
 }

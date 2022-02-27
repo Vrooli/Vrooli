@@ -1,6 +1,6 @@
-import { Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count } from "../schema/types";
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
 import { CODE, inputCreate, inputUpdate, MemberRole, routineCreate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -21,6 +21,28 @@ export const routineDBFields = ['id', 'created_at', 'updated_at', 'description',
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 export const routineFormatter = (): FormatConverter<Routine> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Routine,
+        'comments': GraphQLModelType.Comment,
+        'contextualResources': GraphQLModelType.Resource,
+        'creator': {
+            '...User': GraphQLModelType.User,
+            '...Organization': GraphQLModelType.Organization,
+        },
+        'externalResources': GraphQLModelType.Resource,
+        'forks': GraphQLModelType.Routine,
+        'inputs': GraphQLModelType.InputItem,
+        'outputs': GraphQLModelType.OutputItem,
+        'owner': {
+            '...User': GraphQLModelType.User,
+            '...Organization': GraphQLModelType.Organization,
+        },
+        'parent': GraphQLModelType.Routine,
+        'project': GraphQLModelType.Project,
+        'reports': GraphQLModelType.Report,
+        'starredBy': GraphQLModelType.User,
+        'tags': GraphQLModelType.Tag,
+    },
     removeCalculatedFields: (partial) => {
         let { isUpvoted, isStarred, role, ...rest } = partial;
         return rest;
@@ -45,10 +67,8 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        info: InfoType, // GraphQL select info
+        partial: PartialInfo,
     ): Promise<RecursivePartial<Routine>[]> {
-        // Convert GraphQL info object to a partial select object
-        const partial = infoToPartialSelect(info);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -338,7 +358,7 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
     /**
      * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
      */
-    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -365,9 +385,9 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
                     };
                 }
                 // Create object
-                const currCreated = await prisma.routine.create({ data, ...selectHelper(info) });
+                const currCreated = await prisma.routine.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, info);
+                const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -413,10 +433,10 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
                 const currUpdated = await prisma.routine.update({
                     where: { id: object.id },
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, info);
+                const converted = modelToGraphQL(currUpdated, partial);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -450,6 +470,7 @@ export function RoutineModel(prisma: PrismaType) {
     const mutate = routineMutater(prisma, verify);
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...search,

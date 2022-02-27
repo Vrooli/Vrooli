@@ -1,8 +1,8 @@
 import { CODE, MemberRole, standardCreate, standardUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
-import { Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../schema/types";
-import { addCreatorField, addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../schema/types";
+import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -18,6 +18,19 @@ export const standardDBFields = ['id', 'created_at', 'updated_at', 'default', 'd
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 export const standardFormatter = (): FormatConverter<Standard> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Standard,
+        'comments': GraphQLModelType.Comment,
+        'creator': {
+            '...User': GraphQLModelType.User,
+            '...Organization': GraphQLModelType.Organization,
+        },
+        'reports': GraphQLModelType.Report,
+        'routineInputs': GraphQLModelType.Routine,
+        'routineOutputs': GraphQLModelType.Routine,
+        'starredBy': GraphQLModelType.User,
+        'tags': GraphQLModelType.Tag,
+    },
     removeCalculatedFields: (partial) => {
         let { isUpvoted, isStarred, role, ...rest } = partial;
         return rest;
@@ -40,10 +53,8 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        info: InfoType, // GraphQL select info
+        partial: PartialInfo,
     ): Promise<RecursivePartial<Standard>[]> {
-        // Convert GraphQL info object to a partial select object
-        const partial = infoToPartialSelect(info);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -189,7 +200,7 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
             updateMany.forEach(input => verifier.profanityCheck(input));
         }
     },
-    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -214,9 +225,9 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
                     };
                 }
                 // Create object
-                const currCreated = await prisma.standard.create({ data, ...selectHelper(info) });
+                const currCreated = await prisma.standard.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, info);
+                const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -247,16 +258,16 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
                 object = await prisma.standard.update({
                     where: { id: object.id },
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Update object
                 const currUpdated = await prisma.resource.update({
                     where: { id: object.id },
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, info);
+                const converted = modelToGraphQL(currUpdated, partial);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -309,6 +320,7 @@ export function StandardModel(prisma: PrismaType) {
     const mutate = standardMutater(prisma, verify);
 
     return {
+        prisma,
         prismaObject,
         format,
         ...format,

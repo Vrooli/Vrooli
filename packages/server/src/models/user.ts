@@ -1,5 +1,5 @@
 import { User, UserSortBy, UserSearchInput, } from "../schema/types";
-import { addJoinTablesHelper, FormatConverter, infoToPartialSelect, InfoType, removeJoinTablesHelper, Searcher } from "./base";
+import { addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialInfo, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../types";
 import { StarModel } from "./star";
 
@@ -11,6 +11,15 @@ export const userDBFields = ['id', 'created_at', 'updated_at', 'bio', 'username'
 
 const joinMapper = { starredBy: 'user' };
 export const userFormatter = (): FormatConverter<User> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.User,
+        'comments': GraphQLModelType.Comment,
+        'resources': GraphQLModelType.Resource,
+        'projects': GraphQLModelType.Project,
+        'starredBy': GraphQLModelType.User,
+        'reports': GraphQLModelType.Report,
+        'routines': GraphQLModelType.Routine,
+    },
     removeCalculatedFields: (partial) => {
         let { isStarred, ...rest } = partial;
         return rest;
@@ -25,11 +34,9 @@ export const userFormatter = (): FormatConverter<User> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        info: InfoType, // GraphQL select info
+        partial: PartialInfo,
     ): Promise<RecursivePartial<User>[]> {
-        console.log('user addSupplementalFields', info, objects);
-        // Convert GraphQL info object to a partial select object
-        const partial = infoToPartialSelect(info);
+        console.log('user addSupplementalFields', partial, objects);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -89,6 +96,7 @@ export function UserModel(prisma: PrismaType) {
     const search = userSearcher();
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...search,

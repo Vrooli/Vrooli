@@ -281,6 +281,8 @@ export type Mutation = {
   writeAssets?: Maybe<Scalars['Boolean']>;
 };
 
+export type TagHidden = any;
+
 
 export type MutationCommentCreateArgs = {
   input: CommentCreateInput;
@@ -1686,6 +1688,10 @@ export type Tag = {
   tag: Scalars['String'];
   updated_at: Scalars['Date'];
 };
+
+export type TagBlur = {
+    [x: string]: any;
+}
 
 export type TagCountInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;

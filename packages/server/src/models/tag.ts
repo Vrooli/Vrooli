@@ -1,6 +1,6 @@
 import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTablesHelper, addSupplementalFields, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, joinRelationshipToPrisma, modelToGraphQL, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
 import { CODE, tagCreate, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -15,6 +15,10 @@ export const tagDBFields = ['id', 'created_at', 'updated_at', 'tag', 'descriptio
 
 const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' };
 export const tagFormatter = (): FormatConverter<Tag> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Tag,
+        'starredBy': GraphQLModelType.User,
+    },
     removeCalculatedFields: (partial) => {
         let { isStarred, isOwn, ...rest } = partial;
         // Add createdByUserId field so we can calculate isOwn
@@ -30,11 +34,9 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        info: InfoType, // GraphQL select info
+        partial: PartialInfo,
     ): Promise<RecursivePartial<Tag>[]> {
-        console.log('in tag supplemental fields', info, objects)
-        // Convert GraphQL info object to a partial select object
-        const partial = infoToPartialSelect(info);
+        console.log('in tag supplemental fields', partial, objects)
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -140,7 +142,7 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
             updateMany.forEach(input => verifier.profanityCheck(input));
         }
     },
-    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -150,9 +152,9 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
                 // Call createData helper function
                 const data = await this.toDBShape(input.anonymous ? null : userId, input);
                 // Create object
-                const currCreated = await prisma.tag.create({ data, ...selectHelper(info) });
+                const currCreated = await prisma.tag.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, info);
+                const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -171,10 +173,10 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
                 const currUpdated = await prisma.tag.update({
                     where: { createdByUserId: userId },
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, info);
+                const converted = modelToGraphQL(currUpdated, partial);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -212,6 +214,7 @@ export function TagModel(prisma: PrismaType) {
     const mutate = tagMutater(prisma, verify);
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...search,

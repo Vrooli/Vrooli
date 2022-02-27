@@ -2,7 +2,7 @@ import { CODE, MemberRole, projectCreate, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count } from "../schema/types";
-import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, infoToPartialSelect, InfoType, modelToGraphQL, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
@@ -19,6 +19,26 @@ export const projectDBFields = ['id', 'created_at', 'updated_at', 'description',
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 export const projectFormatter = (): FormatConverter<Project> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Project,
+        'comments': GraphQLModelType.Comment,
+        'creator': {
+            '...User': GraphQLModelType.User,
+            '...Organization': GraphQLModelType.Organization,
+        },
+        'forks': GraphQLModelType.Project,
+        'owner': {
+            '...User': GraphQLModelType.User,
+            '...Organization': GraphQLModelType.Organization,
+        },
+        'parent': GraphQLModelType.Project,
+        'reports': GraphQLModelType.Report,
+        'resources': GraphQLModelType.Resource,
+        'routines': GraphQLModelType.Routine,
+        'starredBy': GraphQLModelType.User,
+        'tags': GraphQLModelType.Tag,
+        'wallets': GraphQLModelType.Wallet,
+    },
     removeCalculatedFields: (partial) => {
         let { isUpvoted, isStarred, role, ...rest } = partial;
         return rest;
@@ -45,10 +65,8 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         prisma: PrismaType,
         userId: string | null, // Of the user making the request
         objects: RecursivePartial<any>[],
-        info: InfoType, // GraphQL select info
+        partial: PartialInfo,
     ): Promise<RecursivePartial<Project>[]> {
-        // Convert GraphQL info object to a partial select object
-        const partial = infoToPartialSelect(info);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -173,7 +191,7 @@ export const projectMutater = (prisma: PrismaType, verifier: any) => ({
     /**
      * Performs adds, updates, and deletes of projects. First validates that every action is allowed.
      */
-    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<ProjectCreateInput, ProjectUpdateInput>): Promise<CUDResult<Project>> {
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ProjectCreateInput, ProjectUpdateInput>): Promise<CUDResult<Project>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         /**
          * Helper function for creating create/update Prisma value
@@ -214,10 +232,10 @@ export const projectMutater = (prisma: PrismaType, verifier: any) => ({
                 // Create object
                 const currCreated = await prisma.project.create({
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, info);
+                const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -263,10 +281,10 @@ export const projectMutater = (prisma: PrismaType, verifier: any) => ({
                 const currUpdated = await prisma.project.update({
                     where: { id: object.id },
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, info);
+                const converted = modelToGraphQL(currUpdated, partial);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -300,6 +318,7 @@ export function ProjectModel(prisma: PrismaType) {
     const mutate = projectMutater(prisma, verify);
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...search,

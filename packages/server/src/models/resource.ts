@@ -1,7 +1,7 @@
 import { CODE, resourceCreate, ResourceFor, resourceUpdate } from "@local/shared";
-import { Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../schema/types";
+import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../schema/types";
 import { PrismaType } from "types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { CustomError } from "../error";
 import _ from "lodash";
@@ -10,7 +10,9 @@ import _ from "lodash";
 /* #region Custom Components */
 //==============================================================
 
-export const resourceFormatter = (): FormatConverter<Resource> => ({}) // Needs no formatting as of now
+export const resourceFormatter = (): FormatConverter<Resource> => ({
+    relationshipMap: { '__typename': GraphQLModelType.Resource }, // For now, resource is never queried directly. So no need to handle relationships
+})
 
 export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
     defaultSort: ResourceSortBy.AlphabeticalAsc,
@@ -115,7 +117,7 @@ export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
             updateMany.forEach(input => verifier.profanityCheck(input));
         }
     },
-    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceCreateInput, ResourceUpdateInput>): Promise<CUDResult<Resource>> {
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceCreateInput, ResourceUpdateInput>): Promise<CUDResult<Resource>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -125,9 +127,9 @@ export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
                 // Call createData helper function
                 const data = await this.toDBShape(userId, input);
                 // Create object
-                const currCreated = await prisma.resource.create({ data, ...selectHelper(info) });
+                const currCreated = await prisma.resource.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, info);
+                const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -149,10 +151,10 @@ export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
                 const currUpdated = await prisma.resource.update({
                     where: { id: object.id },
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, info);
+                const converted = modelToGraphQL(currUpdated, partial);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -191,6 +193,7 @@ export function ResourceModel(prisma: PrismaType) {
     const mutate = resourceMutater(prisma, verify);
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...search,

@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentUpdateInput, DeleteOneInput, FindByIdInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
-import { CommentModel, commentSearcher, countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { CommentModel, countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { CommentSortBy } from '@local/shared';
@@ -117,24 +117,24 @@ export const resolvers = {
     },
     Query: {
         comment: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment> | null> => {
-            return readOneHelper(req.userId, input, info, prisma);
+            return readOneHelper(req.userId, input, info, CommentModel(prisma));
         },
         comments: async (_parent: undefined, { input }: IWrap<CommentSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<CommentSearchResult> => {
-            return readManyHelper(req.userId, input, info, prisma, commentSearcher());
+            return readManyHelper(req.userId, input, info, CommentModel(prisma));
         },
         commentsCount: async (_parent: undefined, { input }: IWrap<CommentCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, 'Count', prisma);
+            return countHelper(input, CommentModel(prisma));
         },
     },
     Mutation: {
         commentCreate: async (_parent: undefined, { input }: IWrap<CommentCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
-            return createHelper(req.userId, input, info, CommentModel(prisma).cud, prisma);
+            return createHelper(req.userId, input, info, CommentModel(prisma));
         },
         commentUpdate: async (_parent: undefined, { input }: IWrap<CommentUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
-            return updateHelper(req.userId, input, info, CommentModel(prisma).cud, prisma);
+            return updateHelper(req.userId, input, info, CommentModel(prisma));
         },
         commentDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, CommentModel(prisma).cud);
+            return deleteOneHelper(req.userId, input, CommentModel(prisma));
         },
     }
 }

@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { ResourceFor, ResourceSortBy, ResourceUsedFor } from '@local/shared';
-import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, ResourceModel, resourceSearcher, updateHelper } from '../models';
+import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, ResourceModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from 'types';
 import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult } from './types';
 import { Context } from '../context';
@@ -114,24 +114,24 @@ export const resolvers = {
     ResourceUsedFor: ResourceUsedFor,
     Query: {
         resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
-            return readOneHelper(req.userId, input, info, prisma);
+            return readOneHelper(req.userId, input, info, ResourceModel(prisma));
         },
         resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ResourceSearchResult> => {
-            return readManyHelper(req.userId, input, info, prisma, resourceSearcher());
+            return readManyHelper(req.userId, input, info, ResourceModel(prisma));
         },
         resourcesCount: async (_parent: undefined, { input }: IWrap<ResourceCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, 'Resource', prisma);
+            return countHelper(input, ResourceModel(prisma));
         },
     },
     Mutation: {
         resourceCreate: async (_parent: undefined, { input }: IWrap<ResourceCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            return createHelper(req.userId, input, info, ResourceModel(prisma).cud, prisma);
+            return createHelper(req.userId, input, info, ResourceModel(prisma));
         },
         resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            return updateHelper(req.userId, input, info, ResourceModel(prisma).cud, prisma);
+            return updateHelper(req.userId, input, info, ResourceModel(prisma));
         },
         resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
-            return deleteManyHelper(req.userId, input, ResourceModel(prisma).cud);
+            return deleteManyHelper(req.userId, input, ResourceModel(prisma));
         },
     }
 }

@@ -1,5 +1,5 @@
 import { Count, Node, NodeCreateInput, NodeType, NodeUpdateInput } from "../schema/types";
-import { addSupplementalFields, CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
 import { CustomError } from "../error";
 import { CODE, condition, conditionsCreate, conditionsUpdate, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
 import { PrismaType } from "types";
@@ -15,6 +15,15 @@ const MAX_NODES_IN_ROUTINE = 100;
 //==============================================================
 
 export const nodeFormatter = (): FormatConverter<Node> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Node,
+        'data': {
+            '...nodeEnd': GraphQLModelType.NodeEnd,
+            '...nodeLoop': GraphQLModelType.NodeLoop,
+            '...nodeRoutineList': GraphQLModelType.NodeRoutineList,
+        },
+        'routine': GraphQLModelType.Routine,
+    },
     constructUnions: (data) => {
         let { nodeEnd, nodeLoopFrom, nodeRoutineList, nodeRedirect, ...modified } = data;
         if (nodeEnd) {
@@ -472,7 +481,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
     /**
      * Performs adds, updates, and deletes of nodes. First validates that every action is allowed.
      */
-    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<NodeCreateInput, NodeUpdateInput>): Promise<CUDResult<Node>> {
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<NodeCreateInput, NodeUpdateInput>): Promise<CUDResult<Node>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         /**
          * Helper function for creating create/update Prisma value
@@ -512,9 +521,9 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
                 // Call createData helper function
                 const data = await createData(input);
                 // Create object
-                const currCreated = await prisma.node.create({ data, ...selectHelper(info) });
+                const currCreated = await prisma.node.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, info);
+                const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -528,10 +537,10 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
                 const currUpdated = await prisma.node.update({
                     where: { id: input.id },
                     data,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, info);
+                const converted = modelToGraphQL(currUpdated, partial);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -564,6 +573,7 @@ export function NodeModel(prisma: PrismaType) {
     const mutate = nodeMutater(prisma, verify);
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...verify,

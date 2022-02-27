@@ -15,3 +15,4 @@ export * from './star';
 export * from './tag';
 export * from './user';
 export * from './vote';
+export * from './wallet';

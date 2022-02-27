@@ -4,7 +4,7 @@ import { IWrap, RecursivePartial } from '../types';
 import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, routineSearcher, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, updateHelper } from '../models';
 
 export const typeDef = gql`
     enum RoutineSortBy {
@@ -201,24 +201,24 @@ export const resolvers = {
     RoutineSortBy: RoutineSortBy,
     Query: {
         routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            return readOneHelper(req.userId, input, info, prisma);
+            return readOneHelper(req.userId, input, info, RoutineModel(prisma));
         },
         routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
-            return readManyHelper(req.userId, input, info, prisma, routineSearcher());
+            return readManyHelper(req.userId, input, info, RoutineModel(prisma));
         },
         routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, 'Routine', prisma);
+            return countHelper(input, RoutineModel(prisma));
         },
     },
     Mutation: {
         routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            return createHelper(req.userId, input, info, RoutineModel(prisma).cud, prisma);
+            return createHelper(req.userId, input, info, RoutineModel(prisma));
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            return updateHelper(req.userId, input, info, RoutineModel(prisma).cud, prisma);
+            return updateHelper(req.userId, input, info, RoutineModel(prisma));
         },
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, RoutineModel(prisma).cud);
+            return deleteOneHelper(req.userId, input, RoutineModel(prisma));
         },
     }
 }

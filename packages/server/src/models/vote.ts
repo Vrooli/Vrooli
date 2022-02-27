@@ -2,7 +2,7 @@ import { CODE, VoteFor } from "@local/shared";
 import { CustomError } from "../error";
 import { Vote, VoteInput } from "schema/types";
 import { PrismaType } from "../types";
-import { deconstructUnion, FormatConverter } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
 import { standardDBFields } from "./standard";
 import { commentDBFields } from "./comment";
@@ -14,6 +14,17 @@ import { routineDBFields } from "./routine";
 //==============================================================
 
 export const voteFormatter = (): FormatConverter<Vote> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Vote,
+        'from': GraphQLModelType.User,
+        'to': {
+            '...Comment': GraphQLModelType.Comment,
+            '...Project': GraphQLModelType.Project,
+            '...Routine': GraphQLModelType.Routine,
+            '...Standard': GraphQLModelType.Standard,
+            '...Tag': GraphQLModelType.Tag,
+        }
+    },
     constructUnions: (data) => {
         let { comment, project, routine, standard, ...modified } = data;
         if (comment) modified.to = comment;
@@ -144,6 +155,7 @@ export function VoteModel(prisma: PrismaType) {
     const format = voteFormatter();
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...voter(prisma),

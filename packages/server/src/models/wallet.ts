@@ -1,19 +1,18 @@
-import { PrismaType } from "../types";
-import { Member } from "../schema/types";
+import { PrismaType } from "types";
+import { Wallet } from "../schema/types";
 import { FormatConverter, GraphQLModelType } from "./base";
-
-export const memberDBFields = ['id', 'role'];
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-export const memberFormatter = (): FormatConverter<Member> => ({
+export const walletFormatter = (): FormatConverter<Wallet> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Member,
-        'organization': GraphQLModelType.Organization,
+        '__typename': GraphQLModelType.Wallet,
         'user': GraphQLModelType.User,
-    }
+        'organization': GraphQLModelType.Organization,
+        'project': GraphQLModelType.Project,
+    },
 })
 
 //==============================================================
@@ -24,9 +23,9 @@ export const memberFormatter = (): FormatConverter<Member> => ({
 /* #region Model */
 //==============================================================
 
-export function MemberModel(prisma: PrismaType) {
-    const prismaObject = prisma.organization_users;
-    const format = memberFormatter();
+export function WalletModel(prisma: PrismaType) {
+    const prismaObject = prisma.wallet;
+    const format = walletFormatter();
 
     return {
         prisma,

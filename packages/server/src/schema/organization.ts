@@ -3,7 +3,7 @@ import { MemberRole, OrganizationSortBy } from '@local/shared';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult } from './types';
 import { Context } from '../context';
-import { countHelper, createHelper, deleteOneHelper, OrganizationModel, organizationSearcher, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
@@ -121,24 +121,24 @@ export const resolvers = {
     MemberRole: MemberRole,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
-            return readOneHelper(req.userId, input, info, prisma);
+            return readOneHelper(req.userId, input, info, OrganizationModel(prisma));
         },
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
-            return readManyHelper(req.userId, input, info, prisma, organizationSearcher());
+            return readManyHelper(req.userId, input, info, OrganizationModel(prisma));
         },
         organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, 'Organization', prisma);
+            return countHelper(input, OrganizationModel(prisma));
         },
     },
     Mutation: {
         organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            return createHelper(req.userId, input, info, OrganizationModel(prisma).cud, prisma);
+            return createHelper(req.userId, input, info, OrganizationModel(prisma));
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            return updateHelper(req.userId, input, info, OrganizationModel(prisma).cud, prisma);
+            return updateHelper(req.userId, input, info, OrganizationModel(prisma));
         },
         organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, OrganizationModel(prisma).cud);
+            return deleteOneHelper(req.userId, input, OrganizationModel(prisma));
         },
     }
 }

@@ -2,7 +2,7 @@ import { CODE, emailCreate, emailUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { profileValidater } from "./profile";
 
@@ -10,7 +10,12 @@ import { profileValidater } from "./profile";
 /* #region Custom Components */
 //==============================================================
 
-export const emailFormatter = (): FormatConverter<Email> => ({})
+export const emailFormatter = (): FormatConverter<Email> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Email,
+        'user': GraphQLModelType.Profile,
+    }
+})
 
 export const emailVerifier = () => ({
     profanityCheck(data: EmailCreateInput): void {
@@ -72,7 +77,7 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
             }
         }
     },
-    async cud({ info, userId, createMany, updateMany, deleteMany }: CUDInput<EmailCreateInput, EmailUpdateInput>): Promise<CUDResult<Email>> {
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<EmailCreateInput, EmailUpdateInput>): Promise<CUDResult<Email>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -88,12 +93,12 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
                         userId,
                         ...input
                     },
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Send verification email
                 await profileValidater().setupVerificationCode(input.emailAddress, prisma);
                 // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, info);
+                const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
@@ -115,10 +120,10 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
                 object = await prisma.email.update({
                     where: { id: object.id },
                     data: input,
-                    ...selectHelper(info)
+                    ...selectHelper(partial)
                 });
                 // Convert to GraphQL
-                const converted = modelToGraphQL(object, info);
+                const converted = modelToGraphQL(object, partial);
                 // Add to updated array
                 updated = updated ? [...updated, converted] : [converted];
             }
@@ -177,6 +182,7 @@ export function EmailModel(prisma: PrismaType) {
     const mutate = emailMutater(prisma, verify);
 
     return {
+        prisma,
         prismaObject,
         ...format,
         ...verify,
