@@ -32,6 +32,7 @@ export const RoutineListNode = ({
     label = 'Routine List',
     labelVisible = true,
     isEditable = true,
+    isHighlighted = false,
     onAdd = () => { },
     onResize,
 }: RoutineListNodeProps) => {

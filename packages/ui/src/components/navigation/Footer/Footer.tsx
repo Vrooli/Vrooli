@@ -13,9 +13,16 @@ import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
 import { CopyrightBreadcrumbs } from 'components';
 import { useLocation } from 'wouter';
 import { openLink } from 'utils';
+import { useMemo } from 'react';
 
 export const Footer = () => {
-    const [, setLocation] = useLocation();
+    const [pathname, setLocation] = useLocation();
+    console.log('FOOTER pathname', pathname);
+    // Hides footer on certain pages (e.g. orchestrate)
+    const showFooter = useMemo(() => {
+        const disableList = [APP_LINKS.Orchestrate];
+        return !disableList.some(disable => pathname.startsWith(disable));
+    }, [pathname]);
 
     const contactLinks: Array<[string, string, string, string, any]> = [
         ['contact-twitter', 'Find us on Twitter', SOCIALS.Twitter, 'Twitter', TwitterIcon],
@@ -25,6 +32,7 @@ export const Footer = () => {
 
     return (
         <Box 
+            display={showFooter ? 'block' : 'none'}
             overflow="hidden" 
             position="relative" 
             paddingBottom="7vh"

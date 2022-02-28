@@ -22,15 +22,27 @@ import helpMarkdown from './OrchestratorHelp.md';
 import { useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 
-const TERTIARY_COLOR = '#95f3cd';
-const STATUS_COLOR = {
-    Valid: '#00d51e',
-    Invalid: '#c72121',
+/**
+ * Only orchestrations that are valid or incomplete can be run
+ */
+enum OrchestrationStatus {
+    Incomplete = 'Incomplete', // Orchestration would be valid, except there are unlinked nodes
+    Invalid = 'Invalid', // Something is wrong with the orchestration (e.g. no end node)
+    Valid = 'Valid', // The orchestration is valid, and all nodes are linked
 }
+/**
+ * Status indicator and slider change color to represent orchestration's status
+ */
+const STATUS_COLOR = {
+    Incomplete: '#cde22c', // Yellow
+    Invalid: '#ff6a6a', // Red
+    Valid: '#00d51e', // Green
+}
+
+const TERTIARY_COLOR = '#95f3cd';
 
 const CustomSlider = withStyles({
     root: {
-        color: '#dc697d',
         width: 'calc(100% - 32px)',
         left: '11px', // 16px - 1/4 of thumb diameter
     },
@@ -47,8 +59,8 @@ export const RoutineOrchestratorPage = () => {
     useEffect(() => { setRoutine(routineData?.routine ?? null) }, [routineData]);
     // Routine mutator
     const [routineUpdate, { loading }] = useMutation<any>(routineUpdateMutation);
-    // The routine's status (valid/invalid)
-    const [isValid, setIsValid] = useState<boolean>(false);
+    // The routine's status (valid/invalid/incomplete)
+    const [status, setStatus] = useState<{code: OrchestrationStatus, label: string, details: string}>({code: OrchestrationStatus.Incomplete, label: 'Incomplete', details: 'TODO'});
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -150,20 +162,23 @@ export const RoutineOrchestratorPage = () => {
                 width="100%"
                 justifyContent="space-between"
                 sx={{
+                    zIndex: 2,
                     background: (t) => t.palette.primary.light,
                     color: (t) => t.palette.primary.contrastText,
                 }}
             >
                 {/* Status indicator */}
-                <Tooltip title={isValid ? "Routine is valid" : "Routine is invalid"}>
+                <Tooltip title={status.details}>
                     <Box sx={{
                         borderRadius: 1,
-                        border: `2px solid ${isValid ? STATUS_COLOR.Valid : STATUS_COLOR.Invalid}`,
-                        color: isValid ? STATUS_COLOR.Valid : STATUS_COLOR.Invalid,
+                        border: `2px solid ${STATUS_COLOR[status.code]}`,
+                        color: STATUS_COLOR[status.code],
                         height: 'fit-content',
-                        margin: 'auto 8px',
                         fontWeight: 'bold',
-                    }}>{isValid ? 'Valid' : 'Invalid'}</Box>
+                        fontSize: 'larger',
+                        padding: 0.5,
+                        margin: 1,
+                    }}>{status.label}</Box>
                 </Tooltip>
                 {/* Routine title label/TextField and action buttons */}
                 {title}
@@ -177,7 +192,7 @@ export const RoutineOrchestratorPage = () => {
                 </Stack>
             </Stack>
         )
-    }, [isValid, titleActive, toggleTitle]);
+    }, [status, titleActive, toggleTitle]);
 
     let optionsBar = useMemo(() => (
         <Grid
@@ -188,6 +203,7 @@ export const RoutineOrchestratorPage = () => {
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
+                paddingBottom: { xs: '72px', md: '16px' },
             }}
         >
             {
@@ -235,7 +251,11 @@ export const RoutineOrchestratorPage = () => {
                                     step={0.01}
                                     value={scale}
                                     valueLabelDisplay="auto"
-                                    onChange={handleScaleChange} />
+                                    onChange={handleScaleChange}
+                                    sx={{
+                                        color: STATUS_COLOR[status.code],
+                                    }}
+                                />
                             </Grid>
                             <Grid item xs={12} sm={3}>
                                 <Button
@@ -252,21 +272,31 @@ export const RoutineOrchestratorPage = () => {
     ), [changedRoutine, isEditing, loading, revertChanges, routine, scale, startEditing, updateRoutine])
 
     return (
-        <Stack direction="column" spacing={0} sx={{
-            minWidth: '100%',
+        <Box sx={{
             paddingTop: '10vh',
-            height: { xs: 'calc(90vh - 56px)', md: '90vh' },
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: '100%',
+            height: '100%',
+            width: '100%',
         }}>
-            {/* Information bar */}
             {informationBar}
-            <NodeGraphContainer
-                scale={scale}
-                isEditable={true}
-                labelVisible={true}
-                nodes={changedRoutine?.nodes ?? []}
-                links={changedRoutine?.nodeLinks ?? []}
-            />
-            {optionsBar}
-        </Stack>
+            <Box sx={{
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'fixed',
+                bottom: '0',
+            }}>
+                <NodeGraphContainer
+                    scale={scale}
+                    isEditable={true}
+                    labelVisible={true}
+                    nodes={changedRoutine?.nodes ?? []}
+                    links={changedRoutine?.nodeLinks ?? []}
+                />
+                {optionsBar}
+            </Box>
+        </Box>
     )
 };

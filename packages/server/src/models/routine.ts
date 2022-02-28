@@ -1,4 +1,4 @@
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count } from "../schema/types";
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, InputItem, OutputItem } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
@@ -12,8 +12,6 @@ import { VoteModel } from "./vote";
 import { NodeModel } from "./node";
 import { StandardModel } from "./standard";
 import _ from "lodash";
-
-export const routineDBFields = ['id', 'created_at', 'updated_at', 'description', 'instructions', 'isAutomatable', 'title', 'version', 'createdByUserId', 'createdByOrganizationId', 'userId', 'organizationId', 'parentId', 'projectId', 'score', 'stars']
 
 //==============================================================
 /* #region Custom Components */
@@ -32,6 +30,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         'externalResources': GraphQLModelType.Resource,
         'forks': GraphQLModelType.Routine,
         'inputs': GraphQLModelType.InputItem,
+        'nodes': GraphQLModelType.Node,
         'outputs': GraphQLModelType.OutputItem,
         'owner': {
             '...User': GraphQLModelType.User,
@@ -48,6 +47,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         return rest;
     },
     constructUnions: (data) => {
+        console.log('CONSTRUCT UNIONS routine', data);
         let modified = addCreatorField(data);
         modified = addOwnerField(modified);
         return modified;
@@ -58,6 +58,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         return modified;
     },
     addJoinTables: (partial) => {
+        console.log('fhdkasfdas routine add join tables', partial);
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {

@@ -42,6 +42,7 @@ export interface NodeGraphColumnProps {
     id?: string;
     scale?: number;
     isEditable?: boolean;
+    dragId: string | null; // ID of node being dragged. Used to display valid drop locations
     labelVisible?: boolean;
     columnNumber: number;
     nodes: Node[];

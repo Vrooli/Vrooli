@@ -1,3 +1,9 @@
+/**
+ * Contains the nodes and links (edges) that describe a routine orchestration.
+ * Nodes are displayed within columns. Dragging an unlinked node into a column
+ * will add it to the orchestration. Links are generated automatically if possible.
+ * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
+ */
 import { Box, Stack } from '@mui/material';
 import { NodeGraphColumn, NodeGraphEdge } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -27,8 +33,8 @@ export const NodeGraphContainer = ({
     // Stores positions and sizes of node cells, which can be used to calculate dragIsOver
     const [cellPositions, setCellPositions] = useState<{ [x: string]: Positions }>({});
     const [cellDimensions, setCellDimensions] = useState<{ [x: string]: Dimensions }>({});
-    // Position that drag started
-    const [draggingId, setDraggingId] = useState<string | undefined>(undefined);
+    // ID of node being dragged, if any
+    const [dragId, setDragId] = useState<string | null>(null);
 
     /**
      * Updates dimensions of a node cell
@@ -39,14 +45,14 @@ export const NodeGraphContainer = ({
     }, []);
 
     const handleDragStart = useCallback((nodeId: string) => {
-        setDraggingId(nodeId);
+        setDragId(nodeId);
     }, []);
 
     /**
      * Makes sure drop is valid, then updates order of nodes
      */
     const handleDragStop = useCallback((nodeId: string, { x, y }: Positions) => {
-        setDraggingId(undefined);
+        setDragId(null);
         PubSub.publish(Pubs.NodeDrag, { nodeId: undefined });
         if (!nodes || nodes.length === 0) return;
         // x and y define the top left of the node that was dropped
@@ -85,10 +91,11 @@ export const NodeGraphContainer = ({
         const onMouseDown = (ev: MouseEvent) => {
             const targetId = (ev.target as any)?.id;
             if (!targetId) return;
-            if (targetId.startsWith('node-column') || targetId === 'graph-root') {
+            if (targetId.startsWith('node-column') || targetId === 'graph-root' || targetId === 'graph-grid') {
                 touched = true;
                 lastPosition = { x: ev.clientX, y: ev.clientY };
-            }
+            } else
+            console.log('onmousedown fail', targetId)
         }
         const onMouseUp = (ev: MouseEvent) => {
             touched = false;
@@ -304,42 +311,6 @@ export const NodeGraphContainer = ({
     }, [cellPositions, cellDimensions, isEditable, links]);
 
     /**
-     * Highlight the areas of the graph that a node can be dropped into
-     */
-    const highlights = useMemo(() => {
-        // If no nodes are being dragged
-        if (!draggingId) return [];
-        // If data required to render highlights is not yet available
-        if (!nodes ||
-            Object.keys(nodes).length !== Object.keys(cellPositions).length ||
-            Object.keys(nodes).length !== Object.keys(cellDimensions).length) return [];
-        console.log('creating highlights', nodes);
-        return nodes.map(node => {
-            // Cannot drop onto a start or end node
-            if (node.type === NodeType.Start || node.type === NodeType.End) return null;
-            console.log('creating highlight for:', node)
-            console.log('position', cellPositions[node.id]);
-            console.log('dimension', cellDimensions[node.id]);
-            return <Box
-                position="absolute"
-                zIndex={1}
-                key={`highlight-${node.id}`}
-                left={cellPositions[node.id].x - 10}
-                top={cellPositions[node.id].y - 10}
-                width={cellDimensions[node.id].width + 20}
-                height={cellDimensions[node.id].height + 20}
-                sx={{
-                    background: "#6ef04e",
-                    '&:hover': {
-                        filter: `brightness(120%)`,
-                        transition: 'filter 0.2s',
-                    },
-                }}
-            />
-        })
-    }, [draggingId, nodes, cellPositions, cellDimensions]);
-
-    /**
      * Node column objects
      */
     const columns = useMemo(() => {
@@ -349,6 +320,7 @@ export const NodeGraphContainer = ({
             columnNumber={index}
             nodes={columnData}
             isEditable={isEditable}
+            dragId={dragId}
             scale={scale}
             labelVisible={labelVisible}
             onResize={onCellResize}
@@ -359,26 +331,11 @@ export const NodeGraphContainer = ({
         <Box id="graph-root" position="relative" sx={{
             cursor: 'move',
             minWidth: '100%',
-            minHeight: '100%',
+            height: { xs: '80vh', md: '90vh' },
             overflowX: 'auto',
             overflowY: 'auto',
             margin: 0,
             padding: 0,
-            height: `100%`,
-            backgroundColor: `#a8b6c3`,
-            // Create grid background pattern
-            '--line-color': `rgba(0 0 0 / .05)`,
-            '--line-thickness': `1px`,
-            '--minor-length': `${2 * ((scale * 100 % 250) + 1)}px`,
-            '--major-length': `${20 * ((scale * 100 % 250) + 1)}px`,
-            '--line': `var(--line-color) 0 var(--line-thickness)`,
-            '--small-body': `transparent var(--line-thickness) var(--minor-length)`,
-            '--large-body': `transparent var(--line-thickness) var(--major-length)`,
-
-            '--small-squares': `repeating-linear-gradient(to bottom, var(--line), var(--small-body)), repeating-linear-gradient(to right, var(--line), var(--small-body))`,
-
-            '--large-squares': `repeating-linear-gradient(to bottom, var(--line), var(--large-body)), repeating-linear-gradient(to right, var(--line), var(--large-body))`,
-            background: `var(--small-squares), var(--large-squares)`,
             // Customize scrollbar
             "&::-webkit-scrollbar": {
                 width: 10,
@@ -393,10 +350,25 @@ export const NodeGraphContainer = ({
         }}>
             {/* Edges */}
             {edges}
-            {/* Highlighted squares to indicate valid drop areas */}
-            {highlights}
             {/* Nodes */}
-            <Stack spacing={0} direction="row" zIndex={5}>
+            <Stack id="graph-grid" spacing={0} direction="row" zIndex={5} sx={{
+                width: '5000px',
+                height: '-webkit-fill-available',
+                // Create grid background pattern
+                backgroundColor: `#a8b6c3`,
+                '--line-color': `rgba(0 0 0 / .05)`,
+                '--line-thickness': `1px`,
+                '--minor-length': `${2 * ((scale * 100 % 250) + 1)}px`,
+                '--major-length': `${20 * ((scale * 100 % 250) + 1)}px`,
+                '--line': `var(--line-color) 0 var(--line-thickness)`,
+                '--small-body': `transparent var(--line-thickness) var(--minor-length)`,
+                '--large-body': `transparent var(--line-thickness) var(--major-length)`,
+
+                '--small-squares': `repeating-linear-gradient(to bottom, var(--line), var(--small-body)), repeating-linear-gradient(to right, var(--line), var(--small-body))`,
+
+                '--large-squares': `repeating-linear-gradient(to bottom, var(--line), var(--large-body)), repeating-linear-gradient(to right, var(--line), var(--large-body))`,
+                background: `var(--small-squares), var(--large-squares)`,
+            }}>
                 {columns}
             </Stack>
         </Box>

@@ -5,7 +5,7 @@ import { StarInput, Success } from './types';
 import { IWrap } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { StarModel } from '../models';
+import { GraphQLModelType, StarModel } from '../models';
 
 export const typeDef = gql`
     enum StarFor {
@@ -40,16 +40,16 @@ export const resolvers = {
     Star: {
         __resolveType(obj: any) {
             console.log('IN STAR __resolveType', obj);
-            // Only an Organization has a name and bio field
-            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('bio')) return 'Organization';
-            // Only a Project has a name and description field
-            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('description')) return 'Project';
-            // Only a Routine has a title and description field
-            if (obj.hasOwnProperty('title') && obj.hasOwnProperty('description')) return 'Routine';
             // Only a Standard has an isFile field
-            if (obj.hasOwnProperty('isFile')) return 'Standard';
+            if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
             // Only a user has a username field
-            if (obj.hasOwnProperty('username')) return 'User';
+            if (obj.hasOwnProperty('username')) return GraphQLModelType.User;
+            // Only an Organization has a name and bio field
+            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('bio')) return GraphQLModelType.Organization;
+            // Only a Project has a name and description field
+            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('description')) return GraphQLModelType.Project;
+            // Only a Routine has a title and description field
+            if (obj.hasOwnProperty('title') && obj.hasOwnProperty('description')) return GraphQLModelType.Routine;
             return null; // GraphQLError is thrown
         },
     },

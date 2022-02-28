@@ -4,13 +4,6 @@ import { Star, StarInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
-import { commentDBFields } from "./comment";
-import { projectDBFields } from "./project";
-import { routineDBFields } from "./routine";
-import { standardDBFields } from "./standard";
-import { organizationDBFields } from "./organization";
-import { tagDBFields } from "./tag";
-import { userDBFields } from "./user";
 
 //==============================================================
 /* #region Custom Components */
@@ -21,13 +14,13 @@ export const starFormatter = (): FormatConverter<Star> => ({
         '__typename': GraphQLModelType.Star,
         'from': GraphQLModelType.User,
         'to': {
-            '...Comment': GraphQLModelType.Comment,
-            '...Organization': GraphQLModelType.Organization,
-            '...Project': GraphQLModelType.Project,
-            '...Routine': GraphQLModelType.Routine,
-            '...Standard': GraphQLModelType.Standard,
-            '...Tag': GraphQLModelType.Tag,
-            '...User': GraphQLModelType.User,
+            'Comment': GraphQLModelType.Comment,
+            'Organization': GraphQLModelType.Organization,
+            'Project': GraphQLModelType.Project,
+            'Routine': GraphQLModelType.Routine,
+            'Standard': GraphQLModelType.Standard,
+            'Tag': GraphQLModelType.Tag,
+            'User': GraphQLModelType.User,
         }
     },
     constructUnions: (data) => {
@@ -44,27 +37,13 @@ export const starFormatter = (): FormatConverter<Star> => ({
     },
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'to', [
-            ['comment', {
-                ...Object.fromEntries(commentDBFields.map(f => [f, true]))
-            }],
-            ['organization', {
-                ...Object.fromEntries(organizationDBFields.map(f => [f, true]))
-            }],
-            ['project', {
-                ...Object.fromEntries(projectDBFields.map(f => [f, true]))
-            }],
-            ['routine', {
-                ...Object.fromEntries(routineDBFields.map(f => [f, true]))
-            }],
-            ['standard', {
-                ...Object.fromEntries(standardDBFields.map(f => [f, true]))
-            }],
-            ['tag', {
-                ...Object.fromEntries(tagDBFields.map(f => [f, true]))
-            }],
-            ['user', {
-                ...Object.fromEntries(userDBFields.map(f => [f, true]))
-            }],
+            [GraphQLModelType.Comment, 'comment'],
+            [GraphQLModelType.Organization, 'organization'],
+            [GraphQLModelType.Project, 'project'],
+            [GraphQLModelType.Routine, 'routine'],
+            [GraphQLModelType.Standard, 'standard'],
+            [GraphQLModelType.Tag, 'tag'],
+            [GraphQLModelType.User, 'user'],
         ]);
         return modified;
     },

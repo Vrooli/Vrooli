@@ -4,10 +4,6 @@ import { Vote, VoteInput } from "schema/types";
 import { PrismaType } from "../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
-import { standardDBFields } from "./standard";
-import { commentDBFields } from "./comment";
-import { projectDBFields } from "./project";
-import { routineDBFields } from "./routine";
 
 //==============================================================
 /* #region Custom Components */
@@ -18,11 +14,11 @@ export const voteFormatter = (): FormatConverter<Vote> => ({
         '__typename': GraphQLModelType.Vote,
         'from': GraphQLModelType.User,
         'to': {
-            '...Comment': GraphQLModelType.Comment,
-            '...Project': GraphQLModelType.Project,
-            '...Routine': GraphQLModelType.Routine,
-            '...Standard': GraphQLModelType.Standard,
-            '...Tag': GraphQLModelType.Tag,
+            'Comment': GraphQLModelType.Comment,
+            'Project': GraphQLModelType.Project,
+            'Routine': GraphQLModelType.Routine,
+            'Standard': GraphQLModelType.Standard,
+            'Tag': GraphQLModelType.Tag,
         }
     },
     constructUnions: (data) => {
@@ -36,18 +32,10 @@ export const voteFormatter = (): FormatConverter<Vote> => ({
     },
     deconstructUnions: (partial) => {
         let modified = deconstructUnion(partial, 'to', [
-            ['comment', {
-                ...Object.fromEntries(commentDBFields.map(f => [f, true]))
-            }],
-            ['project', {
-                ...Object.fromEntries(projectDBFields.map(f => [f, true]))
-            }],
-            ['routine', {
-                ...Object.fromEntries(routineDBFields.map(f => [f, true]))
-            }],
-            ['standard', {
-                ...Object.fromEntries(standardDBFields.map(f => [f, true]))
-            }],
+            [GraphQLModelType.Comment, 'comment'],
+            [GraphQLModelType.Project, 'project'],
+            [GraphQLModelType.Routine, 'routine'],
+            [GraphQLModelType.Standard, 'standard'],
         ]);
         return modified;
     },

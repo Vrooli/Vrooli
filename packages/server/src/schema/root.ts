@@ -7,7 +7,7 @@ import { AutocompleteInput, AutocompleteResult, OpenGraphResponse } from './type
 import { CODE, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { OrganizationModel, ProjectModel, readManyHelper, RoutineModel, StandardModel, UserModel } from '../models';
+import { GraphQLModelType, OrganizationModel, ProjectModel, readManyHelper, RoutineModel, StandardModel, UserModel } from '../models';
 import { CustomError } from '../error';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
@@ -148,9 +148,9 @@ export const resolvers = {
         __resolveType(obj: any) {
             console.log('IN Contributor __resolveType', obj);
             // Only a user has a username field
-            if (obj.hasOwnProperty('username')) return 'User';
+            if (obj.hasOwnProperty('username')) return GraphQLModelType.User;
             // Only an Organization has a name and bio field
-            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('bio')) return 'Organization';
+            if (obj.hasOwnProperty('name')) return GraphQLModelType.Organization;
             return null; // GraphQLError is thrown
         },
     },

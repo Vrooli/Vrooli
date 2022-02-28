@@ -7,8 +7,6 @@ import { hasProfanity } from "../utils/censor";
 import { StarModel } from "./star";
 import _ from "lodash";
 
-export const tagDBFields = ['id', 'created_at', 'updated_at', 'tag', 'description', 'createdByUserId'];
-
 //==============================================================
 /* #region Custom Components */
 //==============================================================
@@ -25,9 +23,11 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         return { ...rest, createdByUserId: true }
     },
     addJoinTables: (partial) => {
+        console.log('in tag addJoinTables', partial)
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {
+        console.log('in tag removeJoinTables', data)
         return removeJoinTablesHelper(data, joinMapper);
     },
     async addSupplementalFields(

@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { createHelper, deleteOneHelper, NodeModel, updateHelper } from '../models';
+import { createHelper, deleteOneHelper, GraphQLModelType, NodeModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from './types';
 import { Context } from '../context';
@@ -225,11 +225,11 @@ export const resolvers = {
         __resolveType(obj: any) {
             console.log('IN NODEDATA __resolveType', obj);
             // Only NodeEnd has wasSuccessful field
-            if (obj.hasOwnProperty('wasSuccessful')) return 'NodeEnd';
+            if (obj.hasOwnProperty('wasSuccessful')) return GraphQLModelType.NodeEnd;
             // Only NodeLoop has loop field
-            if (obj.hasOwnProperty('loop')) return 'NodeLoop';
+            if (obj.hasOwnProperty('loop')) return GraphQLModelType.NodeLoop;
             // Only NodeRoutineList has isOrdered field
-            if (obj.hasOwnProperty('isOrdered')) return 'NodeRoutineList';
+            if (obj.hasOwnProperty('isOrdered')) return GraphQLModelType.NodeRoutineList;
             return null; // GraphQLError is thrown
         },
     },

@@ -5,13 +5,8 @@ import { PrismaType } from "types";
 import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType } from "./base";
 import { hasProfanity } from "../utils/censor";
 import { organizationVerifier } from "./organization";
-import { routineDBFields } from "./routine";
-import { projectDBFields } from "./project";
-import { standardDBFields } from "./standard";
 import pkg from '@prisma/client';
 const { MemberRole } = pkg;
-
-export const commentDBFields = ['id', 'text', 'created_at', 'updated_at', 'userId', 'organizationId', 'projectId', 'routineId', 'standardId', 'score', 'stars']
 
 //==============================================================
 /* #region Custom Components */
@@ -44,15 +39,9 @@ export const commentFormatter = (): FormatConverter<Comment> => ({
     deconstructUnions: (partial) => {
         let modified = removeCreatorField(partial);
         modified = deconstructUnion(partial, 'commentedOn', [
-            ['project', {
-                ...Object.fromEntries(projectDBFields.map(f => [f, true]))
-            }],
-            ['routine', {
-                ...Object.fromEntries(routineDBFields.map(f => [f, true]))
-            }],
-            ['standard', {
-                ...Object.fromEntries(standardDBFields.map(f => [f, true]))
-            }],
+            [GraphQLModelType.Project, 'project'],
+            [GraphQLModelType.Routine, 'routine'],
+            [GraphQLModelType.Standard, 'standard'],
         ]);
         return modified;
     },

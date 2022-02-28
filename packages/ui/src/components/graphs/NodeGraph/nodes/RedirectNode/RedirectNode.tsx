@@ -12,6 +12,7 @@ export const RedirectNode = ({
     scale = 1,
     label = 'Redirect',
     labelVisible = true,
+    isHighlighted = false,
 }: RedirectNodeProps) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);

@@ -3,8 +3,6 @@ import { addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialInfo, re
 import { PrismaType, RecursivePartial } from "../types";
 import { StarModel } from "./star";
 
-export const userDBFields = ['id', 'created_at', 'updated_at', 'bio', 'username', 'theme', 'numExports', 'lastExport', 'status', 'stars'];
-
 //==============================================================
 /* #region Custom Components */
 //==============================================================

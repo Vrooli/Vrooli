@@ -10,8 +10,6 @@ import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import _ from "lodash";
 
-export const standardDBFields = ['id', 'created_at', 'updated_at', 'default', 'description', 'isFile', 'name', 'schema', 'type', 'version', 'createdByUserId', 'createdByOrganizationId', 'stars', 'score']
-
 //==============================================================
 /* #region Custom Components */
 //==============================================================
@@ -44,6 +42,7 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         return modified;
     },
     addJoinTables: (partial) => {
+        console.log('in standard addJoinTables', partial);
         return addJoinTablesHelper(partial, joinMapper)
     },
     removeJoinTables: (data) => {

@@ -9,8 +9,6 @@ import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 
-export const organizationDBFields = ['id', 'created_at', 'updated_at', 'bio', 'name', 'openToNewMembers', 'stars'];
-
 //==============================================================
 /* #region Custom Components */
 //==============================================================

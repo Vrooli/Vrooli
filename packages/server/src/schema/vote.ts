@@ -5,7 +5,7 @@ import { VoteInput, Success } from './types';
 import { IWrap } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { VoteModel } from '../models';
+import { GraphQLModelType, VoteModel } from '../models';
 
 export const typeDef = gql`
     enum VoteFor {
@@ -39,12 +39,12 @@ export const resolvers = {
     Vote: {
         __resolveType(obj: any) {
             console.log('IN VOTE __resolveType', obj);
-            // Only a Project has a name and description field
-            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('description')) return 'Project';
-            // Only a Routine has a title and description field
-            if (obj.hasOwnProperty('title') && obj.hasOwnProperty('description')) return 'Routine';
             // Only a Standard has an isFile field
-            if (obj.hasOwnProperty('isFile')) return 'Standard';
+            if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
+            // Only a Project has a name and description field
+            if (obj.hasOwnProperty('name')) return GraphQLModelType.Project;
+            // Only a Routine has a title and description field
+            if (obj.hasOwnProperty('title')) return GraphQLModelType.Routine;
             return null; // GraphQLError is thrown
         },
     },

@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentUpdateInput, DeleteOneInput, FindByIdInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
-import { CommentModel, countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { CommentModel, countHelper, createHelper, deleteOneHelper, GraphQLModelType, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { CommentSortBy } from '@local/shared';
@@ -106,12 +106,12 @@ export const resolvers = {
     CommentedOn: {
         __resolveType(obj: any) {
             console.log('IN COMMENT __resolveType', obj);
-            // Only a Project has a name field
-            if (obj.hasOwnProperty('name')) return 'Project';
-            // Only a Routine has a title field
-            if (obj.hasOwnProperty('title')) return 'Routine';
             // Only a Standard has an isFile field
-            if (obj.hasOwnProperty('isFile')) return 'Standard';
+            if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
+            // Only a Project has a name field
+            if (obj.hasOwnProperty('name')) return GraphQLModelType.Project;
+            // Only a Routine has a title field
+            if (obj.hasOwnProperty('title')) return GraphQLModelType.Routine;
             return null; // GraphQLError is thrown
         },
     },

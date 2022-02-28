@@ -1,21 +1,6 @@
 import { FieldNode, FragmentDefinitionNode, FragmentSpreadNode, GraphQLResolveInfo, InlineFragmentNode, SelectionNode } from 'graphql';
 
 /**
- * Finds the name of a SelectionNode
- * @param node SelectionNode to find name of
- * @returns Name of SelectionNode
- */
-export function getSelectionNodeName(node: SelectionNode): string {
-    switch (node.kind) {
-        case 'Field':
-        case 'FragmentSpread':
-            return node.name.value;
-        case 'InlineFragment':
-            return `...${node.typeCondition?.name.value}`; // Ellipsis added to distinguish that it's a union type
-    }
-}
-
-/**
  * Parses a GraphQL FieldNode type
  * @param node Field node
  * @param fragments All fragments in GraphQL info
@@ -28,9 +13,7 @@ export function parseFieldNode(node: FieldNode, fragments: { [x: string]: Fragme
         // Call parseSelectionNode for each item in selection set
         let results: { [x: string]: any } = {};
         node.selectionSet.selections.forEach((selection: SelectionNode) => {
-            const selectionName = getSelectionNodeName(selection);
-            // If __typename, skip. These must be injected later
-            if (selectionName === '__typename') return;
+            console.log('in parsefieldnode selectionset loop', selection)
             results = parseSelectionNode(results, selection, fragments)
         });
         return results;
@@ -52,10 +35,6 @@ export function parseFragmentSpreadNode(node: FragmentSpreadNode, fragments: { [
     let result: { [x: string]: any } = {};
     // Loop through each selection
     fragment.selectionSet.selections.forEach((selection: SelectionNode) => {
-        // Get name
-        const selectionName = getSelectionNodeName(selection);
-        // If __typename, skip. These must be injected later
-        if (selectionName === '__typename') return;
         // Parse selection
         result = parseSelectionNode(result, selection, fragments);
     });
@@ -94,11 +73,10 @@ export function parseInlineFragmentNode(node: InlineFragmentNode, fragments: { [
  */
 export function parseSelectionNode(parsed: { [x: string]: any }, node: SelectionNode, fragments: { [x: string]: FragmentDefinitionNode }): { [key: string]: any } {
     let result = parsed;
-    const selectionName = getSelectionNodeName(node);
     // Determine which helper function to use
     switch (node.kind) {
         case 'Field':
-            result[selectionName] = parseFieldNode(node, fragments);
+            result[node.name.value] = parseFieldNode(node, fragments);
             break;
         case 'FragmentSpread':
             const spread = parseFragmentSpreadNode(node, fragments);
@@ -107,8 +85,8 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
                 result[key] = spread[key];
             }
             break;
-        case 'InlineFragment': //TODO inline fragments are unions. 
-            result[selectionName] = parseInlineFragmentNode(node, fragments);
+        case 'InlineFragment':
+            result[`${node.typeCondition?.name.value}`] = parseInlineFragmentNode(node, fragments);
             break;
     }
     console.log('! RESULT HERE !', result);
@@ -135,10 +113,6 @@ export const resolveGraphQLInfo = (info: GraphQLResolveInfo): { [x: string]: any
     let result: { [x: string]: any } = {};
     // Loop through each selection node
     selectionNodes.forEach((selectionNode: SelectionNode) => {
-        // Get name
-        const selectionName = getSelectionNodeName(selectionNode);
-        // If __typename, skip. These must be injected later
-        if (selectionName === '__typename') return;
         // Parse selection
         result = parseSelectionNode(result, selectionNode, info.fragments);
     });

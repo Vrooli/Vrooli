@@ -1,3 +1,6 @@
+/**
+ * Displays a list of nodes vertically.
+ */
 import { Stack } from '@mui/material';
 import { useMemo } from 'react';
 import { NodeGraphColumnProps } from '../types';
@@ -11,6 +14,7 @@ export const NodeGraphColumn = ({
     nodes,
     labelVisible,
     isEditable,
+    dragId,
     onResize,
 }: NodeGraphColumnProps) => {
     const padding = useMemo(() => `${scale * 25}px`, [scale]);
@@ -25,9 +29,11 @@ export const NodeGraphColumn = ({
             key: `node-${columnNumber}-${index}`,
             node,
             scale,
-            label: node?.title,
+            label: node.title,
             labelVisible,
-            isEditable
+            isEditable,
+            // Cannot drop onto itself or a start or end node
+            isHighlighted: Boolean(dragId && dragId !== node.id && node.type !== NodeType.Start && node.type !== NodeType.End),
         }
         // Determine node to display based on node type
         switch (node.type) {
@@ -49,7 +55,8 @@ export const NodeGraphColumn = ({
     return (
         <Stack
             id={id}
-            spacing={10}
+            // Spacing is handled by nodes, to allow their whole background to highlight on hover
+            spacing={0}
             direction="column"
             padding={padding}
             position="relative"

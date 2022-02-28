@@ -11,8 +11,6 @@ import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import _ from "lodash";
 
-export const projectDBFields = ['id', 'created_at', 'updated_at', 'description', 'name', 'score', 'stars', 'createdByUserId', 'createdByOrganizationId', 'userId', 'organizationId', 'parentId'];
-
 //==============================================================
 /* #region Custom Components */
 //==============================================================

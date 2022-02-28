@@ -4,7 +4,7 @@ import { CustomError } from "../error";
 import { CODE, condition, conditionsCreate, conditionsUpdate, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
 import { PrismaType } from "types";
 import { hasProfanityRecursive } from "../utils/censor";
-import { routineDBFields, RoutineModel } from "./routine";
+import { RoutineModel } from "./routine";
 import pkg from '@prisma/client';
 const { MemberRole } = pkg;
 
@@ -18,9 +18,9 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Node,
         'data': {
-            '...nodeEnd': GraphQLModelType.NodeEnd,
-            '...nodeLoop': GraphQLModelType.NodeLoop,
-            '...nodeRoutineList': GraphQLModelType.NodeRoutineList,
+            'NodeEnd': GraphQLModelType.NodeEnd,
+            'NodeLoop': GraphQLModelType.NodeLoop,
+            'NodeRoutineList': GraphQLModelType.NodeRoutineList,
         },
         'routine': GraphQLModelType.Routine,
     },
@@ -40,35 +40,12 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
         return modified;
     },
     deconstructUnions: (partial) => {
-        let modified = deconstructUnion(partial, 'data', [
-            ['nodeEnd', {
-                wasSuccessful: true,
-            }],
-            ['nodeLoopFrom', {
-                loops: true,
-                maxLoops: true,
-                toId: true,
-                whiles: {
-                    description: true,
-                    title: true,
-                    when: {
-                        condition: true,
-                    }
-                }
-            }],
-            ['nodeRoutineList', {
-                isOrdered: true,
-                isOptional: true,
-                routines: {
-                    description: true,
-                    isOptional: true,
-                    title: true,
-                    routineId: true,
-                    routine: {
-                        ...Object.fromEntries(routineDBFields.map(f => [f, true])),
-                    }
-                }
-            }],
+        console.log('in node deconstructunions')
+        let modified = deconstructUnion(partial, 'data', 
+        [
+            [GraphQLModelType.NodeEnd, 'nodeEnd'],
+            [GraphQLModelType.NodeLoop, 'nodeLoopFrom'],
+            [GraphQLModelType.NodeRoutineList, 'nodeRoutineList'],
             // TODO modified.nodeRedirect
         ]);
         return modified;
