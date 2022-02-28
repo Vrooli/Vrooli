@@ -1,5 +1,6 @@
 import { BoxProps } from '@mui/material';
 import { Node, NodeLink } from 'types';
+import { OrchestrationStatus } from 'utils';
 
 /**
  * Describes the data and general position of a node in the graph. 
@@ -27,12 +28,17 @@ export interface NodeContextMenuProps {
     onMove: (node: Node) => void;
 }
 
+export type OrchestrationStatusObject = {
+    code: OrchestrationStatus,
+    details: string,
+}
 export interface NodeGraphProps {
     scale?: number;
     isEditable?: boolean;
     labelVisible?: boolean;
     nodes: Node[]
     links: NodeLink[];
+    onStatusChange: (status: OrchestrationStatusObject) => void;
 }
 
 /**

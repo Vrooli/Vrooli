@@ -1,4 +1,4 @@
-import { Box, Button, Grid, IconButton, Slider, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Grid, IconButton, Slider, Stack, styled, TextField, Tooltip, Typography } from '@mui/material';
 import { HelpButton, NodeGraphContainer } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@apollo/client';
 import { routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
-import { Pubs } from 'utils';
+import { OrchestrationStatus, Pubs } from 'utils';
 import {
     Close as CloseIcon,
     Done as DoneIcon,
@@ -21,22 +21,20 @@ import { withStyles } from '@mui/styles';
 import helpMarkdown from './OrchestratorHelp.md';
 import { useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
+import { OrchestrationStatusObject } from 'components/graphs/NodeGraph/types';
 
-/**
- * Only orchestrations that are valid or incomplete can be run
- */
-enum OrchestrationStatus {
-    Incomplete = 'Incomplete', // Orchestration would be valid, except there are unlinked nodes
-    Invalid = 'Invalid', // Something is wrong with the orchestration (e.g. no end node)
-    Valid = 'Valid', // The orchestration is valid, and all nodes are linked
-}
 /**
  * Status indicator and slider change color to represent orchestration's status
  */
 const STATUS_COLOR = {
-    Incomplete: '#cde22c', // Yellow
-    Invalid: '#ff6a6a', // Red
-    Valid: '#00d51e', // Green
+    [OrchestrationStatus.Incomplete]: '#cde22c', // Yellow
+    [OrchestrationStatus.Invalid]: '#ff6a6a', // Red
+    [OrchestrationStatus.Valid]: '#00d51e', // Green
+}
+const STATUS_LABEL = {
+    [OrchestrationStatus.Incomplete]: 'Incomplete',
+    [OrchestrationStatus.Invalid]: 'Invalid',
+    [OrchestrationStatus.Valid]: 'Valid',
 }
 
 const TERTIARY_COLOR = '#95f3cd';
@@ -60,7 +58,7 @@ export const RoutineOrchestratorPage = () => {
     // Routine mutator
     const [routineUpdate, { loading }] = useMutation<any>(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
-    const [status, setStatus] = useState<{code: OrchestrationStatus, label: string, details: string}>({code: OrchestrationStatus.Incomplete, label: 'Incomplete', details: 'TODO'});
+    const [status, setStatus] = useState<OrchestrationStatusObject>({ code: OrchestrationStatus.Incomplete, details: 'TODO' });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -79,6 +77,12 @@ export const RoutineOrchestratorPage = () => {
     useEffect(() => {
         setChangedRoutine(routine);
     }, [routine]);
+
+    const handleStatusChange = useCallback((newStatus: OrchestrationStatusObject) => {
+        if (status.code !== newStatus.code || status.details !== newStatus.details) {
+            setStatus(newStatus);
+        }
+    }, [status]);
 
     const handleScaleChange = (_event: any, newScale: number | number[]) => {
         console.log('HANDLE SCALE CHANGE', newScale);
@@ -130,13 +134,32 @@ export const RoutineOrchestratorPage = () => {
                 {/* Component for editing title */}
                 <TextField
                     autoFocus
+                    variant="filled"
                     id="title"
                     name="title"
                     autoComplete="routine-title"
                     label="Title"
                     value={changedRoutine?.title ?? ''}
                     onChange={() => { }}
-                    sx={{ cursor: 'pointer' }}
+                    sx={{
+                        '& .MuiInputLabel-root': {
+                            display: 'none',
+                        },
+                        '& .MuiInputBase-root': {
+                            borderBottom: 'none',
+                            borderRadius: '32px',
+                            border: `2px solid green`,//TODO titleValid ? green : red
+                            overflow: 'overlay',
+                        },
+                        '& .MuiInputBase-input': {
+                            position: 'relative',
+                            backgroundColor: '#ffffff94',
+                            border: '1px solid #ced4da',
+                            fontSize: 16,
+                            width: 'auto',
+                            padding: '8px 8px',
+                        }
+                    }}
                 />
                 {/* Buttons for saving/cancelling edit */}
                 <IconButton aria-label="confirm-title-change" onClick={saveTitle}>
@@ -147,13 +170,13 @@ export const RoutineOrchestratorPage = () => {
                 </IconButton>
             </Stack>
         ) : (
-            <Typography
-                onClick={toggleTitle}
-                component="h2"
-                variant="h5"
-                textAlign="center"
-                sx={{ cursor: 'pointer' }}
-            >{changedRoutine?.title ?? ''}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={toggleTitle}>
+                <Typography
+                    component="h2"
+                    variant="h5"
+                    textAlign="center"
+                >{changedRoutine?.title ?? ''}</Typography>
+            </Box>
         );
         return (
             <Stack
@@ -178,7 +201,7 @@ export const RoutineOrchestratorPage = () => {
                         fontSize: 'larger',
                         padding: 0.5,
                         margin: 1,
-                    }}>{status.label}</Box>
+                    }}>{STATUS_LABEL[status.code]}</Box>
                 </Tooltip>
                 {/* Routine title label/TextField and action buttons */}
                 {title}
@@ -251,6 +274,7 @@ export const RoutineOrchestratorPage = () => {
                                     step={0.01}
                                     value={scale}
                                     valueLabelDisplay="auto"
+                                    valueLabelFormat={value => <div>{`Scale: ${value}`}</div>}
                                     onChange={handleScaleChange}
                                     sx={{
                                         color: STATUS_COLOR[status.code],
@@ -294,6 +318,7 @@ export const RoutineOrchestratorPage = () => {
                     labelVisible={true}
                     nodes={changedRoutine?.nodes ?? []}
                     links={changedRoutine?.nodeLinks ?? []}
+                    onStatusChange={handleStatusChange}
                 />
                 {optionsBar}
             </Box>

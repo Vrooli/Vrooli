@@ -29,3 +29,12 @@ export const DragTypes = {
     Node: 'node',
 }
 export type DragTypes = ValueOf<typeof DragTypes>;
+
+/**
+ * Only orchestrations that are valid or incomplete can be run
+ */
+ export enum OrchestrationStatus {
+    Incomplete = 'Incomplete', // Orchestration would be valid, except there are unlinked nodes
+    Invalid = 'Invalid', // Something is wrong with the orchestration (e.g. no end node)
+    Valid = 'Valid', // The orchestration is valid, and all nodes are linked
+}
