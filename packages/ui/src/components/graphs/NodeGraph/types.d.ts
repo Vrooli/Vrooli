@@ -64,8 +64,10 @@ export interface NodeGraphColumnProps {
 }
 
 export interface NodeGraphEdgeProps {
-    start: { x: number, y: number };
-    end: { x: number, y: number };
+    fromId: string;
+    toId: string;
     isEditable?: boolean;
+    dragId: string | null; // ID of node being dragged. Used to determine if 
+    scale: number; // Line thickness changes with scale
     onAdd: any,
 }

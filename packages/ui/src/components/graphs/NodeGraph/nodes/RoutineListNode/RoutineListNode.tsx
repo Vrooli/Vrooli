@@ -184,7 +184,7 @@ export const RoutineListNode = ({
             onResize={handleResize}
         >
             {({ measureRef }) => (
-                <DraggableNode className="handle" nodeId={node.id}
+                <DraggableNode id={`node-${node.id}`} className="handle" nodeId={node.id}
                     sx={{
                         width: nodeSize,
                         fontSize: fontSize,

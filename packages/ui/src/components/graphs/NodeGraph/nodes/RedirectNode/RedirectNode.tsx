@@ -62,6 +62,7 @@ export const RedirectNode = ({
             />
             <Tooltip placement={'top'} title='Redirect'>
                 <IconButton
+                    id={`node-${node.id}`}
                     className="handle"
                     onClick={openDialog}
                     aria-owns={contextOpen ? contextId : undefined}

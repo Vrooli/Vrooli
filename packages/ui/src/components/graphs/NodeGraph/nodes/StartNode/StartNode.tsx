@@ -30,6 +30,7 @@ export const StartNode = ({
     return (
         <Tooltip placement={'top'} title={label ?? ''}>
             <Box
+                id={`node-${node.id}`}
                 sx={{
                     ...containerShadow,
                     width: nodeSize,

@@ -36,7 +36,6 @@ export const NodeGraphColumn = ({
      * Calculates positions of nodes in column
      */
     useEffect(() => {
-        if(!nodes|| nodes.length===0) console.log('NO NODES IN COLUMN!', columnIndex);
         // Calculate column width as largest node width
         const width = Math.max(...nodes.map(node => NodeWidth[node.type] * scale));
         const heights = nodes.map(node => {
@@ -53,7 +52,6 @@ export const NodeGraphColumn = ({
             centers.push(y + heights[i] / 2);
             y += heights[i] + padding; // Node height + Bottom padding
         }
-        console.log('onDimensionsChange', columnIndex, { width, heights, nodeIds, tops, centers });
         onDimensionsChange(columnIndex, { width, heights, nodeIds, tops, centers });
     }, [cellHeights, nodes, onDimensionsChange, scale]);
 
@@ -98,10 +96,9 @@ export const NodeGraphColumn = ({
             justifyContent="center"
             alignItems="center"
             sx={{ 
-                border: '2px dashed red', // TODO: Remove
                 backgroundColor: isHighlighted ? '#a2be6547' : 'transparent', 
-                borderLeft: isHighlighted ? '1px solid black' : 'none',
-                borderRight: isHighlighted ? '1px solid black' : 'none',
+                borderLeft: isHighlighted ? '1px solid #71c84f' : 'none',
+                borderRight: isHighlighted ? '1px solid #71c84f' : 'none',
                 gap: `${padding * 4}px`,
             }}
         >

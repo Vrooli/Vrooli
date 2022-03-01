@@ -24,8 +24,6 @@ export function ListMenu<T>({
 }: ListMenuProps<T>) {
     const open = Boolean(anchorEl);
 
-    console.log('anchorEl', anchorEl);
-
     const items = useMemo(() => data?.map(({ label, value, Icon, iconColor, helpData }, index) => {
         const itemText = <ListItemText primary={label} />;
         const itemIcon = Icon ? (

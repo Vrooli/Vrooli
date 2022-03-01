@@ -147,6 +147,8 @@ export const RoutineOrchestratorPage = () => {
                     value={changedRoutine?.title ?? ''}
                     onChange={() => { }}
                     sx={{
+                        marginTop: 1,
+                        marginBottom: 1,
                         '& .MuiInputLabel-root': {
                             display: 'none',
                         },
@@ -175,7 +177,7 @@ export const RoutineOrchestratorPage = () => {
                 </IconButton>
             </Stack>
         ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={toggleTitle}>
+            <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', paddingTop: 1, paddingBottom: 1 }} onClick={toggleTitle}>
                 <Typography
                     component="h2"
                     variant="h5"
@@ -205,7 +207,8 @@ export const RoutineOrchestratorPage = () => {
                         fontWeight: 'bold',
                         fontSize: 'larger',
                         padding: 0.5,
-                        margin: 1,
+                        marginTop: 'auto',
+                        marginBottom: 'auto',
                         marginLeft: 2,
                     }}>{STATUS_LABEL[status.code]}</Box>
                 </Tooltip>
@@ -302,7 +305,7 @@ export const RoutineOrchestratorPage = () => {
                     )
             }
         </Grid >
-    ), [changedRoutine, isEditing, loading, revertChanges, routine, scale, startEditing, updateRoutine])
+    ), [changedRoutine, isEditing, loading, revertChanges, routine, scale, status, startEditing, updateRoutine])
 
     return (
         <Box sx={{

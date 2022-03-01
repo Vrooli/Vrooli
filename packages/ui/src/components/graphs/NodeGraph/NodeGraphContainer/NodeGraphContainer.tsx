@@ -11,7 +11,6 @@ import { OrchestrationStatus, Pubs, updateArray } from 'utils';
 import { ColumnDimensions, NodeGraphProps, NodePos } from '../types';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node } from 'types';
-import { NodeWidth } from '..';
 
 type DragRefs = {
     lastPosition: { x: number, y: number };
@@ -306,35 +305,11 @@ export const NodeGraphContainer = ({
     }, [columnData]);
 
     /**
-     * Calculates the position of a node in the graph
-     */
-    const getNodePos = useCallback((id: string): { x: number, y: number } | null => {
-        // Get column number of node
-        const columnIndex = nodeDataMap[id]?.column;
-        if (!columnIndex || columnIndex < 0) return null;
-        const columnDims = columnDimensions[columnIndex];
-        const rowIndex = columnDims.nodeIds.indexOf(id) ?? 0;
-        // Calculate x position by summing the previous column widths (and padding between columns)
-        const columnPadding = scale * 25;
-        let x = 0;
-        for (let i = 0; i < columnIndex; i++) {
-            x += (columnDimensions[i].width ?? (scale * NodeWidth[NodeType.Start])) + (2 * columnPadding);
-        }
-        x += columnPadding + (columnDims.width ?? (scale * NodeWidth[NodeType.Start])) / 2;
-        // Calculate y position
-        let y = columnDims.centers[rowIndex];
-        // Using the largest column, reshape centers to be in the middle vertically
-        const largestHeight = Math.max(...columnDimensions.map(d => Math.max(...d.heights)));
-        y += (largestHeight - columnDims.heights[rowIndex]) / 2;
-        return { x, y };
-    }, [nodeDataMap, columnDimensions]);
-
-    /**
      * Edges (links) displayed between nodes. If editing, the midpoint of an edge
      * contains an "Add Node" button
      */
     const edges = useMemo(() => {
-        console.log('in edges start before cancel check', columnDimensions)
+        console.log('in edges start before cancel check', columnDimensions, scale)
         // If data required to render edges is not yet available
         // (i.e. no links, or column dimensions not complete)
         if (!links ||
@@ -342,21 +317,18 @@ export const NodeGraphContainer = ({
             Object.values(columnDimensions).some((d, i) => d.width === 0 && i > 0)) return [];
         console.log('calculating edges', columnDimensions);
         return links?.map(link => {
-            if (!nodeDataMap[link.fromId] || !nodeDataMap[link.toId]) return null;
-            // Find centers of nodes relative to their columns
-            const fromPos = getNodePos(link.fromId);
-            const toPos = getNodePos(link.toId);
-            console.log('start/end', fromPos, toPos)
-            if (!fromPos || !toPos) return null;
+            if (!link.fromId || !link.toId) return null;
             return <NodeGraphEdge
                 key={`edge-${link.id}`}
-                start={fromPos}
-                end={toPos}
+                fromId={link.fromId}
+                toId={link.toId}
                 isEditable={isEditable}
+                dragId={dragId}
+                scale={scale ?? 1}
                 onAdd={() => { }}
             />
         })
-    }, [columnDimensions, isEditable, links, nodeDataMap, scale]);
+    }, [dragId, columnDimensions, isEditable, links, scale]);
 
     /**
      * Node column objects

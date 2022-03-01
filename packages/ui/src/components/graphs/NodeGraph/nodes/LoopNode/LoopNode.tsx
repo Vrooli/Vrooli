@@ -61,6 +61,7 @@ export const LoopNode = ({
             />
             <Tooltip placement={'top'} title={label ?? ''}>
                 <IconButton
+                    id={`node-${node.id}`}
                     className="handle"
                     onClick={openDialog}
                     aria-owns={Boolean(contextAnchor) ? contextId : undefined}

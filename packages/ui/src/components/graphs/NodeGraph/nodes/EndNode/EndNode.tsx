@@ -54,6 +54,7 @@ export const EndNode = ({
             />
             <Tooltip placement={'top'} title={'End'}>
                 <Box
+                    id={`node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
                     onClick={() => { }}
