@@ -2,10 +2,11 @@
  * Displays a list of nodes vertically.
  */
 import { Stack } from '@mui/material';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NodeGraphColumnProps } from '../types';
 import { EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
 import { NodeType } from 'graphql/generated/globalTypes';
+import { NodeWidth } from '..';
 
 export const NodeGraphColumn = ({
     id,
@@ -15,9 +16,44 @@ export const NodeGraphColumn = ({
     labelVisible,
     isEditable,
     dragId,
-    onResize,
+    onDimensionsChange,
 }: NodeGraphColumnProps) => {
-    const padding = useMemo(() => `${scale * 25}px`, [scale]);
+    // Stores heights of node cells, used for positioning after drag and drop
+    const [cellHeights, setCellHeights] = useState<{ [x: string]: number }>({});
+    // Padding between cells
+    const padding = useMemo(() => scale * 25, [scale]);
+
+    /**
+     * Updates dimensions of a node cell
+     */
+     const onCellResize = useCallback((nodeId: string, height: number) => {
+        setCellHeights(dimensions => ({ ...dimensions, [nodeId]: height }));
+    }, []);
+
+    /**
+     * Calculates positions of nodes in column
+     */
+    useEffect(() => {
+        if(!nodes|| nodes.length===0) console.log('NO NODES IN COLUMN!', columnNumber);
+        // Calculate column width as largest node width
+        const width = Math.max(...nodes.map(node => NodeWidth[node.type] * scale));
+        const heights = nodes.map(node => {
+            if (node.type === NodeType.RoutineList) return cellHeights[node.id] || (45 * scale);
+            return NodeWidth[node.type] * scale
+        })
+        const nodeIds = nodes.map(node => node.id);
+        const tops: number[] = [];
+        const centers: number[] = [];
+        let y = 0;
+        for (let i = 0; i < nodes.length; i++) {
+            y += padding; // Top padding
+            tops.push(y);
+            centers.push(y + heights[i] / 2);
+            y += heights[i] + padding; // Node height + Bottom padding
+        }
+        console.log('onDimensionsChange', columnNumber, { width, heights, nodeIds, tops, centers });
+        onDimensionsChange(columnNumber, { width, heights, nodeIds, tops, centers });
+    }, [cellHeights, nodes, onDimensionsChange, scale]);
 
     /**
      * Create a node component for the given node data. 
@@ -42,7 +78,7 @@ export const NodeGraphColumn = ({
             case NodeType.Loop:
                 return <LoopNode {...nodeProps} />
             case NodeType.RoutineList:
-                return <RoutineListNode {...nodeProps} onAdd={() => { }} onResize={onResize} />
+                return <RoutineListNode {...nodeProps} onAdd={() => { }} onResize={onCellResize} />
             case NodeType.Redirect:
                 return <RedirectNode {...nodeProps} />
             case NodeType.Start:
@@ -50,7 +86,7 @@ export const NodeGraphColumn = ({
             default:
                 return null;
         }
-    }) ?? [], [nodes, scale, labelVisible, isEditable, onResize]);
+    }) ?? [], [dragId, nodes, scale, labelVisible, isEditable, onCellResize]);
 
     return (
         <Stack
@@ -58,7 +94,7 @@ export const NodeGraphColumn = ({
             // Spacing is handled by nodes, to allow their whole background to highlight on hover
             spacing={0}
             direction="column"
-            padding={padding}
+            padding={`${padding}px`}
             position="relative"
             display="flex"
             justifyContent="center"

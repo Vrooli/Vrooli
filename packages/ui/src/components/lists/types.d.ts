@@ -1,5 +1,6 @@
 import { StarFor, VoteFor } from '@local/shared';
 import { Organization, Project, Resource, Routine, Session, Standard, Tag, User } from 'types';
+import { LabelledSortOption } from 'utils';
 
 export interface ObjectListItemProps {
     session: Session;
@@ -97,6 +98,21 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
+/**
+ * Return type for a SearchList generator function
+ */
+export interface SearchListGenerator {
+    placeholder: string;
+    noResultsText: string;
+    sortOptions: LabelledSortOption<any>[];
+    defaultSortOption: LabelledSortOption<any>;
+    sortOptionLabel: (sortOption: any) => string;
+    searchQuery: any;
+    where: any;
+    onSearchSelect: (objectData: any) => void;
+    searchItemFactory: (node: any, index: number) => JSX.Element | null;
+}
+
 export interface SearchListProps<DataType, SortBy> {
     searchPlaceholder?: string;
     sortOptions: SearchSortBy<SortBy>[];
@@ -109,10 +125,12 @@ export interface SearchListProps<DataType, SortBy> {
     setSearchString: (searchString: string) => void;
     setSortBy: (sortBy: string | undefined) => void;
     setTimeFrame: (timeFrame: string | undefined) => void;
-    listItemFactory: (node: DataType, index: number) => JSX.Element;
+    listItemFactory: (node: DataType, index: number) => JSX.Element | null;
     getOptionLabel: (option: any) => string;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
+    where?: any; // Additional where clause to pass to the query
+    noResultsText?: string; // Text to display when no results are found
 }
 
 export interface TagListProps {

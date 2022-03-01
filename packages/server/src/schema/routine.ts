@@ -155,6 +155,7 @@ export const typeDef = gql`
     input RoutineSearchInput {
         userId: ID
         organizationId: ID
+        projectId: ID
         parentId: ID
         reportId: ID
         ids: [ID!]

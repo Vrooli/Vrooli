@@ -18,6 +18,7 @@ import { UserViewProps } from "../types";
 import { LabelledSortOption } from "utils";
 import { Organization, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
+import { SearchListGenerator } from "components/lists/types";
 
 const tabLabels = ['Resources', 'Organizations', 'Projects', 'Routines', 'Standards'];
 
@@ -70,27 +71,21 @@ export const UserView = ({
     const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
 
     // Create search data
-    const [
-        placeholder,
-        sortOptions,
-        defaultSortOption,
-        sortOptionLabel,
-        searchQuery,
-        onSearchSelect,
-        searchItemFactory,
-    ] = useMemo<[string, LabelledSortOption<any>[], { label: string, value: any }, (o: any) => string, any, (objectData: any) => void, (node: any, index: number) => JSX.Element]>(() => {
+    const { placeholder, sortOptions, defaultSortOption, sortOptionLabel, searchQuery, where, noResultsText, onSearchSelect, searchItemFactory } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the user's set resources
         switch (tabIndex) {
             case 1:
-                return [
-                    "Search user's organizations...",
-                    OrganizationSortOptions,
-                    organizationDefaultSortOption,
-                    organizationOptionLabel,
-                    organizationsQuery,
-                    (newValue) => openLink(APP_LINKS.Organization, newValue.id),
-                    (node: Organization, index: number) => (
+                return {
+                    placeholder: "Search user's organizations...",
+                    noResultsText: "No organizations found",
+                    sortOptions: OrganizationSortOptions,
+                    defaultSortOption: organizationDefaultSortOption,
+                    sortOptionLabel: organizationOptionLabel,
+                    searchQuery: organizationsQuery,
+                    where: { userId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Organization, newValue.id),
+                    searchItemFactory: (node: Organization, index: number) => (
                         <OrganizationListItem
                             key={`organization-list-item-${index}`}
                             index={index}
@@ -98,16 +93,18 @@ export const UserView = ({
                             data={node}
                             onClick={(selected: Organization) => openLink(APP_LINKS.Organization, selected.id)}
                         />)
-                ];
+                }
             case 2:
-                return [
-                    "Search user's projects...",
-                    ProjectSortOptions,
-                    projectDefaultSortOption,
-                    projectOptionLabel,
-                    projectsQuery,
-                    (newValue) => openLink(APP_LINKS.Project, newValue.id),
-                    (node: Project, index: number) => (
+                return {
+                    placeholder: "Search user's projects...",
+                    noResultsText: "No projects found",
+                    sortOptions: ProjectSortOptions,
+                    defaultSortOption: projectDefaultSortOption,
+                    sortOptionLabel: projectOptionLabel,
+                    searchQuery: projectsQuery,
+                    where: { userId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
+                    searchItemFactory: (node: Project, index: number) => (
                         <ProjectListItem
                             key={`project-list-item-${index}`}
                             index={index}
@@ -115,16 +112,18 @@ export const UserView = ({
                             data={node}
                             onClick={(selected: Project) => openLink(APP_LINKS.Project, selected.id)}
                         />)
-                ];
+                }
             case 3:
-                return [
-                    "Search user's routines...",
-                    RoutineSortOptions,
-                    routineDefaultSortOption,
-                    routineOptionLabel,
-                    routinesQuery,
-                    (newValue) => openLink(APP_LINKS.Routine, newValue.id),
-                    (node: Routine, index: number) => (
+                return {
+                    placeholder: "Search user's routines...",
+                    noResultsText: "No routines found",
+                    sortOptions: RoutineSortOptions,
+                    defaultSortOption: routineDefaultSortOption,
+                    sortOptionLabel: routineOptionLabel,
+                    searchQuery: routinesQuery,
+                    where: { userId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    searchItemFactory: (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             index={index}
@@ -132,16 +131,18 @@ export const UserView = ({
                             data={node}
                             onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
                         />)
-                ];
+                }
             case 4:
-                return [
-                    "Search user's standards...",
-                    StandardSortOptions,
-                    standardDefaultSortOption,
-                    standardOptionLabel,
-                    standardsQuery,
-                    (newValue) => openLink(APP_LINKS.Standard, newValue.id),
-                    (node: Standard, index: number) => (
+                return {
+                    placeholder: "Search user's standards...",
+                    noResultsText: "No standards found",
+                    sortOptions: StandardSortOptions,
+                    defaultSortOption: standardDefaultSortOption,
+                    sortOptionLabel: standardOptionLabel,
+                    searchQuery: standardsQuery,
+                    where: { userId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    searchItemFactory: (node: Standard, index: number) => (
                         <StandardListItem
                             key={`standard-list-item-${index}`}
                             index={index}
@@ -149,17 +150,19 @@ export const UserView = ({
                             data={node}
                             onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
-                ];
+                }
             default:
-                return [
-                    '',
-                    [],
-                    { label: '', value: null },
-                    () => '',
-                    null,
-                    () => { },
-                    () => (<></>)
-                ];
+                return {
+                    placeholder: '',
+                    noResultsText: '',
+                    sortOptions: [],
+                    defaultSortOption: { label: '', value: null },
+                    sortOptionLabel: (o: any) => '',
+                    searchQuery: null,
+                    where: {},
+                    onSearchSelect: (o: any) => { },
+                    searchItemFactory: (a: any, b: any) => null
+                }
         }
     }, [tabIndex]);
 
@@ -331,6 +334,8 @@ export const UserView = ({
                                 searchString={searchString}
                                 sortBy={sortBy}
                                 timeFrame={timeFrame}
+                                where={where}
+                                noResultsText={noResultsText}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}
                                 setTimeFrame={setTimeFrame}

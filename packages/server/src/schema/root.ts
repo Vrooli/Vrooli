@@ -191,7 +191,7 @@ export const resolvers = {
             // Query organizations
             const organizations = (await readManyHelper(
                 req.userId, 
-                { ...input, sortBy: OrganizationSortBy.StarsDesc }, 
+                { ...input, take: 5, sortBy: OrganizationSortBy.StarsDesc }, 
                 {
                     __typename: 'Organization',
                     id: true,
@@ -207,7 +207,7 @@ export const resolvers = {
             // Query projects
             const projects = (await readManyHelper(
                 req.userId, 
-                { ...input, sortBy: ProjectSortBy.StarsDesc }, 
+                { ...input, take: 5, sortBy: ProjectSortBy.StarsDesc }, 
                 {
                     __typename: 'Project',
                     id: true,
@@ -224,7 +224,7 @@ export const resolvers = {
             // Query routines
             const routines = (await readManyHelper(
                 req.userId, 
-                { ...input, sortBy: RoutineSortBy.StarsDesc }, 
+                { ...input, take: 5, sortBy: RoutineSortBy.StarsDesc }, 
                 {
                     __typename: 'Routine',
                     id: true,
@@ -241,7 +241,7 @@ export const resolvers = {
             // Query standards
             const standards = (await readManyHelper(
                 req.userId, 
-                { ...input, sortBy: StandardSortBy.StarsDesc }, 
+                { ...input, take: 5, sortBy: StandardSortBy.StarsDesc }, 
                 {
                     __typename: 'Standard',
                     id: true,
@@ -258,7 +258,7 @@ export const resolvers = {
             // Query users
             const users = (await readManyHelper(
                 req.userId, 
-                { ...input, sortBy: UserSortBy.StarsDesc }, 
+                { ...input, take: 5, sortBy: UserSortBy.StarsDesc }, 
                 {
                     __typename: 'User',
                     id: true,

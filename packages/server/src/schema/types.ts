@@ -1453,6 +1453,7 @@ export type RoutineSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   organizationId?: InputMaybe<Scalars['ID']>;
+  projectId?: Scalars['ID'];
   parentId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -1580,6 +1581,7 @@ export type StandardSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   organizationId?: InputMaybe<Scalars['ID']>;
+  projectId?: Scalars['ID'];
   reportId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;

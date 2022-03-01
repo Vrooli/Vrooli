@@ -82,6 +82,7 @@ export const typeDef = gql`
     input StandardSearchInput {
         userId: ID
         organizationId: ID
+        projectId: ID
         routineId: ID
         reportId: ID
         ids: [ID!]

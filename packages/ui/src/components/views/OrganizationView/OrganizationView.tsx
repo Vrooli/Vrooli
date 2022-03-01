@@ -15,9 +15,9 @@ import {
 import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, BaseObjectActionDialog, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
-import { LabelledSortOption } from "utils";
 import { User, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
+import { SearchListGenerator } from "components/lists/types";
 
 const tabLabels = ['Resources', 'Members', 'Projects', 'Routines', 'Standards'];
 
@@ -45,27 +45,21 @@ export const OrganizationView = ({
     const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
 
     // Create search data
-    const [
-        placeholder,
-        sortOptions,
-        defaultSortOption,
-        sortOptionLabel,
-        searchQuery,
-        onSearchSelect,
-        searchItemFactory,
-    ] = useMemo<[string, LabelledSortOption<any>[], { label: string, value: any }, (o: any) => string, any, (objectData: any) => void, (node: any, index: number) => JSX.Element]>(() => {
+    const { placeholder, sortOptions, defaultSortOption, sortOptionLabel, searchQuery, where, noResultsText, onSearchSelect, searchItemFactory } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the organization's set resources
         switch (tabIndex) {
             case 1:
-                return [
-                    "Search orgnization's members...",
-                    ActorSortOptions,
-                    actorDefaultSortOption,
-                    actorOptionLabel,
-                    usersQuery,
-                    (newValue) => openLink(APP_LINKS.User, newValue.id),
-                    (node: User, index: number) => (
+                return {
+                    placeholder: "Search orgnization's members...",
+                    noResultsText: "No members found",
+                    sortOptions: ActorSortOptions,
+                    defaultSortOption: actorDefaultSortOption,
+                    sortOptionLabel: actorOptionLabel,
+                    searchQuery: usersQuery,
+                    where: { organizationId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.User, newValue.id),
+                    searchItemFactory: (node: User, index: number) => (
                         <ActorListItem
                             key={`member-list-item-${index}`}
                             index={index}
@@ -73,16 +67,18 @@ export const OrganizationView = ({
                             data={node}
                             onClick={(selected: User) => openLink(APP_LINKS.User, selected.id)}
                         />)
-                ];
+                };
             case 2:
-                return [
-                    "Search organization's projects...",
-                    ProjectSortOptions,
-                    projectDefaultSortOption,
-                    projectOptionLabel,
-                    projectsQuery,
-                    (newValue) => openLink(APP_LINKS.Project, newValue.id),
-                    (node: Project, index: number) => (
+                return {
+                    placeholder: "Search organization's projects...",
+                    noResultsText: "No projects found",
+                    sortOptions: ProjectSortOptions,
+                    defaultSortOption: projectDefaultSortOption,
+                    sortOptionLabel: projectOptionLabel,
+                    searchQuery: projectsQuery,
+                    where: { organizationId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
+                    searchItemFactory: (node: Project, index: number) => (
                         <ProjectListItem
                             key={`project-list-item-${index}`}
                             index={index}
@@ -90,16 +86,18 @@ export const OrganizationView = ({
                             data={node}
                             onClick={(selected: Project) => openLink(APP_LINKS.Project, selected.id)}
                         />)
-                ];
+                };
             case 3:
-                return [
-                    "Search organization's routines...",
-                    RoutineSortOptions,
-                    routineDefaultSortOption,
-                    routineOptionLabel,
-                    routinesQuery,
-                    (newValue) => openLink(APP_LINKS.Routine, newValue.id),
-                    (node: Routine, index: number) => (
+                return {
+                    placeholder: "Search organization's routines...",
+                    noResultsText: "No routines found",
+                    sortOptions: RoutineSortOptions,
+                    defaultSortOption: routineDefaultSortOption,
+                    sortOptionLabel: routineOptionLabel,
+                    searchQuery: routinesQuery,
+                    where: { organizationId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    searchItemFactory: (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             index={index}
@@ -107,16 +105,18 @@ export const OrganizationView = ({
                             data={node}
                             onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
                         />)
-                ];
+                };
             case 4:
-                return [
-                    "Search organization's standards...",
-                    StandardSortOptions,
-                    standardDefaultSortOption,
-                    standardOptionLabel,
-                    standardsQuery,
-                    (newValue) => openLink(APP_LINKS.Standard, newValue.id),
-                    (node: Standard, index: number) => (
+                return {
+                    placeholder: "Search organization's standards...",
+                    noResultsText: "No standards found",
+                    sortOptions: StandardSortOptions,
+                    defaultSortOption: standardDefaultSortOption,
+                    sortOptionLabel: standardOptionLabel,
+                    searchQuery: standardsQuery,
+                    where: { organizationId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    searchItemFactory: (node: Standard, index: number) => (
                         <StandardListItem
                             key={`standard-list-item-${index}`}
                             index={index}
@@ -124,19 +124,21 @@ export const OrganizationView = ({
                             data={node}
                             onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
-                ];
+                }
             default:
-                return [
-                    '',
-                    [],
-                    { label: '', value: null },
-                    () => '',
-                    null,
-                    () => { },
-                    () => (<></>)
-                ];
-        }
-    }, [tabIndex]);
+                return {
+                    placeholder: '',
+                    noResultsText: '',
+                    sortOptions: [],
+                    defaultSortOption: { label: '', value: null },
+                    sortOptionLabel: (o: any) => '',
+                    searchQuery: null,
+                    where: {},
+                    onSearchSelect: (o: any) => { },
+                    searchItemFactory: (a: any, b: any) => null
+                }
+            }
+    }, [session, id, tabIndex]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -323,6 +325,8 @@ export const OrganizationView = ({
                                 searchString={searchString}
                                 sortBy={sortBy}
                                 timeFrame={timeFrame}
+                                where={where}
+                                noResultsText={noResultsText}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}
                                 setTimeFrame={setTimeFrame}

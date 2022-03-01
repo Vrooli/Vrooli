@@ -15,9 +15,9 @@ import {
 import { BaseObjectActionDialog, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
-import { LabelledSortOption } from "utils";
 import { Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
+import { SearchListGenerator } from "components/lists/types";
 
 const tabLabels = ['Resources', 'Routines', 'Standards'];
 
@@ -71,27 +71,21 @@ export const ProjectView = ({
     const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
 
     // Create search data
-    const [
-        placeholder,
-        sortOptions,
-        defaultSortOption,
-        sortOptionLabel,
-        searchQuery,
-        onSearchSelect,
-        searchItemFactory,
-    ] = useMemo<[string, LabelledSortOption<any>[], { label: string, value: any }, (o: any) => string, any, (objectData: any) => void, (node: any, index: number) => JSX.Element]>(() => {
+    const { placeholder, sortOptions, defaultSortOption, sortOptionLabel, searchQuery, where, noResultsText, onSearchSelect, searchItemFactory } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the project's set resources
         switch (tabIndex) {
             case 1:
-                return [
-                    "Search project's routines...",
-                    RoutineSortOptions,
-                    routineDefaultSortOption,
-                    routineOptionLabel,
-                    routinesQuery,
-                    (newValue) => openLink(APP_LINKS.Routine, newValue.id),
-                    (node: Routine, index: number) => (
+                return {
+                    placeholder: "Search project's routines...",
+                    noResultsText: "No routines found",
+                    sortOptions: RoutineSortOptions,
+                    defaultSortOption: routineDefaultSortOption,
+                    sortOptionLabel: routineOptionLabel,
+                    searchQuery: routinesQuery,
+                    where: { projectId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    searchItemFactory: (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             index={index}
@@ -99,16 +93,18 @@ export const ProjectView = ({
                             data={node}
                             onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
                         />)
-                ];
+                };
             case 2:
-                return [
-                    "Search project's standards...",
-                    StandardSortOptions,
-                    standardDefaultSortOption,
-                    standardOptionLabel,
-                    standardsQuery,
-                    (newValue) => openLink(APP_LINKS.Standard, newValue.id),
-                    (node: Standard, index: number) => (
+                return {
+                    placeholder: "Search project's standards...",
+                    noResultsText: "No standards found",
+                    sortOptions: StandardSortOptions,
+                    defaultSortOption: standardDefaultSortOption,
+                    sortOptionLabel: standardOptionLabel,
+                    searchQuery: standardsQuery,
+                    where: { projectId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    searchItemFactory: (node: Standard, index: number) => (
                         <StandardListItem
                             key={`standard-list-item-${index}`}
                             index={index}
@@ -116,17 +112,19 @@ export const ProjectView = ({
                             data={node}
                             onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
-                ];
+                }
             default:
-                return [
-                    '',
-                    [],
-                    { label: '', value: null },
-                    () => '',
-                    null,
-                    () => { },
-                    () => (<></>)
-                ];
+                return {
+                    placeholder: '',
+                    noResultsText: '',
+                    sortOptions: [],
+                    defaultSortOption: { label: '', value: null },
+                    sortOptionLabel: (o: any) => '',
+                    searchQuery: null,
+                    where: {},
+                    onSearchSelect: (o: any) => { },
+                    searchItemFactory: (a: any, b: any) => null
+                }
         }
     }, [tabIndex]);
 
@@ -290,6 +288,8 @@ export const ProjectView = ({
                                 searchString={searchString}
                                 sortBy={sortBy}
                                 timeFrame={timeFrame}
+                                where={where}
+                                noResultsText={noResultsText}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}
                                 setTimeFrame={setTimeFrame}

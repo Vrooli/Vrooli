@@ -7,9 +7,12 @@ export const addToArray = (array, value) => {
 }
 
 export const updateArray = (array, index, value) => {
+    console.log('in update aray', index, array[index], value)
     if (JSON.stringify(array[index]) === JSON.stringify(value)) return array;
+    console.log('passed in array check')
     let copy = [...array];
     copy[index] = value;
+    console.log("updatearray final", copy);
     return copy;
 }
 

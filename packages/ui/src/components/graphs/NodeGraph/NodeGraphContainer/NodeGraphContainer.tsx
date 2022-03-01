@@ -7,21 +7,11 @@
 import { Box, Stack } from '@mui/material';
 import { NodeGraphColumn, NodeGraphEdge } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { OrchestrationStatus, Pubs } from 'utils';
-import { NodeGraphProps, NodePos } from '../types';
-import { NodeWidth } from '..';
+import { OrchestrationStatus, Pubs, updateArray } from 'utils';
+import { ColumnDimensions, NodeGraphProps, NodePos } from '../types';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node } from 'types';
-
-type Positions = {
-    x: number;
-    y: number;
-}
-
-type Dimensions = {
-    width: number;
-    height: number;
-}
+import { NodeWidth } from '..';
 
 export const NodeGraphContainer = ({
     scale = 1,
@@ -31,32 +21,49 @@ export const NodeGraphContainer = ({
     links,
     onStatusChange,
 }: NodeGraphProps) => {
-    // Stores heights of node cells, used for positioning after drag and drop
-    const [cellDimensions, setCellDimensions] = useState<{ [x: string]: Dimensions }>({});
     // ID of node being dragged, if any
     const [dragId, setDragId] = useState<string | null>(null);
-
-    /**
-     * Updates dimensions of a node cell
-     */
-    const onCellResize = useCallback((nodeId: string, { width, height }: Dimensions) => {
-        setCellDimensions(dimensions => ({ ...dimensions, [nodeId]: { width, height } }));
-    }, []);
+    // Size and position data of each column
+    const [columnDimensions, setColumnDimensions] = useState<ColumnDimensions[]>([]);
 
     const handleDragStart = useCallback((nodeId: string) => { setDragId(nodeId) }, []);
 
     /**
+     * Updates dimensions of a column
+     */
+     const onColumnDimensionsChange = useCallback((columnIndex: number, dimensions: ColumnDimensions) => {
+         if(columnDimensions.length === 0) return;
+         console.log('onColumnDimensionsChange', columnIndex, dimensions);
+         if (columnIndex < 0 || columnIndex >= columnDimensions.length) {
+             console.error(`Invalid column index: ${columnIndex}`);
+             return;
+         }
+         setColumnDimensions(updateArray(columnDimensions, columnIndex, dimensions));
+    }, [columnDimensions]);
+
+    useEffect(() => {
+        console.log('colunn dimensions updated!!🎉', columnDimensions);
+    }, [columnDimensions]);
+
+    /**
      * Makes sure drop is valid, then updates order of nodes
      */
-    const handleDragStop = useCallback((nodeId: string, { x, y }: Positions) => {
+    const handleDragStop = useCallback((nodeId: string, { x, y }: { x: number, y: number }) => {
         console.log('DRAG STOPPPPPPPP START', nodeId, { x, y });
         setDragId(null);
         PubSub.publish(Pubs.NodeDrag, { nodeId: undefined });
-        if (!nodes || nodes.length === 0) return;
-        console.log('DRAG STOPPPPPPP A', cellDimensions)
+        console.log('DRAG STOPPPPPPP A')
         // Determine column that node is being dropped into
-        const columnWidth = scale * 400;
-        const columnIndex = Math.floor(x / columnWidth);
+        const columnPadding = scale * 25;
+        let graphWidth = 0;
+        let columnIndex = 0;
+        for (let i = 0; i < columnDimensions.length; i++) {
+            graphWidth += columnDimensions[i].width + (2 * columnPadding);
+            if (x < graphWidth) {
+                columnIndex = i;
+                break;
+            }
+        }
         // If columnIndex is out of bounds (or start node column), return
         if (columnIndex < 1 || columnIndex >= columnData.length) return;
         // Determine if node can be dropped without conflicts
@@ -67,7 +74,7 @@ export const NodeGraphContainer = ({
         //TODO
         // If the node was not dropped, but it back to its original position
         //TODO
-    }, [nodes, scale, cellDimensions]);
+    }, [scale, columnDimensions]);
 
     // Set listeners for:
     // - click-and-drag background
@@ -171,28 +178,6 @@ export const NodeGraphContainer = ({
     }, [nodes, links]);
 
     /**
-     * Updates known node dimensions. 
-     * Can't make this useMemo because RoutineListNodes can change size
-     */
-    useEffect(() => {
-        let dimMap: { [x: string]: Dimensions } = {};
-        if (!nodes) {
-            setCellDimensions(dimMap);
-            return;
-        }
-        for (let i = 0; i < nodes.length; i++) {
-            const curr = nodes[i];
-            dimMap[curr.id] = {
-                width: NodeWidth[curr.type] * scale,
-                // Routine Lists, unless opened, are 45 pixels tall. Every other node has the same 
-                // height as its width.
-                height: curr.type === NodeType.RoutineList ? 45 : NodeWidth[nodes[i].type] * scale,
-            }
-        }
-        setCellDimensions(dimMap);
-    }, [nodes, scale]);
-
-    /**
      * Node data map converted to a 2D array of columns
      */
     const columnData = useMemo(() => {
@@ -215,115 +200,62 @@ export const NodeGraphContainer = ({
         return list;
     }, [nodeDataMap]);
 
-    /**
-     * Creates dictionary of cell positions
-     */
     useEffect(() => {
-        // Create map of cell positions
-        let posMap: { [id: string]: Positions } = {};
-        // If cell dimensions haven't been calculated yet, return empty map
-        const columnItemCount = columnData.map(col => col.length).reduce((a, b) => a + b, 0);
-        if (Object.keys(cellDimensions).length !== columnItemCount) return;
-        // Holds x position of current column
-        let x = 25; // Accounts for left padding
-        // First loop through to determine column heights. This is needed so
-        // column nodes can be centered vertically
-        let maxHeight = 0;
-        let columnHeights: number[] = [];
-        for (let i = 0; i < columnData.length; i++) {
-            console.log('calculating cell positions: in column', columnData[i]);
-            const curr = columnData[i];
-            // Calculate height of current column
-            let height = 0;
-            for (let j = 0; j < curr.length; j++) {
-                console.log('calculating height of cell in column', curr[j].id, cellDimensions[curr[j].id]);
-                // Every node besides the first has a top margin, to separate them from the previous node.
-                // The margin is 10 times the Stack spacing in NodeGraphColumn. We hardcode this here, since 
-                // the spacing is not configurable
-                if (j > 0) height += 100;
-                height += cellDimensions[curr[j].id].height;
-            }
-            console.log('column height', height);
-            // Add height to list
-            columnHeights.push(height);
-            // If height is larger than current max, update max
-            if (height > maxHeight) maxHeight = height;
-        }
-        console.log('final maxheight', maxHeight);
-        // Now loop through again to calculate cell positions
-        for (let i = 0; i < columnData.length; i++) {
-            // Holds y position of current node
-            // Since column needs to be centered vertically, the y position
-            // starts halfway between the largest column height and the current column height
-            let y = (maxHeight - columnHeights[i]) / 2;
-            // Holds widest node in current column
-            let widestWidth = 0;
-            // Loop through nodes in current column
-            for (let j = 0; j < columnData[i].length; j++) {
-                // Populate map with node's position
-                posMap[columnData[i][j].id] = { x, y };
-                // Grab dimensions of current node
-                const { width, height } = cellDimensions[columnData[i][j].id];
-                // Update widest node width
-                if (width > widestWidth) widestWidth = width;
-                // Increment y position
-                y += height;
-            }
-            // Increment x position by widest node in column + spacing between node cells
-            x += widestWidth + 50;
-        }
-        console.log('final cell positions', posMap);
-        setCellPositions(posMap);
-    }, [columnData, cellDimensions]);
+        setColumnDimensions(Array(columnData.length).fill({ width: 0, heights: [], nodeIds: [], tops: [], centers: [] }));
+    }, [columnData]);
 
     /**
-     * Finds the center height of a node within a column
+     * Calculates the position of a node in the graph
      */
-    const getNodeCenterHeight = (node: Node) => {
+    const getNodePos = useCallback((id: string): { x: number, y: number } | null => {
         // Get column number of node
-        const column = nodeDataMap[node.id]?.column;
-        if (!column || column < 0) return 0;
-        // Get height of all nodes in column
-        const columnHeight = columnHeights[column];
-    }
-
+        const columnIndex = nodeDataMap[id]?.column;
+        if (!columnIndex || columnIndex < 0) return null;
+        const columnDims = columnDimensions[columnIndex];
+        const rowIndex = columnDims.nodeIds.indexOf(id) ?? 0;
+        // Calculate x position by summing the previous column widths (and padding between columns)
+        const columnPadding = scale * 25;
+        let x = 0;
+        for (let i = 0; i < columnIndex; i++) {
+            x += (columnDimensions[i].width ?? (scale * NodeWidth[NodeType.Start])) + (2 * columnPadding);
+        }
+        x += columnPadding + (columnDims.width ?? (scale * NodeWidth[NodeType.Start])) / 2;
+        // Calculate y position
+        let y = columnDims.centers[rowIndex];
+        // Using the largest column, reshape centers to be in the middle vertically
+        const largestHeight = Math.max(...columnDimensions.map(d => Math.max(...d.heights)));
+        y += (largestHeight - columnDims.heights[rowIndex]) / 2;
+        return { x, y };
+    }, [nodeDataMap, columnDimensions]);
 
     /**
      * Edges (links) displayed between nodes. If editing, the midpoint of an edge
      * contains an "Add Node" button
      */
     const edges = useMemo(() => {
+        console.log('in edges start before cancel check', columnDimensions)
         // If data required to render edges is not yet available
-        // (i.e. no links, or number of links is more than the number of data available about nodes)
-        if (!links ||
-            links.length > Object.keys(nodeDataMap).length + 1 ||
-            links.length > Object.keys(cellDimensions).length + 1) return [];
-        console.log('calculating edges', links);
+        // (i.e. no links, or column dimensions not complete)
+        if (!links || 
+            Object.values(columnDimensions).length === 0 || 
+            Object.values(columnDimensions).some((d, i) => d.width === 0 && i > 0)) return [];
+        console.log('calculating edges', columnDimensions);
         return links?.map(link => {
             if (!nodeDataMap[link.fromId] || !nodeDataMap[link.toId]) return null;
-            // Find columns
-            const startColumn = nodeDataMap[link.fromId].column;
-            const endColumn = nodeDataMap[link.toId].column;
-            const columnWidth = 400 * scale;
-            // Center of cells the edge is attached to
-            const startPos: Positions = {
-                x: (startColumn * columnWidth) + (columnWidth / 2),
-                y: cellPositions[link.fromId].y + cellDimensions[link.fromId].height / 2,
-            }
-            const endPos: Positions = {
-                x: (endColumn * columnWidth) + (columnWidth / 2),
-                y: cellPositions[link.toId].y + cellDimensions[link.toId].height / 2,
-            }
-            console.log('start/end', startPos, endPos)
+            // Find centers of nodes relative to their columns
+            const fromPos = getNodePos(link.fromId);
+            const toPos = getNodePos(link.toId);
+            console.log('start/end', fromPos, toPos)
+            if (!fromPos || !toPos) return null;
             return <NodeGraphEdge
                 key={`edge-${link.id}`}
-                start={startPos}
-                end={endPos}
+                start={fromPos}
+                end={toPos}
                 isEditable={isEditable}
                 onAdd={() => { }}
             />
         })
-    }, [cellDimensions, isEditable, links, nodeDataMap, scale]);
+    }, [columnDimensions, isEditable, links, nodeDataMap, scale]);
 
     /**
      * Node column objects
@@ -338,9 +270,9 @@ export const NodeGraphContainer = ({
             dragId={dragId}
             scale={scale}
             labelVisible={labelVisible}
-            onResize={onCellResize}
+            onDimensionsChange={onColumnDimensionsChange}
         />)
-    }, [columnData, isEditable, scale, labelVisible, onCellResize]);
+    }, [columnData, isEditable, scale, labelVisible, onColumnDimensionsChange, dragId]);
 
     return (
         <Box id="graph-root" position="relative" sx={{
@@ -365,16 +297,15 @@ export const NodeGraphContainer = ({
         }}>
             {/* Edges */}
             {edges}
-            {/* Nodes */}
-            <Stack id="graph-grid" spacing={0} direction="row" zIndex={5} sx={{
-                width: '5000px',
+            <Stack id="graph-grid" direction="row" spacing={0} zIndex={5} sx={{
+                width: 'fit-content',
                 height: '-webkit-fill-available',
                 // Create grid background pattern
                 backgroundColor: `#a8b6c3`,
                 '--line-color': `rgba(0 0 0 / .05)`,
                 '--line-thickness': `1px`,
-                '--minor-length': `${2 * ((scale * 100 % 250) + 1)}px`,
-                '--major-length': `${20 * ((scale * 100 % 250) + 1)}px`,
+                '--minor-length': `${80 * scale}px`,
+                '--major-length': `${400 * scale}px`,
                 '--line': `var(--line-color) 0 var(--line-thickness)`,
                 '--small-body': `transparent var(--line-thickness) var(--minor-length)`,
                 '--large-body': `transparent var(--line-thickness) var(--major-length)`,
@@ -384,6 +315,7 @@ export const NodeGraphContainer = ({
                 '--large-squares': `repeating-linear-gradient(to bottom, var(--line), var(--large-body)), repeating-linear-gradient(to right, var(--line), var(--large-body))`,
                 background: `var(--small-squares), var(--large-squares)`,
             }}>
+                {/* Nodes */}
                 {columns}
             </Stack>
         </Box>

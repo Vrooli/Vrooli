@@ -1,6 +1,6 @@
 import { DraggableNodeProps } from '../types';
 import { Box } from '@mui/material';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
 import { Pubs } from 'utils';
 
@@ -54,6 +54,8 @@ export const DraggableNode = ({
         const { x, y } = data;
         // Send drop event to parent
         PubSub.publish(Pubs.NodeDrop, { nodeId, position: {x, y} });
+        // Reset node position. If the drop is accepted, the updated column data will move the node
+        //TODO
     }, [nodeId]);
 
     return (

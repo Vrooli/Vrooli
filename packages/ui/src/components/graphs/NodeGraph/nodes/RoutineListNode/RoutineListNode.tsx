@@ -67,7 +67,7 @@ export const RoutineListNode = ({
     const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
 
     const handleResize = useCallback(({ bounds }: any) => {
-        onResize(node.id, { width: bounds.width, height: bounds.height });
+        onResize(node.id, bounds.height);
     }, [node.id, onResize])
 
     const addRoutine = () => {

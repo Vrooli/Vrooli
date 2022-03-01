@@ -41,6 +41,14 @@ export interface NodeGraphProps {
     onStatusChange: (status: OrchestrationStatusObject) => void;
 }
 
+export type ColumnDimensions = {
+    width: number; // Max width of node in column
+    heights: number[]; // Height of each node in column, from top to bottom
+    nodeIds: string[]; // Node IDs in column, from top to bottom
+    tops: number[]; // Top y of each node in column, from top to bottom
+    centers: number[]; // Center y of each node in column, from top to bottom
+}
+
 /**
  * Props for the Node Column (a container for displaying nodes on separate branches)
  */
@@ -52,10 +60,7 @@ export interface NodeGraphColumnProps {
     labelVisible?: boolean;
     columnNumber: number;
     nodes: Node[];
-    /**
-    * Callback for cell resize
-    */
-    onResize: (nodeId: string, dimensions: { width: number, height: number }) => void;
+    onDimensionsChange: (columnIndex: number, dimensions: ColumnDimensions) => void;
 }
 
 export interface NodeGraphEdgeProps {

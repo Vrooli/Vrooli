@@ -69,7 +69,7 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
     /**
      * Callback for cell resize
      */
-     onResize: (nodeId: string, dimensions: { width: number, height: number }) => void;
+     onResize: (nodeId: string, height: number) => void;
 }
 
 /**

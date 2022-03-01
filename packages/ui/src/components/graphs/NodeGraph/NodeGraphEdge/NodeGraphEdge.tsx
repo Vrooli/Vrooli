@@ -9,7 +9,7 @@ export const NodeGraphEdge = ({
     isEditable = true,
     onAdd,
 }: NodeGraphEdgeProps) => {
-    // Determines 
+    
     const dimensions = {
         width: Math.abs(end.x - start.x),
         height: Math.abs(end.y - start.y),
@@ -23,6 +23,7 @@ export const NodeGraphEdge = ({
             style={{ 
                 zIndex:2, 
                 position: "absolute",
+                top: '50%',
                 transform: `translate(${Math.min(start.x, end.x)}px,${Math.min(start.y, end.y)}px)`,
             }}
         >

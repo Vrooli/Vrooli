@@ -145,6 +145,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
+        const projectIdQuery = input.projectId ? { projectId: input.projectId } : {};
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         return { ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery };

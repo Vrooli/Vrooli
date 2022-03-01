@@ -274,7 +274,7 @@ export const RoutineOrchestratorPage = () => {
                                     step={0.01}
                                     value={scale}
                                     valueLabelDisplay="auto"
-                                    valueLabelFormat={value => <div>{`Scale: ${value}`}</div>}
+                                    valueLabelFormat={value => <div>{`Scale: ${Math.floor(value*100)}`}</div>}
                                     onChange={handleScaleChange}
                                     sx={{
                                         color: STATUS_COLOR[status.code],

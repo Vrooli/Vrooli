@@ -124,8 +124,14 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         })
     },
     customQueries(input: StandardSearchInput): { [x: string]: any } {
-        const userIdQuery = input.userId ? { userId: input.userId } : {};
-        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : {};
+        const userIdQuery = input.userId ? { createdByUserId: input.userId } : {};
+        const organizationIdQuery = input.organizationId ? { createdByOrganizationId: input.organizationId } : {};
+        const projectIdQuery = input.projectId ? { 
+            OR: [
+                { createdByUser: { some: { projects: { some: { id: input.projectId } } } } },
+                { createdByOrganization: { some: { projects: { some: { id: input.projectId } } } } },
+            ]
+        } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const routineIdQuery = input.routineId ? {
             OR: [
@@ -133,7 +139,7 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
                 { routineOutputs: { some: { routineId: input.routineId } } },
             ]
         } : {};
-        return { ...userIdQuery, ...organizationIdQuery, ...reportIdQuery, ...routineIdQuery };
+        return { ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...reportIdQuery, ...routineIdQuery };
     },
 })
 
