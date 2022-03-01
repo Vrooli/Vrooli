@@ -1,5 +1,5 @@
-import { Box, Button, Grid, IconButton, Slider, Stack, styled, TextField, Tooltip, Typography } from '@mui/material';
-import { HelpButton, NodeGraphContainer } from 'components';
+import { Box, Button, Grid, IconButton, Slider, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { HelpButton, NodeGraphContainer, RoutineInfoDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
@@ -74,6 +74,10 @@ export const RoutineOrchestratorPage = () => {
         setTitleActive(false);
     }, []);
 
+    // Open/close routine info drawer
+    const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
+
+
     useEffect(() => {
         setChangedRoutine(routine);
     }, [routine]);
@@ -107,6 +111,7 @@ export const RoutineOrchestratorPage = () => {
             mutation: routineUpdate,
             input: changedRoutine,
             successMessage: () => 'Routine updated.',
+            onSuccess: ({ data }) => { setRoutine(data.routineUpdate); },
         })
     }, [changedRoutine, routine, routineUpdate])
 
@@ -201,6 +206,7 @@ export const RoutineOrchestratorPage = () => {
                         fontSize: 'larger',
                         padding: 0.5,
                         margin: 1,
+                        marginLeft: 2,
                     }}>{STATUS_LABEL[status.code]}</Box>
                 </Tooltip>
                 {/* Routine title label/TextField and action buttons */}
@@ -209,9 +215,12 @@ export const RoutineOrchestratorPage = () => {
                     {/* Help button */}
                     <HelpButton markdown={helpText} sxRoot={{ margin: "auto" }} sx={{ color: TERTIARY_COLOR }} />
                     {/* Switch to routine metadata page */}
-                    <IconButton aria-label="show-routine-metadata" onClick={() => { }} color="secondary">
-                        <EditIcon sx={{ fill: TERTIARY_COLOR }} />
-                    </IconButton>
+                    <RoutineInfoDialog
+                        sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
+                        routineInfo={changedRoutine}
+                        onUpdate={updateRoutine}
+                        onCancel={() => { setRoutine(changedRoutine); }}
+                    />
                 </Stack>
             </Stack>
         )
@@ -274,7 +283,7 @@ export const RoutineOrchestratorPage = () => {
                                     step={0.01}
                                     value={scale}
                                     valueLabelDisplay="auto"
-                                    valueLabelFormat={value => <div>{`Scale: ${Math.floor(value*100)}`}</div>}
+                                    valueLabelFormat={value => <div>{`Scale: ${Math.floor(value * 100)}`}</div>}
                                     onChange={handleScaleChange}
                                     sx={{
                                         color: STATUS_COLOR[status.code],

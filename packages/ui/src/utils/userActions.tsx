@@ -21,6 +21,7 @@ import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
 import { openLink } from 'utils';
 import { Path } from 'wouter';
+import { CSSProperties } from '@mui/styled-engine';
 
 export const ACTION_TAGS = {
     Home: 'home',
@@ -81,15 +82,15 @@ export const createActions = (actions: ActionArray[]): Action[] => actions.map(a
 interface ActionsToListProps {
     actions: Action[];
     setLocation: (to: Path, options?: { replace?: boolean }) => void;
-    classes?: { [key: string]: string };
+    sxs?: { listItem: { [x: string]: any }, listItemIcon: { [x: string]: any } };
     showIcon?: boolean;
     onAnyClick?: () => any;
 }
-export const actionsToList = ({ actions, setLocation, classes = { listItem: '', listItemIcon: '' }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
+export const actionsToList = ({ actions, setLocation, sxs = { listItem: {}, listItemIcon: {} }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
     return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
         <ListItem
             key={value}
-            classes={{ root: classes.listItem }}
+            sx={{ ...sxs.listItem }}
             onClick={() => {
                 openLink(setLocation, link);
                 if (onClick) onClick();
@@ -98,7 +99,7 @@ export const actionsToList = ({ actions, setLocation, classes = { listItem: '', 
             {showIcon && Icon ?
                 (<ListItemIcon>
                     <Badge badgeContent={numNotifications} color="error">
-                        <Icon className={classes.listItemIcon} />
+                        <Icon sx={{ ...sxs.listItemIcon }} />
                     </Badge>
                 </ListItemIcon>) : ''}
             <ListItemText primary={label} />

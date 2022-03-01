@@ -1,6 +1,6 @@
 import { DraggableNodeProps } from '../types';
 import { Box } from '@mui/material';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
 import { Pubs } from 'utils';
 
@@ -62,6 +62,7 @@ export const DraggableNode = ({
         <Draggable
             handle=".handle"
             defaultPosition={{ x: 0, y: 0 }}
+            position={isDragging ? undefined : { x: 0, y: 0 }}
             scale={1}
             onStart={handleDragStart}
             onDrag={handleDrag}

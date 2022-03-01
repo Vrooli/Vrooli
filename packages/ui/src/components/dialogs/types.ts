@@ -4,7 +4,7 @@ import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
 import { Organization, Project, Routine, Session, Standard, User } from 'types';
 
-export interface AlertDialogProps extends DialogProps {};
+export interface AlertDialogProps extends DialogProps { };
 
 export interface FormDialogProps {
     title: string;
@@ -111,7 +111,7 @@ export interface UserDialogProps {
 /**
  * All available actions an object can possibly have
  */
- export enum BaseObjectAction {
+export enum BaseObjectAction {
     Copy = 'Copy',
     Delete = "Delete",
     Donate = "Donate",
@@ -132,4 +132,11 @@ export interface BaseObjectActionDialogProps {
     anchorEl: HTMLElement | null;
     availableOptions: BaseObjectAction[];
     onClose: () => any;
+}
+
+export interface RoutineInfoDialogProps {
+    sxs?: { icon: any };
+    routineInfo: Routine | null;
+    onUpdate: (routine: Routine) => any;
+    onCancel: () => any;
 }
