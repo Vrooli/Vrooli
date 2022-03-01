@@ -272,6 +272,9 @@ export const NodeGraphContainer = ({
             console.warn('Warning: Some nodes are not linked');
             onStatusChange({ code: OrchestrationStatus.Incomplete, details: 'Some nodes are not linked' });
         }
+        if (startNodeId && unlinked.length === 0) {
+            onStatusChange({ code: OrchestrationStatus.Valid, details: '' });
+        }
         return [posMap, unlinked];
     }, [nodes, links]);
 
@@ -362,7 +365,7 @@ export const NodeGraphContainer = ({
         return columnData.map((columnData, index) => <NodeGraphColumn
             key={`node-column-${index}`}
             id={`node-column-${index}`}
-            columnNumber={index}
+            columnIndex={index}
             nodes={columnData}
             isEditable={isEditable}
             dragId={dragId}

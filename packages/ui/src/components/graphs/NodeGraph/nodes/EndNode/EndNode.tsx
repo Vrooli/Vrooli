@@ -10,7 +10,6 @@ export const EndNode = ({
     scale = 1,
     label = 'End',
     labelVisible = true,
-    isHighlighted = false,
 }: EndNodeProps) => {
 
     const labelObject = useMemo(() => labelVisible ? (

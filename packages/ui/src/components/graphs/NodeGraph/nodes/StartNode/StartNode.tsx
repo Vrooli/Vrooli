@@ -10,7 +10,6 @@ export const StartNode = ({
     scale = 1,
     label = 'Start',
     labelVisible = true,
-    isHighlighted = false,
 }: StartNodeProps) => {
 
     const labelObject = useMemo(() => labelVisible ? (

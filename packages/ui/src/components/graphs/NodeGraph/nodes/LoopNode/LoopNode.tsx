@@ -12,7 +12,6 @@ export const LoopNode = ({
     scale = 1,
     label = 'Loop',
     labelVisible = true,
-    isHighlighted = false,
 }: LoopNodeProps) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);

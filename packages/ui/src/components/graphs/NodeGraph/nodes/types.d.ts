@@ -7,7 +7,6 @@ import { Node, NodeDataRoutineListItem } from "types";
  */
 export interface NodeDataProps {
     node: Node;
-    isHighlighted: boolean;
 }
 
 /**

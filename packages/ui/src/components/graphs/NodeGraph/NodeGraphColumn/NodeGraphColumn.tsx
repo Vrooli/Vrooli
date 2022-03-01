@@ -11,7 +11,7 @@ import { NodeWidth } from '..';
 export const NodeGraphColumn = ({
     id,
     scale = 1,
-    columnNumber,
+    columnIndex,
     nodes,
     labelVisible,
     isEditable,
@@ -22,6 +22,8 @@ export const NodeGraphColumn = ({
     const [cellHeights, setCellHeights] = useState<{ [x: string]: number }>({});
     // Padding between cells
     const padding = useMemo(() => scale * 25, [scale]);
+    // Highlights column when a dragging node can be dropped on it
+    const isHighlighted = useMemo(() => columnIndex > 0 && dragId && nodes.every(node => node.id !== dragId), [columnIndex, dragId, nodes]);
 
     /**
      * Updates dimensions of a node cell
@@ -34,7 +36,7 @@ export const NodeGraphColumn = ({
      * Calculates positions of nodes in column
      */
     useEffect(() => {
-        if(!nodes|| nodes.length===0) console.log('NO NODES IN COLUMN!', columnNumber);
+        if(!nodes|| nodes.length===0) console.log('NO NODES IN COLUMN!', columnIndex);
         // Calculate column width as largest node width
         const width = Math.max(...nodes.map(node => NodeWidth[node.type] * scale));
         const heights = nodes.map(node => {
@@ -51,8 +53,8 @@ export const NodeGraphColumn = ({
             centers.push(y + heights[i] / 2);
             y += heights[i] + padding; // Node height + Bottom padding
         }
-        console.log('onDimensionsChange', columnNumber, { width, heights, nodeIds, tops, centers });
-        onDimensionsChange(columnNumber, { width, heights, nodeIds, tops, centers });
+        console.log('onDimensionsChange', columnIndex, { width, heights, nodeIds, tops, centers });
+        onDimensionsChange(columnIndex, { width, heights, nodeIds, tops, centers });
     }, [cellHeights, nodes, onDimensionsChange, scale]);
 
     /**
@@ -62,14 +64,12 @@ export const NodeGraphColumn = ({
     const nodeList = useMemo(() => nodes?.map((node, index) => {
         // Common node props
         const nodeProps = {
-            key: `node-${columnNumber}-${index}`,
+            key: `node-${columnIndex}-${index}`,
             node,
             scale,
             label: node.title,
             labelVisible,
             isEditable,
-            // Cannot drop onto itself or a start or end node
-            isHighlighted: Boolean(dragId && dragId !== node.id && node.type !== NodeType.Start && node.type !== NodeType.End),
         }
         // Determine node to display based on node type
         switch (node.type) {
@@ -91,15 +91,19 @@ export const NodeGraphColumn = ({
     return (
         <Stack
             id={id}
-            // Spacing is handled by nodes, to allow their whole background to highlight on hover
-            spacing={0}
             direction="column"
             padding={`${padding}px`}
             position="relative"
             display="flex"
             justifyContent="center"
             alignItems="center"
-            sx={{ backgroundColor: 'transparent' }}
+            sx={{ 
+                border: '2px dashed red', // TODO: Remove
+                backgroundColor: isHighlighted ? '#a2be6547' : 'transparent', 
+                borderLeft: isHighlighted ? '1px solid black' : 'none',
+                borderRight: isHighlighted ? '1px solid black' : 'none',
+                gap: `${padding * 4}px`,
+            }}
         >
             {nodeList}
         </Stack>
