@@ -1,12 +1,14 @@
 /**
- * Drawer to display routine info on the orchestration page
+ * Drawer to display a routine list item's info on the orchestration page. 
+ * Swipes up from bottom of screen
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     Close as CloseIcon,
     Info as InfoIcon,
 } from '@mui/icons-material';
 import {
+    Box,
     IconButton,
     List,
     SwipeableDrawer,
@@ -17,45 +19,35 @@ import { useLocation } from 'wouter';
 import { RoutineInfoDialogProps } from '../types';
 
 export const RoutineInfoDialog = ({
-    sxs,
+    open,
     routineInfo,
-    onUpdate,
-    onCancel
+    onClose,
 }: RoutineInfoDialogProps) => {
-    const [open, setOpen] = useState(false);
-
-    const toggleOpen = () => setOpen(o => !o);
-    const closeMenu = () => setOpen(false);
 
     return (
-        <>
-            <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
-                <InfoIcon sx={sxs?.icon} />
-            </IconButton>
-            <SwipeableDrawer
-                anchor="right"
-                open={open}
-                onOpen={() => {}}
-                onClose={closeMenu}
-                sx={{
-                    '& .MuiDrawer-paper': {
-                        background: (t) => t.palette.primary.light,
-                        borderLeft: `1px solid ${(t) => t.palette.text.primary}`,
-                    }
-                }}
-            >
-                <IconButton onClick={closeMenu} sx={{
+        <SwipeableDrawer
+            anchor="bottom"
+            variant='persistent'
+            open={open}
+            onOpen={() => { }}
+            onClose={onClose}
+            sx={{
+                '& .MuiDrawer-paper': {
+                    background: (t) => t.palette.primary.light,
+                    borderLeft: `1px solid ${(t) => t.palette.text.primary}`,
+                }
+            }}
+        >
+            <Box>
+                <IconButton onClick={onClose} sx={{
                     color: (t) => t.palette.primary.contrastText,
                     borderRadius: 0,
                     borderBottom: `1px solid ${(t) => t.palette.primary.dark}`,
                     justifyContent: 'end',
-                    flexDirection: 'row-reverse',
                 }}>
                     <CloseIcon fontSize="large" />
                 </IconButton>
-                <List>
-                </List>
-            </SwipeableDrawer>
-        </>
+            </Box>
+        </SwipeableDrawer>
     );
 }

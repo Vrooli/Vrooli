@@ -17,6 +17,7 @@ export const NodeGraphColumn = ({
     isEditable,
     dragId,
     onDimensionsChange,
+    handleDialogOpen,
 }: NodeGraphColumnProps) => {
     // Stores heights of node cells, used for positioning after drag and drop
     const [cellHeights, setCellHeights] = useState<{ [x: string]: number }>({});
@@ -28,7 +29,7 @@ export const NodeGraphColumn = ({
     /**
      * Updates dimensions of a node cell
      */
-     const onCellResize = useCallback((nodeId: string, height: number) => {
+    const onCellResize = useCallback((nodeId: string, height: number) => {
         setCellHeights(dimensions => ({ ...dimensions, [nodeId]: height }));
     }, []);
 
@@ -68,6 +69,7 @@ export const NodeGraphColumn = ({
             label: node.title,
             labelVisible,
             isEditable,
+            canDrag: isEditable,
         }
         // Determine node to display based on node type
         switch (node.type) {
@@ -75,10 +77,10 @@ export const NodeGraphColumn = ({
                 return <EndNode {...nodeProps} />
             case NodeType.Loop:
                 return <LoopNode {...nodeProps} />
-            case NodeType.RoutineList:
-                return <RoutineListNode {...nodeProps} onAdd={() => { }} onResize={onCellResize} />
             case NodeType.Redirect:
                 return <RedirectNode {...nodeProps} />
+            case NodeType.RoutineList:
+                return <RoutineListNode {...nodeProps} onAdd={() => { }} onResize={onCellResize} handleDialogOpen={handleDialogOpen} />
             case NodeType.Start:
                 return <StartNode {...nodeProps} />
             default:
@@ -95,8 +97,8 @@ export const NodeGraphColumn = ({
             display="flex"
             justifyContent="center"
             alignItems="center"
-            sx={{ 
-                backgroundColor: isHighlighted ? '#a2be6547' : 'transparent', 
+            sx={{
+                backgroundColor: isHighlighted ? '#a2be6547' : 'transparent',
                 borderLeft: isHighlighted ? '1px solid #71c84f' : 'none',
                 borderRight: isHighlighted ? '1px solid #71c84f' : 'none',
                 gap: `${padding * 4}px`,

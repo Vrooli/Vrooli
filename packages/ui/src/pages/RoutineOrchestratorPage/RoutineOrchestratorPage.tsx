@@ -1,13 +1,14 @@
 import { Box, Button, Grid, IconButton, Slider, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import { HelpButton, NodeGraphContainer, RoutineInfoDialog } from 'components';
+import { HelpButton, NodeGraphContainer, OrchestrationInfoDialog, RoutineInfoDialog, UnlinkedNodesDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
 import { routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
-import { OrchestrationStatus, Pubs } from 'utils';
+import { OrchestrationDialogOption, OrchestrationStatus, Pubs } from 'utils';
 import {
+    Add as AddIcon,
     Close as CloseIcon,
     Done as DoneIcon,
     Edit as EditIcon,
@@ -15,13 +16,14 @@ import {
     Restore as RestoreIcon,
     Update as UpdateIcon
 } from '@mui/icons-material';
-import { Routine } from 'types';
+import { Node, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { withStyles } from '@mui/styles';
 import helpMarkdown from './OrchestratorHelp.md';
 import { useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
-import { OrchestrationStatusObject } from 'components/graphs/NodeGraph/types';
+import { NodePos, OrchestrationStatusObject } from 'components/graphs/NodeGraph/types';
+import { NodeType } from 'graphql/generated/globalTypes';
 
 /**
  * Status indicator and slider change color to represent orchestration's status
@@ -75,18 +77,84 @@ export const RoutineOrchestratorPage = () => {
     }, []);
 
     // Open/close routine info drawer
-    const [isInfoOpen, setIsInfoOpen] = useState<boolean>(false);
-
+    const [isRoutineInfoOpen, setIsRoutineInfoOpen] = useState<boolean>(false);
+    const closeRoutineInfo = useCallback(() => setIsRoutineInfoOpen(false), []);
+    // Open/close unlinked nodes drawer
+    const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
+    const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
 
     useEffect(() => {
         setChangedRoutine(routine);
     }, [routine]);
 
-    const handleStatusChange = useCallback((newStatus: OrchestrationStatusObject) => {
-        if (status.code !== newStatus.code || status.details !== newStatus.details) {
-            setStatus(newStatus);
+    /**
+     * 1st return - Dictionary of node data and their columns
+     * 2nd return - List of nodes which are not yet linked
+     * If nodeDataMap is same length as nodes, and unlinkedList is empty, then all nodes are linked 
+     * and the graph is valid
+     */
+    const [nodeDataMap, unlinkedList] = useMemo<[{ [id: string]: NodePos }, Node[]]>(() => {
+        // Position map for calculating node positions
+        let posMap: { [id: string]: NodePos } = {};
+        const nodes = changedRoutine?.nodes ?? [];
+        const links = changedRoutine?.nodeLinks ?? [];
+        if (!nodes || !links) return [posMap, nodes ?? []];
+        let startNodeId: string | null = null;
+        console.log('node data map', nodes, links);
+        // First pass of raw node data, to locate start node and populate position map
+        for (let i = 0; i < nodes.length; i++) {
+            const currId = nodes[i].id;
+            // If start node, must be in first column
+            if (nodes[i].type === NodeType.Start) {
+                startNodeId = currId;
+                posMap[currId] = { column: 0, node: nodes[i] }
+            }
         }
-    }, [status]);
+        // If start node was found
+        if (startNodeId) {
+            // Loop through links. Each loop finds every node that belongs in the next column
+            // We set the max number of columns to be 100, but this is arbitrary
+            for (let currColumn = 0; currColumn < 100; currColumn++) {
+                // Calculate the IDs of each node in the next column TODO this should be sorted in some way so it shows the same order every time
+                const nextNodes = links
+                    .filter(link => posMap[link.fromId]?.column === currColumn)
+                    .map(link => nodes.find(node => node.id === link.toId))
+                    .filter(node => node) as Node[];
+                // Add each node to the position map
+                for (let i = 0; i < nextNodes.length; i++) {
+                    const curr = nextNodes[i];
+                    posMap[curr.id] = { column: currColumn + 1, node: curr };
+                }
+                // If not nodes left, or if all of the next nodes are end nodes, stop looping
+                if (nextNodes.length === 0 || nextNodes.every(n => n.type === NodeType.End)) {
+                    break;
+                }
+            }
+        } else {
+            console.error('Error: No start node found');
+            setStatus({ code: OrchestrationStatus.Invalid, details: 'No start node found' });
+        }
+        // TODO check if all paths end with an end node (and account for loops)
+        const unlinked = nodes.filter(node => !posMap[node.id]);
+        if (unlinked.length > 0) {
+            console.warn('Warning: Some nodes are not linked');
+            setStatus({ code: OrchestrationStatus.Incomplete, details: 'Some nodes are not linked' });
+        }
+        if (startNodeId && unlinked.length === 0) {
+            setStatus({ code: OrchestrationStatus.Valid, details: '' });
+        }
+        return [posMap, unlinked];
+    }, [changedRoutine]);
+
+    const handleDialogOpen = useCallback((nodeId: string, dialog: OrchestrationDialogOption) => {
+        switch (dialog) {
+            case OrchestrationDialogOption.AddRoutineItem:
+                break;
+            case OrchestrationDialogOption.ViewRoutineItem:
+                setIsRoutineInfoOpen(true);
+                break;
+        }
+    }, []);
 
     const handleScaleChange = (_event: any, newScale: number | number[]) => {
         console.log('HANDLE SCALE CHANGE', newScale);
@@ -182,7 +250,7 @@ export const RoutineOrchestratorPage = () => {
                     component="h2"
                     variant="h5"
                     textAlign="center"
-                >{changedRoutine?.title ?? ''}</Typography>
+                >{changedRoutine?.title ?? 'Loading...'}</Typography>
             </Box>
         );
         return (
@@ -218,7 +286,7 @@ export const RoutineOrchestratorPage = () => {
                     {/* Help button */}
                     <HelpButton markdown={helpText} sxRoot={{ margin: "auto" }} sx={{ color: TERTIARY_COLOR }} />
                     {/* Switch to routine metadata page */}
-                    <RoutineInfoDialog
+                    <OrchestrationInfoDialog
                         sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
                         routineInfo={changedRoutine}
                         onUpdate={updateRoutine}
@@ -316,7 +384,45 @@ export const RoutineOrchestratorPage = () => {
             height: '100%',
             width: '100%',
         }}>
+            {/* Displays routine information when you click on a routine list item*/}
+            <RoutineInfoDialog
+                open={isRoutineInfoOpen}
+                routineInfo={changedRoutine}
+                onClose={closeRoutineInfo}
+            />
+            {/* Displays orchestration information and some buttons */}
             {informationBar}
+            <Box sx={{
+                display: 'flex',
+                alignItems: isUnlinkedNodesOpen ? 'baseline' : 'center',
+                alignSelf: 'flex-end',
+                marginTop: 1,
+                marginLeft: 1,
+                marginRight: 1,
+                zIndex: 2,
+            }}>
+                {/* Add new nodes to the orchestration */}
+                <Tooltip title='Add new node'>
+                    <IconButton edge="end" onClick={() => { }} aria-label='Add node' sx={{
+                        background: (t) => t.palette.secondary.main,
+                        marginRight: 1,
+                        transition: 'brightness 0.2s ease-in-out',
+                        '&:hover': {
+                            filter: `brightness(105%)`,
+                            background: (t) => t.palette.secondary.main,
+                        },
+                    }}>
+                        <AddIcon sx={{ fill: 'white' }} />
+                    </IconButton>
+                </Tooltip>
+                {/* Displays unlinked nodes */}
+                <UnlinkedNodesDialog
+                    open={isUnlinkedNodesOpen}
+                    nodes={changedRoutine?.nodes ?? []} //TODO change to unlinkedNodes. This is only like this for testing
+                    handleToggleOpen={toggleUnlinkedNodes}
+                    handleDeleteNode={() => { }}
+                />
+            </Box>
             <Box sx={{
                 width: '100%',
                 display: 'flex',
@@ -328,9 +434,9 @@ export const RoutineOrchestratorPage = () => {
                     scale={scale}
                     isEditable={true}
                     labelVisible={true}
-                    nodes={changedRoutine?.nodes ?? []}
+                    nodeDataMap={nodeDataMap}
                     links={changedRoutine?.nodeLinks ?? []}
-                    onStatusChange={handleStatusChange}
+                    handleDialogOpen={handleDialogOpen}
                 />
                 {optionsBar}
             </Box>

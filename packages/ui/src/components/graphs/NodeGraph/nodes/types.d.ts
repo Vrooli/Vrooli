@@ -1,6 +1,7 @@
 import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeDataRoutineListItem } from "types";
+import { OrchestrationDialogOption } from 'utils';
 
 /**
  * Props for all nodes (besides the Add node)
@@ -32,6 +33,16 @@ export interface EditableProps {
 }
 
 /**
+ * Props for draggable node objects
+ */
+export interface DraggableProps {
+    /**
+    * Specified if the cell is allowed to be dragged
+    */
+    canDrag?: boolean;
+}
+
+/**
  * Props for the "Add Node" button (has node in its name, but not actually a node)
  */
 export interface AddNodeProps extends ScaleProps, EditableProps {
@@ -42,7 +53,7 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
 /**
  * Props for the End node
  */
-export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
+export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
 
 }
 
@@ -64,18 +75,28 @@ export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledPr
  * Props for the Routine List node
  */
 export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
+    canExpand?: boolean;
     onAdd: (data: NodeDataRoutineListItem) => void;
     /**
      * Callback for cell resize
      */
-     onResize: (nodeId: string, height: number) => void;
+    onResize: (nodeId: string, height: number) => void;
+    /**
+     * Prompts parent to open a specific dialog
+     */
+    handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
 }
 
 /**
  * Props for a Routine List's subroutine
  */
 export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, EditableProps {
+    nodeId: string; //ID of parent node
     data?: NodeDataRoutineListItem;
+    /**
+      * Prompts parent to open a specific dialog
+      */
+    handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
 }
 
 /**
@@ -85,11 +106,7 @@ export interface StartNodeProps extends NodeDataProps, ScaleProps, LabelledProps
 
 }
 
-export interface DraggableNodeProps extends BoxProps {
-    /**
-     * Specified if the cell is allowed to be dragged
-     */
-    draggable?: boolean;
+export interface DraggableNodeProps extends BoxProps, DraggableProps {
     /**
      * ID of node in this cell. Used for drag events
      */

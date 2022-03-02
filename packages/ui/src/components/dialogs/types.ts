@@ -2,7 +2,7 @@ import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
-import { Organization, Project, Routine, Session, Standard, User } from 'types';
+import { Node, Organization, Project, Routine, Session, Standard, User } from 'types';
 
 export interface AlertDialogProps extends DialogProps { };
 
@@ -134,9 +134,22 @@ export interface BaseObjectActionDialogProps {
     onClose: () => any;
 }
 
-export interface RoutineInfoDialogProps {
+export interface OrchestrationInfoDialogProps {
     sxs?: { icon: any };
     routineInfo: Routine | null;
     onUpdate: (routine: Routine) => any;
     onCancel: () => any;
+}
+
+export interface RoutineInfoDialogProps {
+    open: boolean;
+    routineInfo: Routine | null;
+    onClose: () => any;
+}
+
+export interface UnlinkedNodesDialogProps {
+    open: boolean;
+    nodes: Node[];
+    handleToggleOpen: () => any;
+    handleDeleteNode: (node: Node) => any;
 }

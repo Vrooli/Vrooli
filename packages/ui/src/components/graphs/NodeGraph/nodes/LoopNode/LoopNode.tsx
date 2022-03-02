@@ -12,6 +12,7 @@ export const LoopNode = ({
     scale = 1,
     label = 'Loop',
     labelVisible = true,
+    canDrag = true,
 }: LoopNodeProps) => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const openDialog = () => setDialogOpen(true);
@@ -46,7 +47,7 @@ export const LoopNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <DraggableNode nodeId={node.id}>
+        <DraggableNode canDrag={canDrag} nodeId={node.id}>
             {dialog}
             <NodeContextMenu
                 id={contextId}

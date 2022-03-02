@@ -7,9 +7,8 @@
 import { Box, Stack } from '@mui/material';
 import { NodeGraphColumn, NodeGraphEdge } from 'components';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { OrchestrationStatus, Pubs, updateArray } from 'utils';
-import { ColumnDimensions, NodeGraphProps, NodePos } from '../types';
-import { NodeType } from 'graphql/generated/globalTypes';
+import { Pubs, updateArray } from 'utils';
+import { ColumnDimensions, NodeGraphProps } from '../types';
 import { Node } from 'types';
 
 type DragRefs = {
@@ -25,9 +24,9 @@ export const NodeGraphContainer = ({
     scale = 1,
     isEditable = true,
     labelVisible = true,
-    nodes,
+    nodeDataMap,
     links,
-    onStatusChange,
+    handleDialogOpen
 }: NodeGraphProps) => {
     // Size and position data of each column
     const [columnDimensions, setColumnDimensions] = useState<ColumnDimensions[]>([]);
@@ -205,6 +204,7 @@ export const NodeGraphContainer = ({
         window.addEventListener('mousemove', onMouseMove);
         // Add PubSub subscribers
         let dragStartSub = PubSub.subscribe(Pubs.NodeDrag, (_, data) => {
+            console.log('DRAG START SUBSCRIBER');
             nodeScroll();
             handleDragStart(data.nodeId);
         });
@@ -222,60 +222,6 @@ export const NodeGraphContainer = ({
             PubSub.unsubscribe(dragDropSub);
         }
     }, [handleDragStart, handleDragStop]);
-
-    /**
-     * 1st return - Dictionary of node data and their columns
-     * 2nd return - List of nodes which are not yet linked
-     * If nodeDataMap is same length as nodes, and unlinkedList is empty, then all nodes are linked 
-     * and the graph is valid
-     */
-    const [nodeDataMap, unlinkedList] = useMemo<[{ [id: string]: NodePos }, Node[]]>(() => {
-        // Position map for calculating node positions
-        let posMap: { [id: string]: NodePos } = {};
-        if (!nodes || !links) return [posMap, nodes ?? []];
-        let startNodeId: string | null = null;
-        console.log('node data map', nodes, links);
-        // First pass of raw node data, to locate start node and populate position map
-        for (let i = 0; i < nodes.length; i++) {
-            const currId = nodes[i].id;
-            // If start node, must be in first column
-            if (nodes[i].type === NodeType.Start) {
-                startNodeId = currId;
-                posMap[currId] = { column: 0, node: nodes[i] }
-            }
-        }
-        // If start node was found
-        if (startNodeId) {
-            // Loop through links. Each loop finds every node that belongs in the next column
-            // We set the max number of columns to be 100, but this is arbitrary
-            for (let currColumn = 0; currColumn < 100; currColumn++) {
-                // Calculate the IDs of each node in the next column TODO this should be sorted in some way so it shows the same order every time
-                const nextNodes = links.filter(link => posMap[link.fromId]?.column === currColumn).map(link => nodes.find(node => node.id === link.toId)).filter(node => node) as Node[];
-                // Add each node to the position map
-                for (let i = 0; i < nextNodes.length; i++) {
-                    const curr = nextNodes[i];
-                    posMap[curr.id] = { column: currColumn + 1, node: curr };
-                }
-                // If not nodes left, or if all of the next nodes are end nodes, stop looping
-                if (nextNodes.length === 0 || nextNodes.every(n => n.type === NodeType.End)) {
-                    break;
-                }
-            }
-        } else {
-            console.error('Error: No start node found');
-            onStatusChange({ code: OrchestrationStatus.Invalid, details: 'No start node found' });
-        }
-        // TODO check if all paths end with an end node (and account for loops)
-        const unlinked = nodes.filter(node => !posMap[node.id]);
-        if (unlinked.length > 0) {
-            console.warn('Warning: Some nodes are not linked');
-            onStatusChange({ code: OrchestrationStatus.Incomplete, details: 'Some nodes are not linked' });
-        }
-        if (startNodeId && unlinked.length === 0) {
-            onStatusChange({ code: OrchestrationStatus.Valid, details: '' });
-        }
-        return [posMap, unlinked];
-    }, [nodes, links]);
 
     /**
      * Node data map converted to a 2D array of columns
@@ -344,6 +290,7 @@ export const NodeGraphContainer = ({
             scale={scale}
             labelVisible={labelVisible}
             onDimensionsChange={onColumnDimensionsChange}
+            handleDialogOpen={handleDialogOpen}
         />)
     }, [columnData, isEditable, scale, labelVisible, onColumnDimensionsChange, dragId]);
 

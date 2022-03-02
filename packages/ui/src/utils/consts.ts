@@ -38,3 +38,11 @@ export type DragTypes = ValueOf<typeof DragTypes>;
     Invalid = 'Invalid', // Something is wrong with the orchestration (e.g. no end node)
     Valid = 'Valid', // The orchestration is valid, and all nodes are linked
 }
+
+/**
+ * Prompts Orchestration page to open a specific dialog
+ */
+export enum OrchestrationDialogOption {
+    AddRoutineItem,
+    ViewRoutineItem,
+}

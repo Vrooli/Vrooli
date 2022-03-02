@@ -44,8 +44,9 @@ export const LogInForm = ({
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(Pubs.AlertDialog, {
                             message: 'Before signing in, please follow the link sent to your email to change your password.',
-                            firstButtonText: 'OK',
-                            firstButtonClicked: () => setLocation(APP_LINKS.Home),
+                            buttons: [
+                                { text: 'Ok', onClick: () => { setLocation(APP_LINKS.Home) } },
+                            ]
                         });
                     }
                 }

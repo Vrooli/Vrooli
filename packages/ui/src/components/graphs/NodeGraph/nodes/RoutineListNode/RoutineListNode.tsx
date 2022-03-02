@@ -25,6 +25,7 @@ import {
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import Measure from 'react-measure';
 import { NodeDataRoutineList } from 'types';
+import { OrchestrationDialogOption, Pubs } from 'utils';
 
 export const RoutineListNode = ({
     node,
@@ -32,8 +33,11 @@ export const RoutineListNode = ({
     label = 'Routine List',
     labelVisible = true,
     isEditable = true,
+    canDrag = true,
+    canExpand = true,
     onAdd = () => { },
     onResize,
+    handleDialogOpen,
 }: RoutineListNodeProps) => {
     // Stores position of click/touch start, to cancel click event if drag occurs
     const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
@@ -42,24 +46,28 @@ export const RoutineListNode = ({
     const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
 
     const handleTouchMove = useCallback((e: any) => {
+        if (!canExpand) return;
         touchIsDrag.current = true;
-    }, []);
+    }, [canExpand]);
     const handleTouchEnd = useCallback((e: any) => {
+        if (!canExpand) return;
         if (!touchIsDrag.current) {
             setCollapseOpen(curr => !curr)
         }
         touchIsDrag.current = false;
-    }, []);
+    }, [canExpand]);
     const handleMouseDown = useCallback((e: any) => {
+        if (!canExpand) return;
         clickStartPosition.current = { x: e.pageX, y: e.pageY };
-    }, []);
+    }, [canExpand]);
     const handleMouseUp = useCallback((e: any) => {
+        if (!canExpand) return;
         const { x, y } = clickStartPosition.current;
         const { pageX, pageY } = e;
         if (Math.abs(pageX - x) < 5 && Math.abs(pageY - y) < 5) {
             setCollapseOpen(curr => !curr)
         }
-    }, []);
+    }, [canExpand]);
 
     const nodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
@@ -72,6 +80,18 @@ export const RoutineListNode = ({
     const addRoutine = () => {
         console.log('ADD ROUTINE CALLED')
     };
+
+    const confirmDelete = useCallback((event: any) => {
+        event.stopPropagation();
+        PubSub.publish(Pubs.AlertDialog, {
+            message: 'What would you like to do?',
+            buttons: [
+                { text: 'Unlink', onClick: () => { } },
+                { text: 'Remove', onClick: () => { } },
+                { text: 'Cancel', onClick: () => { } }
+            ]
+        });
+    }, [])
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography
@@ -136,9 +156,11 @@ export const RoutineListNode = ({
     const routines = useMemo(() => (node?.data as NodeDataRoutineList)?.routines?.map(routine => (
         <RoutineSubnode
             key={`${routine.id}`}
+            nodeId={node.id}
             scale={scale}
             labelVisible={labelVisible}
             data={routine}
+            handleDialogOpen={handleDialogOpen}
         />
     )), [node?.data, labelVisible, scale]);
 
@@ -164,7 +186,7 @@ export const RoutineListNode = ({
                 },
             }}
         >
-            <AddIcon />
+            <AddIcon onClick={() => handleDialogOpen(node.id, OrchestrationDialogOption.AddRoutineItem)} />
         </IconButton>
     ) : null, [addSize, isEditable]);
 
@@ -184,7 +206,7 @@ export const RoutineListNode = ({
             onResize={handleResize}
         >
             {({ measureRef }) => (
-                <DraggableNode id={`node-${node.id}`} className="handle" nodeId={node.id}
+                <DraggableNode id={`node-${node.id}`} className="handle" canDrag={canDrag} nodeId={node.id}
                     sx={{
                         width: nodeSize,
                         fontSize: fontSize,
@@ -232,9 +254,9 @@ export const RoutineListNode = ({
                                 },
                             }}
                         >
-                            {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                            {canExpand ? (collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />) : null}
                             {labelObject}
-                            {isEditable ? <DeleteIcon /> : null}
+                            {isEditable ? <DeleteIcon onClick={confirmDelete} /> : null}
                         </Container>
                     </Tooltip>
                     {optionsCollapse}

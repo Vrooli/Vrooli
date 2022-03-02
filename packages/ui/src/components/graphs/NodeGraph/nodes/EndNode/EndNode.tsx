@@ -1,7 +1,7 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
-import { NodeContextMenu, NodeWidth } from '../..';
+import { DraggableNode, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 
@@ -10,6 +10,7 @@ export const EndNode = ({
     scale = 1,
     label = 'End',
     labelVisible = true,
+    canDrag = true,
 }: EndNodeProps) => {
 
     const labelObject = useMemo(() => labelVisible ? (
@@ -40,7 +41,7 @@ export const EndNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box>
+        <DraggableNode nodeId={node.id} canDrag={canDrag}>
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
@@ -92,6 +93,6 @@ export const EndNode = ({
                     </Box>
                 </Box>
             </Tooltip>
-        </Box>
+        </DraggableNode>
     )
 }

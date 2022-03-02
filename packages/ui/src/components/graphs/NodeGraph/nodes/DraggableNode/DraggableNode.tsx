@@ -9,7 +9,7 @@ import { Pubs } from 'utils';
  * NOTE: If a node is draggable, the draggable part must have the "handle" class
  */
 export const DraggableNode = ({
-    draggable = true,
+    canDrag = true,
     nodeId,
     children,
     ...props
@@ -24,7 +24,7 @@ export const DraggableNode = ({
      * Handles start of drag. Draggable expects either false or void, so we can't return true
      */
     const handleDragStart = useCallback((e: any, data: any) => {
-        if (draggable) {
+        if (canDrag) {
             setIsDragging(true);
             // Determine current drag position
             const { x, y } = data;
@@ -33,7 +33,7 @@ export const DraggableNode = ({
             return;
         }
         return false
-    }, [draggable]);
+    }, [canDrag]);
 
     const handleDrag = useCallback((e: any, data: any) => {
         // Determine current drag position
@@ -62,6 +62,7 @@ export const DraggableNode = ({
         <Draggable
             handle=".handle"
             defaultPosition={{ x: 0, y: 0 }}
+            disabled={!canDrag}
             position={isDragging ? undefined : { x: 0, y: 0 }}
             scale={1}
             onStart={handleDragStart}

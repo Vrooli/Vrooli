@@ -11,7 +11,6 @@ import { OrchestrationStatus } from 'utils';
  */
 export type NodePos = {
     column: number; // column in which node is displayed
-    // rows: number; // number of rows in the column the node is displayed in
     // pos: number; // relative position in column. 0 is top, 1 is bottom
     node: Node;
 }
@@ -36,9 +35,12 @@ export interface NodeGraphProps {
     scale?: number;
     isEditable?: boolean;
     labelVisible?: boolean;
-    nodes: Node[]
+    nodeDataMap: { [id: string]: NodePos };
     links: NodeLink[];
-    onStatusChange: (status: OrchestrationStatusObject) => void;
+    /**
+      * Prompts parent to open a specific dialog
+      */
+    handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
 }
 
 export type ColumnDimensions = {
@@ -61,6 +63,10 @@ export interface NodeGraphColumnProps {
     columnIndex: number;
     nodes: Node[];
     onDimensionsChange: (columnIndex: number, dimensions: ColumnDimensions) => void;
+    /**
+      * Prompts parent to open a specific dialog
+      */
+    handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
 }
 
 export interface NodeGraphEdgeProps {

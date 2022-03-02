@@ -148,7 +148,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         const projectIdQuery = input.projectId ? { projectId: input.projectId } : {};
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        return { ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery };
+        return { ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery };
     },
 })
 

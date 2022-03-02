@@ -18,13 +18,16 @@ import {
     routineNodeCheckboxLabel,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
+import { OrchestrationDialogOption } from 'utils';
 
 export const RoutineSubnode = ({
+    nodeId,
     data,
     scale = 1,
     label = 'Routine Item',
     labelVisible = true,
     isEditable = true,
+    handleDialogOpen,
 }: RoutineSubnodeProps) => {
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
@@ -61,6 +64,7 @@ export const RoutineSubnode = ({
             }}
         >
             <Container
+                onClick={() => handleDialogOpen(nodeId, OrchestrationDialogOption.ViewRoutineItem)}
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
