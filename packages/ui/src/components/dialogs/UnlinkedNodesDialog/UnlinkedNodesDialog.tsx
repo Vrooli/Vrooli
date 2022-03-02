@@ -77,7 +77,7 @@ export const UnlinkedNodesDialog = ({
                         {open ? <ShrinkIcon sx={{ fill: 'black' }} /> : <ExpandIcon sx={{ fill: 'black' }} />}
                     </IconButton>
                 </Tooltip>
-                <Typography variant="h5">Unlinked Nodes ({nodes.length})</Typography>
+                <Typography variant="h6">Unlinked ({nodes.length})</Typography>
             </Box>
             {open ? (
                 <Stack direction="column" spacing={1}>

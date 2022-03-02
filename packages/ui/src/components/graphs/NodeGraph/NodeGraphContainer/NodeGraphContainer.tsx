@@ -298,7 +298,7 @@ export const NodeGraphContainer = ({
         <Box id="graph-root" position="relative" sx={{
             cursor: 'move',
             minWidth: '100%',
-            height: { xs: '80vh', md: '90vh' },
+            height: { xs: '70vh', md: '80vh' },
             overflowX: 'auto',
             overflowY: 'auto',
             margin: 0,

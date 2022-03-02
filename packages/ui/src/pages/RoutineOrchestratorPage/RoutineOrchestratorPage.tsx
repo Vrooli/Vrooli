@@ -255,6 +255,7 @@ export const RoutineOrchestratorPage = () => {
         );
         return (
             <Stack
+                id="orchestration-information-bar"
                 direction="row"
                 spacing={2}
                 width="100%"

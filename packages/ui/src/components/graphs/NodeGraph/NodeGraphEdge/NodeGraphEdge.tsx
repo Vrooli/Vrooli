@@ -26,6 +26,12 @@ export const NodeGraphEdge = ({
     const [dims, setDims] = useState<EdgePositions>({ top: 0, left: 0, width: 0, height: 0, x1: 0, y1: 0, x2: 0, y2: 0 });
     const thiccness = useMemo(() => Math.ceil(scale * 3), [scale]);
 
+    /**
+     * Calculates absolute position of one point of an edge.
+     * Edges are displayed relative to the graph, but bounding boxes are calculated relative to the viewport.
+     * We account for this using the graph's bounding box
+     * @returns 
+     */
     const getPoint = (id: string): { x: number, y: number } | null => {
         // Find graph and node
         const graph = document.getElementById('graph-root');
@@ -34,11 +40,12 @@ export const NodeGraphEdge = ({
             console.error('Could not find node to connect to edge', id);
             return null;
         }
-        const rect = node.getBoundingClientRect();
-        console.log('BOUNDING RECT', id, rect);
+        const nodeRect = node.getBoundingClientRect();
+        const graphRect = graph.getBoundingClientRect();
+        console.log('BOUNDING RECT node then graph', id, nodeRect);
         return {
-            x: graph.scrollLeft + rect.left + (rect.width / 2),
-            y: graph.scrollTop + rect.top + (rect.height / 2),
+            x: graph.scrollLeft + nodeRect.left + (nodeRect.width / 2),
+            y: graph.scrollTop + nodeRect.top + (nodeRect.height / 2) - graphRect.top,
         }
     }
 
@@ -83,7 +90,7 @@ export const NodeGraphEdge = ({
                 zIndex: -1, // Display behind nodes
                 position: "absolute",
                 pointerEvents: "none",
-                top: dims.top - 15, // Not sure why top isn't right
+                top: dims.top,
                 left: dims.left,
             }}
         >
