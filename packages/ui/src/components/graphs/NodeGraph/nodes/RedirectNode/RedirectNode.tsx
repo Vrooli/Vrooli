@@ -8,6 +8,7 @@ import { noSelect } from 'styles';
 import { DraggableNode } from '../';
 
 export const RedirectNode = ({
+    isLinked = true,
     node,
     scale = 1,
     label = 'Redirect',
@@ -62,7 +63,7 @@ export const RedirectNode = ({
             />
             <Tooltip placement={'top'} title='Redirect'>
                 <IconButton
-                    id={`node-${node.id}`}
+                    id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     className="handle"
                     onClick={openDialog}
                     aria-owns={contextOpen ? contextId : undefined}
@@ -84,6 +85,7 @@ export const RedirectNode = ({
                     }}
                 >
                     <RedirectIcon
+                        id={`${isLinked ? '' : 'unlinked-'}node-redirect-icon-${node.id}`}
                         sx={{
                             width: '100%',
                             height: '100%',

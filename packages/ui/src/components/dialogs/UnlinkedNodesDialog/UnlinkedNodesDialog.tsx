@@ -34,12 +34,13 @@ export const UnlinkedNodesDialog = ({
         console.log('in unlinkedlist createnode', node);
         // Common node props
         const nodeProps = {
+            isEditable: false,
+            isLinked: false,
             key: `unlinked-node-${node.id}`,
-            node,
-            scale: 0.5,
             label: '',
             labelVisible: false,
-            isEditable: false,
+            node,
+            scale: 0.5,
         }
         // Determine node to display based on node type
         switch (node.type) {
@@ -62,10 +63,21 @@ export const UnlinkedNodesDialog = ({
             background: '#c7dee2',
             color: 'black',
             padding: 1,
-            maxheight: '70vh',
-            width: 'fit-content',
+            maxHeight: { xs: '62vh', sm:'65vh', md: '72vh' },
+            overflowY: 'auto',
+            width: open ? '250px' : 'fit-content',
             transition: 'height 1s ease-in-out',
-            ...containerShadow
+            ...containerShadow,
+            "&::-webkit-scrollbar": {
+                width: 10,
+            },
+            "&::-webkit-scrollbar-track": {
+                backgroundColor: '#dae5f0',
+            },
+            "&::-webkit-scrollbar-thumb": {
+                borderRadius: '100px',
+                backgroundColor: "#409590",
+            },
         }}>
             <Box sx={{
                 display: 'flex',

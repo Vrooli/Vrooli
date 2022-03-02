@@ -30,6 +30,7 @@ import { OrchestrationDialogOption, Pubs } from 'utils';
 export const RoutineListNode = ({
     node,
     scale = 1,
+    isLinked = true,
     label = 'Routine List',
     labelVisible = true,
     isEditable = true,
@@ -95,6 +96,7 @@ export const RoutineListNode = ({
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography
+            id={`${isLinked ? '' : 'unlinked-'}node-routinelist-title-${node.id}`}
             variant="h6"
             sx={{
                 ...noSelect,
@@ -108,7 +110,7 @@ export const RoutineListNode = ({
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [labelVisible, label, node.id]);
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{ ...routineNodeListOptions }}>
@@ -206,7 +208,7 @@ export const RoutineListNode = ({
             onResize={handleResize}
         >
             {({ measureRef }) => (
-                <DraggableNode id={`node-${node.id}`} className="handle" canDrag={canDrag} nodeId={node.id}
+                <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}
                     sx={{
                         width: nodeSize,
                         fontSize: fontSize,
@@ -232,6 +234,7 @@ export const RoutineListNode = ({
                     />
                     <Tooltip placement={'top'} title={label ?? 'Routine List'}>
                         <Container
+                            id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                             ref={measureRef}
                             onMouseDown={handleMouseDown}
                             onMouseUp={handleMouseUp}
@@ -254,9 +257,13 @@ export const RoutineListNode = ({
                                 },
                             }}
                         >
-                            {canExpand ? (collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />) : null}
+                            {canExpand ?
+                                collapseOpen ?
+                                    <ExpandLessIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-shrink-icon-${node.id}`} /> :
+                                    <ExpandMoreIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-expand-icon-${node.id}`} />
+                                : null}
                             {labelObject}
-                            {isEditable ? <DeleteIcon onClick={confirmDelete} /> : null}
+                            {isEditable ? <DeleteIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-delete-icon-${node.id}`} onClick={confirmDelete} /> : null}
                         </Container>
                     </Tooltip>
                     {optionsCollapse}

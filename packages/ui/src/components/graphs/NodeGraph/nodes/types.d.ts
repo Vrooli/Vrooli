@@ -36,6 +36,7 @@ export interface EditableProps {
  * Props for draggable node objects
  */
 export interface DraggableProps {
+    isLinked?: boolean; // True if node is connected to orchestration graph
     /**
     * Specified if the cell is allowed to be dragged
     */

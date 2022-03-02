@@ -6,6 +6,7 @@ import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 
 export const EndNode = ({
+    isLinked = true,
     node,
     scale = 1,
     label = 'End',
@@ -55,7 +56,7 @@ export const EndNode = ({
             />
             <Tooltip placement={'top'} title={'End'}>
                 <Box
-                    id={`node-${node.id}`}
+                    id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
                     onClick={() => { }}
@@ -76,6 +77,7 @@ export const EndNode = ({
                     }}
                 >
                     <Box
+                        id={`${isLinked ? '' : 'unlinked-'}node-end-inner-circle-${node.id}`}
                         sx={{
                             width: innerCircleSize,
                             height: innerCircleSize,

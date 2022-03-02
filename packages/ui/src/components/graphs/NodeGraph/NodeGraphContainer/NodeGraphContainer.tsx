@@ -6,7 +6,7 @@
  */
 import { Box, Stack } from '@mui/material';
 import { NodeGraphColumn, NodeGraphEdge } from 'components';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pubs, updateArray } from 'utils';
 import { ColumnDimensions, NodeGraphProps } from '../types';
 import { Node } from 'types';
@@ -14,10 +14,7 @@ import { Node } from 'types';
 type DragRefs = {
     lastPosition: { x: number, y: number };
     speed: number;
-    left: NodeJS.Timeout | null;
-    right: NodeJS.Timeout | null;
-    up: NodeJS.Timeout | null;
-    down: NodeJS.Timeout | null;
+    timeout: NodeJS.Timeout | null;
 }
 
 export const NodeGraphContainer = ({
@@ -36,10 +33,7 @@ export const NodeGraphContainer = ({
     const dragRefs = useRef<DragRefs>({
         lastPosition: { x: 0, y: 0 },
         speed: 0,
-        left: null,
-        right: null,
-        up: null,
-        down: null,
+        timeout: null,
     })
 
     /**
@@ -49,15 +43,19 @@ export const NodeGraphContainer = ({
         const gridElement = document.getElementById('graph-root');
         if (!gridElement) return;
         const { x, y } = dragRefs.current.lastPosition;
+        if (x === 0 && y === 0) return;
+        // console.log('NODE SCROLLLLLLLL', x, y, document.getElementById('graph-root'))
         const calculateSpeed = (useX: boolean) => {
-            console.log('calculating speed', x, y)
+            // console.log('calculating speed', x, y)
             if (x === 0 && y === 0) {
-                clearScroll();
+                // console.log('CLEARING SCROLL')
+                // clearScroll();
+                dragRefs.current.speed = 0;
                 return;
             }
             const sideLength = useX ? window.innerWidth : window.innerHeight;
-            const distToEdge = useX ? 
-                Math.min(Math.abs(sideLength - x), Math.abs(0 - x)) : 
+            const distToEdge = useX ?
+                Math.min(Math.abs(sideLength - x), Math.abs(0 - x)) :
                 Math.min(Math.abs(sideLength - y), Math.abs(0 - y));
             const maxSpeed = 25;
             const minSpeed = 5;
@@ -66,56 +64,46 @@ export const NodeGraphContainer = ({
             console.log('i am speed', temp, percent, distToEdge, sideLength);
             dragRefs.current.speed = (maxSpeed - minSpeed) * percent + minSpeed;
         }
-        const scrollLeft = () => { gridElement.scrollBy(-dragRefs.current.speed, 0); dragRefs.current.left = setTimeout(scrollLeft, 50) };
-        const scrollRight = () => { gridElement.scrollBy(dragRefs.current.speed, 0); dragRefs.current.right = setTimeout(scrollRight, 50) };
-        const scrollUp = () => { gridElement.scrollBy(0, -dragRefs.current.speed); dragRefs.current.up = setTimeout(scrollUp, 50) };
-        const scrollDown = () => { gridElement.scrollBy(0, dragRefs.current.speed); dragRefs.current.down = setTimeout(scrollDown, 50) };
+        const scrollLeft = () => { gridElement.scrollBy(-dragRefs.current.speed, 0) }
+        const scrollRight = () => { gridElement.scrollBy(dragRefs.current.speed, 0) };
+        const scrollUp = () => { gridElement.scrollBy(0, -dragRefs.current.speed) };
+        const scrollDown = () => { gridElement.scrollBy(0, dragRefs.current.speed) };
         // If near the left edge, move the grid left. If near the right edge, move the grid right.
         let horizontalMove: boolean | null = null; // Store left right move, or no horizontal move
-        if (x < (window.innerWidth * 0.15)) { calculateSpeed(true); horizontalMove = false;}
-        if (x > window.innerWidth - (window.innerWidth * 0.15)) { calculateSpeed(true); horizontalMove = true;}
+        if (x < (window.innerWidth * 0.15)) { calculateSpeed(true); horizontalMove = false; }
+        if (x > window.innerWidth - (window.innerWidth * 0.15)) { calculateSpeed(true); horizontalMove = true; }
         // Set or clear timeout for horizontal move
-        if (horizontalMove === false && !dragRefs.current.left) {
-            dragRefs.current.left = setTimeout(scrollLeft, 50);
-            if (dragRefs.current.right) { clearTimeout(dragRefs.current.right); dragRefs.current.right = null; }
-        } else if (horizontalMove === true && !dragRefs.current.right) {
-            dragRefs.current.right = setTimeout(scrollRight, 50);
-            if (dragRefs.current.left) { clearTimeout(dragRefs.current.left); dragRefs.current.left = null; }
+        if (horizontalMove === false) {
+            scrollLeft();
+        } else if (horizontalMove === true) {
+            scrollRight();
         } else if (horizontalMove === null) {
-            if (dragRefs.current.left) { clearTimeout(dragRefs.current.left); dragRefs.current.left = null; }
-            if (dragRefs.current.right) { clearTimeout(dragRefs.current.right); dragRefs.current.right = null; }
+            console.log('no horizontal move', x, y, window.innerWidth, window.innerHeight);
         }
         // If near the top edge, move the grid up. If near the bottom edge, move the grid down.
         let verticalMove: boolean | null = null; // Store up down move, or no vertical move
-        if (y < (window.innerHeight * 0.15)) { calculateSpeed(false); verticalMove = false;}
-        if (y > window.innerHeight - (window.innerHeight * 0.15)) { calculateSpeed(false); verticalMove = true;}
+        if (y < (window.innerHeight * 0.15)) { calculateSpeed(false); verticalMove = false; }
+        if (y > window.innerHeight - (window.innerHeight * 0.15)) { calculateSpeed(false); verticalMove = true; }
         // Set or clear timeout for vertical move
-        if (verticalMove === false && !dragRefs.current.up) {
-            dragRefs.current.up = setTimeout(scrollUp, 50);
-            if (dragRefs.current.down) { clearTimeout(dragRefs.current.down); dragRefs.current.down = null; }
+        if (verticalMove === false) {
+            scrollUp();
         }
-        else if (verticalMove === true && !dragRefs.current.down) {
-            dragRefs.current.down = setTimeout(scrollDown, 50);
-            if (dragRefs.current.up) { clearTimeout(dragRefs.current.up); dragRefs.current.up = null; }
+        else if (verticalMove === true) {
+            scrollDown();
         }
         else if (verticalMove === null) {
-            if (dragRefs.current.up) { clearTimeout(dragRefs.current.up); dragRefs.current.up = null; }
-            if (dragRefs.current.down) { clearTimeout(dragRefs.current.down); dragRefs.current.down = null; }
+            console.log('no vertical move')
         }
+        dragRefs.current.timeout = setTimeout(nodeScroll, 50);
     }
 
     const clearScroll = () => {
-        if (dragRefs.current.left) clearTimeout(dragRefs.current.left)
-        if (dragRefs.current.right) clearTimeout(dragRefs.current.right)
-        if (dragRefs.current.up) clearTimeout(dragRefs.current.up)
-        if (dragRefs.current.down) clearTimeout(dragRefs.current.down)
+        // console.log('CLEARING SCROLL')
+        if (dragRefs.current.timeout) clearTimeout(dragRefs.current.timeout);
         dragRefs.current = {
             lastPosition: { x: 0, y: 0 },
             speed: 0,
-            left: null,
-            right: null,
-            up: null,
-            down: null,
+            timeout: null,
         }
     }
 
@@ -172,24 +160,30 @@ export const NodeGraphContainer = ({
     // - drag-and-drop nodes
     useEffect(() => {
         // Mouse drag state
-        let touched = false;
+        let touchedGrid = false;
         // Only drag if not pressing a node or edge
-        const onMouseDown = (ev: MouseEvent) => {
-            const targetId = (ev.target as any)?.id;
+        const onMouseDown = (ev: MouseEvent | TouchEvent<any> | Event) => {
+            // Find first ID in event path
+            const targetId = (ev as any)?.target.id;
             if (!targetId) return;
-            if (targetId.startsWith('node-column') || targetId === 'graph-root' || targetId === 'graph-grid') {
-                touched = true;
-                dragRefs.current.lastPosition = { x: ev.clientX, y: ev.clientY };
+            if (targetId.startsWith('node-') || targetId === 'graph-root' || targetId === 'graph-grid') {
+                const x = (ev as MouseEvent)?.clientX ?? (ev as TouchEvent)?.touches[0].clientX ?? 0;
+                const y = (ev as MouseEvent)?.clientY ?? (ev as TouchEvent)?.touches[0].clientY ?? 0;
+                dragRefs.current.lastPosition = { x, y };
+                console.log('on mouse down b', dragRefs.current.lastPosition);
+                if (targetId.startsWith('node-column') || targetId === 'graph-root' || targetId === 'graph-grid') touchedGrid = true;
             }
         }
-        const onMouseUp = (ev: MouseEvent) => {
-            touched = false;
+        const onMouseUp = (ev: MouseEvent | Event) => {
+            console.log('ON MOUSE UPPPP a');
+            touchedGrid = false;
             dragRefs.current.lastPosition = { x: 0, y: 0 };
             clearScroll();
         }
         const onMouseMove = (ev: MouseEvent) => {
             // If the grid is being dragged, move the grid
-            if (touched) {
+            // NOTE: this is only needed for mouse movement, as touch screens do this automatically
+            if (touchedGrid) {
                 const gridElement = document.getElementById('graph-root');
                 if (!gridElement) return;
                 const deltaX = ev.clientX - dragRefs.current.lastPosition.x;
@@ -198,14 +192,20 @@ export const NodeGraphContainer = ({
             }
             dragRefs.current.lastPosition = { x: ev.clientX, y: ev.clientY };
         }
+        const onTouchMove = (ev: any) => {
+            dragRefs.current.lastPosition = { x: ev.touches[0].clientX ?? 0, y: ev.touches[0].clientY ?? 0 };
+        }
         // Add event listeners
         window.addEventListener('mousedown', onMouseDown);
         window.addEventListener('mouseup', onMouseUp);
         window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('touchstart', onMouseDown);
+        window.addEventListener('touchmove', onTouchMove);
+        window.addEventListener('touchend', onMouseUp);
         // Add PubSub subscribers
         let dragStartSub = PubSub.subscribe(Pubs.NodeDrag, (_, data) => {
             console.log('DRAG START SUBSCRIBER');
-            nodeScroll();
+            dragRefs.current.timeout = setTimeout(nodeScroll, 50);
             handleDragStart(data.nodeId);
         });
         let dragDropSub = PubSub.subscribe(Pubs.NodeDrop, (_, data) => {

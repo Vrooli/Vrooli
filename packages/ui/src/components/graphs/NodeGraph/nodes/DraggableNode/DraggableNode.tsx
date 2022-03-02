@@ -19,6 +19,8 @@ export const DraggableNode = ({
     const [isDragging, setIsDragging] = useState<boolean>(false);
     // Where the node started dragging from
     const dragStartRef = useRef({ x: 0, y: 0 });
+    // Stores if drag was already published
+    const isDragPublished = useRef(false);
 
     /**
      * Handles start of drag. Draggable expects either false or void, so we can't return true
@@ -39,8 +41,8 @@ export const DraggableNode = ({
         // Determine current drag position
         const { x, y } = data;
         // If dragged a little bit (to distinguish from a click), set isDragging to true
-        if (Math.abs(x - dragStartRef.current.x) > 5 || Math.abs(y - dragStartRef.current.y) > 5) {
-            setIsDragging(true);
+        if (!isDragPublished.current && (Math.abs(x - dragStartRef.current.x) > 5 || Math.abs(y - dragStartRef.current.y) > 5)) {
+            isDragPublished.current = true;
             // Alert other components that this node is being dragged (to turn on highlights, for example)
             PubSub.publish(Pubs.NodeDrag, { nodeId });
         }
@@ -48,8 +50,9 @@ export const DraggableNode = ({
 
     const handleDrop = useCallback((e: any, data: any) => {
         // Reset drag data
-        setIsDragging(false);
+        isDragPublished.current = false;
         dragStartRef.current = { x: 0, y: 0 };
+        setIsDragging(false);
         // Determine dropped position
         const { x, y } = data;
         // Send drop event to parent
@@ -69,6 +72,7 @@ export const DraggableNode = ({
             onDrag={handleDrag}
             onStop={handleDrop}>
             <Box
+                id={`node-draggable-container-${nodeId}`}
                 display={"flex"}
                 justifyContent={"center"}
                 alignItems={"center"}

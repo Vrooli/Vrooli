@@ -42,7 +42,6 @@ export const NodeGraphEdge = ({
         }
         const nodeRect = node.getBoundingClientRect();
         const graphRect = graph.getBoundingClientRect();
-        console.log('BOUNDING RECT node then graph', id, nodeRect);
         return {
             x: graph.scrollLeft + nodeRect.left + (nodeRect.width / 2),
             y: graph.scrollTop + nodeRect.top + (nodeRect.height / 2) - graphRect.top,

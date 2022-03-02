@@ -8,6 +8,7 @@ import { nodeLabel } from '../styles';
 import { DraggableNode } from '../';
 
 export const LoopNode = ({
+    isLinked = true,
     node,
     scale = 1,
     label = 'Loop',
@@ -62,7 +63,7 @@ export const LoopNode = ({
             />
             <Tooltip placement={'top'} title={label ?? ''}>
                 <IconButton
-                    id={`node-${node.id}`}
+                    id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     className="handle"
                     onClick={openDialog}
                     aria-owns={Boolean(contextAnchor) ? contextId : undefined}
@@ -84,6 +85,7 @@ export const LoopNode = ({
                     }}
                 >
                     <LoopIcon
+                        id={`${isLinked ? '' : 'unlinked-'}node-loop-icon-${node.id}`}
                         sx={{
                             width: '100%',
                             height: '100%',
