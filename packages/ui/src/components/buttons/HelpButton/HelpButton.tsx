@@ -8,6 +8,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 export const HelpButton = ({
     id = 'help-details-menu',
     markdown,
+    onClick,
     sxRoot,
     sx,
 }: HelpButtonProps) => {
@@ -15,6 +16,7 @@ export const HelpButton = ({
     const open = Boolean(anchorEl);
 
     const openMenu = useCallback((event) => {
+        if (onClick) onClick(event);
         if (!anchorEl) setAnchorEl(event.currentTarget);
     }, [anchorEl])
     const closeMenu = () => {

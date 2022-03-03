@@ -58,7 +58,7 @@ export const UnlinkedNodesDialog = ({
     }, [])
 
     return (
-        <Box sx={{
+        <Box id="unlinked-nodes-dialog" sx={{
             borderRadius: 3,
             background: '#c7dee2',
             color: 'black',

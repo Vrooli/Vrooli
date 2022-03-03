@@ -33,7 +33,7 @@ export const RoutineListNode = ({
     isLinked = true,
     label = 'Routine List',
     labelVisible = true,
-    isEditable = true,
+    isEditing = true,
     canDrag = true,
     canExpand = true,
     onAdd = () => { },
@@ -112,7 +112,7 @@ export const RoutineListNode = ({
         <Collapse in={collapseOpen} sx={{ ...routineNodeListOptions }}>
             <Tooltip placement={'top'} title='Must complete routines in order'>
                 <FormControlLabel
-                    disabled={!isEditable}
+                    disabled={!isEditing}
                     label='Ordered'
                     control={
                         <Checkbox
@@ -131,7 +131,7 @@ export const RoutineListNode = ({
             </Tooltip>
             <Tooltip placement={'top'} title='Routine can be skipped'>
                 <FormControlLabel
-                    disabled={!isEditable}
+                    disabled={!isEditing}
                     label='Optional'
                     control={
                         <Checkbox
@@ -149,20 +149,21 @@ export const RoutineListNode = ({
                 />
             </Tooltip>
         </Collapse>
-    ), [collapseOpen, node?.data, isEditable, label]);
+    ), [collapseOpen, node?.data, isEditing, label]);
 
     const routines = useMemo(() => (node?.data as NodeDataRoutineList)?.routines?.map(routine => (
         <RoutineSubnode
             key={`${routine.id}`}
-            nodeId={node.id}
-            scale={scale}
-            labelVisible={labelVisible}
             data={routine}
             handleDialogOpen={handleDialogOpen}
+            isEditing={isEditing}
+            labelVisible={labelVisible}
+            nodeId={node.id}
+            scale={scale}
         />
     )), [node?.data, labelVisible, scale]);
 
-    const addButton = useMemo(() => isEditable ? (
+    const addButton = useMemo(() => isEditing ? (
         <IconButton
             onClick={() => handleDialogOpen(node.id, OrchestrationDialogOption.AddRoutineItem)}
             sx={{
@@ -186,7 +187,7 @@ export const RoutineListNode = ({
         >
             <AddIcon />
         </IconButton>
-    ) : null, [addSize, isEditable]);
+    ) : null, [addSize, isEditing]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -259,7 +260,7 @@ export const RoutineListNode = ({
                                     <ExpandMoreIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-expand-icon-${node.id}`} />
                                 : null}
                             {labelObject}
-                            {isEditable ? <DeleteIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-delete-icon-${node.id}`} onClick={confirmDelete} /> : null}
+                            {isEditing ? <DeleteIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-delete-icon-${node.id}`} onClick={confirmDelete} /> : null}
                         </Container>
                     </Tooltip>
                     {optionsCollapse}

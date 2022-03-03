@@ -3,22 +3,22 @@
  */
 import { Stack } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NodeGraphColumnProps } from '../types';
+import { NodeColumnProps } from '../types';
 import { EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { NodeWidth } from '..';
 
-export const NodeGraphColumn = ({
+export const NodeColumn = ({
     id,
     scale = 1,
     columnIndex,
     nodes,
     labelVisible,
-    isEditable,
+    isEditing,
     dragId,
     onDimensionsChange,
     handleDialogOpen,
-}: NodeGraphColumnProps) => {
+}: NodeColumnProps) => {
     // Stores heights of node cells, used for positioning after drag and drop
     const [cellHeights, setCellHeights] = useState<{ [x: string]: number }>({});
     // Padding between cells
@@ -68,8 +68,8 @@ export const NodeGraphColumn = ({
             scale,
             label: node.title,
             labelVisible,
-            isEditable,
-            canDrag: isEditable,
+            isEditing,
+            canDrag: isEditing,
         }
         // Determine node to display based on node type
         switch (node.type) {
@@ -86,7 +86,7 @@ export const NodeGraphColumn = ({
             default:
                 return null;
         }
-    }) ?? [], [dragId, nodes, scale, labelVisible, isEditable, onCellResize]);
+    }) ?? [], [dragId, nodes, scale, labelVisible, isEditing, onCellResize]);
 
     return (
         <Stack

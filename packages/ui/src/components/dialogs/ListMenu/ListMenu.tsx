@@ -28,11 +28,11 @@ export function ListMenu<T>({
         const itemText = <ListItemText primary={label} />;
         const itemIcon = Icon ? (
             <ListItemIcon>
-                <Icon sx={{ fill: iconColor || 'default' }}/>
+                <Icon sx={{ fill: iconColor || 'default' }} />
             </ListItemIcon>
         ) : null;
         const helpIcon = helpData ? (
-            <IconButton edge="end">
+            <IconButton edge="end" onClick={(e) => e.stopPropagation()} >
                 <HelpButton {...helpData} />
             </IconButton>
         ) : null;
@@ -70,13 +70,13 @@ export function ListMenu<T>({
                 }
             }}
         >
-            <Box 
-                sx={{ 
+            <Box
+                sx={{
                     ...noSelect,
-                    display: 'flex', 
+                    display: 'flex',
                     alignItems: 'center',
                     padding: 1,
-                    background: (t) => t.palette.primary.dark 
+                    background: (t) => t.palette.primary.dark
                 }}
             >
                 <Typography
@@ -93,7 +93,7 @@ export function ListMenu<T>({
                     edge="end"
                     onClick={(e) => { console.log('on close', e); onClose() }}
                 >
-                    <CloseIcon sx={{fill: (t) => t.palette.primary.contrastText}}/>
+                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                 </IconButton>
             </Box>
             <List>

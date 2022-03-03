@@ -53,3 +53,9 @@ export interface SettingsNotificationsProps extends SettingsBaseProps {
     session: Session
 }
 export interface SettingsProfileProps extends SettingsBaseProps {}
+
+export interface RunRoutineViewProps {
+    hasNext: boolean;
+    hasPrevious: boolean;
+    partialData,
+}

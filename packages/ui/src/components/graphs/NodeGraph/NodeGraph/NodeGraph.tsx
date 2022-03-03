@@ -5,7 +5,7 @@
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
 import { Box, Stack } from '@mui/material';
-import { NodeGraphColumn, NodeGraphEdge } from 'components';
+import { NodeColumn, NodeEdge } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pubs, updateArray } from 'utils';
 import { ColumnDimensions, NodeGraphProps } from '../types';
@@ -17,9 +17,9 @@ type DragRefs = {
     timeout: NodeJS.Timeout | null;
 }
 
-export const NodeGraphContainer = ({
+export const NodeGraph = ({
     scale = 1,
-    isEditable = true,
+    isEditing = true,
     labelVisible = true,
     nodeDataMap,
     links,
@@ -44,12 +44,8 @@ export const NodeGraphContainer = ({
         if (!gridElement) return;
         const { x, y } = dragRefs.current.lastPosition;
         if (x === 0 && y === 0) return;
-        // console.log('NODE SCROLLLLLLLL', x, y, document.getElementById('graph-root'))
         const calculateSpeed = (useX: boolean) => {
-            // console.log('calculating speed', x, y)
             if (x === 0 && y === 0) {
-                // console.log('CLEARING SCROLL')
-                // clearScroll();
                 dragRefs.current.speed = 0;
                 return;
             }
@@ -68,37 +64,26 @@ export const NodeGraphContainer = ({
         const scrollRight = () => { gridElement.scrollBy(dragRefs.current.speed, 0) };
         const scrollUp = () => { gridElement.scrollBy(0, -dragRefs.current.speed) };
         const scrollDown = () => { gridElement.scrollBy(0, dragRefs.current.speed) };
+
         // If near the left edge, move the grid left. If near the right edge, move the grid right.
         let horizontalMove: boolean | null = null; // Store left right move, or no horizontal move
         if (x < (window.innerWidth * 0.15)) { calculateSpeed(true); horizontalMove = false; }
         if (x > window.innerWidth - (window.innerWidth * 0.15)) { calculateSpeed(true); horizontalMove = true; }
         // Set or clear timeout for horizontal move
-        if (horizontalMove === false) {
-            scrollLeft();
-        } else if (horizontalMove === true) {
-            scrollRight();
-        } else if (horizontalMove === null) {
-            console.log('no horizontal move', x, y, window.innerWidth, window.innerHeight);
-        }
+        if (horizontalMove === false) scrollLeft();
+        else if (horizontalMove === true) scrollRight();
+
         // If near the top edge, move the grid up. If near the bottom edge, move the grid down.
         let verticalMove: boolean | null = null; // Store up down move, or no vertical move
         if (y < (window.innerHeight * 0.15)) { calculateSpeed(false); verticalMove = false; }
         if (y > window.innerHeight - (window.innerHeight * 0.15)) { calculateSpeed(false); verticalMove = true; }
         // Set or clear timeout for vertical move
-        if (verticalMove === false) {
-            scrollUp();
-        }
-        else if (verticalMove === true) {
-            scrollDown();
-        }
-        else if (verticalMove === null) {
-            console.log('no vertical move')
-        }
+        if (verticalMove === false) scrollUp();
+        else if (verticalMove === true) scrollDown();
         dragRefs.current.timeout = setTimeout(nodeScroll, 50);
     }
 
     const clearScroll = () => {
-        // console.log('CLEARING SCROLL')
         if (dragRefs.current.timeout) clearTimeout(dragRefs.current.timeout);
         dragRefs.current = {
             lastPosition: { x: 0, y: 0 },
@@ -125,24 +110,81 @@ export const NodeGraphContainer = ({
     }, [columnDimensions]);
 
     /**
+     * Checks if a point is inside a rectangle
+     * @param point - The point to check
+     * @param rectange - The rectangle to check
+     * @param padding - The padding to add to the rectangle
+     * @returns True if position is within the bounds of a rectangle
+     */
+    const isInsideRectangle = (point: { x: number, y: number }, rectangle: DOMRect, padding: number = 20) => {
+        console.log('isInsideRectangle check', point, rectangle);
+        const zone = {
+            x: rectangle.x - padding,
+            y: rectangle.y - padding,
+            width: rectangle.width + padding * 2,
+            height: rectangle.height + padding * 2,
+        }
+        return (
+            point.x > zone.x &&
+            point.x < zone.x + zone.width &&
+            point.y > zone.y &&
+            point.y < zone.y + zone.height
+        );
+    }
+
+    /**
      * Makes sure drop is valid, then updates order of nodes
      */
     const handleDragStop = useCallback((nodeId: string, { x, y }: { x: number, y: number }) => {
-        console.log('DRAG STOPPPPPPPP START', nodeId, { x, y });
         setDragId(null);
-        // Determine column that node is being dropped into
+        // First, find the node being dropped
+        const node = nodeDataMap[nodeId];
+        if (!node) {
+            console.error(`Dropped node ${nodeId} not found`);
+            return;
+        }
+        // Next, check if the node was dropped into the "Delete" button or "Unlinked" container. 
+        // Find delete button and unlinked container
+        const deleteButton = document.getElementById('delete-node-button');
+        const unlinkedContainer = document.getElementById('unlinked-nodes-dialog');
+        // Get their bounding rectangles
+        const deleteButtonRect = deleteButton ? deleteButton.getBoundingClientRect() : null;
+        const unlinkedContainerRect = unlinkedContainer ? unlinkedContainer.getBoundingClientRect() : null;
+        // If the drop position is within the delete button, delete the node
+        if (deleteButtonRect && isInsideRectangle({ x, y }, deleteButtonRect)) {
+            console.log('DROPPED INTO DELETE BUTTON!!!!!!');
+            //TODO
+            return;
+        }
+        // If the drop position is within the unlinked container, unlink the node
+        if (unlinkedContainerRect && isInsideRectangle({ x, y }, unlinkedContainerRect)) {
+            console.log('DROPPED INTO UNLINKED CONTAINER!!!');
+            //TODO
+            return;
+        }
+
+        // If the node wasn't dropped into a button or container, find the position it was dropped in
+        // Calculate column using column dimensions and padding
         const columnPadding = scale * 25;
         let graphWidth = 0;
         let columnIndex = 0;
-        for (let i = 0; i < columnDimensions.length; i++) {
+        //TODO bug causes first index to have 0 width. We know this is the start node, so this can be calculated
+        graphWidth += (100 * scale) + (2 * columnPadding);
+        for (let i = 1; i < columnDimensions.length; i++) {
             graphWidth += columnDimensions[i].width + (2 * columnPadding);
             if (x < graphWidth) {
                 columnIndex = i;
                 break;
             }
         }
-        // If columnIndex is out of bounds (or start node column), return
-        if (columnIndex < 1 || columnIndex >= columnData.length) return;
+        // If columnIndex is greater than max, set to max
+        if (columnIndex > columnDimensions.length - 1) columnIndex = columnDimensions.length - 1;
+        // If columnIndex is start node or earlier, return
+        if (columnIndex < 1 || columnIndex >= columnData.length) {
+            PubSub.publish(Pubs.Snack, { message: 'Cannot drop node here', severity: 'error' })
+            return;
+        }
+        console.log('DROPPED COLUMN INDEX', columnIndex, columnDimensions);
         // Determine if node can be dropped without conflicts
         //TODO
         // Otherwise, determine if node can be dropped with conflicts
@@ -168,12 +210,10 @@ export const NodeGraphContainer = ({
                 const x = (ev as MouseEvent)?.clientX ?? (ev as TouchEvent)?.touches[0].clientX ?? 0;
                 const y = (ev as MouseEvent)?.clientY ?? (ev as TouchEvent)?.touches[0].clientY ?? 0;
                 dragRefs.current.lastPosition = { x, y };
-                console.log('on mouse down b', dragRefs.current.lastPosition);
                 if (targetId.startsWith('node-column') || targetId === 'graph-root' || targetId === 'graph-grid') touchedGrid = true;
             }
         }
         const onMouseUp = (ev: MouseEvent | Event) => {
-            console.log('ON MOUSE UPPPP a');
             touchedGrid = false;
             dragRefs.current.lastPosition = { x: 0, y: 0 };
             clearScroll();
@@ -202,7 +242,6 @@ export const NodeGraphContainer = ({
         window.addEventListener('touchend', onMouseUp);
         // Add PubSub subscribers
         let dragStartSub = PubSub.subscribe(Pubs.NodeDrag, (_, data) => {
-            console.log('DRAG START SUBSCRIBER');
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);
             handleDragStart(data.nodeId);
         });
@@ -262,35 +301,35 @@ export const NodeGraphContainer = ({
         console.log('calculating edges', columnDimensions);
         return links?.map(link => {
             if (!link.fromId || !link.toId) return null;
-            return <NodeGraphEdge
+            return <NodeEdge
                 key={`edge-${link.id}`}
                 fromId={link.fromId}
                 toId={link.toId}
-                isEditable={isEditable}
+                isEditing={isEditing}
                 dragId={dragId}
                 scale={scale ?? 1}
-                onAdd={() => { }}
+                handleAdd={() => { }}
             />
         })
-    }, [dragId, columnDimensions, isEditable, links, scale]);
+    }, [dragId, columnDimensions, isEditing, links, scale]);
 
     /**
      * Node column objects
      */
     const columns = useMemo(() => {
-        return columnData.map((columnData, index) => <NodeGraphColumn
+        return columnData.map((columnData, index) => <NodeColumn
             key={`node-column-${index}`}
             id={`node-column-${index}`}
             columnIndex={index}
             nodes={columnData}
-            isEditable={isEditable}
+            isEditing={isEditing}
             dragId={dragId}
             scale={scale}
             labelVisible={labelVisible}
             onDimensionsChange={onColumnDimensionsChange}
             handleDialogOpen={handleDialogOpen}
         />)
-    }, [columnData, isEditable, scale, labelVisible, onColumnDimensionsChange, dragId]);
+    }, [columnData, isEditing, scale, labelVisible, onColumnDimensionsChange, dragId]);
 
     return (
         <Box id="graph-root" position="relative" sx={{

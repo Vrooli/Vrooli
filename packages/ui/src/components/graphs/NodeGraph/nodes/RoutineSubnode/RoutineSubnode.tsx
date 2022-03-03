@@ -26,7 +26,7 @@ export const RoutineSubnode = ({
     scale = 1,
     label = 'Routine Item',
     labelVisible = true,
-    isEditable = true,
+    isEditing = true,
     handleDialogOpen,
 }: RoutineSubnodeProps) => {
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
@@ -81,13 +81,13 @@ export const RoutineSubnode = ({
                 }}
             >
                 {labelObject}
-                {isEditable ? <EditIcon /> : null}
-                {isEditable ? <DeleteIcon /> : null}
+                {isEditing ? <EditIcon /> : null}
+                {isEditing ? <DeleteIcon /> : null}
             </Container>
             <Stack direction="row" justifyContent="space-between" borderRadius={0}>
                 <Tooltip placement={'top'} title='Routine can be skipped'>
                     <FormControlLabel
-                        disabled={!isEditable}
+                        disabled={!isEditing}
                         label='Optional'
                         control={
                             <Checkbox

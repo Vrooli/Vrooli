@@ -1,4 +1,5 @@
 import { BoxProps } from '@mui/material';
+import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeLink } from 'types';
 import { OrchestrationStatus } from 'utils';
 
@@ -33,7 +34,7 @@ export type OrchestrationStatusObject = {
 }
 export interface NodeGraphProps {
     scale?: number;
-    isEditable?: boolean;
+    isEditing?: boolean;
     labelVisible?: boolean;
     nodeDataMap: { [id: string]: NodePos };
     links: NodeLink[];
@@ -54,10 +55,10 @@ export type ColumnDimensions = {
 /**
  * Props for the Node Column (a container for displaying nodes on separate branches)
  */
-export interface NodeGraphColumnProps {
+export interface NodeColumnProps {
     id?: string;
     scale?: number;
-    isEditable?: boolean;
+    isEditing?: boolean;
     dragId: string | null; // ID of node being dragged. Used to display valid drop locations
     labelVisible?: boolean;
     columnIndex: number;
@@ -69,11 +70,11 @@ export interface NodeGraphColumnProps {
     handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
 }
 
-export interface NodeGraphEdgeProps {
+export interface NodeEdgeProps {
     fromId: string;
     toId: string;
-    isEditable?: boolean;
+    handleAdd: (fromId: string, toId: string, nodeType: NodeType) => void;
+    isEditing?: boolean;
     dragId: string | null; // ID of node being dragged. Used to determine if 
     scale: number; // Line thickness changes with scale
-    onAdd: any,
 }

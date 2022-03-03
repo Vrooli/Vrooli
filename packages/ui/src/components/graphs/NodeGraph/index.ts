@@ -1,9 +1,9 @@
 import { NodeType } from 'graphql/generated/globalTypes';
 
 export * from './NodeContextMenu/NodeContextMenu';
-export * from './NodeGraphColumn/NodeGraphColumn';
-export * from './NodeGraphContainer/NodeGraphContainer';
-export * from './NodeGraphEdge/NodeGraphEdge';
+export * from './NodeColumn/NodeColumn';
+export * from './NodeGraph/NodeGraph';
+export * from './NodeEdge/NodeEdge';
 export * from './nodes';
 
 export const NodeWidth = {

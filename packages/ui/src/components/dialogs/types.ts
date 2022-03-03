@@ -153,3 +153,11 @@ export interface UnlinkedNodesDialogProps {
     handleToggleOpen: () => any;
     handleDeleteNode: (node: Node) => any;
 }
+
+export interface LinkDialogProps {
+    anchorEl: HTMLElement | null;
+    handleClose: (data: any) => any;
+    handleDelete: () => any;
+    isAdd: boolean;
+    routine: Routine;
+}

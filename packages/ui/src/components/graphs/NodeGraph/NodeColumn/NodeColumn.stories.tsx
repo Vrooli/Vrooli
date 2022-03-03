@@ -1,10 +1,10 @@
 import { Meta, Story } from "@storybook/react";
-import { NodeGraphColumn as Component } from '../';
-import { NodeGraphColumnProps as Props } from '../types';
+import { NodeColumn as Component } from '..';
+import { NodeColumnProps as Props } from '../types';
 
 // Define story metadata
 export default {
-    title: 'nodes/NodeGraphColumn',
+    title: 'nodes/NodeColumn',
     component: Component,
 } as Meta;
 

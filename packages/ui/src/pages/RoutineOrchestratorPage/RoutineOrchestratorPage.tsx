@@ -1,5 +1,5 @@
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { NodeGraphContainer, OrchestrationBottomContainer, OrchestrationInfoContainer, RoutineInfoDialog, UnlinkedNodesDialog } from 'components';
+import { NodeGraph, OrchestrationBottomContainer, OrchestrationInfoContainer, RoutineInfoDialog, UnlinkedNodesDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
@@ -9,6 +9,7 @@ import { routine } from 'graphql/generated/routine';
 import { OrchestrationDialogOption, OrchestrationRunState, OrchestrationStatus, Pubs } from 'utils';
 import {
     Add as AddIcon,
+    DeleteForever as DeleteIcon,
 } from '@mui/icons-material';
 import { Node, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
@@ -207,27 +208,60 @@ export const RoutineOrchestratorPage = ({
                 handleRoutineUpdate={updateRoutine}
                 handleTitleUpdate={updateRoutineTitle}
             />
-            <Box sx={{
+            {/* Components shown when editing */}
+            {isEditing ? <Box sx={{
                 display: 'flex',
                 alignItems: isUnlinkedNodesOpen ? 'baseline' : 'center',
-                alignSelf: 'flex-end',
+                // alignSelf: 'flex-end',
                 marginTop: 1,
                 marginLeft: 1,
                 marginRight: 1,
                 zIndex: isDragging ? 'unset' : 2,
             }}>
+                {/* Delete node (or whole orchestration) */}
+                <Tooltip title='Delete a node'>
+                    <IconButton
+                        id="delete-node-button"
+                        edge="start"
+                        size="large"
+                        onClick={() => { }}
+                        aria-label='Delete node'
+                        sx={{
+                            marginLeft: 1,
+                            marginRight: 'auto',
+                            '&:hover': {
+                                background: 'transparent',
+                            },
+                        }}
+                    >
+                        <DeleteIcon id="delete-node-button-icon" sx={{
+                            fill: '#8f969b',
+                            transform: 'scale(1.5)',
+                            '&:hover': {
+                                fill: (t) => t.palette.error.main,
+                            }
+                        }} />
+                    </IconButton>
+                </Tooltip>
                 {/* Add new nodes to the orchestration */}
                 <Tooltip title='Add new node'>
-                    <IconButton edge="end" onClick={() => { }} aria-label='Add node' sx={{
-                        background: (t) => t.palette.secondary.main,
-                        marginRight: 1,
-                        transition: 'brightness 0.2s ease-in-out',
-                        '&:hover': {
-                            filter: `brightness(105%)`,
+                    <IconButton
+                        id="add-node-button"
+                        edge="end"
+                        onClick={() => { }}
+                        aria-label='Add node'
+                        sx={{
                             background: (t) => t.palette.secondary.main,
-                        },
-                    }}>
-                        <AddIcon sx={{ fill: 'white' }} />
+                            marginLeft: 'auto',
+                            marginRight: 1,
+                            transition: 'brightness 0.2s ease-in-out',
+                            '&:hover': {
+                                filter: `brightness(105%)`,
+                                background: (t) => t.palette.secondary.main,
+                            },
+                        }}
+                    >
+                        <AddIcon id="add-node-button-icon" sx={{ fill: 'white' }} />
                     </IconButton>
                 </Tooltip>
                 {/* Displays unlinked nodes */}
@@ -237,7 +271,7 @@ export const RoutineOrchestratorPage = ({
                     handleToggleOpen={toggleUnlinkedNodes}
                     handleDeleteNode={() => { }}
                 />
-            </Box>
+            </Box> : null }
             <Box sx={{
                 width: '100%',
                 display: 'flex',
@@ -245,9 +279,9 @@ export const RoutineOrchestratorPage = ({
                 position: 'fixed',
                 bottom: '0',
             }}>
-                <NodeGraphContainer
+                <NodeGraph
                     scale={scale}
-                    isEditable={true}
+                    isEditing={isEditing}
                     labelVisible={true}
                     nodeDataMap={nodeDataMap}
                     links={changedRoutine?.nodeLinks ?? []}

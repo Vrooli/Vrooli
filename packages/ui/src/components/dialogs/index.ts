@@ -2,6 +2,7 @@ export * from './transitions';
 export * from './AlertDialog/AlertDialog';
 export * from './BaseObjectActionDialog/BaseObjectActionDialog';
 export * from './BaseObjectDialog/BaseObjectDialog';
+export * from './LinkDialog/LinkDialog';
 export * from './ListMenu/ListMenu';
 export * from './OrchestrationInfoDialog/OrchestrationInfoDialog';
 export * from './OrganizationDialog/OrganizationDialog';

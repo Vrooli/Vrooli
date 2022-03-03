@@ -29,7 +29,7 @@ export interface LabelledProps {
  * Props for editable node objects
  */
 export interface EditableProps {
-    isEditable?: boolean;
+    isEditing?: boolean;
 }
 
 /**
