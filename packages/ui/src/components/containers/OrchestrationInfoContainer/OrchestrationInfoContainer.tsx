@@ -149,8 +149,8 @@ export const OrchestrationInfoContainer = ({
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 {/* Edit button */}
                 {canEdit && !isEditing ? (
-                    <IconButton aria-label="confirm-title-change" onClick={handleStartEdit} sx={{ marginRight: 1 }}>
-                        <EditIcon sx={{ fill: '#40dd43' }} />
+                    <IconButton aria-label="confirm-title-change" onClick={handleStartEdit} >
+                        <EditIcon sx={{ fill: TERTIARY_COLOR }} />
                     </IconButton>
                 ) : null}
                 {/* Help button */}

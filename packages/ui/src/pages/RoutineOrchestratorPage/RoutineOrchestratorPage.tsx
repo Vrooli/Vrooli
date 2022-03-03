@@ -46,7 +46,7 @@ export const RoutineOrchestratorPage = ({
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const [isEditing, setIsEditing] = useState<boolean>(false);
-    const canEdit = useMemo(() => Boolean(session?.id) && routine?.owner?.id === session?.id, [routine]); //TODO handle organization
+    const canEdit = true;// TODO useMemo(() => Boolean(session?.id) && routine?.owner?.id === session?.id, [routine]); //TODO handle organization
 
     // Open/close routine info drawer
     const [isRoutineInfoOpen, setIsRoutineInfoOpen] = useState<boolean>(false);
@@ -181,6 +181,7 @@ export const RoutineOrchestratorPage = ({
 
     const revertChanges = useCallback(() => {
         setChangedRoutine(routine);
+        setIsEditing(false);
     }, [routine])
 
     return (

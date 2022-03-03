@@ -71,9 +71,9 @@ export interface NodeColumnProps {
 }
 
 export interface NodeEdgeProps {
-    fromId: string;
-    toId: string;
-    handleAdd: (fromId: string, toId: string, nodeType: NodeType) => void;
+    link: NodeLink;
+    handleAdd: (link: NodeLink, nodeType: NodeType) => void;
+    handleEdit: (link: NodeLink) => void;
     isEditing?: boolean;
     dragId: string | null; // ID of node being dragged. Used to determine if 
     scale: number; // Line thickness changes with scale

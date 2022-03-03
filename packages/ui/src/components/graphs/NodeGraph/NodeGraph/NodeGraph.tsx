@@ -303,12 +303,12 @@ export const NodeGraph = ({
             if (!link.fromId || !link.toId) return null;
             return <NodeEdge
                 key={`edge-${link.id}`}
-                fromId={link.fromId}
-                toId={link.toId}
+                link={link}
                 isEditing={isEditing}
                 dragId={dragId}
                 scale={scale ?? 1}
                 handleAdd={() => { }}
+                handleEdit={() => {}}
             />
         })
     }, [dragId, columnDimensions, isEditing, links, scale]);

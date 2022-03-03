@@ -39,33 +39,48 @@ export const OrchestrationBottomContainer = ({
     };
 
     /**
+     * Slider for scaling the graph
+     */
+    const slider = useMemo(() => (
+        <CustomSlider
+            aria-label="graph-scale"
+            min={0.25}
+            max={1}
+            defaultValue={1}
+            step={0.01}
+            value={scale}
+            valueLabelDisplay="auto"
+            onChange={onScaleChange}
+            sx={{ color: sliderColor, maxWidth: '500px', marginRight: 4 }}
+        />
+    ), [scale, sliderColor, onScaleChange]);
+
+    /**
      * Display previous, play/pause, and next if not editing.
      * If editing, display update and cancel.
      */
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                <Grid container spacing={1}>
-                    <Grid item xs={12} sm={3} sx={{ padding: 1 }}>
-                        <Button
-                            fullWidth
-                            startIcon={<UpdateIcon />}
-                            onClick={handleRoutineUpdate}
-                            disabled={loading || !canUpdate}
-                        >Update</Button>
-                    </Grid>
-                    <Grid item xs={12} sm={3}>
-                        <Button
-                            fullWidth
-                            startIcon={<CancelIcon />}
-                            onClick={handleCancelRoutineUpdate}
-                            disabled={loading || !canCancelUpdate}
-                        >Cancel</Button>
-                    </Grid>
-                </Grid>
+                <Stack direction="row" spacing={1}>
+                    <Button
+                        fullWidth
+                        startIcon={<UpdateIcon />}
+                        onClick={handleRoutineUpdate}
+                        disabled={loading || !canUpdate}
+                        sx={{ width: 'min(25vw, 150px)' }}
+                    >Update</Button>
+                    <Button
+                        fullWidth
+                        startIcon={<CancelIcon />}
+                        onClick={handleCancelRoutineUpdate}
+                        disabled={loading || !canCancelUpdate}
+                        sx={{ width: 'min(25vw, 150px)' }}
+                    >Cancel</Button>
+                </Stack>
             ) :
             (
-                <Stack direction="row" spacing={0} sx={{ marginLeft: 4 }}>
+                <Stack direction="row" spacing={0}>
                     <Tooltip title={hasPrevious ? "Previous" : ''} placement="top">
                         <IconButton aria-label="show-previous-routine" size='large' disabled={!hasPrevious} >
                             <PreviousIcon sx={{ fill: hasPrevious ? '#e4efee' : '#a7a7a7' }} />
@@ -86,7 +101,7 @@ export const OrchestrationBottomContainer = ({
                     )}
                     <Tooltip title={hasNext ? "Next" : ''} placement="top">
                         <IconButton aria-label="show-next-routine" size='large' disabled={!hasNext}>
-                            <NextIcon sx={{ fill: hasPrevious ? '#e4efee' : '#a7a7a7' }}  />
+                            <NextIcon sx={{ fill: hasPrevious ? '#e4efee' : '#a7a7a7' }} />
                         </IconButton>
                     </Tooltip>
                 </Stack>
@@ -101,17 +116,7 @@ export const OrchestrationBottomContainer = ({
             alignItems: 'center',
             paddingBottom: { xs: '72px', md: '16px' },
         }}>
-            <CustomSlider
-                aria-label="graph-scale"
-                min={0.25}
-                max={1}
-                defaultValue={1}
-                step={0.01}
-                value={scale}
-                valueLabelDisplay="auto"
-                onChange={onScaleChange}
-                sx={{ color: sliderColor, maxWidth: '500px' }}
-            />
+            {slider}
             {buttons}
         </Box>
     )
