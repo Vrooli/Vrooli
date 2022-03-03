@@ -46,3 +46,9 @@ export enum OrchestrationDialogOption {
     AddRoutineItem,
     ViewRoutineItem,
 }
+
+export enum OrchestrationRunState {
+    Paused,
+    Running,
+    Stopped,
+}

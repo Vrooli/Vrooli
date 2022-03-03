@@ -1,3 +1,6 @@
+import { OrchestrationRunState, OrchestrationStatus } from "utils";
+import { Routine } from "types";
+
 export interface TitleContainerProps {
     id?: string;
     title?: string;
@@ -17,4 +20,29 @@ export interface DialogActionsContainerProps {
     fixed?: boolean; // if true, the actions will be fixed to the bottom of the window
     actions: DialogActionItem[];
     onResize?: ({ height: number, width: number }) => any;
+}
+
+export interface OrchestrationBottomContainerProps {
+    canUpdate: boolean;
+    canCancelUpdate: boolean;
+    handleCancelRoutineUpdate: () => void;
+    handleRoutineUpdate: () => void;
+    handleScaleChange: (scale: number) => void;
+    hasPrevious: boolean;
+    hasNext: boolean;
+    isEditing: boolean;
+    loading: boolean;
+    scale: number;
+    sliderColor: string;
+    runState: OrchestrationRunState
+}
+
+export interface OrchestrationInfoContainerProps {
+    canEdit: boolean;
+    handleStartEdit: () => void;
+    isEditing: boolean;
+    status: OrchestrationStatusObject;
+    routine: Routine | null;
+    handleRoutineUpdate: (changedRoutine: Routine) => void;
+    handleTitleUpdate: (newTitle: string) => void;
 }

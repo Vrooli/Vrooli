@@ -17,10 +17,10 @@ import {
 import { OrchestrationInfoDialogProps } from '../types';
 
 export const OrchestrationInfoDialog = ({
-    sxs,
+    handleUpdate,
+    isEditing,
     routineInfo,
-    onUpdate,
-    onCancel
+    sxs,
 }: OrchestrationInfoDialogProps) => {
     const [open, setOpen] = useState(false);
 

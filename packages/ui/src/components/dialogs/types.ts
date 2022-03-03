@@ -135,10 +135,10 @@ export interface BaseObjectActionDialogProps {
 }
 
 export interface OrchestrationInfoDialogProps {
-    sxs?: { icon: any };
+    handleUpdate: (routine: Routine) => any;
+    isEditing: boolean;
     routineInfo: Routine | null;
-    onUpdate: (routine: Routine) => any;
-    onCancel: () => any;
+    sxs?: { icon: any };
 }
 
 export interface RoutineInfoDialogProps {

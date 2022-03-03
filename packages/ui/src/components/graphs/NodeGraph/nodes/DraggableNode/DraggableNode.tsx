@@ -77,7 +77,7 @@ export const DraggableNode = ({
                 justifyContent={"center"}
                 alignItems={"center"}
                 sx={{
-                    zIndex: isDragging ? 10 : 5,
+                    zIndex: isDragging ? 10000 : 100000,
                     opacity: isDragging ? 0.5 : 1
                 }}
                 {...props}

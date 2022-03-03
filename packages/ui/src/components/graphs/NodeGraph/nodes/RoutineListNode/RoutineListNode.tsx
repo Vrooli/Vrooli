@@ -78,10 +78,6 @@ export const RoutineListNode = ({
         onResize(node.id, bounds.height);
     }, [node.id, onResize])
 
-    const addRoutine = () => {
-        console.log('ADD ROUTINE CALLED')
-    };
-
     const confirmDelete = useCallback((event: any) => {
         event.stopPropagation();
         PubSub.publish(Pubs.AlertDialog, {
@@ -168,7 +164,7 @@ export const RoutineListNode = ({
 
     const addButton = useMemo(() => isEditable ? (
         <IconButton
-            onClick={addRoutine}
+            onClick={() => handleDialogOpen(node.id, OrchestrationDialogOption.AddRoutineItem)}
             sx={{
                 ...containerShadow,
                 width: addSize,
@@ -188,7 +184,7 @@ export const RoutineListNode = ({
                 },
             }}
         >
-            <AddIcon onClick={() => handleDialogOpen(node.id, OrchestrationDialogOption.AddRoutineItem)} />
+            <AddIcon />
         </IconButton>
     ) : null, [addSize, isEditable]);
 

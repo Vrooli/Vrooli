@@ -130,8 +130,6 @@ export const NodeGraphContainer = ({
     const handleDragStop = useCallback((nodeId: string, { x, y }: { x: number, y: number }) => {
         console.log('DRAG STOPPPPPPPP START', nodeId, { x, y });
         setDragId(null);
-        PubSub.publish(Pubs.NodeDrag, { nodeId: undefined });
-        console.log('DRAG STOPPPPPPP A')
         // Determine column that node is being dropped into
         const columnPadding = scale * 25;
         let graphWidth = 0;
