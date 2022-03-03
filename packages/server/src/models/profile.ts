@@ -1,5 +1,5 @@
 import { PrismaType, RecursivePartial } from "types";
-import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagSearchInput, User, UserDeleteInput } from "../schema/types";
+import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagHidden, TagSearchInput, User, UserDeleteInput } from "../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
 import { addJoinTablesHelper, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, PaginatedSearchResult, readManyHelper, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialSelect } from "./base";
 import { user } from "@prisma/client";
@@ -304,9 +304,10 @@ const profileQuerier = (prisma: PrismaType) => ({
                 }
             }
         })).map(({ tag }) => tag) as Tag[]
-        const hiddenTags: Tag[] = (await prisma.user_tag_hidden.findMany({
+        const hiddenTags: TagHidden[] = (await prisma.user_tag_hidden.findMany({
             where: { userId: userId },
             select: {
+                isBlur: true,
                 tag: {
                     select: {
                         id: true,
@@ -316,7 +317,7 @@ const profileQuerier = (prisma: PrismaType) => ({
                     }
                 }
             }
-        })).map(({ tag }) => tag) as Tag[]
+        })) as TagHidden[]
         return { ...profileData, starredTags, hiddenTags };
     },
     /**

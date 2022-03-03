@@ -413,6 +413,7 @@ model routine {
     description             String                   @db.VarChar(2048)
     instructions            String                   @db.VarChar(8192) // Plaintext or markdown instructions
     isAutomatable           Boolean                  @default(false) // Indicates if the routine can be run automatically, if all conditions are met
+    isInternal              Boolean                  @default(false) // Indicates if the routine should appear in searches, or if it is only meant to be a subnode of another routine
     title                   String                   @db.VarChar(128)
     version                 String                   @default("1.0.0") @db.VarChar(16) // Arbitrary version number
     createdByUserId         String?                  @db.Uuid // User who created this routine

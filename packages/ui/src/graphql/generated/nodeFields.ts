@@ -35,6 +35,7 @@ export interface nodeFields_data_NodeRoutineList_routines_routine {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  isInternal: boolean | null;
   role: MemberRole | null;
   tags: nodeFields_data_NodeRoutineList_routines_routine_tags[];
 }

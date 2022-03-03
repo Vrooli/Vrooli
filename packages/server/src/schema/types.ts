@@ -281,8 +281,6 @@ export type Mutation = {
   writeAssets?: Maybe<Scalars['Boolean']>;
 };
 
-export type TagHidden = any;
-
 
 export type MutationCommentCreateArgs = {
   input: CommentCreateInput;
@@ -873,7 +871,7 @@ export type Profile = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   emails: Array<Email>;
-  hiddenTags?: Maybe<Array<Tag>>;
+  hiddenTags?: Maybe<Array<TagHidden>>;
   id: Scalars['ID'];
   projects: Array<Project>;
   projectsCreated: Array<Project>;
@@ -1397,6 +1395,7 @@ export type Routine = {
   inputs: Array<InputItem>;
   instructions?: Maybe<Scalars['String']>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
+  isInternal?: Maybe<Scalars['Boolean']>;
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   nodeLinks: Array<NodeLink>;
@@ -1429,6 +1428,7 @@ export type RoutineCreateInput = {
   inputsCreate?: InputMaybe<Array<InputItemCreateInput>>;
   instructions?: InputMaybe<Scalars['String']>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
+  isInternal?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
   outputsCreate?: InputMaybe<Array<OutputItemCreateInput>>;
@@ -1453,8 +1453,8 @@ export type RoutineSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: Scalars['ID'];
   parentId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineSortBy>;
@@ -1494,6 +1494,7 @@ export type RoutineUpdateInput = {
   inputsUpdate?: InputMaybe<Array<InputItemUpdateInput>>;
   instructions?: InputMaybe<Scalars['String']>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
+  isInternal?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodeLinksDelete?: InputMaybe<Array<Scalars['ID']>>;
   nodeLinksUpdate?: InputMaybe<Array<NodeLinkUpdateInput>>;
@@ -1581,7 +1582,7 @@ export type StandardSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: Scalars['ID'];
+  projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -1691,10 +1692,6 @@ export type Tag = {
   updated_at: Scalars['Date'];
 };
 
-export type TagBlur = {
-    [x: string]: any;
-}
-
 export type TagCountInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -1710,6 +1707,12 @@ export type TagEdge = {
   __typename?: 'TagEdge';
   cursor: Scalars['String'];
   node: Tag;
+};
+
+export type TagHidden = {
+  __typename?: 'TagHidden';
+  isBlur: Scalars['Boolean'];
+  tag: Tag;
 };
 
 export type TagSearchInput = {
@@ -1761,9 +1764,9 @@ export type User = {
   id: Scalars['ID'];
   isStarred: Scalars['Boolean'];
   projects: Array<Project>;
+  projectsCreated: Array<Project>;
   reports: Array<Report>;
   resources: Array<Resource>;
-  roles: Array<Role>;
   routines: Array<Routine>;
   routinesCreated: Array<Routine>;
   starredBy: Array<User>;
@@ -1828,7 +1831,7 @@ export type Vote = {
   __typename?: 'Vote';
   from: User;
   isUpvote?: Maybe<Scalars['Boolean']>;
-  to: StarTo;
+  to: VoteTo;
 };
 
 export enum VoteFor {

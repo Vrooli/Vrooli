@@ -30,6 +30,7 @@ export interface routines_routines_edges_node {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  isInternal: boolean | null;
   role: MemberRole | null;
   tags: routines_routines_edges_node_tags[];
   stars: number;

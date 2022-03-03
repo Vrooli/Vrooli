@@ -25,12 +25,15 @@ export const profileFields = gql`
             isStarred
         }
         hiddenTags {
-            id
-            tag
-            description
-            created_at
-            stars
-            isStarred
+            isBlur
+            tag {
+                id
+                tag
+                description
+                created_at
+                stars
+                isStarred
+            }
         }
     }
 `

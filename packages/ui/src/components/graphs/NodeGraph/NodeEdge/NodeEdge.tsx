@@ -9,17 +9,19 @@ import { NodeType } from 'graphql/generated/globalTypes';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { ListMenu } from 'components';
 
+type Point = {
+    x: number;
+    y: number;
+}
+
 type EdgePositions = {
     top: number;
     left: number;
     width: number;
     height: number;
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
     fromEnd: number;
     toStart: number;
+    bezier: [Point, Point, Point, Point];
 }
 
 // NOTE: Since adding along an edge means that there will always be a node 
@@ -44,12 +46,15 @@ export const NodeEdge = ({
     handleAdd,
     handleEdit,
     isEditing,
+    isFromRoutineList,
+    isToRoutineList,
     link,
     dragId,
     scale,
 }: NodeEdgeProps) => {
+    const padding = 100; // Adds padding to make sure the line doesn't get cut off
     // Store dimensions of edge
-    const [dims, setDims] = useState<EdgePositions>({ top: 0, left: 0, width: 0, height: 0, x1: 0, y1: 0, x2: 0, y2: 0, fromEnd: 0, toStart: 0 });
+    const [dims, setDims] = useState<EdgePositions | null>(null);
     const thiccness = useMemo(() => Math.ceil(scale * 3), [scale]);
 
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -74,6 +79,45 @@ export const NodeEdge = ({
     const handleEditClick = useCallback(() => {
         handleEdit(link);
     }, [handleEdit, link]);
+
+    /**
+     * Finds the coordinate of a point on a bezier curve
+     * @param t The t value of the point (0-1)
+     * @param sp The start point of the curve
+     * @param cp1 The first control point
+     * @param cp2 The second control point
+     * @param ep The end point of the curve
+     * @returns The y position of the point
+     */
+    const getBezierPoint = (t: number, sp: Point, cp1: Point, cp2: Point, ep: Point): Point => {
+        return {
+            x: Math.pow(1 - t, 3) * sp.x + 3 * t * Math.pow(1 - t, 2) * cp1.x
+                + 3 * t * t * (1 - t) * cp2.x + t * t * t * ep.x,
+            y: Math.pow(1 - t, 3) * sp.y + 3 * t * Math.pow(1 - t, 2) * cp1.y
+                + 3 * t * t * (1 - t) * cp2.y + t * t * t * ep.y
+        };
+    }
+
+    /**
+     * Creates a bezier curve between two points
+     * @param p1 The first point
+     * @param p2 The second point
+     * @returns The bezier curve, as an array of {x, y} objects
+     */
+    const createBezier = (p1: Point, p2: Point): [Point, Point, Point, Point] => {
+        console.log('createBezier', p1, p2);
+        const midX = (p1.x + p2.x) / 2;
+        // Calculate two horizontal lines for midpoints
+        const mid1 = {
+            x: midX,
+            y: p1.y,
+        }
+        const mid2 = {
+            x: midX,
+            y: p2.y,
+        }
+        return [p1, mid1, mid2, p2];
+    }
 
     /**
      * Calculates absolute position of one point of an edge.
@@ -106,18 +150,25 @@ export const NodeEdge = ({
     const calculateDims = useCallback(() => {
         const fromPoint = getPoint(link.fromId);
         const toPoint = getPoint(link.toId);
-        let top = 0, left = 0, width = 0, height = 0, x1 = 0, y1 = 0, x2 = 0, y2 = 0;
         if (fromPoint && toPoint) {
-            top = Math.min(fromPoint.y, toPoint.y);
-            left = Math.min(fromPoint.x, toPoint.x);
-            width = Math.abs(fromPoint.x - toPoint.x);
-            height = Math.abs(fromPoint.y - toPoint.y);
-            x1 = toPoint.x > fromPoint.x ? 0 : width;
-            y1 = toPoint.y > fromPoint.y ? 0 : height;
-            x2 = toPoint.x > fromPoint.x ? width : 0;
-            y2 = toPoint.y > fromPoint.y ? height : 0;
+            const top = Math.min(fromPoint.y, toPoint.y) - padding;
+            const left = Math.min(fromPoint.x, toPoint.x) - padding;
+            const width = Math.abs(fromPoint.x - toPoint.x) + (padding * 2);
+            const height = Math.abs(fromPoint.y - toPoint.y) + (padding * 2);
+            const from = {
+                x: toPoint.x > fromPoint.x ? padding : width - padding,
+                y: toPoint.y > fromPoint.y ? padding : height - padding,
+            }
+            const to = {
+                x: toPoint.x > fromPoint.x ? width - padding : padding,
+                y: toPoint.y > fromPoint.y ? height - padding : padding,
+            }
+            const fromEnd = (fromPoint?.endX ?? 0) - padding;
+            const toStart = (toPoint?.startX ?? 0) + padding;
+            let bezier = createBezier(from, to);
+            setDims({ top, left, width, height, fromEnd, toStart, bezier });
         }
-        setDims({ top, left, width, height, x1, y1, x2, y2, fromEnd: fromPoint?.endX ?? 0, toStart: toPoint?.startX ?? 0 });
+        else setDims(null);
     }, [link.fromId, link.toId, setDims]);
 
     /**
@@ -137,35 +188,56 @@ export const NodeEdge = ({
     /**
      * Edge component
      */
-    const edge = useMemo(() => (
-        <svg
-            width={dims.width}
-            // Extra height to make sure horizontal lines are shown
-            height={dims.height + thiccness}
-            style={{
-                zIndex: -1, // Display behind nodes
-                position: "absolute",
-                pointerEvents: "none",
-                top: dims.top,
-                left: dims.left,
-            }}
-        >
-            <line x1={dims.x1} y1={dims.y1} x2={dims.x2} y2={dims.y2} stroke="#9e3984" strokeWidth={thiccness} />
-        </svg>
-    ), [dims, thiccness])
+    const edge = useMemo(() => {
+        if (!dims) return null;
+        return (
+            <svg
+                width={dims.width}
+                height={dims.height}
+                style={{
+                    zIndex: -1, // Display behind nodes
+                    position: "absolute",
+                    pointerEvents: "none",
+                    top: dims.top,
+                    left: dims.left,
+                }}
+            >
+                {/* Bezier curve line */}
+                <path
+                    d={`
+                    M${dims.bezier[0].x},${dims.bezier[0].y} 
+                    C${dims.bezier[1].x},${dims.bezier[1].y}
+                    ${dims.bezier[2].x},${dims.bezier[2].y}
+                    ${dims.bezier[3].x},${dims.bezier[3].y}
+                `}
+                    fill="none"
+                    stroke="#9e3984"
+                    strokeWidth={thiccness}
+                />
+                {/* Straight line */}
+                {/* <line x1={dims.x1} y1={dims.y1} x2={dims.x2} y2={dims.y2} stroke="#9e3984" strokeWidth={thiccness} /> */}
+            </svg>
+        )
+    }, [dims, thiccness])
 
     /**
      * If isEditable, displays a clickable button for editing the edge or inserting a node
      */
     const editButton = useMemo(() => {
-        if (!isEditing) return null;
+        if (!isEditing || !dims) return null;
+        // If from and to are both routine lists (or both NOT routine lists), then use bezier midpoint.
+        // If one is a routine list and the other is not, use a point further from the routine list
+        let t = 0.5;
+        if (isFromRoutineList && !isToRoutineList) t = 0.75;
+        else if (!isFromRoutineList && isToRoutineList) t = 0.25;
+        const bezierPoint = getBezierPoint(t, ...dims.bezier);
         const diameter: number = isEditOpen ? scale * 30 : scale * 25
         return (
             <Tooltip title={isEditOpen ? '' : "Edit edge or insert node"}>
                 <Box onClick={toggleIsEditOpen} sx={{
                     position: "absolute",
-                    top: dims.top + (dims.height / 2) - (diameter / 2),
-                    left: (dims.fromEnd + dims.toStart) / 2 - (diameter / 2),
+                    top: dims.top + bezierPoint.y - (diameter / 2),
+                    left: dims.left + bezierPoint.x - (diameter / 2),
                     height: `${diameter}px`,
                     width: `${diameter}px`,
                     borderRadius: '100%',
@@ -235,7 +307,7 @@ export const NodeEdge = ({
                 </Box>
             </Tooltip>
         );
-    }, [isEditOpen, isEditing, openAddMenu, dims, scale]);
+    }, [isEditOpen, isEditing, isFromRoutineList, isToRoutineList, openAddMenu, dims, scale]);
 
     /**
      * Menu for adding a new node

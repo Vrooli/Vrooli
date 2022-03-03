@@ -148,7 +148,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         const projectIdQuery = input.projectId ? { projectId: input.projectId } : {};
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        return { ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery };
+        return { isInternal: false, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery };
     },
 })
 
@@ -168,6 +168,7 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
             name: data.title,
             instructions: data.instructions,
             isAutomatable: data.isAutomatable,
+            isInternal: data.isInternal,
             parentId: data.parentId,
             version: data.version,
             contextualResources: ResourceModel(prisma).relationshipBuilder(userId, {

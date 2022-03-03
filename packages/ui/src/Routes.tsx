@@ -137,7 +137,7 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* Pages for creating and running routine orchestrations */}
                 <Route path={`${LINKS.Orchestrate}/:id`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Plan Routine')} {...props} restrictedToRoles={[ROLES.Actor]}>
+                        <Page title={title('Routine Build')} {...props}>
                             <RoutineOrchestratorPage session={props.session ?? {}} />
                         </Page>
                     </Suspense>

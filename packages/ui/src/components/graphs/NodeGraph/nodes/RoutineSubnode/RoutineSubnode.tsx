@@ -24,7 +24,6 @@ export const RoutineSubnode = ({
     nodeId,
     data,
     scale = 1,
-    label = 'Routine Item',
     labelVisible = true,
     isEditing = true,
     handleDialogOpen,
@@ -45,13 +44,12 @@ export const RoutineSubnode = ({
                 whiteSpace: 'pre',
             } as CSSProperties}
         >
-            {label}
+            {data.title ?? data.routine.title ?? 'Untitled'}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [data.title, labelVisible]);
 
     return (
         <Box
-            borderRadius={'12px 12px 0 0'}
             sx={{
                 ...containerShadow,
                 minWidth: nodeSize,
@@ -59,6 +57,8 @@ export const RoutineSubnode = ({
                 position: 'relative',
                 display: 'block',
                 marginBottom: '8px',
+                borderRadius: '12px',
+                overflow: 'overlay',
                 backgroundColor: (t) => t.palette.background.paper,
                 color: (t) => t.palette.background.textPrimary,
             }}
@@ -68,7 +68,6 @@ export const RoutineSubnode = ({
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    borderRadius: '12px 12px 0 0',
                     backgroundColor: (t) => t.palette.primary.main,
                     color: (t) => t.palette.primary.contrastText,
                     padding: '0.1em',

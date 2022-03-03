@@ -93,7 +93,7 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
  */
 export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, EditableProps {
     nodeId: string; //ID of parent node
-    data?: NodeDataRoutineListItem;
+    data: NodeDataRoutineListItem;
     /**
       * Prompts parent to open a specific dialog
       */

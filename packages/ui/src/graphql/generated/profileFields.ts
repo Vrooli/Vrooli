@@ -31,7 +31,7 @@ export interface profileFields_starredTags {
   isStarred: boolean;
 }
 
-export interface profileFields_hiddenTags {
+export interface profileFields_hiddenTags_tag {
   __typename: "Tag";
   id: string;
   tag: string;
@@ -39,6 +39,12 @@ export interface profileFields_hiddenTags {
   created_at: any;
   stars: number;
   isStarred: boolean;
+}
+
+export interface profileFields_hiddenTags {
+  __typename: "TagHidden";
+  isBlur: boolean;
+  tag: profileFields_hiddenTags_tag;
 }
 
 export interface profileFields {

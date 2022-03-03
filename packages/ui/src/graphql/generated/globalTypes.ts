@@ -591,6 +591,7 @@ export interface RoutineCreateInput {
   description?: string | null;
   instructions?: string | null;
   isAutomatable?: boolean | null;
+  isInternal?: boolean | null;
   title: string;
   version?: string | null;
   parentId?: string | null;
@@ -610,6 +611,7 @@ export interface RoutineCreateInput {
 export interface RoutineSearchInput {
   userId?: string | null;
   organizationId?: string | null;
+  projectId?: string | null;
   parentId?: string | null;
   reportId?: string | null;
   ids?: string[] | null;
@@ -626,6 +628,7 @@ export interface RoutineUpdateInput {
   description?: string | null;
   instructions?: string | null;
   isAutomatable?: boolean | null;
+  isInternal?: boolean | null;
   title?: string | null;
   version?: string | null;
   parentId?: string | null;
@@ -676,6 +679,7 @@ export interface StandardCreateInput {
 export interface StandardSearchInput {
   userId?: string | null;
   organizationId?: string | null;
+  projectId?: string | null;
   routineId?: string | null;
   reportId?: string | null;
   ids?: string[] | null;

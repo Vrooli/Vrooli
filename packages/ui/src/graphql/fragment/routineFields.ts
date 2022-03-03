@@ -13,6 +13,7 @@ export const routineFields = gql`
         description
         created_at
         isAutomatable
+        isInternal
         role
         tags {
             ...routineTagFields

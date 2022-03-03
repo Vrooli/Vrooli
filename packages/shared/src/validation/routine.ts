@@ -6,6 +6,7 @@ import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
 const isAutomatable = yup.boolean().optional();
+const isInternal = yup.boolean().optional();
 const isRequired = yup.boolean().optional();
 const instructions = yup.string().max(8192).optional();
 const version = yup.string().max(16).optional();
@@ -49,6 +50,7 @@ export const routineCreate = yup.object().shape({
     description,
     instructions,
     isAutomatable,
+    isInternal,
     title: title.required(),
     version,
     parentId: id, // If forked, the parent's id
@@ -71,6 +73,7 @@ export const routineUpdate = yup.object().shape({
     description,
     instructions,
     isAutomatable,
+    isInternal,
     title: title.required(),
     version,
     parentId: id, // If forked, the parent's id

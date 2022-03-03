@@ -24,6 +24,7 @@ export interface nodeRoutineFields {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  isInternal: boolean | null;
   role: MemberRole | null;
   tags: nodeRoutineFields_tags[];
 }

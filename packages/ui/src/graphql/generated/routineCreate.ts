@@ -24,6 +24,7 @@ export interface routineCreate_routineCreate {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  isInternal: boolean | null;
   role: MemberRole | null;
   tags: routineCreate_routineCreate_tags[];
   stars: number;

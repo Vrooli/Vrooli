@@ -33,7 +33,7 @@ export interface profileUpdate_profileUpdate_starredTags {
   isStarred: boolean;
 }
 
-export interface profileUpdate_profileUpdate_hiddenTags {
+export interface profileUpdate_profileUpdate_hiddenTags_tag {
   __typename: "Tag";
   id: string;
   tag: string;
@@ -41,6 +41,12 @@ export interface profileUpdate_profileUpdate_hiddenTags {
   created_at: any;
   stars: number;
   isStarred: boolean;
+}
+
+export interface profileUpdate_profileUpdate_hiddenTags {
+  __typename: "TagHidden";
+  isBlur: boolean;
+  tag: profileUpdate_profileUpdate_hiddenTags_tag;
 }
 
 export interface profileUpdate_profileUpdate {

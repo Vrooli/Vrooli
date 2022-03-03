@@ -13,6 +13,7 @@ export const nodeFields = gql`
         description
         created_at
         isAutomatable
+        isInternal
         role
         tags {
             ...nodeTagFields

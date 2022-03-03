@@ -40,6 +40,7 @@ export const RoutineListNode = ({
     onResize,
     handleDialogOpen,
 }: RoutineListNodeProps) => {
+    console.log('ROUTINELIST NODE', node);
     // Stores position of click/touch start, to cancel click event if drag occurs
     const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
     // Stores if touch event was a drag
@@ -161,7 +162,7 @@ export const RoutineListNode = ({
             nodeId={node.id}
             scale={scale}
         />
-    )), [node?.data, labelVisible, scale]);
+    )), [node?.data, isEditing, labelVisible, scale]);
 
     const addButton = useMemo(() => isEditing ? (
         <IconButton

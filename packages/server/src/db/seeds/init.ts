@@ -292,6 +292,7 @@ export async function init(prisma: PrismaType) {
                 description: 'Hash out your new business idea.',
                 instructions: 'Fill out the following forms to collect your thoughts and decide if your business idea is worth pursuing.',
                 isAutomatable: true,
+                isInternal: false,
                 version: '1.0.0',
                 createdByOrganization: { connect: { id: vrooli.id } },
                 organization: { connect: { id: vrooli.id } },
@@ -371,10 +372,11 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Overview - Starting New Business Frameworks',
+                                                        title: 'Overview',
                                                         description: 'Hash out your new business idea.',
                                                         instructions: 'Fill out the form below',
                                                         isAutomatable: true,
+                                                        isInternal: true,
                                                         version: '1.0.0',
                                                         createdByOrganization: { connect: { id: vrooli.id } },
                                                         organization: { connect: { id: vrooli.id } },
@@ -386,10 +388,11 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Roadmap - Starting New Business Frameworks',
+                                                        title: 'Roadmap',
                                                         description: 'Develop a roadmap for your new business',
                                                         instructions: 'Fill out the form below',
                                                         isAutomatable: true,
+                                                        isInternal: true,
                                                         version: '1.0.0',
                                                         createdByOrganization: { connect: { id: vrooli.id } },
                                                         organization: { connect: { id: vrooli.id } },
@@ -417,7 +420,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Company - Starting New Business Frameworks',
+                                                        title: 'Company',
                                                         description: "Define your company's structure",
                                                         instructions: 'Fill out the form below',
                                                         //TODO
@@ -443,7 +446,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Validation - Starting New Business Frameworks',
+                                                        title: 'Validation',
                                                         description: 'Reflect on your new business idea and decide if it is worth pursuing',
                                                         instructions: 'Fill out the form below',
                                                         //TODO
@@ -475,7 +478,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Marketing and Sales - Starting New Business Frameworks',
+                                                        title: 'Marketing and Sales',
                                                         description: 'Define a marketing strategy for your business',
                                                         instructions: 'Fill out the form below',
                                                         //TODO
@@ -485,7 +488,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Pitch Deck - Starting New Business Frameworks',
+                                                        title: 'Pitch Deck',
                                                         description: 'Determine key plans and metrics to measure success',
                                                         instructions: 'Fill out the form below',
                                                         //TODO
@@ -511,7 +514,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Culture - Starting New Business Frameworks',
+                                                        title: 'Culture',
                                                         description: "Define your team's culture",
                                                         instructions: 'Fill out the form below',
                                                         //TODO
@@ -521,7 +524,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Build Team - Starting New Business Frameworks',
+                                                        title: 'Build Team',
                                                         description: 'Build a team to run your business',
                                                         instructions: 'Fill out the form below',
                                                         //TODO
@@ -547,7 +550,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Sales Playbook - Starting New Business Frameworks',
+                                                        title: 'Sales Playbook',
                                                         description: 'Further defines your sales strategy',
                                                         instructions: 'Fill out the form below',
                                                         //TODO
@@ -557,7 +560,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Product Market Fit - Starting New Business Frameworks',
+                                                        title: 'Product Market Fit',
                                                         description: "Determine your product's market fit",
                                                         instructions: 'Fill out the form below',
                                                         //TODO
@@ -567,7 +570,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Growth State Machine - Starting New Business Frameworks',
+                                                        title: 'Growth State Machine',
                                                         description: 'Define a plan to scale your business',
                                                         instructions: 'Fill out the form below',
                                                         //TODO
@@ -593,10 +596,11 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Monetization - Starting New Business Frameworks',
+                                                        title: 'Monetization',
                                                         description: 'Determine how your for-profit business will make money',
                                                         instructions: 'Fill out the form below',
                                                         isAutomatable: true,
+                                                        isInternal: true,
                                                         version: '1.0.0',
                                                         createdByOrganization: { connect: { id: vrooli.id } },
                                                         organization: { connect: { id: vrooli.id } },
@@ -608,10 +612,11 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Fundraising - Starting New Business Frameworks',
+                                                        title: 'Fundraising',
                                                         description: 'Set up fundraising',
                                                         instructions: 'Fill out the form below',
                                                         isAutomatable: true,
+                                                        isInternal: true,
                                                         version: '1.0.0',
                                                         createdByOrganization: { connect: { id: vrooli.id } },
                                                         organization: { connect: { id: vrooli.id } },
@@ -623,10 +628,11 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Investing - Starting New Business Frameworks',
+                                                        title: 'Investing',
                                                         description: 'Set up investing',
                                                         instructions: 'Fill out the form below',
                                                         isAutomatable: true,
+                                                        isInternal: true,
                                                         version: '1.0.0',
                                                         createdByOrganization: { connect: { id: vrooli.id } },
                                                         organization: { connect: { id: vrooli.id } },
@@ -654,7 +660,7 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
-                                                        title: 'Scale Playbook - Starting New Business Frameworks',
+                                                        title: 'Scale Playbook',
                                                         description: 'Summarize and reformulate key insights you have gained',
                                                         instructions: 'Fill out the form below',
                                                         //TODO

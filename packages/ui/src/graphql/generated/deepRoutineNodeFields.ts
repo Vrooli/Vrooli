@@ -24,6 +24,7 @@ export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
   title: string | null;
+  isInternal: boolean | null;
 }
 
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines {

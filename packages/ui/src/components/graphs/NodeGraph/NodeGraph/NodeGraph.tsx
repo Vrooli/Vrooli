@@ -10,6 +10,7 @@ import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'r
 import { Pubs, updateArray } from 'utils';
 import { ColumnDimensions, NodeGraphProps } from '../types';
 import { Node } from 'types';
+import { NodeType } from 'graphql/generated/globalTypes';
 
 type DragRefs = {
     lastPosition: { x: number, y: number };
@@ -301,17 +302,21 @@ export const NodeGraph = ({
         console.log('calculating edges', columnDimensions);
         return links?.map(link => {
             if (!link.fromId || !link.toId) return null;
+            const fromNode = nodeDataMap[link.fromId];
+            const toNode = nodeDataMap[link.toId];
             return <NodeEdge
                 key={`edge-${link.id}`}
                 link={link}
                 isEditing={isEditing}
+                isFromRoutineList={fromNode.node.type === NodeType.RoutineList}
+                isToRoutineList={toNode.node.type === NodeType.RoutineList}
                 dragId={dragId}
                 scale={scale ?? 1}
                 handleAdd={() => { }}
                 handleEdit={() => {}}
             />
         })
-    }, [dragId, columnDimensions, isEditing, links, scale]);
+    }, [dragId, columnDimensions, nodeDataMap, isEditing, links, scale]);
 
     /**
      * Node column objects

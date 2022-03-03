@@ -24,6 +24,7 @@ export interface routineUpdate_routineUpdate {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  isInternal: boolean | null;
   role: MemberRole | null;
   tags: routineUpdate_routineUpdate_tags[];
   stars: number;

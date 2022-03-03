@@ -48,6 +48,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
   title: string | null;
+  isInternal: boolean | null;
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines {
@@ -179,6 +180,7 @@ export interface routine_routine {
   created_at: any;
   instructions: string | null;
   isAutomatable: boolean | null;
+  isInternal: boolean | null;
   title: string | null;
   description: string | null;
   updated_at: any;

@@ -61,6 +61,7 @@ export const deepRoutineFields = gql`
                     routine {
                         id
                         title
+                        isInternal
                     }
                 }
             }
@@ -93,6 +94,7 @@ export const deepRoutineFields = gql`
         created_at
         instructions
         isAutomatable
+        isInternal
         title
         description
         updated_at

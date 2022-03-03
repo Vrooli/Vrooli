@@ -24,6 +24,7 @@ export interface routineFields {
   description: string | null;
   created_at: any;
   isAutomatable: boolean | null;
+  isInternal: boolean | null;
   role: MemberRole | null;
   tags: routineFields_tags[];
   stars: number;

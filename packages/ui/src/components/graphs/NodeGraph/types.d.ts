@@ -75,6 +75,8 @@ export interface NodeEdgeProps {
     handleAdd: (link: NodeLink, nodeType: NodeType) => void;
     handleEdit: (link: NodeLink) => void;
     isEditing?: boolean;
+    isFromRoutineList: boolean; // If true, puts edit button further right
+    isToRoutineList: boolean; // If true, puts edit button further left
     dragId: string | null; // ID of node being dragged. Used to determine if 
     scale: number; // Line thickness changes with scale
 }

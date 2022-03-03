@@ -28,6 +28,7 @@ export const typeDef = gql`
         description: String
         instructions: String
         isAutomatable: Boolean
+        isInternal: Boolean
         title: String!
         version: String
         parentId: ID
@@ -48,6 +49,7 @@ export const typeDef = gql`
         description: String
         instructions: String
         isAutomatable: Boolean
+        isInternal: Boolean
         title: String
         version: String
         parentId: ID
@@ -82,6 +84,7 @@ export const typeDef = gql`
         description: String
         instructions: String
         isAutomatable: Boolean
+        isInternal: Boolean
         isStarred: Boolean!
         role: MemberRole
         isUpvoted: Boolean

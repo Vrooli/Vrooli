@@ -44,7 +44,7 @@ export const typeDef = gql`
 
     # Wraps tag with hidden/blurred option
     type TagHidden {
-        isBur: Boolean!
+        isBlur: Boolean!
         tag: Tag!
     }
 
