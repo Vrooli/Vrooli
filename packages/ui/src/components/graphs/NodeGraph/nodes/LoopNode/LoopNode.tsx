@@ -22,7 +22,7 @@ export const LoopNode = ({
         <div>TODO</div>
     ) : null, [dialogOpen])
 
-    const labelObject = useMemo(() => labelVisible ? (
+    const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
             variant="h6"
             sx={{
@@ -33,7 +33,7 @@ export const LoopNode = ({
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [labelVisible, label, scale]);
 
     const nodeSize = useMemo(() => `${NodeWidth.Loop * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.Loop * scale / 5}px, 2em)`, [scale]);

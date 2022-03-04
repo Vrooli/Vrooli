@@ -19,7 +19,9 @@ export const typeDef = gql`
     union NodeData = NodeEnd | NodeLoop | NodeRoutineList
 
     input NodeCreateInput {
+        columnIndex: Int
         description: String
+        rowIndex: Int
         title: String
         type: NodeType
         nodeEndCreate: NodeEndCreateInput
@@ -29,7 +31,9 @@ export const typeDef = gql`
     }
     input NodeUpdateInput {
         id: ID!
+        columnIndex: Int
         description: String
+        rowIndex: Int
         title: String
         type: NodeType
         nodeEndCreate: NodeEndCreateInput
@@ -44,7 +48,9 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        columnIndex: Int
         routineId: ID!
+        rowIndex: Int
         title: String!
         description: String
         type: NodeType!
@@ -161,7 +167,7 @@ export const typeDef = gql`
     }
 
     input NodeLinkCreateInput {
-        conditions: [NodeLinkConditionCreateInput!]!
+        conditions: [NodeLinkConditionCreateInput!]
         fromId: ID!
         toId: ID!
     }

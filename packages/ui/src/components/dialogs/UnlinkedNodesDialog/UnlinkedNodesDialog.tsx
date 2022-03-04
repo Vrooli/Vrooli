@@ -34,7 +34,8 @@ export const UnlinkedNodesDialog = ({
         console.log('in unlinkedlist createnode', node);
         // Common node props
         const nodeProps = {
-            isEditable: false,
+            canDrag: true,
+            isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
             label: '',

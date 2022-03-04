@@ -64,6 +64,7 @@ export const NodeColumn = ({
         // Common node props
         const nodeProps = {
             key: `node-${columnIndex}-${index}`,
+            isLinked: true,
             node,
             scale,
             label: node.title,
@@ -80,7 +81,7 @@ export const NodeColumn = ({
             case NodeType.Redirect:
                 return <RedirectNode {...nodeProps} />
             case NodeType.RoutineList:
-                return <RoutineListNode {...nodeProps} onAdd={() => { }} onResize={onCellResize} handleDialogOpen={handleDialogOpen} />
+                return <RoutineListNode {...nodeProps} canExpand={true} onAdd={() => { }} onResize={onCellResize} handleDialogOpen={handleDialogOpen} />
             case NodeType.Start:
                 return <StartNode {...nodeProps} />
             default:

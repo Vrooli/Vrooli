@@ -36,8 +36,10 @@ export const deepRoutineFields = gql`
     }
     fragment deepRoutineNodeFields on Node {
         id
+        columnIndex,
         created_at
         description
+        rowIndex,
         title
         type
         updated_at
@@ -60,8 +62,9 @@ export const deepRoutineFields = gql`
                     isOptional
                     routine {
                         id
-                        title
                         isInternal
+                        role
+                        title
                     }
                 }
             }

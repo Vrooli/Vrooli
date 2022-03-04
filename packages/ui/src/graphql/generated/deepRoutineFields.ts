@@ -47,8 +47,9 @@ export interface deepRoutineFields_nodes_data_NodeLoop {
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
-  title: string | null;
   isInternal: boolean | null;
+  role: MemberRole | null;
+  title: string | null;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines {
@@ -73,8 +74,10 @@ export type deepRoutineFields_nodes_data = deepRoutineFields_nodes_data_NodeEnd 
 export interface deepRoutineFields_nodes {
   __typename: "Node";
   id: string;
+  columnIndex: number | null;
   created_at: any;
   description: string | null;
+  rowIndex: number | null;
   title: string;
   type: NodeType;
   updated_at: any;

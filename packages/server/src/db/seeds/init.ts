@@ -355,12 +355,16 @@ export async function init(prisma: PrismaType) {
                         // Start node
                         {
                             id: startId,
+                            columnIndex: 0,
+                            rowIndex: 0,
                             title: 'Start',
                             type: NodeType.Start,
                         },
                         // Collect thoughts
                         {
                             id: explainId,
+                            columnIndex: 1,
+                            rowIndex: 0,
                             title: 'Explain',
                             type: NodeType.RoutineList,
                             nodeRoutineList: {
@@ -409,6 +413,8 @@ export async function init(prisma: PrismaType) {
                         // Describe business
                         {
                             id: describeId,
+                            columnIndex: 2,
+                            rowIndex: 0,
                             title: 'Business',
                             type: NodeType.RoutineList,
                             nodeRoutineList: {
@@ -435,6 +441,8 @@ export async function init(prisma: PrismaType) {
                         // Validate idea
                         {
                             id: validateId,
+                            columnIndex: 3,
+                            rowIndex: 0,
                             title: 'Validate',
                             type: NodeType.RoutineList,
                             nodeRoutineList: {
@@ -458,15 +466,11 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
-                        // Not worth pursuing end node
-                        {
-                            id: notWorthItId,
-                            title: 'End',
-                            type: NodeType.End
-                        },
                         // Presentation
                         {
                             id: presentationId,
+                            columnIndex: 4,
+                            rowIndex: 0,
                             title: 'Presentation',
                             type: NodeType.RoutineList,
                             nodeRoutineList: {
@@ -500,9 +504,19 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
+                        // Not worth pursuing end node
+                        {
+                            id: notWorthItId,
+                            columnIndex: 4,
+                            rowIndex: 1,
+                            title: 'End',
+                            type: NodeType.End
+                        },
                         // Team
                         {
                             id: teamId,
+                            columnIndex: 5,
+                            rowIndex: 0,
                             title: 'Team',
                             type: NodeType.RoutineList,
                             nodeRoutineList: {
@@ -539,6 +553,8 @@ export async function init(prisma: PrismaType) {
                         // Venture
                         {
                             id: ventureId,
+                            columnIndex: 5,
+                            rowIndex: 1,
                             title: 'Venture',
                             type: NodeType.RoutineList,
                             nodeRoutineList: {
@@ -585,6 +601,8 @@ export async function init(prisma: PrismaType) {
                         // Finances
                         {
                             id: financesId,
+                            columnIndex: 6,
+                            rowIndex: 0,
                             title: 'Finances',
                             type: NodeType.RoutineList,
                             nodeRoutineList: {
@@ -649,6 +667,8 @@ export async function init(prisma: PrismaType) {
                         // Scale
                         {
                             id: scaleId,
+                            columnIndex: 6,
+                            rowIndex: 1,
                             title: 'Scale',
                             type: NodeType.RoutineList,
                             nodeRoutineList: {
@@ -675,6 +695,8 @@ export async function init(prisma: PrismaType) {
                         // Successful end node
                         {
                             id: successEndId,
+                            columnIndex: 7,
+                            rowIndex: 0,
                             title: 'End',
                             type: NodeType.End
                         },

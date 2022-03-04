@@ -27,6 +27,8 @@ export const inputUpdate = yup.object().shape({
     standardDisconnect: id,
     standardCreate,
 })
+export const inputsCreate = yup.array().of(inputCreate.required()).optional();
+export const inputsUpdate = yup.array().of(inputUpdate.required()).optional();
 
 export const outputCreate = yup.object().shape({
     description,
@@ -42,6 +44,8 @@ export const outputUpdate = yup.object().shape({
     standardDisconnect: id,
     standardCreate,
 })
+export const outputsCreate = yup.array().of(outputCreate.required()).optional();
+export const outputsUpdate = yup.array().of(outputUpdate.required()).optional();
 
 /**
  * Information required when creating a routine. 
@@ -58,8 +62,8 @@ export const routineCreate = yup.object().shape({
     createdByOrganizationId: id, // If associating with an organization you are an admin of, the organization's id
     nodesCreate,
     nodeLinksCreate,
-    inputsCreate: inputCreate.optional(),
-    outputsCreate: outputCreate.optional(),
+    inputsCreate,
+    outputsCreate,
     resourcesContextualCreate: resourcesCreate,
     resourcesExternalCreate: resourcesCreate,
     tagsConnect: idArray,
@@ -74,7 +78,7 @@ export const routineUpdate = yup.object().shape({
     instructions,
     isAutomatable,
     isInternal,
-    title: title.required(),
+    title,
     version,
     parentId: id, // If forked, the parent's id
     userId: id, // If associating with yourself, your own id. Cannot associate with another user
@@ -86,11 +90,11 @@ export const routineUpdate = yup.object().shape({
     nodeLinksCreate,
     nodeLinksUpdate,
     inputsDelete: idArray,
-    inputsCreate: inputCreate,
-    inputsUpdate: inputUpdate,
+    inputsCreate,
+    inputsUpdate,
     outputsDelete: idArray,
-    outpusCreate: outputCreate,
-    outputsUpdate: outputUpdate,
+    outputsCreate,
+    outputsUpdate,
     resourcesContextualDelete: idArray,
     resourcesContextualCreate: resourcesCreate,
     resourcesContextualUpdate: resourcesUpdate,

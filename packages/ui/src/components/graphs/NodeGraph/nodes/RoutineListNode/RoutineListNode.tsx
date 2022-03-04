@@ -30,12 +30,12 @@ import { OrchestrationDialogOption, Pubs } from 'utils';
 export const RoutineListNode = ({
     node,
     scale = 1,
-    isLinked = true,
+    isLinked,
     label = 'Routine List',
-    labelVisible = true,
-    isEditing = true,
-    canDrag = true,
-    canExpand = true,
+    labelVisible,
+    isEditing,
+    canDrag,
+    canExpand,
     onAdd = () => { },
     onResize,
     handleDialogOpen,
@@ -208,6 +208,7 @@ export const RoutineListNode = ({
             {({ measureRef }) => (
                 <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}
                     sx={{
+                        zIndex: 5,
                         width: nodeSize,
                         fontSize: fontSize,
                         position: 'relative',
@@ -248,7 +249,10 @@ export const RoutineListNode = ({
                                 color: (t) => t.palette.primary.contrastText,
                                 padding: '0.1em',
                                 textAlign: 'center',
-                                cursor: 'pointer',
+                                cursor: isEditing ? 'grab': 'pointer',
+                                '&:active': {
+                                    cursor: isEditing ? 'grabbing' : 'pointer',
+                                },
                                 '&:hover': {
                                     filter: `brightness(120%)`,
                                     transition: 'filter 0.2s',

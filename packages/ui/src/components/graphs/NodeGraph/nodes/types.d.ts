@@ -14,7 +14,7 @@ export interface NodeDataProps {
  * Props for all scalable objects (so every component involved with routine orchestration)
  */
 export interface ScaleProps {
-    scale?: number;
+    scale: number;
 }
 
 /**
@@ -22,25 +22,25 @@ export interface ScaleProps {
  */
 export interface LabelledProps {
     label?: string | null;
-    labelVisible?: boolean;
+    labelVisible: boolean;
 }
 
 /**
  * Props for editable node objects
  */
 export interface EditableProps {
-    isEditing?: boolean;
+    isEditing: boolean;
 }
 
 /**
  * Props for draggable node objects
  */
 export interface DraggableProps {
-    isLinked?: boolean; // True if node is connected to orchestration graph
+    isLinked: boolean; // True if node is connected to orchestration graph
     /**
     * Specified if the cell is allowed to be dragged
     */
-    canDrag?: boolean;
+    canDrag: boolean;
 }
 
 /**
@@ -76,7 +76,7 @@ export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledPr
  * Props for the Routine List node
  */
 export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    canExpand?: boolean;
+    canExpand: boolean;
     onAdd: (data: NodeDataRoutineListItem) => void;
     /**
      * Callback for cell resize
@@ -107,7 +107,7 @@ export interface StartNodeProps extends NodeDataProps, ScaleProps, LabelledProps
 
 }
 
-export interface DraggableNodeProps extends BoxProps, DraggableProps {
+export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, 'isLinked'> {
     /**
      * ID of node in this cell. Used for drag events
      */

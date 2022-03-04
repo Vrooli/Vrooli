@@ -21,8 +21,10 @@ export const nodeFields = gql`
     }
     fragment nodeFields on Node {
         id
+        columnIndex
         created_at
         description
+        rowIndex
         title
         type
         updated_at

@@ -1,4 +1,4 @@
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, InputItem, OutputItem } from "../schema/types";
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
@@ -163,6 +163,7 @@ export const routineVerifier = () => ({
  */
 export const routineMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput): Promise<any> {
+        // Add routine ID to 
         return {
             description: data.description,
             name: data.title,
@@ -184,7 +185,7 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
             inputs: this.relationshipBuilderInput(userId, data, false),
             outpus: this.relationshipBuilderOutput(userId, data, false),
-            nodes: await NodeModel(prisma).relationshipBuilder(userId, data, false),
+            nodes: await NodeModel(prisma).relationshipBuilder(userId, null, data, false),
         }
     },
     /**
@@ -204,8 +205,9 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'inputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         const standardModel = StandardModel(prisma);
         console.log('relationshipBuilderInput formattedInput', formattedInput);
-        // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs
-        // Also calculate each node's previous and next nodes, if those fields are using a UUID 
+        // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs TODO
+        // Also check that node columnIndexes and rowIndexes are valid TODO
+        // Also handle node links. Links that are connected to new nodes use a UUID 
         // that refers to a new node (i.e. not added to the database before). These UUIDs will
         // look something like 'new-uuid-12345' instead of 'f5f5f5f5-f5f5-f5f5-f5f5-f5f5f5f5f5f5' TODO
         if (Object.keys(input).some(key => key.startsWith('nodes'))) {
@@ -337,6 +339,7 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
             // Check if user will pass max routines limit TODO
         }
         if (updateMany) {
+            console.log('ROUTINE VALIDATE MUTATIONS UPDATEMANY', updateMany);
             updateMany.forEach(input => routineUpdate.validateSync(input, { abortEarly: false }));
             updateMany.forEach(input => verifier.profanityCheck(input));
         }
@@ -400,6 +403,7 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input);
+                console.log('ROUTINE UPDATEMANY TODBSHAPE AFTER', data);
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.organizationId) {
                     // Make sure the user is an admin of the organization

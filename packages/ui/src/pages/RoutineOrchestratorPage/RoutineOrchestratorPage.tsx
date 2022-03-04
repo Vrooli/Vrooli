@@ -6,15 +6,15 @@ import { useMutation, useQuery } from '@apollo/client';
 import { routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
-import { OrchestrationDialogOption, OrchestrationRunState, OrchestrationStatus, Pubs } from 'utils';
+import { deleteArrayIndex, formatForUpdate, OrchestrationDialogOption, OrchestrationRunState, OrchestrationStatus, Pubs, updateArray } from 'utils';
 import {
     Add as AddIcon,
     DeleteForever as DeleteIcon,
 } from '@mui/icons-material';
-import { Node, Routine } from 'types';
+import { Node, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useRoute } from 'wouter';
-import { APP_LINKS } from '@local/shared';
+import { APP_LINKS, routineUpdate as updateValidation } from '@local/shared';
 import { NodePos, OrchestrationStatusObject } from 'components/graphs/NodeGraph/types';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { RoutineOrchestratorPageProps } from 'pages/types';
@@ -168,7 +168,7 @@ export const RoutineOrchestratorPage = ({
         }
         mutationWrapper({
             mutation: routineUpdate,
-            input: changedRoutine,
+            input: formatForUpdate(routine, changedRoutine, ['tags'], ['nodes', 'nodeLinks']),
             successMessage: () => 'Routine updated.',
             onSuccess: ({ data }) => { setRoutine(data.routineUpdate); },
         })
@@ -183,6 +183,106 @@ export const RoutineOrchestratorPage = ({
         setChangedRoutine(routine);
         setIsEditing(false);
     }, [routine])
+
+    /**
+     * Creates a link between two nodes which already exist in the linked routine. 
+     * This assumes that the link is valid.
+     */
+    const handleLinkCreate = useCallback((link: NodeLink) => {
+        if (!changedRoutine) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            nodeLinks: [...changedRoutine.nodeLinks, link]
+        });
+    }, [changedRoutine]);
+
+    /**
+     * Updates an existing link between two nodes
+     */
+    const handleLinkUpdate = useCallback((link: NodeLink) => {
+        if (!changedRoutine) return;
+        const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.id === link.id);
+        if (linkIndex === -1) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            nodeLinks: updateArray(changedRoutine.nodeLinks, linkIndex, link),
+        });
+    }, [changedRoutine]);
+
+    /**
+     * Calculates the new set of links for an orchestration when a node is 
+     * either deleted or unlinked. In certain cases, the new links can be 
+     * calculated automatically.
+     * @param nodeId - The ID of the node which is being deleted or unlinked
+     * @param currLinks - The current set of links
+     * @returns The new set of links
+     */
+    const calculateNewLinksList = useCallback((nodeId: string, currLinks: NodeLink[]): NodeLink[] => {
+        const deletingLinks = currLinks.filter(l => l.fromId === nodeId || l.toId === nodeId);
+        const newLinks: Partial<NodeLink>[] = [];
+        // Find all "from" and "to" nodes in the deleting links
+        const fromNodeIds = deletingLinks.map(l => l.fromId).filter(id => id !== nodeId);
+        const toNodeIds = deletingLinks.map(l => l.toId).filter(id => id !== nodeId);
+        console.log('deleting links', deletingLinks);
+        console.log('from and to ids', fromNodeIds, toNodeIds);
+        // If there is only one "from" node, create a link between it and every "to" node
+        if (fromNodeIds.length === 1) {
+            toNodeIds.forEach(toId => { newLinks.push({ fromId: fromNodeIds[0], toId }) });
+        }
+        // If there is only one "to" node, create a link between it and every "from" node
+        if (toNodeIds.length === 1) {
+            fromNodeIds.forEach(fromId => { newLinks.push({ fromId, toId: toNodeIds[0] }) });
+        }
+        // NOTE: Every other case is ambiguous, so we can't auto-create create links
+        // Delete old links
+        let keptLinks = currLinks.filter(l => !deletingLinks.includes(l));
+        console.log('kept links', keptLinks);
+        console.log('new links', newLinks);
+        // Return new links combined with kept links
+        return [...keptLinks, ...newLinks as any[]];
+    }, []);
+
+    /**
+     * Deletes a node, and all links connected to it. 
+     * Also attemps to create new links to replace the deleted links.
+     */
+    const handleNodeDelete = useCallback((nodeId: string) => {
+        if (!changedRoutine) return;
+        const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
+        if (nodeIndex === -1) return;
+        const linksList = calculateNewLinksList(nodeId, changedRoutine.nodeLinks);
+        setChangedRoutine({
+            ...changedRoutine,
+            nodes: deleteArrayIndex(changedRoutine.nodes, nodeIndex),
+            nodeLinks: linksList,
+        });
+    }, [changedRoutine]);
+
+    /**
+     * Unlinks a node. This means the node is still in the routine, but every link associated with 
+     * it is removed.
+     */
+    const handleNodeUnlink = useCallback((nodeId: string) => {
+        if (!changedRoutine) return;
+        const linksList = calculateNewLinksList(nodeId, changedRoutine.nodeLinks);
+        setChangedRoutine({
+            ...changedRoutine,
+            nodeLinks: linksList,
+        });
+    }, [changedRoutine]);
+
+    /**
+     * Updates a node's data
+     */
+    const handleNodeUpdate = useCallback((node: Node) => {
+        if (!changedRoutine) return;
+        const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === node.id);
+        if (nodeIndex === -1) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            nodes: updateArray(changedRoutine.nodes, nodeIndex, node),
+        });
+    }, [changedRoutine]);
 
     return (
         <Box sx={{
@@ -268,11 +368,11 @@ export const RoutineOrchestratorPage = ({
                 {/* Displays unlinked nodes */}
                 <UnlinkedNodesDialog
                     open={isUnlinkedNodesOpen}
-                    nodes={changedRoutine?.nodes ?? []} //TODO change to unlinkedNodes. This is only like this for testing
+                    nodes={unlinkedList}
                     handleToggleOpen={toggleUnlinkedNodes}
                     handleDeleteNode={() => { }}
                 />
-            </Box> : null }
+            </Box> : null}
             <Box sx={{
                 width: '100%',
                 display: 'flex',
@@ -287,6 +387,11 @@ export const RoutineOrchestratorPage = ({
                     nodeDataMap={nodeDataMap}
                     links={changedRoutine?.nodeLinks ?? []}
                     handleDialogOpen={handleDialogOpen}
+                    handleLinkCreate={handleLinkCreate}
+                    handleLinkUpdate={handleLinkUpdate}
+                    handleNodeDelete={handleNodeDelete}
+                    handleNodeUpdate={handleNodeUpdate}
+                    handleNodeUnlink={handleNodeUnlink}
                 />
                 <OrchestrationBottomContainer
                     canCancelUpdate={!loading}

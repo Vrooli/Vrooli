@@ -150,7 +150,7 @@ export interface RoutineInfoDialogProps {
 export interface UnlinkedNodesDialogProps {
     open: boolean;
     nodes: Node[];
-    handleToggleOpen: () => any;
+    handleToggleOpen: () => any; // Expand/shrink dialog
     handleDeleteNode: (node: Node) => any;
 }
 

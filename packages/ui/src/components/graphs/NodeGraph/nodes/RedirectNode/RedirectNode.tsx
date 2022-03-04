@@ -8,6 +8,7 @@ import { noSelect } from 'styles';
 import { DraggableNode } from '../';
 
 export const RedirectNode = ({
+    canDrag,
     isLinked = true,
     node,
     scale = 1,
@@ -21,7 +22,7 @@ export const RedirectNode = ({
         <div>TODO</div>
     ) : null, [dialogOpen])
 
-    const labelObject = useMemo(() => labelVisible ? (
+    const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
             variant="h6"
             sx={{
@@ -32,7 +33,7 @@ export const RedirectNode = ({
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [labelVisible, label, scale]);
 
     const nodeSize = useMemo(() => `${NodeWidth.Redirect * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.Redirect * scale / 5}px, 2em)`, [scale]);
@@ -48,7 +49,7 @@ export const RedirectNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <DraggableNode nodeId={node.id}>
+        <DraggableNode canDrag={canDrag} nodeId={node.id}>
             {dialog}
             <NodeContextMenu
                 id={contextId}

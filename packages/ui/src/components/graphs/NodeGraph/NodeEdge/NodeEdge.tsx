@@ -105,7 +105,6 @@ export const NodeEdge = ({
      * @returns The bezier curve, as an array of {x, y} objects
      */
     const createBezier = (p1: Point, p2: Point): [Point, Point, Point, Point] => {
-        console.log('createBezier', p1, p2);
         const midX = (p1.x + p2.x) / 2;
         // Calculate two horizontal lines for midpoints
         const mid1 = {
@@ -176,9 +175,15 @@ export const NodeEdge = ({
      */
     const dragRef = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
+        console.log('IN DA THING', dragId, link.id);
+        // Update edge quickly when dragging, and slowly when not dragging
+        // Updates are needed when not dragging to handle adding/removing nodes
+        let delta = 1000; // Milliseconds
         if (dragId && dragId === link.fromId || dragId === link.toId) {
-            dragRef.current = setInterval(() => { calculateDims(); }, 25);
+            console.log('in drag ref boopies', dragId)
+            delta = 15;
         }
+        dragRef.current = setInterval(() => { calculateDims(); }, delta);
         calculateDims();
         return () => {
             if (dragRef.current) clearInterval(dragRef.current);
@@ -228,8 +233,8 @@ export const NodeEdge = ({
         // If from and to are both routine lists (or both NOT routine lists), then use bezier midpoint.
         // If one is a routine list and the other is not, use a point further from the routine list
         let t = 0.5;
-        if (isFromRoutineList && !isToRoutineList) t = 0.75;
-        else if (!isFromRoutineList && isToRoutineList) t = 0.25;
+        if (isFromRoutineList && !isToRoutineList) t = 0.77;
+        else if (!isFromRoutineList && isToRoutineList) t = 0.23;
         const bezierPoint = getBezierPoint(t, ...dims.bezier);
         const diameter: number = isEditOpen ? scale * 30 : scale * 25
         return (
@@ -248,8 +253,8 @@ export const NodeEdge = ({
                     '&:hover': {
                         height: `${scale * 30}px`,
                         width: `${scale * 30}px`,
-                        top: dims.top + (dims.height / 2) - (scale * 30 / 2),
-                        left: (dims.fromEnd + dims.toStart) / 2 - (scale * 30 / 2),
+                        top: dims.top + bezierPoint.y - (scale * 30 / 2),
+                        left: dims.left + bezierPoint.x - (scale * 30 / 2),
                     }
                 }}>
                     {isEditOpen ? (

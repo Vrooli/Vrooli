@@ -24,10 +24,17 @@ export const NodeGraph = ({
     labelVisible = true,
     nodeDataMap,
     links,
-    handleDialogOpen
+    handleDialogOpen,
+    handleNodeUnlink,
+    handleNodeDelete,
+    handleNodeUpdate,
+    handleLinkCreate,
+    handleLinkUpdate,
 }: NodeGraphProps) => {
     // Size and position data of each column
     const [columnDimensions, setColumnDimensions] = useState<ColumnDimensions[]>([]);
+    // Stores edges
+    const [edges, setEdges] = useState<JSX.Element[]>([])
     // Dragging a node
     const [dragId, setDragId] = useState<string | null>(null);
     const handleDragStart = useCallback((nodeId: string) => { setDragId(nodeId) }, []);
@@ -106,10 +113,6 @@ export const NodeGraph = ({
         setColumnDimensions(updateArray(columnDimensions, columnIndex, dimensions));
     }, [columnDimensions]);
 
-    useEffect(() => {
-        console.log('colunn dimensions updated!!🎉', columnDimensions);
-    }, [columnDimensions]);
-
     /**
      * Checks if a point is inside a rectangle
      * @param point - The point to check
@@ -117,7 +120,7 @@ export const NodeGraph = ({
      * @param padding - The padding to add to the rectangle
      * @returns True if position is within the bounds of a rectangle
      */
-    const isInsideRectangle = (point: { x: number, y: number }, rectangle: DOMRect, padding: number = 20) => {
+    const isInsideRectangle = (point: { x: number, y: number }, rectangle: DOMRect, padding: number = 75) => {
         console.log('isInsideRectangle check', point, rectangle);
         const zone = {
             x: rectangle.x - padding,
@@ -153,14 +156,23 @@ export const NodeGraph = ({
         const unlinkedContainerRect = unlinkedContainer ? unlinkedContainer.getBoundingClientRect() : null;
         // If the drop position is within the delete button, delete the node
         if (deleteButtonRect && isInsideRectangle({ x, y }, deleteButtonRect)) {
-            console.log('DROPPED INTO DELETE BUTTON!!!!!!');
-            //TODO
+            // If this is a routine list node, prompt for confirmation
+            if (node.node.type === NodeType.RoutineList) {
+                PubSub.publish(Pubs.AlertDialog, {
+                    message: `Are you sure you want to delete the routine list "${node.node.title}"?`,
+                    buttons: [
+                        { text: 'Yes', onClick: () => { handleNodeDelete(nodeId); } },
+                        { text: 'Cancel' },
+                    ]
+                });
+            }
+            // Otherwise, just delete the node
+            else handleNodeDelete(nodeId);
             return;
         }
         // If the drop position is within the unlinked container, unlink the node
         if (unlinkedContainerRect && isInsideRectangle({ x, y }, unlinkedContainerRect)) {
-            console.log('DROPPED INTO UNLINKED CONTAINER!!!');
-            //TODO
+            handleNodeUnlink(nodeId);
             return;
         }
 
@@ -289,23 +301,21 @@ export const NodeGraph = ({
     }, [columnData]);
 
     /**
-     * Edges (links) displayed between nodes. If editing, the midpoint of an edge
-     * contains an "Add Node" button
+     * Edges (links) displayed between nodes
      */
-    const edges = useMemo(() => {
-        console.log('in edges start before cancel check', columnDimensions, scale)
+    const calculateEdges = useCallback(() => {
+        console.log('in edges start before cancel check', scale)
         // If data required to render edges is not yet available
         // (i.e. no links, or column dimensions not complete)
-        if (!links ||
-            Object.values(columnDimensions).length === 0 ||
-            Object.values(columnDimensions).some((d, i) => d.width === 0 && i > 0)) return [];
-        console.log('calculating edges', columnDimensions);
+        if (!links) return [];
+        console.log('calculating edges');
         return links?.map(link => {
             if (!link.fromId || !link.toId) return null;
             const fromNode = nodeDataMap[link.fromId];
             const toNode = nodeDataMap[link.toId];
+            if (!fromNode || !toNode) return null;
             return <NodeEdge
-                key={`edge-${link.id}`}
+                key={`edge-${link.id ?? 'new-'+fromNode.node.id+'-to-'+toNode.node.id}`}
                 link={link}
                 isEditing={isEditing}
                 isFromRoutineList={fromNode.node.type === NodeType.RoutineList}
@@ -313,10 +323,14 @@ export const NodeGraph = ({
                 dragId={dragId}
                 scale={scale ?? 1}
                 handleAdd={() => { }}
-                handleEdit={() => {}}
+                handleEdit={() => { }}
             />
-        })
-    }, [dragId, columnDimensions, nodeDataMap, isEditing, links, scale]);
+        }).filter(edge => edge) as JSX.Element[];
+    }, [dragId, nodeDataMap, isEditing, links, scale]);
+
+    useEffect(() => {
+        setEdges(calculateEdges());
+    }, [columnDimensions, dragId, nodeDataMap, isEditing, links, scale]);
 
     /**
      * Node column objects

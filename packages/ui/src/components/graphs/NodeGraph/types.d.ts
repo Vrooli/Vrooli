@@ -42,6 +42,26 @@ export interface NodeGraphProps {
       * Prompts parent to open a specific dialog
       */
     handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
+    /**
+     * Moves a node to the unlinked container
+     */
+    handleNodeUnlink: (nodeId: string) => void;
+    /**
+     * Deletes a node permanently
+     */
+    handleNodeDelete: (nodeId: string) => void;
+    /**
+     * Updates a node's data
+     */
+    handleNodeUpdate: (node: Node) => void;
+    /**
+     * Create a link between two nodes
+     */
+    handleLinkCreate: (link: NodeLink) => void;
+    /**
+     * Updates a link between two nodes
+     */
+    handleLinkUpdate: (link: NodeLink, data: any) => void;
 }
 
 export type ColumnDimensions = {
@@ -57,10 +77,10 @@ export type ColumnDimensions = {
  */
 export interface NodeColumnProps {
     id?: string;
-    scale?: number;
-    isEditing?: boolean;
+    scale: number;
+    isEditing: boolean;
     dragId: string | null; // ID of node being dragged. Used to display valid drop locations
-    labelVisible?: boolean;
+    labelVisible: boolean;
     columnIndex: number;
     nodes: Node[];
     onDimensionsChange: (columnIndex: number, dimensions: ColumnDimensions) => void;

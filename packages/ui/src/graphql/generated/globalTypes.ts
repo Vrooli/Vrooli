@@ -264,7 +264,9 @@ export interface InputItemUpdateInput {
 }
 
 export interface NodeCreateInput {
+  columnIndex?: number | null;
   description?: string | null;
+  rowIndex?: number | null;
   title?: string | null;
   type?: NodeType | null;
   nodeEndCreate?: NodeEndCreateInput | null;
@@ -309,7 +311,7 @@ export interface NodeLinkConditionUpdateInput {
 }
 
 export interface NodeLinkCreateInput {
-  conditions: NodeLinkConditionCreateInput[];
+  conditions?: NodeLinkConditionCreateInput[] | null;
   fromId: string;
   toId: string;
 }
@@ -399,7 +401,9 @@ export interface NodeRoutineListUpdateInput {
 
 export interface NodeUpdateInput {
   id: string;
+  columnIndex?: number | null;
   description?: string | null;
+  rowIndex?: number | null;
   title?: string | null;
   type?: NodeType | null;
   nodeEndCreate?: NodeEndCreateInput | null;

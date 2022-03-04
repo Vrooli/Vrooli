@@ -6,6 +6,8 @@
 import { description, idArray, id, title } from './base';
 import * as yup from 'yup';
 
+const columnIndex = yup.number().integer().min(0).optional();
+const rowIndex = yup.number().integer().min(0).optional();
 export const condition = yup.string().max(2048).optional();
 const isOptional = yup.boolean().optional();
 const loops = yup.number().integer().min(0).max(100).optional();
@@ -127,7 +129,9 @@ export const nodeRoutineListUpdate = yup.object().shape({
 })
 
 export const nodeCreate = yup.object().shape({
+    columnIndex,
     description,
+    rowIndex,
     title: title.required(),
     type: type.required(),
     nodeEndCreate,
@@ -141,7 +145,9 @@ export const nodeCreate = yup.object().shape({
  */
 export const nodeUpdate = yup.object().shape({
     id,
+    columnIndex,
     description,
+    rowIndex,
     title,
     type,
     nodeEndCreate,

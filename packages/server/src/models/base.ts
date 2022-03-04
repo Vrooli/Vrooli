@@ -5,7 +5,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import pkg from 'lodash';
 import _ from 'lodash';
 import { commentFormatter, commentSearcher } from './comment';
-import { nodeFormatter } from './node';
+import { nodeFormatter, nodeRoutineListFormatter } from './node';
 import { organizationFormatter, organizationSearcher } from './organization';
 import { projectFormatter, projectSearcher } from './project';
 import { reportFormatter, reportSearcher } from './report';
@@ -202,6 +202,7 @@ export const FormatterMap: { [x: string]: FormatConverter<any> } = {
     [GraphQLModelType.InputItem]: inputItemFormatter(),
     [GraphQLModelType.Member]: memberFormatter(),
     [GraphQLModelType.Node]: nodeFormatter(),
+    [GraphQLModelType.NodeRoutineList]: nodeRoutineListFormatter(),
     [GraphQLModelType.Organization]: organizationFormatter(),
     [GraphQLModelType.OutputItem]: outputItemFormatter(),
     [GraphQLModelType.Profile]: profileFormatter(),
@@ -348,7 +349,7 @@ export const addCreatorField = (data: any): any => {
  */
 export const removeCreatorField = (select: any): any => {
     return deconstructUnion(select, 'creator', [
-        [GraphQLModelType.User, 'createdByUser'], 
+        [GraphQLModelType.User, 'createdByUser'],
         [GraphQLModelType.Organization, 'createdByOrganization']
     ]);
 }
@@ -374,7 +375,7 @@ export const addOwnerField = (data: any): any => {
  */
 export const removeOwnerField = (select: any): any => {
     return deconstructUnion(select, 'owner', [
-        [GraphQLModelType.User, 'user'], 
+        [GraphQLModelType.User, 'user'],
         [GraphQLModelType.Organization, 'organization']
     ]);
 }
@@ -449,56 +450,51 @@ export const toPartialSelect = (info: InfoType, relationshipMap: RelationshipMap
     }
     // Inject __typename fields
     select = injectTypenames(select, relationshipMap);
-    console.log('INJECTED FINAL SELECT', select);
     return select;
 }
 
 /**
  * Recursively injects __typename fields into a select object
  * @param select - GraphQL select object, partially converted without typenames
- * @param relationshipMap - relationshipMap for current base object
  * and keys that map to typemappers for each possible relationship
+ * @param parentRelationshipMap - Relationship of last known parent
+ * @param nestedFields - Array of nested fields accessed since last parent
  * @return select with __typename fields
  */
-const injectTypenames = (select: { [x: string]: any }, relationshipMap: RelationshipMap | null): PartialInfo => {
-    // If relationshipMap is null, return select
-    if (!relationshipMap) return select;
+const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: RelationshipMap, nestedFields: string[] = []): PartialInfo => {
     // Create result object
     let result: any = {};
     // Iterate over select object
     for (const [selectKey, selectValue] of Object.entries(select)) {
+        // Skip __typename
+        if (selectKey === '__typename') continue;
         // If value is not an object, just add to result
         if (typeof selectValue !== 'object') {
             result[selectKey] = selectValue;
+            continue;
         }
-        // If value is an object
+        // If value is an object, recurse
+        // Find nested value in parent relationship map, using nestedFields
+        let nestedValue: any = parentRelationshipMap;
+        for (const field of nestedFields) {
+            if (field in nestedValue) nestedValue = nestedValue[field];
+        }
+        if (nestedValue) nestedValue = nestedValue[selectKey];
+        // If nestedValue is not an object, try to get its relationshipMap
+        let relationshipMap;
+        if (typeof nestedValue !== 'object') relationshipMap = FormatterMap[nestedValue]?.relationshipMap;
+        // If relationship map found, this becomes the new parent
+        if (relationshipMap) {
+            // New parent found, so we recurse with nestFields removed
+            result[selectKey] = injectTypenames(selectValue, relationshipMap, []);
+        }
         else {
-            // Check if relationshipMap has a key for this key. If not, just add to result
-            let relationshipType = relationshipMap[selectKey];
-            // If relationshipType is not in select, just add to result
-            if (!relationshipType) {
-                result[selectKey] = selectValue;
-            }
-            // If it is in select, inject __typename
-            else {
-                // Get relationship type
-                let relationshipType: GraphQLModelType | { [x: string]: GraphQLModelType } = relationshipMap[selectKey];
-                // If relationshipType is a string, inject __typename
-                if (typeof relationshipType === 'string') {
-                    const childRelationshipMap = relationshipType in FormatterMap ? FormatterMap[relationshipType].relationshipMap : null;
-                    result[selectKey] = injectTypenames(selectValue, childRelationshipMap);
-                }
-                // If relationshipType is an object, recurse
-                else {
-                    result[selectKey] = injectTypenames(selectValue, relationshipType);
-                }
-            }
-
+            // No relationship map found, so we recurse and add this key to the nestedFields
+            result[selectKey] = injectTypenames(selectValue, parentRelationshipMap, [...nestedFields, selectKey]);
         }
     }
-    // Add __typename field
-    result.__typename = relationshipMap.__typename;
-    console.log('QWERTY inject result ', JSON.stringify(result));
+    // Add __typename field if known
+    if (nestedFields.length === 0) result.__typename = parentRelationshipMap.__typename;
     return result;
 }
 
@@ -510,16 +506,12 @@ const injectTypenames = (select: { [x: string]: any }, relationshipMap: Relation
  */
 export const selectHelper = (partial: PartialInfo): any => {
     // Convert partial's special cases (virtual/calculated fields, unions, etc.)
-    console.log('X BEFORE SELECTTODB', JSON.stringify(partial));
     let modified = selectToDB(partial);
-    console.log('X FINISHED SELECTTODB', JSON.stringify(modified))
     if (!_.isObject(modified)) return undefined;
     // Delete __typename fields
     modified = removeTypenames(modified);
-    console.log('X REMOVED TYPENAMES', JSON.stringify(modified));
     // Pad every relationship with "select"
     modified = padSelect(modified);
-    console.log('X CALCULATED SELECT HELPER ENDDD', JSON.stringify(modified));
     return modified;
 }
 

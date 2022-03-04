@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType } from "./globalTypes";
+import { NodeType, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: deepRoutineNodeFields
@@ -23,8 +23,9 @@ export interface deepRoutineNodeFields_data_NodeLoop {
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
-  title: string | null;
   isInternal: boolean | null;
+  role: MemberRole | null;
+  title: string | null;
 }
 
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines {
@@ -49,8 +50,10 @@ export type deepRoutineNodeFields_data = deepRoutineNodeFields_data_NodeEnd | de
 export interface deepRoutineNodeFields {
   __typename: "Node";
   id: string;
+  columnIndex: number | null;
   created_at: any;
   description: string | null;
+  rowIndex: number | null;
   title: string;
   type: NodeType;
   updated_at: any;

@@ -14,7 +14,7 @@ export const EndNode = ({
     canDrag = true,
 }: EndNodeProps) => {
 
-    const labelObject = useMemo(() => labelVisible ? (
+    const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
             variant="h6"
             sx={{
@@ -25,7 +25,7 @@ export const EndNode = ({
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [labelVisible, label, scale]);
 
     const outerCircleSize = useMemo(() => `${NodeWidth.End * scale}px`, [scale]);
     const innerCircleSize = useMemo(() => `${NodeWidth.End * scale / 1.5}px`, [scale]);

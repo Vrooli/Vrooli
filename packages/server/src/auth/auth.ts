@@ -10,10 +10,8 @@ const SESSION_MILLI = 30*86400*1000;
 // Verifies if a user is authenticated, using an http cookie
 export async function authenticate(req: Request, _: Response, next: NextFunction) {
     const { cookies } = req;
-    console.log('authenticate', cookies);
     // First, check if a valid session cookie was supplied
     const token = cookies[COOKIE.Session];
-    console.log('token', token);
     if (token === null || token === undefined) {
         next();
         return;
@@ -25,7 +23,6 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
     // Second, verify that the session token is valid
     jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
-            console.log('first jwt error', error, payload.exp, Date.now())
             next();
             return;
         }
@@ -34,7 +31,6 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         req.userId = payload.userId ?? null;
         req.roles = payload.roles ?? [];
         req.isLoggedIn = payload.isLoggedIn ?? false;
-        console.log('no jwt error', req.validToken, req.userId, req.roles, req.isLoggedIn)
         next();
     })
 }
@@ -68,7 +64,6 @@ const basicToken = (): BasicToken => ({
  * @returns 
  */
 export async function generateSessionToken(res: Response, session: RecursivePartial<Session>): Promise<undefined> {
-    console.log('generateSessionToken', session);
     const tokenContents: SessionToken = {
         ...basicToken(),
         userId: session.id ?? null,

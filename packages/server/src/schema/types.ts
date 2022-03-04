@@ -503,23 +503,27 @@ export type MutationWriteAssetsArgs = {
 
 export type Node = {
   __typename?: 'Node';
+  columnIndex?: Maybe<Scalars['Int']>;
   created_at: Scalars['Date'];
   data?: Maybe<NodeData>;
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   routine: Routine;
   routineId: Scalars['ID'];
+  rowIndex?: Maybe<Scalars['Int']>;
   title: Scalars['String'];
   type: NodeType;
   updated_at: Scalars['Date'];
 };
 
 export type NodeCreateInput = {
+  columnIndex?: InputMaybe<Scalars['Int']>;
   description?: InputMaybe<Scalars['String']>;
   nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
   nodeLoopCreate?: InputMaybe<NodeLoopCreateInput>;
   nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   routineId: Scalars['ID'];
+  rowIndex?: InputMaybe<Scalars['Int']>;
   title?: InputMaybe<Scalars['String']>;
   type?: InputMaybe<NodeType>;
 };
@@ -590,7 +594,7 @@ export type NodeLinkConditionUpdateInput = {
 };
 
 export type NodeLinkCreateInput = {
-  conditions: Array<NodeLinkConditionCreateInput>;
+  conditions?: InputMaybe<Array<NodeLinkConditionCreateInput>>;
   fromId: Scalars['ID'];
   toId: Scalars['ID'];
 };
@@ -727,6 +731,7 @@ export enum NodeType {
 }
 
 export type NodeUpdateInput = {
+  columnIndex?: InputMaybe<Scalars['Int']>;
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
@@ -736,6 +741,7 @@ export type NodeUpdateInput = {
   nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   nodeRoutineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
   routineId?: InputMaybe<Scalars['ID']>;
+  rowIndex?: InputMaybe<Scalars['Int']>;
   title?: InputMaybe<Scalars['String']>;
   type?: InputMaybe<NodeType>;
 };
