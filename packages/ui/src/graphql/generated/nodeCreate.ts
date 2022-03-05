@@ -62,8 +62,10 @@ export type nodeCreate_nodeCreate_data = nodeCreate_nodeCreate_data_NodeEnd | no
 export interface nodeCreate_nodeCreate {
   __typename: "Node";
   id: string;
+  columnIndex: number | null;
   created_at: any;
   description: string | null;
+  rowIndex: number | null;
   title: string;
   type: NodeType;
   updated_at: any;

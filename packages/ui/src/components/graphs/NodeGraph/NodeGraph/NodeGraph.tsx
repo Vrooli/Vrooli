@@ -22,7 +22,7 @@ export const NodeGraph = ({
     scale = 1,
     isEditing = true,
     labelVisible = true,
-    nodeDataMap,
+    nodes,
     links,
     handleDialogOpen,
     handleNodeUnlink,
@@ -31,6 +31,7 @@ export const NodeGraph = ({
     handleLinkCreate,
     handleLinkUpdate,
 }: NodeGraphProps) => {
+    console.log(' IN NODE GRAPH', nodes, links);
     // Size and position data of each column
     const [columnDimensions, setColumnDimensions] = useState<ColumnDimensions[]>([]);
     // Stores edges
@@ -142,7 +143,7 @@ export const NodeGraph = ({
     const handleDragStop = useCallback((nodeId: string, { x, y }: { x: number, y: number }) => {
         setDragId(null);
         // First, find the node being dropped
-        const node = nodeDataMap[nodeId];
+        const node = nodes.find(n => n.id === nodeId);
         if (!node) {
             console.error(`Dropped node ${nodeId} not found`);
             return;
@@ -157,9 +158,9 @@ export const NodeGraph = ({
         // If the drop position is within the delete button, delete the node
         if (deleteButtonRect && isInsideRectangle({ x, y }, deleteButtonRect)) {
             // If this is a routine list node, prompt for confirmation
-            if (node.node.type === NodeType.RoutineList) {
+            if (node.type === NodeType.RoutineList) {
                 PubSub.publish(Pubs.AlertDialog, {
-                    message: `Are you sure you want to delete the routine list "${node.node.title}"?`,
+                    message: `Are you sure you want to delete the routine list "${node.title}"?`,
                     buttons: [
                         { text: 'Yes', onClick: () => { handleNodeDelete(nodeId); } },
                         { text: 'Cancel' },
@@ -223,7 +224,7 @@ export const NodeGraph = ({
                 const x = (ev as MouseEvent)?.clientX ?? (ev as TouchEvent)?.touches[0].clientX ?? 0;
                 const y = (ev as MouseEvent)?.clientY ?? (ev as TouchEvent)?.touches[0].clientY ?? 0;
                 dragRefs.current.lastPosition = { x, y };
-                if (targetId.startsWith('node-column') || targetId === 'graph-root' || targetId === 'graph-grid') touchedGrid = true;
+                if (targetId.startsWith('node-column') || targetId.startsWith('node-placeholder') || targetId === 'graph-root' || targetId === 'graph-grid') touchedGrid = true;
             }
         }
         const onMouseUp = (ev: MouseEvent | Event) => {
@@ -277,24 +278,27 @@ export const NodeGraph = ({
      * Node data map converted to a 2D array of columns
      */
     const columnData = useMemo(() => {
-        // 2D node data array, ordered by column. 
-        // Each column is ordered in a consistent way, so that the nodes in a column are always in the same order
-        let list: Node[][] = [];
-        // Iterate through node data map
-        for (const value of Object.values(nodeDataMap)) {
-            // Skips nodes that did not receive a column
-            if (value.column < 0) continue;
+        // 2D node data array, ordered by column. Each column is ordered by row index
+        const columns: Node[][] = [];
+        // Loop through node data map
+        for (const node of nodes) {
+            console.log('calculating columns loop', node);
+            // Skips nodes without a columnIndex or rowIndex
+            if (node.columnIndex === null || node.columnIndex === undefined || node.rowIndex === null || node.rowIndex === undefined) continue;
             // Add new column(s) if necessary
-            while (list.length <= value.column) {
-                list.push([]);
+            while (columns.length <= node.columnIndex) {
+                columns.push([]);
             }
             // Add node to column
-            list[value.column].push(value.node);
+            columns[node.columnIndex].push(node);
         }
-        // Sort each column
-        // TODO
-        return list;
-    }, [nodeDataMap]);
+        // Now sort each column by row index
+        for (const column of columns) {
+            column.sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
+        }
+        console.log('calculated column data....', columns);
+        return columns;
+    }, [nodes]);
 
     useEffect(() => {
         setColumnDimensions(Array(columnData.length).fill({ width: 0, heights: [], nodeIds: [], tops: [], centers: [] }));
@@ -311,26 +315,26 @@ export const NodeGraph = ({
         console.log('calculating edges');
         return links?.map(link => {
             if (!link.fromId || !link.toId) return null;
-            const fromNode = nodeDataMap[link.fromId];
-            const toNode = nodeDataMap[link.toId];
+            const fromNode = nodes.find(node => node.id === link.fromId);
+            const toNode = nodes.find(node => node.id === link.toId);
             if (!fromNode || !toNode) return null;
             return <NodeEdge
-                key={`edge-${link.id ?? 'new-'+fromNode.node.id+'-to-'+toNode.node.id}`}
+                key={`edge-${link.id ?? 'new-'+fromNode.id+'-to-'+toNode.id}`}
                 link={link}
                 isEditing={isEditing}
-                isFromRoutineList={fromNode.node.type === NodeType.RoutineList}
-                isToRoutineList={toNode.node.type === NodeType.RoutineList}
+                isFromRoutineList={fromNode.type === NodeType.RoutineList}
+                isToRoutineList={toNode.type === NodeType.RoutineList}
                 dragId={dragId}
                 scale={scale ?? 1}
                 handleAdd={() => { }}
                 handleEdit={() => { }}
             />
         }).filter(edge => edge) as JSX.Element[];
-    }, [dragId, nodeDataMap, isEditing, links, scale]);
+    }, [dragId, nodes, isEditing, links, scale]);
 
     useEffect(() => {
         setEdges(calculateEdges());
-    }, [columnDimensions, dragId, nodeDataMap, isEditing, links, scale]);
+    }, [columnDimensions, dragId, nodes, isEditing, links, scale]);
 
     /**
      * Node column objects

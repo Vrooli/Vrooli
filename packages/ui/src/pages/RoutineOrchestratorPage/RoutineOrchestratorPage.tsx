@@ -14,10 +14,11 @@ import {
 import { Node, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useRoute } from 'wouter';
-import { APP_LINKS, routineUpdate as updateValidation } from '@local/shared';
-import { NodePos, OrchestrationStatusObject } from 'components/graphs/NodeGraph/types';
+import { APP_LINKS } from '@local/shared';
+import { OrchestrationStatusObject } from 'components/graphs/NodeGraph/types';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { RoutineOrchestratorPageProps } from 'pages/types';
+import _ from 'lodash';
 
 /**
  * Status indicator and slider change color to represent orchestration's status
@@ -42,7 +43,7 @@ export const RoutineOrchestratorPage = ({
     // Routine mutator
     const [routineUpdate, { loading }] = useMutation<any>(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
-    const [status, setStatus] = useState<OrchestrationStatusObject>({ code: OrchestrationStatus.Incomplete, details: 'TODO' });
+    const [status, setStatus] = useState<OrchestrationStatusObject>({ code: OrchestrationStatus.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -80,62 +81,149 @@ export const RoutineOrchestratorPage = ({
     }, []);
 
     /**
-     * 1st return - Dictionary of node data and their columns
-     * 2nd return - List of nodes which are not yet linked
-     * If nodeDataMap is same length as nodes, and unlinkedList is empty, then all nodes are linked 
-     * and the graph is valid
+     * 1st return - Array of nodes that are linked to the routine
+     * 2nd return - Array of nodes that are not linked to the routine
+     * A graph with no unlinked nodes is considered valid
      */
-    const [nodeDataMap, unlinkedList] = useMemo<[{ [id: string]: NodePos }, Node[]]>(() => {
-        // Position map for calculating node positions
-        let posMap: { [id: string]: NodePos } = {};
-        const nodes = changedRoutine?.nodes ?? [];
-        const links = changedRoutine?.nodeLinks ?? [];
-        if (!nodes || !links) return [posMap, nodes ?? []];
-        let startNodeId: string | null = null;
-        console.log('node data map', nodes, links);
-        // First pass of raw node data, to locate start node and populate position map
-        for (let i = 0; i < nodes.length; i++) {
-            const currId = nodes[i].id;
-            // If start node, must be in first column
-            if (nodes[i].type === NodeType.Start) {
-                startNodeId = currId;
-                posMap[currId] = { column: 0, node: nodes[i] }
+    const [linkedNodes, unlinkedNodes] = useMemo<[Node[], Node[]]>(() => {
+        console.log('calculating linked nodes start', changedRoutine?.nodes)
+        if (!changedRoutine) return [[], []];
+        const linkedNodes: Node[] = [];
+        const unlinkedNodes: Node[] = [];
+        const statuses: [OrchestrationStatus, string][] = []; // All orchestration statuses
+        // First, set all nodes that have a columnIndex and rowIndex to be linked
+        for (const node of changedRoutine.nodes) {
+            if (node.columnIndex !== null && node.columnIndex !== undefined && node.rowIndex !== null && node.rowIndex !== undefined) {
+                linkedNodes.push(node);
+            }
+            else {
+                unlinkedNodes.push(node);
             }
         }
-        // If start node was found
-        if (startNodeId) {
-            // Loop through links. Each loop finds every node that belongs in the next column
-            // We set the max number of columns to be 100, but this is arbitrary
-            for (let currColumn = 0; currColumn < 100; currColumn++) {
-                // Calculate the IDs of each node in the next column TODO this should be sorted in some way so it shows the same order every time
-                const nextNodes = links
-                    .filter(link => posMap[link.fromId]?.column === currColumn)
-                    .map(link => nodes.find(node => node.id === link.toId))
-                    .filter(node => node) as Node[];
-                // Add each node to the position map
-                for (let i = 0; i < nextNodes.length; i++) {
-                    const curr = nextNodes[i];
-                    posMap[curr.id] = { column: currColumn + 1, node: curr };
+        console.log('a linkednode', linkedNodes)
+
+        // Now, perform a few checks to make sure that the columnIndexes and rowIndexes are valid
+        // 1. Check that (columnIndex, rowIndex) pairs are all unique
+        // 2. columnIndexes are not missing. For example, if the indexes go [0, 3, 1, 5, 6], then
+        // they should be converted to [0, 2, 1, 3, 4]
+        // 3. rowIndexes don't exceed the number of nodes in the largest column, minus 1
+        // First check
+        const points: { x: number, y: number }[] = linkedNodes.map(node => ({ x: node.columnIndex as number, y: node.rowIndex as number }));
+        const uniquePoints = new Set(points);
+        if (uniquePoints.size !== points.length) {
+            setStatus({ code: OrchestrationStatus.Invalid, messages: ['Ran into error determining node positions'] });
+            // Add all nodes to unlinkedNodes
+            unlinkedNodes.push(...linkedNodes);
+            console.log('failed unique points', points, uniquePoints)
+            // Update changedRoutine to reflect the new state
+            setChangedRoutine({
+                ...changedRoutine,
+                nodeLinks: [],
+            });
+            return [[], unlinkedNodes];
+        }
+        // Second check
+        // Sort linkedNodes by columnIndex
+        linkedNodes.sort((a, b) => (a.columnIndex as number) - (b.columnIndex as number));
+        // Convert columnIndexes to be sequential. Indexes may repeat, but not be missing
+        // Find number of unique indexes
+        const uniqueColumnIndexes = new Set(linkedNodes.map(node => node.columnIndex as number));
+        console.log('uniqueColumnIndexes check', uniqueColumnIndexes, uniqueColumnIndexes.size !== linkedNodes.length)
+        // For each unique index, replace all occurrences with a sequential index
+        let columnIndex: number = 0;
+        for (const uniqueIndex of uniqueColumnIndexes) {
+            linkedNodes.forEach(node => {
+                if (node.columnIndex === uniqueIndex) {
+                    node = { ...node, columnIndex };
                 }
-                // If not nodes left, or if all of the next nodes are end nodes, stop looping
-                if (nextNodes.length === 0 || nextNodes.every(n => n.type === NodeType.End)) {
-                    break;
-                }
+            });
+            columnIndex++;
+        }
+        // Third check
+        // Count the number of occurrences of each columnIndex
+        const columnCounts: { [key: number]: number } = {};
+        for (const point of points) {
+            if (columnCounts[point.x]) {
+                columnCounts[point.x]++;
             }
+            else {
+                columnCounts[point.x] = 1;
+            }
+        }
+        // Make sure no rowIndexes exceed the number of nodes in the largest column
+        const maxColumnCount = Math.max(...Object.values(columnCounts));
+        const badNodes = linkedNodes.filter(node => (node.rowIndex as number) >= maxColumnCount);
+        if (badNodes.length > 0) {
+            // Add all nodes to unlinkedNodes
+            unlinkedNodes.push(...linkedNodes);
+        }
+
+        // Now perform checks to see if the orchestration can be run
+        // 1. There is only one start node
+        // 2. There is only one linked node which has no incoming edges, and it is the start node
+        // 3. Every node that has no outgoing edges is an end node
+        // TODO validate loops and redirects
+        // First check
+        const startNodes = linkedNodes.filter(node => node.type === NodeType.Start);
+        if (startNodes.length === 0) {
+            statuses.push([OrchestrationStatus.Invalid, 'No start node found']);
+        }
+        else if (startNodes.length > 1) {
+            statuses.push([OrchestrationStatus.Invalid, 'More than one start node found']);
+        }
+        // Second check
+        const nodesWithoutIncomingEdges = linkedNodes.filter(node => changedRoutine.nodeLinks.every(link => link.toId !== node.id));
+        if (nodesWithoutIncomingEdges.length === 0) {
+            //TODO this would be fine with a redirect link
+            statuses.push([OrchestrationStatus.Invalid, 'Error determining start node']);
+        }
+        else if (nodesWithoutIncomingEdges.length > 1) {
+            statuses.push([OrchestrationStatus.Invalid, 'Nodes are not fully connected']);
+        }
+        // Third check
+        const nodesWithoutOutgoingEdges = linkedNodes.filter(node => changedRoutine.nodeLinks.every(link => link.fromId !== node.id));
+        if (nodesWithoutOutgoingEdges.length >= 0) {
+            // Check that every node without outgoing edges is an end node
+            if (nodesWithoutOutgoingEdges.some(node => node.type !== NodeType.End)) {
+                statuses.push([OrchestrationStatus.Invalid, 'Not all paths end with an end node']);
+            }
+        }
+
+        // Performs checks which make the routine incomplete, but not invalid
+        // 1. There are unlinked nodes
+        // First check
+        if (unlinkedNodes.length > 0) {
+            statuses.push([OrchestrationStatus.Incomplete, 'Some nodes are not linked']);
+        }
+
+        // Before returning, send the statuses to the status object
+        if (statuses.length > 0) {
+            console.log('statuses', statuses)
+            // Status sent is the worst status
+            let code = OrchestrationStatus.Incomplete;
+            if (statuses.some(status => status[0] === OrchestrationStatus.Invalid)) code = OrchestrationStatus.Invalid;
+            setStatus({ code, messages: statuses.map(status => status[1]) });
         } else {
-            console.error('Error: No start node found');
-            setStatus({ code: OrchestrationStatus.Invalid, details: 'No start node found' });
+            setStatus({ code: OrchestrationStatus.Valid, messages: ['Routine is fully connected'] });
         }
-        // TODO check if all paths end with an end node (and account for loops)
-        const unlinked = nodes.filter(node => !posMap[node.id]);
-        if (unlinked.length > 0) {
-            console.warn('Warning: Some nodes are not linked');
-            setStatus({ code: OrchestrationStatus.Incomplete, details: 'Some nodes are not linked' });
+
+        // Remove any links which reference unlinked nodes
+        const goodLinks = changedRoutine.nodeLinks.filter(link => !unlinkedNodes.some(node => node.id === link.fromId || node.id === link.toId));
+        // If routine was mutated, update the routine
+        const finalNodes = [...linkedNodes, ...unlinkedNodes]
+        const haveNodesChanged = !_.isEqual(finalNodes, changedRoutine.nodes);
+        const haveLinksChanged = !_.isEqual(goodLinks, changedRoutine.nodeLinks);
+        if (haveNodesChanged || haveLinksChanged) {
+            setChangedRoutine({
+                ...changedRoutine,
+                nodes: [...linkedNodes, ...unlinkedNodes],
+                nodeLinks: goodLinks,
+            })
         }
-        if (startNodeId && unlinked.length === 0) {
-            setStatus({ code: OrchestrationStatus.Valid, details: '' });
-        }
-        return [posMap, unlinked];
+
+        // Return the linked and unlinked nodes
+        console.log('RETURNING LINKED AND UNLINKED NODES', linkedNodes, unlinkedNodes);
+        return [linkedNodes, unlinkedNodes];
     }, [changedRoutine]);
 
     const handleDialogOpen = useCallback((nodeId: string, dialog: OrchestrationDialogOption) => {
@@ -368,7 +456,7 @@ export const RoutineOrchestratorPage = ({
                 {/* Displays unlinked nodes */}
                 <UnlinkedNodesDialog
                     open={isUnlinkedNodesOpen}
-                    nodes={unlinkedList}
+                    nodes={unlinkedNodes}
                     handleToggleOpen={toggleUnlinkedNodes}
                     handleDeleteNode={() => { }}
                 />
@@ -384,7 +472,7 @@ export const RoutineOrchestratorPage = ({
                     scale={scale}
                     isEditing={isEditing}
                     labelVisible={true}
-                    nodeDataMap={nodeDataMap}
+                    nodes={linkedNodes}
                     links={changedRoutine?.nodeLinks ?? []}
                     handleDialogOpen={handleDialogOpen}
                     handleLinkCreate={handleLinkCreate}

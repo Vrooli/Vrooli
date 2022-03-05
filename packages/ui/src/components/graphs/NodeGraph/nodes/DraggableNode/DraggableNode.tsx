@@ -96,7 +96,11 @@ export const DraggableNode = ({
                 alignItems={"center"}
                 sx={{
                     zIndex: isDragging ? 10000 : 100000,
-                    opacity: isDragging ? 0.5 : 1
+                    opacity: isDragging ? 0.5 : 1,
+                    cursor: canDrag ? 'grab' : 'pointer',
+                    '&:active': {
+                        cursor: canDrag ? 'grabbing' : 'pointer',
+                    },
                 }}
                 {...props}
             >

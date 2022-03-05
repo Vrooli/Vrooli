@@ -62,8 +62,10 @@ export type nodeFields_data = nodeFields_data_NodeEnd | nodeFields_data_NodeLoop
 export interface nodeFields {
   __typename: "Node";
   id: string;
+  columnIndex: number | null;
   created_at: any;
   description: string | null;
+  rowIndex: number | null;
   title: string;
   type: NodeType;
   updated_at: any;

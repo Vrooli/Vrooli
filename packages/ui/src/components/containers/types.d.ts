@@ -1,5 +1,6 @@
 import { OrchestrationRunState, OrchestrationStatus } from "utils";
 import { Routine } from "types";
+import { OrchestrationStatusObject } from "components/graphs/NodeGraph/types";
 
 export interface TitleContainerProps {
     id?: string;

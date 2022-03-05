@@ -62,8 +62,10 @@ export type nodeUpdate_nodeUpdate_data = nodeUpdate_nodeUpdate_data_NodeEnd | no
 export interface nodeUpdate_nodeUpdate {
   __typename: "Node";
   id: string;
+  columnIndex: number | null;
   created_at: any;
   description: string | null;
+  rowIndex: number | null;
   title: string;
   type: NodeType;
   updated_at: any;

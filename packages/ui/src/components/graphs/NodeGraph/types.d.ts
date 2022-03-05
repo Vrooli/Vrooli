@@ -3,19 +3,6 @@ import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeLink } from 'types';
 import { OrchestrationStatus } from 'utils';
 
-/**
- * Describes the data and general position of a node in the graph. 
- * A completely linear graph would have all nodes at the same level (i.e. one per column, each at row 0).
- * A column with a decision node adds ONE row to the following column FOR EACH possible decision. 
- * A column with a combine node removes ONE row from the following column FOR EACH possible combination, AND 
- * places itself in the vertical center of each combined node
- */
-export type NodePos = {
-    column: number; // column in which node is displayed
-    // pos: number; // relative position in column. 0 is top, 1 is bottom
-    node: Node;
-}
-
 export interface NodeContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
@@ -30,13 +17,13 @@ export interface NodeContextMenuProps {
 
 export type OrchestrationStatusObject = {
     code: OrchestrationStatus,
-    details: string,
+    messages: string[],
 }
 export interface NodeGraphProps {
     scale?: number;
     isEditing?: boolean;
     labelVisible?: boolean;
-    nodeDataMap: { [id: string]: NodePos };
+    nodes: Node[];
     links: NodeLink[];
     /**
       * Prompts parent to open a specific dialog
