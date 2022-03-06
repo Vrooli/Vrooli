@@ -49,15 +49,16 @@ export const typeDef = gql`
     }
 
     input TagSearchInput {
-        myTags: Boolean
+        after: String
+        createdTimeFrame: TimeFrame
         hidden: Boolean
         ids: [ID!]
-        sortBy: TagSortBy
+        minStars: Int
+        myTags: Boolean
         searchString: String
-        createdTimeFrame: TimeFrame
-        updatedTimeFrame: TimeFrame
-        after: String
+        sortBy: TagSortBy
         take: Int
+        updatedTimeFrame: TimeFrame
     }
 
     # Return type for search result

@@ -33,14 +33,16 @@ export type projectFields_owner = projectFields_owner_Organization | projectFiel
 export interface projectFields {
   __typename: "Project";
   id: string;
-  name: string;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
+  isComplete: boolean;
+  isStarred: boolean;
+  isUpvoted: boolean | null;
+  name: string;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
   tags: projectFields_tags[];
   owner: projectFields_owner | null;
-  stars: number;
-  isStarred: boolean;
-  score: number;
-  role: MemberRole | null;
-  isUpvoted: boolean | null;
 }

@@ -27,12 +27,13 @@ export const ResearchPage = ({
         } } 
     });
 
-    // const { data: newlyCompletedData, loading: newlyCompletedLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
-    //     variables: { input: { 
-    //         take: 5,
-    //         sortBy: ProjectSortBy.,
-    //     } } 
-    // });
+    const { data: newlyCompletedData, loading: newlyCompletedLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
+        variables: { input: { 
+            take: 5,
+            isComplete: true,
+            sortBy: ProjectSortBy.DateCompletedAsc,
+        } } 
+    });
 
     const processes = useMemo(() => [].map((o, index) => (
         <RoutineListItem

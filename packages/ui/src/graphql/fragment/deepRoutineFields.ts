@@ -94,27 +94,26 @@ export const deepRoutineFields = gql`
     }
     fragment deepRoutineFields on Routine {
         id
+        completedAt
         created_at
-        instructions
-        isAutomatable
-        isInternal
-        title
         description
-        updated_at
-        version
-        stars
-        score
-        isUpvoted
-        role
-        isStarred
         inputs {
             ...deepRoutineInputFields
+        }
+        instructions
+        isAutomatable
+        isComplete
+        isInternal
+        isStarred
+        isUpvoted
+        nodeLinks {
+            ...deepRoutineNodeLinkFields
         }
         nodes {
             ...deepRoutineNodeFields
         }
-        nodeLinks {
-            ...deepRoutineNodeLinkFields
+        outputs {
+            ...deepRoutineOutputFields
         }
         owner {
             ... on Organization {
@@ -126,9 +125,6 @@ export const deepRoutineFields = gql`
                 username
             }
         }
-        outputs {
-            ...deepRoutineOutputFields
-        }
         parent {
             id
             title
@@ -136,8 +132,14 @@ export const deepRoutineFields = gql`
         resources {
             ...deepRoutineResourceFields
         }
+        score
+        stars
+        role
         tags {
             ...deepRoutineTagFields
         }
+        title
+        updated_at
+        version
     }
 `

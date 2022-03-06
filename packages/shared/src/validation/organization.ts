@@ -3,12 +3,15 @@ import { resourcesCreate, resourcesUpdate } from './resource';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
+const isOpenToNewMembers = yup.boolean().optional();
+
 /**
  * Information required when creating an organization. 
  * You are automatically created as an admin
  */
 export const organizationCreate = yup.object().shape({
     bio,
+    isOpenToNewMembers,
     name: name.required(),
     // You are automatically added as an admin. IDs you add here will be requested to be added as a member
     membersConnect: idArray,
@@ -23,6 +26,7 @@ export const organizationCreate = yup.object().shape({
 export const organizationUpdate = yup.object().shape({
     bio,
     name,
+    isOpenToNewMembers,
     membersConnect: idArray,
     membersDisconnect: idArray,
     resourcesDelete: idArray,

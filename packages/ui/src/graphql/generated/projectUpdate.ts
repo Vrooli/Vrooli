@@ -33,16 +33,18 @@ export type projectUpdate_projectUpdate_owner = projectUpdate_projectUpdate_owne
 export interface projectUpdate_projectUpdate {
   __typename: "Project";
   id: string;
-  name: string;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
+  isComplete: boolean;
+  isStarred: boolean;
+  isUpvoted: boolean | null;
+  name: string;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
   tags: projectUpdate_projectUpdate_tags[];
   owner: projectUpdate_projectUpdate_owner | null;
-  stars: number;
-  isStarred: boolean;
-  score: number;
-  role: MemberRole | null;
-  isUpvoted: boolean | null;
 }
 
 export interface projectUpdate {

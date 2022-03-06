@@ -19,11 +19,12 @@ export interface organizationFields_tags {
 export interface organizationFields {
   __typename: "Organization";
   id: string;
-  name: string;
   bio: string | null;
   created_at: any;
-  tags: organizationFields_tags[];
-  stars: number;
+  isOpenToNewMembers: boolean;
   isStarred: boolean;
+  name: string;
   role: MemberRole | null;
+  stars: number;
+  tags: organizationFields_tags[];
 }

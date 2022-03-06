@@ -25,13 +25,14 @@ export interface organizations_organizations_edges_node_tags {
 export interface organizations_organizations_edges_node {
   __typename: "Organization";
   id: string;
-  name: string;
   bio: string | null;
   created_at: any;
-  tags: organizations_organizations_edges_node_tags[];
-  stars: number;
+  isOpenToNewMembers: boolean;
   isStarred: boolean;
+  name: string;
   role: MemberRole | null;
+  stars: number;
+  tags: organizations_organizations_edges_node_tags[];
 }
 
 export interface organizations_organizations_edges {

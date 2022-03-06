@@ -92,20 +92,24 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
         })
     },
     customQueries(input: OrganizationSearchInput): { [x: string]: any } {
+        const isOpenToNewMembersQuery = input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {};
+        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
         const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
         const userIdQuery = input.userId ? { members: { some: { id: input.userId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-        return { ...projectIdQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery }
+        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
+        return { ...isOpenToNewMembersQuery, ...minStarsQuery, ...projectIdQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...tagsQuery };
     },
 })
 
 export const organizationVerifier = (prisma: PrismaType) => ({
     async getRoles(userId: string, ids: string[]): Promise<Array<MemberRole | undefined>> {
+        console.log('getroles start', userId, ids);
         // Query member data for each ID
         const roleArray = await prisma.organization_users.findMany({
-            where: { organizationId: { in: ids }, user: { id: userId } },
+            where: { organization: { id: { in: ids } }, userId },
             select: { organizationId: true, role: true }
         });
         return ids.map(id => {
@@ -131,8 +135,9 @@ export const organizationVerifier = (prisma: PrismaType) => ({
 export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShape(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
         return {
-            name: data.name,
             bio: data.bio,
+            isOpenToNewMembers: data.isOpenToNewMembers,
+            name: data.name,
             resources: ResourceModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
         }

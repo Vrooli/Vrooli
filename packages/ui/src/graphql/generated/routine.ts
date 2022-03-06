@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole, NodeType } from "./globalTypes";
+import { FindByIdInput, NodeType, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routine
@@ -31,6 +31,28 @@ export interface routine_routine_inputs {
   __typename: "InputItem";
   id: string;
   standard: routine_routine_inputs_standard | null;
+}
+
+export interface routine_routine_nodeLinks_conditions_when {
+  __typename: "NodeLinkConditionCase";
+  id: string;
+  condition: string;
+}
+
+export interface routine_routine_nodeLinks_conditions {
+  __typename: "NodeLinkCondition";
+  id: string;
+  description: string | null;
+  title: string;
+  when: routine_routine_nodeLinks_conditions_when[];
+}
+
+export interface routine_routine_nodeLinks {
+  __typename: "NodeLink";
+  id: string;
+  fromId: string;
+  toId: string;
+  conditions: routine_routine_nodeLinks_conditions[];
 }
 
 export interface routine_routine_nodes_data_NodeEnd {
@@ -84,42 +106,6 @@ export interface routine_routine_nodes {
   data: routine_routine_nodes_data | null;
 }
 
-export interface routine_routine_nodeLinks_conditions_when {
-  __typename: "NodeLinkConditionCase";
-  id: string;
-  condition: string;
-}
-
-export interface routine_routine_nodeLinks_conditions {
-  __typename: "NodeLinkCondition";
-  id: string;
-  description: string | null;
-  title: string;
-  when: routine_routine_nodeLinks_conditions_when[];
-}
-
-export interface routine_routine_nodeLinks {
-  __typename: "NodeLink";
-  id: string;
-  fromId: string;
-  toId: string;
-  conditions: routine_routine_nodeLinks_conditions[];
-}
-
-export interface routine_routine_owner_Organization {
-  __typename: "Organization";
-  id: string;
-  name: string;
-}
-
-export interface routine_routine_owner_User {
-  __typename: "User";
-  id: string;
-  username: string | null;
-}
-
-export type routine_routine_owner = routine_routine_owner_Organization | routine_routine_owner_User;
-
 export interface routine_routine_outputs_standard_tags {
   __typename: "Tag";
   id: string;
@@ -143,6 +129,20 @@ export interface routine_routine_outputs {
   id: string;
   standard: routine_routine_outputs_standard | null;
 }
+
+export interface routine_routine_owner_Organization {
+  __typename: "Organization";
+  id: string;
+  name: string;
+}
+
+export interface routine_routine_owner_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type routine_routine_owner = routine_routine_owner_Organization | routine_routine_owner_User;
 
 export interface routine_routine_parent {
   __typename: "Routine";
@@ -170,27 +170,29 @@ export interface routine_routine_tags {
 export interface routine_routine {
   __typename: "Routine";
   id: string;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
+  inputs: routine_routine_inputs[];
   instructions: string | null;
   isAutomatable: boolean | null;
+  isComplete: boolean;
   isInternal: boolean | null;
-  title: string | null;
-  description: string | null;
-  updated_at: any;
-  version: string | null;
-  stars: number;
-  score: number;
-  isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
-  inputs: routine_routine_inputs[];
-  nodes: routine_routine_nodes[];
+  isUpvoted: boolean | null;
   nodeLinks: routine_routine_nodeLinks[];
-  owner: routine_routine_owner | null;
+  nodes: routine_routine_nodes[];
   outputs: routine_routine_outputs[];
+  owner: routine_routine_owner | null;
   parent: routine_routine_parent | null;
   resources: routine_routine_resources[];
+  score: number;
+  stars: number;
+  role: MemberRole | null;
   tags: routine_routine_tags[];
+  title: string | null;
+  updated_at: any;
+  version: string | null;
 }
 
 export interface routine {

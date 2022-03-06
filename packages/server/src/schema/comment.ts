@@ -55,18 +55,20 @@ export const typeDef = gql`
     }
 
     input CommentSearchInput {
-        userId: ID
+        after: String
+        createdTimeFrame: TimeFrame
+        ids: [ID!]
+        minScore: Int
+        minStars: Int
         organizationId: ID
         projectId: ID
         routineId: ID
-        standardId: ID
-        ids: [ID!]
-        sortBy: CommentSortBy
-        createdTimeFrame: TimeFrame
-        updatedTimeFrame: TimeFrame
         searchString: String
-        after: String
+        sortBy: CommentSortBy
+        standardId: ID
         take: Int
+        updatedTimeFrame: TimeFrame
+        userId: ID
     }
 
     # Return type for search result

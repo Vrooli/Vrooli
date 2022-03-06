@@ -25,18 +25,20 @@ export interface routines_routines_edges_node_tags {
 export interface routines_routines_edges_node {
   __typename: "Routine";
   id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
-  role: MemberRole | null;
-  tags: routines_routines_edges_node_tags[];
-  stars: number;
+  isComplete: boolean;
   isStarred: boolean;
-  score: number;
   isUpvoted: boolean | null;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
+  tags: routines_routines_edges_node_tags[];
+  title: string | null;
+  version: string | null;
 }
 
 export interface routines_routines_edges {

@@ -93,14 +93,18 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
             const organizationIds = objects
-                .filter(x => x.owner?.__typename === 'Organization')
-                .map(x => x.id)
+                .filter(x => x.owner?.hasOwnProperty('name')) // Between users and organizations, only the latter has a "name" field
+                .map(x => x.owner.id)
                 .filter(x => Boolean(x)) as string[];
+            console.log('routine query organizationIds', organizationIds);
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
+            console.log('routine query got roles', roles);
             objects = objects.map((x) => {
-                const orgRoleIndex = organizationIds.findIndex(id => id === x.id);
+                console.log('routien role objects map x.id', x.id, organizationIds)
+                const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
+                console.log('bbop', orgRoleIndex);
                 if (orgRoleIndex >= 0) {
                     return { ...x, role: roles[orgRoleIndex] };
                 }
@@ -122,6 +126,8 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
             [RoutineSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [RoutineSortBy.ForksAsc]: { forks: { _count: 'asc' } },
             [RoutineSortBy.ForksDesc]: { forks: { _count: 'desc' } },
+            [RoutineSortBy.DateCompletedAsc]: { completedAt: 'asc' },
+            [RoutineSortBy.DateCompletedDesc]: { completedAt: 'desc' },
             [RoutineSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [RoutineSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [RoutineSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
@@ -144,12 +150,16 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         })
     },
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
+        const isCompleteQuery = input.isComplete ? { isComplete: true } : {};
+        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
+        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const projectIdQuery = input.projectId ? { projectId: input.projectId } : {};
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        return { isInternal: false, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery };
+        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
+        return { isInternal: false, ...isCompleteQuery, ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
     },
 })
 
@@ -169,6 +179,8 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
             name: data.title,
             instructions: data.instructions,
             isAutomatable: data.isAutomatable,
+            isComplete: data.isComplete,
+            completedAt: data.isComplete ? new Date().toISOString() : null,
             isInternal: data.isInternal,
             parentId: data.parentId,
             version: data.version,

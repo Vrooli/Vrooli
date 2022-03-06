@@ -7,7 +7,7 @@ import { ProfileModel } from '../../models';
 import { envVariableExists } from '../../utils';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
-const { AccountStatus, NodeType, ResourceUsedFor } = pkg;
+const { AccountStatus, MemberRole, NodeType, ResourceUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
 
@@ -136,7 +136,7 @@ export async function init(prisma: PrismaType) {
                 bio: "Entrepreneurship is not accessible to all unless it can be accomplished using little money, time, and prior knowledge. Let's make that possible.",
                 members: {
                     create: [
-                        { userId: admin.id },
+                        { userId: admin.id, role: MemberRole.Owner },
                     ]
                 },
                 tags: {

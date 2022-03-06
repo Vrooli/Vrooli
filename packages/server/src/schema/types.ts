@@ -81,6 +81,8 @@ export type CommentSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  minScore?: InputMaybe<Scalars['Int']>;
+  minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
@@ -760,6 +762,7 @@ export type Organization = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  isOpenToNewMembers: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   members: Array<Member>;
   name: Scalars['String'];
@@ -783,6 +786,7 @@ export type OrganizationCountInput = {
 
 export type OrganizationCreateInput = {
   bio?: InputMaybe<Scalars['String']>;
+  isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -799,6 +803,7 @@ export type OrganizationSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   minStars?: InputMaybe<Scalars['Int']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
@@ -832,6 +837,7 @@ export enum OrganizationSortBy {
 export type OrganizationUpdateInput = {
   bio?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   membersConnect?: InputMaybe<Array<Scalars['ID']>>;
   membersDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   name?: InputMaybe<Scalars['String']>;
@@ -923,11 +929,13 @@ export type ProfileUpdateInput = {
 export type Project = {
   __typename?: 'Project';
   comments: Array<Comment>;
+  completedAt?: Maybe<Scalars['Date']>;
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
   description?: Maybe<Scalars['String']>;
   forks: Array<Project>;
   id: Scalars['ID'];
+  isComplete: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   name: Scalars['String'];
@@ -954,6 +962,7 @@ export type ProjectCreateInput = {
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
   description?: InputMaybe<Scalars['String']>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
   parentId?: InputMaybe<Scalars['ID']>;
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
@@ -971,6 +980,7 @@ export type ProjectSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
@@ -995,6 +1005,8 @@ export enum ProjectSortBy {
   AlphabeticalDesc = 'AlphabeticalDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
+  DateCompletedAsc = 'DateCompletedAsc',
+  DateCompletedDesc = 'DateCompletedDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -1010,6 +1022,7 @@ export enum ProjectSortBy {
 export type ProjectUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
@@ -1370,9 +1383,9 @@ export enum ResourceUsedFor {
   Community = 'Community',
   Context = 'Context',
   Developer = 'Developer',
-    Donation = 'Donation',
-    ExternalService = 'ExternalService',
-    Install = 'Install',
+  Donation = 'Donation',
+  ExternalService = 'ExternalService',
+  Install = 'Install',
   Learning = 'Learning',
   OfficialWebsite = 'OfficialWebsite',
   Proposal = 'Proposal',
@@ -1398,6 +1411,7 @@ export type Role = {
 export type Routine = {
   __typename?: 'Routine';
   comments: Array<Comment>;
+  completedAt?: Maybe<Scalars['Date']>;
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
   description?: Maybe<Scalars['String']>;
@@ -1406,6 +1420,7 @@ export type Routine = {
   inputs: Array<InputItem>;
   instructions?: Maybe<Scalars['String']>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
+  isComplete: Scalars['Boolean'];
   isInternal?: Maybe<Scalars['Boolean']>;
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -1440,6 +1455,7 @@ export type RoutineCreateInput = {
   inputsCreate?: InputMaybe<Array<InputItemCreateInput>>;
   instructions?: InputMaybe<Scalars['String']>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
@@ -1463,6 +1479,7 @@ export type RoutineSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
@@ -1488,6 +1505,8 @@ export enum RoutineSortBy {
   AlphabeticalDesc = 'AlphabeticalDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
+  DateCompletedAsc = 'DateCompletedAsc',
+  DateCompletedDesc = 'DateCompletedDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -1508,6 +1527,7 @@ export type RoutineUpdateInput = {
   inputsUpdate?: InputMaybe<Array<InputItemUpdateInput>>;
   instructions?: InputMaybe<Scalars['String']>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodeLinksDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -1734,6 +1754,7 @@ export type TagSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   hidden?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  minStars?: InputMaybe<Scalars['Int']>;
   myTags?: InputMaybe<Scalars['Boolean']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<TagSortBy>;

@@ -14,6 +14,8 @@ export const typeDef = gql`
         CommentsDesc
         ForksAsc
         ForksDesc
+        DateCompletedAsc
+        DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
@@ -25,11 +27,12 @@ export const typeDef = gql`
     }
 
     input ProjectCreateInput {
+        createdByOrganizationId: ID
+        createdByUserId: ID
         description: String
+        isComplete: Boolean
         name: String!
         parentId: ID
-        createdByUserId: ID
-        createdByOrganizationId: ID
         resourcesCreate: [ResourceCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
@@ -37,10 +40,11 @@ export const typeDef = gql`
     input ProjectUpdateInput {
         id: ID!
         description: String
+        isComplete: Boolean
         name: String
+        organizationId: ID
         parentId: ID
         userId: ID
-        organizationId: ID
         resourcesDelete: [ID!]
         resourcesCreate: [ResourceCreateInput!]
         resourcesUpdate: [ResourceUpdateInput!]
@@ -50,15 +54,17 @@ export const typeDef = gql`
     }
     type Project {
         id: ID!
+        completedAt: Date
         created_at: Date!
         updated_at: Date!
         description: String
-        name: String!
-        stars: Int!
+        isComplete: Boolean!
         isStarred: Boolean!
-        role: MemberRole
         isUpvoted: Boolean
+        name: String!
+        role: MemberRole
         score: Int!
+        stars: Int!
         comments: [Comment!]!
         creator: Contributor
         forks: [Project!]!
@@ -76,6 +82,7 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        isComplete: Boolean
         minScore: Int
         minStars: Int
         organizationId: ID

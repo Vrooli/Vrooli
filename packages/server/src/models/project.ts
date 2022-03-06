@@ -87,14 +87,14 @@ export const projectFormatter = (): FormatConverter<Project> => ({
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
             const organizationIds = objects
-                .filter(x => x.owner?.__typename === 'Organization')
-                .map(x => x.id)
+                .filter(x => x.owner?.hasOwnProperty('name')) // Between users and organizations, only the latter has a "name" field
+                .map(x => x.owner.id)
                 .filter(x => Boolean(x)) as string[];
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
             objects = objects.map((x) => {
-                const orgRoleIndex = organizationIds.findIndex(id => id === x.id);
+                const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
                 if (orgRoleIndex >= 0) {
                     return { ...x, role: roles[orgRoleIndex] };
                 }
@@ -116,6 +116,8 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
             [ProjectSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [ProjectSortBy.ForksAsc]: { forks: { _count: 'asc' } },
             [ProjectSortBy.ForksDesc]: { forks: { _count: 'desc' } },
+            [ProjectSortBy.DateCompletedAsc]: { completedAt: 'asc' },
+            [ProjectSortBy.DateCompletedDesc]: { completedAt: 'desc' },
             [ProjectSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [ProjectSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [ProjectSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
@@ -137,12 +139,15 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
         })
     },
     customQueries(input: ProjectSearchInput): { [x: string]: any } {
+        const isCompleteQuery = input.isComplete ? { isComplete: true } : {};
+        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
+        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...tagsQuery };
+        return { ...isCompleteQuery, ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...tagsQuery };
     },
 })
 
@@ -196,12 +201,12 @@ export const projectMutater = (prisma: PrismaType, verifier: any) => ({
          * Helper function for creating create/update Prisma value
          */
         const createData = async (input: ProjectCreateInput | ProjectUpdateInput): Promise<{ [x: string]: any }> => ({
-            name: input.name,
             description: input.description,
+            isComplete: input.isComplete,
+            completedAt: input.isComplete ? new Date().toISOString() : null,
+            name: input.name,
             parentId: input.parentId,
-            // Handle resources
             resources: ResourceModel(prisma).relationshipBuilder(userId, input, true),
-            // Handle tags
             tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
         })
         // Perform mutations

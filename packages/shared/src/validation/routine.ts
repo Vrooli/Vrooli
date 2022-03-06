@@ -6,6 +6,7 @@ import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
 const isAutomatable = yup.boolean().optional();
+const isComplete = yup.boolean().optional();
 const isInternal = yup.boolean().optional();
 const isRequired = yup.boolean().optional();
 const instructions = yup.string().max(8192).optional();
@@ -54,6 +55,7 @@ export const routineCreate = yup.object().shape({
     description,
     instructions,
     isAutomatable,
+    isComplete,
     isInternal,
     title: title.required(),
     version,
@@ -76,6 +78,7 @@ export const routineUpdate = yup.object().shape({
     description,
     instructions,
     isAutomatable,
+    isComplete,
     isInternal,
     title,
     version,

@@ -19,18 +19,20 @@ export interface routineCreate_routineCreate_tags {
 export interface routineCreate_routineCreate {
   __typename: "Routine";
   id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
-  role: MemberRole | null;
-  tags: routineCreate_routineCreate_tags[];
-  stars: number;
+  isComplete: boolean;
   isStarred: boolean;
-  score: number;
   isUpvoted: boolean | null;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
+  tags: routineCreate_routineCreate_tags[];
+  title: string | null;
+  version: string | null;
 }
 
 export interface routineCreate {

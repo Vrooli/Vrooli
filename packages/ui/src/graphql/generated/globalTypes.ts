@@ -43,6 +43,8 @@ export enum ProjectSortBy {
   AlphabeticalDesc = "AlphabeticalDesc",
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
+  DateCompletedAsc = "DateCompletedAsc",
+  DateCompletedDesc = "DateCompletedDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -85,9 +87,9 @@ export enum ResourceUsedFor {
   Community = "Community",
   Context = "Context",
   Developer = "Developer",
-    Donation = "Donation",
-    ExternalService = "ExternalService",
-    Install = "Install",
+  Donation = "Donation",
+  ExternalService = "ExternalService",
+  Install = "Install",
   Learning = "Learning",
   OfficialWebsite = "OfficialWebsite",
   Proposal = "Proposal",
@@ -101,6 +103,8 @@ export enum RoutineSortBy {
   AlphabeticalDesc = "AlphabeticalDesc",
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
+  DateCompletedAsc = "DateCompletedAsc",
+  DateCompletedDesc = "DateCompletedDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -424,6 +428,7 @@ export interface OrganizationCountInput {
 
 export interface OrganizationCreateInput {
   bio?: string | null;
+  isOpenToNewMembers?: boolean | null;
   name: string;
   resourcesCreate?: ResourceCreateInput[] | null;
   tagsConnect?: string[] | null;
@@ -434,6 +439,7 @@ export interface OrganizationSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
+  isOpenToNewMembers?: boolean | null;
   minStars?: number | null;
   projectId?: string | null;
   reportId?: string | null;
@@ -450,6 +456,7 @@ export interface OrganizationSearchInput {
 export interface OrganizationUpdateInput {
   id: string;
   bio?: string | null;
+  isOpenToNewMembers?: boolean | null;
   name?: string | null;
   membersConnect?: string[] | null;
   membersDisconnect?: string[] | null;
@@ -494,11 +501,12 @@ export interface ProjectCountInput {
 }
 
 export interface ProjectCreateInput {
+  createdByOrganizationId?: string | null;
+  createdByUserId?: string | null;
   description?: string | null;
+  isComplete?: boolean | null;
   name: string;
   parentId?: string | null;
-  createdByUserId?: string | null;
-  createdByOrganizationId?: string | null;
   resourcesCreate?: ResourceCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
@@ -508,6 +516,7 @@ export interface ProjectSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
+  isComplete?: boolean | null;
   minScore?: number | null;
   minStars?: number | null;
   organizationId?: string | null;
@@ -524,10 +533,11 @@ export interface ProjectSearchInput {
 export interface ProjectUpdateInput {
   id: string;
   description?: string | null;
+  isComplete?: boolean | null;
   name?: string | null;
+  organizationId?: string | null;
   parentId?: string | null;
   userId?: string | null;
-  organizationId?: string | null;
   resourcesDelete?: string[] | null;
   resourcesCreate?: ResourceCreateInput[] | null;
   resourcesUpdate?: ResourceUpdateInput[] | null;
@@ -602,6 +612,7 @@ export interface RoutineCreateInput {
   description?: string | null;
   instructions?: string | null;
   isAutomatable?: boolean | null;
+  isComplete?: boolean | null;
   isInternal?: boolean | null;
   title: string;
   version?: string | null;
@@ -622,6 +633,7 @@ export interface RoutineSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   ids?: string[] | null;
+  isComplete?: boolean | null;
   minScore?: number | null;
   minStars?: number | null;
   organizationId?: string | null;
@@ -641,6 +653,7 @@ export interface RoutineUpdateInput {
   description?: string | null;
   instructions?: string | null;
   isAutomatable?: boolean | null;
+  isComplete?: boolean | null;
   isInternal?: boolean | null;
   title?: string | null;
   version?: string | null;
@@ -731,15 +744,16 @@ export interface TagCreateInput {
 }
 
 export interface TagSearchInput {
-  myTags?: boolean | null;
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
   hidden?: boolean | null;
   ids?: string[] | null;
-  sortBy?: TagSortBy | null;
+  minStars?: number | null;
+  myTags?: boolean | null;
   searchString?: string | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-  after?: string | null;
+  sortBy?: TagSortBy | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface TagUpdateInput {

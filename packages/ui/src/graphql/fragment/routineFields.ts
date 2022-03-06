@@ -8,19 +8,21 @@ export const routineFields = gql`
     }
     fragment routineFields on Routine {
         id
-        version
-        title
-        description
+        completedAt
         created_at
+        description
         isAutomatable
         isInternal
+        isComplete
+        isStarred
+        isUpvoted
         role
+        score
+        stars
         tags {
             ...routineTagFields
         }
-        stars
-        isStarred
-        score
-        isUpvoted
+        title
+        version
     }
 `

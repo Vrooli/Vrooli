@@ -8,14 +8,15 @@ export const organizationFields = gql`
     }
     fragment organizationFields on Organization {
         id
-        name
         bio
         created_at
+        isOpenToNewMembers
+        isStarred
+        name
+        role
+        stars
         tags {
             ...organizationTagFields
         }
-        stars
-        isStarred
-        role
     }
 `

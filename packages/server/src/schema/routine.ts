@@ -14,6 +14,8 @@ export const typeDef = gql`
         CommentsDesc
         ForksAsc
         ForksDesc
+        DateCompletedAsc
+        DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
@@ -28,6 +30,7 @@ export const typeDef = gql`
         description: String
         instructions: String
         isAutomatable: Boolean
+        isComplete: Boolean
         isInternal: Boolean
         title: String!
         version: String
@@ -48,6 +51,7 @@ export const typeDef = gql`
         description: String
         instructions: String
         isAutomatable: Boolean
+        isComplete: Boolean
         isInternal: Boolean
         title: String
         version: String
@@ -75,11 +79,13 @@ export const typeDef = gql`
     }
     type Routine {
         id: ID!
+        completedAt: Date
         created_at: Date!
         updated_at: Date!
         description: String
         instructions: String
         isAutomatable: Boolean
+        isComplete: Boolean!
         isInternal: Boolean
         isStarred: Boolean!
         role: MemberRole
@@ -154,6 +160,7 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        isComplete: Boolean
         minScore: Int
         minStars: Int
         organizationId: ID

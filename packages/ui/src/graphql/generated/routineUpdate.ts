@@ -19,18 +19,20 @@ export interface routineUpdate_routineUpdate_tags {
 export interface routineUpdate_routineUpdate {
   __typename: "Routine";
   id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
-  role: MemberRole | null;
-  tags: routineUpdate_routineUpdate_tags[];
-  stars: number;
+  isComplete: boolean;
   isStarred: boolean;
-  score: number;
   isUpvoted: boolean | null;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
+  tags: routineUpdate_routineUpdate_tags[];
+  title: string | null;
+  version: string | null;
 }
 
 export interface routineUpdate {

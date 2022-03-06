@@ -77,6 +77,10 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
             ]
         })
     },
+    customQueries(input: TagSearchInput): { [x: string]: any } {
+        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
+        return { ...minStarsQuery };
+    },
 })
 
 export const tagVerifier = () => ({

@@ -26,6 +26,7 @@ export const typeDef = gql`
 
     input OrganizationCreateInput {
         bio: String
+        isOpenToNewMembers: Boolean
         name: String!
         resourcesCreate: [ResourceCreateInput!]
         tagsConnect: [ID!]
@@ -34,6 +35,7 @@ export const typeDef = gql`
     input OrganizationUpdateInput {
         id: ID!
         bio: String
+        isOpenToNewMembers: Boolean
         name: String
         membersConnect: [ID!]
         membersDisconnect: [ID!]
@@ -49,6 +51,7 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         bio: String
+        isOpenToNewMembers: Boolean!
         name: String!
         stars: Int!
         isStarred: Boolean!
@@ -74,6 +77,7 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        isOpenToNewMembers: Boolean
         minStars: Int
         projectId: ID
         reportId: ID

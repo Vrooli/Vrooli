@@ -29,10 +29,11 @@ export interface standard_standard_creator_Organization {
   name: string;
   bio: string | null;
   created_at: any;
-  tags: standard_standard_creator_Organization_tags[];
-  stars: number;
+  isOpenToNewMembers: boolean;
   isStarred: boolean;
   role: MemberRole | null;
+  stars: number;
+  tags: standard_standard_creator_Organization_tags[];
 }
 
 export interface standard_standard_creator_User {

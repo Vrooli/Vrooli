@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole, NodeType } from "./globalTypes";
+import { NodeType, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: deepRoutineFields
@@ -31,6 +31,28 @@ export interface deepRoutineFields_inputs {
   __typename: "InputItem";
   id: string;
   standard: deepRoutineFields_inputs_standard | null;
+}
+
+export interface deepRoutineFields_nodeLinks_conditions_when {
+  __typename: "NodeLinkConditionCase";
+  id: string;
+  condition: string;
+}
+
+export interface deepRoutineFields_nodeLinks_conditions {
+  __typename: "NodeLinkCondition";
+  id: string;
+  description: string | null;
+  title: string;
+  when: deepRoutineFields_nodeLinks_conditions_when[];
+}
+
+export interface deepRoutineFields_nodeLinks {
+  __typename: "NodeLink";
+  id: string;
+  fromId: string;
+  toId: string;
+  conditions: deepRoutineFields_nodeLinks_conditions[];
 }
 
 export interface deepRoutineFields_nodes_data_NodeEnd {
@@ -84,42 +106,6 @@ export interface deepRoutineFields_nodes {
   data: deepRoutineFields_nodes_data | null;
 }
 
-export interface deepRoutineFields_nodeLinks_conditions_when {
-  __typename: "NodeLinkConditionCase";
-  id: string;
-  condition: string;
-}
-
-export interface deepRoutineFields_nodeLinks_conditions {
-  __typename: "NodeLinkCondition";
-  id: string;
-  description: string | null;
-  title: string;
-  when: deepRoutineFields_nodeLinks_conditions_when[];
-}
-
-export interface deepRoutineFields_nodeLinks {
-  __typename: "NodeLink";
-  id: string;
-  fromId: string;
-  toId: string;
-  conditions: deepRoutineFields_nodeLinks_conditions[];
-}
-
-export interface deepRoutineFields_owner_Organization {
-  __typename: "Organization";
-  id: string;
-  name: string;
-}
-
-export interface deepRoutineFields_owner_User {
-  __typename: "User";
-  id: string;
-  username: string | null;
-}
-
-export type deepRoutineFields_owner = deepRoutineFields_owner_Organization | deepRoutineFields_owner_User;
-
 export interface deepRoutineFields_outputs_standard_tags {
   __typename: "Tag";
   id: string;
@@ -143,6 +129,20 @@ export interface deepRoutineFields_outputs {
   id: string;
   standard: deepRoutineFields_outputs_standard | null;
 }
+
+export interface deepRoutineFields_owner_Organization {
+  __typename: "Organization";
+  id: string;
+  name: string;
+}
+
+export interface deepRoutineFields_owner_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type deepRoutineFields_owner = deepRoutineFields_owner_Organization | deepRoutineFields_owner_User;
 
 export interface deepRoutineFields_parent {
   __typename: "Routine";
@@ -170,25 +170,27 @@ export interface deepRoutineFields_tags {
 export interface deepRoutineFields {
   __typename: "Routine";
   id: string;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
+  inputs: deepRoutineFields_inputs[];
   instructions: string | null;
   isAutomatable: boolean | null;
+  isComplete: boolean;
   isInternal: boolean | null;
-  title: string | null;
-  description: string | null;
-  updated_at: any;
-  version: string | null;
-  stars: number;
-  score: number;
-  isUpvoted: boolean | null;
-  role: MemberRole | null;
   isStarred: boolean;
-  inputs: deepRoutineFields_inputs[];
-  nodes: deepRoutineFields_nodes[];
+  isUpvoted: boolean | null;
   nodeLinks: deepRoutineFields_nodeLinks[];
-  owner: deepRoutineFields_owner | null;
+  nodes: deepRoutineFields_nodes[];
   outputs: deepRoutineFields_outputs[];
+  owner: deepRoutineFields_owner | null;
   parent: deepRoutineFields_parent | null;
   resources: deepRoutineFields_resources[];
+  score: number;
+  stars: number;
+  role: MemberRole | null;
   tags: deepRoutineFields_tags[];
+  title: string | null;
+  updated_at: any;
+  version: string | null;
 }

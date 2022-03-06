@@ -8,9 +8,16 @@ export const projectFields = gql`
     }
     fragment projectFields on Project {
         id
-        name
-        description
+        completedAt
         created_at
+        description
+        isComplete
+        isStarred
+        isUpvoted
+        name
+        role
+        score
+        stars
         tags {
             ...projectTagFields
         }
@@ -24,10 +31,5 @@ export const projectFields = gql`
                 username
             }
         }
-        stars
-        isStarred
-        score
-        role
-        isUpvoted
     }
 `

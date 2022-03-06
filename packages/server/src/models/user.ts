@@ -71,12 +71,13 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
         })
     },
     customQueries(input: UserSearchInput): { [x: string]: any } {
+        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
         const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-        return { ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery };
+        return { ...minStarsQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery };
     },
 })
 

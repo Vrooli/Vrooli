@@ -19,13 +19,14 @@ export interface organization_organization_tags {
 export interface organization_organization {
   __typename: "Organization";
   id: string;
-  name: string;
   bio: string | null;
   created_at: any;
-  tags: organization_organization_tags[];
-  stars: number;
+  isOpenToNewMembers: boolean;
   isStarred: boolean;
+  name: string;
   role: MemberRole | null;
+  stars: number;
+  tags: organization_organization_tags[];
 }
 
 export interface organization {

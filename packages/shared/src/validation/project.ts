@@ -3,11 +3,14 @@ import { resourcesCreate, resourcesUpdate } from './resource';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
+const isComplete = yup.boolean().optional();
+
 /**
  * Information required when creating a project. 
  */
 export const projectCreate = yup.object().shape({
     description,
+    isComplete,
     name: name.required(),
     parentId: id, // If forked, the parent's id
     createdByUserId: id, // If associating with yourself, your own id. Cannot associate with another user
@@ -22,6 +25,7 @@ export const projectCreate = yup.object().shape({
  */
 export const projectUpdate = yup.object().shape({
     description,
+    isComplete,
     name,
     userId: id, // Allows you to request transfer ownership of the project
     organizationId: id, // Allows you to request transfer ownership of the project

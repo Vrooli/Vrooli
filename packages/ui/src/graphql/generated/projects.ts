@@ -39,16 +39,18 @@ export type projects_projects_edges_node_owner = projects_projects_edges_node_ow
 export interface projects_projects_edges_node {
   __typename: "Project";
   id: string;
-  name: string;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
+  isComplete: boolean;
+  isStarred: boolean;
+  isUpvoted: boolean | null;
+  name: string;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
   tags: projects_projects_edges_node_tags[];
   owner: projects_projects_edges_node_owner | null;
-  stars: number;
-  isStarred: boolean;
-  score: number;
-  role: MemberRole | null;
-  isUpvoted: boolean | null;
 }
 
 export interface projects_projects_edges {

@@ -49,6 +49,8 @@ export const RoutineOrchestratorPage = ({
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
 
+    console.log('ROUTINE ORCHESTRATOR PAGE RENDER...', canEdit, routine?.role, [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole));
+
     // Open/close routine info drawer
     const [isRoutineInfoOpen, setIsRoutineInfoOpen] = useState<boolean>(false);
     const closeRoutineInfo = useCallback(() => setIsRoutineInfoOpen(false), []);

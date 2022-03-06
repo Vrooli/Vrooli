@@ -78,12 +78,14 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
         })
     },
     customQueries(input: CommentSearchInput): { [x: string]: any } {
+        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
+        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const projectIdQuery = input.projectId ? { projectId: input.projectId } : undefined;
         const routineIdQuery = input.routineId ? { routineId: input.routineId } : undefined;
         const standardIdQuery = input.standardId ? { standardId: input.standardId } : undefined;
-        return { ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery };
+        return { ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery };
     },
 })
 

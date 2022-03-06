@@ -19,16 +19,18 @@ export interface routineFields_tags {
 export interface routineFields {
   __typename: "Routine";
   id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
-  role: MemberRole | null;
-  tags: routineFields_tags[];
-  stars: number;
+  isComplete: boolean;
   isStarred: boolean;
-  score: number;
   isUpvoted: boolean | null;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
+  tags: routineFields_tags[];
+  title: string | null;
+  version: string | null;
 }

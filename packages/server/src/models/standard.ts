@@ -76,14 +76,14 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
             const organizationIds = objects
-                .filter(x => x.creator?.__typename === 'Organization')
-                .map(x => x.id)
+                .filter(x => x.owner?.hasOwnProperty('name')) // Between users and organizations, only the latter has a "name" field
+                .map(x => x.owner.id)
                 .filter(x => Boolean(x)) as string[];
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
             objects = objects.map((x) => {
-                const orgRoleIndex = organizationIds.findIndex(id => id === x.id);
+                const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
                 if (orgRoleIndex >= 0) {
                     return { ...x, role: roles[orgRoleIndex] };
                 }
@@ -124,6 +124,8 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         })
     },
     customQueries(input: StandardSearchInput): { [x: string]: any } {
+        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
+        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const userIdQuery = input.userId ? { createdByUserId: input.userId } : {};
         const organizationIdQuery = input.organizationId ? { createdByOrganizationId: input.organizationId } : {};
         const projectIdQuery = input.projectId ? { 
@@ -139,7 +141,8 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
                 { routineOutputs: { some: { routineId: input.routineId } } },
             ]
         } : {};
-        return { ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...reportIdQuery, ...routineIdQuery };
+        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
+        return { ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...reportIdQuery, ...routineIdQuery, ...tagsQuery };
     },
 })
 

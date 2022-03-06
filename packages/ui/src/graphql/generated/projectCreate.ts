@@ -33,16 +33,18 @@ export type projectCreate_projectCreate_owner = projectCreate_projectCreate_owne
 export interface projectCreate_projectCreate {
   __typename: "Project";
   id: string;
-  name: string;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
+  description: string | null;
+  isComplete: boolean;
+  isStarred: boolean;
+  isUpvoted: boolean | null;
+  name: string;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
   tags: projectCreate_projectCreate_tags[];
   owner: projectCreate_projectCreate_owner | null;
-  stars: number;
-  isStarred: boolean;
-  score: number;
-  role: MemberRole | null;
-  isUpvoted: boolean | null;
 }
 
 export interface projectCreate {
