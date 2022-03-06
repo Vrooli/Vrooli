@@ -229,7 +229,6 @@ export const resolvers = {
     NodeType: NodeType,
     NodeData: {
         __resolveType(obj: any) {
-            console.log('IN NODEDATA __resolveType', obj);
             // Only NodeEnd has wasSuccessful field
             if (obj.hasOwnProperty('wasSuccessful')) return GraphQLModelType.NodeEnd;
             // Only NodeLoop has loop field

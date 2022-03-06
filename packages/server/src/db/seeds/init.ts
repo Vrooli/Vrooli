@@ -263,6 +263,77 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Routines */
     //==============================================================
+    let mintToken: any = await prisma.routine.findFirst({
+        where: { 
+            AND: [
+                { organizationId: vrooli.id },
+                { title: 'Mint Native Token' },
+            ]
+        }
+    })
+    if (!mintToken) {
+        console.info('📚 Creating Native Token Minting routine');
+        const mintTokenId = '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'; // <- DO NOT CHANGE. This is used as a reference routine
+        mintToken = await prisma.routine.create({
+            data: {
+                id: mintTokenId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
+                title: 'Mint Native Token',
+                description: 'Mint a fungible token on the Cardano blockchain.',
+                instructions: `To mint through a web interface, select the online resource and follow the instructions.\n
+                               To mint through the command line, select the developer resource and follow the instructions.`,
+                isAutomatable: false,
+                isInternal: false,
+                version: '1.0.0',
+                createdByOrganization: { connect: { id: vrooli.id } },
+                organization: { connect: { id: vrooli.id } },
+                inputs: {}, //TODO
+                outputs: {}, //TODO
+                resources: {
+                    create: [
+                        { title: 'minterr.io', usedFor: ResourceUsedFor.ExternalService as any, link: 'https://minterr.io/mint-cardano-tokens/' },
+                        { title: 'cardano.org guide', usedFor: ResourceUsedFor.Developer as any, link: 'https://developers.cardano.org/docs/native-tokens/minting/' },
+                    ]
+                }
+            }
+        })
+    }
+
+    let mintNft: any = await prisma.routine.findFirst({
+        where: { 
+            AND: [
+                { organizationId: vrooli.id },
+                { title: 'Mint NFT' },
+            ]
+        }
+    })
+    if (!mintNft) {
+        console.info('📚 Creating NFT Minting routine');
+        const mintNftId = '4e038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'; // <- DO NOT CHANGE. This is used as a reference routine
+        mintNft = await prisma.routine.create({
+            data: {
+                id: mintNftId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
+                title: 'Mint NFT',
+                description: 'Mint a non-fungible token (NFT) on the Cardano blockchain.',
+                instructions: `To mint through a web interface, select one of the online resources and follow the instructions.\n
+                               To mint through the command line, select the developer resource and follow the instructions.`,
+                isAutomatable: false,
+                isInternal: false,
+                version: '1.0.0',
+                createdByOrganization: { connect: { id: vrooli.id } },
+                organization: { connect: { id: vrooli.id } },
+                inputs: {}, //TODO
+                outputs: {}, //TODO
+                resources: {
+                    create: [
+                        { title: 'minterr.io', usedFor: ResourceUsedFor.ExternalService as any, link: 'https://minterr.io/mint-cardano-tokens/' },
+                        { title: 'cardano-tools.io', usedFor: ResourceUsedFor.ExternalService as any, link: 'https://cardano-tools.io/mint' },
+                        { title: 'cardano.org guide', usedFor: ResourceUsedFor.Developer as any, link: 'https://developers.cardano.org/docs/native-tokens/minting-nfts' },
+                    ]
+                }
+            }
+        })
+    }
+
     let frameworkBusinessIdea: any = await prisma.routine.findFirst({
         where: {
             AND: [
@@ -704,7 +775,6 @@ export async function init(prisma: PrismaType) {
                 }
             }
         })
-        // Create node links
         console.log('frameworkBusinessIdea', frameworkBusinessIdea)
     }
     //==============================================================

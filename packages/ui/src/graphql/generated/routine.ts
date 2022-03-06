@@ -150,17 +150,7 @@ export interface routine_routine_parent {
   title: string | null;
 }
 
-export interface routine_routine_contextualResources {
-  __typename: "Resource";
-  id: string;
-  created_at: any;
-  description: string | null;
-  link: string;
-  title: string | null;
-  updated_at: any;
-}
-
-export interface routine_routine_externalResources {
+export interface routine_routine_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -199,8 +189,7 @@ export interface routine_routine {
   owner: routine_routine_owner | null;
   outputs: routine_routine_outputs[];
   parent: routine_routine_parent | null;
-  contextualResources: routine_routine_contextualResources[];
-  externalResources: routine_routine_externalResources[];
+  resources: routine_routine_resources[];
   tags: routine_routine_tags[];
 }
 

@@ -133,10 +133,7 @@ export const deepRoutineFields = gql`
             id
             title
         }
-        contextualResources {
-            ...deepRoutineResourceFields
-        }
-        externalResources {
+        resources {
             ...deepRoutineResourceFields
         }
         tags {

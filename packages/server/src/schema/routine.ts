@@ -39,8 +39,7 @@ export const typeDef = gql`
         nodeLinksCreate: [NodeLinkCreateInput!]
         inputsCreate: [InputItemCreateInput!]
         outputsCreate: [OutputItemCreateInput!]
-        resourcesContextualCreate: [ResourceCreateInput!]
-        resourcesExternalCreate: [ResourceCreateInput!]
+        resourcesCreate: [ResourceCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
     }
@@ -67,12 +66,9 @@ export const typeDef = gql`
         outputsCreate: [OutputItemCreateInput!]
         outputsUpdate: [OutputItemUpdateInput!]
         outputsDelete: [ID!]
-        resourcesContextualDelete: [ID!]
-        resourcesContextualCreate: [ResourceCreateInput!]
-        resourcesContextualUpdate: [ResourceUpdateInput!]
-        resourcesExternalDelete: [ID!]
-        resourcesExternalCreate: [ResourceCreateInput!]
-        resourcesExternalUpdate: [ResourceUpdateInput!]
+        resourcesDelete: [ID!]
+        resourcesCreate: [ResourceCreateInput!]
+        resourcesUpdate: [ResourceUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
@@ -93,9 +89,7 @@ export const typeDef = gql`
         title: String
         version: String
         comments: [Comment!]!
-        contextualResources: [Resource!]!
         creator: Contributor
-        externalResources: [Resource!]!
         forks: [Routine!]!
         inputs: [InputItem!]!
         nodeLists: [NodeRoutineList!]!
@@ -106,6 +100,7 @@ export const typeDef = gql`
         parent: Routine
         project: Project
         reports: [Report!]!
+        resources: [Resource!]!
         starredBy: [User!]!
         tags: [Tag!]!
     }
@@ -156,18 +151,21 @@ export const typeDef = gql`
     }
 
     input RoutineSearchInput {
-        userId: ID
+        after: String
+        createdTimeFrame: TimeFrame
+        ids: [ID!]
+        minScore: Int
+        minStars: Int
         organizationId: ID
         projectId: ID
         parentId: ID
         reportId: ID
-        ids: [ID!]
-        sortBy: RoutineSortBy
-        createdTimeFrame: TimeFrame
-        updatedTimeFrame: TimeFrame
         searchString: String
-        after: String
+        sortBy: RoutineSortBy
+        tags: [String!]
         take: Int
+        updatedTimeFrame: TimeFrame
+        userId: ID
     }
 
     # Return type for search result

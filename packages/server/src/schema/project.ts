@@ -73,17 +73,20 @@ export const typeDef = gql`
     }
 
     input ProjectSearchInput {
-        userId: ID
+        after: String
+        createdTimeFrame: TimeFrame
+        ids: [ID!]
+        minScore: Int
+        minStars: Int
         organizationId: ID
         parentId: ID
         reportId: ID
-        ids: [ID!]
-        sortBy: ProjectSortBy
-        createdTimeFrame: TimeFrame
-        updatedTimeFrame: TimeFrame
         searchString: String
-        after: String
+        sortBy: ProjectSortBy
+        tags: [String!]
         take: Int
+        updatedTimeFrame: TimeFrame
+        userId: ID
     }
 
     # Return type for search result

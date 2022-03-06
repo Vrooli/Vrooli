@@ -831,12 +831,8 @@ const groupSupplementsByType = (data: { [x: string]: any }, partial: PartialInfo
             selectFieldsDict[childType] = _.merge(selectFieldsDict[childType] ?? {}, childPartial);
             // Pass each element through groupSupplementsByType
             for (const v of value) {
-                if (key === 'tags') console.log('passing element through groupSupplementsByType', v);
                 const [childObjectsDict, childSelectFieldsDict] = groupSupplementsByType(v, childPartial);
-                if (key === 'tags') console.log('passed element through groupsupplementstype', childObjectsDict);
-                if (key === 'tags') console.log('objectdict before child merge:', objectDict);
                 objectDict = mergeObjectTypeDict(objectDict, childObjectsDict);
-                if (key === 'tags') console.log('merged objectdict!', objectDict);
                 selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
             }
         }
@@ -915,13 +911,11 @@ export const addSupplementalFields = async (
     data: { [x: string]: any }[],
     partial: PartialInfo,
 ): Promise<{ [x: string]: any }[]> => {
-    console.log('addsupplementalfields start', partial.__typename);
+    console.log('addsupplementalfields start', partial.__typename, data);
     // Group objects by type
     let objectDict: { [x: string]: object[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
     for (const d of data) {
-        //TODO temp. check all tags which should be in objectdict.currently only 'Cardano' shows up
-        if (d.tags && d.tags.length > 0) console.log('addsupplementalfields d.tags start', d.tags);
         const [childObjectsDict, childSelectFieldsDict] = groupSupplementsByType(d, partial);
         // Merge each array in childObjectsDict into objectDict
         objectDict = mergeObjectTypeDict(objectDict, childObjectsDict);//TODO temp. something wrong with merging. make sure all tags return correctly in one array
@@ -934,7 +928,12 @@ export const addSupplementalFields = async (
     const objectsById: { [x: string]: any } = {};
     // Pass each objectDict value through the correct custom supplemental field function
     for (const [key, value] of Object.entries(objectDict)) {
-        console.log('keeeeeeeeeeeey', key)
+        console.log('keeeeeeeeeeeey', key, JSON.stringify(value))
+        // Since objects were grouped by type, each value is missing its relationships. 
+        // We must add them back before calling the supplemental field function, as it may need these relationships. 
+        // The only way to do this is to find the objects in the data parameter TODO
+        let temp = value.map((v: any) => combineSupplements(v, objectsById));
+        console.log('THE TEMP TO SAVE THEM ALL', temp); // TODO check if this combines relations correctly
         if (key in FormatterMap) {
             const valuesWithSupplements = FormatterMap[key]?.addSupplementalFields
                 ? await (FormatterMap[key] as any).addSupplementalFields(prisma, userId, value, selectFieldsDict[key])
@@ -949,9 +948,7 @@ export const addSupplementalFields = async (
     }
     console.log('going to recursive combineSupplements', objectsById); //TODO only 9ea8 Cardano tag shows up here
     let result = data.map(d => combineSupplements(d, objectsById));
-    console.log('got result', partial.__typename, result);
-    //TODO temp
-    if (result?.length > 0 && result[0].tags) console.log('got result tags', result[0].tags); // TODO isStarred missing on FIRST tag in result
+    console.log('got result', partial.__typename, JSON.stringify(result));
     // Convert objectsById dictionary back into shape of data
     return result
 }
@@ -981,13 +978,10 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
     console.log('will selectdb handle base case?', typename, partial)
     if (typename && typename in FormatterMap) {
         const formatter = FormatterMap[typename];
-        console.log('selectToDB base case', typename);
         // Remove calculated fields and/or add fields for calculating
         if (formatter.removeCalculatedFields) result = formatter.removeCalculatedFields(result);
         // Deconstruct unions
-        console.log('deconstructing union', Boolean(formatter.deconstructUnions), result);
         if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
-        console.log('deconstructed union', result);
         // Add join tables
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
     }
@@ -1001,21 +995,17 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
  * @returns Valid GraphQL object
  */
 export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial: PartialInfo): GraphQLModel {
-    console.log('in modelToGraphQL', partial.__typename, data);
     // First convert data to usable shape
     const typename = partial?.__typename;
     if (typename && typename in FormatterMap) {
         const formatter = FormatterMap[typename];
         // Construct unions
         if (formatter.constructUnions) data = formatter.constructUnions(data);
-        console.log('constructed union', data)
         // Remove join tables
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
-        console.log('removed tables', data)
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {
-        console.log('modeltographql loop', key, partial[key], value);
         // If key doesn't exist in partial, skip
         if (!_.isObject(partial) || !(partial as any)[key]) continue;
         // If value is an array, call modelToGraphQL on each element
@@ -1063,10 +1053,10 @@ export async function readOneHelper<GraphQLModel>(
         console.log('YUP CAUGHT DAT PRISMA ERROR', error);
     }
     let object = await PrismaMap[objectType](model.prisma).findUnique({ where: { id: input.id }, ...selectHelper(partial) });
-    console.log('fffffffff object', object)
     if (!object) throw new CustomError(CODE.NotFound, `${objectType} not found`);
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partial) as RecursivePartial<GraphQLModel>;
+    console.log('ffffffffff formatted', formatted);
     return (await addSupplementalFields(model.prisma, userId, [formatted], partial))[0] as RecursivePartial<GraphQLModel>;
 }
 
@@ -1153,7 +1143,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
             edges: []
         }
     }
-    console.log('chicken bobicken partial info', partial, info)
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     console.log('findmany nodes before modeltographql', formattedNodes);

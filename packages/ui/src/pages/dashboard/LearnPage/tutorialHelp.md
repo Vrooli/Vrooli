@@ -1,1 +1,1 @@
-aaaaaaaaa
+Tutorials are community-created routines, each designed to teach a specific skill. Any routine associated with the "learn" tag will be listed here.

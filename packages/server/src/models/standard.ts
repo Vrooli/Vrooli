@@ -20,8 +20,8 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         '__typename': GraphQLModelType.Standard,
         'comments': GraphQLModelType.Comment,
         'creator': {
-            '...User': GraphQLModelType.User,
-            '...Organization': GraphQLModelType.Organization,
+            'User': GraphQLModelType.User,
+            'Organization': GraphQLModelType.Organization,
         },
         'reports': GraphQLModelType.Report,
         'routineInputs': GraphQLModelType.Routine,

@@ -1,6 +1,12 @@
+import { useQuery } from '@apollo/client';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
+import { ProjectSortBy, RoutineSortBy } from 'graphql/generated/globalTypes';
+import { projects, projectsVariables } from 'graphql/generated/projects';
+import { routines, routinesVariables } from 'graphql/generated/routines';
+import { projectsQuery, routinesQuery } from 'graphql/query';
 import { useEffect, useMemo, useState } from 'react';
+import { Project, Routine } from 'types';
 import { LearnPageProps } from '../types';
 import courseMarkdown from './courseHelp.md';
 import learnPageMarkdown from './learnPageHelp.md';
@@ -10,25 +16,40 @@ export const LearnPage = ({
     session,
 }: LearnPageProps) => {
 
-    const courses = useMemo(() => [].map((o, index) => (
-        <ProjectListItem
-            key={`course-list-item-${'TODO'}`}
-            index={index}
-            session={session}
-            data={o}
-            onClick={() => { }}
-        />
-    )), []);
+    const { data: coursesData, loading: coursesLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
+        variables: { input: { 
+            take: 5,
+            sortBy: ProjectSortBy.AlphabeticalAsc,
+            tags: ['learn'],
+        } } 
+    });
+    const { data: tutorialsData, loading: tutorialsLoading } = useQuery<routines, routinesVariables>(routinesQuery, { 
+        variables: { input: { 
+            take: 5,
+            sortBy: RoutineSortBy.AlphabeticalAsc,
+            tags: ['learn'],
+        } } 
+    });
 
-    const tutorials = useMemo(() => [].map((o, index) => (
-        <RoutineListItem
-            key={`tutorial-list-item-${'TODO'}`}
+    const courses = useMemo(() => coursesData?.projects?.edges?.map((o, index) => (
+        <ProjectListItem
+            key={`course-list-item-${index}`}
             index={index}
             session={session}
-            data={o}
+            data={o.node as Project}
             onClick={() => { }}
         />
-    )), []);
+    )) ?? [], [coursesData]);
+
+    const tutorials = useMemo(() => tutorialsData?.routines?.edges?.map((o, index) => (
+        <RoutineListItem
+            key={`tutorial-list-item-${index}`}
+            index={index}
+            session={session}
+            data={o.node as Routine}
+            onClick={() => { }}
+        />
+    )) ?? [], [tutorialsData]);
 
     // Parse help button markdown
     const [courseText, setCourseText] = useState('');
@@ -59,7 +80,7 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Courses"}
                     helpText={courseText}
-                    loading={true}
+                    loading={coursesLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -69,7 +90,7 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Tutorials"}
                     helpText={tutorialText}
-                    loading={true}
+                    loading={tutorialsLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >

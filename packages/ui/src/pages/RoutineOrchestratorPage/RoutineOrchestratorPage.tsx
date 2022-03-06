@@ -1,5 +1,5 @@
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { NodeGraph, OrchestrationBottomContainer, OrchestrationInfoContainer, RoutineInfoDialog, UnlinkedNodesDialog } from 'components';
+import { LinkDialog, NodeGraph, OrchestrationBottomContainer, OrchestrationInfoContainer, RoutineInfoDialog, UnlinkedNodesDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
@@ -16,7 +16,7 @@ import isEqual from 'lodash/isEqual';
 import { useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { OrchestrationStatusObject } from 'components/graphs/NodeGraph/types';
-import { NodeType } from 'graphql/generated/globalTypes';
+import { MemberRole, NodeType } from 'graphql/generated/globalTypes';
 import { RoutineOrchestratorPageProps } from 'pages/types';
 import _ from 'lodash';
 
@@ -47,7 +47,7 @@ export const RoutineOrchestratorPage = ({
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const [isEditing, setIsEditing] = useState<boolean>(false);
-    const canEdit = true;// TODO useMemo(() => Boolean(session?.id) && routine?.owner?.id === session?.id, [routine]); //TODO handle organization
+    const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
 
     // Open/close routine info drawer
     const [isRoutineInfoOpen, setIsRoutineInfoOpen] = useState<boolean>(false);
@@ -57,6 +57,7 @@ export const RoutineOrchestratorPage = ({
     const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
 
     useEffect(() => {
+        console.log('SETTING CHANGED ROUTINEEEEEEEEEE', routine);
         setChangedRoutine(routine);
     }, [routine]);
 
@@ -235,6 +236,14 @@ export const RoutineOrchestratorPage = ({
                 break;
         }
     }, []);
+    const handleAddLinkDialogOpen = useCallback((fromId?: string, toId?: string) => {
+    }, []);
+
+    const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+    const handleLinkDialogClose = useCallback(() => {
+    }, []);
+    const handleLinkDelete = useCallback(() => {
+    }, []);
 
     const handleScaleChange = (newScale: number) => {
         setScale(newScale);
@@ -374,13 +383,24 @@ export const RoutineOrchestratorPage = ({
 
     return (
         <Box sx={{
-            paddingTop: '10vh',
             display: 'flex',
             flexDirection: 'column',
             minHeight: '100%',
             height: '100%',
             width: '100%',
         }}>
+            {/* Popup for creating new links */}
+            {changedRoutine ? <LinkDialog
+                handleClose={handleLinkDialogClose}
+                handleDelete={handleLinkDelete}
+                isAdd={true}
+                isOpen={isLinkDialogOpen}
+                routine={changedRoutine}
+            // partial={ }
+            /> : null}
+            {/* Popup for deleting nodes (or the entire routine orchestration) */}
+            {/* <DeleteNodeDialog
+            /> */}
             {/* Displays routine information when you click on a routine list item*/}
             <RoutineInfoDialog
                 open={isRoutineInfoOpen}
@@ -430,6 +450,27 @@ export const RoutineOrchestratorPage = ({
                                 fill: (t) => t.palette.error.main,
                             }
                         }} />
+                    </IconButton>
+                </Tooltip>
+                {/* Add new links to the orchestration */}
+                <Tooltip title='Add new link'>
+                    <IconButton
+                        id="add-link-button"
+                        edge="end"
+                        onClick={() => { }}
+                        aria-label='Add link'
+                        sx={{
+                            background: (t) => t.palette.secondary.main,
+                            marginLeft: 'auto',
+                            marginRight: 1,
+                            transition: 'brightness 0.2s ease-in-out',
+                            '&:hover': {
+                                filter: `brightness(105%)`,
+                                background: (t) => t.palette.secondary.main,
+                            },
+                        }}
+                    >
+                        <AddIcon id="add-link-button-icon" sx={{ fill: 'white' }} />
                     </IconButton>
                 </Tooltip>
                 {/* Add new nodes to the orchestration */}

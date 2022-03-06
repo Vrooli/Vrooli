@@ -169,6 +169,7 @@ export const OrchestrationInfoContainer = ({
             justifyContent="space-between"
             sx={{
                 zIndex: 2,
+                paddingTop: '10vh',
                 background: (t) => t.palette.primary.light,
                 color: (t) => t.palette.primary.contrastText,
             }}
@@ -231,7 +232,7 @@ export const OrchestrationInfoContainer = ({
                 <OrchestrationInfoDialog
                     sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
                     isEditing={isEditing}
-                    routineInfo={routine}
+                    routine={routine}
                     handleUpdate={handleRoutineUpdate}
                 />
             </Box>

@@ -160,8 +160,7 @@ export type ReportFor = ValueOf<typeof ReportFor>;
 export const ResourceFor = {
     Organization: "Organization",
     Project: "Project",
-    RoutineContextual: "RoutineContextual",
-    RoutineExternal: "RoutineExternal",
+    Routine: "Routine",
     User: "User",
 }
 export type ResourceFor = ValueOf<typeof ResourceFor>;
@@ -169,7 +168,10 @@ export type ResourceFor = ValueOf<typeof ResourceFor>;
 export const ResourceUsedFor = {
     Community: "Community",
     Context: "Context",
+    Developer: "Developer",
     Donation: "Donation",
+    ExternalService: "ExternalService",
+    Install: "Install",
     Learning: "Learning",
     OfficialWebsite: "OfficialWebsite",
     Proposal: "Proposal",

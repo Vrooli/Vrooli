@@ -10,8 +10,7 @@ export const typeDef = gql`
     enum ResourceFor {
         Organization
         Project
-        RoutineContextual
-        RoutineExternal
+        Routine
         User
     }
 
@@ -27,7 +26,10 @@ export const typeDef = gql`
     enum ResourceUsedFor {
         Community
         Context
+        Developer
         Donation
+        ExternalService
+        Install
         Learning
         OfficialWebsite
         Proposal

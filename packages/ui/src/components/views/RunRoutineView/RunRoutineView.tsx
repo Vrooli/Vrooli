@@ -28,7 +28,7 @@ export const RunRoutineView = ({
     return (
         <>
             {/* Resources */}
-            {data?.routine?.externalResources && <ResourceListHorizontal /> }
+            {data?.routine?.resources && <ResourceListHorizontal /> }
             {/* Description */}
             {data?.routine?.description && (<Typography variant="body1">{data?.routine?.description}</Typography>)}
             {/* Form generate from routine's inputs list */}

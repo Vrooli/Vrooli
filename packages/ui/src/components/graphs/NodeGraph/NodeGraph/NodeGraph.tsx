@@ -13,8 +13,15 @@ import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
 
 type DragRefs = {
-    lastPosition: { x: number, y: number };
+    currPosition: { x: number, y: number } | null;
     speed: number;
+    timeout: NodeJS.Timeout | null;
+}
+
+type PinchRefs = {
+    currPosition: { x: number, y: number } | null; // Most recent pinch position
+    lastPosition: { x: number, y: number } | null; // Pinch position when scale was last updated
+    isShiftKeyPressed: boolean; // Whether shift key is pressed (for zooming with mouse and keyboard)
     timeout: NodeJS.Timeout | null;
 }
 
@@ -30,6 +37,7 @@ export const NodeGraph = ({
     handleNodeUpdate,
     handleLinkCreate,
     handleLinkUpdate,
+    // handleScaleChange,
 }: NodeGraphProps) => {
     console.log(' IN NODE GRAPH', nodes, links);
     // Size and position data of each column
@@ -40,10 +48,30 @@ export const NodeGraph = ({
     const [dragId, setDragId] = useState<string | null>(null);
     const handleDragStart = useCallback((nodeId: string) => { setDragId(nodeId) }, []);
     const dragRefs = useRef<DragRefs>({
-        lastPosition: { x: 0, y: 0 },
+        currPosition: null,
         speed: 0,
         timeout: null,
     })
+    // Pinching to zoom. Uses a timeout to reduce the amount of calls to handleScaleChange
+    const [isShiftKeyPressed, setIsShiftKeyPressed] = useState(false); // Used to update cursor, not for calculations
+    const pinchRefs = useRef<PinchRefs>({
+        currPosition: null,
+        lastPosition: null,
+        isShiftKeyPressed: false,
+        timeout: null,
+    })
+
+    /**
+     * Add tag to head indicating that this page has custom scaling
+     */
+    useEffect(() => {
+        const meta = document.createElement("meta");
+        meta.name = "viewport";
+        meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0 user-scalable=0";
+        document.head.appendChild(meta);
+        // Remove the meta element when the component is unmounted
+        return () => { document.head.removeChild(meta); }
+    }, [])
 
     /**
      * When a node is being dragged near the edge of the grid, the grid scrolls
@@ -51,10 +79,10 @@ export const NodeGraph = ({
     const nodeScroll = () => {
         const gridElement = document.getElementById('graph-root');
         if (!gridElement) return;
-        const { x, y } = dragRefs.current.lastPosition;
-        if (x === 0 && y === 0) return;
+        if (dragRefs.current.currPosition === null) return;
+        const { x, y } = dragRefs.current.currPosition;
         const calculateSpeed = (useX: boolean) => {
-            if (x === 0 && y === 0) {
+            if (dragRefs.current.currPosition === null) {
                 dragRefs.current.speed = 0;
                 return;
             }
@@ -94,11 +122,33 @@ export const NodeGraph = ({
 
     const clearScroll = () => {
         if (dragRefs.current.timeout) clearTimeout(dragRefs.current.timeout);
-        dragRefs.current = {
-            lastPosition: { x: 0, y: 0 },
-            speed: 0,
-            timeout: null,
-        }
+        dragRefs.current = { currPosition: null, speed: 0, timeout: null }
+    }
+
+    /**
+     * Rescales the graph when pinching
+     */
+    const pinch = () => {
+        if (pinchRefs.current.currPosition === null) return;
+        // Determine the distance between the last time this function was called and now
+        const { x, y } = pinchRefs.current.currPosition;
+        const { x: lastX, y: lastY } = pinchRefs.current.lastPosition || pinchRefs.current.currPosition;
+        const distX = x - lastX;
+        const distY = y - lastY;
+        const dist = Math.sqrt(distX * distX + distY * distY);
+        console.log('PINCH DIST', dist, x, y, lastX, lastY)
+        PubSub.publish(Pubs.Snack, { message: dist})
+        // Determine if the pinch is expanding or contracting
+        //TODO
+        // Set last position to current position
+        pinchRefs.current.lastPosition = pinchRefs.current.currPosition;
+        // Set a timeout to call this function again
+        if (pinchRefs.current.timeout) setTimeout(pinch, 100);
+    }
+
+    const clearPinch = () => {
+        if (pinchRefs.current.timeout) clearTimeout(pinchRefs.current.timeout);
+        pinchRefs.current = { currPosition: null, lastPosition: null, isShiftKeyPressed: false, timeout: null }
     }
 
     /**
@@ -213,47 +263,108 @@ export const NodeGraph = ({
     // - click-and-drag background
     // - drag-and-drop nodes
     useEffect(() => {
-        // Mouse drag state
+        // True if user touched the grid instead of a node or edge
         let touchedGrid = false;
-        // Only drag if not pressing a node or edge
-        const onMouseDown = (ev: MouseEvent | TouchEvent<any> | Event) => {
-            // Find first ID in event path
+        const onKeyDown = (ev: KeyboardEvent) => {
+            // If the user pressed the shift key
+            if (ev.key === 'Shift') {
+                pinchRefs.current.isShiftKeyPressed = true;
+                setIsShiftKeyPressed(true);
+            }
+        }
+        const onKeyUp = (ev: KeyboardEvent) => {
+            // If the user released the shift key
+            if (ev.key === 'Shift') {
+                pinchRefs.current.isShiftKeyPressed = false;
+                setIsShiftKeyPressed(false);
+            }
+        }
+        const onMouseDown = (ev: MouseEvent) => {
+            // Find touch point
+            const x = ev.clientX;
+            const y = ev.clientY;
+            // Find target
             const targetId = (ev as any)?.target.id;
             if (!targetId) return;
-            if (targetId.startsWith('node-') || targetId === 'graph-root' || targetId === 'graph-grid') {
-                const x = (ev as MouseEvent)?.clientX ?? (ev as TouchEvent)?.touches[0].clientX ?? 0;
-                const y = (ev as MouseEvent)?.clientY ?? (ev as TouchEvent)?.touches[0].clientY ?? 0;
-                dragRefs.current.lastPosition = { x, y };
+            // If pinching
+            if (pinchRefs.current.isShiftKeyPressed) {
+                pinchRefs.current.currPosition = { x, y };
+                if (!pinchRefs.current.timeout) pinchRefs.current.timeout = setTimeout(pinch, 500);
+            }
+            // If touching the grid or a node
+            else if (targetId.startsWith('node-') || targetId === 'graph-root' || targetId === 'graph-grid') {
+                // Determine if grid was touched
                 if (targetId.startsWith('node-column') || targetId.startsWith('node-placeholder') || targetId === 'graph-root' || targetId === 'graph-grid') touchedGrid = true;
+                // Otherwise, set dragRef
+                else dragRefs.current.currPosition = { x, y };
+            }
+        }
+        // Detect node drag and graph pinch
+        const onTouchStart = (ev: TouchEvent<any> | any) => {
+            // Find touch point
+            const x = ev.touches[0].clientX;
+            const y = ev.touches[0].clientY;
+            // Find the target
+            const targetId = ev.target.id;
+            if (!targetId) return;
+            console.log('TOUCH LENGTH', ev.touches.length);
+            // If pinching
+            if (ev.touches.length > 1) {
+                pinchRefs.current.currPosition = { x, y };
+                if (!pinchRefs.current.timeout) pinchRefs.current.timeout = setTimeout(pinch, 100);
+            }
+            // If touching the grid or a node
+            else if (targetId.startsWith('node-') || targetId === 'graph-root' || targetId === 'graph-grid') {
+                // Set dragRef
+                dragRefs.current.currPosition = { x, y };
             }
         }
         const onMouseUp = (ev: MouseEvent | Event) => {
             touchedGrid = false;
-            dragRefs.current.lastPosition = { x: 0, y: 0 };
             clearScroll();
+            clearPinch();
         }
         const onMouseMove = (ev: MouseEvent) => {
-            // If the grid is being dragged, move the grid
+            // Find cursor point
+            const x = ev.clientX;
+            const y = ev.clientY;
+            // If pinching
+            if (pinchRefs.current.currPosition) {
+                pinchRefs.current.currPosition = { x, y };
+            }
+            // Otherwise, if the grid is being dragged, move the grid
             // NOTE: this is only needed for mouse movement, as touch screens do this automatically
-            if (touchedGrid) {
+            else if (touchedGrid && dragRefs.current.currPosition) {
                 const gridElement = document.getElementById('graph-root');
                 if (!gridElement) return;
-                const deltaX = ev.clientX - dragRefs.current.lastPosition.x;
-                const deltaY = ev.clientY - dragRefs.current.lastPosition.y;
+                const deltaX = x - dragRefs.current.currPosition.x;
+                const deltaY = y - dragRefs.current.currPosition.y;
                 gridElement.scrollBy(-deltaX, -deltaY);
             }
-            dragRefs.current.lastPosition = { x: ev.clientX, y: ev.clientY };
+            dragRefs.current.currPosition = { x, y };
         }
         const onTouchMove = (ev: any) => {
-            dragRefs.current.lastPosition = { x: ev.touches[0].clientX ?? 0, y: ev.touches[0].clientY ?? 0 };
+            // Prevent default behavior
+            ev.preventDefault();
+            // Find touch point
+            const x = ev.touches[0].clientX;
+            const y = ev.touches[0].clientY;
+            // Handle pinch TODO
+            if (pinchRefs.current.currPosition) {
+                pinchRefs.current.currPosition = { x, y };
+            }
+            // drag
+            dragRefs.current.currPosition = { x, y };
         }
         // Add event listeners
-        window.addEventListener('mousedown', onMouseDown);
-        window.addEventListener('mouseup', onMouseUp);
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('touchstart', onMouseDown);
-        window.addEventListener('touchmove', onTouchMove);
-        window.addEventListener('touchend', onMouseUp);
+        window.addEventListener('keydown', onKeyDown); // Detects shift key for pinch
+        window.addEventListener('keyup', onKeyUp); // Detects shift key for pinch
+        window.addEventListener('mousedown', onMouseDown); // Detects if node or graph is being dragged
+        window.addEventListener('mouseup', onMouseUp); // Stops dragging and pinching
+        window.addEventListener('mousemove', onMouseMove); // Moves node or grid
+        window.addEventListener('touchstart', onTouchStart); // Detects if node is being dragged or graph is being pinched
+        window.addEventListener('touchmove', onTouchMove); // Detects if node is being dragged or graph is being pinched
+        window.addEventListener('touchend', onMouseUp); // Stops dragging and pinching
         // Add PubSub subscribers
         let dragStartSub = PubSub.subscribe(Pubs.NodeDrag, (_, data) => {
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);
@@ -272,7 +383,7 @@ export const NodeGraph = ({
             PubSub.unsubscribe(dragStartSub);
             PubSub.unsubscribe(dragDropSub);
         }
-    }, [handleDragStart, handleDragStop]);
+    }, [handleDragStart, handleDragStop, setIsShiftKeyPressed]);
 
     /**
      * Node data map converted to a 2D array of columns
@@ -319,7 +430,7 @@ export const NodeGraph = ({
             const toNode = nodes.find(node => node.id === link.toId);
             if (!fromNode || !toNode) return null;
             return <NodeEdge
-                key={`edge-${link.id ?? 'new-'+fromNode.id+'-to-'+toNode.id}`}
+                key={`edge-${link.id ?? 'new-' + fromNode.id + '-to-' + toNode.id}`}
                 link={link}
                 isEditing={isEditing}
                 isFromRoutineList={fromNode.type === NodeType.RoutineList}
@@ -356,7 +467,7 @@ export const NodeGraph = ({
 
     return (
         <Box id="graph-root" position="relative" sx={{
-            cursor: 'move',
+            cursor: isShiftKeyPressed ? 'nesw-resize' : 'move',
             minWidth: '100%',
             height: { xs: '70vh', md: '80vh' },
             overflowX: 'auto',

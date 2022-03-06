@@ -137,7 +137,7 @@ export interface BaseObjectActionDialogProps {
 export interface OrchestrationInfoDialogProps {
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
-    routineInfo: Routine | null;
+    routine: Routine | null;
     sxs?: { icon: any };
 }
 
@@ -155,9 +155,16 @@ export interface UnlinkedNodesDialogProps {
 }
 
 export interface LinkDialogProps {
-    anchorEl: HTMLElement | null;
     handleClose: (data: any) => any;
     handleDelete: () => any;
     isAdd: boolean;
+    isOpen: boolean;
     routine: Routine;
+}
+
+export interface DeleteRoutineDialogProps {
+    handleClose: () => any;
+    handleDelete: () => any;
+    isOpen: boolean;
+    routineName: string;
 }

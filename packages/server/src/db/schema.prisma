@@ -357,23 +357,21 @@ model report {
 //==============================================================
 
 model resource {
-    id                  String          @id @default(uuid()) @db.Uuid
-    created_at          DateTime        @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime        @default(now()) @db.Timestamptz(6)
-    title               String?         @db.VarChar(128)
-    description         String?         @db.VarChar(2048)
-    link                String          @db.VarChar(1024) // The actual link
-    usedFor             ResourceUsedFor @default(Context)
-    organizationId      String?         @db.Uuid
-    projectId           String?         @db.Uuid
-    routineContextualId String?         @db.Uuid
-    routineExternalId   String?         @db.Uuid
-    userId              String?         @db.Uuid
-    organization        organization?   @relation("resource_organization", fields: [organizationId], references: [id], onDelete: Cascade)
-    project             project?        @relation("resource_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routineContextual   routine?        @relation("resource_contextual_routine", fields: [routineContextualId], references: [id], onDelete: Cascade)
-    routineExternal     routine?        @relation("resource_external_routine", fields: [routineExternalId], references: [id], onDelete: Cascade)
-    user                user?           @relation("resource_user", fields: [userId], references: [id], onDelete: Cascade)
+    id             String          @id @default(uuid()) @db.Uuid
+    created_at     DateTime        @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime        @default(now()) @db.Timestamptz(6)
+    title          String?         @db.VarChar(128)
+    description    String?         @db.VarChar(2048)
+    link           String          @db.VarChar(1024) // The actual link
+    usedFor        ResourceUsedFor @default(Context)
+    organizationId String?         @db.Uuid
+    projectId      String?         @db.Uuid
+    routineId      String?         @db.Uuid
+    userId         String?         @db.Uuid
+    organization   organization?   @relation("resource_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    project        project?        @relation("resource_project", fields: [projectId], references: [id], onDelete: Cascade)
+    routine        routine?        @relation("resource_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    user           user?           @relation("resource_user", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 //==============================================================
@@ -433,8 +431,7 @@ model routine {
     outputs                 routine_output[]
     nodes                   node[] // Defines the nodes of an orchestration (i.e. routine is made up of subroutines)
     nodeLinks               node_link[] // Defines the links of an orchestration
-    contextualResources     resource[]               @relation("resource_contextual_routine") // Resources to provide context to the routine
-    externalResources       resource[]               @relation("resource_external_routine") // Resources for completing steps outside of Vrooli
+    resources               resource[]               @relation("resource_routine")
     forks                   routine[]                @relation("routine_fork")
     parent                  routine?                 @relation("routine_fork", fields: [parentId], references: [id], onDelete: SetNull)
     tags                    routine_tags[] // Categorical tags set by creators or community-voted
@@ -747,7 +744,10 @@ enum NodeType {
 enum ResourceUsedFor {
     Community // e.g. Discord invite link
     Context // e.g. Pitch video link
+    Developer // e.g. GitHub readme link with an alternative approach to completing the routine
     Donation // e.g. Patreon link
+    ExternalService // e.g. Fill out form link
+    Install // e.g. Install a required program link
     Learning // e.g. White Paper link
     OfficialWebsite // e.g. Website or Github link
     Proposal // e.g. IdeaScale link

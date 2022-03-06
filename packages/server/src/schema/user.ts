@@ -89,6 +89,7 @@ export const typeDef = gql`
     }
 
     input UserSearchInput {
+        minStars: Int
         organizationId: ID
         projectId: ID
         routineId: ID

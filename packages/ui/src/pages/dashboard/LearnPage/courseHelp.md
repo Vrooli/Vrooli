@@ -1,1 +1,3 @@
-fffffffff
+Courses are community-created projects, each designed to teach a specific skill. Any project associated with the "learn" tag will be listed here.
+
+In the long term, we would like to be able to generate digital certificates for completing courses. These certificates would be issued on [Atala Prism](https://atalaprism.io/app). The legitimacy of a certificate would be generated through a [web-of-trust](https://en.wikipedia.org/wiki/Web_of_trust).

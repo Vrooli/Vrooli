@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Stack, Typography } from '@mui/material';
+import { Box, Button, Grid, Link, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
@@ -39,17 +39,12 @@ interface AutocompleteListItem {
     objectType: string;
 }
 
-const examples = [
-    'Start a new business',
-    'Learn about Project Catalyst',
-    'Fund your project',
-    'Create a Cardano native asset token',
-].map((example, index) => (
-    <Typography key={index} component="p" variant="h6" sx={{
-        color: (t) => t.palette.text.secondary,
-        fontStyle: 'italics'
-    }}>"{example}"</Typography>
-))
+const examplesData: [string, string][] = [
+    ['Start a new business', '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
+    ['Learn about Project Catalyst', ''], //TODO
+    ['Fund your project', ''], //TODO
+    ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
+]
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -250,7 +245,21 @@ export const HomePage = ({
             {/* Examples stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '40px', paddingBottom: '40px' }}>
                 <Typography component="h2" variant="h5" pb={1}>Examples</Typography>
-                {examples}
+                {
+                    examplesData.map((example, index) => (
+                        <Typography
+                            key={`example-${index}`}
+                            component="p"
+                            variant="h6"
+                            onClick={() => { setLocation(`${APP_LINKS.Run}/${example[1]}`) }}
+                            sx={{
+                                color: (t) => t.palette.text.secondary,
+                                fontStyle: 'italic',
+                                cursor: 'pointer',
+                            }}
+                        >"{example[0]}"</Typography>
+                    ))
+                }
             </Stack>
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">

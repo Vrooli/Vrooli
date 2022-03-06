@@ -150,17 +150,7 @@ export interface deepRoutineFields_parent {
   title: string | null;
 }
 
-export interface deepRoutineFields_contextualResources {
-  __typename: "Resource";
-  id: string;
-  created_at: any;
-  description: string | null;
-  link: string;
-  title: string | null;
-  updated_at: any;
-}
-
-export interface deepRoutineFields_externalResources {
+export interface deepRoutineFields_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -199,7 +189,6 @@ export interface deepRoutineFields {
   owner: deepRoutineFields_owner | null;
   outputs: deepRoutineFields_outputs[];
   parent: deepRoutineFields_parent | null;
-  contextualResources: deepRoutineFields_contextualResources[];
-  externalResources: deepRoutineFields_externalResources[];
+  resources: deepRoutineFields_resources[];
   tags: deepRoutineFields_tags[];
 }

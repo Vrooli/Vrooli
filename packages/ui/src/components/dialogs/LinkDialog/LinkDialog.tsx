@@ -4,6 +4,8 @@
 import {
     Autocomplete,
     Box,
+    Dialog,
+    DialogContent,
     IconButton,
     Link,
     Menu,
@@ -19,14 +21,12 @@ import helpMarkdown from './LinkDialogHelp.md';
 import { Node } from 'types';
 
 export const LinkDialog = ({
-    anchorEl,
     handleClose,
     handleDelete,
     isAdd,
+    isOpen,
     routine,
 }: LinkDialogProps) => {
-    const open = Boolean(anchorEl);
-
     // Selected "From" and "To" nodes
     const [fromNode, setFromNode] = useState<Node | null>(null);
     const handleFromSelect = useCallback((node: Node) => {
@@ -130,34 +130,19 @@ export const LinkDialog = ({
     ) : null, [])
 
     return (
-        <Menu
-            id='link-dialog'
-            disableScrollLock={true}
-            autoFocus={true}
-            open={open}
-            anchorEl={anchorEl}
-            anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'center',
-            }}
-            transformOrigin={{
-                vertical: 'top',
-                horizontal: 'center',
-            }}
+        <Dialog
+            open={isOpen}
             onClose={() => { handleClose(null) }}
-            sx={{
-                '& .MuiMenu-paper': {
-                    background: (t) => t.palette.background.paper
-                },
-                '& .MuiMenu-list': {
-                    paddingTop: '0',
-                }
-            }}
+        // aria-labelledby="delete-routine-dialog-title"
+        // aria-describedby="delete-routine-dialog-description"
         >
-            {titleBar}
-            {nodeSelections}
-            {conditions}
-            {deleteOption}
-        </Menu>
+            {/* <DialogTitle id="delete-routine-dialog-title">Delete {}</DialogTitle> */}
+            <DialogContent>
+                {titleBar}
+                {nodeSelections}
+                {conditions}
+                {deleteOption}
+            </DialogContent>
+        </Dialog>
     )
 }

@@ -799,12 +799,14 @@ export type OrganizationSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  minStars?: InputMaybe<Scalars['Int']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<OrganizationSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
+  tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -969,11 +971,14 @@ export type ProjectSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  minScore?: InputMaybe<Scalars['Int']>;
+  minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectSortBy>;
+  tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -1320,8 +1325,7 @@ export type ResourceEdge = {
 export enum ResourceFor {
   Organization = 'Organization',
   Project = 'Project',
-  RoutineContextual = 'RoutineContextual',
-  RoutineExternal = 'RoutineExternal',
+  Routine = 'Routine',
   User = 'User'
 }
 
@@ -1365,7 +1369,10 @@ export type ResourceUpdateInput = {
 export enum ResourceUsedFor {
   Community = 'Community',
   Context = 'Context',
-  Donation = 'Donation',
+  Developer = 'Developer',
+    Donation = 'Donation',
+    ExternalService = 'ExternalService',
+    Install = 'Install',
   Learning = 'Learning',
   OfficialWebsite = 'OfficialWebsite',
   Proposal = 'Proposal',
@@ -1391,11 +1398,9 @@ export type Role = {
 export type Routine = {
   __typename?: 'Routine';
   comments: Array<Comment>;
-  contextualResources: Array<Resource>;
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
   description?: Maybe<Scalars['String']>;
-  externalResources: Array<Resource>;
   forks: Array<Routine>;
   id: Scalars['ID'];
   inputs: Array<InputItem>;
@@ -1412,6 +1417,7 @@ export type Routine = {
   parent?: Maybe<Routine>;
   project?: Maybe<Project>;
   reports: Array<Report>;
+  resources: Array<Resource>;
   role?: Maybe<MemberRole>;
   score: Scalars['Int'];
   starredBy: Array<User>;
@@ -1440,8 +1446,7 @@ export type RoutineCreateInput = {
   outputsCreate?: InputMaybe<Array<OutputItemCreateInput>>;
   parentId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
-  resourcesContextualCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  resourcesExternalCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   title: Scalars['String'];
@@ -1458,12 +1463,15 @@ export type RoutineSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  minScore?: InputMaybe<Scalars['Int']>;
+  minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineSortBy>;
+  tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -1512,12 +1520,9 @@ export type RoutineUpdateInput = {
   outputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   outputsUpdate?: InputMaybe<Array<OutputItemUpdateInput>>;
   parentId?: InputMaybe<Scalars['ID']>;
-  resourcesContextualCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  resourcesContextualDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesContextualUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
-  resourcesExternalCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  resourcesExternalDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesExternalUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1587,12 +1592,15 @@ export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  minScore?: InputMaybe<Scalars['Int']>;
+  minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardSortBy>;
+  tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -1805,6 +1813,7 @@ export type UserSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;

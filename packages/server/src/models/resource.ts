@@ -46,8 +46,7 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
 const forMap: { [x: ResourceFor]: string } = {
     [ResourceFor.Organization]: 'organizationId',
     [ResourceFor.Project]: 'projectId',
-    [ResourceFor.RoutineContextual]: 'routineContextualId',
-    [ResourceFor.RoutineExternal]: 'routineExternalId',
+    [ResourceFor.Routine]: 'routineId',
     [ResourceFor.User]: 'userId',
 }
 
@@ -67,8 +66,7 @@ export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
                 ...rest,
                 organizationId: null,
                 projectId: null,
-                routineContextualId: null,
-                routineExternalId: null,
+                routineId: null,
                 userId: null,
                 [forMap[createdFor]]: createdForId
             };
@@ -80,6 +78,7 @@ export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {
+        console.log('in resource relationshipbuilder start')
         const fieldExcludes = ['createdFor', 'createdForId'];
         // Convert input to Prisma shape, excluding "createdFor" and "createdForId" fields
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
@@ -87,6 +86,7 @@ export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'resources', isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
+        console.log('in resource relationshipbuilder formattedInput. going to validate...', formattedInput)
         await this.validateMutations({
             userId,
             createMany: createMany as ResourceCreateInput[],
@@ -106,16 +106,20 @@ export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceCreateInput, ResourceUpdateInput>): Promise<void> {
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        console.log('in resource validateMutations...')
         // TODO check that user can add resource to this forId, like in node validateMutations
         if (createMany) {
+            console.log('node validate createMany', createMany);
             createMany.forEach(input => resourceCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => verifier.profanityCheck(input));
             // Check for max resources on object TODO
         }
         if (updateMany) {
+            console.log('node validate updateMany', updateMany);
             updateMany.forEach(input => resourceUpdate.validateSync(input, { abortEarly: false }));
             updateMany.forEach(input => verifier.profanityCheck(input));
         }
+        console.log('finishedd resource validateMutations :)')
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceCreateInput, ResourceUpdateInput>): Promise<CUDResult<Resource>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });

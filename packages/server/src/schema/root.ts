@@ -146,7 +146,6 @@ export const resolvers = {
     }),
     Contributor: {
         __resolveType(obj: any) {
-            console.log('IN Contributor __resolveType', obj);
             // Only a user has a username field
             if (obj.hasOwnProperty('username')) return GraphQLModelType.User;
             // Only an Organization has a name and bio field

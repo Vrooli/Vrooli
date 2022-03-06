@@ -1,5 +1,11 @@
+import { useQuery } from '@apollo/client';
+import { RoutineSortBy } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, OrganizationListItem, ProjectListItem, RoutineListItem, TitleContainer } from 'components';
+import { ProjectSortBy } from 'graphql/generated/globalTypes';
+import { projects, projectsVariables } from 'graphql/generated/projects';
+import { routines, routinesVariables } from 'graphql/generated/routines';
+import { projectsQuery, routinesQuery } from 'graphql/query';
 import { useEffect, useMemo, useState } from 'react';
 import { ResearchPageProps } from '../types';
 import donateOrInvestMarkdown from './donateOrInvestHelp.md';
@@ -12,6 +18,22 @@ import voteMarkdown from './voteHelp.md';
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
+
+    const { data: processesData, loading: processesLoading } = useQuery<routines, routinesVariables>(routinesQuery, { 
+        variables: { input: { 
+            take: 5,
+            sortBy: RoutineSortBy.AlphabeticalAsc,
+            tags: ['research'],
+        } } 
+    });
+
+    // const { data: newlyCompletedData, loading: newlyCompletedLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
+    //     variables: { input: { 
+    //         take: 5,
+    //         sortBy: ProjectSortBy.,
+    //     } } 
+    // });
+
     const processes = useMemo(() => [].map((o, index) => (
         <RoutineListItem
             key={`research-processes-list-item-${'TODO'}`}

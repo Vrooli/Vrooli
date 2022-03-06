@@ -68,8 +68,7 @@ export enum ReportFor {
 export enum ResourceFor {
   Organization = "Organization",
   Project = "Project",
-  RoutineContextual = "RoutineContextual",
-  RoutineExternal = "RoutineExternal",
+  Routine = "Routine",
   User = "User",
 }
 
@@ -85,7 +84,10 @@ export enum ResourceSortBy {
 export enum ResourceUsedFor {
   Community = "Community",
   Context = "Context",
-  Donation = "Donation",
+  Developer = "Developer",
+    Donation = "Donation",
+    ExternalService = "ExternalService",
+    Install = "Install",
   Learning = "Learning",
   OfficialWebsite = "OfficialWebsite",
   Proposal = "Proposal",
@@ -429,18 +431,20 @@ export interface OrganizationCreateInput {
 }
 
 export interface OrganizationSearchInput {
-  userId?: string | null;
-  projectId?: string | null;
-  routineId?: string | null;
-  standardId?: string | null;
-  reportId?: string | null;
-  ids?: string[] | null;
-  sortBy?: OrganizationSortBy | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-  searchString?: string | null;
   after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  minStars?: number | null;
+  projectId?: string | null;
+  reportId?: string | null;
+  routineId?: string | null;
+  searchString?: string | null;
+  standardId?: string | null;
+  sortBy?: OrganizationSortBy | null;
+  tags?: string[] | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
 }
 
 export interface OrganizationUpdateInput {
@@ -501,17 +505,20 @@ export interface ProjectCreateInput {
 }
 
 export interface ProjectSearchInput {
-  userId?: string | null;
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  minScore?: number | null;
+  minStars?: number | null;
   organizationId?: string | null;
   parentId?: string | null;
   reportId?: string | null;
-  ids?: string[] | null;
-  sortBy?: ProjectSortBy | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
   searchString?: string | null;
-  after?: string | null;
+  sortBy?: ProjectSortBy | null;
+  tags?: string[] | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
 }
 
 export interface ProjectUpdateInput {
@@ -606,25 +613,27 @@ export interface RoutineCreateInput {
   nodeLinksCreate?: NodeLinkCreateInput[] | null;
   inputsCreate?: InputItemCreateInput[] | null;
   outputsCreate?: OutputItemCreateInput[] | null;
-  resourcesContextualCreate?: ResourceCreateInput[] | null;
-  resourcesExternalCreate?: ResourceCreateInput[] | null;
+  resourcesCreate?: ResourceCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
 }
 
 export interface RoutineSearchInput {
-  userId?: string | null;
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  minScore?: number | null;
+  minStars?: number | null;
   organizationId?: string | null;
   projectId?: string | null;
   parentId?: string | null;
   reportId?: string | null;
-  ids?: string[] | null;
-  sortBy?: RoutineSortBy | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
   searchString?: string | null;
-  after?: string | null;
+  sortBy?: RoutineSortBy | null;
+  tags?: string[] | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
 }
 
 export interface RoutineUpdateInput {
@@ -650,12 +659,9 @@ export interface RoutineUpdateInput {
   outputsCreate?: OutputItemCreateInput[] | null;
   outputsUpdate?: OutputItemUpdateInput[] | null;
   outputsDelete?: string[] | null;
-  resourcesContextualDelete?: string[] | null;
-  resourcesContextualCreate?: ResourceCreateInput[] | null;
-  resourcesContextualUpdate?: ResourceUpdateInput[] | null;
-  resourcesExternalDelete?: string[] | null;
-  resourcesExternalCreate?: ResourceCreateInput[] | null;
-  resourcesExternalUpdate?: ResourceUpdateInput[] | null;
+  resourcesDelete?: string[] | null;
+  resourcesCreate?: ResourceCreateInput[] | null;
+  resourcesUpdate?: ResourceUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
@@ -681,18 +687,21 @@ export interface StandardCreateInput {
 }
 
 export interface StandardSearchInput {
-  userId?: string | null;
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  minScore?: number | null;
+  minStars?: number | null;
   organizationId?: string | null;
   projectId?: string | null;
-  routineId?: string | null;
   reportId?: string | null;
-  ids?: string[] | null;
-  sortBy?: StandardSortBy | null;
+  routineId?: string | null;
   searchString?: string | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-  after?: string | null;
+  sortBy?: StandardSortBy | null;
+  tags?: string[] | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
 }
 
 export interface StandardUpdateInput {
@@ -755,6 +764,7 @@ export interface UserDeleteInput {
 }
 
 export interface UserSearchInput {
+  minStars?: number | null;
   organizationId?: string | null;
   projectId?: string | null;
   routineId?: string | null;

@@ -10,6 +10,7 @@ import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import {
     Add as AddIcon,
     ConnectWithoutContact as DefaultSocialIcon,
+    Download as InstallIcon,
     Facebook as FacebookIcon,
     Help as TutorialIcon,
     HowToVote as ProposalIcon,
@@ -20,6 +21,7 @@ import {
     Reddit as RedditIcon,
     Redeem as DonationIcon,
     School as LearningIcon,
+    Terminal as DeveloperIcon,
     Twitter as TwitterIcon,
     VideoCameraFront as SocialVideoIcon,
     Web as OfficialWebsiteIcon,
@@ -83,7 +85,10 @@ const cardData: any[] = [
 const IconMap = {
     [ResourceUsedFor.Community]: CommunityIcon,
     [ResourceUsedFor.Context]: ContextIcon,
+    [ResourceUsedFor.Developer]: DeveloperIcon,
     [ResourceUsedFor.Donation]: DonationIcon,
+    [ResourceUsedFor.ExternalService]: OfficialWebsiteIcon,
+    [ResourceUsedFor.Install]: InstallIcon,
     [ResourceUsedFor.Learning]: LearningIcon,
     [ResourceUsedFor.OfficialWebsite]: OfficialWebsiteIcon,
     [ResourceUsedFor.Proposal]: ProposalIcon,

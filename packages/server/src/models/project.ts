@@ -21,13 +21,13 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         '__typename': GraphQLModelType.Project,
         'comments': GraphQLModelType.Comment,
         'creator': {
-            '...User': GraphQLModelType.User,
-            '...Organization': GraphQLModelType.Organization,
+            'User': GraphQLModelType.User,
+            'Organization': GraphQLModelType.Organization,
         },
         'forks': GraphQLModelType.Project,
         'owner': {
-            '...User': GraphQLModelType.User,
-            '...Organization': GraphQLModelType.Organization,
+            'User': GraphQLModelType.User,
+            'Organization': GraphQLModelType.Organization,
         },
         'parent': GraphQLModelType.Project,
         'reports': GraphQLModelType.Report,
@@ -141,7 +141,8 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        return { ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery };
+        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
+        return { ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...tagsQuery };
     },
 })
 

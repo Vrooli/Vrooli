@@ -22,23 +22,22 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Routine,
         'comments': GraphQLModelType.Comment,
-        'contextualResources': GraphQLModelType.Resource,
         'creator': {
-            '...User': GraphQLModelType.User,
-            '...Organization': GraphQLModelType.Organization,
+            'User': GraphQLModelType.User,
+            'Organization': GraphQLModelType.Organization,
         },
-        'externalResources': GraphQLModelType.Resource,
         'forks': GraphQLModelType.Routine,
         'inputs': GraphQLModelType.InputItem,
         'nodes': GraphQLModelType.Node,
         'outputs': GraphQLModelType.OutputItem,
         'owner': {
-            '...User': GraphQLModelType.User,
-            '...Organization': GraphQLModelType.Organization,
+            'User': GraphQLModelType.User,
+            'Organization': GraphQLModelType.Organization,
         },
         'parent': GraphQLModelType.Routine,
         'project': GraphQLModelType.Project,
         'reports': GraphQLModelType.Report,
+        'resources': GraphQLModelType.Resource,
         'starredBy': GraphQLModelType.User,
         'tags': GraphQLModelType.Tag,
     },
@@ -70,6 +69,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Routine>[]> {
+        console.log('ROUTINE ADD SUPPL FILEDS', objects);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -88,6 +88,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for role
         if (partial.role) {
+            console.log('ROUTINE QUERYING FOR ROLE');
             console.log('routine supplemental fields', objects)
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
@@ -103,7 +104,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 if (orgRoleIndex >= 0) {
                     return { ...x, role: roles[orgRoleIndex] };
                 }
-                return { ...x, role: x.owner?.id === userId ? MemberRole.Owner : undefined };
+                return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
             }) as any;
         }
         // Convert Prisma objects to GraphQL objects
@@ -163,7 +164,6 @@ export const routineVerifier = () => ({
  */
 export const routineMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput): Promise<any> {
-        // Add routine ID to 
         return {
             description: data.description,
             name: data.title,
@@ -172,20 +172,12 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
             isInternal: data.isInternal,
             parentId: data.parentId,
             version: data.version,
-            contextualResources: ResourceModel(prisma).relationshipBuilder(userId, {
-                resourcesCreate: data.resourcesContextualCreate,
-                resourcesUpdate: (data as any).resourcesContextualUpdate,
-                resourcesDelete: (data as any).resourcesContextualDelete,
-            }, false),
-            externalResources: ResourceModel(prisma).relationshipBuilder(userId, {
-                resourcesCreate: data.resourcesExternalCreate,
-                resourcesUpdate: (data as any).resourcesExternalUpdate,
-                resourcesDelete: (data as any).resourcesExternalDelete,
-            }, false),
+            resources: ResourceModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
             inputs: this.relationshipBuilderInput(userId, data, false),
             outpus: this.relationshipBuilderOutput(userId, data, false),
             nodes: await NodeModel(prisma).relationshipBuilder(userId, null, data, false),
+            nodeLinks: NodeModel(prisma).relationshipBuilderNodeLink(userId, data, false),
         }
     },
     /**

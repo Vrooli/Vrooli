@@ -1,7 +1,7 @@
 import { Count, Node, NodeCreateInput, NodeType, NodeUpdateInput } from "../schema/types";
 import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
 import { CustomError } from "../error";
-import { CODE, condition, conditionsCreate, conditionsUpdate, inputUpdate, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
+import { CODE, condition, conditionsCreate, conditionsUpdate, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
 import { PrismaType } from "types";
 import { hasProfanityRecursive } from "../utils/censor";
 import { RoutineModel } from "./routine";
@@ -216,7 +216,9 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         if (Array.isArray(formattedInput.create)) {
             for (let data of formattedInput.create) {
                 // Check for valid arguments
+                console.log('going to validate node link create', data)
                 nodeLinksCreate.validateSync(data, { abortEarly: false });
+                console.log('past validation')
                 // Convert nested relationships
                 data.decisions = this.relationshipBuilderNodeLinkCondition(userId, data, isAdd);
                 let { fromId, toId, ...rest } = data;
@@ -456,12 +458,14 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Make sure the user has access to the routine
         await verifier.authorizedCheck(userId, routineId, prisma);
         if (createMany) {
+            console.log('checking node createMany', createMany);
             createMany.forEach(input => nodeCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => verifier.profanityCheck(input));
             // Check if will pass max nodes (on routine) limit
             await verifier.maxNodesCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
         }
         if (updateMany) {
+            console.log('checking node updateMany', updateMany);
             updateMany.forEach(input => nodeUpdate.validateSync(input, { abortEarly: false }));
             updateMany.forEach(input => verifier.profanityCheck(input));
         }
