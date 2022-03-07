@@ -40,7 +40,7 @@ export function UserOrganizationSwitch({
     const [getOrganizationsData, { data: organizationsData, loading }] = useLazyQuery<organizations, organizationsVariables>(organizationsQuery, {
         variables: {
             input: {
-                sortBy: OrganizationSortBy.AlphabeticalAsc,
+                sortBy: OrganizationSortBy.DateUpdatedAsc,
                 userId: session?.id,
             }
         }

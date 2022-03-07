@@ -435,13 +435,16 @@ const removeTypenames = (obj: { [x: string]: any }): { [x: string]: any } => {
  */
 export const toPartialSelect = (info: InfoType, relationshipMap: RelationshipMap): PartialInfo | undefined => {
     // Return undefined if info not set
+    console.log('topartialselect start', info)
     if (!info) return undefined;
     // Find select fields in info object
     let select;
     const isGraphQLResolveInfo = info.hasOwnProperty('fieldNodes') && info.hasOwnProperty('returnType');
     if (isGraphQLResolveInfo) {
         select = resolveGraphQLInfo(JSON.parse(JSON.stringify(info)));
+        console.log('topartialselect isgraphqlresolveinfo', select?.nodes?.loop);
     } else {
+        console.log('is not graphql resolve info');
         select = info;
     }
     // If fields are in the shape of a paginated search query, convert to a Prisma select object
@@ -449,7 +452,9 @@ export const toPartialSelect = (info: InfoType, relationshipMap: RelationshipMap
         select = select.edges.node;
     }
     // Inject __typename fields
+    console.log('going to inject typenames', JSON.stringify(select))
     select = injectTypenames(select, relationshipMap);
+    console.log('injected typenames', select)
     return select;
 }
 
@@ -462,6 +467,7 @@ export const toPartialSelect = (info: InfoType, relationshipMap: RelationshipMap
  * @return select with __typename fields
  */
 const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: RelationshipMap, nestedFields: string[] = []): PartialInfo => {
+    console.log('in injectTypenames start', select, parentRelationshipMap, nestedFields);
     // Create result object
     let result: any = {};
     // Iterate over select object
@@ -477,9 +483,15 @@ const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: Re
         // Find nested value in parent relationship map, using nestedFields
         let nestedValue: any = parentRelationshipMap;
         for (const field of nestedFields) {
-            if (field in nestedValue) nestedValue = nestedValue[field];
+            console.log('in field of nestedfields loop', field, nestedValue);
+            if (!_.isObject(nestedValue)) break;
+            if (field in nestedValue) {
+                nestedValue = (nestedValue as any)[field];
+            }
         }
+        console.log('got nested value a', nestedValue)
         if (nestedValue) nestedValue = nestedValue[selectKey];
+        console.log('got nested value b', nestedValue)
         // If nestedValue is not an object, try to get its relationshipMap
         let relationshipMap;
         if (typeof nestedValue !== 'object') relationshipMap = FormatterMap[nestedValue]?.relationshipMap;
@@ -512,6 +524,7 @@ export const selectHelper = (partial: PartialInfo): any => {
     modified = removeTypenames(modified);
     // Pad every relationship with "select"
     modified = padSelect(modified);
+    console.log('selecthelper end', JSON.stringify(modified));
     return modified;
 }
 
@@ -742,7 +755,6 @@ const mergeObjectTypeDict = (
     b: { [x: string]: { [x: string]: any }[] }
 ): { [x: string]: { [x: string]: any }[] } => {
     const result: { [x: string]: { [x: string]: any }[] } = {};
-    console.log('start of mergeObjectTypeDict', a, b);
     // Initialize result with a. If any of a's values are not arrays, make them arrays
     for (const [key, value] of Object.entries(a)) {
         if (Array.isArray(value)) {
@@ -751,7 +763,6 @@ const mergeObjectTypeDict = (
             result[key] = [value];
         }
     }
-    console.log('result after initializing', result);
     // Loop through b
     for (const [key, value] of Object.entries(b)) {
         // If key is not in result, add it
@@ -840,7 +851,6 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
  * @returns data with supplemental fields added
  */
 const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: string]: any }) => {
-    console.log('in combinesupplements start')
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
         // If value is an array, add each element to the correct key in objectDict
@@ -854,7 +864,6 @@ const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: strin
             data[key] = combineSupplements(value, objectsById);
         }
     }
-    console.log('combinesupplements base case ;)', _.merge(data, objectsById[data.id]));
     // Handle base case
     return _.merge(data, objectsById[data.id])
 }
@@ -911,7 +920,6 @@ const findObjectById = (data: { [x: string]: any }, id: string): any => {
  * @returns Requested object with all its fields and children included
  */
 const pickObjectById = (data: any, id: string): any => {
-    console.log('pickObjectById start', data, id, _.isArray(data), _.isObject(data));
     // If data is an array, check each element
     if (_.isArray(data)) {
         for (const value of data) {
@@ -924,12 +932,10 @@ const pickObjectById = (data: any, id: string): any => {
         if ((data as any).id === id) return data; // Base case
         // If ID doesn't match, check children
         for (const value of Object.values(data)) {
-            console.log('weenie', value, id)
             const result = pickObjectById(value, id);
-            if (result) {console.log('weened result', result); return result;}
+            if (result) return result
         }
     }
-    console.log('returning undefined')
     // Otherwise, return undefined
     return undefined;
 }
@@ -959,13 +965,10 @@ export const addSupplementalFields = async (
     let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
     for (const d of dataIds) {
         const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(d, partial);
-        console.log('groupIdsbytype', d, childObjectIdsDict, childSelectFieldsDict);
         // Merge each array in childObjectIdsDict into objectIdsDict
         objectIdsDict = mergeObjectTypeDict(objectIdsDict, childObjectIdsDict);
-        console.log('mergeObjectTypeDict', objectIdsDict);
         // Merge each object in childSelectFieldsDict into selectFieldsDict
         selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
-        console.log('merge selectFieldsDict', selectFieldsDict);
     }
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
@@ -977,8 +980,6 @@ export const addSupplementalFields = async (
         // Find the data for each id in ids. Since the data parameter is an array,
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: { [x: string]: any }) => {
-            console.log('fhdkshfkjdlsahkf objectData', id, type, JSON.stringify(data));
-            console.log('shloopy bepoop', pickObjectById(data, id.id));
             return pickObjectById(data, id.id);
         });
         console.log('object data324 ', type, objectData);
@@ -1088,6 +1089,7 @@ export async function readOneHelper<GraphQLModel>(
     console.log('in readOneHelper');
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = toPartialSelect(info, model.relationshipMap);
+    console.log('in readonheler after topartialselect', JSON.stringify(partial))
     if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
     // Uses __typename to determine which Prisma object is being queried
     const objectType = partial.__typename;

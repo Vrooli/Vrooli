@@ -108,11 +108,9 @@ export const projectFormatter = (): FormatConverter<Project> => ({
 })
 
 export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
-    defaultSort: ProjectSortBy.DateUpdatedDesc,
+    defaultSort: ProjectSortBy.VotesDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [ProjectSortBy.AlphabeticalAsc]: { name: 'asc' },
-            [ProjectSortBy.AlphabeticalDesc]: { name: 'desc' },
             [ProjectSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
             [ProjectSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [ProjectSortBy.ForksAsc]: { forks: { _count: 'asc' } },

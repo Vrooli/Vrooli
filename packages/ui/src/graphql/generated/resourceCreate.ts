@@ -20,6 +20,7 @@ export interface resourceCreate_resourceCreate_translations {
 export interface resourceCreate_resourceCreate {
   __typename: "Resource";
   id: string;
+  index: number | null;
   link: string;
   usedFor: ResourceUsedFor | null;
   translations: resourceCreate_resourceCreate_translations[];

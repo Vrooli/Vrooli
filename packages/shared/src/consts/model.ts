@@ -38,13 +38,9 @@ export enum CommentSortBy {
     DateCreatedAsc = "DateCreatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
-    AlphabeticalAsc = "AlphabeticalAsc",
-    AlphabeticalDesc = "AlphabeticalDesc",
 }
 
 export enum OrganizationSortBy {
-    AlphabeticalAsc = "AlphabeticalAsc",
-    AlphabeticalDesc = "AlphabeticalDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     DateCreatedDesc = "DateCreatedDesc",
@@ -54,8 +50,6 @@ export enum OrganizationSortBy {
 }
 
 export enum ProjectSortBy {
-    AlphabeticalAsc = "AlphabeticalAsc",
-    AlphabeticalDesc = "AlphabeticalDesc",
     VotesDesc = "VotesDesc",
     VotesAsc = "VotesAsc",
     StarsDesc = "StarsDesc",
@@ -75,13 +69,9 @@ export enum ReportSortBy {
     DateCreatedAsc = "DateCreatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
-    AlphabeticalAsc = "AlphabeticalAsc",
-    AlphabeticalDesc = "AlphabeticalDesc",
 }
 
 export enum ResourceSortBy {
-    AlphabeticalAsc = "AlphabeticalAsc",
-    AlphabeticalDesc = "AlphabeticalDesc",
     DateCreatedDesc = "DateCreatedDesc",
     DateCreatedAsc = "DateCreatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
@@ -89,8 +79,6 @@ export enum ResourceSortBy {
 }
 
 export enum RoutineSortBy {
-    AlphabeticalAsc = "AlphabeticalAsc",
-    AlphabeticalDesc = "AlphabeticalDesc",
     VotesDesc = "VotesDesc",
     VotesAsc = "VotesAsc",
     StarsDesc = "StarsDesc",
@@ -106,8 +94,6 @@ export enum RoutineSortBy {
 }
 
 export enum StandardSortBy {
-    AlphabeticalAsc = "AlphabeticalAsc",
-    AlphabeticalDesc = "AlphabeticalDesc",
     VotesDesc = "VotesDesc",
     VotesAsc = "VotesAsc",
     StarsDesc = "StarsDesc",
@@ -121,8 +107,6 @@ export enum StandardSortBy {
 }
 
 export enum TagSortBy {
-    AlphabeticalAsc = "AlphabeticalAsc",
-    AlphabeticalDesc = "AlphabeticalDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     DateCreatedDesc = "DateCreatedDesc",
@@ -132,8 +116,6 @@ export enum TagSortBy {
 }
 
 export enum UserSortBy {
-    AlphabeticalAsc = "AlphabeticalAsc",
-    AlphabeticalDesc = "AlphabeticalDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     DateCreatedDesc = "DateCreatedDesc",

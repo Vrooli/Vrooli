@@ -27,8 +27,6 @@ export enum NodeType {
 }
 
 export enum OrganizationSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -38,8 +36,6 @@ export enum OrganizationSortBy {
 }
 
 export enum ProjectSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
   DateCompletedAsc = "DateCompletedAsc",
@@ -74,12 +70,12 @@ export enum ResourceFor {
 }
 
 export enum ResourceSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
+  IndexAsc = "IndexAsc",
+  IndexDesc = "IndexDesc",
 }
 
 export enum ResourceUsedFor {
@@ -98,8 +94,6 @@ export enum ResourceUsedFor {
 }
 
 export enum RoutineSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
   DateCompletedAsc = "DateCompletedAsc",
@@ -117,8 +111,6 @@ export enum RoutineSortBy {
 }
 
 export enum StandardSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
   DateCreatedAsc = "DateCreatedAsc",
@@ -152,8 +144,6 @@ export enum StarFor {
 }
 
 export enum TagSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -163,8 +153,6 @@ export enum TagSortBy {
 }
 
 export enum UserSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -684,9 +672,8 @@ export interface ResourceCountInput {
 export interface ResourceCreateInput {
   createdFor: ResourceFor;
   createdForId: string;
-  description?: string | null;
+  index?: number | null;
   link: string;
-  title?: string | null;
   translationsCreate?: ResourceTranslationCreateInput[] | null;
   usedFor: ResourceUsedFor;
 }
@@ -721,9 +708,8 @@ export interface ResourceUpdateInput {
   id: string;
   createdFor?: ResourceFor | null;
   createdForId?: string | null;
-  description?: string | null;
+  index?: number | null;
   link?: string | null;
-  title?: string | null;
   translationsDelete?: string[] | null;
   translationsCreate?: ResourceTranslationCreateInput[] | null;
   translationsUpdate?: ResourceTranslationUpdateInput[] | null;

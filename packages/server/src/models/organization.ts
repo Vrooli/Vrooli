@@ -72,11 +72,9 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
 })
 
 export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
-    defaultSort: OrganizationSortBy.AlphabeticalAsc,
+    defaultSort: OrganizationSortBy.StarsDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [OrganizationSortBy.AlphabeticalAsc]: { name: 'asc' },
-            [OrganizationSortBy.AlphabeticalDesc]: { name: 'desc' },
             [OrganizationSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [OrganizationSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [OrganizationSortBy.DateUpdatedAsc]: { updated_at: 'asc' },

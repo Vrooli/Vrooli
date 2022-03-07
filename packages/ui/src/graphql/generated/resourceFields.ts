@@ -20,6 +20,7 @@ export interface resourceFields_translations {
 export interface resourceFields {
   __typename: "Resource";
   id: string;
+  index: number | null;
   link: string;
   usedFor: ResourceUsedFor | null;
   translations: resourceFields_translations[];

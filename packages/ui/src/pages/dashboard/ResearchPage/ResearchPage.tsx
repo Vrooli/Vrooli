@@ -24,7 +24,7 @@ export const ResearchPage = ({
     const { data: processesData, loading: processesLoading } = useQuery<routines, routinesVariables>(routinesQuery, { 
         variables: { input: { 
             take: 5,
-            sortBy: RoutineSortBy.AlphabeticalAsc,
+            sortBy: RoutineSortBy.VotesDesc,
             tags: ['research'],
         } } 
     });

@@ -58,8 +58,6 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
     defaultSort: CommentSortBy.VotesDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [CommentSortBy.AlphabeticalAsc]: { text: 'asc' },
-            [CommentSortBy.AlphabeticalDesc]: { text: 'desc' },
             [CommentSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [CommentSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [CommentSortBy.DateUpdatedAsc]: { updated_at: 'asc' },

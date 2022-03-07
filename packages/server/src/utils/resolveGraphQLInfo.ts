@@ -13,7 +13,6 @@ export function parseFieldNode(node: FieldNode, fragments: { [x: string]: Fragme
         // Call parseSelectionNode for each item in selection set
         let results: { [x: string]: any } = {};
         node.selectionSet.selections.forEach((selection: SelectionNode) => {
-            console.log('in parsefieldnode selectionset loop', selection)
             results = parseSelectionNode(results, selection, fragments)
         });
         return results;
@@ -80,7 +79,6 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
             break;
         case 'FragmentSpread':
             const spread = parseFragmentSpreadNode(node, fragments);
-            console.log('GH in spread', spread);
             for (const key in spread) {
                 result[key] = spread[key];
             }
@@ -89,7 +87,6 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
             result[`${node.typeCondition?.name.value}`] = parseInlineFragmentNode(node, fragments);
             break;
     }
-    console.log('! RESULT HERE !', result);
     // Return result
     return result
 }
@@ -101,13 +98,8 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
  * @param info - GraphQL resolve info object
  */
 export const resolveGraphQLInfo = (info: GraphQLResolveInfo): { [x: string]: any } => {
-    //console.log('Q STRINGIFIED', JSON.stringify(info));
-    // Get return type. This will be converted to __typename later
-    let returnType: string = info.returnType.toString()
-    console.log('Q RETURN TYPE', returnType);
     // Get selected nodes
     const selectionNodes = info.fieldNodes[0].selectionSet?.selections;
-    console.log('Q SELECTION NODES', selectionNodes);
     if (!selectionNodes) return {};
     // Create result object
     let result: { [x: string]: any } = {};
@@ -116,6 +108,5 @@ export const resolveGraphQLInfo = (info: GraphQLResolveInfo): { [x: string]: any
         // Parse selection
         result = parseSelectionNode(result, selectionNode, info.fragments);
     });
-    console.log('Q RESOLVE FINAL', result);
     return result;
 }

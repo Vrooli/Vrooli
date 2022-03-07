@@ -8,8 +8,6 @@ import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelp
 
 export const typeDef = gql`
     enum RoutineSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         CommentsAsc
         CommentsDesc
         ForksAsc

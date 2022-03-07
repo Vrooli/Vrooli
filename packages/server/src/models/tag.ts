@@ -57,11 +57,9 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
 })
 
 export const tagSearcher = (): Searcher<TagSearchInput> => ({
-    defaultSort: TagSortBy.AlphabeticalAsc,
+    defaultSort: TagSortBy.StarsDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [TagSortBy.AlphabeticalAsc]: { tag: 'asc' },
-            [TagSortBy.AlphabeticalDesc]: { tag: 'desc' },
             [TagSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [TagSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [TagSortBy.DateUpdatedAsc]: { updated_at: 'asc' },

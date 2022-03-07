@@ -246,6 +246,7 @@ export interface routine_routine_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
+  index: number | null;
   link: string;
   updated_at: any;
   translations: routine_routine_resources_translations[];

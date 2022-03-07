@@ -14,8 +14,6 @@ export const typeDef = gql`
     }   
 
     enum CommentSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc

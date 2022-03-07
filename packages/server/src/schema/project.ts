@@ -8,8 +8,6 @@ import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     enum ProjectSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         CommentsAsc
         CommentsDesc
         ForksAsc

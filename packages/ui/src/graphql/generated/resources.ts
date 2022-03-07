@@ -26,6 +26,7 @@ export interface resources_resources_edges_node_translations {
 export interface resources_resources_edges_node {
   __typename: "Resource";
   id: string;
+  index: number | null;
   link: string;
   usedFor: ResourceUsedFor | null;
   translations: resources_resources_edges_node_translations[];

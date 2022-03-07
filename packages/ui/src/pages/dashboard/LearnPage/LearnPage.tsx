@@ -19,14 +19,14 @@ export const LearnPage = ({
     const { data: coursesData, loading: coursesLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
         variables: { input: { 
             take: 5,
-            sortBy: ProjectSortBy.AlphabeticalAsc,
+            sortBy: ProjectSortBy.VotesDesc,
             tags: ['learn'],
         } } 
     });
     const { data: tutorialsData, loading: tutorialsLoading } = useQuery<routines, routinesVariables>(routinesQuery, { 
         variables: { input: { 
             take: 5,
-            sortBy: RoutineSortBy.AlphabeticalAsc,
+            sortBy: RoutineSortBy.VotesDesc,
             tags: ['learn'],
         } } 
     });

@@ -125,6 +125,7 @@ export const deepRoutineFields = gql`
     fragment deepRoutineResourceFields on Resource {
         id
         created_at
+        index
         link
         updated_at
         translations {

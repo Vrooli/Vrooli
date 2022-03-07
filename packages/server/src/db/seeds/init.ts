@@ -507,7 +507,7 @@ export async function init(prisma: PrismaType) {
                             to: { connect: { id: successEndId } },
                         },
                     ]
-                }, //TODO
+                },
                 nodes: {
                     create: [
                         // Start node

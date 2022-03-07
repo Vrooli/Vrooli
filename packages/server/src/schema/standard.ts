@@ -20,8 +20,6 @@ export const typeDef = gql`
     }
 
     enum StandardSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         CommentsAsc
         CommentsDesc
         DateCreatedAsc

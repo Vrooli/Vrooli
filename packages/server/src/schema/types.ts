@@ -102,8 +102,6 @@ export type CommentSearchResult = {
 };
 
 export enum CommentSortBy {
-  AlphabeticalAsc = 'AlphabeticalAsc',
-  AlphabeticalDesc = 'AlphabeticalDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -992,8 +990,6 @@ export type OrganizationSearchResult = {
 };
 
 export enum OrganizationSortBy {
-  AlphabeticalAsc = 'AlphabeticalAsc',
-  AlphabeticalDesc = 'AlphabeticalDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -1215,8 +1211,6 @@ export type ProjectSearchResult = {
 };
 
 export enum ProjectSortBy {
-  AlphabeticalAsc = 'AlphabeticalAsc',
-  AlphabeticalDesc = 'AlphabeticalDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
   DateCompletedAsc = 'DateCompletedAsc',
@@ -1540,8 +1534,6 @@ export type ReportSearchResult = {
 };
 
 export enum ReportSortBy {
-  AlphabeticalAsc = 'AlphabeticalAsc',
-  AlphabeticalDesc = 'AlphabeticalDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -1561,6 +1553,7 @@ export type Resource = {
   createdForId: Scalars['ID'];
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  index?: Maybe<Scalars['Int']>;
   link: Scalars['String'];
   translations: Array<ResourceTranslation>;
   updated_at: Scalars['Date'];
@@ -1575,9 +1568,8 @@ export type ResourceCountInput = {
 export type ResourceCreateInput = {
   createdFor: ResourceFor;
   createdForId: Scalars['ID'];
-  description?: InputMaybe<Scalars['String']>;
+  index?: InputMaybe<Scalars['Int']>;
   link: Scalars['String'];
-  title?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
   usedFor: ResourceUsedFor;
 };
@@ -1615,12 +1607,12 @@ export type ResourceSearchResult = {
 };
 
 export enum ResourceSortBy {
-  AlphabeticalAsc = 'AlphabeticalAsc',
-  AlphabeticalDesc = 'AlphabeticalDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  IndexAsc = 'IndexAsc',
+  IndexDesc = 'IndexDesc'
 }
 
 export type ResourceTranslation = {
@@ -1647,10 +1639,9 @@ export type ResourceTranslationUpdateInput = {
 export type ResourceUpdateInput = {
   createdFor?: InputMaybe<ResourceFor>;
   createdForId?: InputMaybe<Scalars['ID']>;
-  description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  index?: InputMaybe<Scalars['Int']>;
   link?: InputMaybe<Scalars['String']>;
-  title?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<ResourceTranslationUpdateInput>>;
@@ -1777,8 +1768,6 @@ export type RoutineSearchResult = {
 };
 
 export enum RoutineSortBy {
-  AlphabeticalAsc = 'AlphabeticalAsc',
-  AlphabeticalDesc = 'AlphabeticalDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
   DateCompletedAsc = 'DateCompletedAsc',
@@ -1935,8 +1924,6 @@ export type StandardSearchResult = {
 };
 
 export enum StandardSortBy {
-  AlphabeticalAsc = 'AlphabeticalAsc',
-  AlphabeticalDesc = 'AlphabeticalDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -2092,8 +2079,6 @@ export type TagSearchResult = {
 };
 
 export enum TagSortBy {
-  AlphabeticalAsc = 'AlphabeticalAsc',
-  AlphabeticalDesc = 'AlphabeticalDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -2198,8 +2183,6 @@ export type UserSearchResult = {
 };
 
 export enum UserSortBy {
-  AlphabeticalAsc = 'AlphabeticalAsc',
-  AlphabeticalDesc = 'AlphabeticalDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',

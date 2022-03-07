@@ -8,8 +8,6 @@ import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     enum OrganizationSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc

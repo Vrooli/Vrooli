@@ -97,11 +97,9 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
 })
 
 export const standardSearcher = (): Searcher<StandardSearchInput> => ({
-    defaultSort: StandardSortBy.AlphabeticalAsc,
+    defaultSort: StandardSortBy.VotesDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [StandardSortBy.AlphabeticalAsc]: { name: 'asc' },
-            [StandardSortBy.AlphabeticalDesc]: { name: 'desc' },
             [StandardSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
             [StandardSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [StandardSortBy.DateCreatedAsc]: { created_at: 'asc' },

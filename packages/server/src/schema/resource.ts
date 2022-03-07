@@ -15,12 +15,12 @@ export const typeDef = gql`
     }
 
     enum ResourceSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        IndexAsc
+        IndexDesc
     }
 
     enum ResourceUsedFor {
@@ -41,9 +41,8 @@ export const typeDef = gql`
     input ResourceCreateInput {
         createdFor: ResourceFor!
         createdForId: ID!
-        description: String
+        index: Int
         link: String!
-        title: String
         translationsCreate: [ResourceTranslationCreateInput!]
         usedFor: ResourceUsedFor!
     }
@@ -51,9 +50,8 @@ export const typeDef = gql`
         id: ID!
         createdFor: ResourceFor
         createdForId: ID
-        description: String
+        index: Int
         link: String
-        title: String
         translationsDelete: [ID!]
         translationsCreate: [ResourceTranslationCreateInput!]
         translationsUpdate: [ResourceTranslationUpdateInput!]
@@ -65,6 +63,7 @@ export const typeDef = gql`
         updated_at: Date!
         createdFor: ResourceFor!
         createdForId: ID!
+        index: Int
         link: String!
         translations: [ResourceTranslation!]!
         usedFor: ResourceUsedFor

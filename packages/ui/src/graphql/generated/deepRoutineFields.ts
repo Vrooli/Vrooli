@@ -246,6 +246,7 @@ export interface deepRoutineFields_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
+  index: number | null;
   link: string;
   updated_at: any;
   translations: deepRoutineFields_resources_translations[];

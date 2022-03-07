@@ -38,8 +38,6 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
     defaultSort: ReportSortBy.DateCreatedDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [ReportSortBy.AlphabeticalAsc]: { reason: 'asc' },
-            [ReportSortBy.AlphabeticalDesc]: { reason: 'desc' },
             [ReportSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [ReportSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [ReportSortBy.DateUpdatedAsc]: { updated_at: 'asc' },

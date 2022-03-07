@@ -18,8 +18,6 @@ export const typeDef = gql`
     }   
 
     enum ReportSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc

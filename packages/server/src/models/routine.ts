@@ -118,11 +118,9 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
 })
 
 export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
-    defaultSort: RoutineSortBy.AlphabeticalAsc,
+    defaultSort: RoutineSortBy.VotesDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [RoutineSortBy.AlphabeticalAsc]: { title: 'asc' },
-            [RoutineSortBy.AlphabeticalDesc]: { title: 'desc' },
             [RoutineSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
             [RoutineSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
             [RoutineSortBy.ForksAsc]: { forks: { _count: 'asc' } },

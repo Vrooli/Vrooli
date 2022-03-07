@@ -432,6 +432,7 @@ model resource {
     id             String                 @id @default(uuid()) @db.Uuid
     created_at     DateTime               @default(now()) @db.Timestamptz(6)
     updated_at     DateTime               @default(now()) @db.Timestamptz(6)
+    index          Int?                   @default(0) // Index in resource list, if any
     link           String                 @db.VarChar(1024) // The actual link
     usedFor        ResourceUsedFor        @default(Context)
     organizationId String?                @db.Uuid

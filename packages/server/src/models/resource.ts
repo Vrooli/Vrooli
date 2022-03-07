@@ -16,15 +16,15 @@ export const resourceFormatter = (): FormatConverter<Resource> => ({
 })
 
 export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
-    defaultSort: ResourceSortBy.AlphabeticalAsc,
+    defaultSort: ResourceSortBy.IndexAsc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [ResourceSortBy.AlphabeticalAsc]: { title: 'asc' },
-            [ResourceSortBy.AlphabeticalDesc]: { title: 'desc' },
             [ResourceSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [ResourceSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [ResourceSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [ResourceSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
+            [ResourceSortBy.IndexAsc]: { index: 'asc' },
+            [ResourceSortBy.IndexDesc]: { index: 'desc' },
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {

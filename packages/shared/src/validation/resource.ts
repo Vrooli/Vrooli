@@ -3,6 +3,7 @@ import * as yup from 'yup';
 import { ResourceFor, ResourceUsedFor } from '../consts';
 
 const createdFor = yup.string().oneOf(Object.values(ResourceFor)).optional();
+const index = yup.number().integer().min(0).optional();
 const link = yup.string().max(1024).optional();
 const usedFor = yup.string().oneOf(Object.values(ResourceUsedFor)).optional();
 
@@ -23,6 +24,7 @@ export const resourceTranslationsUpdate = yup.array().of(resourceTranslationUpda
 export const resourceCreate = yup.object().shape({
     createdFor: createdFor.required(),
     createdForId: id.required(),
+    index,
     link: link.required(),
     usedFor,
     translations: resourceTranslationsCreate,
@@ -32,6 +34,7 @@ export const resourceUpdate = yup.object().shape({
     id: id.required(),
     createdFor,
     createdForId: id,
+    index,
     link,
     usedFor,
     translationsDelete: idArray,

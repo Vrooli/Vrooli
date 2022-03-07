@@ -9,8 +9,6 @@ import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     enum UserSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc

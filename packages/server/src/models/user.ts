@@ -49,11 +49,9 @@ export const userFormatter = (): FormatConverter<User> => ({
 })
 
 export const userSearcher = (): Searcher<UserSearchInput> => ({
-    defaultSort: UserSortBy.AlphabeticalAsc,
+    defaultSort: UserSortBy.StarsDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [UserSortBy.AlphabeticalAsc]: { username: 'asc' },
-            [UserSortBy.AlphabeticalDesc]: { username: 'desc' },
             [UserSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [UserSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [UserSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
