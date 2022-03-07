@@ -7,12 +7,19 @@
 // GraphQL fragment: deepRoutineResourceFields
 // ====================================================
 
+export interface deepRoutineResourceFields_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
 export interface deepRoutineResourceFields {
   __typename: "Resource";
   id: string;
   created_at: any;
-  description: string | null;
   link: string;
-  title: string | null;
   updated_at: any;
+  translations: deepRoutineResourceFields_translations[];
 }

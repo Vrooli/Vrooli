@@ -5,7 +5,7 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { openLink } from 'utils';
+import { getTranslation, openLink } from 'utils';
 import { useCallback, useEffect, useMemo } from 'react';
 import { readOpenGraphQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
@@ -41,7 +41,14 @@ export const ResourceCard = ({
     const [, setLocation] = useLocation();
     const [getOpenGraphData, { data: queryResult }] = useLazyQuery<readOpenGraph, readOpenGraphVariables>(readOpenGraphQuery);
     const queryData = useMemo(() => queryResult?.readOpenGraph, [queryResult]);
-    const title = useMemo(() => data?.title ?? queryData?.title, [data, queryData]);
+
+    const { description, title } = useMemo(() => {
+        const languages = navigator.languages; //session?.languages ?? navigator.languages;
+        return {
+            description: getTranslation(data, 'description', languages, true) ?? '',
+            title:  getTranslation(data, 'title', languages, true) ?? queryData?.title ?? '',
+        };
+    }, [data, queryData]);
 
     const handleClick = useCallback((event: any) => {
         if (onClick) onClick(data);
@@ -52,10 +59,10 @@ export const ResourceCard = ({
     }, [onRightClick, data]);
 
     useEffect(() => {
-        if (data.link && !data.title) {
+        if (data.link && !title) {
             getOpenGraphData({ variables: { input: { url: data.link } } })
         }
-    }, [getOpenGraphData, data])
+    }, [getOpenGraphData, data, title])
 
     // const display = useMemo(() => {
     //     if (!data || !data.displayUrl) {
@@ -73,7 +80,7 @@ export const ResourceCard = ({
     // }, [data])
 
     return (
-        <Tooltip placement="top" title={data?.description ?? queryData?.description ?? ''}>
+        <Tooltip placement="top" title={description}>
             <Box
                 onClick={handleClick}
                 onContextMenu={handleRightClick}

@@ -1,4 +1,4 @@
-import { description, idArray, id, name, title } from './base';
+import { description, idArray, id, name, title, language } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourcesCreate, resourcesUpdate } from './resource';
 import { standardCreate } from './standard';
@@ -12,15 +12,24 @@ const isRequired = yup.boolean().optional();
 const instructions = yup.string().max(8192).optional();
 const version = yup.string().max(16).optional();
 
-export const inputCreate = yup.object().shape({
+export const inputTranslationCreate = yup.object().shape({
+    language,
     description,
+});
+export const inputTranslationUpdate = yup.object().shape({
+    id: id.required(),
+    language,
+    description,
+});
+export const inputTranslationsCreate = yup.array().of(inputTranslationCreate.required()).optional();
+export const inputTranslationsUpdate = yup.array().of(inputTranslationUpdate.required()).optional();
+export const inputCreate = yup.object().shape({
     isRequired,
     name,
     standardConnect: id,
     standardCreate,
 })
 export const inputUpdate = yup.object().shape({
-    description,
     isRequired,
     name,
     // There is purposely no option to delete or update a standard from here
@@ -31,33 +40,59 @@ export const inputUpdate = yup.object().shape({
 export const inputsCreate = yup.array().of(inputCreate.required()).optional();
 export const inputsUpdate = yup.array().of(inputUpdate.required()).optional();
 
-export const outputCreate = yup.object().shape({
+export const outputTranslationCreate = yup.object().shape({
+    language,
     description,
+});
+export const outputTranslationUpdate = yup.object().shape({
+    id: id.required(),
+    language,
+    description,
+});
+export const outputTranslationsCreate = yup.array().of(outputTranslationCreate.required()).optional();
+export const outputTranslationsUpdate = yup.array().of(outputTranslationUpdate.required()).optional();
+export const outputCreate = yup.object().shape({
     name,
     standardConnect: id,
     standardCreate,
+    translationsCreate: outputTranslationsCreate,
 })
 export const outputUpdate = yup.object().shape({
-    description,
     name,
     // There is purposely no option to delete or update a standard from here
     standardConnect: id,
     standardDisconnect: id,
     standardCreate,
+    translationsDelete: idArray,
+    translationsCreate: outputTranslationsCreate,
+    translationsUpdate: outputTranslationsUpdate,
 })
 export const outputsCreate = yup.array().of(outputCreate.required()).optional();
 export const outputsUpdate = yup.array().of(outputUpdate.required()).optional();
+
+export const routineTranslationCreate = yup.object().shape({
+    language,
+    description,
+    instructions: instructions.required(),
+    title: title.required(),
+});
+export const routineTranslationUpdate = yup.object().shape({
+    id: id.required(),
+    language,
+    description,
+    instructions,
+    title,
+});
+export const routineTranslationsCreate = yup.array().of(routineTranslationCreate.required()).optional();
+export const routineTranslationsUpdate = yup.array().of(routineTranslationUpdate.required()).optional();
 
 /**
  * Information required when creating a routine. 
  */
 export const routineCreate = yup.object().shape({
-    description,
-    instructions,
     isAutomatable,
     isComplete,
     isInternal,
-    title: title.required(),
     version,
     parentId: id, // If forked, the parent's id
     createdByUserId: id, // If associating with yourself, your own id. Cannot associate with another user
@@ -69,18 +104,16 @@ export const routineCreate = yup.object().shape({
     resourcesCreate,
     tagsConnect: idArray,
     tagsCreate,
+    translationsCreate: routineTranslationsCreate,
 }, [['createdByUserId', 'createdByOrganizationId']]) // Makes sure you can't associate with both a user and an organization
 
 /**
  * Information required when updating a routine
  */
 export const routineUpdate = yup.object().shape({
-    description,
-    instructions,
     isAutomatable,
     isComplete,
     isInternal,
-    title,
     version,
     parentId: id, // If forked, the parent's id
     userId: id, // If associating with yourself, your own id. Cannot associate with another user
@@ -103,6 +136,9 @@ export const routineUpdate = yup.object().shape({
     tagsConnect: idArray,
     tagsDisconnect: idArray,
     tagsCreate,
+    translationsDelete: idArray,
+    translationsCreate: routineTranslationsCreate,
+    translationsUpdate: routineTranslationsUpdate,
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
 
 export const routinesCreate = yup.array().of(routineCreate.required()).optional();

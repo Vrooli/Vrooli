@@ -27,12 +27,9 @@ export const typeDef = gql`
     }
 
     input RoutineCreateInput {
-        description: String
-        instructions: String
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
-        title: String!
         version: String
         parentId: ID
         projectId: ID
@@ -45,15 +42,13 @@ export const typeDef = gql`
         resourcesCreate: [ResourceCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsCreate: [RoutineTranslationCreateInput!]
     }
     input RoutineUpdateInput {
         id: ID!
-        description: String
-        instructions: String
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
-        title: String
         version: String
         parentId: ID
         userId: ID
@@ -76,14 +71,15 @@ export const typeDef = gql`
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsDelete: [ID!]
+        translationsCreate: [RoutineTranslationCreateInput!]
+        translationsUpdate: [RoutineTranslationUpdateInput!]
     }
     type Routine {
         id: ID!
         completedAt: Date
         created_at: Date!
         updated_at: Date!
-        description: String
-        instructions: String
         isAutomatable: Boolean
         isComplete: Boolean!
         isInternal: Boolean
@@ -92,7 +88,6 @@ export const typeDef = gql`
         isUpvoted: Boolean
         score: Int!
         stars: Int!
-        title: String
         version: String
         comments: [Comment!]!
         creator: Contributor
@@ -109,51 +104,109 @@ export const typeDef = gql`
         resources: [Resource!]!
         starredBy: [User!]!
         tags: [Tag!]!
+        translations: [RoutineTranslation!]!
+    }
+
+    input RoutineTranslationCreateInput {
+        language: String!
+        description: String
+        instructions: String!
+        title: String!
+    }
+    input RoutineTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+        instructions: String
+        title: String
+    }
+    type RoutineTranslation {
+        id: ID!
+        language: String!
+        description: String
+        instructions: String!
+        title: String!
     }
 
     input InputItemCreateInput {
-        description: String
         isRequired: Boolean
         name: String
         standardConnect: ID
         standardCreate: StandardCreateInput
+        translationsDelete: [ID!]
+        translationsCreate: [InputItemTranslationCreateInput!]
+        translationsUpdate: [InputItemTranslationUpdateInput!]
     }
     input InputItemUpdateInput {
         id: ID!
-        description: String
         isRequired: Boolean
         name: String
         standardConnect: ID
         standardCreate: StandardCreateInput
+        translationsDelete: [ID!]
+        translationsCreate: [InputItemTranslationCreateInput!]
+        translationsUpdate: [InputItemTranslationUpdateInput!]
     }
     type InputItem {
         id: ID!
-        description: String
         isRequired: Boolean
         name: String
         routine: Routine!
         standard: Standard
+        translations: [InputItemTranslation!]!
+    }
+
+    input InputItemTranslationCreateInput {
+        language: String!
+        description: String
+    }
+    input InputItemTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+    }
+    type InputItemTranslation {
+        id: ID!
+        language: String!
+        description: String
     }
 
     input OutputItemCreateInput {
-        description: String
         name: String
         standardConnect: ID
         standardCreate: StandardCreateInput
+        translationsCreate: [OutputItemTranslationCreateInput!]
     }
     input OutputItemUpdateInput {
         id: ID!
-        description: String
         name: String
         standardConnect: ID
         standardCreate: StandardCreateInput
+        translationsDelete: [ID!]
+        translationsCreate: [OutputItemTranslationCreateInput!]
+        translationsUpdate: [OutputItemTranslationUpdateInput!]
     }
     type OutputItem {
         id: ID!
-        description: String
         name: String
         routine: Routine!
         standard: Standard
+        translations: [OutputItemTranslation!]!
+    }
+
+    input OutputItemTranslationCreateInput {
+        language: String!
+        description: String
+    }
+    input OutputItemTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+    }
+    type OutputItemTranslation {
+        id: ID!
+        language: String!
+        description: String
     }
 
     input RoutineSearchInput {
@@ -161,12 +214,14 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isComplete: Boolean
+        languages: [String!]
         minScore: Int
         minStars: Int
         organizationId: ID
         projectId: ID
         parentId: ID
         reportId: ID
+        resourceTypes: [ResourceUsedFor!]
         searchString: String
         sortBy: RoutineSortBy
         tags: [String!]

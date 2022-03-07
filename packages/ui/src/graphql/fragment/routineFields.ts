@@ -3,14 +3,17 @@ import { gql } from 'graphql-tag';
 export const routineFields = gql`
     fragment routineTagFields on Tag {
         id
-        description
         tag
+        translations {
+            id
+            language
+            description
+        }
     }
     fragment routineFields on Routine {
         id
         completedAt
         created_at
-        description
         isAutomatable
         isInternal
         isComplete
@@ -22,7 +25,12 @@ export const routineFields = gql`
         tags {
             ...routineTagFields
         }
-        title
+        translations {
+            id
+            language
+            description
+            title
+        }
         version
     }
 `

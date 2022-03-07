@@ -27,11 +27,10 @@ import {
     Typography,
 } from '@mui/material';
 import { OrchestrationInfoDialogProps } from '../types';
-import { Organization, User } from 'types';
 import Markdown from 'markdown-to-jsx';
 import { ResourceListHorizontal } from 'components';
-import { SvgIconComponent } from '@mui/icons-material';
 import { DeleteRoutineDialog } from '..';
+import { getTranslation } from 'utils';
 
 enum ActionOption {
     Cancel = 'cancel',
@@ -44,6 +43,7 @@ enum ActionOption {
 export const OrchestrationInfoDialog = ({
     handleUpdate,
     isEditing,
+    language,
     routine,
     sxs,
 }: OrchestrationInfoDialogProps) => {
@@ -59,8 +59,8 @@ export const OrchestrationInfoDialog = ({
      */
     const ownedBy = useMemo<string | null>(() => {
         if (!routine?.owner) return null;
-        return (routine.owner as User)?.username ?? (routine.owner as Organization)?.name ?? null;
-    }, [routine?.owner]);
+        return getTranslation(routine.owner, 'username', [language]) ?? getTranslation(routine.owner, 'name', [language]);
+    }, [routine?.owner, language]);
 
     /**
      * Determines which action buttons to display
@@ -119,7 +119,7 @@ export const OrchestrationInfoDialog = ({
                 }}>
                     {/* Title, created by, and version  */}
                     <Stack direction="column" spacing={1} alignItems="center" sx={{ marginLeft: 'auto' }}>
-                        <Typography variant="h5">{routine?.title}</Typography>
+                        <Typography variant="h5">{getTranslation(routine, 'title', [language])}</Typography>
                         <Stack direction="row" spacing={1}>
                             {ownedBy ? <Typography variant="body1">{ownedBy} - </Typography> : null}
                             <Typography variant="body1">{routine?.version}</Typography>
@@ -148,7 +148,7 @@ export const OrchestrationInfoDialog = ({
                         borderRadius: 1,
                     }}>
                         <Typography variant="h6">Description</Typography>
-                        <Markdown>{routine?.description ?? ''}</Markdown>
+                        <Markdown>{getTranslation(routine, 'description', [language]) ?? ''}</Markdown>
                     </Box>
                     {/* Instructions */}
                     <Box sx={{
@@ -157,7 +157,7 @@ export const OrchestrationInfoDialog = ({
                         borderRadius: 1,
                     }}>
                         <Typography variant="h6">Instructions</Typography>
-                        <Markdown>{routine?.instructions ?? ''}</Markdown>
+                        <Markdown>{getTranslation(routine, 'instructions', [language]) ?? ''}</Markdown>
                     </Box>
                     {/* Inputs/Outputs TODO*/}
                     {/* Is internal checkbox */}
@@ -198,7 +198,7 @@ export const OrchestrationInfoDialog = ({
             {/* Delete routine confirmation dialog */}
             <DeleteRoutineDialog
                 isOpen={deleteOpen}
-                routineName={routine?.title ?? ''}
+                routineName={getTranslation(routine, 'title', [language]) ?? ''}
                 handleClose={() => setDeleteOpen(false)}
                 handleDelete={() => { }}
             />

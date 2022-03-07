@@ -18,6 +18,7 @@ import { ProjectViewProps } from "../types";
 import { Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
+import { getTranslation } from "utils";
 
 const tabLabels = ['Resources', 'Routines', 'Standards'];
 
@@ -34,6 +35,14 @@ export const ProjectView = ({
     const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
     const project = useMemo(() => data?.project, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
+
+    const { name, description } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            name: getTranslation(project, 'name', languages) ?? getTranslation(partialData, 'name', languages),
+            description: getTranslation(project, 'description', languages) ?? getTranslation(partialData, 'description', languages),
+        };
+    }, [project, partialData, session]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
@@ -188,7 +197,7 @@ export const ProjectView = ({
                 {
                     canEdit ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{project?.name ?? partialData?.name}</Typography>
+                            <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit project">
                                 <IconButton
                                     aria-label="Edit project"
@@ -200,12 +209,12 @@ export const ProjectView = ({
                             </Tooltip>
                         </Stack>
                     ) : (
-                        <Typography variant="h4" textAlign="center">{project?.name ?? partialData?.name}</Typography>
+                        <Typography variant="h4" textAlign="center">{name}</Typography>
 
                     )
                 }
                 <Typography variant="body1" sx={{ color: "#00831e" }}>{project?.created_at ? `🕔 Created ${new Date(project.created_at).toDateString()}` : ''}</Typography>
-                <Typography variant="body1" sx={{ color: project?.description ? 'black' : 'gray' }}>{project?.description ?? partialData?.description ?? 'No description set'}</Typography>
+                <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>

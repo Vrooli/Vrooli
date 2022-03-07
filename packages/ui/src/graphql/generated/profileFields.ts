@@ -21,24 +21,45 @@ export interface profileFields_wallets {
   verified: boolean;
 }
 
+export interface profileFields_translations {
+  __typename: "UserTranslation";
+  id: string;
+  language: string;
+  bio: string | null;
+}
+
+export interface profileFields_starredTags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface profileFields_starredTags {
   __typename: "Tag";
   id: string;
   tag: string;
-  description: string | null;
   created_at: any;
   stars: number;
   isStarred: boolean;
+  translations: profileFields_starredTags_translations[];
+}
+
+export interface profileFields_hiddenTags_tag_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
 }
 
 export interface profileFields_hiddenTags_tag {
   __typename: "Tag";
   id: string;
   tag: string;
-  description: string | null;
   created_at: any;
   stars: number;
   isStarred: boolean;
+  translations: profileFields_hiddenTags_tag_translations[];
 }
 
 export interface profileFields_hiddenTags {
@@ -51,10 +72,10 @@ export interface profileFields {
   __typename: "Profile";
   id: string;
   username: string | null;
-  bio: string | null;
   emails: profileFields_emails[];
   wallets: profileFields_wallets[];
   theme: string;
+  translations: profileFields_translations[];
   starredTags: profileFields_starredTags[] | null;
   hiddenTags: profileFields_hiddenTags[] | null;
 }

@@ -9,6 +9,13 @@ import { FindByIdInput } from "./globalTypes";
 // GraphQL query operation: user
 // ====================================================
 
+export interface user_user_translations {
+  __typename: "UserTranslation";
+  id: string;
+  language: string;
+  bio: string | null;
+}
+
 export interface user_user {
   __typename: "User";
   id: string;
@@ -16,7 +23,7 @@ export interface user_user {
   created_at: any;
   stars: number;
   isStarred: boolean;
-  bio: string | null;
+  translations: user_user_translations[];
 }
 
 export interface user {

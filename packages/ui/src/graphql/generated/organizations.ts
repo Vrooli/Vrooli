@@ -15,24 +15,38 @@ export interface organizations_organizations_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface organizations_organizations_edges_node_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface organizations_organizations_edges_node_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: organizations_organizations_edges_node_tags_translations[];
+}
+
+export interface organizations_organizations_edges_node_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  bio: string | null;
+  name: string;
 }
 
 export interface organizations_organizations_edges_node {
   __typename: "Organization";
   id: string;
-  bio: string | null;
   created_at: any;
   isOpenToNewMembers: boolean;
   isStarred: boolean;
-  name: string;
   role: MemberRole | null;
   stars: number;
   tags: organizations_organizations_edges_node_tags[];
+  translations: organizations_organizations_edges_node_translations[];
 }
 
 export interface organizations_organizations_edges {

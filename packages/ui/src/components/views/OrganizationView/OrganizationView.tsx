@@ -18,6 +18,7 @@ import { OrganizationViewProps } from "../types";
 import { User, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
+import { getTranslation } from "utils";
 
 const tabLabels = ['Resources', 'Members', 'Projects', 'Routines', 'Standards'];
 
@@ -34,6 +35,14 @@ export const OrganizationView = ({
     const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });
     const organization = useMemo(() => data?.organization, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(organization?.role ?? ''), [organization]);
+
+    const { name, bio } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            name: getTranslation(organization, 'name', languages) ?? getTranslation(partialData, 'name', languages),
+            bio: getTranslation(organization, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
+        };
+    }, [organization, partialData, session]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
@@ -225,7 +234,7 @@ export const OrganizationView = ({
                 {
                     canEdit ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{organization?.name ?? partialData?.name}</Typography>
+                            <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit organization">
                                 <IconButton
                                     aria-label="Edit organization"
@@ -237,12 +246,12 @@ export const OrganizationView = ({
                             </Tooltip>
                         </Stack>
                     ) : (
-                        <Typography variant="h4" textAlign="center">{organization?.name ?? partialData?.name}</Typography>
+                        <Typography variant="h4" textAlign="center">{name}</Typography>
 
                     )
                 }
                 <Typography variant="body1" sx={{ color: "#00831e" }}>{organization?.created_at ? `🕔 Joined ${new Date(organization.created_at).toDateString()}` : ''}</Typography>
-                <Typography variant="body1" sx={{ color: organization?.bio ? 'black' : 'gray' }}>{organization?.bio ?? partialData?.bio ?? 'No bio set'}</Typography>
+                <Typography variant="body1" sx={{ color: bio ? 'black' : 'gray' }}>{bio ?? 'No bio set'}</Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
@@ -268,7 +277,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [session, organization, partialData, canEdit, onEdit]);
+    ), [bio, session, name, organization, partialData, canEdit, onEdit]);
 
     return (
         <>

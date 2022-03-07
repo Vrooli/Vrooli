@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { CODE, StarFor } from '@local/shared';
+import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { StarInput, Success } from './types';
+import { StarFor, StarInput, Success } from './types';
 import { IWrap } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -39,18 +39,11 @@ export const resolvers = {
     StarFor: StarFor,
     Star: {
         __resolveType(obj: any) {
-            console.log('IN STAR __resolveType', obj);
-            // Only a Standard has an isFile field
             if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
-            // Only a user has a username field
             if (obj.hasOwnProperty('username')) return GraphQLModelType.User;
-            // Only an Organization has a name and bio field
-            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('bio')) return GraphQLModelType.Organization;
-            // Only a Project has a name and description field
-            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('description')) return GraphQLModelType.Project;
-            // Only a Routine has a title and description field
-            if (obj.hasOwnProperty('title') && obj.hasOwnProperty('description')) return GraphQLModelType.Routine;
-            return null; // GraphQLError is thrown
+            if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
+            if (obj.hasOwnProperty('isOpenToNewMembers')) return GraphQLModelType.Organization;
+            return GraphQLModelType.Routine;
         },
     },
     Mutation: {

@@ -44,6 +44,7 @@ export const typeDef = gql`
         description: String
         link: String!
         title: String
+        translationsCreate: [ResourceTranslationCreateInput!]
         usedFor: ResourceUsedFor!
     }
     input ResourceUpdateInput {
@@ -53,6 +54,9 @@ export const typeDef = gql`
         description: String
         link: String
         title: String
+        translationsDelete: [ID!]
+        translationsCreate: [ResourceTranslationCreateInput!]
+        translationsUpdate: [ResourceTranslationUpdateInput!]
         usedFor: ResourceUsedFor
     }
     type Resource {
@@ -61,16 +65,34 @@ export const typeDef = gql`
         updated_at: Date!
         createdFor: ResourceFor!
         createdForId: ID!
-        description: String
         link: String!
-        title: String
+        translations: [ResourceTranslation!]!
         usedFor: ResourceUsedFor
+    }
+
+    input ResourceTranslationCreateInput {
+        language: String!
+        description: String
+        title: String
+    }
+    input ResourceTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+        title: String
+    }
+    type ResourceTranslation {
+        id: ID!
+        language: String!
+        description: String
+        title: String
     }
 
     input ResourceSearchInput {
         forId: ID
         forType: ResourceFor
         ids: [ID!]
+        languages: [String!]
         sortBy: ResourceSortBy
         createdTimeFrame: TimeFrame
         updatedTimeFrame: TimeFrame

@@ -1,4 +1,4 @@
-import { CODE, MemberRole, projectCreate, projectUpdate } from "@local/shared";
+import { CODE, MemberRole, projectCreate, projectTranslationCreate, projectTranslationUpdate, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count } from "../schema/types";
@@ -10,6 +10,7 @@ import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import _ from "lodash";
+import { TranslationModel } from "./translation";
 
 //==============================================================
 /* #region Custom Components */
@@ -128,36 +129,32 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
             [ProjectSortBy.VotesDesc]: { score: 'desc' },
         }[sortBy]
     },
-    getSearchStringQuery: (searchString: string): any => {
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { name: { ...insensitive } },
-                { description: { ...insensitive } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, name: {...insensitive} } } },
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
     },
     customQueries(input: ProjectSearchInput): { [x: string]: any } {
         const isCompleteQuery = input.isComplete ? { isComplete: true } : {};
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
+        const resourceTypesQuery = input.resourceTypes ? { resources: { some: { usedFor: { in: input.resourceTypes } } } } : {};
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...isCompleteQuery, ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...tagsQuery };
+        return { ...isCompleteQuery, ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...tagsQuery };
     },
 })
 
-export const projectVerifier = () => ({
-    profanityCheck(data: ProjectCreateInput | ProjectUpdateInput): void {
-        if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
-    },
-})
-
-export const projectMutater = (prisma: PrismaType, verifier: any) => ({
+export const projectMutater = (prisma: PrismaType) => ({
     /**
      * Validate adds, updates, and deletes
      */
@@ -167,12 +164,12 @@ export const projectMutater = (prisma: PrismaType, verifier: any) => ({
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
         if (createMany) {
             createMany.forEach(input => projectCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
+            createMany.forEach(input => TranslationModel().profanityCheck(input));
             // Check if user will pass max projects limit TODO
         }
         if (updateMany) {
             updateMany.forEach(input => projectUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input));
         }
         if (deleteMany) {
             // Check if user is authorized to delete
@@ -201,13 +198,13 @@ export const projectMutater = (prisma: PrismaType, verifier: any) => ({
          * Helper function for creating create/update Prisma value
          */
         const createData = async (input: ProjectCreateInput | ProjectUpdateInput): Promise<{ [x: string]: any }> => ({
-            description: input.description,
             isComplete: input.isComplete,
             completedAt: input.isComplete ? new Date().toISOString() : null,
             name: input.name,
             parentId: input.parentId,
             resources: ResourceModel(prisma).relationshipBuilder(userId, input, true),
             tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
+            translations: TranslationModel().relationshipBuilder(userId, input, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
         })
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -318,15 +315,13 @@ export function ProjectModel(prisma: PrismaType) {
     const prismaObject = prisma.project;
     const format = projectFormatter();
     const search = projectSearcher();
-    const verify = projectVerifier();
-    const mutate = projectMutater(prisma, verify);
+    const mutate = projectMutater(prisma);
 
     return {
         prisma,
         prismaObject,
         ...format,
         ...search,
-        ...verify,
         ...mutate,
     }
 }

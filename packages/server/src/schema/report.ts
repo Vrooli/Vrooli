@@ -30,19 +30,22 @@ export const typeDef = gql`
         createdFor: ReportFor!
         createdForId: ID!
         details: String
+        language: String!
         reason: String!
     }
     input ReportUpdateInput {
         id: ID!
         details: String
+        language: String
         reason: String
     }
 
     type Report {
         id: ID
         isOwn: Boolean!
-        reason: String!
         details: String
+        language: String!
+        reason: String!
     }
 
     input ReportSearchInput {
@@ -53,6 +56,7 @@ export const typeDef = gql`
         standardId: ID
         tagId: ID
         ids: [ID!]
+        languages: [String!]
         sortBy: ReportSortBy
         createdTimeFrame: TimeFrame
         updatedTimeFrame: TimeFrame

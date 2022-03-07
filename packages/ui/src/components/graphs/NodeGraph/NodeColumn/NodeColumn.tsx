@@ -4,7 +4,7 @@
 import { Box, Stack } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NodeColumnProps } from '../types';
-import { EndNode, LoopNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
+import { EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { NodeWidth } from '..';
 
@@ -100,8 +100,6 @@ export const NodeColumn = ({
             switch (node.type) {
                 case NodeType.End:
                     return <EndNode {...nodeProps} />
-                case NodeType.Loop:
-                    return <LoopNode {...nodeProps} />
                 case NodeType.Redirect:
                     return <RedirectNode {...nodeProps} />
                 case NodeType.RoutineList:

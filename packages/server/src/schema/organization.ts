@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { MemberRole, OrganizationSortBy } from '@local/shared';
+import { MemberRole } from '@local/shared';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult } from './types';
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult, OrganizationSortBy } from './types';
 import { Context } from '../context';
 import { countHelper, createHelper, deleteOneHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -25,18 +25,15 @@ export const typeDef = gql`
     }
 
     input OrganizationCreateInput {
-        bio: String
         isOpenToNewMembers: Boolean
-        name: String!
         resourcesCreate: [ResourceCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsCreate: [OrganizationTranslationCreateInput!]
     }
     input OrganizationUpdateInput {
         id: ID!
-        bio: String
         isOpenToNewMembers: Boolean
-        name: String
         membersConnect: [ID!]
         membersDisconnect: [ID!]
         resourcesDelete: [ID!]
@@ -45,14 +42,15 @@ export const typeDef = gql`
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsDelete: [ID!]
+        translationsCreate: [OrganizationTranslationCreateInput!]
+        translationsUpdate: [OrganizationTranslationUpdateInput!]
     }
     type Organization {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        bio: String
         isOpenToNewMembers: Boolean!
-        name: String!
         stars: Int!
         isStarred: Boolean!
         role: MemberRole
@@ -65,7 +63,26 @@ export const typeDef = gql`
         routinesCreated: [Routine!]!
         starredBy: [User!]!
         tags: [Tag!]!
+        translations: [OrganizationTranslation!]!
         wallets: [Wallet!]!
+    }
+
+    input OrganizationTranslationCreateInput {
+        language: String!
+        bio: String
+        name: String!
+    }
+    input OrganizationTranslationUpdateInput {
+        id: ID!
+        language: String
+        bio: String
+        name: String
+    }
+    type OrganizationTranslation {
+        id: ID!
+        language: String!
+        bio: String
+        name: String!
     }
 
     type Member {
@@ -78,9 +95,11 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isOpenToNewMembers: Boolean
+        languages: [String!]
         minStars: Int
         projectId: ID
         reportId: ID
+        resourceTypes: [ResourceUsedFor!]
         routineId: ID
         searchString: String
         standardId: ID

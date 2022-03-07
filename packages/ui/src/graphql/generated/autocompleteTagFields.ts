@@ -7,12 +7,19 @@
 // GraphQL fragment: autocompleteTagFields
 // ====================================================
 
+export interface autocompleteTagFields_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface autocompleteTagFields {
   __typename: "Tag";
   id: string;
   created_at: any;
-  description: string | null;
   isStarred: boolean;
   stars: number;
   tag: string;
+  translations: autocompleteTagFields_translations[];
 }

@@ -14,6 +14,7 @@ export interface emailLogIn_emailLogIn {
   id: string | null;
   theme: string;
   roles: string[];
+  languages: string[] | null;
 }
 
 export interface emailLogIn {

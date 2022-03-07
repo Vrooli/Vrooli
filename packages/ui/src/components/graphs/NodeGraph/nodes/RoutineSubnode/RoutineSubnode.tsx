@@ -18,7 +18,7 @@ import {
     routineNodeCheckboxLabel,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { OrchestrationDialogOption } from 'utils';
+import { getTranslation, OrchestrationDialogOption } from 'utils';
 
 export const RoutineSubnode = ({
     nodeId,
@@ -30,6 +30,13 @@ export const RoutineSubnode = ({
 }: RoutineSubnodeProps) => {
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
+
+    const { title } = useMemo(() => {
+        const languages = navigator.languages;
+        return {
+            title: getTranslation(data, 'title', languages, true),
+        }
+    }, [data]);
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography
@@ -44,9 +51,9 @@ export const RoutineSubnode = ({
                 whiteSpace: 'pre',
             } as CSSProperties}
         >
-            {data.title ?? data.routine.title ?? 'Untitled'}
+            {title ?? 'Untitled'}
         </Typography>
-    ) : null, [data.title, labelVisible]);
+    ) : null, [title, labelVisible]);
 
     return (
         <Box
@@ -90,7 +97,7 @@ export const RoutineSubnode = ({
                         label='Optional'
                         control={
                             <Checkbox
-                                id={`${data?.title}-optional-option`}
+                                id={`${title ?? ''}-optional-option`}
                                 size="small"
                                 name='isOptionalCheckbox'
                                 value='isOptionalCheckbox'

@@ -1,11 +1,12 @@
 import { Count, Node, NodeCreateInput, NodeType, NodeUpdateInput } from "../schema/types";
 import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
 import { CustomError } from "../error";
-import { CODE, condition, conditionsCreate, conditionsUpdate, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeLoopCreate, nodeLoopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeUpdate, whilesCreate, whilesUpdate } from "@local/shared";
+import { CODE, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, loopCreate, loopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, nodeUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate } from "@local/shared";
 import { PrismaType } from "types";
 import { hasProfanityRecursive } from "../utils/censor";
 import { RoutineModel } from "./routine";
 import pkg from '@prisma/client';
+import { TranslationModel } from "./translation";
 const { MemberRole } = pkg;
 
 const MAX_NODES_IN_ROUTINE = 100;
@@ -19,18 +20,15 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
         '__typename': GraphQLModelType.Node,
         'data': {
             'NodeEnd': GraphQLModelType.NodeEnd,
-            'NodeLoop': GraphQLModelType.NodeLoop,
             'NodeRoutineList': GraphQLModelType.NodeRoutineList,
         },
+        'loop': GraphQLModelType.NodeLoop,
         'routine': GraphQLModelType.Routine,
     },
     constructUnions: (data) => {
-        let { nodeEnd, nodeLoopFrom, nodeRoutineList, nodeRedirect, ...modified } = data;
+        let { nodeEnd, nodeRoutineList, nodeRedirect, ...modified } = data;
         if (nodeEnd) {
             modified.data = nodeEnd;
-        }
-        else if (nodeLoopFrom) {
-            modified.data = nodeLoopFrom;
         }
         else if (nodeRoutineList) {
             modified.data = nodeRoutineList;
@@ -44,7 +42,6 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
         let modified = deconstructUnion(partial, 'data', 
         [
             [GraphQLModelType.NodeEnd, 'nodeEnd'],
-            [GraphQLModelType.NodeLoop, 'nodeLoopFrom'],
             [GraphQLModelType.NodeRoutineList, 'nodeRoutineList'],
             // TODO modified.nodeRedirect
         ]);
@@ -137,9 +134,9 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
-     * Add, update, or remove node link condition case from a routine
+     * Add, update, or remove node link whens from a routine
      */
-    relationshipBuilderNodeLinkConditionCase(
+    relationshipBuilderNodeLinkWhens(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
@@ -147,55 +144,23 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node links (since they can only be applied to one node orchestration)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'when', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            for (let data of formattedInput.create) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                condition.validateSync(data.condition, { abortEarly: false });
-                // Convert nested relationships
-                data = { create: { condition: data.condition } }
-            }
-        }
-        // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (let data of formattedInput.update) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                condition.validateSync(data.condition, { abortEarly: false });
-                // Convert nested relationships
-                data = { update: { condition: data.condition } }
-            }
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
-    },
-    /**
-     * Add, update, or remove node link condition from a routine
-     */
-    relationshipBuilderNodeLinkCondition(
-        userId: string | null,
-        input: { [x: string]: any },
-        isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node links (since they can only be applied to one node orchestration)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'conditions', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'whens', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
                 // Check for valid arguments (censored words must be checked in earlier function)
-                conditionsCreate.validateSync(data, { abortEarly: false });
-                // Convert nested relationships
-                data.when = this.relationshipBuilderNodeLinkConditionCase(userId, data, isAdd);
+                whensCreate.validateSync(data, { abortEarly: false });
+                // Check for banned words
+                TranslationModel().profanityCheck(data);
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             for (const data of formattedInput.update) {
                 // Check for valid arguments (censored words must be checked in earlier function)
-                conditionsUpdate.validateSync(data, { abortEarly: false });
-                // Convert nested relationships
-                data.when = this.relationshipBuilderNodeLinkConditionCase(userId, data, isAdd);
+                whensUpdate.validateSync(data, { abortEarly: false });
+                // Check for banned words
+                TranslationModel().profanityCheck(data);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -220,7 +185,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
                 nodeLinksCreate.validateSync(data, { abortEarly: false });
                 console.log('past validation')
                 // Convert nested relationships
-                data.decisions = this.relationshipBuilderNodeLinkCondition(userId, data, isAdd);
+                data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
                 let { fromId, toId, ...rest } = data;
                 data = {
                     ...rest,
@@ -235,7 +200,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
                 // Check for valid arguments
                 nodeLinksUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
-                data.decisions = this.relationshipBuilderNodeLinkCondition(userId, data, isAdd);
+                data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
                 let { fromId, toId, ...rest } = data;
                 data = {
                     ...rest,
@@ -275,41 +240,9 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
-     * Add, update, or remove loop node while case data from a node
+     * Add, update, or remove loop while data from a node
      */
-    relationshipBuilderLoopNodeWhileCase(
-        userId: string | null,
-        input: { [x: string]: any },
-        isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'when', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            for (let data of formattedInput.create) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                condition.validateSync(data.condition, { abortEarly: false });
-                // Convert nested relationships
-                data = { create: { condition: data.condition } }
-            }
-        }
-        // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (let data of formattedInput.update) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                condition.validateSync(data.condition, { abortEarly: false });
-                // Convert nested relationships
-                data = { update: { condition: data.condition } }
-            }
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
-    },
-    /**
-     * Add, update, or remove loop node data from a node
-     */
-    relationshipBuilderLoopNodeWhile(
+    relationshipBuilderLoopWhiles(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
@@ -323,8 +256,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             for (const data of formattedInput.create) {
                 // Check for valid arguments (censored words must be checked in earlier function)
                 whilesCreate.validateSync(data, { abortEarly: false });
-                // Convert nested relationships
-                data.when = this.relationshipBuilderLoopNodeWhileCase(userId, data, isAdd);
             }
         }
         // Validate update
@@ -332,16 +263,14 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             for (const data of formattedInput.update) {
                 // Check for valid arguments
                 whilesUpdate.validateSync(data, { abortEarly: false });
-                // Convert nested relationships
-                data.when = this.relationshipBuilderLoopNodeWhileCase(userId, data, isAdd);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
-     * Add, update, or remove loop node data from a node
+     * Add, update, or remove loop data from a node
      */
-    relationshipBuilderLoopNode(
+    relationshipBuilderLoop(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
@@ -349,23 +278,23 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeLoop', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'loop', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
                 // Check for valid arguments
-                nodeLoopCreate.validateSync(data, { abortEarly: false });
+                loopCreate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
-                data.whiles = this.relationshipBuilderLoopNodeWhile(userId, data, isAdd);
+                data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             for (const data of formattedInput.update) {
                 // Check for valid arguments
-                nodeLoopUpdate.validateSync(data, { abortEarly: false });
+                loopUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
-                data.whiles = this.relationshipBuilderLoopNodeWhile(userId, data, isAdd);
+                data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -481,29 +410,27 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         const createData = async (input: NodeCreateInput | NodeUpdateInput): Promise<{ [x: string]: any }> => {
             let nodeData: { [x: string]: any } = {
                 columnIndex: input.columnIndex,
-                description: input.description,
                 routineId: input.routineId,
                 rowIndex: input.rowIndex,
-                title: input.title,
                 type: input.type,
+                translations: TranslationModel().relationshipBuilder(userId, input, { create: nodeTranslationCreate, update: nodeTranslationUpdate }, false),
             };
             // Create type-specific data, and make sure other types are null
             nodeData.nodeEnd = null;
-            nodeData.nodeLoopFrom = null;
             nodeData.nodeRoutineList = null;
             switch (input.type) {
                 case NodeType.End:
-                    if (!input.nodeEndCreate) throw new CustomError(CODE.InvalidArgs, 'If type is end, nodeEndCreate must be provided');
-                    nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, true);
-                    break;
-                case NodeType.Loop:
-                    if (!input.nodeLoopCreate) throw new CustomError(CODE.InvalidArgs, 'If type is loop, nodeLoopCreate must be provided');
-                    nodeData.nodeLoopFrom = this.relationshipBuilderLoopNode(userId, input, true);
+                    if ((input as NodeCreateInput)?.nodeEndCreate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, true);
+                    else if ((input as NodeUpdateInput)?.nodeEndUpdate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, false);
                     break;
                 case NodeType.RoutineList:
-                    if (!input.nodeRoutineListCreate) throw new CustomError(CODE.InvalidArgs, 'If type is routineList, nodeRoutineListCreate must be provided');
-                    nodeData.nodeRoutineList = this.relationshipBuilderRoutineListNode(userId, input, true);
+                    if ((input as NodeCreateInput).nodeRoutineListCreate) nodeData.nodeRoutineList = this.relationshipBuilderRoutineListNode(userId, input, true);
+                    else if ((input as NodeUpdateInput)?.nodeRoutineListUpdate) nodeData.nodeRoutineList = this.relationshipBuilderRoutineListNode(userId, input, false);
                     break;
+            }
+            if (nodeData.loop) {
+                if (input.loopCreate) nodeData.loop = this.relationshipBuilderLoop(userId, input, true);
+                else if ((input as NodeUpdateInput)?.loopUpdate) nodeData.loop = this.relationshipBuilderLoop(userId, input, false);
             }
             return nodeData;
         }

@@ -27,37 +27,55 @@ export const typeDef = gql`
     }
 
     input CommentCreateInput {
-        text: String!
         createdFor: CommentFor!
         forId: ID!
+        translationsCreate: [CommentTranslationCreateInput!]
     }
     input CommentUpdateInput {
         id: ID!
-        text: String
+        translationsDelete: [ID!]
+        translationsCreate: [CommentTranslationCreateInput!]
+        translationsUpdate: [CommentTranslationUpdateInput!]
     }
 
     union CommentedOn = Project | Routine | Standard
 
     type Comment {
         id: ID!
-        text: String
         created_at: Date!
         updated_at: Date!
-        creator: Contributor
         commentedOn: CommentedOn!
-        reports: [Report!]!
-        stars: Int
+        creator: Contributor
         isStarred: Boolean!
-        starredBy: [User!]
-        score: Int
         isUpvoted: Boolean
+        reports: [Report!]!
         role: MemberRole
+        score: Int
+        stars: Int
+        starredBy: [User!]
+        translations: [CommentTranslation!]!
+    }
+
+    input CommentTranslationCreateInput {
+        language: String!
+        text: String!
+    }
+    input CommentTranslationUpdateInput {
+        id: ID!
+        language: String
+        text: String
+    }
+    type CommentTranslation {
+        id: ID!
+        language: String!
+        text: String!
     }
 
     input CommentSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        languages: [String!]
         minScore: Int
         minStars: Int
         organizationId: ID
@@ -107,14 +125,11 @@ export const resolvers = {
     CommentSortBy: CommentSortBy,
     CommentedOn: {
         __resolveType(obj: any) {
-            console.log('IN COMMENT __resolveType', obj);
             // Only a Standard has an isFile field
             if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
             // Only a Project has a name field
-            if (obj.hasOwnProperty('name')) return GraphQLModelType.Project;
-            // Only a Routine has a title field
-            if (obj.hasOwnProperty('title')) return GraphQLModelType.Routine;
-            return null; // GraphQLError is thrown
+            if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
+            return GraphQLModelType.Routine;
         },
     },
     Query: {

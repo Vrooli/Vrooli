@@ -12,6 +12,7 @@ export interface validateSession_validateSession {
   id: string | null;
   theme: string;
   roles: string[];
+  languages: string[] | null;
 }
 
 export interface validateSession {

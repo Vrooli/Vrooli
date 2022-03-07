@@ -3,15 +3,16 @@
  * several variations. Nonetheless, they are handled in the same way - connect, 
  * disconnect, delete, create, and update
  */
-import { description, idArray, id, title } from './base';
+import { description, idArray, id, title, language } from './base';
 import * as yup from 'yup';
 
 const columnIndex = yup.number().integer().min(0).optional();
 const rowIndex = yup.number().integer().min(0).optional();
-export const condition = yup.string().max(2048).optional();
+export const condition = yup.string().max(8192).optional();
 const isOptional = yup.boolean().optional();
 const loops = yup.number().integer().min(0).max(100).optional();
 const maxLoops = yup.number().integer().min(1).max(100).optional();
+const operation = yup.string().max(512).optional();
 const type = yup.string().oneOf(["End", "Loop", "RoutineList", "Redirect", "Start"]).optional();
 const wasSuccessful = yup.boolean().optional();
 
@@ -23,94 +24,124 @@ export const nodeEndUpdate = yup.object().shape({
     wasSuccessful,
 })
 
-export const conditionWhenCreate = yup.array().of(yup.object().shape({
-    condition: condition.required(),
-}).required()).optional();
-export const conditionWhenUpdate = yup.array().of(yup.object().shape({
-    id: id.required(),
-    condition: condition.required(),
-}).required()).optional();
-export const conditionsCreate = yup.array().of(yup.object().shape({
+export const whenTranslationCreate = yup.object().shape({
+    language,
     description,
     title: title.required(),
-    whenCreate: conditionWhenCreate,
-    toId: id,
-}).required()).optional();
-export const conditionsUpdate = yup.array().of(yup.object().shape({
+});
+export const whenTranslationUpdate = yup.object().shape({
     id: id.required(),
+    language,
     description,
     title,
-    whenCreate: conditionWhenCreate,
-    whenUpdate: conditionWhenUpdate,
-    whenDelete: idArray,
-}).required()).optional();
+});
+const whenTranslationsCreate = yup.array().of(whenTranslationCreate.required()).optional();
+const whenTranslationsUpdate = yup.array().of(whenTranslationUpdate.required()).optional();
+export const whenCreate = yup.object().shape({
+    condition: condition.required(),
+    translationsCreate: whenTranslationsCreate,
+    translationsUpdate: whenTranslationsUpdate,
+    translationsDelete: idArray,
+});
+export const whenUpdate = yup.object().shape({
+    id: id.required(),
+    condition,
+    translationsCreate: whenTranslationsCreate,
+    translationsUpdate: whenTranslationsUpdate,
+    translationsDelete: idArray,
+});
+export const whensCreate = yup.array().of(whenCreate.required()).optional();
+export const whensUpdate = yup.array().of(whenUpdate.required()).optional();
+
 export const nodeLinkCreate = yup.object().shape({
-    conditionsCreate,
     fromId: id.required(),
     toId: id.required(),
+    operation,
+    whensCreate,
 })
 export const nodeLinkUpdate = yup.object().shape({
     id: id.required(),
-    conditionsCreate,
-    conditionsUpdate,
-    conditionsDelete: idArray,
+    operation,
+    whensCreate,
+    whensUpdate,
+    whensDelete: idArray,
 })
 export const nodeLinksCreate = yup.array().of(nodeLinkCreate.required()).optional();
 export const nodeLinksUpdate = yup.array().of(nodeLinkUpdate.required()).optional();
 
-export const loopWhenCreate = yup.array().of(yup.object().shape({
-    condition: condition.required(),
-}).required()).optional();
-export const loopWhenUpdate = yup.array().of(yup.object().shape({
-    id: id.required(),
-    condition: condition.required(),
-}).required()).optional();
-export const whilesCreate = yup.array().of(yup.object().shape({
+export const whileTranslationCreate = yup.object().shape({
+    language,
     description,
     title: title.required(),
-    whenCreate: loopWhenCreate,
-    toId: id,
-}).required()).optional();
-export const whilesUpdate = yup.array().of(yup.object().shape({
+});
+export const whileTranslationUpdate = yup.object().shape({
     id: id.required(),
+    language,
     description,
     title,
+});
+export const whileTranslationsCreate = yup.array().of(whileTranslationCreate.required()).optional();
+export const whileTranslationsUpdate = yup.array().of(whileTranslationUpdate.required()).optional();
+export const whileCreate = yup.object().shape({
+    condition: condition.required(),
     toId: id,
-    whenCreate: loopWhenCreate,
-    whenUpdate: loopWhenUpdate,
+    translationsCreate: whileTranslationsCreate,
+});
+export const whileUpdate = yup.object().shape({
+    id: id.required(),
+    toId: id,
+    condition,
     whenDelete: idArray,
-}).required()).optional();
-export const nodeLoopCreate = yup.object().shape({
+    translationsCreate: whileTranslationsCreate,
+    translationsUpdate: whileTranslationsUpdate,
+    translationsDelete: idArray,
+});
+export const whilesCreate = yup.array().of(whileCreate.required()).optional();
+export const whilesUpdate = yup.array().of(whileUpdate.required()).optional();
+
+export const loopCreate = yup.object().shape({
     loops,
     maxLoops,
+    operation,
     whilesCreate: whilesCreate.required(),
 })
-export const nodeLoopUpdate = yup.object().shape({
+export const loopUpdate = yup.object().shape({
     id: id.required(),
     loops,
     maxLoops,
+    operation,
     whilesCreate,
     whilesUpdate,
     whilesDelete: idArray,
 })
 
-export const nodeRoutineListItemsCreate = yup.array().of(yup.object().shape({
+export const nodeRoutineListItemTranslationCreate = yup.object().shape({
+    language,
     description,
     title,
-    isOptional,
-    // Cannot create a routine directly from a node, as this causes a cyclic dependency
-    routineConnect: id,
-}).required()).optional();
-export const nodeRoutineListItemsUpdate = yup.array().of(yup.object().shape({
+});
+export const nodeRoutineListItemTranslationUpdate = yup.object().shape({
     id: id.required(),
+    language,
     description,
-    isOptional,
     title,
-    // Cannot create or update a routine directly from a node, as this causes a cyclic dependency
-    routineConnect: id,
-    routineDisconnect: id,
-    routineDelete: id,
-}).required()).optional();
+});
+export const nodeRoutineListItemTranslationsCreate = yup.array().of(nodeRoutineListItemTranslationCreate.required()).optional();
+export const nodeRoutineListItemTranslationsUpdate = yup.array().of(nodeRoutineListItemTranslationUpdate.required()).optional();
+export const nodeRoutineListItemCreate = yup.object().shape({
+    isOptional,
+    translationsCreate: nodeRoutineListItemTranslationsCreate,
+});
+export const nodeRoutineListItemUpdate = yup.object().shape({
+    id: id.required(),
+    isOptional,
+    translationsDelete: idArray,
+    translationsCreate: nodeRoutineListItemTranslationsCreate,
+    translationsUpdate: nodeRoutineListItemTranslationsUpdate,
+});
+export const nodeRoutineListItemsCreate = yup.array().of(nodeRoutineListItemCreate.required()).optional();
+export const nodeRoutineListItemsUpdate = yup.array().of(nodeRoutineListItemUpdate.required()).optional();
+
 export const nodeRoutineListCreate = yup.object().shape({
     isOrdered: yup.boolean().optional(),
     isOptional: yup.boolean().optional(),
@@ -128,16 +159,29 @@ export const nodeRoutineListUpdate = yup.object().shape({
     routinesUpdate: nodeRoutineListItemsUpdate,
 })
 
+export const nodeTranslationCreate = yup.object().shape({
+    language,
+    description,
+    title: title.required(),
+});
+export const nodeTranslationUpdate = yup.object().shape({
+    id: id.required(),
+    language,
+    description,
+    title,
+});
+export const nodeTranslationsCreate = yup.array().of(nodeTranslationCreate.required()).optional();
+export const nodeTranslationsUpdate = yup.array().of(nodeTranslationUpdate.required()).optional();
+
 export const nodeCreate = yup.object().shape({
     columnIndex,
-    description,
     rowIndex,
-    title: title.required(),
     type: type.required(),
     nodeEndCreate,
-    nodeLoopCreate,
+    loopCreate,
     nodeRoutineListCreate,
     routineId: id.required(),
+    translationsCreate: nodeTranslationsCreate,
 })
 /**
  * A node always contains one data type. Since this is known, there is no need 
@@ -146,17 +190,17 @@ export const nodeCreate = yup.object().shape({
 export const nodeUpdate = yup.object().shape({
     id,
     columnIndex,
-    description,
     rowIndex,
-    title,
     type,
-    nodeEndCreate,
+    loopDelete: id,
+    loopCreate,
+    loopUpdate,
     nodeEndUpdate,
-    nodeLoopCreate,
-    nodeLoopUpdate,
-    nodeRoutineListCreate,
     nodeRoutineListUpdate,
     routineId: id,
+    translationsDelete: idArray,
+    translationsCreate: nodeTranslationsCreate,
+    translationsUpdate: nodeTranslationsUpdate,
 })
 
 export const nodesCreate = yup.array().of(nodeCreate.required()).optional();

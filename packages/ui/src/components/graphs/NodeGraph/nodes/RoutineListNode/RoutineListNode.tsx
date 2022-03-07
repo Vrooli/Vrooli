@@ -25,13 +25,12 @@ import {
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import Measure from 'react-measure';
 import { NodeDataRoutineList } from 'types';
-import { OrchestrationDialogOption, Pubs } from 'utils';
+import { getTranslation, OrchestrationDialogOption, Pubs } from 'utils';
 
 export const RoutineListNode = ({
     node,
     scale = 1,
     isLinked,
-    label = 'Routine List',
     labelVisible,
     isEditing,
     canDrag,
@@ -46,6 +45,12 @@ export const RoutineListNode = ({
     // Stores if touch event was a drag
     const touchIsDrag = useRef(false);
     const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
+
+    const { label } = useMemo(() => {
+        return { 
+            label: getTranslation(node, 'title', ['en'], true),
+        }
+    }, [node]);
 
     const handleTouchMove = useCallback((e: any) => {
         if (!canExpand) return;

@@ -131,7 +131,7 @@ export type FormatConverter<GraphQLModel> = {
 export type Searcher<SearchInput> = {
     defaultSort: any;
     getSortQuery: (sortBy: string) => any;
-    getSearchStringQuery: (searchString: string) => any;
+    getSearchStringQuery: (searchString: string, languages?: string[]) => any;
     customQueries?: (input: SearchInput) => { [x: string]: any };
 }
 
@@ -895,10 +895,10 @@ const findObjectById = (data: { [x: string]: any }, id: string): any => {
     Object.keys(data).forEach((key) => {
         if (key === 'id') {
             result[key] = data[key];
-        } else if (_.isObject(data[key])) {
-            result[key] = pickId(data[key]);
         } else if (_.isArray(data[key])) {
             result[key] = data[key].map((v: any) => pickId(v));
+        } else if (_.isObject(data[key]) && !(Object.prototype.toString.call(data[key]) === '[object Date]')) {
+            result[key] = pickId(data[key]);
         }
     });
     return result;
@@ -910,22 +910,26 @@ const findObjectById = (data: { [x: string]: any }, id: string): any => {
  * @param id ID to pick
  * @returns Requested object with all its fields and children included
  */
-const pickObjectById = (data: { [x: string]: any }, id: string): any => {
+const pickObjectById = (data: any, id: string): any => {
+    console.log('pickObjectById start', data, id, _.isArray(data), _.isObject(data));
     // If data is an array, check each element
-    if (Array.isArray(data)) {
-        return data.map((v: any) => pickObjectById(v, id));
-    }
-    // If data is an object, check for ID and return if found
-    else if (_.isObject(data)) {
-        if ((data as any).id === id) return data;
-        // If data has children, check them
-        else if (Object.keys(data).length > 0) {
-            for (const [key, value] of Object.entries(data)) {
-                const result = pickObjectById(value, id);
-                if (result) return result;
-            }
+    if (_.isArray(data)) {
+        for (const value of data) {
+            const result = pickObjectById(value, id);
+            if (result) return result;
         }
     }
+    // If data is an object (and not a date), check for ID and return if found
+    else if (_.isObject(data) && !(Object.prototype.toString.call(data) === '[object Date]')) {
+        if ((data as any).id === id) return data; // Base case
+        // If ID doesn't match, check children
+        for (const value of Object.values(data)) {
+            console.log('weenie', value, id)
+            const result = pickObjectById(value, id);
+            if (result) {console.log('weened result', result); return result;}
+        }
+    }
+    console.log('returning undefined')
     // Otherwise, return undefined
     return undefined;
 }
@@ -948,16 +952,20 @@ export const addSupplementalFields = async (
     console.log('addsupplementalfields start', partial.__typename, data);
     // Strip all fields which are not the ID or a child array/object from data
     const dataIds: { [x: string]: any}[] = data.map(pickId);
+    console.log('data ids here', dataIds);
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: { [x: string]: any }[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
     for (const d of dataIds) {
         const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(d, partial);
+        console.log('groupIdsbytype', d, childObjectIdsDict, childSelectFieldsDict);
         // Merge each array in childObjectIdsDict into objectIdsDict
         objectIdsDict = mergeObjectTypeDict(objectIdsDict, childObjectIdsDict);
+        console.log('mergeObjectTypeDict', objectIdsDict);
         // Merge each object in childSelectFieldsDict into selectFieldsDict
         selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
+        console.log('merge selectFieldsDict', selectFieldsDict);
     }
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
@@ -969,11 +977,11 @@ export const addSupplementalFields = async (
         // Find the data for each id in ids. Since the data parameter is an array,
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: { [x: string]: any }) => {
-            for (const d of data) {
-                const objectById = pickObjectById(d, id.id);
-                if (objectById) return objectById;
-            }
+            console.log('fhdkshfkjdlsahkf objectData', id, type, JSON.stringify(data));
+            console.log('shloopy bepoop', pickObjectById(data, id.id));
+            return pickObjectById(data, id.id);
         });
+        console.log('object data324 ', type, objectData);
         // Now that we have the data for each object, we can add the supplemental fields
         if (type in FormatterMap) {
             const valuesWithSupplements = FormatterMap[type]?.addSupplementalFields

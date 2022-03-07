@@ -29,17 +29,16 @@ export const typeDef = gql`
     input ProjectCreateInput {
         createdByOrganizationId: ID
         createdByUserId: ID
-        description: String
         isComplete: Boolean
         name: String!
         parentId: ID
         resourcesCreate: [ResourceCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsCreate: [ProjectTranslationCreateInput!]
     }
     input ProjectUpdateInput {
         id: ID!
-        description: String
         isComplete: Boolean
         name: String
         organizationId: ID
@@ -51,17 +50,18 @@ export const typeDef = gql`
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsDelete: [ID!]
+        translationsCreate: [ProjectTranslationCreateInput!]
+        translationsUpdate: [ProjectTranslationUpdateInput!]
     }
     type Project {
         id: ID!
         completedAt: Date
         created_at: Date!
         updated_at: Date!
-        description: String
         isComplete: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean
-        name: String!
         role: MemberRole
         score: Int!
         stars: Int!
@@ -75,7 +75,26 @@ export const typeDef = gql`
         routines: [Routine!]!
         starredBy: [User!]
         tags: [Tag!]!
+        translations: [ProjectTranslation!]!
         wallets: [Wallet!]
+    }
+
+    input ProjectTranslationCreateInput {
+        language: String!
+        description: String
+        name: String!
+    }
+    input ProjectTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+        name: String
+    }
+    type ProjectTranslation {
+        id: ID!
+        language: String!
+        description: String
+        name: String!
     }
 
     input ProjectSearchInput {
@@ -83,11 +102,13 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isComplete: Boolean
+        languages: [String!]
         minScore: Int
         minStars: Int
         organizationId: ID
         parentId: ID
         reportId: ID
+        resourceTypes: [ResourceUsedFor!]
         searchString: String
         sortBy: ProjectSortBy
         tags: [String!]

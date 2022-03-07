@@ -9,17 +9,38 @@ import { StandardUpdateInput, MemberRole, StandardType } from "./globalTypes";
 // GraphQL mutation operation: standardUpdate
 // ====================================================
 
+export interface standardUpdate_standardUpdate_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface standardUpdate_standardUpdate_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: standardUpdate_standardUpdate_tags_translations[];
+}
+
+export interface standardUpdate_standardUpdate_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface standardUpdate_standardUpdate_creator_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
 }
 
 export interface standardUpdate_standardUpdate_creator_Organization {
   __typename: "Organization";
   id: string;
-  name: string;
+  translations: standardUpdate_standardUpdate_creator_Organization_translations[];
 }
 
 export interface standardUpdate_standardUpdate_creator_User {
@@ -34,7 +55,6 @@ export interface standardUpdate_standardUpdate {
   __typename: "Standard";
   id: string;
   name: string;
-  description: string | null;
   role: MemberRole | null;
   type: StandardType;
   schema: string;
@@ -42,6 +62,7 @@ export interface standardUpdate_standardUpdate {
   isFile: boolean;
   created_at: any;
   tags: standardUpdate_standardUpdate_tags[];
+  translations: standardUpdate_standardUpdate_translations[];
   creator: standardUpdate_standardUpdate_creator | null;
   stars: number;
   isStarred: boolean;

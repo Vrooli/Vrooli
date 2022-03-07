@@ -1,5 +1,5 @@
 import { OrchestrationRunState, OrchestrationStatus } from "utils";
-import { Routine } from "types";
+import { Routine, Session } from "types";
 import { OrchestrationStatusObject } from "components/graphs/NodeGraph/types";
 
 export interface TitleContainerProps {
@@ -40,10 +40,11 @@ export interface OrchestrationBottomContainerProps {
 
 export interface OrchestrationInfoContainerProps {
     canEdit: boolean;
-    handleStartEdit: () => void;
-    isEditing: boolean;
-    status: OrchestrationStatusObject;
-    routine: Routine | null;
     handleRoutineUpdate: (changedRoutine: Routine) => void;
+    handleStartEdit: () => void;
     handleTitleUpdate: (newTitle: string) => void;
+    isEditing: boolean;
+    language: string; // Language to display/edit
+    routine: Routine | null;
+    status: OrchestrationStatusObject;
 }

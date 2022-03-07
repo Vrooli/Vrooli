@@ -2,7 +2,7 @@ import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Ro
 import { PrismaType, RecursivePartial } from "types";
 import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
-import { CODE, inputCreate, inputUpdate, MemberRole, routineCreate, routineUpdate } from "@local/shared";
+import { CODE, inputCreate, inputUpdate, MemberRole, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { ResourceModel } from "./resource";
@@ -12,6 +12,7 @@ import { VoteModel } from "./vote";
 import { NodeModel } from "./node";
 import { StandardModel } from "./standard";
 import _ from "lodash";
+import { TranslationModel } from "./translation";
 
 //==============================================================
 /* #region Custom Components */
@@ -138,46 +139,38 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
             [RoutineSortBy.VotesDesc]: { score: 'desc' },
         }[sortBy]
     },
-    getSearchStringQuery: (searchString: string): any => {
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { title: { ...insensitive } },
-                { description: { ...insensitive } },
-                { instructions: { ...insensitive } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, title: {...insensitive} } } },
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
     },
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
         const isCompleteQuery = input.isComplete ? { isComplete: true } : {};
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
+        const resourceTypesQuery = input.resourceTypes ? { resources: { some: { usedFor: { in: input.resourceTypes } } } } : {};
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const projectIdQuery = input.projectId ? { projectId: input.projectId } : {};
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { isInternal: false, ...isCompleteQuery, ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
-    },
-})
-
-export const routineVerifier = () => ({
-    profanityCheck(data: RoutineCreateInput | RoutineUpdateInput): void {
-        if (hasProfanity(data.title, data.description, data.instructions)) throw new CustomError(CODE.BannedWord);
+        return { isInternal: false, ...isCompleteQuery, ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
     },
 })
 
 /**
  * Handles authorized creates, updates, and deletes
  */
-export const routineMutater = (prisma: PrismaType, verifier: any) => ({
+export const routineMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput): Promise<any> {
         return {
-            description: data.description,
-            name: data.title,
-            instructions: data.instructions,
             isAutomatable: data.isAutomatable,
             isComplete: data.isComplete,
             completedAt: data.isComplete ? new Date().toISOString() : null,
@@ -190,6 +183,7 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
             outpus: this.relationshipBuilderOutput(userId, data, false),
             nodes: await NodeModel(prisma).relationshipBuilder(userId, null, data, false),
             nodeLinks: NodeModel(prisma).relationshipBuilderNodeLink(userId, data, false),
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, false),
         }
     },
     /**
@@ -285,7 +279,7 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
                 // Check for valid arguments
                 inputCreate.validateSync(data, { abortEarly: false });
                 // Check for censored words
-                verifier.profanityCheck(data as RoutineCreateInput);
+                TranslationModel().profanityCheck(data);
                 // Convert nested relationships
                 data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
             }
@@ -296,7 +290,7 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
                 // Check for valid arguments
                 inputUpdate.validateSync(data, { abortEarly: false });
                 // Check for censored words
-                verifier.profanityCheck(data as RoutineUpdateInput);
+                TranslationModel().profanityCheck(data);
                 // Convert nested relationships
                 data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
             }
@@ -339,13 +333,13 @@ export const routineMutater = (prisma: PrismaType, verifier: any) => ({
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
         if (createMany) {
             createMany.forEach(input => routineCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
+            createMany.forEach(input => TranslationModel().profanityCheck(input));
             // Check if user will pass max routines limit TODO
         }
         if (updateMany) {
             console.log('ROUTINE VALIDATE MUTATIONS UPDATEMANY', updateMany);
             updateMany.forEach(input => routineUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input));
         }
         if (deleteMany) {
             // Check if user is authorized to delete
@@ -477,15 +471,13 @@ export function RoutineModel(prisma: PrismaType) {
     const prismaObject = prisma.routine;
     const format = routineFormatter();
     const search = routineSearcher();
-    const verify = routineVerifier();
-    const mutate = routineMutater(prisma, verify);
+    const mutate = routineMutater(prisma);
 
     return {
         prisma,
         prismaObject,
         ...format,
         ...search,
-        ...verify,
         ...mutate,
     }
 }

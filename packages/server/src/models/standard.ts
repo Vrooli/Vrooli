@@ -1,4 +1,4 @@
-import { CODE, MemberRole, standardCreate, standardUpdate } from "@local/shared";
+import { CODE, MemberRole, standardCreate, standardTranslationCreate, standardTranslationUpdate, standardUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../schema/types";
@@ -9,6 +9,7 @@ import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import _ from "lodash";
+import { TranslationModel } from "./translation";
 
 //==============================================================
 /* #region Custom Components */
@@ -113,17 +114,18 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
             [StandardSortBy.VotesDesc]: { score: 'desc' },
         }[sortBy]
     },
-    getSearchStringQuery: (searchString: string): any => {
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { name: { ...insensitive } },
-                { description: { ...insensitive } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
+                { name: {...insensitive} },
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
     },
     customQueries(input: StandardSearchInput): { [x: string]: any } {
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const userIdQuery = input.userId ? { createdByUserId: input.userId } : {};
@@ -142,13 +144,14 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
             ]
         } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...reportIdQuery, ...routineIdQuery, ...tagsQuery };
+        return { ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...reportIdQuery, ...routineIdQuery, ...tagsQuery };
     },
 })
 
 export const standardVerifier = () => ({
     profanityCheck(data: StandardCreateInput | StandardUpdateInput): void {
-        if (hasProfanity((data as any)?.name ?? '', data.description)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity((data as any)?.name)) throw new CustomError(CODE.BannedWord);
+        TranslationModel().profanityCheck(data);
     },
 })
 
@@ -156,18 +159,18 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
         return {
             name: data.name,
-            description: data.description,
             default: data.default,
             isFile: data.isFile,
             schema: data.schema,
             type: data.type,
             tags: await TagModel(prisma).relationshipBuilder(userId, data, true),
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
         }
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
         return {
-            description: data.description,
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
         }
     },
     async relationshipBuilder(

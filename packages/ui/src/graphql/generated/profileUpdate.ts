@@ -23,24 +23,45 @@ export interface profileUpdate_profileUpdate_wallets {
   verified: boolean;
 }
 
+export interface profileUpdate_profileUpdate_translations {
+  __typename: "UserTranslation";
+  id: string;
+  language: string;
+  bio: string | null;
+}
+
+export interface profileUpdate_profileUpdate_starredTags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface profileUpdate_profileUpdate_starredTags {
   __typename: "Tag";
   id: string;
   tag: string;
-  description: string | null;
   created_at: any;
   stars: number;
   isStarred: boolean;
+  translations: profileUpdate_profileUpdate_starredTags_translations[];
+}
+
+export interface profileUpdate_profileUpdate_hiddenTags_tag_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
 }
 
 export interface profileUpdate_profileUpdate_hiddenTags_tag {
   __typename: "Tag";
   id: string;
   tag: string;
-  description: string | null;
   created_at: any;
   stars: number;
   isStarred: boolean;
+  translations: profileUpdate_profileUpdate_hiddenTags_tag_translations[];
 }
 
 export interface profileUpdate_profileUpdate_hiddenTags {
@@ -53,10 +74,10 @@ export interface profileUpdate_profileUpdate {
   __typename: "Profile";
   id: string;
   username: string | null;
-  bio: string | null;
   emails: profileUpdate_profileUpdate_emails[];
   wallets: profileUpdate_profileUpdate_wallets[];
   theme: string;
+  translations: profileUpdate_profileUpdate_translations[];
   starredTags: profileUpdate_profileUpdate_starredTags[] | null;
   hiddenTags: profileUpdate_profileUpdate_hiddenTags[] | null;
 }

@@ -148,9 +148,7 @@ export const resolvers = {
         __resolveType(obj: any) {
             // Only a user has a username field
             if (obj.hasOwnProperty('username')) return GraphQLModelType.User;
-            // Only an Organization has a name and bio field
-            if (obj.hasOwnProperty('name')) return GraphQLModelType.Organization;
-            return null; // GraphQLError is thrown
+            return GraphQLModelType.Organization;
         },
     },
     Query: {
@@ -182,10 +180,14 @@ export const resolvers = {
                 __typename: 'Tag',
                 id: true,
                 created_at: true,
-                description: true,
                 tag: true,
                 stars: true,
                 isStarred: true,
+                translations: {
+                    id: true,
+                    language: true,
+                    description: true,
+                }
             }
             // Query organizations
             const organizations = (await readManyHelper(
@@ -194,9 +196,13 @@ export const resolvers = {
                 {
                     __typename: 'Organization',
                     id: true,
-                    name: true,
                     stars: true,
                     isStarred: true,
+                    translations: {
+                        id: true,
+                        language: true,
+                        name: true,
+                    },
                     tags: tagSelect,
                 },
                 OrganizationModel(prisma),
@@ -210,11 +216,15 @@ export const resolvers = {
                 {
                     __typename: 'Project',
                     id: true,
-                    name: true,
                     stars: true,
                     score: true,
                     isStarred: true,
                     isUpvoted: true,
+                    translations: {
+                        id: true,
+                        language: true,
+                        name: true,
+                    },
                     tags: tagSelect,
                 },
                 ProjectModel(prisma),
@@ -227,11 +237,16 @@ export const resolvers = {
                 {
                     __typename: 'Routine',
                     id: true,
-                    title: true,
                     stars: true,
                     score: true,
                     isStarred: true,
                     isUpvoted: true,
+                    translations: {
+                        id: true,
+                        language: true,
+                        title: true,
+                        instructions: true,
+                    },
                     tags: tagSelect,
                 },
                 RoutineModel(prisma),
@@ -249,6 +264,10 @@ export const resolvers = {
                     score: true,
                     isStarred: true,
                     isUpvoted: true,
+                    translations: {
+                        id: true,
+                        language: true,
+                    },
                     tags: tagSelect,
                 },
                 StandardModel(prisma),

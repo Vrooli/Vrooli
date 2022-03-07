@@ -23,6 +23,7 @@ export interface NodeGraphProps {
     scale?: number;
     isEditing?: boolean;
     labelVisible?: boolean;
+    language: string; // Language to display/edit
     nodes: Node[];
     links: NodeLink[];
     /**
@@ -79,7 +80,7 @@ export interface NodeColumnProps {
 
 export interface NodeEdgeProps {
     link: NodeLink;
-    handleAdd: (link: NodeLink, nodeType: NodeType) => void;
+    handleAdd: (link: NodeLink) => void; // Adding a node always creates a routine list node. Other node types are automatically added
     handleEdit: (link: NodeLink) => void;
     isEditing?: boolean;
     isFromRoutineList: boolean; // If true, puts edit button further right

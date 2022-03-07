@@ -9,13 +9,20 @@ import { ResourceCreateInput, ResourceUsedFor } from "./globalTypes";
 // GraphQL mutation operation: resourceCreate
 // ====================================================
 
+export interface resourceCreate_resourceCreate_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
 export interface resourceCreate_resourceCreate {
   __typename: "Resource";
   id: string;
-  title: string | null;
-  description: string | null;
   link: string;
   usedFor: ResourceUsedFor | null;
+  translations: resourceCreate_resourceCreate_translations[];
 }
 
 export interface resourceCreate {

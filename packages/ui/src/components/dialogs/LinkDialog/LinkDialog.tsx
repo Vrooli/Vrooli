@@ -19,12 +19,14 @@ import { LinkDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 import helpMarkdown from './LinkDialogHelp.md';
 import { Node } from 'types';
+import { getTranslation } from 'utils';
 
 export const LinkDialog = ({
     handleClose,
     handleDelete,
     isAdd,
     isOpen,
+    language,
     routine,
 }: LinkDialogProps) => {
     // Selected "From" and "To" nodes
@@ -77,7 +79,7 @@ export const LinkDialog = ({
                 disablePortal
                 id="link-connect-from"
                 options={routine?.nodes ?? []}
-                getOptionLabel={(option: Node) => option.title}
+                getOptionLabel={(option: Node) => getTranslation(option, 'title', [language])}
                 sx={{ maxWidth: 300 }}
                 renderInput={(params) => <TextField {...params} label="From" />}
             />
@@ -99,12 +101,12 @@ export const LinkDialog = ({
                 disablePortal
                 id="link-connect-to"
                 options={routine?.nodes ?? []}
-                getOptionLabel={(option: Node) => option.title}
+                getOptionLabel={(option: Node) => getTranslation(option, 'title', [language])}
                 sx={{ maxWidth: 300 }}
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
         </Stack>
-    ), [fromNode, handleFromSelect, handleToSelect, routine, toNode]);
+    ), [fromNode, handleFromSelect, handleToSelect, language, routine, toNode]);
 
     /**
      * Container for creating link conditions.

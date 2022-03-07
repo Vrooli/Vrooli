@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, UserSortBy } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton } from '..';
-import { LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
 import { User } from 'types';
 import { Person as PersonIcon } from '@mui/icons-material';
 
@@ -33,6 +33,13 @@ export const ActorListItem = ({
     const isOwn = useMemo(() => data?.id == session?.id, [data, session]);
 
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
+
+    const { bio } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            bio: getTranslation(data, 'bio', languages, true),
+        }
+    }, [data, session]);
 
     const handleClick = useCallback(() => {
         // If onClick provided, call it
@@ -76,7 +83,7 @@ export const ActorListItem = ({
                             sx={{ ...multiLineEllipsis(1) }}
                         />
                         <ListItemText
-                            primary={data.bio}
+                            primary={bio}
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                     </Stack>

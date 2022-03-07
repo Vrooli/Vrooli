@@ -18,6 +18,7 @@ import { containerShadow } from "styles";
 import { RoutineViewProps } from "../types";
 import { users, usersVariables } from "graphql/generated/users";
 import { organizations, organizationsVariables } from "graphql/generated/organizations";
+import { getTranslation } from "utils";
 
 export const RoutineView = ({
     session,
@@ -32,6 +33,14 @@ export const RoutineView = ({
     const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const routine = useMemo(() => data?.routine, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role ?? ''), [routine]);
+
+    const { title, description } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            title: getTranslation(routine, 'title', languages) ?? getTranslation(partialData, 'title', languages),
+            description: getTranslation(routine, 'description', languages) ?? getTranslation(partialData, 'description', languages),
+        };
+    }, [routine, partialData, session]);
 
     const [searchString, setSearchString] = useState<string>('');
     const updateSearch = useCallback((newValue: any) => setSearchString(newValue), []);
@@ -93,8 +102,8 @@ export const RoutineView = ({
                 </Tooltip>
             </Stack>
             <Stack direction="column" spacing={1} mt={5}>
-                <Typography variant="h4" textAlign="center">{routine?.title ?? partialData?.title}</Typography>
-                <Typography variant="body1" sx={{ color: (routine?.description || partialData?.description) ? 'black' : 'gray' }}>{routine?.description ?? partialData?.description ?? 'No description set'}</Typography>
+                <Typography variant="h4" textAlign="center">{title}</Typography>
+                <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
                 <Stack direction="row" spacing={4} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small">

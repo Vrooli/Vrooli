@@ -9,14 +9,21 @@ import { TagCreateInput } from "./globalTypes";
 // GraphQL mutation operation: tagCreate
 // ====================================================
 
+export interface tagCreate_tagCreate_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface tagCreate_tagCreate {
   __typename: "Tag";
   id: string;
   tag: string;
-  description: string | null;
   created_at: any;
   stars: number;
   isStarred: boolean;
+  translations: tagCreate_tagCreate_translations[];
 }
 
 export interface tagCreate {

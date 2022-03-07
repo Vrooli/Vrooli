@@ -4,7 +4,6 @@ export const profileFields = gql`
     fragment profileFields on Profile {
         id
         username
-        bio
         emails {
             id
             emailAddress
@@ -16,23 +15,36 @@ export const profileFields = gql`
             verified
         }
         theme
+        translations {
+            id
+            language
+            bio
+        }
         starredTags {
             id
             tag
-            description
             created_at
             stars
             isStarred
+            translations {
+                id
+                language
+                description
+            }
         }
         hiddenTags {
             isBlur
             tag {
                 id
                 tag
-                description
                 created_at
                 stars
                 isStarred
+                translations {
+                    id
+                    language
+                    description
+                }
             }
         }
     }

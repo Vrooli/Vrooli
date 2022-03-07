@@ -2,11 +2,13 @@ import { useQuery } from '@apollo/client';
 import { RoutineSortBy } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, OrganizationListItem, ProjectListItem, RoutineListItem, TitleContainer } from 'components';
-import { ProjectSortBy } from 'graphql/generated/globalTypes';
+import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor } from 'graphql/generated/globalTypes';
+import { organizations, organizationsVariables } from 'graphql/generated/organizations';
 import { projects, projectsVariables } from 'graphql/generated/projects';
 import { routines, routinesVariables } from 'graphql/generated/routines';
-import { projectsQuery, routinesQuery } from 'graphql/query';
+import { organizationsQuery, projectsQuery, routinesQuery } from 'graphql/query';
 import { useEffect, useMemo, useState } from 'react';
+import { Organization, Project, Routine } from 'types';
 import { ResearchPageProps } from '../types';
 import donateOrInvestMarkdown from './donateOrInvestHelp.md';
 import joinATeamMarkdown from './joinATeamHelp.md';
@@ -35,55 +37,79 @@ export const ResearchPage = ({
         } } 
     });
 
-    const processes = useMemo(() => [].map((o, index) => (
+    // We check if a project needs votes by the existence of a Proposal resource
+    const { data: needVotesData, loading: needVotesLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
+        variables: { input: { 
+            take: 5,
+            resourceTypes: [ResourceUsedFor.Proposal],
+        } } 
+    });
+
+    // We check if a project needs donations or is an investment opportunity by the existence of a token TODO
+    // const { data: donateOrInvestData, loading: donateOrInvestLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
+    //     variables: { input: { 
+    //         take: 5,
+    //         TODO
+    //     } } 
+    // });
+
+    const { data: needMembersData, loading: needMembersLoading } = useQuery<organizations, organizationsVariables>(organizationsQuery, { 
+        variables: { input: { 
+            take: 5,
+            isOpenToNewMembers: true,
+            sortBy: OrganizationSortBy.StarsDesc
+        } } 
+    });
+
+    const processes = useMemo(() => processesData?.routines?.edges?.map((o, index) => (
         <RoutineListItem
-            key={`research-processes-list-item-${'TODO'}`}
+            key={`research-processes-list-item-${index}`}
             index={index}
             session={session}
-            data={o}
+            data={o.node as Routine}
             onClick={() => {}}
         />
-    )), []);
+    )) ?? [], []);
 
-    const newlyCompleted = useMemo(() => [].map((o, index) => (
+    const newlyCompleted = useMemo(() => newlyCompletedData?.projects?.edges?.map((o, index) => (
         <ProjectListItem
-            key={`recently-completed-projects-list-item-${'TODO'}`}
+            key={`recently-completed-projects-list-item-${index}`}
             index={index}
             session={session}
-            data={o}
+            data={o.node as Project}
             onClick={() => {}}
         />
-    )), []);
+    )) ?? [], []);
 
-    const needVotes = useMemo(() => [].map((o, index) => (
+    const needVotes = useMemo(() => needVotesData?.projects?.edges?.map((o, index) => (
         <ProjectListItem
-            key={`projects-that-need-votes-list-item-${'TODO'}`}
+            key={`projects-that-need-votes-list-item-${index}`}
             index={index}
             session={session}
-            data={o}
+            data={o.node as Project}
             onClick={() => {}}
         />
-    )), []);
+    )) ?? [], []);
 
-    const needFunding = useMemo(() => [].map((o, index) => (
-        <ProjectListItem
-            key={`projects-that-need-funding-list-item-${'TODO'}`}
-            index={index}
-            session={session}
-            data={o}
-            onClick={() => {}}
-        />
-    )), []);
+    // const donateOrInvest = useMemo(() => donateOrInvestData?.projects?.edges?.map((o, index) => ( 
+    //     <ProjectListItem
+    //         key={`projects-that-need-funding-list-item-${index}`}
+    //         index={index}
+    //         session={session}
+    //         data={o.node as Project}
+    //         onClick={() => {}}
+    //     />
+    // )) ?? [], []);
 
-    const needMembers = useMemo(() => [].map((o, index) => (
+    const needMembers = useMemo(() => needMembersData?.organizations?.edges?.map((o, index) => (
         <OrganizationListItem
-            key={`looking-for-members-list-item-${'TODO'}`}
+            key={`looking-for-members-list-item-${index}`}
             index={index}
             session={session}
-            data={o}
+            data={o.node as Organization}
             onClick={() => {}}
         />
-    )), []);
+    )) ?? [], []);
 
     // Parse help button markdown
     const [donateOrInvestText, setDonateOrInvestText] = useState('');
@@ -117,7 +143,7 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Processes"}
                     helpText={processesText}
-                    loading={true}
+                    loading={processesLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -126,7 +152,7 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Newly Completed"}
                     helpText={newlyCompletedText}
-                    loading={true}
+                    loading={newlyCompletedLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -135,25 +161,25 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Vote"}
                     helpText={voteText}
-                    loading={true}
+                    loading={needVotesLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {needVotes}
                 </TitleContainer>
-                <TitleContainer
+                {/* <TitleContainer
                     title={"Donate or Invest"}
                     helpText={donateOrInvestText}
-                    loading={true}
+                    loading={donateOrInvestLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
-                    {needFunding}
-                </TitleContainer>
+                    {donateOrInvest}
+                </TitleContainer> */}
                 <TitleContainer
                     title={"Join a Team"}
                     helpText={joinATeamText}
-                    loading={true}
+                    loading={needMembersLoading}
                     onClick={() => { }}
                     options={[['Update profile', () => { }], ['See all', () => { }]]}
                 >

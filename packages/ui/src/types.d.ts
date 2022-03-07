@@ -15,8 +15,9 @@ export type UserRoles = string[] | null;
 export type SessionChecked = boolean;
 export type Session = {
     id?: string | null;
-    theme?: string;
+    languages?: string[] | null;
     roles?: UserRoles;
+    theme?: string;
 }
 export type OnSessionUpdate = any;
 export interface CommonProps {

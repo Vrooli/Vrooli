@@ -13,7 +13,7 @@ import {
     Done as DoneIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
-import { OrchestrationStatus } from 'utils';
+import { getTranslation, OrchestrationStatus } from 'utils';
 import { OrchestrationInfoContainerProps } from '../types';
 import helpMarkdown from './OrchestratorHelp.md';
 import { HelpButton, OrchestrationInfoDialog } from 'components';
@@ -38,27 +38,28 @@ const TERTIARY_COLOR = '#95f3cd';
 
 export const OrchestrationInfoContainer = ({
     canEdit,
-    handleStartEdit,
-    isEditing,
-    status,
-    routine,
     handleRoutineUpdate,
+    handleStartEdit,
     handleTitleUpdate,
+    isEditing,
+    language,
+    routine,
+    status,
 }: OrchestrationInfoContainerProps) => {
     // Stores changed title before committing
-    const [changedTitle, setChangedTitle] = useState<string | null | undefined>(routine?.title);
+    const [changedTitle, setChangedTitle] = useState<string | null | undefined>(getTranslation(routine, 'title', [language], false));
     useEffect(() => {
-        setChangedTitle(routine?.title);
-    }, [routine?.title]);
+        setChangedTitle(getTranslation(routine, 'title', [language], false));
+    }, [routine?.translations, language]);
 
     // Used for editing the title of the routine
     const [titleActive, setTitleActive] = useState<boolean>(false);
     const toggleTitle = useCallback(() => setTitleActive(a => !a), []);
     const saveTitle = useCallback(() => { handleTitleUpdate(changedTitle ?? '') }, [changedTitle]);
     const cancelTitle = useCallback(() => {
-        setChangedTitle(routine?.title);
+        setChangedTitle(getTranslation(routine, 'title', [language], false));
         setTitleActive(false);
-    }, [routine?.title]);
+    }, [routine?.translations]);
 
     // Parse markdown from .md file
     const [helpText, setHelpText] = useState<string>('');
@@ -230,10 +231,11 @@ export const OrchestrationInfoContainer = ({
                 <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
                 {/* Switch to routine metadata page */}
                 <OrchestrationInfoDialog
-                    sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
-                    isEditing={isEditing}
-                    routine={routine}
                     handleUpdate={handleRoutineUpdate}
+                    isEditing={isEditing}
+                    language={language}
+                    routine={routine}
+                    sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
                 />
             </Box>
         </Stack>

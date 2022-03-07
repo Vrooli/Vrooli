@@ -7,9 +7,16 @@
 // GraphQL fragment: deepRoutineTagFields
 // ====================================================
 
+export interface deepRoutineTagFields_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface deepRoutineTagFields {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: deepRoutineTagFields_translations[];
 }

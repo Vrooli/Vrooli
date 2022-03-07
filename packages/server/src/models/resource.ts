@@ -5,6 +5,7 @@ import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL,
 import { hasProfanity } from "../utils/censor";
 import { CustomError } from "../error";
 import _ from "lodash";
+import { TranslationModel } from "./translation";
 
 //==============================================================
 /* #region Custom Components */
@@ -26,19 +27,20 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
             [ResourceSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
         }[sortBy]
     },
-    getSearchStringQuery: (searchString: string): any => {
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { title: { ...insensitive } },
-                { description: { ...insensitive } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, title: {...insensitive} } } },
                 { link: { ...insensitive } },
             ]
         })
     },
     customQueries(input: ResourceSearchInput): { [x: string]: any } {
         const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
-        return { ...forQuery };
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
+        return { ...forQuery, ...languagesQuery };
     },
 })
 
@@ -50,13 +52,7 @@ const forMap: { [x: ResourceFor]: string } = {
     [ResourceFor.User]: 'userId',
 }
 
-export const resourceVerifier = () => ({
-    profanityCheck(data: ResourceCreateInput | ResourceUpdateInput): void {
-        if (hasProfanity(data.title, data.description)) throw new CustomError(CODE.BannedWord);
-    },
-})
-
-export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
+export const resourceMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput): Promise<any> {
         // Filter out for and forId, since they are not part of the resource object
         const { createdFor, createdForId, ...rest } = data;
@@ -111,13 +107,13 @@ export const resourceMutater = (prisma: PrismaType, verifier: any) => ({
         if (createMany) {
             console.log('node validate createMany', createMany);
             createMany.forEach(input => resourceCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
+            createMany.forEach(input => TranslationModel().profanityCheck(input));
             // Check for max resources on object TODO
         }
         if (updateMany) {
             console.log('node validate updateMany', updateMany);
             updateMany.forEach(input => resourceUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input));
         }
         console.log('finishedd resource validateMutations :)')
     },
@@ -193,15 +189,13 @@ export function ResourceModel(prisma: PrismaType) {
     const prismaObject = prisma.resource;
     const format = resourceFormatter();
     const search = resourceSearcher();
-    const verify = resourceVerifier();
-    const mutate = resourceMutater(prisma, verify);
+    const mutate = resourceMutater(prisma);
 
     return {
         prisma,
         prismaObject,
         ...format,
         ...search,
-        ...verify,
         ...mutate,
     }
 }

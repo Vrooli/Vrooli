@@ -10,6 +10,7 @@
 export interface reportFields {
   __typename: "Report";
   id: string | null;
+  language: string;
   reason: string;
   details: string | null;
   isOwn: boolean;

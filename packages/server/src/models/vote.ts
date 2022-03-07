@@ -122,11 +122,21 @@ const voter = (prisma: PrismaType) => ({
         ids: string[],
         voteFor: VoteFor
     ): Promise<Array<boolean | null>> {
+        // Create result array that is the same length as ids
+        const result = new Array(ids.length).fill(null);
+        // Filter out nulls and undefineds from ids
+        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
         const fieldName = `${voteFor.toLowerCase()}Id`;
-        const isUpvotedArray = await prisma.vote.findMany({ where: { byId: userId, [fieldName]: { in: ids } } });
-        return ids.map(id => {
-            return isUpvotedArray.find((x: any) => x[fieldName] === id)?.isUpvote ?? null
-        });
+        const isUpvotedArray = await prisma.vote.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+        // Replace the nulls in the result array with true or false
+        for (let i = 0; i < ids.length; i++) {
+            // Try to find this id in the isUpvoted array
+            if (ids[i] !== null && ids[i] !== undefined) {
+                // If found, set result index to value of isUpvote field
+                result[i] = isUpvotedArray.find((vote: any) => vote[fieldName] === ids[i])?.isUpvote ?? null;
+            }
+        }
+        return result;
     },
 })
 

@@ -1,5 +1,9 @@
+import { useQuery } from '@apollo/client';
+import { RoutineSortBy } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ProjectListItem, TitleContainer } from 'components';
+import { routines, routinesVariables } from 'graphql/generated/routines';
+import { routinesQuery } from 'graphql/query';
 import { useEffect, useMemo, useState } from 'react';
 import { DevelopPageProps } from '../types';
 import completedMarkdown from './completedHelp.md';
@@ -10,6 +14,7 @@ import recentMarkdown from './recentHelp.md';
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
+
     const inProgress = useMemo(() => [].map((o, index) => (
         <ProjectListItem
             key={`in-progress-list-item-${'TODO'}`}

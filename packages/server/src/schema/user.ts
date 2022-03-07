@@ -25,9 +25,9 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         username: String
-        bio: String
         theme: String!
         status: AccountStatus!
+        history: [Log!]!
         comments: [Comment!]!
         roles: [Role!]!
         emails: [Email!]!
@@ -43,6 +43,7 @@ export const typeDef = gql`
         hiddenTags: [TagHidden!]
         sentReports: [Report!]!
         reports: [Report!]!
+        translations: [UserTranslation!]!
         votes: [Vote!]!
     }
 
@@ -51,7 +52,6 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         username: String
-        bio: String
         stars: Int!
         isStarred: Boolean!
         comments: [Comment!]!
@@ -62,11 +62,26 @@ export const typeDef = gql`
         reports: [Report!]!
         routines: [Routine!]!
         routinesCreated: [Routine!]!
+        translations: [UserTranslation!]!
+    }
+
+    input UserTranslationCreateInput {
+        language: String!
+        bio: String
+    }
+    input UserTranslationUpdateInput {
+        id: ID!
+        language: String!
+        bio: String
+    }
+    type UserTranslation {
+        id: ID!
+        language: String!
+        bio: String
     }
 
     input ProfileUpdateInput {
         username: String
-        bio: String
         theme: String
         starredTagsConnect: [ID!]
         starredTagsDisconnect: [ID!]
@@ -74,6 +89,9 @@ export const typeDef = gql`
         hiddenTagsConnect: [ID!]
         hiddenTagsDisconnect: [ID!]
         hiddenTagsCreate: [TagCreateInput!]
+        translationsDelete: [ID!]
+        translationsCreate: [UserTranslationCreateInput!]
+        translationsUpdate: [UserTranslationUpdateInput!]
     }
 
     input ProfileEmailUpdateInput {
@@ -89,6 +107,7 @@ export const typeDef = gql`
     }
 
     input UserSearchInput {
+        languages: [String!]
         minStars: Int
         organizationId: ID
         projectId: ID
@@ -96,6 +115,7 @@ export const typeDef = gql`
         reportId: ID
         standardId: ID
         ids: [ID!]
+        resourceTypes: [ResourceUsedFor!]
         sortBy: UserSortBy
         searchString: String
         createdTimeFrame: TimeFrame

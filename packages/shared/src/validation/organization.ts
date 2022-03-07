@@ -1,31 +1,42 @@
-import { bio, idArray, name } from './base';
+import { bio, id, idArray, language, name } from './base';
 import { resourcesCreate, resourcesUpdate } from './resource';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
 const isOpenToNewMembers = yup.boolean().optional();
 
+export const organizationTranslationCreate = yup.object().shape({
+    language,
+    bio,
+    name: name.required(),
+});
+export const organizationTranslationUpdate = yup.object().shape({
+    id: id.required(),
+    language,
+    bio,
+    name,
+});
+export const organizationTranslationsCreate = yup.array().of(organizationTranslationCreate.required()).optional();
+export const organizationTranslationsUpdate = yup.array().of(organizationTranslationUpdate.required()).optional();
+
 /**
  * Information required when creating an organization. 
  * You are automatically created as an admin
  */
 export const organizationCreate = yup.object().shape({
-    bio,
     isOpenToNewMembers,
-    name: name.required(),
     // You are automatically added as an admin. IDs you add here will be requested to be added as a member
     membersConnect: idArray,
     resourcesCreate,
     tagsConnect: idArray,
     tagsCreate,
+    translationsCreate: organizationTranslationsCreate,
 })
 
 /**
  * Information required when updating an organization
  */
 export const organizationUpdate = yup.object().shape({
-    bio,
-    name,
     isOpenToNewMembers,
     membersConnect: idArray,
     membersDisconnect: idArray,
@@ -35,6 +46,9 @@ export const organizationUpdate = yup.object().shape({
     tagsConnect: idArray,
     tagsDisconnect: idArray,
     tagsCreate,
+    translationsDelete: idArray,
+    translationsCreate: organizationTranslationsCreate,
+    translationsUpdate: organizationTranslationsUpdate,
 })
 
 export const organizationsCreate = yup.array().of(organizationCreate.required()).optional();

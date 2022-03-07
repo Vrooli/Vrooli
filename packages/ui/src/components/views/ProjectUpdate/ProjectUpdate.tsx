@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { projectUpdate as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { formatForUpdate } from "utils";
+import { formatForUpdate, getTranslation } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -33,6 +33,14 @@ export const ProjectUpdate = ({
     // Fetch existing data
     const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
     const project = useMemo(() => data?.project, [data]);
+
+    const { description, name } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            description: getTranslation(project, 'description', languages, false) ?? '',
+            name: getTranslation(project, 'name', languages, false) ?? '',
+        }
+    }, [project, session]);
 
     // Handle user/organization switch
     const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
@@ -57,15 +65,15 @@ export const ProjectUpdate = ({
     const [mutation] = useMutation<project>(projectUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            description: project?.description ?? '',
-            name: project?.name ?? '',
+            description,
+            name,
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(project, { id, ...values, tags }),
+                input: formatForUpdate(project, { id, ...values, tags }), //TODO handle translations
                 onSuccess: (response) => { onUpdated(response.data.projectUpdate) },
             })
         },

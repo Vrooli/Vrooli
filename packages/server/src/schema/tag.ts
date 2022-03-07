@@ -20,26 +20,43 @@ export const typeDef = gql`
 
     input TagCreateInput {
         anonymous: Boolean
-        description: String
         tag: String!
+        translationsCreate: [TagTranslationCreateInput!]
     }
     input TagUpdateInput {
         id: ID!
         anonymous: Boolean
-        description: String
         tag: String
+        translationsDelete: [ID!]
+        translationsCreate: [TagTranslationCreateInput!]
+        translationsUpdate: [TagTranslationUpdateInput!]
     }
 
     type Tag {
         id: ID!
         tag: String!
-        description: String
         created_at: Date!
         updated_at: Date!
         stars: Int!
         isStarred: Boolean!
         isOwn: Boolean!
         starredBy: [User!]!
+        translations: [TagTranslation!]!
+    }
+
+    input TagTranslationCreateInput {
+        language: String!
+        description: String
+    }
+    input TagTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+    }
+    type TagTranslation {
+        id: ID!
+        language: String!
+        description: String
     }
 
     # Wraps tag with hidden/blurred option
@@ -53,6 +70,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         hidden: Boolean
         ids: [ID!]
+        languages: [String!]
         minStars: Int
         myTags: Boolean
         searchString: String

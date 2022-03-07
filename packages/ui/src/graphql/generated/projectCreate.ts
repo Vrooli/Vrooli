@@ -9,17 +9,39 @@ import { ProjectCreateInput, MemberRole } from "./globalTypes";
 // GraphQL mutation operation: projectCreate
 // ====================================================
 
+export interface projectCreate_projectCreate_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface projectCreate_projectCreate_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: projectCreate_projectCreate_tags_translations[];
+}
+
+export interface projectCreate_projectCreate_translations {
+  __typename: "ProjectTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  name: string;
+}
+
+export interface projectCreate_projectCreate_owner_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
 }
 
 export interface projectCreate_projectCreate_owner_Organization {
   __typename: "Organization";
   id: string;
-  name: string;
+  translations: projectCreate_projectCreate_owner_Organization_translations[];
 }
 
 export interface projectCreate_projectCreate_owner_User {
@@ -35,15 +57,14 @@ export interface projectCreate_projectCreate {
   id: string;
   completedAt: any | null;
   created_at: any;
-  description: string | null;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  name: string;
   role: MemberRole | null;
   score: number;
   stars: number;
   tags: projectCreate_projectCreate_tags[];
+  translations: projectCreate_projectCreate_translations[];
   owner: projectCreate_projectCreate_owner | null;
 }
 

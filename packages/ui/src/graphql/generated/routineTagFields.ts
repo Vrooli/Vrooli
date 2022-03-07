@@ -7,9 +7,16 @@
 // GraphQL fragment: routineTagFields
 // ====================================================
 
+export interface routineTagFields_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface routineTagFields {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: routineTagFields_translations[];
 }

@@ -7,7 +7,7 @@
 import { Box, Stack } from '@mui/material';
 import { NodeColumn, NodeEdge } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pubs, updateArray } from 'utils';
+import { getTranslation, Pubs, updateArray } from 'utils';
 import { ColumnDimensions, NodeGraphProps } from '../types';
 import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
@@ -29,8 +29,9 @@ export const NodeGraph = ({
     scale = 1,
     isEditing = true,
     labelVisible = true,
-    nodes,
+    language,
     links,
+    nodes,
     handleDialogOpen,
     handleNodeUnlink,
     handleNodeDelete,
@@ -210,7 +211,7 @@ export const NodeGraph = ({
             // If this is a routine list node, prompt for confirmation
             if (node.type === NodeType.RoutineList) {
                 PubSub.publish(Pubs.AlertDialog, {
-                    message: `Are you sure you want to delete the routine list "${node.title}"?`,
+                    message: `Are you sure you want to delete the routine list "${getTranslation(node, 'title', [language])}"?`,
                     buttons: [
                         { text: 'Yes', onClick: () => { handleNodeDelete(nodeId); } },
                         { text: 'Cancel' },

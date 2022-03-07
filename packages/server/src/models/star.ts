@@ -116,12 +116,24 @@ const starrer = (prisma: PrismaType) => ({
         ids: string[],
         starFor: StarFor
     ): Promise<boolean[]> {
+        // Create result array that is the same length as ids
+        console.log('in getisstarreds', userId, ids, starFor)
+        const result = new Array(ids.length).fill(false); //TODO something wrong with this method. not getting isstarred on tags again
+        // Filter out nulls and undefineds from ids
+        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
+        console.log('ids filtered', idsFiltered)
         const fieldName = `${starFor.toLowerCase()}Id`;
-        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, [fieldName]: { in: ids } } });
-        return ids.map(id => {
-            const isStarred = isStarredArray.find((star: any) => star[fieldName] === id);
-            return Boolean(isStarred);
-        });
+        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+        console.log('isStarredArray', isStarredArray)
+        // Replace the nulls in the result array with true or false
+        for (let i = 0; i < ids.length; i++) {
+            // check if this id is in isStarredArray
+            if (ids[i] !== null && ids[i] !== undefined && 
+                isStarredArray.find((star: any) => star[fieldName] === ids[i])) {
+                result[i] = true;
+            }
+        }
+        return result;
     },
 })
 

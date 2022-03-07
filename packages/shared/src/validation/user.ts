@@ -1,4 +1,4 @@
-import { description, idArray, id, title } from './base';
+import { description, idArray, id, title, language, bio } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
@@ -45,8 +45,19 @@ export const emailSignUpSchema = yup.object().shape({
     passwordConfirmation: yup.string().oneOf([yup.ref('password'), null], 'Passwords must match')
 });
 
-// Schema for updating a user profile
-export const profileSchema = yup.object().shape({
+export const userTranslationCreate = yup.object().shape({
+    language,
+    bio,
+});
+export const userTranslationUpdate = yup.object().shape({
+    id: id.required(),
+    language,
+    bio,
+});
+export const userTranslationsCreate = yup.array().of(userTranslationCreate.required()).optional();
+export const userTranslationsUpdate = yup.array().of(userTranslationUpdate.required()).optional();
+
+export const profileUpdateSchema = yup.object().shape({
     username: usernameSchema.required(),
     email: yup.string().email().required(),
     theme: yup.string().max(128).required(),
@@ -59,7 +70,10 @@ export const profileSchema = yup.object().shape({
     // Don't apply validation to current password. If you change password requirements, users would be unable to change their password
     currentPassword: yup.string().max(128).required(),
     newPassword: passwordSchema.optional(),
-    newPasswordConfirmation: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match')
+    newPasswordConfirmation: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match'),
+    translationsDelete: idArray,
+    translationsCreate: userTranslationsCreate,
+    translationsUpdate: userTranslationsUpdate,
 });
 
 /**

@@ -4,9 +4,13 @@ export const tagFields = gql`
     fragment tagFields on Tag {
         id
         tag
-        description
         created_at
         stars
         isStarred
+        translations {
+            id
+            language
+            description
+        }
     }
 `

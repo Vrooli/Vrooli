@@ -9,17 +9,39 @@ import { FindByIdInput, MemberRole } from "./globalTypes";
 // GraphQL query operation: project
 // ====================================================
 
+export interface project_project_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface project_project_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: project_project_tags_translations[];
+}
+
+export interface project_project_translations {
+  __typename: "ProjectTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  name: string;
+}
+
+export interface project_project_owner_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
 }
 
 export interface project_project_owner_Organization {
   __typename: "Organization";
   id: string;
-  name: string;
+  translations: project_project_owner_Organization_translations[];
 }
 
 export interface project_project_owner_User {
@@ -35,15 +57,14 @@ export interface project_project {
   id: string;
   completedAt: any | null;
   created_at: any;
-  description: string | null;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  name: string;
   role: MemberRole | null;
   score: number;
   stars: number;
   tags: project_project_tags[];
+  translations: project_project_translations[];
   owner: project_project_owner | null;
 }
 

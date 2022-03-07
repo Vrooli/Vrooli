@@ -12,6 +12,7 @@ import { ReportCreateInput } from "./globalTypes";
 export interface reportCreate_reportCreate {
   __typename: "Report";
   id: string | null;
+  language: string;
   reason: string;
   details: string | null;
   isOwn: boolean;

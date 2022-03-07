@@ -62,22 +62,25 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
             [UserSortBy.StarsDesc]: { stars: 'desc' },
         }[sortBy]
     },
-    getSearchStringQuery: (searchString: string): any => {
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
+                { translations: { some: { language: languages ? { in: languages } : undefined, bio: {...insensitive} } } },
                 { username: { ...insensitive } },
             ]
         })
     },
     customQueries(input: UserSearchInput): { [x: string]: any } {
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
+        const resourceTypesQuery = input.resourceTypes ? { resources: { some: { usedFor: { in: input.resourceTypes } } } } : {};
         const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-        return { ...minStarsQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery };
+        return { ...languagesQuery, ...minStarsQuery, ...organizationIdQuery, ...projectIdQuery, ...resourceTypesQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery };
     },
 })
 

@@ -9,24 +9,38 @@ import { FindByIdInput, MemberRole } from "./globalTypes";
 // GraphQL query operation: organization
 // ====================================================
 
+export interface organization_organization_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface organization_organization_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: organization_organization_tags_translations[];
+}
+
+export interface organization_organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  bio: string | null;
+  name: string;
 }
 
 export interface organization_organization {
   __typename: "Organization";
   id: string;
-  bio: string | null;
   created_at: any;
   isOpenToNewMembers: boolean;
   isStarred: boolean;
-  name: string;
   role: MemberRole | null;
   stars: number;
   tags: organization_organization_tags[];
+  translations: organization_organization_translations[];
 }
 
 export interface organization {

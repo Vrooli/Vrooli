@@ -38,14 +38,9 @@ export const resolvers = {
     VoteFor: VoteFor,
     Vote: {
         __resolveType(obj: any) {
-            console.log('IN VOTE __resolveType', obj);
-            // Only a Standard has an isFile field
             if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
-            // Only a Project has a name and description field
-            if (obj.hasOwnProperty('name')) return GraphQLModelType.Project;
-            // Only a Routine has a title and description field
-            if (obj.hasOwnProperty('title')) return GraphQLModelType.Routine;
-            return null; // GraphQLError is thrown
+            if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
+            return GraphQLModelType.Routine;
         },
     },
     Mutation: {

@@ -9,17 +9,39 @@ import { ProjectUpdateInput, MemberRole } from "./globalTypes";
 // GraphQL mutation operation: projectUpdate
 // ====================================================
 
+export interface projectUpdate_projectUpdate_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface projectUpdate_projectUpdate_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: projectUpdate_projectUpdate_tags_translations[];
+}
+
+export interface projectUpdate_projectUpdate_translations {
+  __typename: "ProjectTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  name: string;
+}
+
+export interface projectUpdate_projectUpdate_owner_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
 }
 
 export interface projectUpdate_projectUpdate_owner_Organization {
   __typename: "Organization";
   id: string;
-  name: string;
+  translations: projectUpdate_projectUpdate_owner_Organization_translations[];
 }
 
 export interface projectUpdate_projectUpdate_owner_User {
@@ -35,15 +57,14 @@ export interface projectUpdate_projectUpdate {
   id: string;
   completedAt: any | null;
   created_at: any;
-  description: string | null;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;
-  name: string;
   role: MemberRole | null;
   score: number;
   stars: number;
   tags: projectUpdate_projectUpdate_tags[];
+  translations: projectUpdate_projectUpdate_translations[];
   owner: projectUpdate_projectUpdate_owner | null;
 }
 

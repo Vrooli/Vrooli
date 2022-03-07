@@ -3,7 +3,7 @@ import { useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { useCallback, useMemo } from "react";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { APP_LINKS, profileSchema as validationSchema } from '@local/shared';
+import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";

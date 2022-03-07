@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { organizationUpdate as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
-import { formatForUpdate } from "utils";
+import { formatForUpdate, getTranslation } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -33,6 +33,14 @@ export const OrganizationUpdate = ({
     const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });
     const organization = useMemo(() => data?.organization, [data]);
 
+    const { bio, name } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            bio: getTranslation(organization, 'bio', languages, false) ?? '',
+            name: getTranslation(organization, 'name', languages, false) ?? '',
+        }
+    }, [organization, session]);
+
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
     const addTag = useCallback((tag: TagSelectorTag) => {
@@ -52,8 +60,8 @@ export const OrganizationUpdate = ({
     const [mutation] = useMutation<organization>(organizationUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            name: organization?.name ?? '',
-            bio: organization?.bio ?? '',
+            name,
+            bio,
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,

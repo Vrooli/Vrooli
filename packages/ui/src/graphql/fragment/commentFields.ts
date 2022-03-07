@@ -3,36 +3,52 @@ import { gql } from 'graphql-tag';
 export const commentFields = gql`
     fragment commentFields on Comment {
         id
-        text
         created_at
         updated_at
         score
         isUpvoted
         role
         isStarred
+        commentedOn {
+            ... on Project {
+                id
+                translations {
+                    id
+                    language
+                    name
+                }
+            }
+            ... on Routine {
+                id
+                translations {
+                    id
+                    language
+                    title
+                }
+            }
+            ... on Standard {
+                id
+                name
+            }
+        }
         creator {
             ... on Organization {
                 id
-                name
+                translations {
+                    id
+                    language
+                    name
+                }
             }
             ... on User {
                 id
                 username
             }
         }
-        commentedOn {
-            ... on Project {
-                id
-                name
-            }
-            ... on Routine {
-                id
-                title
-            }
-            ... on Standard {
-                id
-                name
-            }
+        translations {
+            id
+            language
+            text
         }
     }
 `

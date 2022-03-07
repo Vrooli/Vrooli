@@ -1,4 +1,4 @@
-import { CODE, commentCreate, CommentSortBy, commentUpdate } from "@local/shared";
+import { CODE, commentCreate, CommentSortBy, commentTranslationCreate, commentTranslationUpdate, commentUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, Count } from "../schema/types";
 import { PrismaType } from "types";
@@ -6,6 +6,7 @@ import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructU
 import { hasProfanity } from "../utils/censor";
 import { organizationVerifier } from "./organization";
 import pkg from '@prisma/client';
+import { TranslationModel } from "./translation";
 const { MemberRole } = pkg;
 
 //==============================================================
@@ -69,15 +70,12 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
             [CommentSortBy.VotesDesc]: { score: 'desc' },
         }[sortBy]
     },
-    getSearchStringQuery: (searchString: string): any => {
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-        return ({
-            OR: [
-                { text: { ...insensitive } },
-            ]
-        })
+        return ({ translations: { some: { language: languages ? { in: languages } : undefined, text: {...insensitive} } } });
     },
     customQueries(input: CommentSearchInput): { [x: string]: any } {
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
@@ -85,13 +83,7 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
         const projectIdQuery = input.projectId ? { projectId: input.projectId } : undefined;
         const routineIdQuery = input.routineId ? { routineId: input.routineId } : undefined;
         const standardIdQuery = input.standardId ? { standardId: input.standardId } : undefined;
-        return { ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery };
-    },
-})
-
-export const commentVerifier = () => ({
-    profanityCheck(data: CommentCreateInput | CommentUpdateInput): void {
-        if (hasProfanity(data.text)) throw new CustomError(CODE.BannedWord);
+        return { ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery };
     },
 })
 
@@ -104,7 +96,7 @@ const forMapper = {
 /**
  * Handles authorized creates, updates, and deletes
  */
-export const commentMutater = (prisma: PrismaType, verifier: any) => ({
+export const commentMutater = (prisma: PrismaType) => ({
     /**
      * Validate adds, updates, and deletes
      */
@@ -114,12 +106,12 @@ export const commentMutater = (prisma: PrismaType, verifier: any) => ({
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
         if (createMany) {
             createMany.forEach(input => commentCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
+            createMany.forEach(input => TranslationModel().profanityCheck(input));
             // TODO check limits on comments to prevent spam
         }
         if (updateMany) {
             updateMany.forEach(input => commentUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input));
         }
         if (deleteMany) {
             // Check that user created each comment
@@ -156,7 +148,7 @@ export const commentMutater = (prisma: PrismaType, verifier: any) => ({
                 // Create object
                 const currCreated = await prisma.comment.create({
                     data: {
-                        text: input.text,
+                        translations: TranslationModel().relationshipBuilder(userId, input, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
                         userId,
                         [forMapper[input.createdFor]]: input.forId,
                     },
@@ -178,7 +170,7 @@ export const commentMutater = (prisma: PrismaType, verifier: any) => ({
                 const currUpdated = await prisma.comment.update({
                     where: { id: comment.id },
                     data: {
-                        text: input.text,
+                        translations: TranslationModel().relationshipBuilder(userId, input, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
                     },
                     ...selectHelper(partial)
                 });
@@ -213,15 +205,13 @@ export function CommentModel(prisma: PrismaType) {
     const prismaObject = prisma.comment;
     const format = commentFormatter();
     const search = commentSearcher();
-    const verifier = commentVerifier();
-    const mutater = commentMutater(prisma, verifier);
+    const mutater = commentMutater(prisma);
 
     return {
         prisma,
         prismaObject,
         ...format,
         ...search,
-        ...verifier,
         ...mutater,
     }
 }

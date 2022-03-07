@@ -15,9 +15,11 @@ export interface deepRoutineNodeFields_data_NodeEnd {
   wasSuccessful: boolean;
 }
 
-export interface deepRoutineNodeFields_data_NodeLoop {
-  __typename: "NodeLoop";
+export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_translations {
+  __typename: "RoutineTranslation";
   id: string;
+  language: string;
+  title: string;
 }
 
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine {
@@ -25,16 +27,23 @@ export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine {
   id: string;
   isInternal: boolean | null;
   role: MemberRole | null;
+  translations: deepRoutineNodeFields_data_NodeRoutineList_routines_routine_translations[];
+}
+
+export interface deepRoutineNodeFields_data_NodeRoutineList_routines_translations {
+  __typename: "NodeRoutineListItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
   title: string | null;
 }
 
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
-  title: string | null;
-  description: string | null;
   isOptional: boolean;
   routine: deepRoutineNodeFields_data_NodeRoutineList_routines_routine;
+  translations: deepRoutineNodeFields_data_NodeRoutineList_routines_translations[];
 }
 
 export interface deepRoutineNodeFields_data_NodeRoutineList {
@@ -45,17 +54,49 @@ export interface deepRoutineNodeFields_data_NodeRoutineList {
   routines: deepRoutineNodeFields_data_NodeRoutineList_routines[];
 }
 
-export type deepRoutineNodeFields_data = deepRoutineNodeFields_data_NodeEnd | deepRoutineNodeFields_data_NodeLoop | deepRoutineNodeFields_data_NodeRoutineList;
+export type deepRoutineNodeFields_data = deepRoutineNodeFields_data_NodeEnd | deepRoutineNodeFields_data_NodeRoutineList;
+
+export interface deepRoutineNodeFields_loop_whiles_translations {
+  __typename: "LoopWhileTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string;
+}
+
+export interface deepRoutineNodeFields_loop_whiles {
+  __typename: "LoopWhile";
+  id: string;
+  condition: string;
+  translations: deepRoutineNodeFields_loop_whiles_translations[];
+}
+
+export interface deepRoutineNodeFields_loop {
+  __typename: "Loop";
+  id: string;
+  loops: number | null;
+  maxLoops: number | null;
+  operation: string | null;
+  whiles: deepRoutineNodeFields_loop_whiles[];
+}
+
+export interface deepRoutineNodeFields_translations {
+  __typename: "NodeTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string;
+}
 
 export interface deepRoutineNodeFields {
   __typename: "Node";
   id: string;
   columnIndex: number | null;
   created_at: any;
-  description: string | null;
   rowIndex: number | null;
-  title: string;
   type: NodeType;
   updated_at: any;
   data: deepRoutineNodeFields_data | null;
+  loop: deepRoutineNodeFields_loop | null;
+  translations: deepRoutineNodeFields_translations[];
 }

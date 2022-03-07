@@ -15,6 +15,7 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
+import { getTranslation } from 'utils';
 
 const ObjectType = {
     Organization: 'Organization',
@@ -68,6 +69,8 @@ export const HomePage = ({
     //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
     useEffect(() => { console.log('refetching...', session); refetch() }, [refetch, searchString]);
 
+    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+
     const { routines, projects, organizations, standards, users } = useMemo(() => {
         if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
         const { routines, projects, organizations, standards, users } = data.autocomplete;
@@ -76,9 +79,9 @@ export const HomePage = ({
 
     const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
         if (!data) return [];
-        const routines = data.autocomplete.routines.map(r => ({ title: r.title, id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
-        const projects = data.autocomplete.projects.map(p => ({ title: p.name, id: p.id, stars: p.stars, objectType: ObjectType.Project }));
-        const organizations = data.autocomplete.organizations.map(o => ({ title: o.name, id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
+        const routines = data.autocomplete.routines.map(r => ({ title: getTranslation(r, 'title', languages, true), id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
+        const projects = data.autocomplete.projects.map(p => ({ title: getTranslation(p, 'name', languages, true), id: p.id, stars: p.stars, objectType: ObjectType.Project }));
+        const organizations = data.autocomplete.organizations.map(o => ({ title: getTranslation(o, 'name', languages, true), id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
         const standards = data.autocomplete.standards.map(s => ({ title: s.name, id: s.id, stars: s.stars, objectType: ObjectType.Standard }));
         const users = data.autocomplete.users.map(u => ({ title: u.username, id: u.id, stars: u.stars, objectType: ObjectType.User }));
         const options = [...routines, ...projects, ...organizations, ...standards, ...users].sort((a: any, b: any) => {

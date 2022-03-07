@@ -36,7 +36,6 @@ export const typeDef = gql`
 
     input StandardCreateInput {
         default: String
-        description: String
         isFile: Boolean
         name: String!
         schema: String
@@ -46,21 +45,23 @@ export const typeDef = gql`
         createdByOrganizationId: ID
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsCreate: [StandardTranslationCreateInput!]
     }
     input StandardUpdateInput {
         id: ID!
-        description: String
         makeAnonymous: Boolean
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsDelete: [ID!]
+        translationsCreate: [StandardTranslationCreateInput!]
+        translationsUpdate: [StandardTranslationUpdateInput!]
     }
     type Standard {
         id: ID!
         created_at: Date!
         updated_at: Date!
         default: String
-        description: String
         name: String!
         isFile: Boolean!
         isStarred: Boolean!
@@ -77,12 +78,29 @@ export const typeDef = gql`
         routineOutputs: [Routine!]!
         starredBy: [User!]!
         tags: [Tag!]!
+        translations: [StandardTranslation!]!
+    }
+
+    input StandardTranslationCreateInput {
+        language: String!
+        description: String
+    }
+    input StandardTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+    }
+    type StandardTranslation {
+        id: ID!
+        language: String!
+        description: String
     }
 
     input StandardSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        languages: [String!]
         minScore: Int
         minStars: Int
         organizationId: ID

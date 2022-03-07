@@ -9,11 +9,26 @@ import { MemberRole } from "./globalTypes";
 // GraphQL fragment: routineFields
 // ====================================================
 
+export interface routineFields_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface routineFields_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: routineFields_tags_translations[];
+}
+
+export interface routineFields_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string;
 }
 
 export interface routineFields {
@@ -21,7 +36,6 @@ export interface routineFields {
   id: string;
   completedAt: any | null;
   created_at: any;
-  description: string | null;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
   isComplete: boolean;
@@ -31,6 +45,6 @@ export interface routineFields {
   score: number;
   stars: number;
   tags: routineFields_tags[];
-  title: string | null;
+  translations: routineFields_translations[];
   version: string | null;
 }

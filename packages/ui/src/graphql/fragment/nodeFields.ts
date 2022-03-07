@@ -3,14 +3,16 @@ import { gql } from 'graphql-tag';
 export const nodeFields = gql`
     fragment nodeTagFields on Tag {
         id
-        description
         tag
+        translations {
+            id
+            language
+            description
+        }
     }
     fragment nodeRoutineFields on Routine {
         id
         version
-        title
-        description
         created_at
         isAutomatable
         isInternal
@@ -18,14 +20,18 @@ export const nodeFields = gql`
         tags {
             ...nodeTagFields
         }
+        translations {
+            id
+            language
+            description
+            title
+        }
     }
     fragment nodeFields on Node {
         id
         columnIndex
         created_at
-        description
         rowIndex
-        title
         type
         updated_at
         data {
@@ -33,23 +39,46 @@ export const nodeFields = gql`
                 id
                 wasSuccessful
             }
-            ... on NodeLoop {
-                id
-            }
             ... on NodeRoutineList {
                 id
                 isOptional
                 isOrdered
                 routines {
                     id
-                    title
-                    description
                     isOptional
                     routine {
                         ...nodeRoutineFields
                     }
+                    translations {
+                        id
+                        language
+                        description
+                        title
+                    }
                 }
             }
+        }
+        loop {
+            id
+            loops
+            maxLoops
+            operation
+            whiles {
+                id
+                condition
+                translations {
+                    id
+                    language
+                    description
+                    title
+                }
+            }
+        }
+        translations {
+            id
+            language
+            description
+            title
         }
     }
 `

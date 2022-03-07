@@ -9,13 +9,20 @@ import { FindByIdInput, ResourceUsedFor } from "./globalTypes";
 // GraphQL query operation: resource
 // ====================================================
 
+export interface resource_resource_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
 export interface resource_resource {
   __typename: "Resource";
   id: string;
-  title: string | null;
-  description: string | null;
   link: string;
   usedFor: ResourceUsedFor | null;
+  translations: resource_resource_translations[];
 }
 
 export interface resource {

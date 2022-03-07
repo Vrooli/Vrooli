@@ -9,11 +9,26 @@ import { RoutineCreateInput, MemberRole } from "./globalTypes";
 // GraphQL mutation operation: routineCreate
 // ====================================================
 
+export interface routineCreate_routineCreate_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface routineCreate_routineCreate_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: routineCreate_routineCreate_tags_translations[];
+}
+
+export interface routineCreate_routineCreate_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string;
 }
 
 export interface routineCreate_routineCreate {
@@ -21,7 +36,6 @@ export interface routineCreate_routineCreate {
   id: string;
   completedAt: any | null;
   created_at: any;
-  description: string | null;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
   isComplete: boolean;
@@ -31,7 +45,7 @@ export interface routineCreate_routineCreate {
   score: number;
   stars: number;
   tags: routineCreate_routineCreate_tags[];
-  title: string | null;
+  translations: routineCreate_routineCreate_translations[];
   version: string | null;
 }
 

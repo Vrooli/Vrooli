@@ -15,13 +15,20 @@ export interface resources_resources_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface resources_resources_edges_node_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
 export interface resources_resources_edges_node {
   __typename: "Resource";
   id: string;
-  title: string | null;
-  description: string | null;
   link: string;
   usedFor: ResourceUsedFor | null;
+  translations: resources_resources_edges_node_translations[];
 }
 
 export interface resources_resources_edges {

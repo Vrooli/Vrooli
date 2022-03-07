@@ -1,4 +1,4 @@
-import { id } from './base';
+import { id, language } from './base';
 import * as yup from 'yup';
 import { ReportFor } from '../consts';
 
@@ -13,6 +13,7 @@ export const reportCreate = yup.object().shape({
     createdFor: createdFor.required(),
     createdForId: id.required(),
     details,
+    language: language.required(),
     reason: reason.required(),
 })
 
@@ -22,5 +23,6 @@ export const reportCreate = yup.object().shape({
 export const reportUpdate = yup.object().shape({
     id: id.required(),
     details,
+    language,
     reason,
 })

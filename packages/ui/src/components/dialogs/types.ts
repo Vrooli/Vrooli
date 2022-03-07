@@ -55,6 +55,13 @@ export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
 };
 
+export interface DeleteRoutineDialogProps {
+    handleClose: () => any;
+    handleDelete: () => any;
+    isOpen: boolean;
+    routineName: string;
+}
+
 export interface ShareDialogProps extends DialogProps {
     open: boolean;
     onClose: () => any;
@@ -134,9 +141,19 @@ export interface BaseObjectActionDialogProps {
     onClose: () => any;
 }
 
+export interface LinkDialogProps {
+    handleClose: (data: any) => any;
+    handleDelete: () => any;
+    isAdd: boolean;
+    isOpen: boolean;
+    language: string; // Language to display/edit
+    routine: Routine;
+}
+
 export interface OrchestrationInfoDialogProps {
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
+    language: string; // Language to display/edit
     routine: Routine | null;
     sxs?: { icon: any };
 }
@@ -152,19 +169,4 @@ export interface UnlinkedNodesDialogProps {
     nodes: Node[];
     handleToggleOpen: () => any; // Expand/shrink dialog
     handleDeleteNode: (node: Node) => any;
-}
-
-export interface LinkDialogProps {
-    handleClose: (data: any) => any;
-    handleDelete: () => any;
-    isAdd: boolean;
-    isOpen: boolean;
-    routine: Routine;
-}
-
-export interface DeleteRoutineDialogProps {
-    handleClose: () => any;
-    handleDelete: () => any;
-    isOpen: boolean;
-    routineName: string;
 }

@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { APP_LINKS, MemberRole, StandardSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from '..';
-import { LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
 import { Standard } from 'types';
 
 export function StandardListItem({
@@ -17,6 +17,13 @@ export function StandardListItem({
 }: StandardListItemProps) {
     const [, setLocation] = useLocation();
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
+
+    const { description } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            description: getTranslation(data, 'description', languages, true),
+        }
+    }, [data, session]);
 
     const handleClick = useCallback(() => {
         // If onClick provided, call if
@@ -50,7 +57,7 @@ export function StandardListItem({
                             sx={{ ...multiLineEllipsis(1) }}
                         />
                         <ListItemText
-                            primary={data.description}
+                            primary={description}
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                         {/* Tags */}

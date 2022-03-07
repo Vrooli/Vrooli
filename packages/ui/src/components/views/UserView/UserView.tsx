@@ -15,7 +15,7 @@ import {
 import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { LabelledSortOption } from "utils";
+import { getTranslation, LabelledSortOption } from "utils";
 import { Organization, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
@@ -41,6 +41,14 @@ export const UserView = ({
     useEffect(() => {
         if (id && !isProfile) getData();
     }, [getData, id, isProfile]);
+
+    const { bio, username } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            bio: getTranslation(user, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
+            username: user?.username ?? partialData?.username,
+        };
+    }, [user, partialData, session]);
 
     console.log('isProfile', isProfile, id);
 
@@ -234,7 +242,7 @@ export const UserView = ({
                 {
                     isOwn ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{user?.username ?? partialData?.username}</Typography>
+                            <Typography variant="h4" textAlign="center">{username}</Typography>
                             <Tooltip title="Edit profile">
                                 <IconButton
                                     aria-label="Edit profile"
@@ -246,12 +254,12 @@ export const UserView = ({
                             </Tooltip>
                         </Stack>
                     ) : (
-                        <Typography variant="h4" textAlign="center">{user?.username ?? partialData?.username}</Typography>
+                        <Typography variant="h4" textAlign="center">{username}</Typography>
 
                     )
                 }
                 <Typography variant="body1" sx={{ color: "#00831e" }}>{user?.created_at ? `🕔 Joined ${new Date(user.created_at).toDateString()}` : ''}</Typography>
-                <Typography variant="body1" sx={{ color: user?.bio ? 'black' : 'gray' }}>{user?.bio ?? partialData?.bio ?? 'No bio set'}</Typography>
+                <Typography variant="body1" sx={{ color: bio ? 'black' : 'gray' }}>{bio ?? 'No bio set'}</Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>

@@ -3,20 +3,28 @@ import { gql } from 'graphql-tag';
 export const deepRoutineFields = gql`
     fragment deepRoutineTagFields on Tag {
         id
-        description
         tag
+        translations {
+            id
+            language
+            description
+        }
     }
     fragment deepRoutineInputFields on InputItem {
         id
         standard {
             id
             default
-            description
             isFile
             name
             schema
             tags {
                 ...deepRoutineTagFields
+            }
+            translations {
+                id
+                language
+                description
             }
         }
     }
@@ -25,12 +33,16 @@ export const deepRoutineFields = gql`
         standard {
             id
             default
-            description
             isFile
             name
             schema
             tags {
                 ...deepRoutineTagFields
+            }
+            translations {
+                id
+                language
+                description
             }
         }
     }
@@ -38,9 +50,7 @@ export const deepRoutineFields = gql`
         id
         columnIndex,
         created_at
-        description
         rowIndex,
-        title
         type
         updated_at
         data {
@@ -48,59 +58,89 @@ export const deepRoutineFields = gql`
                 id
                 wasSuccessful
             }
-            ... on NodeLoop {
-                id
-            }
             ... on NodeRoutineList {
                 id
                 isOptional
                 isOrdered
                 routines {
                     id
-                    title
-                    description
                     isOptional
                     routine {
                         id
                         isInternal
                         role
+                        translations {
+                            id
+                            language
+                            title
+                        }
+                    }
+                    translations {
+                        id
+                        language
+                        description
                         title
                     }
                 }
             }
+        }
+        loop {
+            id
+            loops
+            maxLoops
+            operation
+            whiles {
+                id
+                condition
+                translations {
+                    id
+                    language
+                    description
+                    title
+                }
+            }
+        }
+        translations {
+            id
+            language
+            description
+            title
         }
     }
     fragment deepRoutineNodeLinkFields on NodeLink {
         id
         fromId
         toId
-        conditions {
+        whens {
             id
-            description
-            title
-            when {
+            condition
+            translations {
                 id
-                condition
+                language
+                description
+                title
             }
         }
     }
     fragment deepRoutineResourceFields on Resource {
         id
         created_at
-        description
         link
-        title
         updated_at
+        translations {
+            id
+            language
+            description
+            title
+        }
     }
     fragment deepRoutineFields on Routine {
         id
         completedAt
         created_at
-        description
         inputs {
             ...deepRoutineInputFields
         }
-        instructions
         isAutomatable
         isComplete
         isInternal
@@ -118,7 +158,11 @@ export const deepRoutineFields = gql`
         owner {
             ... on Organization {
                 id
-                name
+                translations {
+                    id
+                    language
+                    name
+                }
             }
             ... on User {
                 id
@@ -127,7 +171,11 @@ export const deepRoutineFields = gql`
         }
         parent {
             id
-            title
+            translations {
+                id
+                language
+                title
+            }
         }
         resources {
             ...deepRoutineResourceFields
@@ -138,7 +186,13 @@ export const deepRoutineFields = gql`
         tags {
             ...deepRoutineTagFields
         }
-        title
+        translations {
+            id
+            language
+            description
+            instructions
+            title
+        }
         updated_at
         version
     }

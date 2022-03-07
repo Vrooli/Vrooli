@@ -7,6 +7,10 @@ export const userFields = gql`
         created_at
         stars
         isStarred
-        bio
+        translations {
+            id
+            language
+            bio
+        }
     }
 `

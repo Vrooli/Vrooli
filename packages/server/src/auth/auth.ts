@@ -27,10 +27,11 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
             return;
         }
         // Now, set token and role variables for other middleware to use
-        req.validToken = true;
-        req.userId = payload.userId ?? null;
-        req.roles = payload.roles ?? [];
         req.isLoggedIn = payload.isLoggedIn ?? false;
+        req.languages = payload.languages ?? [];
+        req.roles = payload.roles ?? [];
+        req.userId = payload.userId ?? null;
+        req.validToken = true;
         next();
     })
 }
@@ -41,9 +42,10 @@ interface BasicToken {
     exp: number;
 }
 interface SessionToken extends BasicToken {
-    userId: string | null;
-    roles: string[];
     isLoggedIn: boolean;
+    languages: string[] | null;
+    roles: string[];
+    userId: string | null;
 }
 
 /**
@@ -53,7 +55,6 @@ const basicToken = (): BasicToken => ({
     iat: Date.now(),
     iss: `https://app.vrooli.com/`,
     exp: Date.now() + SESSION_MILLI,
-
 })
 
 /**
@@ -66,9 +67,10 @@ const basicToken = (): BasicToken => ({
 export async function generateSessionToken(res: Response, session: RecursivePartial<Session>): Promise<undefined> {
     const tokenContents: SessionToken = {
         ...basicToken(),
-        userId: session.id ?? null,
-        roles: (session.roles as string[]) ?? [],
         isLoggedIn: Array.isArray(session.roles) ? session.roles.includes(ROLES.Actor) : false,
+        languages: (session.languages as string[]) ?? [],
+        roles: (session.roles as string[]) ?? [],
+        userId: session.id ?? null,
     }
     if (!process.env.JWT_SECRET) {
         console.error('❗️ JWT_SECRET not set! Please check .env file');

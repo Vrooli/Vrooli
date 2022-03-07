@@ -50,7 +50,7 @@ export type Comment = {
   score?: Maybe<Scalars['Int']>;
   starredBy?: Maybe<Array<User>>;
   stars?: Maybe<Scalars['Int']>;
-  text?: Maybe<Scalars['String']>;
+  translations: Array<CommentTranslation>;
   updated_at: Scalars['Date'];
 };
 
@@ -62,7 +62,7 @@ export type CommentCountInput = {
 export type CommentCreateInput = {
   createdFor: CommentFor;
   forId: Scalars['ID'];
-  text: Scalars['String'];
+  translationsCreate?: InputMaybe<Array<CommentTranslationCreateInput>>;
 };
 
 export type CommentEdge = {
@@ -81,6 +81,7 @@ export type CommentSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
@@ -113,9 +114,29 @@ export enum CommentSortBy {
   VotesDesc = 'VotesDesc'
 }
 
+export type CommentTranslation = {
+  __typename?: 'CommentTranslation';
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  text: Scalars['String'];
+};
+
+export type CommentTranslationCreateInput = {
+  language: Scalars['String'];
+  text: Scalars['String'];
+};
+
+export type CommentTranslationUpdateInput = {
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  text?: InputMaybe<Scalars['String']>;
+};
+
 export type CommentUpdateInput = {
   id: Scalars['ID'];
-  text?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<CommentTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<CommentTranslationUpdateInput>>;
 };
 
 export type CommentedOn = Project | Routine | Standard;
@@ -194,29 +215,189 @@ export type FindByIdInput = {
 
 export type InputItem = {
   __typename?: 'InputItem';
-  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isRequired?: Maybe<Scalars['Boolean']>;
   name?: Maybe<Scalars['String']>;
   routine: Routine;
   standard?: Maybe<Standard>;
+  translations: Array<InputItemTranslation>;
 };
 
 export type InputItemCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
   isRequired?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   standardConnect?: InputMaybe<Scalars['ID']>;
   standardCreate?: InputMaybe<StandardCreateInput>;
+  translationsCreate?: InputMaybe<Array<InputItemTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<InputItemTranslationUpdateInput>>;
+};
+
+export type InputItemTranslation = {
+  __typename?: 'InputItemTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+};
+
+export type InputItemTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+};
+
+export type InputItemTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
 };
 
 export type InputItemUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isRequired?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   standardConnect?: InputMaybe<Scalars['ID']>;
   standardCreate?: InputMaybe<StandardCreateInput>;
+  translationsCreate?: InputMaybe<Array<InputItemTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<InputItemTranslationUpdateInput>>;
+};
+
+export type Log = {
+  __typename?: 'Log';
+  created_at: Scalars['Date'];
+  data?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  log: LogType;
+  object1Id?: Maybe<Scalars['ID']>;
+  object2Id?: Maybe<Scalars['ID']>;
+  table1?: Maybe<Scalars['String']>;
+  table2?: Maybe<Scalars['String']>;
+};
+
+export type LogCreateInput = {
+  data?: InputMaybe<Scalars['String']>;
+  log: LogType;
+  object1Id?: InputMaybe<Scalars['ID']>;
+  object2Id?: InputMaybe<Scalars['ID']>;
+  table1?: InputMaybe<Scalars['String']>;
+  table2?: InputMaybe<Scalars['String']>;
+  userId: Scalars['ID'];
+};
+
+export type LogEdge = {
+  __typename?: 'LogEdge';
+  cursor: Scalars['String'];
+  node: Log;
+};
+
+export type LogSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  object1Id?: InputMaybe<Scalars['ID']>;
+  object2Id?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<LogSortBy>;
+  table1?: InputMaybe<Scalars['String']>;
+  table2?: InputMaybe<Scalars['String']>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type LogSearchResult = {
+  __typename?: 'LogSearchResult';
+  edges: Array<LogEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum LogSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc'
+}
+
+export enum LogType {
+  AddMember = 'AddMember',
+  Cancel = 'Cancel',
+  Complete = 'Complete',
+  Create = 'Create',
+  Delete = 'Delete',
+  Join = 'Join',
+  Leave = 'Leave',
+  RemoveMember = 'RemoveMember',
+  Run = 'Run',
+  RunComplete = 'RunComplete',
+  Start = 'Start',
+  Update = 'Update',
+  UpdateMember = 'UpdateMember'
+}
+
+export type Loop = {
+  __typename?: 'Loop';
+  id: Scalars['ID'];
+  loops?: Maybe<Scalars['Int']>;
+  maxLoops?: Maybe<Scalars['Int']>;
+  operation?: Maybe<Scalars['String']>;
+  whiles: Array<LoopWhile>;
+};
+
+export type LoopCreateInput = {
+  loops?: InputMaybe<Scalars['Int']>;
+  maxLoops?: InputMaybe<Scalars['Int']>;
+  operation?: InputMaybe<Scalars['String']>;
+  whilesCreate: Array<LoopWhileCreateInput>;
+};
+
+export type LoopUpdateInput = {
+  id: Scalars['ID'];
+  loops?: InputMaybe<Scalars['Int']>;
+  maxLoops?: InputMaybe<Scalars['Int']>;
+  operation?: InputMaybe<Scalars['String']>;
+  whilesCreate: Array<LoopWhileCreateInput>;
+  whilesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  whilesUpdate: Array<LoopWhileUpdateInput>;
+};
+
+export type LoopWhile = {
+  __typename?: 'LoopWhile';
+  condition: Scalars['String'];
+  id: Scalars['ID'];
+  toId?: Maybe<Scalars['ID']>;
+  translations: Array<LoopWhileTranslation>;
+};
+
+export type LoopWhileCreateInput = {
+  condition: Scalars['String'];
+  toId?: InputMaybe<Scalars['ID']>;
+  translationsCreate?: InputMaybe<Array<LoopWhileTranslationCreateInput>>;
+};
+
+export type LoopWhileTranslation = {
+  __typename?: 'LoopWhileTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  title: Scalars['String'];
+};
+
+export type LoopWhileTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  title: Scalars['String'];
+};
+
+export type LoopWhileTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  title?: InputMaybe<Scalars['String']>;
+};
+
+export type LoopWhileUpdateInput = {
+  condition?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  toId?: InputMaybe<Scalars['ID']>;
+  translationsCreate?: InputMaybe<Array<LoopWhileTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<LoopWhileTranslationUpdateInput>>;
 };
 
 export type Member = {
@@ -246,6 +427,7 @@ export type Mutation = {
   exportData: Scalars['String'];
   feedbackCreate: Success;
   guestLogIn: Session;
+  logDeleteMany: Count;
   logOut: Success;
   nodeCreate: Node;
   nodeDeleteOne: Success;
@@ -336,6 +518,11 @@ export type MutationEmailUpdateArgs = {
 
 export type MutationFeedbackCreateArgs = {
   input: FeedbackInput;
+};
+
+
+export type MutationLogDeleteManyArgs = {
+  input?: InputMaybe<DeleteManyInput>;
 };
 
 
@@ -508,29 +695,28 @@ export type Node = {
   columnIndex?: Maybe<Scalars['Int']>;
   created_at: Scalars['Date'];
   data?: Maybe<NodeData>;
-  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  loop?: Maybe<Loop>;
   routine: Routine;
   routineId: Scalars['ID'];
   rowIndex?: Maybe<Scalars['Int']>;
-  title: Scalars['String'];
+  translations: Array<NodeTranslation>;
   type: NodeType;
   updated_at: Scalars['Date'];
 };
 
 export type NodeCreateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
-  description?: InputMaybe<Scalars['String']>;
+  loopCreate?: InputMaybe<LoopCreateInput>;
   nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
-  nodeLoopCreate?: InputMaybe<NodeLoopCreateInput>;
   nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   routineId: Scalars['ID'];
   rowIndex?: InputMaybe<Scalars['Int']>;
-  title?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<NodeTranslationCreateInput>>;
   type?: InputMaybe<NodeType>;
 };
 
-export type NodeData = NodeEnd | NodeLoop | NodeRoutineList;
+export type NodeData = NodeEnd | NodeRoutineList;
 
 export type NodeEnd = {
   __typename?: 'NodeEnd';
@@ -549,129 +735,71 @@ export type NodeEndUpdateInput = {
 
 export type NodeLink = {
   __typename?: 'NodeLink';
-  conditions: Array<NodeLinkCondition>;
   fromId: Scalars['ID'];
   id: Scalars['ID'];
+  operation?: Maybe<Scalars['String']>;
   toId: Scalars['ID'];
-};
-
-export type NodeLinkCondition = {
-  __typename?: 'NodeLinkCondition';
-  description?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  title: Scalars['String'];
-  when: Array<NodeLinkConditionCase>;
-};
-
-export type NodeLinkConditionCase = {
-  __typename?: 'NodeLinkConditionCase';
-  condition: Scalars['String'];
-  id: Scalars['ID'];
-};
-
-export type NodeLinkConditionCaseCreateInput = {
-  condition: Scalars['String'];
-};
-
-export type NodeLinkConditionCaseUpdateInput = {
-  condition?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-};
-
-export type NodeLinkConditionCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  title: Scalars['String'];
-  toId?: InputMaybe<Scalars['ID']>;
-  whenCreate: Array<NodeLinkConditionCaseCreateInput>;
-};
-
-export type NodeLinkConditionUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  title?: InputMaybe<Scalars['String']>;
-  toId?: InputMaybe<Scalars['ID']>;
-  whenCreate?: InputMaybe<Array<NodeLinkConditionCaseCreateInput>>;
-  whenDelete?: InputMaybe<Array<Scalars['ID']>>;
-  whenUpdate?: InputMaybe<Array<NodeLinkConditionCaseUpdateInput>>;
+  whens: Array<NodeLinkWhen>;
 };
 
 export type NodeLinkCreateInput = {
-  conditions?: InputMaybe<Array<NodeLinkConditionCreateInput>>;
   fromId: Scalars['ID'];
+  operation?: InputMaybe<Scalars['String']>;
   toId: Scalars['ID'];
+  whens?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
 };
 
 export type NodeLinkUpdateInput = {
-  conditionsCreate?: InputMaybe<Array<NodeLinkConditionCreateInput>>;
-  conditionsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  conditionsUpdate?: InputMaybe<Array<NodeLinkConditionUpdateInput>>;
   fromId?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
+  operation?: InputMaybe<Scalars['String']>;
   toId?: InputMaybe<Scalars['ID']>;
+  whensCreate?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
+  whensDelete?: InputMaybe<Array<Scalars['ID']>>;
+  whensUpdate?: InputMaybe<Array<NodeLinkWhenUpdateInput>>;
 };
 
-export type NodeLoop = {
-  __typename?: 'NodeLoop';
+export type NodeLinkWhen = {
+  __typename?: 'NodeLinkWhen';
+  condition: Scalars['String'];
   id: Scalars['ID'];
-  loops?: Maybe<Scalars['Int']>;
-  maxLoops?: Maybe<Scalars['Int']>;
-  whiles: Array<NodeLoopWhile>;
+  translations: Array<NodeLinkWhenTranslation>;
 };
 
-export type NodeLoopCreateInput = {
-  loops?: InputMaybe<Scalars['Int']>;
-  maxLoops?: InputMaybe<Scalars['Int']>;
-  whilesCreate: Array<NodeLoopWhileCreateInput>;
+export type NodeLinkWhenCreateInput = {
+  condition: Scalars['String'];
+  toId?: InputMaybe<Scalars['ID']>;
+  translationsCreate?: InputMaybe<Array<NodeLinkWhenTranslationCreateInput>>;
 };
 
-export type NodeLoopUpdateInput = {
-  id: Scalars['ID'];
-  loops?: InputMaybe<Scalars['Int']>;
-  maxLoops?: InputMaybe<Scalars['Int']>;
-  whilesCreate: Array<NodeLoopWhileCreateInput>;
-  whilesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  whilesUpdate: Array<NodeLoopWhileUpdateInput>;
-};
-
-export type NodeLoopWhile = {
-  __typename?: 'NodeLoopWhile';
+export type NodeLinkWhenTranslation = {
+  __typename?: 'NodeLinkWhenTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  language: Scalars['String'];
   title: Scalars['String'];
-  toId?: Maybe<Scalars['ID']>;
-  when: Array<NodeLoopWhileCase>;
 };
 
-export type NodeLoopWhileCase = {
-  __typename?: 'NodeLoopWhileCase';
-  condition: Scalars['String'];
+export type NodeLinkWhenTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  title: Scalars['String'];
+};
+
+export type NodeLinkWhenTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  title?: InputMaybe<Scalars['String']>;
 };
 
-export type NodeLoopWhileCaseCreateInput = {
-  condition: Scalars['String'];
-};
-
-export type NodeLoopWhileCaseUpdateInput = {
+export type NodeLinkWhenUpdateInput = {
   condition?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-};
-
-export type NodeLoopWhileCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  title: Scalars['String'];
   toId?: InputMaybe<Scalars['ID']>;
-  whenCreate: Array<NodeLoopWhileCaseCreateInput>;
-};
-
-export type NodeLoopWhileUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  title?: InputMaybe<Scalars['String']>;
-  toId?: InputMaybe<Scalars['ID']>;
-  whenCreate?: InputMaybe<Array<NodeLoopWhileCaseCreateInput>>;
-  whenDelete?: InputMaybe<Array<Scalars['ID']>>;
-  whenUpdate?: InputMaybe<Array<NodeLoopWhileCaseUpdateInput>>;
+  translationsCreate?: InputMaybe<Array<NodeLinkWhenTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<NodeLinkWhenTranslationUpdateInput>>;
 };
 
 export type NodeRoutineList = {
@@ -691,26 +819,46 @@ export type NodeRoutineListCreateInput = {
 
 export type NodeRoutineListItem = {
   __typename?: 'NodeRoutineListItem';
-  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isOptional: Scalars['Boolean'];
   routine: Routine;
-  title?: Maybe<Scalars['String']>;
+  translations: Array<NodeRoutineListItemTranslation>;
 };
 
 export type NodeRoutineListItemCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
   isOptional?: InputMaybe<Scalars['Boolean']>;
   routineConnect: Scalars['ID'];
+  translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
+};
+
+export type NodeRoutineListItemTranslation = {
+  __typename?: 'NodeRoutineListItemTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  title?: Maybe<Scalars['String']>;
+};
+
+export type NodeRoutineListItemTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  title?: InputMaybe<Scalars['String']>;
+};
+
+export type NodeRoutineListItemTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
   title?: InputMaybe<Scalars['String']>;
 };
 
 export type NodeRoutineListItemUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isOptional?: InputMaybe<Scalars['Boolean']>;
   routineConnect?: InputMaybe<Scalars['ID']>;
-  title?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<NodeRoutineListItemTranslationUpdateInput>>;
 };
 
 export type NodeRoutineListUpdateInput = {
@@ -724,9 +872,29 @@ export type NodeRoutineListUpdateInput = {
   routinesUpdate?: InputMaybe<Array<NodeRoutineListItemUpdateInput>>;
 };
 
+export type NodeTranslation = {
+  __typename?: 'NodeTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  title: Scalars['String'];
+};
+
+export type NodeTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  title: Scalars['String'];
+};
+
+export type NodeTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  title?: InputMaybe<Scalars['String']>;
+};
+
 export enum NodeType {
   End = 'End',
-  Loop = 'Loop',
   Redirect = 'Redirect',
   RoutineList = 'RoutineList',
   Start = 'Start'
@@ -734,17 +902,17 @@ export enum NodeType {
 
 export type NodeUpdateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
-  description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
+  loopCreate?: InputMaybe<LoopCreateInput>;
+  loopDelete?: InputMaybe<Scalars['ID']>;
+  loopUpdate?: InputMaybe<LoopUpdateInput>;
   nodeEndUpdate?: InputMaybe<NodeEndUpdateInput>;
-  nodeLoopCreate?: InputMaybe<NodeLoopCreateInput>;
-  nodeLoopUpdate?: InputMaybe<NodeLoopUpdateInput>;
-  nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   nodeRoutineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
   routineId?: InputMaybe<Scalars['ID']>;
   rowIndex?: InputMaybe<Scalars['Int']>;
-  title?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<NodeTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<NodeTranslationUpdateInput>>;
   type?: InputMaybe<NodeType>;
 };
 
@@ -758,14 +926,12 @@ export type OpenGraphResponse = {
 
 export type Organization = {
   __typename?: 'Organization';
-  bio?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   isOpenToNewMembers: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   members: Array<Member>;
-  name: Scalars['String'];
   projects: Array<Project>;
   reports: Array<Report>;
   resources: Array<Resource>;
@@ -775,6 +941,7 @@ export type Organization = {
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
+  translations: Array<OrganizationTranslation>;
   updated_at: Scalars['Date'];
   wallets: Array<Wallet>;
 };
@@ -785,12 +952,11 @@ export type OrganizationCountInput = {
 };
 
 export type OrganizationCreateInput = {
-  bio?: InputMaybe<Scalars['String']>;
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  name: Scalars['String'];
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
 };
 
 export type OrganizationEdge = {
@@ -804,9 +970,11 @@ export type OrganizationSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
+  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<OrganizationSortBy>;
@@ -834,43 +1002,85 @@ export enum OrganizationSortBy {
   StarsDesc = 'StarsDesc'
 }
 
-export type OrganizationUpdateInput = {
+export type OrganizationTranslation = {
+  __typename?: 'OrganizationTranslation';
+  bio?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  name: Scalars['String'];
+};
+
+export type OrganizationTranslationCreateInput = {
   bio?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  name: Scalars['String'];
+};
+
+export type OrganizationTranslationUpdateInput = {
+  bio?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  name?: InputMaybe<Scalars['String']>;
+};
+
+export type OrganizationUpdateInput = {
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   membersConnect?: InputMaybe<Array<Scalars['ID']>>;
   membersDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  name?: InputMaybe<Scalars['String']>;
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<OrganizationTranslationUpdateInput>>;
 };
 
 export type OutputItem = {
   __typename?: 'OutputItem';
-  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
   routine: Routine;
   standard?: Maybe<Standard>;
+  translations: Array<OutputItemTranslation>;
 };
 
 export type OutputItemCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
   name?: InputMaybe<Scalars['String']>;
   standardConnect?: InputMaybe<Scalars['ID']>;
   standardCreate?: InputMaybe<StandardCreateInput>;
+  translationsCreate?: InputMaybe<Array<OutputItemTranslationCreateInput>>;
+};
+
+export type OutputItemTranslation = {
+  __typename?: 'OutputItemTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+};
+
+export type OutputItemTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+};
+
+export type OutputItemTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
 };
 
 export type OutputItemUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   name?: InputMaybe<Scalars['String']>;
   standardConnect?: InputMaybe<Scalars['ID']>;
   standardCreate?: InputMaybe<StandardCreateInput>;
+  translationsCreate?: InputMaybe<Array<OutputItemTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<OutputItemTranslationUpdateInput>>;
 };
 
 export type PageInfo = {
@@ -881,11 +1091,11 @@ export type PageInfo = {
 
 export type Profile = {
   __typename?: 'Profile';
-  bio?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   emails: Array<Email>;
   hiddenTags?: Maybe<Array<TagHidden>>;
+  history: Array<Log>;
   id: Scalars['ID'];
   projects: Array<Project>;
   projectsCreated: Array<Project>;
@@ -900,6 +1110,7 @@ export type Profile = {
   stars: Array<Star>;
   status: AccountStatus;
   theme: Scalars['String'];
+  translations: Array<UserTranslation>;
   updated_at: Scalars['Date'];
   username?: Maybe<Scalars['String']>;
   votes: Array<Vote>;
@@ -915,7 +1126,6 @@ export type ProfileEmailUpdateInput = {
 };
 
 export type ProfileUpdateInput = {
-  bio?: InputMaybe<Scalars['String']>;
   hiddenTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   hiddenTagsCreate?: InputMaybe<Array<TagCreateInput>>;
   hiddenTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -923,6 +1133,9 @@ export type ProfileUpdateInput = {
   starredTagsCreate?: InputMaybe<Array<TagCreateInput>>;
   starredTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   theme?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<UserTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<UserTranslationUpdateInput>>;
   username?: InputMaybe<Scalars['String']>;
 };
 
@@ -932,13 +1145,11 @@ export type Project = {
   completedAt?: Maybe<Scalars['Date']>;
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
-  description?: Maybe<Scalars['String']>;
   forks: Array<Project>;
   id: Scalars['ID'];
   isComplete: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
-  name: Scalars['String'];
   owner?: Maybe<Contributor>;
   parent?: Maybe<Project>;
   reports: Array<Report>;
@@ -949,6 +1160,7 @@ export type Project = {
   starredBy?: Maybe<Array<User>>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
+  translations: Array<ProjectTranslation>;
   updated_at: Scalars['Date'];
   wallets?: Maybe<Array<Wallet>>;
 };
@@ -961,13 +1173,13 @@ export type ProjectCountInput = {
 export type ProjectCreateInput = {
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
-  description?: InputMaybe<Scalars['String']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
   parentId?: InputMaybe<Scalars['ID']>;
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  translationsCreate?: InputMaybe<Array<ProjectTranslationCreateInput>>;
 };
 
 export type ProjectEdge = {
@@ -981,11 +1193,13 @@ export type ProjectSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
+  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
@@ -1019,8 +1233,28 @@ export enum ProjectSortBy {
   VotesDesc = 'VotesDesc'
 }
 
-export type ProjectUpdateInput = {
+export type ProjectTranslation = {
+  __typename?: 'ProjectTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  name: Scalars['String'];
+};
+
+export type ProjectTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  name: Scalars['String'];
+};
+
+export type ProjectTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  name?: InputMaybe<Scalars['String']>;
+};
+
+export type ProjectUpdateInput = {
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
@@ -1032,6 +1266,9 @@ export type ProjectUpdateInput = {
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  translationsCreate?: InputMaybe<Array<ProjectTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<ProjectTranslationUpdateInput>>;
   userId?: InputMaybe<Scalars['ID']>;
 };
 
@@ -1041,6 +1278,8 @@ export type Query = {
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
   commentsCount: Scalars['Int'];
+  log?: Maybe<Log>;
+  logs: LogSearchResult;
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
   organizationsCount: Scalars['Int'];
@@ -1089,6 +1328,16 @@ export type QueryCommentsArgs = {
 
 export type QueryCommentsCountArgs = {
   input: CommentCountInput;
+};
+
+
+export type QueryLogArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryLogsArgs = {
+  input: LogSearchInput;
 };
 
 
@@ -1234,6 +1483,7 @@ export type Report = {
   details?: Maybe<Scalars['String']>;
   id?: Maybe<Scalars['ID']>;
   isOwn: Scalars['Boolean'];
+  language: Scalars['String'];
   reason: Scalars['String'];
 };
 
@@ -1246,6 +1496,7 @@ export type ReportCreateInput = {
   createdFor: ReportFor;
   createdForId: Scalars['ID'];
   details?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
   reason: Scalars['String'];
 };
 
@@ -1269,6 +1520,7 @@ export type ReportSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   routineId?: InputMaybe<Scalars['ID']>;
@@ -1299,6 +1551,7 @@ export enum ReportSortBy {
 export type ReportUpdateInput = {
   details?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
   reason?: InputMaybe<Scalars['String']>;
 };
 
@@ -1307,10 +1560,9 @@ export type Resource = {
   createdFor: ResourceFor;
   createdForId: Scalars['ID'];
   created_at: Scalars['Date'];
-  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   link: Scalars['String'];
-  title?: Maybe<Scalars['String']>;
+  translations: Array<ResourceTranslation>;
   updated_at: Scalars['Date'];
   usedFor?: Maybe<ResourceUsedFor>;
 };
@@ -1326,6 +1578,7 @@ export type ResourceCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   link: Scalars['String'];
   title?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
   usedFor: ResourceUsedFor;
 };
 
@@ -1348,6 +1601,7 @@ export type ResourceSearchInput = {
   forId?: InputMaybe<Scalars['ID']>;
   forType?: InputMaybe<ResourceFor>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ResourceSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -1369,6 +1623,27 @@ export enum ResourceSortBy {
   DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
+export type ResourceTranslation = {
+  __typename?: 'ResourceTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  title?: Maybe<Scalars['String']>;
+};
+
+export type ResourceTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  title?: InputMaybe<Scalars['String']>;
+};
+
+export type ResourceTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  title?: InputMaybe<Scalars['String']>;
+};
+
 export type ResourceUpdateInput = {
   createdFor?: InputMaybe<ResourceFor>;
   createdForId?: InputMaybe<Scalars['ID']>;
@@ -1376,6 +1651,9 @@ export type ResourceUpdateInput = {
   id: Scalars['ID'];
   link?: InputMaybe<Scalars['String']>;
   title?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<ResourceTranslationUpdateInput>>;
   usedFor?: InputMaybe<ResourceUsedFor>;
 };
 
@@ -1414,11 +1692,9 @@ export type Routine = {
   completedAt?: Maybe<Scalars['Date']>;
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
-  description?: Maybe<Scalars['String']>;
   forks: Array<Routine>;
   id: Scalars['ID'];
   inputs: Array<InputItem>;
-  instructions?: Maybe<Scalars['String']>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
   isComplete: Scalars['Boolean'];
   isInternal?: Maybe<Scalars['Boolean']>;
@@ -1438,7 +1714,7 @@ export type Routine = {
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
-  title?: Maybe<Scalars['String']>;
+  translations: Array<RoutineTranslation>;
   updated_at: Scalars['Date'];
   version?: Maybe<Scalars['String']>;
 };
@@ -1451,9 +1727,7 @@ export type RoutineCountInput = {
 export type RoutineCreateInput = {
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
-  description?: InputMaybe<Scalars['String']>;
   inputsCreate?: InputMaybe<Array<InputItemCreateInput>>;
-  instructions?: InputMaybe<Scalars['String']>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
@@ -1465,7 +1739,7 @@ export type RoutineCreateInput = {
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  title: Scalars['String'];
+  translationsCreate?: InputMaybe<Array<RoutineTranslationCreateInput>>;
   version?: InputMaybe<Scalars['String']>;
 };
 
@@ -1480,12 +1754,14 @@ export type RoutineSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
+  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
@@ -1519,13 +1795,35 @@ export enum RoutineSortBy {
   VotesDesc = 'VotesDesc'
 }
 
-export type RoutineUpdateInput = {
+export type RoutineTranslation = {
+  __typename?: 'RoutineTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  instructions: Scalars['String'];
+  language: Scalars['String'];
+  title: Scalars['String'];
+};
+
+export type RoutineTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
+  instructions: Scalars['String'];
+  language: Scalars['String'];
+  title: Scalars['String'];
+};
+
+export type RoutineTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  instructions?: InputMaybe<Scalars['String']>;
+  language?: InputMaybe<Scalars['String']>;
+  title?: InputMaybe<Scalars['String']>;
+};
+
+export type RoutineUpdateInput = {
   id: Scalars['ID'];
   inputsCreate?: InputMaybe<Array<InputItemCreateInput>>;
   inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   inputsUpdate?: InputMaybe<Array<InputItemUpdateInput>>;
-  instructions?: InputMaybe<Scalars['String']>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
@@ -1546,7 +1844,9 @@ export type RoutineUpdateInput = {
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  title?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<RoutineTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<RoutineTranslationUpdateInput>>;
   userId?: InputMaybe<Scalars['ID']>;
   version?: InputMaybe<Scalars['String']>;
 };
@@ -1554,6 +1854,7 @@ export type RoutineUpdateInput = {
 export type Session = {
   __typename?: 'Session';
   id?: Maybe<Scalars['ID']>;
+  languages?: Maybe<Array<Scalars['String']>>;
   roles: Array<Scalars['String']>;
   theme: Scalars['String'];
 };
@@ -1564,7 +1865,6 @@ export type Standard = {
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
   default?: Maybe<Scalars['String']>;
-  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isFile: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
@@ -1579,6 +1879,7 @@ export type Standard = {
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
+  translations: Array<StandardTranslation>;
   type: StandardType;
   updated_at: Scalars['Date'];
 };
@@ -1592,12 +1893,12 @@ export type StandardCreateInput = {
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
   default?: InputMaybe<Scalars['String']>;
-  description?: InputMaybe<Scalars['String']>;
   isFile?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
   schema?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
   type?: InputMaybe<StandardType>;
   version?: InputMaybe<Scalars['String']>;
 };
@@ -1612,6 +1913,7 @@ export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
@@ -1647,6 +1949,24 @@ export enum StandardSortBy {
   VotesDesc = 'VotesDesc'
 }
 
+export type StandardTranslation = {
+  __typename?: 'StandardTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+};
+
+export type StandardTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+};
+
+export type StandardTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+};
+
 export enum StandardType {
   Array = 'Array',
   Boolean = 'Boolean',
@@ -1658,12 +1978,14 @@ export enum StandardType {
 }
 
 export type StandardUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   makeAnonymous?: InputMaybe<Scalars['Boolean']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<StandardTranslationUpdateInput>>;
 };
 
 export type Star = {
@@ -1716,13 +2038,13 @@ export type Success = {
 export type Tag = {
   __typename?: 'Tag';
   created_at: Scalars['Date'];
-  description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isOwn: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tag: Scalars['String'];
+  translations: Array<TagTranslation>;
   updated_at: Scalars['Date'];
 };
 
@@ -1733,8 +2055,8 @@ export type TagCountInput = {
 
 export type TagCreateInput = {
   anonymous?: InputMaybe<Scalars['Boolean']>;
-  description?: InputMaybe<Scalars['String']>;
   tag: Scalars['String'];
+  translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;
 };
 
 export type TagEdge = {
@@ -1754,6 +2076,7 @@ export type TagSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   hidden?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
   myTags?: InputMaybe<Scalars['Boolean']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -1779,11 +2102,31 @@ export enum TagSortBy {
   StarsDesc = 'StarsDesc'
 }
 
-export type TagUpdateInput = {
-  anonymous?: InputMaybe<Scalars['Boolean']>;
+export type TagTranslation = {
+  __typename?: 'TagTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+};
+
+export type TagTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+};
+
+export type TagTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+};
+
+export type TagUpdateInput = {
+  anonymous?: InputMaybe<Scalars['Boolean']>;
+  id: Scalars['ID'];
   tag?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<TagTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<TagTranslationUpdateInput>>;
 };
 
 export type TimeFrame = {
@@ -1793,7 +2136,6 @@ export type TimeFrame = {
 
 export type User = {
   __typename?: 'User';
-  bio?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -1806,6 +2148,7 @@ export type User = {
   routinesCreated: Array<Routine>;
   starredBy: Array<User>;
   stars: Scalars['Int'];
+  translations: Array<UserTranslation>;
   username?: Maybe<Scalars['String']>;
 };
 
@@ -1834,10 +2177,12 @@ export type UserSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
+  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<UserSortBy>;
@@ -1862,6 +2207,24 @@ export enum UserSortBy {
   StarsAsc = 'StarsAsc',
   StarsDesc = 'StarsDesc'
 }
+
+export type UserTranslation = {
+  __typename?: 'UserTranslation';
+  bio?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+};
+
+export type UserTranslationCreateInput = {
+  bio?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+};
+
+export type UserTranslationUpdateInput = {
+  bio?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+};
 
 export type Vote = {
   __typename?: 'Vote';

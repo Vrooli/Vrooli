@@ -56,13 +56,14 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
         })
     },
     customQueries(input: ReportSearchInput): { [x: string]: any } {
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const projectIdQuery = input.projectId ? { projectId: input.projectId } : undefined;
         const routineIdQuery = input.routineId ? { routineId: input.routineId } : undefined;
         const standardIdQuery = input.standardId ? { standardId: input.standardId } : undefined;
         const tagIdQuery = input.tagId ? { tagId: input.tagId } : undefined;
-        return { ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery, ...tagIdQuery };
+        return { ...languagesQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...routineIdQuery, ...standardIdQuery, ...tagIdQuery };
     },
 })
 

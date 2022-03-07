@@ -14,6 +14,7 @@ export interface emailResetPassword_emailResetPassword {
   id: string | null;
   theme: string;
   roles: string[];
+  languages: string[] | null;
 }
 
 export interface emailResetPassword {

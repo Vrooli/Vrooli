@@ -9,11 +9,26 @@ import { RoutineUpdateInput, MemberRole } from "./globalTypes";
 // GraphQL mutation operation: routineUpdate
 // ====================================================
 
+export interface routineUpdate_routineUpdate_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface routineUpdate_routineUpdate_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: routineUpdate_routineUpdate_tags_translations[];
+}
+
+export interface routineUpdate_routineUpdate_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string;
 }
 
 export interface routineUpdate_routineUpdate {
@@ -21,7 +36,6 @@ export interface routineUpdate_routineUpdate {
   id: string;
   completedAt: any | null;
   created_at: any;
-  description: string | null;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
   isComplete: boolean;
@@ -31,7 +45,7 @@ export interface routineUpdate_routineUpdate {
   score: number;
   stars: number;
   tags: routineUpdate_routineUpdate_tags[];
-  title: string | null;
+  translations: routineUpdate_routineUpdate_translations[];
   version: string | null;
 }
 

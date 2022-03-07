@@ -70,6 +70,7 @@ export const typeDef = gql`
         id: ID
         roles: [String!]!
         theme: String!
+        languages: [String!]
     }
 
     type Wallet {
@@ -319,7 +320,7 @@ export const resolvers = {
                     nonceCreationTime: true,
                     userId: true,
                     user: {
-                        select: { id: true, theme: true }
+                        select: { id: true, theme: true, languages: { select: { language: true } } }
                     }
                 }
             });
@@ -347,7 +348,7 @@ export const resolvers = {
                             connect: { id: walletData.id }
                         }
                     },
-                    select: { id: true, theme: true }
+                    select: { id: true, theme: true, languages: { select: { language: true } } }
                 });
             }
             // Update wallet and remove nonce data
@@ -363,6 +364,7 @@ export const resolvers = {
             // Create session token
             const session = {
                 id: userData.id,
+                languages: userData.languages.map((l: any) => l.language),
                 roles: [ROLES.Actor],
                 theme: userData.theme ?? 'light',
             }

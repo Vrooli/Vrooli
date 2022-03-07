@@ -9,22 +9,36 @@ import { NodeType, MemberRole } from "./globalTypes";
 // GraphQL fragment: deepRoutineFields
 // ====================================================
 
+export interface deepRoutineFields_inputs_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface deepRoutineFields_inputs_standard_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: deepRoutineFields_inputs_standard_tags_translations[];
+}
+
+export interface deepRoutineFields_inputs_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
 }
 
 export interface deepRoutineFields_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  description: string | null;
   isFile: boolean;
   name: string;
   schema: string;
   tags: deepRoutineFields_inputs_standard_tags[];
+  translations: deepRoutineFields_inputs_standard_translations[];
 }
 
 export interface deepRoutineFields_inputs {
@@ -33,18 +47,19 @@ export interface deepRoutineFields_inputs {
   standard: deepRoutineFields_inputs_standard | null;
 }
 
-export interface deepRoutineFields_nodeLinks_conditions_when {
-  __typename: "NodeLinkConditionCase";
+export interface deepRoutineFields_nodeLinks_whens_translations {
+  __typename: "NodeLinkWhenTranslation";
   id: string;
-  condition: string;
-}
-
-export interface deepRoutineFields_nodeLinks_conditions {
-  __typename: "NodeLinkCondition";
-  id: string;
+  language: string;
   description: string | null;
   title: string;
-  when: deepRoutineFields_nodeLinks_conditions_when[];
+}
+
+export interface deepRoutineFields_nodeLinks_whens {
+  __typename: "NodeLinkWhen";
+  id: string;
+  condition: string;
+  translations: deepRoutineFields_nodeLinks_whens_translations[];
 }
 
 export interface deepRoutineFields_nodeLinks {
@@ -52,7 +67,7 @@ export interface deepRoutineFields_nodeLinks {
   id: string;
   fromId: string;
   toId: string;
-  conditions: deepRoutineFields_nodeLinks_conditions[];
+  whens: deepRoutineFields_nodeLinks_whens[];
 }
 
 export interface deepRoutineFields_nodes_data_NodeEnd {
@@ -61,9 +76,11 @@ export interface deepRoutineFields_nodes_data_NodeEnd {
   wasSuccessful: boolean;
 }
 
-export interface deepRoutineFields_nodes_data_NodeLoop {
-  __typename: "NodeLoop";
+export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_translations {
+  __typename: "RoutineTranslation";
   id: string;
+  language: string;
+  title: string;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
@@ -71,16 +88,23 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
   id: string;
   isInternal: boolean | null;
   role: MemberRole | null;
+  translations: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_translations[];
+}
+
+export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_translations {
+  __typename: "NodeRoutineListItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
   title: string | null;
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
-  title: string | null;
-  description: string | null;
   isOptional: boolean;
   routine: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine;
+  translations: deepRoutineFields_nodes_data_NodeRoutineList_routines_translations[];
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList {
@@ -91,37 +115,83 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList {
   routines: deepRoutineFields_nodes_data_NodeRoutineList_routines[];
 }
 
-export type deepRoutineFields_nodes_data = deepRoutineFields_nodes_data_NodeEnd | deepRoutineFields_nodes_data_NodeLoop | deepRoutineFields_nodes_data_NodeRoutineList;
+export type deepRoutineFields_nodes_data = deepRoutineFields_nodes_data_NodeEnd | deepRoutineFields_nodes_data_NodeRoutineList;
+
+export interface deepRoutineFields_nodes_loop_whiles_translations {
+  __typename: "LoopWhileTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string;
+}
+
+export interface deepRoutineFields_nodes_loop_whiles {
+  __typename: "LoopWhile";
+  id: string;
+  condition: string;
+  translations: deepRoutineFields_nodes_loop_whiles_translations[];
+}
+
+export interface deepRoutineFields_nodes_loop {
+  __typename: "Loop";
+  id: string;
+  loops: number | null;
+  maxLoops: number | null;
+  operation: string | null;
+  whiles: deepRoutineFields_nodes_loop_whiles[];
+}
+
+export interface deepRoutineFields_nodes_translations {
+  __typename: "NodeTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string;
+}
 
 export interface deepRoutineFields_nodes {
   __typename: "Node";
   id: string;
   columnIndex: number | null;
   created_at: any;
-  description: string | null;
   rowIndex: number | null;
-  title: string;
   type: NodeType;
   updated_at: any;
   data: deepRoutineFields_nodes_data | null;
+  loop: deepRoutineFields_nodes_loop | null;
+  translations: deepRoutineFields_nodes_translations[];
+}
+
+export interface deepRoutineFields_outputs_standard_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
 }
 
 export interface deepRoutineFields_outputs_standard_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: deepRoutineFields_outputs_standard_tags_translations[];
+}
+
+export interface deepRoutineFields_outputs_standard_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
+  description: string | null;
 }
 
 export interface deepRoutineFields_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
-  description: string | null;
   isFile: boolean;
   name: string;
   schema: string;
   tags: deepRoutineFields_outputs_standard_tags[];
+  translations: deepRoutineFields_outputs_standard_translations[];
 }
 
 export interface deepRoutineFields_outputs {
@@ -130,10 +200,17 @@ export interface deepRoutineFields_outputs {
   standard: deepRoutineFields_outputs_standard | null;
 }
 
+export interface deepRoutineFields_owner_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
+}
+
 export interface deepRoutineFields_owner_Organization {
   __typename: "Organization";
   id: string;
-  name: string;
+  translations: deepRoutineFields_owner_Organization_translations[];
 }
 
 export interface deepRoutineFields_owner_User {
@@ -144,9 +221,24 @@ export interface deepRoutineFields_owner_User {
 
 export type deepRoutineFields_owner = deepRoutineFields_owner_Organization | deepRoutineFields_owner_User;
 
+export interface deepRoutineFields_parent_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
+  title: string;
+}
+
 export interface deepRoutineFields_parent {
   __typename: "Routine";
   id: string;
+  translations: deepRoutineFields_parent_translations[];
+}
+
+export interface deepRoutineFields_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
   title: string | null;
 }
 
@@ -154,17 +246,32 @@ export interface deepRoutineFields_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
-  description: string | null;
   link: string;
-  title: string | null;
   updated_at: any;
+  translations: deepRoutineFields_resources_translations[];
+}
+
+export interface deepRoutineFields_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
 }
 
 export interface deepRoutineFields_tags {
   __typename: "Tag";
   id: string;
-  description: string | null;
   tag: string;
+  translations: deepRoutineFields_tags_translations[];
+}
+
+export interface deepRoutineFields_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  instructions: string;
+  title: string;
 }
 
 export interface deepRoutineFields {
@@ -172,9 +279,7 @@ export interface deepRoutineFields {
   id: string;
   completedAt: any | null;
   created_at: any;
-  description: string | null;
   inputs: deepRoutineFields_inputs[];
-  instructions: string | null;
   isAutomatable: boolean | null;
   isComplete: boolean;
   isInternal: boolean | null;
@@ -190,7 +295,7 @@ export interface deepRoutineFields {
   stars: number;
   role: MemberRole | null;
   tags: deepRoutineFields_tags[];
-  title: string | null;
+  translations: deepRoutineFields_translations[];
   updated_at: any;
   version: string | null;
 }

@@ -24,20 +24,6 @@ type EdgePositions = {
     bezier: [Point, Point, Point, Point];
 }
 
-// NOTE: Since adding along an edge means that there will always be a node 
-// after the new node, an "End" node cannot be selected
-const addListOptionsMap: Array<[NodeType, string, string]> = [
-    [NodeType.Loop, 'Loop', 'Repeat a section of the orchestration'],
-    [NodeType.Redirect, 'Redirect', 'Redirect to an earlier point or another branch'],
-    [NodeType.RoutineList, 'Routine List', 'Add one or more subroutines'],
-]
-
-const addListOptions: ListMenuItemData<NodeType>[] = addListOptionsMap.map(o => ({
-    value: o[0],
-    label: o[1],
-    helpData: { markdown: o[2] },
-}));
-
 /**
  * Displays a line between two nodes.
  * If in editing mode, displays a clickable button to edit the link or inserting a node
@@ -59,20 +45,6 @@ export const NodeEdge = ({
 
     const [isEditOpen, setIsEditOpen] = useState(false);
     const toggleIsEditOpen = useCallback(() => setIsEditOpen(o => !o), []);
-
-    // Add node menu
-    const [anchorEl, setAnchorEl] = useState<any>(null);
-    const openAddMenu = useCallback((ev: any) => {
-        setAnchorEl(ev.currentTarget);
-        ev.stopPropagation();
-    }, []);
-    const closeAddMenu = useCallback(() => {
-        setAnchorEl(null);
-    }, []);
-    const handleAddSelect = useCallback((selected: NodeType) => {
-        closeAddMenu();
-        handleAdd(link, selected);
-    }, [closeAddMenu, handleAdd, link.fromId, link.toId]);
 
     // Triggers edit menu in parent. This is needed because the link's from and to nodes
     // can be updated, and the edge doesn't have this information
@@ -288,7 +260,7 @@ export const NodeEdge = ({
                                 <IconButton
                                     id="insert-node-on-edge-button"
                                     size="small"
-                                    onClick={openAddMenu}
+                                    onClick={() => { handleAdd(link) }}
                                     aria-label='Insert node on edge'
                                     sx={{
                                         position: "absolute",
@@ -312,31 +284,12 @@ export const NodeEdge = ({
                 </Box>
             </Tooltip>
         );
-    }, [isEditOpen, isEditing, isFromRoutineList, isToRoutineList, openAddMenu, dims, scale]);
-
-    /**
-     * Menu for adding a new node
-     */
-    const addMenu = useMemo(() => {
-        if (!isEditOpen) return null;
-        return (
-            <ListMenu
-                id={'add-node-on-edge-menu'}
-                anchorEl={anchorEl}
-                title='Add Node'
-                data={addListOptions}
-                onSelect={handleAddSelect}
-                onClose={closeAddMenu}
-            />
-        )
-    }, [anchorEl, handleAddSelect, isEditOpen, closeAddMenu]);
-
+    }, [isEditOpen, isEditing, isFromRoutineList, isToRoutineList, dims, scale]);
 
     return (
         <>
             {edge}
             {editButton}
-            {addMenu}
         </>
     )
 }

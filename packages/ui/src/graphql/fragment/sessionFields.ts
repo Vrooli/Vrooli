@@ -5,5 +5,6 @@ export const sessionFields = gql`
         id
         theme
         roles
+        languages
     }
 `

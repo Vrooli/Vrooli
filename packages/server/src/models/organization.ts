@@ -2,12 +2,13 @@ import { PrismaType, RecursivePartial } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count } from "../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialInfo } from "./base";
 import { CustomError } from "../error";
-import { CODE, MemberRole, organizationCreate, organizationUpdate } from "@local/shared";
+import { CODE, MemberRole, organizationCreate, organizationTranslationCreate, organizationTranslationUpdate, organizationUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { ResourceModel } from "./resource";
 import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
+import { TranslationModel } from "./translation";
 
 //==============================================================
 /* #region Custom Components */
@@ -49,11 +50,14 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
+        console.log('in organization addSupplementalFields', ids, userId, partial);
         if (partial.isStarred) {
             const isStarredArray = userId
                 ? await StarModel(prisma).getIsStarreds(userId, ids, 'organization')
                 : Array(ids.length).fill(false);
+            console.log('filling in isStarred', isStarredArray, objects);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+            console.log('objectssssss FILLED', objects);
         }
         // Query for role
         if (partial.role) {
@@ -81,26 +85,28 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
             [OrganizationSortBy.StarsDesc]: { stars: 'desc' },
         }[sortBy]
     },
-    getSearchStringQuery: (searchString: string): any => {
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { name: { ...insensitive } },
-                { bio: { ...insensitive } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, bio: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, name: {...insensitive} } } },
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
     },
     customQueries(input: OrganizationSearchInput): { [x: string]: any } {
         const isOpenToNewMembersQuery = input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {};
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
+        const resourceTypesQuery = input.resourceTypes ? { resources: { some: { usedFor: { in: input.resourceTypes } } } } : {};
         const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
         const userIdQuery = input.userId ? { members: { some: { id: input.userId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...isOpenToNewMembersQuery, ...minStarsQuery, ...projectIdQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...tagsQuery };
+        return { ...isOpenToNewMembersQuery, ...languagesQuery, ...minStarsQuery, ...projectIdQuery, ...resourceTypesQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...tagsQuery };
     },
 })
 
@@ -127,19 +133,15 @@ export const organizationVerifier = (prisma: PrismaType) => ({
         });
         return [Boolean(memberData), memberData];
     },
-    profanityCheck(data: OrganizationCreateInput | OrganizationUpdateInput): void {
-        if (hasProfanity(data.name, data.bio)) throw new CustomError(CODE.BannedWord);
-    },
 })
 
 export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShape(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
         return {
-            bio: data.bio,
             isOpenToNewMembers: data.isOpenToNewMembers,
-            name: data.name,
             resources: ResourceModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }
     },
     async validateMutations({
@@ -148,7 +150,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
         if (createMany) {
             createMany.forEach(input => organizationCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
+            createMany.forEach(input => TranslationModel().profanityCheck(input));
             // Check if user will pass max organizations limit
             const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } });
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
@@ -157,7 +159,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
         }
         if (updateMany) {
             updateMany.forEach(input => organizationUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input));
             // Check that user is owner OR admin of each organization
             const roles = userId
                 ? await verifier.getRoles(userId, updateMany.map(input => input.id))

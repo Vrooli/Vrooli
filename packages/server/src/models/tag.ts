@@ -2,10 +2,11 @@ import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy }
 import { PrismaType, RecursivePartial } from "types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
-import { CODE, tagCreate, tagUpdate } from "@local/shared";
+import { CODE, tagCreate, tagTranslationCreate, tagTranslationUpdate, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { StarModel } from "./star";
 import _ from "lodash";
+import { TranslationModel } from "./translation";
 
 //==============================================================
 /* #region Custom Components */
@@ -41,6 +42,7 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
         if (partial.isStarred) {
+            console.log('tag isStarred start', ids)
             const isStarredArray = userId
                 ? await StarModel(prisma).getIsStarreds(userId, ids, 'tag')
                 : Array(ids.length).fill(false);
@@ -68,24 +70,26 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
             [TagSortBy.StarsDesc]: { stars: 'desc' },
         }[sortBy]
     },
-    getSearchStringQuery: (searchString: string): any => {
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
                 { tag: { ...insensitive } },
-                { description: { ...insensitive } },
             ]
         })
     },
     customQueries(input: TagSearchInput): { [x: string]: any } {
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        return { ...minStarsQuery };
+        return { ...languagesQuery, ...minStarsQuery };
     },
 })
 
 export const tagVerifier = () => ({
     profanityCheck(data: TagCreateInput | TagUpdateInput): void {
-        if (hasProfanity(data.tag, data.description)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(data.tag)) throw new CustomError(CODE.BannedWord);
+        TranslationModel().profanityCheck(data);
     },
 })
 
@@ -93,8 +97,8 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShape(userId: string | null, data: TagCreateInput | TagUpdateInput): Promise<any> {
         return {
             name: data.tag,
-            description: data.description,
-            createdByUserId: userId
+            createdByUserId: userId,
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
         }
     },
     async relationshipBuilder(

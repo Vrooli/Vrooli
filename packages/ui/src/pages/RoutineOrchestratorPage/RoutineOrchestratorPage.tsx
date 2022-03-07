@@ -48,8 +48,7 @@ export const RoutineOrchestratorPage = ({
     const [scale, setScale] = useState<number>(1);
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
-
-    console.log('ROUTINE ORCHESTRATOR PAGE RENDER...', canEdit, routine?.role, [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole));
+    const language = 'en';
 
     // Open/close routine info drawer
     const [isRoutineInfoOpen, setIsRoutineInfoOpen] = useState<boolean>(false);
@@ -275,7 +274,9 @@ export const RoutineOrchestratorPage = ({
 
     const updateRoutineTitle = useCallback((title: string) => {
         if (!changedRoutine) return;
-        setChangedRoutine({ ...changedRoutine, title });
+        setChangedRoutine({ ...changedRoutine, translations: [
+            { language: 'en', title },
+        ] } as any);
     }, [changedRoutine]);
 
     const revertChanges = useCallback(() => {
@@ -397,6 +398,7 @@ export const RoutineOrchestratorPage = ({
                 handleDelete={handleLinkDelete}
                 isAdd={true}
                 isOpen={isLinkDialogOpen}
+                language={language}
                 routine={changedRoutine}
             // partial={ }
             /> : null}
@@ -414,6 +416,7 @@ export const RoutineOrchestratorPage = ({
                 canEdit={canEdit}
                 handleStartEdit={startEditing}
                 isEditing={isEditing}
+                language={language}
                 status={status}
                 routine={changedRoutine}
                 handleRoutineUpdate={updateRoutine}
@@ -512,17 +515,18 @@ export const RoutineOrchestratorPage = ({
                 bottom: '0',
             }}>
                 <NodeGraph
-                    scale={scale}
-                    isEditing={isEditing}
-                    labelVisible={true}
-                    nodes={linkedNodes}
-                    links={changedRoutine?.nodeLinks ?? []}
                     handleDialogOpen={handleDialogOpen}
                     handleLinkCreate={handleLinkCreate}
                     handleLinkUpdate={handleLinkUpdate}
                     handleNodeDelete={handleNodeDelete}
                     handleNodeUpdate={handleNodeUpdate}
                     handleNodeUnlink={handleNodeUnlink}
+                    isEditing={isEditing}
+                    labelVisible={true}
+                    language={language}
+                    links={changedRoutine?.nodeLinks ?? []}
+                    nodes={linkedNodes}
+                    scale={scale}
                 />
                 <OrchestrationBottomContainer
                     canCancelUpdate={!loading}
