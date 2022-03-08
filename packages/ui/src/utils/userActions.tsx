@@ -17,7 +17,6 @@ import {
     ListItemIcon,
     ListItemText,
 } from '@mui/material';
-import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
 import { openLink } from 'utils';
 import { Path } from 'wouter';
@@ -45,10 +44,10 @@ export interface Action {
 
 // Returns navigational actions available to the user
 interface GetUserActionsProps {
-    userRoles: UserRoles;
+    roles: string[];
     exclude?: ACTION_TAGS[] | undefined;
 }
-export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps): Action[] {
+export function getUserActions({ roles, exclude = [] }: GetUserActionsProps): Action[] {
     // Home action always available
     let actions: ActionArray[] = [['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]];
     // Available for all users
@@ -58,7 +57,7 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
         ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
     );
     // Log in/out
-    if (!userRoles?.includes(ROLES.Actor)) {
+    if (!roles?.includes(ROLES.Actor)) {
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
     } else {
         actions.push(

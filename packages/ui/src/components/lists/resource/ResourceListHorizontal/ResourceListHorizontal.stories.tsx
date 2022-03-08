@@ -1,5 +1,5 @@
 import { Meta, Story } from "@storybook/react";
-import { ResourceListHorizontal as Component } from '..';
+import { ResourceListHorizontal as Component } from '../..';
 import { ResourceListHorizontalProps as Props } from '../types';
 
 // Define story metadata

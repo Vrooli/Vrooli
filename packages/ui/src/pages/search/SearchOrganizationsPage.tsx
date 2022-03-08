@@ -54,7 +54,7 @@ export const SearchOrganizationsPage = ({
             index={index}
             session={session}
             data={node}
-            onClick={(selected: Organization) => setSelectedItem(selected)}
+            onClick={(_e, selected: Organization) => setSelectedItem(selected)}
         />)
 
     return (

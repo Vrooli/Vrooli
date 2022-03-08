@@ -3,11 +3,48 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput } from "./globalTypes";
+import { FindByIdInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: user
 // ====================================================
+
+export interface user_user_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface user_user_resourceLists_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface user_user_resourceLists_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: user_user_resourceLists_resources_translations[];
+}
+
+export interface user_user_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: user_user_resourceLists_translations[];
+  resources: user_user_resourceLists_resources[];
+}
 
 export interface user_user_translations {
   __typename: "UserTranslation";
@@ -23,6 +60,7 @@ export interface user_user {
   created_at: any;
   stars: number;
   isStarred: boolean;
+  resourceLists: user_user_resourceLists[];
   translations: user_user_translations[];
 }
 

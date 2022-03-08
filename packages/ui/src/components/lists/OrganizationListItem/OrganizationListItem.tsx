@@ -44,7 +44,7 @@ export function OrganizationListItem({
         // Prevent propagation
         e.stopPropagation();
         // If onClick provided, call it
-        if (onClick) onClick(data);
+        if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Organization}/${data.id}`)
     }, [onClick, data, setLocation]);

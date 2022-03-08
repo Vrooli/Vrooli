@@ -150,11 +150,12 @@ export interface LinkDialogProps {
     routine: Routine;
 }
 
-export interface OrchestrationInfoDialogProps {
+export interface BuildInfoDialogProps {
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
     language: string; // Language to display/edit
     routine: Routine | null;
+    session: Session;
     sxs?: { icon: any };
 }
 

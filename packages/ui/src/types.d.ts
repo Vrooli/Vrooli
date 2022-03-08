@@ -11,18 +11,16 @@ import { tag_tag } from 'graphql/generated/tag';
 import { user_user } from 'graphql/generated/user';
 
 // Top-level props that can be passed into any routed component
-export type UserRoles = string[] | null;
 export type SessionChecked = boolean;
 export type Session = {
     id?: string | null;
     languages?: string[] | null;
-    roles?: UserRoles;
+    roles?: string[] | null;
     theme?: string;
 }
 export type OnSessionUpdate = any;
 export interface CommonProps {
-    session?: Session;
-    userRoles: UserRoles;
+    session: Session;
     sessionChecked: SessionChecked;
     onSessionUpdate: OnSessionUpdate;
 }

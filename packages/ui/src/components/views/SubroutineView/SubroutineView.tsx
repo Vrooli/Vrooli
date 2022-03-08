@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client";
 import { APP_LINKS } from "@local/shared";
-import { Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { ResourceListHorizontal } from "components";
 import { BaseForm } from "forms";
 import { routine } from "graphql/generated/routine";
@@ -8,20 +8,23 @@ import { routineQuery } from "graphql/query";
 import { useMemo, useState } from "react";
 import { getTranslation } from "utils";
 import { useLocation, useRoute } from "wouter";
-import { RunRoutineViewProps } from "../types";
+import { SubroutineViewProps } from "../types";
 
-export const RunRoutineView = ({
+export const SubroutineView = ({
     hasNext,
     hasPrevious,
     partialData,
-}: RunRoutineViewProps) => {
+    session,
+}: SubroutineViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Orchestrate}/run/:id`);
-    const [, params2] = useRoute(`${APP_LINKS.Run}/:id`);
-    const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
+    const [, params] = useRoute(`${APP_LINKS.Run}/:routineId/:subroutineId`);
+    const { routineId, subroutineId } = useMemo(() => ({
+        routineId: params?.routineId ?? "",
+        subroutineId: params?.subroutineId ?? "",
+    }), [params]);
     // Fetch data
-    const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
+    const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id: routineId } } });
 
     const { description, instructions, name } = useMemo(() => {
         const languages = navigator.languages;
@@ -36,11 +39,12 @@ export const RunRoutineView = ({
     const [schema, setSchema] = useState<any>();
 
     return (
-        <>
+        <Box sx={{ background: (t) => t.palette.background.paper}}>
             {/* Resources */}
             {data?.routine?.resourceLists && <ResourceListHorizontal 
                 list={data.routine.resourceLists[0]}
                 canEdit={false}
+                session={session}
             /> }
             {/* Description */}
             {description && (<Typography variant="body1">{description}</Typography>)}
@@ -49,6 +53,6 @@ export const RunRoutineView = ({
                 schema={schema}
                 onSubmit={(values) => console.log(values)}
             />
-        </>
+        </Box>
     )
 }

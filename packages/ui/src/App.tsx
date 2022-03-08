@@ -127,11 +127,9 @@ export function App() {
         }
         // Check if previous log in exists
         validateSession().then(({ data }) => {
-            console.log('setting session b', data?.validateSession as Session)
             setSession(data?.validateSession as Session);
         }).catch((response) => {
             if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
-            console.log('sessing sesssion c oh no', response)
             // If not logged in as guest and failed to log in as user, set empty object
             if (!session) setSession({})
         })
@@ -176,7 +174,7 @@ export function App() {
                             background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)',
                             minHeight: '100vh',
                         }}>
-                            <Navbar userRoles={session?.roles ?? []} />
+                            <Navbar session={session ?? {}} />
                             {
                                 loading && <Box sx={{
                                     position: 'absolute',
@@ -191,13 +189,12 @@ export function App() {
                             <AlertDialog />
                             <Snack />
                             <AllRoutes
-                                session={session}
+                                session={session ?? {}}
                                 sessionChecked={session !== undefined}
                                 onSessionUpdate={checkSession}
-                                userRoles={session?.roles ?? []}
                             />
                         </Box>
-                        <BottomNav userRoles={session?.roles ?? []} />
+                        <BottomNav session={session ?? {}} />
                         <Footer />
                     </main>
                 </div>

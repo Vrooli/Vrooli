@@ -6,15 +6,17 @@ import {
     Typography
 } from '@mui/material';
 import { getTranslation, openLink } from 'utils';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useLocation } from 'wouter';
-import { ResourceCardProps } from '../types';
-import { cardRoot } from '../styles';
+import { ResourceCardProps } from '../../../cards/types';
+import { cardRoot } from '../../../cards/styles';
 import { multiLineEllipsis, noSelect } from 'styles';
 import {
     Delete as DeleteIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
+import { getResourceIcon } from '..';
+import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 
 const buttonProps = {
     position: 'absolute',
@@ -31,8 +33,8 @@ const buttonProps = {
 
 export const ResourceCard = ({
     data,
-    Icon,
     onRightClick,
+    session,
 }: ResourceCardProps) => {
     const [, setLocation] = useLocation();
 
@@ -42,6 +44,10 @@ export const ResourceCard = ({
             description: getTranslation(data, 'description', languages, true),
             title:  getTranslation(data, 'title', languages, true),
         };
+    }, [data]);
+
+    const Icon = useMemo(() => {
+        return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
     }, [data]);
 
     const handleClick = useCallback((event: any) => {

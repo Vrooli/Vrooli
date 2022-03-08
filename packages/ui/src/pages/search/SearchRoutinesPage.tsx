@@ -47,7 +47,7 @@ export const SearchRoutinesPage = ({
             index={index}
             session={session}
             data={node}
-            onClick={(selected: Routine) => setSelectedItem(selected)}
+            onClick={(_e, selected: Routine) => setSelectedItem(selected)}
         />)
 
     return (

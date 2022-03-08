@@ -26,14 +26,14 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 export const BottomNav = ({
-    userRoles,
+    session,
     ...props
 }: BottomNavProps) => {
     const [, setLocation] = useLocation();
     const classes = useStyles();
 
     let actions = actionsToBottomNav({
-        actions: getUserActions({ userRoles }),
+        actions: getUserActions({ roles: session?.roles ?? [] }),
         setLocation,
         classes: { root: classes.icon }
     });

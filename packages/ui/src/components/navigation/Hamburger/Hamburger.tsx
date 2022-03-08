@@ -39,7 +39,7 @@ const menuItem: SxProps<Theme> = {
 } as const
 
 export const Hamburger = ({
-    userRoles,
+    session,
 }: HamburgerProps) => {
     const [, setLocation] = useLocation();
     const [contactOpen, setContactOpen] = useState(true);
@@ -59,7 +59,7 @@ export const Hamburger = ({
         setContactOpen(!contactOpen);
     };
 
-    const nav_actions = getUserActions({ userRoles });
+    const nav_actions = getUserActions({ roles: session.roles ?? [] });
 
     return (
         <>

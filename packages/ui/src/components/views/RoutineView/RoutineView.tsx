@@ -21,6 +21,7 @@ import { mutationWrapper } from "graphql/utils/wrappers";
 import { star } from "graphql/generated/star";
 import { StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
+import { containerShadow } from "styles";
 
 export const RoutineView = ({
     session,
@@ -28,7 +29,7 @@ export const RoutineView = ({
 }: RoutineViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Routine}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Run}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/view/:id`);
     const id: string = params?.id ?? params2?.id ?? '';
     // Fetch data
@@ -81,11 +82,17 @@ export const RoutineView = ({
             setLocation(`${APP_LINKS.Start}?redirect=${encodeURIComponent(window.location.pathname)}`);
             return;
         }
-        mutationWrapper({
-            mutation: star,
-            input: { isStar: true, starFor: StarFor.Routine, forId: id },
-        })
-    }, [id, star]);
+        if (routine?.isStarred) {
+            PubSub.publish(Pubs.Snack, { message: 'Routine is already starred.', severity: 'Warning' });
+        }
+        else {
+            mutationWrapper({
+                mutation: star,
+                input: { isStar: true, starFor: StarFor.Routine, forId: id },
+                onSuccess: () => { PubSub.publish(Pubs.Snack, { message: 'Routine starred.' }); },
+            })
+        }
+    }, [id, routine, session]);
 
     /**
      * Start a routine now (i.e. navigate to start page)
@@ -123,10 +130,12 @@ export const RoutineView = ({
 
     return (
         <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             margin: 'auto',
-            overflowY: 'auto',
-            maxWidth: '600px',
-            padding: '24px 8px',
+            overflowY: 'scroll',
+            minHeight: '88vh',
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
@@ -137,83 +146,107 @@ export const RoutineView = ({
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
             />
-            {/* Title, created by, and version  */}
-            <Stack direction="column" spacing={1} alignItems="center" sx={{ marginLeft: 'auto' }}>
-                {/* Show star button and ellipsis next to title */}
-                <Stack direction="row" spacing={1} alignItems="center">
-                    <StarButton
-                        session={session}
-                        objectId={routine?.id ?? ''}
-                        showStars={false}
-                        starFor={StarFor.Routine}
-                        isStar={routine?.isStarred ?? false}
-                        stars={routine?.stars ?? 0}
-                        onChange={(isStar: boolean) => { }}
-                        tooltipPlacement="bottom"
-                    />
-                    <Typography variant="h5">{getTranslation(routine, 'title', languages)}</Typography>
-                    <Tooltip title="More options">
-                        <IconButton
-                            aria-label="More"
-                            size="small"
-                            onClick={openMoreMenu}
-                            sx={{
-                                display: 'block',
-                                marginLeft: 'auto',
-                                marginRight: 1,
-                            }}
-                        >
-                            <EllipsisIcon />
-                        </IconButton>
-                    </Tooltip>
-                </Stack>
-                <Stack direction="row" spacing={1}>
-                    {ownedBy ? (
-                        <Link onClick={toOwner}>
-                            <Typography variant="body1" sx={{ color: 'text.primary', cursor: 'pointer' }}>{ownedBy} - </Typography>
-                        </Link>
-                    ) : null}
-                    <Typography variant="body1">{routine?.version}</Typography>
-                </Stack>
-            </Stack>
-            {/* Main content */}
-            {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-            <Stack direction="column" spacing={2} padding={1}>
-                {/* Resources */}
-                {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
-                    title={'Resources'}
-                    list={(routine as any).resourceLists[0]}
-                    canEdit={false}
-                    handleUpdate={() => { }}
-                /> : null}
-                {/* Description */}
-                <Box sx={{
-                    padding: 1,
-                    border: `1px solid ${(t) => t.palette.primary.dark}`,
-                    borderRadius: 1,
+            {/* Main container */}
+            <Box sx={{
+                background: (t) => t.palette.background.paper,
+                overflowY: 'auto',
+                maxWidth: '600px',
+                borderRadius: '8px',
+                overflow: 'overlay',
+                ...containerShadow
+            }}>
+                {/* Heading container */}
+                <Stack direction="column" spacing={1} sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 2,
+                    marginBottom: 1,
+                    background: (t) => t.palette.primary.dark,
+                    color: (t) => t.palette.primary.contrastText,
                 }}>
-                    <Typography variant="h6">Description</Typography>
-                    <Markdown>{getTranslation(routine, 'description', languages) ?? ''}</Markdown>
-                </Box>
-                {/* Instructions */}
+                    {/* Show star button and ellipsis next to title */}
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <StarButton
+                            session={session}
+                            objectId={routine?.id ?? ''}
+                            showStars={false}
+                            starFor={StarFor.Routine}
+                            isStar={routine?.isStarred ?? false}
+                            stars={routine?.stars ?? 0}
+                            onChange={(isStar: boolean) => { }}
+                            tooltipPlacement="bottom"
+                        />
+                        <Typography variant="h5">{getTranslation(routine, 'title', languages)}</Typography>
+                        <Tooltip title="More options">
+                            <IconButton
+                                aria-label="More"
+                                size="small"
+                                onClick={openMoreMenu}
+                                sx={{
+                                    display: 'block',
+                                    marginLeft: 'auto',
+                                    marginRight: 1,
+                                    fill: (t) => t.palette.primary.contrastText,
+                                }}
+                            >
+                                <EllipsisIcon />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
+                    <Stack direction="row" spacing={1}>
+                        {ownedBy ? (
+                            <Link onClick={toOwner}>
+                                <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                            </Link>
+                        ) : null}
+                        <Typography variant="body1">{routine?.version}</Typography>
+                    </Stack>
+                </Stack>
+                {/* Body container */}
                 <Box sx={{
-                    padding: 1,
-                    border: `1px solid ${(t) => t.palette.background.paper}`,
-                    borderRadius: 1,
+                    padding: 2,
                 }}>
-                    <Typography variant="h6">Instructions</Typography>
-                    <Markdown>{instructions ?? ''}</Markdown>
+                    {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
+                    <Stack direction="column" spacing={2} padding={1}>
+                        {/* Resources */}
+                        {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
+                            title={'Resources'}
+                            list={(routine as any).resourceLists[0]}
+                            canEdit={false}
+                            handleUpdate={() => { }}
+                            session={session}
+                        /> : null}
+                        {/* Description */}
+                        <Box sx={{
+                            padding: 1,
+                            border: `1px solid ${(t) => t.palette.primary.dark}`,
+                            borderRadius: 1,
+                        }}>
+                            <Typography variant="h6">Description</Typography>
+                            <Markdown>{getTranslation(routine, 'description', languages) ?? ''}</Markdown>
+                        </Box>
+                        {/* Instructions */}
+                        <Box sx={{
+                            padding: 1,
+                            border: `1px solid ${(t) => t.palette.background.paper}`,
+                            borderRadius: 1,
+                        }}>
+                            <Typography variant="h6">Instructions</Typography>
+                            <Markdown>{instructions ?? ''}</Markdown>
+                        </Box>
+                    </Stack>
+                    {/* Action buttons */}
+                    <Grid container spacing={1}>
+                        <Grid item xs={12} sm={6}>
+                            <Button fullWidth onClick={startLater} color="secondary">Start Later</Button>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <Button fullWidth onClick={startNow} color="secondary">Start Now</Button>
+                        </Grid>
+                    </Grid>
                 </Box>
-            </Stack>
-            {/* Action buttons */}
-            <Grid container spacing={1}>
-                <Grid item xs={12} sm={6}>
-                    <Button fullWidth onClick={startLater} color="secondary">Start Later</Button>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                    <Button fullWidth onClick={startNow} color="secondary">Start Now</Button>
-                </Grid>
-            </Grid>
-        </Box>
+            </Box>
+        </Box >
     )
 }

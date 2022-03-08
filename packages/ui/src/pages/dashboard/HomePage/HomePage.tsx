@@ -28,7 +28,7 @@ const ObjectType = {
 const linkMap: { [x: string]: [string, string] } = {
     [ObjectType.Organization]: [APP_LINKS.SearchOrganizations, APP_LINKS.Organization],
     [ObjectType.Project]: [APP_LINKS.SearchProjects, APP_LINKS.Project],
-    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Routine],
+    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Run],
     [ObjectType.Standard]: [APP_LINKS.SearchStandards, APP_LINKS.Standard],
     [ObjectType.User]: [APP_LINKS.SearchUsers, APP_LINKS.Profile],
 }
@@ -102,7 +102,8 @@ export const HomePage = ({
         const selectedItem = autocompleteOptions.find(o => o.id === newValue.id);
         if (!selectedItem) return;
         console.log('selectedItem', selectedItem);
-        return openSearch(linkMap[selectedItem.objectType], selectedItem.id);
+        const linkBases = linkMap[selectedItem.objectType];
+        setLocation(selectedItem.id ? `${linkBases[1]}/${selectedItem.id}` : linkBases[0]);
     }, [autocompleteOptions]);
 
     // Feed title is Popular when no search
@@ -112,8 +113,9 @@ export const HomePage = ({
     }, [searchString]);
 
     // Opens correct search page
-    const openSearch = useCallback((linkBases: [string, string], id?: string) => {
-        console.log('open search', searchString, id ? `${linkBases[1]}/${id}` : linkBases[0])
+    const openSearch = useCallback((event: any, linkBases: [string, string], id?: string) => {
+        console.log('OPEN SEARCHHHHHH', event);
+        event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
         setLocation(id ? `${linkBases[1]}/${id}` : linkBases[0]);
@@ -152,7 +154,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -163,7 +165,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -174,7 +176,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -185,7 +187,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -196,7 +198,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -207,8 +209,8 @@ export const HomePage = ({
                         key={`feed-list-${objectType}`}
                         title={getFeedTitle(`${objectType}s`)}
                         loading={loading}
-                        onClick={() => openSearch(linkMap[objectType])}
-                        options={[['See more results', () => openSearch(linkMap[objectType])]]}
+                        onClick={(e) => openSearch(e, linkMap[objectType])}
+                        options={[['See more results', (e) => { openSearch(e, linkMap[objectType]) }]]}
                     >
                         {listFeedItems}
                     </TitleContainer>
@@ -254,7 +256,7 @@ export const HomePage = ({
                             key={`example-${index}`}
                             component="p"
                             variant="h6"
-                            onClick={() => { setLocation(`${APP_LINKS.Routine}/${example[1]}`) }}
+                            onClick={() => { setLocation(`${APP_LINKS.Run}/${example[1]}`) }}
                             sx={{
                                 color: (t) => t.palette.text.secondary,
                                 fontStyle: 'italic',

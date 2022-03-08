@@ -25,9 +25,9 @@ export function StandardListItem({
         }
     }, [data, session]);
 
-    const handleClick = useCallback(() => {
+    const handleClick = useCallback((e: any) => {
         // If onClick provided, call if
-        if (onClick) onClick(data);
+        if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Standard}/${data.id}`)
     }, [onClick, data, setLocation]);

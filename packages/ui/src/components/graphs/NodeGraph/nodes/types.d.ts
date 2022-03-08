@@ -1,7 +1,7 @@
 import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeDataRoutineListItem } from "types";
-import { OrchestrationDialogOption } from 'utils';
+import { BuildDialogOption } from 'utils';
 
 /**
  * Props for all nodes (besides the Add node)
@@ -11,7 +11,7 @@ export interface NodeDataProps {
 }
 
 /**
- * Props for all scalable objects (so every component involved with routine orchestration)
+ * Props for all scalable objects
  */
 export interface ScaleProps {
     scale: number;
@@ -36,7 +36,7 @@ export interface EditableProps {
  * Props for draggable node objects
  */
 export interface DraggableProps {
-    isLinked: boolean; // True if node is connected to orchestration graph
+    isLinked: boolean; // True if node is connected to routine graph
     /**
     * Specified if the cell is allowed to be dragged
     */
@@ -85,7 +85,7 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
     /**
      * Prompts parent to open a specific dialog
      */
-    handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
+    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
 }
 
 /**
@@ -97,7 +97,7 @@ export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, Editable
     /**
       * Prompts parent to open a specific dialog
       */
-    handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
+    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
 }
 
 /**

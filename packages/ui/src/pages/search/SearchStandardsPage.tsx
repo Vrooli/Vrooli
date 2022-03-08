@@ -47,7 +47,7 @@ export const SearchStandardsPage = ({
             index={index}
             session={session}
             data={node}
-            onClick={(selected: Standard) => setSelectedItem(selected)}
+            onClick={(_e, selected: Standard) => setSelectedItem(selected)}
         />)
 
     return (

@@ -19,6 +19,7 @@ import { User, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { getTranslation, Pubs } from "utils";
+import { ResourceListVertical } from "components/lists";
 
 const tabLabels = ['Resources', 'Members', 'Projects', 'Routines', 'Standards'];
 
@@ -36,13 +37,22 @@ export const OrganizationView = ({
     const organization = useMemo(() => data?.organization, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(organization?.role ?? ''), [organization]);
 
-    const { name, bio } = useMemo(() => {
+    const { bio, name, resourceList } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
+        const resourceLists = organization?.resourceLists ?? partialData?.resourceLists ?? [];
         return {
-            name: getTranslation(organization, 'name', languages) ?? getTranslation(partialData, 'name', languages),
             bio: getTranslation(organization, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
+            name: getTranslation(organization, 'name', languages) ?? getTranslation(partialData, 'name', languages),
+            resourceList: resourceLists.length > 0 ? resourceLists[0] : null,
         };
     }, [organization, partialData, session]);
+
+    const resources = useMemo(() => resourceList ? (
+        <ResourceListVertical
+            list={resourceList}
+            session={session}
+        />
+    ) : null, [resourceList, session]);
 
     const shareLink = () => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Organization}/${id}`);
@@ -79,7 +89,7 @@ export const OrganizationView = ({
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: User) => openLink(APP_LINKS.User, selected.id)}
+                            onClick={(_e, selected: User) => openLink(APP_LINKS.User, selected.id)}
                         />)
                 };
             case 2:
@@ -98,7 +108,7 @@ export const OrganizationView = ({
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Project) => openLink(APP_LINKS.Project, selected.id)}
+                            onClick={(_e, selected: Project) => openLink(APP_LINKS.Project, selected.id)}
                         />)
                 };
             case 3:
@@ -110,14 +120,14 @@ export const OrganizationView = ({
                     sortOptionLabel: routineOptionLabel,
                     searchQuery: routinesQuery,
                     where: { organizationId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
                     searchItemFactory: (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
+                            onClick={(selected: Routine) => openLink(APP_LINKS.Run, selected.id)}
                         />)
                 };
             case 4:
@@ -350,9 +360,7 @@ export const OrganizationView = ({
                 </Tabs>
                 <Box p={2}>
                     {
-                        tabIndex === 0 ? (
-                            <></>
-                        ) : (
+                        tabIndex === 0 ? resources : (
                             <SearchList
                                 searchPlaceholder={placeholder}
                                 sortOptions={sortOptions}

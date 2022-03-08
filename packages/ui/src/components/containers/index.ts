@@ -1,4 +1,4 @@
 export * from './DialogActionsContainer/DialogActionsContainer';
-export * from './OrchestrationBottomContainer/OrchestrationBottomContainer';
-export * from './OrchestrationInfoContainer/OrchestrationInfoContainer';
+export * from './BuildBottomContainer/BuildBottomContainer';
+export * from './BuildInfoContainer/BuildInfoContainer';
 export * from './TitleContainer/TitleContainer';

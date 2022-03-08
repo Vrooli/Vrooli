@@ -41,9 +41,9 @@ export const ActorListItem = ({
         }
     }, [data, session]);
 
-    const handleClick = useCallback(() => {
+    const handleClick = useCallback((e: any) => {
         // If onClick provided, call it
-        if (onClick) onClick(data);
+        if (onClick) onClick(e, data);
         // Otherwise, navigate to the actor's profile
         else setLocation(`${APP_LINKS.User}/${data.id}`)
     }, [onClick, data, setLocation]);

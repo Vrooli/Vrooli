@@ -1,5 +1,5 @@
 /**
- * Displays metadata about the routine orchestration.
+ * Displays metadata about the routine.
  * On the left is a status indicator, which lets you know if the routine is valid or not.
  * In the middle is the title of the routine. Once clicked, the information bar converts to 
  * a text input field, which allows you to edit the title of the routine.
@@ -13,30 +13,30 @@ import {
     Done as DoneIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
-import { getTranslation, OrchestrationStatus } from 'utils';
-import { OrchestrationInfoContainerProps } from '../types';
-import helpMarkdown from './OrchestratorHelp.md';
-import { HelpButton, OrchestrationInfoDialog } from 'components';
+import { getTranslation, BuildStatus } from 'utils';
+import { BuildInfoContainerProps } from '../types';
+import helpMarkdown from './BuildHelp.md';
+import { HelpButton, BuildInfoDialog } from 'components';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
 
 /**
- * Status indicator and slider change color to represent orchestration's status
+ * Status indicator and slider change color to represent routine's status
  */
 const STATUS_COLOR = {
-    [OrchestrationStatus.Incomplete]: '#cde22c', // Yellow
-    [OrchestrationStatus.Invalid]: '#ff6a6a', // Red
-    [OrchestrationStatus.Valid]: '#00d51e', // Green
+    [BuildStatus.Incomplete]: '#cde22c', // Yellow
+    [BuildStatus.Invalid]: '#ff6a6a', // Red
+    [BuildStatus.Valid]: '#00d51e', // Green
 }
 const STATUS_LABEL = {
-    [OrchestrationStatus.Incomplete]: 'Incomplete',
-    [OrchestrationStatus.Invalid]: 'Invalid',
-    [OrchestrationStatus.Valid]: 'Valid',
+    [BuildStatus.Incomplete]: 'Incomplete',
+    [BuildStatus.Invalid]: 'Invalid',
+    [BuildStatus.Valid]: 'Valid',
 }
 
 const TERTIARY_COLOR = '#95f3cd';
 
-export const OrchestrationInfoContainer = ({
+export const BuildInfoContainer = ({
     canEdit,
     handleRoutineUpdate,
     handleStartEdit,
@@ -44,8 +44,9 @@ export const OrchestrationInfoContainer = ({
     isEditing,
     language,
     routine,
+    session,
     status,
-}: OrchestrationInfoContainerProps) => {
+}: BuildInfoContainerProps) => {
     // Stores changed title before committing
     const [changedTitle, setChangedTitle] = useState<string | null | undefined>(getTranslation(routine, 'title', [language], false));
     useEffect(() => {
@@ -163,7 +164,7 @@ export const OrchestrationInfoContainer = ({
 
     return (
         <Stack
-            id="orchestration-information-bar"
+            id="build-routine-information-bar"
             direction="row"
             spacing={2}
             width="100%"
@@ -230,11 +231,12 @@ export const OrchestrationInfoContainer = ({
                 {/* Help button */}
                 <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
                 {/* Switch to routine metadata page */}
-                <OrchestrationInfoDialog
+                <BuildInfoDialog
                     handleUpdate={handleRoutineUpdate}
                     isEditing={isEditing}
                     language={language}
                     routine={routine}
+                    session={session}
                     sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
                 />
             </Box>

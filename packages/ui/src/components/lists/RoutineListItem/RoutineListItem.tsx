@@ -26,11 +26,11 @@ export function RoutineListItem({
         }
     }, [data, session]);
 
-    const handleClick = useCallback(() => {
+    const handleClick = useCallback((e: any) => {
         // If onClick provided, call if
-        if (onClick) onClick(data);
+        if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Routine}/${data.id}`)
+        else setLocation(`${APP_LINKS.Run}/${data.id}`)
     }, [onClick, data, setLocation]);
 
     return (

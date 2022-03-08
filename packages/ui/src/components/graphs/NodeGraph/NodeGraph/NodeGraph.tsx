@@ -1,7 +1,7 @@
 /**
- * Contains the nodes and links (edges) that describe a routine orchestration.
+ * Contains the nodes and links (edges) that describe a routine.
  * Nodes are displayed within columns. Dragging an unlinked node into a column
- * will add it to the orchestration. Links are generated automatically if possible.
+ * will add it to the routine. Links are generated automatically if possible.
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
 import { Box, Stack } from '@mui/material';

@@ -1,16 +1,16 @@
 import { CommonProps } from 'types';
 
-export type BottomNavProps = Pick<CommonProps, 'userRoles'>
+export type BottomNavProps = Pick<CommonProps, 'session'>
 
 export interface ContactInfoProps {
     className?: string;
 }
 
-export type HamburgerProps = Pick<CommonProps, 'userRoles'>
+export type HamburgerProps = Pick<CommonProps, 'session'>
 
-export type NavbarProps = Pick<CommonProps, 'userRoles'>
+export type NavbarProps = Pick<CommonProps, 'session'>
 
-export type NavListProps = Pick<CommonProps, 'userRoles'>
+export type NavListProps = Pick<CommonProps, 'session'>
 
 export interface TabPanelProps {
     children?: React.ReactNode[] | React.ReactNode;

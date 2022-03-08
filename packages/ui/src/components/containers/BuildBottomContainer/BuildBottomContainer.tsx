@@ -9,8 +9,8 @@ import {
     Update as UpdateIcon
 } from '@mui/icons-material';
 import { withStyles } from '@mui/styles';
-import { OrchestrationRunState } from 'utils';
-import { OrchestrationBottomContainerProps } from '../types';
+import { BuildRunState } from 'utils';
+import { BuildBottomContainerProps } from '../types';
 
 const CustomSlider = withStyles({
     root: {
@@ -19,7 +19,7 @@ const CustomSlider = withStyles({
     },
 })(Slider);
 
-export const OrchestrationBottomContainer = ({
+export const BuildBottomContainer = ({
     canUpdate,
     canCancelUpdate,
     handleCancelRoutineUpdate,
@@ -32,7 +32,7 @@ export const OrchestrationBottomContainer = ({
     scale,
     sliderColor,
     runState,
-}: OrchestrationBottomContainerProps) => {
+}: BuildBottomContainerProps) => {
 
     const onScaleChange = (_event: any, newScale: number | number[]) => {
         handleScaleChange(newScale as number);
@@ -86,7 +86,7 @@ export const OrchestrationBottomContainer = ({
                             <PreviousIcon sx={{ fill: hasPrevious ? '#e4efee' : '#a7a7a7' }} />
                         </IconButton>
                     </Tooltip>
-                    {runState == OrchestrationRunState.Running ? (
+                    {runState == BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
                             <IconButton aria-label="pause-routine" size='large'>
                                 <PauseIcon sx={{ fill: '#e4efee', transform: 'scale(2)' }} />

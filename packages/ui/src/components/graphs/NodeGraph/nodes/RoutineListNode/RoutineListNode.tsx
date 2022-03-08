@@ -25,7 +25,7 @@ import {
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import Measure from 'react-measure';
 import { NodeDataRoutineList } from 'types';
-import { getTranslation, OrchestrationDialogOption, Pubs } from 'utils';
+import { getTranslation, BuildDialogOption, Pubs } from 'utils';
 
 export const RoutineListNode = ({
     node,
@@ -171,7 +171,7 @@ export const RoutineListNode = ({
 
     const addButton = useMemo(() => isEditing ? (
         <IconButton
-            onClick={() => handleDialogOpen(node.id, OrchestrationDialogOption.AddRoutineItem)}
+            onClick={() => handleDialogOpen(node.id, BuildDialogOption.AddRoutineItem)}
             sx={{
                 ...containerShadow,
                 width: addSize,

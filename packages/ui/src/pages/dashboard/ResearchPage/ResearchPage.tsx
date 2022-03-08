@@ -224,6 +224,7 @@ export const ResearchPage = ({
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
+                    session={session}
                 />
                 <TitleContainer
                     title={"Processes"}

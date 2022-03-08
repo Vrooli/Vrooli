@@ -165,17 +165,19 @@ export async function init(prisma: PrismaType) {
                             resources: {
                                 create: [
                                     {
-                                        usedFor: ResourceUsedFor.Social as any,
-                                        link: 'https://twitter.com/VrooliOfficial',
+                                        usedFor: ResourceUsedFor.OfficialWebsite as any,
+                                        index: 0,
+                                        link: 'https://vrooli.com',
                                         translations: {
-                                            create: [{ language: EN, description: "Twitter" }]
+                                            create: [{ language: EN, title: "Website", description: "Vrooli's official website" }]
                                         },
                                     },
                                     {
-                                        usedFor: ResourceUsedFor.OfficialWebsite as any,
-                                        link: 'https://vrooli.com',
+                                        usedFor: ResourceUsedFor.Social as any,
+                                        index: 1,
+                                        link: 'https://twitter.com/VrooliOfficial',
                                         translations: {
-                                            create: [{ language: EN, description: "Website" }]
+                                            create: [{ language: EN, title: "Twitter", description: "Follow us on Twitter" }]
                                         },
                                     },
                                 ]

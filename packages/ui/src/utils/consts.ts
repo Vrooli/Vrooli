@@ -31,23 +31,26 @@ export const DragTypes = {
 export type DragTypes = ValueOf<typeof DragTypes>;
 
 /**
- * Only orchestrations that are valid or incomplete can be run
+ * Only routines that are valid or incomplete can be run
  */
- export enum OrchestrationStatus {
-    Incomplete = 'Incomplete', // Orchestration would be valid, except there are unlinked nodes
-    Invalid = 'Invalid', // Something is wrong with the orchestration (e.g. no end node)
-    Valid = 'Valid', // The orchestration is valid, and all nodes are linked
+ export enum BuildStatus {
+    Incomplete = 'Incomplete', // Routine would be valid, except there are unlinked nodes
+    Invalid = 'Invalid', // Something is wrong with the routine (e.g. no end node)
+    Valid = 'Valid', // The routine is valid, and all nodes are linked
 }
 
 /**
- * Prompts Orchestration page to open a specific dialog
+ * Prompts Build page to open a specific dialog
  */
-export enum OrchestrationDialogOption {
+export enum BuildDialogOption {
     AddRoutineItem,
     ViewRoutineItem,
 }
 
-export enum OrchestrationRunState {
+/**
+ * State of build page's routine run simulation
+ */
+export enum BuildRunState {
     Paused,
     Running,
     Stopped,

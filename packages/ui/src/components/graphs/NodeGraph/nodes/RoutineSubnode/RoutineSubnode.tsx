@@ -18,7 +18,7 @@ import {
     routineNodeCheckboxLabel,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { getTranslation, OrchestrationDialogOption } from 'utils';
+import { getTranslation, BuildDialogOption } from 'utils';
 
 export const RoutineSubnode = ({
     nodeId,
@@ -71,7 +71,7 @@ export const RoutineSubnode = ({
             }}
         >
             <Container
-                onClick={() => handleDialogOpen(nodeId, OrchestrationDialogOption.ViewRoutineItem)}
+                onClick={() => handleDialogOpen(nodeId, BuildDialogOption.ViewRoutineItem)}
                 sx={{
                     display: 'flex',
                     alignItems: 'center',

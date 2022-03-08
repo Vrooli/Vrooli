@@ -1,5 +1,5 @@
 /**
- * Drawer to display overall orchestration info on the orchestration page. 
+ * Drawer to display overall routine info on the build page. 
  * Swipes left from right of screen
  */
 import { useCallback, useMemo, useState } from 'react';
@@ -27,7 +27,7 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
-import { OrchestrationInfoDialogProps } from '../types';
+import { BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { ResourceListHorizontal } from 'components';
 import { DeleteRoutineDialog } from '..';
@@ -44,13 +44,14 @@ enum ActionOption {
     Update = 'update',
 }
 
-export const OrchestrationInfoDialog = ({
+export const BuildInfoDialog = ({
     handleUpdate,
     isEditing,
     language,
     routine,
+    session,
     sxs,
-}: OrchestrationInfoDialogProps) => {
+}: BuildInfoDialogProps) => {
     const [, setLocation] = useLocation();
     // Open boolean for drawer
     const [open, setOpen] = useState(false);
@@ -169,6 +170,7 @@ export const OrchestrationInfoDialog = ({
                         list={routine?.resourceLists[0] as ResourceList}
                         canEdit={isEditing}
                         handleUpdate={() => { }}
+                        session={session}
                     /> : null}
                     {/* Description */}
                     <Box sx={{

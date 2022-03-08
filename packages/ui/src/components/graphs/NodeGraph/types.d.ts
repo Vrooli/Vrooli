@@ -1,7 +1,7 @@
 import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeLink } from 'types';
-import { OrchestrationStatus } from 'utils';
+import { BuildDialogOption, BuildStatus } from 'utils';
 
 export interface NodeContextMenuProps {
     id: string;
@@ -15,8 +15,8 @@ export interface NodeContextMenuProps {
     onMove: (node: Node) => void;
 }
 
-export type OrchestrationStatusObject = {
-    code: OrchestrationStatus,
+export type BuildStatusObject = {
+    code: BuildStatus,
     messages: string[],
 }
 export interface NodeGraphProps {
@@ -29,7 +29,7 @@ export interface NodeGraphProps {
     /**
       * Prompts parent to open a specific dialog
       */
-    handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
+    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
     /**
      * Moves a node to the unlinked container
      */
@@ -75,7 +75,7 @@ export interface NodeColumnProps {
     /**
       * Prompts parent to open a specific dialog
       */
-    handleDialogOpen: (nodeId: string, dialog: OrchestrationDialogOption) => void;
+    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
 }
 
 export interface NodeEdgeProps {

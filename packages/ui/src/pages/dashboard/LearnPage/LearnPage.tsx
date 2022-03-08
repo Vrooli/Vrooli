@@ -191,6 +191,7 @@ export const LearnPage = ({
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
+                    session={session}
                 />
                 {/* Available courses */}
                 <TitleContainer

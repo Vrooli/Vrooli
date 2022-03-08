@@ -5,7 +5,7 @@ export * from './BaseObjectDialog/BaseObjectDialog';
 export * from './DeleteRoutineDialog/DeleteRoutineDialog';
 export * from './LinkDialog/LinkDialog';
 export * from './ListMenu/ListMenu';
-export * from './OrchestrationInfoDialog/OrchestrationInfoDialog';
+export * from './BuildInfoDialog/BuildInfoDialog';
 export * from './OrganizationDialog/OrganizationDialog';
 export * from './ProjectDialog/ProjectDialog';
 export * from './ReportDialog/ReportDialog';

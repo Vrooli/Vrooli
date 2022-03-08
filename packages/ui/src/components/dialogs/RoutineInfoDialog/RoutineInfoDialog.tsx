@@ -1,5 +1,5 @@
 /**
- * Drawer to display a routine list item's info on the orchestration page. 
+ * Drawer to display a routine list item's info on the build page. 
  * Swipes up from bottom of screen
  */
 import { useCallback, useState } from 'react';

@@ -19,7 +19,7 @@ export function TitleContainer({
         <Tooltip placement="bottom" title={tooltip}>
             <Box id={id} display="flex" justifyContent="center">
                 <Box
-                    onClick={onClick ? onClick : () => {}}
+                    onClick={(e) => { onClick && (onClick as any)(e) }}
                     sx={{
                         ...containerShadow,
                         borderRadius: '8px',

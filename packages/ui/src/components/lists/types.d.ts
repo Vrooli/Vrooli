@@ -5,7 +5,7 @@ import { LabelledSortOption } from 'utils';
 export interface ObjectListItemProps {
     session: Session;
     index: number; // Index in list
-    onClick?: (data: any) => void; // Full data passed back, to display while more details load
+    onClick?: (e: any, data: any) => void; // Full data passed back, to display while more details load
 }
 
 export interface ActorListItemProps extends ObjectListItemProps {
@@ -45,32 +45,8 @@ export interface DateRangeMenuProps {
     onSubmit: (after?: Date | null, before?: Date | null) => void;
 }
 
-export interface ResourceListHorizontalProps {
-    title?: string;
-    canEdit?: boolean;
-    handleUpdate?: (updatedList: Resource[]) => void;
-    list: ResourceList | null;
-}
-
-export interface ResourceListVerticalProps {
-    title?: string;
-    canEdit?: boolean;
-}
-
 export interface StatsListProps {
     data: Array<any>;
-}
-
-export interface ResourceListItemContextMenuProps {
-    id: string;
-    anchorEl: HTMLElement | null;
-    resource: Resource | null;
-    onClose: () => void;
-    onAddBefore: (resource: Resource) => void;
-    onAddAfter: (resource: Resource) => void;
-    onEdit: (resource: Resource) => void;
-    onDelete: (resource: Resource) => void;
-    onMove: (resource: Resource) => void;
 }
 
 export interface UpvoteDownvoteProps {

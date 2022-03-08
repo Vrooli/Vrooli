@@ -18,9 +18,9 @@ import { useMemo } from 'react';
 export const Footer = () => {
     const [pathname, setLocation] = useLocation();
     console.log('FOOTER pathname', pathname);
-    // Hides footer on certain pages (e.g. orchestrate)
+    // Hides footer on certain pages (e.g. /build)
     const showFooter = useMemo(() => {
-        const disableList = [APP_LINKS.Orchestrate];
+        const disableList = [APP_LINKS.Build];
         return !disableList.some(disable => pathname.startsWith(disable));
     }, [pathname]);
 

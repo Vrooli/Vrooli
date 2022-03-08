@@ -102,6 +102,43 @@ export interface standard_standard_creator_Organization {
   tags: standard_standard_creator_Organization_tags[];
 }
 
+export interface standard_standard_creator_User_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface standard_standard_creator_User_resourceLists_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface standard_standard_creator_User_resourceLists_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: standard_standard_creator_User_resourceLists_resources_translations[];
+}
+
+export interface standard_standard_creator_User_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: standard_standard_creator_User_resourceLists_translations[];
+  resources: standard_standard_creator_User_resourceLists_resources[];
+}
+
 export interface standard_standard_creator_User_translations {
   __typename: "UserTranslation";
   id: string;
@@ -116,6 +153,7 @@ export interface standard_standard_creator_User {
   created_at: any;
   stars: number;
   isStarred: boolean;
+  resourceLists: standard_standard_creator_User_resourceLists[];
   translations: standard_standard_creator_User_translations[];
 }
 

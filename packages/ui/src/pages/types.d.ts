@@ -1,6 +1,6 @@
 import { Session } from 'types';
 
-export interface RoutineOrchestratorPageProps {
+export interface BuildPageProps {
     session: Session;
 }
 

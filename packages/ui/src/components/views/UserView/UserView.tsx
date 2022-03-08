@@ -12,7 +12,7 @@ import {
     Person as PersonIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { getTranslation, LabelledSortOption, Pubs } from "utils";
@@ -42,14 +42,23 @@ export const UserView = ({
         if (id && !isProfile) getData();
     }, [getData, id, isProfile]);
 
-    const { bio, username } = useMemo(() => {
+    const { bio, username, resourceList } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
+        const resourceLists = (user as any)?.resourceLists ?? (partialData as any)?.resourceLists ?? [];
         return {
             bio: getTranslation(user, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
             username: user?.username ?? partialData?.username,
+            resourceList: resourceLists.length > 0 ? resourceLists[0] : null,
         };
     }, [user, partialData, session]);
-    
+
+    const resources = useMemo(() => resourceList ? (
+        <ResourceListVertical
+            list={resourceList}
+            session={session}
+        />
+    ) : null, [resourceList, session]);
+
     const shareLink = () => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.User}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
@@ -104,7 +113,7 @@ export const UserView = ({
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Organization) => openLink(APP_LINKS.Organization, selected.id)}
+                            onClick={(_e, selected: Organization) => openLink(APP_LINKS.Organization, selected.id)}
                         />)
                 }
             case 2:
@@ -123,7 +132,7 @@ export const UserView = ({
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Project) => openLink(APP_LINKS.Project, selected.id)}
+                            onClick={(_e, selected: Project) => openLink(APP_LINKS.Project, selected.id)}
                         />)
                 }
             case 3:
@@ -135,14 +144,14 @@ export const UserView = ({
                     sortOptionLabel: routineOptionLabel,
                     searchQuery: routinesQuery,
                     where: { userId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
                     searchItemFactory: (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
+                            onClick={(_e, selected: Routine) => openLink(APP_LINKS.Run, selected.id)}
                         />)
                 }
             case 4:
@@ -161,7 +170,7 @@ export const UserView = ({
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
+                            onClick={(_e, selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
                 }
             default:
@@ -358,9 +367,7 @@ export const UserView = ({
                 </Tabs>
                 <Box p={2}>
                     {
-                        tabIndex === 0 ? (
-                            <></>
-                        ) : (
+                        tabIndex === 0 ? resources : (
                             <SearchList
                                 searchPlaceholder={placeholder}
                                 sortOptions={sortOptions}

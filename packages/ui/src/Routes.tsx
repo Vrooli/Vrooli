@@ -33,13 +33,13 @@ const {
 } = lazily(() => import('./pages/search'));
 const { OrganizationViewPage } = lazily(() => import('./pages/view/OrganizationViewPage'));
 const { ProjectViewPage } = lazily(() => import('./pages/view/ProjectViewPage'));
-const { RoutineViewPage } = lazily(() => import('./pages/view/RoutineViewPage'));
 const { StandardViewPage } = lazily(() => import('./pages/view/StandardViewPage'));
+const { RoutineViewPage } = lazily(() => import('./pages/view/RoutineViewPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
 const { RunRoutinePage } = lazily(() => import('./pages/wrapper/RunRoutinePage'));
 const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
-const { RoutineOrchestratorPage } = lazily(() => import('./pages/RoutineOrchestratorPage/RoutineOrchestratorPage'));
+const { BuildPage } = lazily(() => import('./pages/BuildPage/BuildPage'));
 
 const Fallback = <Box sx={{
     position: 'absolute',
@@ -68,28 +68,28 @@ export const AllRoutes = (props: CommonProps) => {
                 <Route path={LINKS.Home}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Home')} {...props}>
-                            <HomePage session={props.session ?? {}} />
+                            <HomePage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={LINKS.Learn} >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Learn')} {...props}>
-                            <LearnPage session={props.session ?? {}} />
+                            <LearnPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={LINKS.Research}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Research')} {...props}>
-                            <ResearchPage session={props.session ?? {}} />
+                            <ResearchPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={LINKS.Develop}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Develop')} {...props}>
-                            <DevelopPage session={props.session ?? {}} />
+                            <DevelopPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
@@ -99,57 +99,64 @@ export const AllRoutes = (props: CommonProps) => {
                 <Route path={`${LINKS.SearchUsers}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Users Search')} {...props}>
-                            <SearchActorsPage session={props.session ?? {}} />
+                            <SearchActorsPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.SearchOrganizations}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Organizations Search')} {...props}>
-                            <SearchOrganizationsPage session={props.session ?? {}} />
+                            <SearchOrganizationsPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.SearchProjects}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Projects Search')} {...props}>
-                            <SearchProjectsPage session={props.session ?? {}} />
+                            <SearchProjectsPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.SearchRoutines}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Routines Search')} {...props}>
-                            <SearchRoutinesPage session={props.session ?? {}} />
+                            <SearchRoutinesPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.SearchStandards}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Standards Search')} {...props}>
-                            <SearchStandardsPage session={props.session ?? {}} />
+                            <SearchStandardsPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 {/* ========= #endregion Search Routes ========= */}
 
-                {/* ========= #region Orchestration Routes ========= */}
-                {/* Pages for creating and running routine orchestrations */}
-                <Route path={`${LINKS.Orchestrate}/:id`}>
+                {/* ========= #region Routine Routes ========= */}
+                {/* Pages for creating and running routines */}
+                <Route path={`${LINKS.Build}/:id`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Routine Build')} {...props}>
-                            <RoutineOrchestratorPage session={props.session ?? {}} />
+                        <Page title={title('Build')} {...props}>
+                            <BuildPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Run}/:id?`}>
+                <Route path={`${LINKS.Run}/:id`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Run Routine')} {...props}>
-                            <RunRoutinePage />
+                        <Page title={title('Routine')} {...props}>
+                            <RoutineViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                {/* ========= #endregion Orchestration Routes ========= */}
+                <Route path={`${LINKS.Run}/:routineId/:subroutineId`}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Run')} {...props}>
+                            <RunRoutinePage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                {/* ========= #endregion Routine Routes ========= */}
 
                 {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (organizations, actors, projects, routines, resources, data) */}
@@ -157,35 +164,28 @@ export const AllRoutes = (props: CommonProps) => {
                 <Route path={`${LINKS.Organization}/:id?`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Organization')} {...props}>
-                            <OrganizationViewPage session={props.session ?? {}} />
+                            <OrganizationViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Project}/:id?`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Project')} {...props}>
-                            <ProjectViewPage session={props.session ?? {}} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.Routine}/:id?`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Routine')} {...props}>
-                            <RoutineViewPage session={props.session ?? {}} />
+                            <ProjectViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Standard}/:id?`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Standard')} {...props}>
-                            <StandardViewPage session={props.session ?? {}} />
+                            <StandardViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.User}/:id?`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('User')} {...props}>
-                            <UserViewPage session={props.session ?? {}} />
+                            <UserViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
@@ -223,7 +223,7 @@ export const AllRoutes = (props: CommonProps) => {
                 <Route path={LINKS.Settings}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Settings')} {...props} restrictedToRoles={[ROLES.Actor]}>
-                            <SettingsPage session={props.session ?? {}} />
+                            <SettingsPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>

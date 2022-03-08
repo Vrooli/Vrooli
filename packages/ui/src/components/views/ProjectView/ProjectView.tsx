@@ -12,7 +12,7 @@ import {
     Person as PersonIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Routine, Standard } from "types";
@@ -36,13 +36,22 @@ export const ProjectView = ({
     const project = useMemo(() => data?.project, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
 
-    const { name, description } = useMemo(() => {
+    const { name, description, resourceList } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
+        const resourceLists = project?.resourceLists ?? partialData?.resourceLists ?? [];
         return {
             name: getTranslation(project, 'name', languages) ?? getTranslation(partialData, 'name', languages),
             description: getTranslation(project, 'description', languages) ?? getTranslation(partialData, 'description', languages),
+            resourceList: resourceLists.length > 0 ? resourceLists[0] : null,
         };
     }, [project, partialData, session]);
+
+    const resources = useMemo(() => resourceList ? (
+        <ResourceListVertical
+            list={resourceList}
+            session={session}
+        />
+    ) : null, [resourceList, session]);
 
     const shareLink = () => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Project}/${id}`);
@@ -98,14 +107,14 @@ export const ProjectView = ({
                     sortOptionLabel: routineOptionLabel,
                     searchQuery: routinesQuery,
                     where: { projectId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
                     searchItemFactory: (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
+                            onClick={(_e, selected: Routine) => openLink(APP_LINKS.Run, selected.id)}
                         />)
                 };
             case 2:
@@ -124,7 +133,7 @@ export const ProjectView = ({
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
+                            onClick={(_e, selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
                 }
             default:
@@ -313,9 +322,7 @@ export const ProjectView = ({
                 </Tabs>
                 <Box p={2}>
                     {
-                        tabIndex === 0 ? (
-                            <></>
-                        ) : (
+                        tabIndex === 0 ? resources : (
                             <SearchList
                                 searchPlaceholder={placeholder}
                                 sortOptions={sortOptions}

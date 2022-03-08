@@ -44,12 +44,12 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 export const NavList = ({
-    userRoles
+    session
 }: NavListProps) => {
     const classes = useStyles();
     const [, setLocation] = useLocation();
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ userRoles, exclude: [ACTION_TAGS.Home] }), [userRoles]);
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ roles: session.roles ?? [], exclude: [ACTION_TAGS.Home] }), [session.roles]);
     // Display button for entering main application
     const enter_action: Action | undefined = nav_actions.find((action: Action) => action.value === ACTION_TAGS.LogIn)
     const enter_button = useMemo(() => enter_action ? (

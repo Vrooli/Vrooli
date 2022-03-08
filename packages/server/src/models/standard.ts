@@ -77,7 +77,7 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
             const organizationIds = objects
-                .filter(x => x.owner?.hasOwnProperty('name')) // Between users and organizations, only the latter has a "name" field
+                .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
                 .map(x => x.owner.id)
                 .filter(x => Boolean(x)) as string[];
             const roles = userId

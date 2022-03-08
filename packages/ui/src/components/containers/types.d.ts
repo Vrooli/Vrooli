@@ -1,15 +1,15 @@
-import { OrchestrationRunState, OrchestrationStatus } from "utils";
+import { BuildRunState, BuildStatus } from "utils";
 import { Routine, Session } from "types";
-import { OrchestrationStatusObject } from "components/graphs/NodeGraph/types";
+import { BuildStatusObject } from "components/graphs/NodeGraph/types";
 
 export interface TitleContainerProps {
     id?: string;
     title?: string;
-    onClick?: () => void;
+    onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
     loading?: boolean;
     tooltip?: string;
     helpText?: string;
-    options?: [string, () => void][];
+    options?: [string, (e?: any) => void][];
     sx?: object;
     children: JSX.Element | JSX.Element[];
 }
@@ -23,7 +23,7 @@ export interface DialogActionsContainerProps {
     onResize?: ({ height: number, width: number }) => any;
 }
 
-export interface OrchestrationBottomContainerProps {
+export interface BuildBottomContainerProps {
     canUpdate: boolean;
     canCancelUpdate: boolean;
     handleCancelRoutineUpdate: () => void;
@@ -35,10 +35,10 @@ export interface OrchestrationBottomContainerProps {
     loading: boolean;
     scale: number;
     sliderColor: string;
-    runState: OrchestrationRunState
+    runState: BuildRunState
 }
 
-export interface OrchestrationInfoContainerProps {
+export interface BuildInfoContainerProps {
     canEdit: boolean;
     handleRoutineUpdate: (changedRoutine: Routine) => void;
     handleStartEdit: () => void;
@@ -46,5 +46,6 @@ export interface OrchestrationInfoContainerProps {
     isEditing: boolean;
     language: string; // Language to display/edit
     routine: Routine | null;
-    status: OrchestrationStatusObject;
+    session: Session;
+    status: BuildStatusObject;
 }

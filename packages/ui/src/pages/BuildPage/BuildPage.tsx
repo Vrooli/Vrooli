@@ -1,12 +1,12 @@
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { LinkDialog, NodeGraph, OrchestrationBottomContainer, OrchestrationInfoContainer, RoutineInfoDialog, UnlinkedNodesDialog } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, RoutineInfoDialog, UnlinkedNodesDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
 import { routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
-import { deleteArrayIndex, formatForUpdate, OrchestrationDialogOption, OrchestrationRunState, OrchestrationStatus, Pubs, updateArray } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildDialogOption, BuildRunState, BuildStatus, Pubs, updateArray } from 'utils';
 import {
     Add as AddIcon,
     DeleteForever as DeleteIcon,
@@ -15,25 +15,25 @@ import { Node, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
 import { useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
-import { OrchestrationStatusObject } from 'components/graphs/NodeGraph/types';
+import { BuildStatusObject } from 'components/graphs/NodeGraph/types';
 import { MemberRole, NodeType } from 'graphql/generated/globalTypes';
-import { RoutineOrchestratorPageProps } from 'pages/types';
+import { BuildPageProps } from 'pages/types';
 import _ from 'lodash';
 
 /**
- * Status indicator and slider change color to represent orchestration's status
+ * Status indicator and slider change color to represent routine's status
  */
 const STATUS_COLOR = {
-    [OrchestrationStatus.Incomplete]: '#cde22c', // Yellow
-    [OrchestrationStatus.Invalid]: '#ff6a6a', // Red
-    [OrchestrationStatus.Valid]: '#00d51e', // Green
+    [BuildStatus.Incomplete]: '#cde22c', // Yellow
+    [BuildStatus.Invalid]: '#ff6a6a', // Red
+    [BuildStatus.Valid]: '#00d51e', // Green
 }
 
-export const RoutineOrchestratorPage = ({
+export const BuildPage = ({
     session,
-}: RoutineOrchestratorPageProps) => {
+}: BuildPageProps) => {
     // Get routine ID from URL
-    const [, params] = useRoute(`${APP_LINKS.Orchestrate}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Build}/:id`);
     const id: string = useMemo(() => params?.id ?? '', [params]);
     // Queries routine data
     const { data: routineData } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
@@ -43,7 +43,7 @@ export const RoutineOrchestratorPage = ({
     // Routine mutator
     const [routineUpdate, { loading }] = useMutation<any>(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
-    const [status, setStatus] = useState<OrchestrationStatusObject>({ code: OrchestrationStatus.Incomplete, messages: ['Calculating...'] });
+    const [status, setStatus] = useState<BuildStatusObject>({ code: BuildStatus.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -92,7 +92,7 @@ export const RoutineOrchestratorPage = ({
         if (!changedRoutine) return [[], []];
         const linkedNodes: Node[] = [];
         const unlinkedNodes: Node[] = [];
-        const statuses: [OrchestrationStatus, string][] = []; // All orchestration statuses
+        const statuses: [BuildStatus, string][] = []; // All routine statuses
         // First, set all nodes that have a columnIndex and rowIndex to be linked
         for (const node of changedRoutine.nodes) {
             if (node.columnIndex !== null && node.columnIndex !== undefined && node.rowIndex !== null && node.rowIndex !== undefined) {
@@ -113,7 +113,7 @@ export const RoutineOrchestratorPage = ({
         const points: { x: number, y: number }[] = linkedNodes.map(node => ({ x: node.columnIndex as number, y: node.rowIndex as number }));
         const uniquePoints = new Set(points);
         if (uniquePoints.size !== points.length) {
-            setStatus({ code: OrchestrationStatus.Invalid, messages: ['Ran into error determining node positions'] });
+            setStatus({ code: BuildStatus.Invalid, messages: ['Ran into error determining node positions'] });
             // Add all nodes to unlinkedNodes
             unlinkedNodes.push(...linkedNodes);
             console.log('failed unique points', points, uniquePoints)
@@ -160,7 +160,7 @@ export const RoutineOrchestratorPage = ({
             unlinkedNodes.push(...linkedNodes);
         }
 
-        // Now perform checks to see if the orchestration can be run
+        // Now perform checks to see if the routine can be run
         // 1. There is only one start node
         // 2. There is only one linked node which has no incoming edges, and it is the start node
         // 3. Every node that has no outgoing edges is an end node
@@ -168,26 +168,26 @@ export const RoutineOrchestratorPage = ({
         // First check
         const startNodes = linkedNodes.filter(node => node.type === NodeType.Start);
         if (startNodes.length === 0) {
-            statuses.push([OrchestrationStatus.Invalid, 'No start node found']);
+            statuses.push([BuildStatus.Invalid, 'No start node found']);
         }
         else if (startNodes.length > 1) {
-            statuses.push([OrchestrationStatus.Invalid, 'More than one start node found']);
+            statuses.push([BuildStatus.Invalid, 'More than one start node found']);
         }
         // Second check
         const nodesWithoutIncomingEdges = linkedNodes.filter(node => changedRoutine.nodeLinks.every(link => link.toId !== node.id));
         if (nodesWithoutIncomingEdges.length === 0) {
             //TODO this would be fine with a redirect link
-            statuses.push([OrchestrationStatus.Invalid, 'Error determining start node']);
+            statuses.push([BuildStatus.Invalid, 'Error determining start node']);
         }
         else if (nodesWithoutIncomingEdges.length > 1) {
-            statuses.push([OrchestrationStatus.Invalid, 'Nodes are not fully connected']);
+            statuses.push([BuildStatus.Invalid, 'Nodes are not fully connected']);
         }
         // Third check
         const nodesWithoutOutgoingEdges = linkedNodes.filter(node => changedRoutine.nodeLinks.every(link => link.fromId !== node.id));
         if (nodesWithoutOutgoingEdges.length >= 0) {
             // Check that every node without outgoing edges is an end node
             if (nodesWithoutOutgoingEdges.some(node => node.type !== NodeType.End)) {
-                statuses.push([OrchestrationStatus.Invalid, 'Not all paths end with an end node']);
+                statuses.push([BuildStatus.Invalid, 'Not all paths end with an end node']);
             }
         }
 
@@ -195,18 +195,18 @@ export const RoutineOrchestratorPage = ({
         // 1. There are unlinked nodes
         // First check
         if (unlinkedNodes.length > 0) {
-            statuses.push([OrchestrationStatus.Incomplete, 'Some nodes are not linked']);
+            statuses.push([BuildStatus.Incomplete, 'Some nodes are not linked']);
         }
 
         // Before returning, send the statuses to the status object
         if (statuses.length > 0) {
             console.log('statuses', statuses)
             // Status sent is the worst status
-            let code = OrchestrationStatus.Incomplete;
-            if (statuses.some(status => status[0] === OrchestrationStatus.Invalid)) code = OrchestrationStatus.Invalid;
+            let code = BuildStatus.Incomplete;
+            if (statuses.some(status => status[0] === BuildStatus.Invalid)) code = BuildStatus.Invalid;
             setStatus({ code, messages: statuses.map(status => status[1]) });
         } else {
-            setStatus({ code: OrchestrationStatus.Valid, messages: ['Routine is fully connected'] });
+            setStatus({ code: BuildStatus.Valid, messages: ['Routine is fully connected'] });
         }
 
         // Remove any links which reference unlinked nodes
@@ -228,11 +228,11 @@ export const RoutineOrchestratorPage = ({
         return [linkedNodes, unlinkedNodes];
     }, [changedRoutine]);
 
-    const handleDialogOpen = useCallback((nodeId: string, dialog: OrchestrationDialogOption) => {
+    const handleDialogOpen = useCallback((nodeId: string, dialog: BuildDialogOption) => {
         switch (dialog) {
-            case OrchestrationDialogOption.AddRoutineItem:
+            case BuildDialogOption.AddRoutineItem:
                 break;
-            case OrchestrationDialogOption.ViewRoutineItem:
+            case BuildDialogOption.ViewRoutineItem:
                 setIsRoutineInfoOpen(true);
                 break;
         }
@@ -310,7 +310,7 @@ export const RoutineOrchestratorPage = ({
     }, [changedRoutine]);
 
     /**
-     * Calculates the new set of links for an orchestration when a node is 
+     * Calculates the new set of links for an routine when a node is 
      * either deleted or unlinked. In certain cases, the new links can be 
      * calculated automatically.
      * @param nodeId - The ID of the node which is being deleted or unlinked
@@ -402,7 +402,7 @@ export const RoutineOrchestratorPage = ({
                 routine={changedRoutine}
             // partial={ }
             /> : null}
-            {/* Popup for deleting nodes (or the entire routine orchestration) */}
+            {/* Popup for deleting nodes (or the entire routine) */}
             {/* <DeleteNodeDialog
             /> */}
             {/* Displays routine information when you click on a routine list item*/}
@@ -411,16 +411,17 @@ export const RoutineOrchestratorPage = ({
                 routineInfo={changedRoutine}
                 onClose={closeRoutineInfo}
             />
-            {/* Displays orchestration information and some buttons */}
-            <OrchestrationInfoContainer
+            {/* Displays main routine's information and some buttons */}
+            <BuildInfoContainer
                 canEdit={canEdit}
+                handleRoutineUpdate={updateRoutine}
                 handleStartEdit={startEditing}
+                handleTitleUpdate={updateRoutineTitle}
                 isEditing={isEditing}
                 language={language}
-                status={status}
                 routine={changedRoutine}
-                handleRoutineUpdate={updateRoutine}
-                handleTitleUpdate={updateRoutineTitle}
+                session={session}
+                status={status}
             />
             {/* Components shown when editing */}
             {isEditing ? <Box sx={{
@@ -432,7 +433,7 @@ export const RoutineOrchestratorPage = ({
                 marginRight: 1,
                 zIndex: isDragging ? 'unset' : 2,
             }}>
-                {/* Delete node (or whole orchestration) */}
+                {/* Delete node (or whole routine) */}
                 <Tooltip title='Delete a node'>
                     <IconButton
                         id="delete-node-button"
@@ -457,7 +458,7 @@ export const RoutineOrchestratorPage = ({
                         }} />
                     </IconButton>
                 </Tooltip>
-                {/* Add new links to the orchestration */}
+                {/* Add new links to the routine */}
                 <Tooltip title='Add new link'>
                     <IconButton
                         id="add-link-button"
@@ -478,7 +479,7 @@ export const RoutineOrchestratorPage = ({
                         <AddIcon id="add-link-button-icon" sx={{ fill: 'white' }} />
                     </IconButton>
                 </Tooltip>
-                {/* Add new nodes to the orchestration */}
+                {/* Add new nodes to the routine */}
                 <Tooltip title='Add new node'>
                     <IconButton
                         id="add-node-button"
@@ -528,7 +529,7 @@ export const RoutineOrchestratorPage = ({
                     nodes={linkedNodes}
                     scale={scale}
                 />
-                <OrchestrationBottomContainer
+                <BuildBottomContainer
                     canCancelUpdate={!loading}
                     canUpdate={!loading && !isEqual(routine, changedRoutine)}
                     handleCancelRoutineUpdate={revertChanges}
@@ -540,7 +541,7 @@ export const RoutineOrchestratorPage = ({
                     loading={loading}
                     scale={scale}
                     sliderColor={STATUS_COLOR[status.code]}
-                    runState={OrchestrationRunState.Stopped}
+                    runState={BuildRunState.Stopped}
                 />
             </Box>
         </Box>
