@@ -1,14 +1,18 @@
-import { useQuery } from '@apollo/client';
-import { RoutineSortBy } from '@local/shared';
+import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
+import { ResourceListUsedFor, RoutineSortBy } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, OrganizationListItem, ProjectListItem, RoutineListItem, TitleContainer } from 'components';
+import { HelpButton, OrganizationListItem, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
 import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { organizations, organizationsVariables } from 'graphql/generated/organizations';
+import { profile } from 'graphql/generated/profile';
 import { projects, projectsVariables } from 'graphql/generated/projects';
 import { routines, routinesVariables } from 'graphql/generated/routines';
-import { organizationsQuery, projectsQuery, routinesQuery } from 'graphql/query';
-import { useEffect, useMemo, useState } from 'react';
-import { Organization, Project, Routine } from 'types';
+import { profileUpdateMutation } from 'graphql/mutation';
+import { organizationsQuery, profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
+import { mutationWrapper } from 'graphql/utils/wrappers';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Organization, Project, Resource, ResourceList, Routine } from 'types';
+import { formatForUpdate, Pubs } from 'utils';
 import { ResearchPageProps } from '../types';
 import donateOrInvestMarkdown from './donateOrInvestHelp.md';
 import joinATeamMarkdown from './joinATeamHelp.md';
@@ -17,9 +21,83 @@ import processesMarkdown from './processesHelp.md';
 import researchPageMarkdown from './researchPageHelp.md';
 import voteMarkdown from './voteHelp.md';
 
+/**
+ * Default research resources
+ */
+ const defaultResourceList: ResourceList = {    
+    usedFor: ResourceListUsedFor.Develop,
+    resources: [
+        {
+            link: 'https://cardano.stackexchange.com/',
+            usedFor: ResourceUsedFor.Community,
+            translations: [
+                { 
+                    language: 'en',
+                    title: 'Cardano Stack Exchange',
+                    description: 'Browse and ask technical questions about Cardano',
+                }
+            ]
+        } as any,
+        {
+            link: 'https://www.wolframalpha.com/',
+            usedFor: ResourceUsedFor.Researching,
+            translations: [
+                {
+                    language: 'en',
+                    title: 'Wolfram Alpha',
+                    description: 'Find answers to math questions',
+                }
+            ]
+        } as any,
+        {
+            link: 'https://www.improvethenews.org/',
+            usedFor: ResourceUsedFor.Feed,
+            translations: [
+                {
+                    language: 'en',
+                    title: 'News Feed',
+                    description: 'Catch up on the latest news, with sliders for biases',
+                }
+            ]
+        } as any,
+        {
+            link: 'https://scholar.google.com/',
+            usedFor: ResourceUsedFor.Researching,
+            translations: [
+                {
+                    language: 'en',
+                    title: 'Google Scholar',
+                    description: 'Research scientific articles',
+                }
+            ]
+        } as any,
+    ]
+} as any;
+
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
+
+    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
+    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+
+    const resourceList = useMemo(() => {
+        if (!profileData?.profile?.resourceLists) return defaultResourceList;
+        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Develop) ?? null;
+    }, [profileData]);
+    const [updateResources] = useMutation<profile>(profileUpdateMutation);
+    const handleResourcesUpdate = useCallback((updatedList: Resource[]) => {
+        mutationWrapper({
+            mutation: updateResources,
+            input: formatForUpdate(profileData?.profile, {
+                ...profileData?.profile,
+                resourcesLearn: updatedList
+            }, [], []),
+            onError: (response) => {
+                PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
+            }
+        })
+    }, [updateResources]);
 
     const { data: processesData, loading: processesLoading } = useQuery<routines, routinesVariables>(routinesQuery, { 
         variables: { input: { 
@@ -140,6 +218,13 @@ export const ResearchPage = ({
                 <HelpButton markdown={researchPageText} sx={{width: '40px', height: '40px'}} />
             </Stack>
             <Stack direction="column" spacing={10}>
+                {/* Resources */}
+                <ResourceListHorizontal 
+                    title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
+                    list={resourceList}
+                    canEdit={Boolean(session?.id)}
+                    handleUpdate={handleResourcesUpdate}
+                />
                 <TitleContainer
                     title={"Processes"}
                     helpText={processesText}

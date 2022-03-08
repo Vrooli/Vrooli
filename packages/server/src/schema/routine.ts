@@ -1,7 +1,6 @@
 import { gql } from 'apollo-server-express';
-import { RoutineSortBy } from '@local/shared';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult } from './types';
+import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, updateHelper } from '../models';
@@ -37,7 +36,7 @@ export const typeDef = gql`
         nodeLinksCreate: [NodeLinkCreateInput!]
         inputsCreate: [InputItemCreateInput!]
         outputsCreate: [OutputItemCreateInput!]
-        resourcesCreate: [ResourceCreateInput!]
+        resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [RoutineTranslationCreateInput!]
@@ -63,9 +62,9 @@ export const typeDef = gql`
         outputsCreate: [OutputItemCreateInput!]
         outputsUpdate: [OutputItemUpdateInput!]
         outputsDelete: [ID!]
-        resourcesDelete: [ID!]
-        resourcesCreate: [ResourceCreateInput!]
-        resourcesUpdate: [ResourceUpdateInput!]
+        resourceListsDelete: [ID!]
+        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListsUpdate: [ResourceListUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
@@ -99,7 +98,7 @@ export const typeDef = gql`
         parent: Routine
         project: Project
         reports: [Report!]!
-        resources: [Resource!]!
+        resourceLists: [ResourceList!]!
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [RoutineTranslation!]!
@@ -219,6 +218,7 @@ export const typeDef = gql`
         projectId: ID
         parentId: ID
         reportId: ID
+        resourceLists: [String!]
         resourceTypes: [ResourceUsedFor!]
         searchString: String
         sortBy: RoutineSortBy

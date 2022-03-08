@@ -7,7 +7,7 @@ import { ProfileModel } from '../../models';
 import { envVariableExists } from '../../utils';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
-const { AccountStatus, MemberRole, NodeType, ResourceUsedFor } = pkg;
+const { AccountStatus, MemberRole, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
 
@@ -139,10 +139,10 @@ export async function init(prisma: PrismaType) {
             data: {
                 translations: {
                     create: [
-                        { 
-                            language: EN, 
-                            name: "Vrooli", 
-                            bio: "Entrepreneurship is not accessible to all unless it can be accomplished using little money, time, and prior knowledge. Let's make that possible." 
+                        {
+                            language: EN,
+                            name: "Vrooli",
+                            bio: "Entrepreneurship is not accessible to all unless it can be accomplished using little money, time, and prior knowledge. Let's make that possible."
                         },
                     ]
                 },
@@ -158,22 +158,29 @@ export async function init(prisma: PrismaType) {
                         { tagId: tagCardano.id },
                     ]
                 },
-                resources: {
+                resourceLists: {
                     create: [
                         {
-                            usedFor: ResourceUsedFor.Social as any,
-                            link: 'https://twitter.com/VrooliOfficial',
-                            translations: {
-                                create: [{ language: EN, description: "Twitter" }]
-                            },
-                        },
-                        {
-                            usedFor: ResourceUsedFor.OfficialWebsite as any,
-                            link: 'https://vrooli.com',
-                            translations: {
-                                create: [{ language: EN, description: "Website" }]
-                            },
-                        },
+                            usedFor: ResourceListUsedFor.Display,
+                            resources: {
+                                create: [
+                                    {
+                                        usedFor: ResourceUsedFor.Social as any,
+                                        link: 'https://twitter.com/VrooliOfficial',
+                                        translations: {
+                                            create: [{ language: EN, description: "Twitter" }]
+                                        },
+                                    },
+                                    {
+                                        usedFor: ResourceUsedFor.OfficialWebsite as any,
+                                        link: 'https://vrooli.com',
+                                        translations: {
+                                            create: [{ language: EN, description: "Website" }]
+                                        },
+                                    },
+                                ]
+                            }
+                        }
                     ]
                 }
             }
@@ -332,22 +339,29 @@ export async function init(prisma: PrismaType) {
                 organization: { connect: { id: vrooli.id } },
                 inputs: {}, //TODO
                 outputs: {}, //TODO
-                resources: {
+                resourceLists: {
                     create: [
                         {
-                            usedFor: ResourceUsedFor.ExternalService as any,
-                            link: 'https://minterr.io/mint-cardano-tokens/',
-                            translations: {
-                                create: [{ language: EN, description: "minterr.io" }]
-                            },
-                        },
-                        {
-                            usedFor: ResourceUsedFor.Developer as any,
-                            link: 'https://developers.cardano.org/docs/native-tokens/minting/',
-                            translations: {
-                                create: [{ language: EN, description: "cardano.org guide" }]
-                            },
-                        },
+                            usedFor: ResourceListUsedFor.Display,
+                            resources: {
+                                create: [
+                                    {
+                                        usedFor: ResourceUsedFor.ExternalService as any,
+                                        link: 'https://minterr.io/mint-cardano-tokens/',
+                                        translations: {
+                                            create: [{ language: EN, description: "minterr.io" }]
+                                        },
+                                    },
+                                    {
+                                        usedFor: ResourceUsedFor.Developer as any,
+                                        link: 'https://developers.cardano.org/docs/native-tokens/minting/',
+                                        translations: {
+                                            create: [{ language: EN, description: "cardano.org guide" }]
+                                        },
+                                    },
+                                ]
+                            }
+                        }
                     ]
                 }
             }
@@ -385,29 +399,36 @@ export async function init(prisma: PrismaType) {
                 organization: { connect: { id: vrooli.id } },
                 inputs: {}, //TODO
                 outputs: {}, //TODO
-                resources: {
+                resourceLists: {
                     create: [
                         {
-                            usedFor: ResourceUsedFor.ExternalService as any,
-                            link: 'https://minterr.io/mint-cardano-tokens/',
-                            translations: {
-                                create: [{ language: EN, description: "minterr.io" }]
-                            },
-                        },
-                        {
-                            usedFor: ResourceUsedFor.ExternalService as any,
-                            link: 'https://cardano-tools.io/mint',
-                            translations: {
-                                create: [{ language: EN, description: "cardano-tools.io" }]
-                            },
-                        },
-                        {
-                            usedFor: ResourceUsedFor.Developer as any,
-                            link: 'https://developers.cardano.org/docs/native-tokens/minting-nfts',
-                            translations: {
-                                create: [{ language: EN, description: "cardano.org guide" }]
-                            },
-                        },
+                            usedFor: ResourceListUsedFor.Display,
+                            resources: {
+                                create: [
+                                    {
+                                        usedFor: ResourceUsedFor.ExternalService as any,
+                                        link: 'https://minterr.io/mint-cardano-tokens/',
+                                        translations: {
+                                            create: [{ language: EN, description: "minterr.io" }]
+                                        },
+                                    },
+                                    {
+                                        usedFor: ResourceUsedFor.ExternalService as any,
+                                        link: 'https://cardano-tools.io/mint',
+                                        translations: {
+                                            create: [{ language: EN, description: "cardano-tools.io" }]
+                                        },
+                                    },
+                                    {
+                                        usedFor: ResourceUsedFor.Developer as any,
+                                        link: 'https://developers.cardano.org/docs/native-tokens/minting-nfts',
+                                        translations: {
+                                            create: [{ language: EN, description: "cardano.org guide" }]
+                                        },
+                                    },
+                                ]
+                            }
+                        }
                     ]
                 }
             }
@@ -447,8 +468,8 @@ export async function init(prisma: PrismaType) {
                 inputs: {}, //TODO
                 outputs: {}, //TODO
                 translations: {
-                    create: [{ 
-                        language: EN, 
+                    create: [{
+                        language: EN,
                         title: 'Starting New Business Frameworks',
                         description: 'Hash out your new business idea.',
                         instructions: 'Fill out the following forms to collect your thoughts and decide if your business idea is worth pursuing.',
@@ -544,8 +565,8 @@ export async function init(prisma: PrismaType) {
                                                         inputs: {}, //TODO
                                                         outputs: {}, //TODO
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Overview',
                                                                 description: 'Hash out your new business idea.',
                                                                 instructions: 'Fill out the form below.',
@@ -565,8 +586,8 @@ export async function init(prisma: PrismaType) {
                                                         inputs: {}, //TODO
                                                         outputs: {}, //TODO
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Roadmap',
                                                                 description: 'Develop a roadmap for your new business.',
                                                                 instructions: 'Fill out the form below.',
@@ -599,8 +620,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Company',
                                                                 description: "Define your company's structure.",
                                                                 instructions: 'Fill out the form below.',
@@ -634,8 +655,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Validation',
                                                                 description: "Reflect on your new business idea and decide if it is worth pursuing.",
                                                                 instructions: 'Fill out the form below.',
@@ -669,8 +690,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Marketing & Sales',
                                                                 description: "Define a marketing strategy for your business.",
                                                                 instructions: 'Fill out the form below.',
@@ -684,8 +705,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Pitch Deck',
                                                                 description: "Determine key plans and metrics to measure success.",
                                                                 instructions: 'Fill out the form below.',
@@ -729,8 +750,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Culture',
                                                                 description: "Define your team's culture.",
                                                                 instructions: 'Fill out the form below.',
@@ -744,8 +765,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Build Team',
                                                                 description: "Build a team to run your business.",
                                                                 instructions: 'Fill out the form below.',
@@ -779,8 +800,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Sales Playbook',
                                                                 description: "Further defines your sales strategy.",
                                                                 instructions: 'Fill out the form below.',
@@ -794,8 +815,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Product Market Fit',
                                                                 description: "Determine your product's market fit.",
                                                                 instructions: 'Fill out the form below.',
@@ -809,8 +830,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Growth State Machine',
                                                                 description: "Define a plan to scale your business.",
                                                                 instructions: 'Fill out the form below.',
@@ -851,8 +872,8 @@ export async function init(prisma: PrismaType) {
                                                         inputs: {}, //TODO
                                                         outputs: {}, //TODO
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Monetization',
                                                                 description: "Determine how your for-profit business will make money.",
                                                                 instructions: 'Fill out the form below.',
@@ -872,8 +893,8 @@ export async function init(prisma: PrismaType) {
                                                         inputs: {}, //TODO
                                                         outputs: {}, //TODO
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Fundraising',
                                                                 description: "Set up fundraising.",
                                                                 instructions: 'Fill out the form below.',
@@ -893,8 +914,8 @@ export async function init(prisma: PrismaType) {
                                                         inputs: {}, //TODO
                                                         outputs: {}, //TODO
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Investing',
                                                                 description: "Set up investment opportunities.",
                                                                 instructions: 'Fill out the form below.',
@@ -927,8 +948,8 @@ export async function init(prisma: PrismaType) {
                                                 routine: {
                                                     create: {
                                                         translations: {
-                                                            create: [{ 
-                                                                language: EN, 
+                                                            create: [{
+                                                                language: EN,
                                                                 title: 'Scale Playbook',
                                                                 description: "Summarize and reformulate key insights you have gained.",
                                                                 instructions: 'Fill out the form below.',

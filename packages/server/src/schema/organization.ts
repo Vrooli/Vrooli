@@ -1,7 +1,6 @@
 import { gql } from 'apollo-server-express';
-import { MemberRole } from '@local/shared';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult, OrganizationSortBy } from './types';
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult, OrganizationSortBy, MemberRole } from './types';
 import { Context } from '../context';
 import { countHelper, createHelper, deleteOneHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -24,7 +23,7 @@ export const typeDef = gql`
 
     input OrganizationCreateInput {
         isOpenToNewMembers: Boolean
-        resourcesCreate: [ResourceCreateInput!]
+        resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [OrganizationTranslationCreateInput!]
@@ -34,9 +33,9 @@ export const typeDef = gql`
         isOpenToNewMembers: Boolean
         membersConnect: [ID!]
         membersDisconnect: [ID!]
-        resourcesDelete: [ID!]
-        resourcesCreate: [ResourceCreateInput!]
-        resourcesUpdate: [ResourceUpdateInput!]
+        resourceListsDelete: [ID!]
+        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListsUpdate: [ResourceListUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
@@ -56,7 +55,7 @@ export const typeDef = gql`
         members: [Member!]!
         projects: [Project!]!
         reports: [Report!]!
-        resources: [Resource!]!
+        resourceLists: [ResourceList!]!
         routines: [Routine!]!
         routinesCreated: [Routine!]!
         starredBy: [User!]!
@@ -97,6 +96,7 @@ export const typeDef = gql`
         minStars: Int
         projectId: ID
         reportId: ID
+        resourceLists: [String!]
         resourceTypes: [ResourceUsedFor!]
         routineId: ID
         searchString: String

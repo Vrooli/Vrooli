@@ -1,5 +1,5 @@
 import { StarFor, VoteFor } from '@local/shared';
-import { Organization, Project, Resource, Routine, Session, Standard, Tag, User } from 'types';
+import { Organization, Project, Resource, ResourceList, Routine, Session, Standard, Tag, User } from 'types';
 import { LabelledSortOption } from 'utils';
 
 export interface ObjectListItemProps {
@@ -49,7 +49,7 @@ export interface ResourceListHorizontalProps {
     title?: string;
     canEdit?: boolean;
     handleUpdate?: (updatedList: Resource[]) => void;
-    resources: Resource[];
+    list: ResourceList | null;
 }
 
 export interface ResourceListVerticalProps {

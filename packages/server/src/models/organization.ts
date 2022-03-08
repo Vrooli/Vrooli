@@ -1,14 +1,13 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count } from "../schema/types";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialInfo } from "./base";
 import { CustomError } from "../error";
 import { CODE, MemberRole, organizationCreate, organizationTranslationCreate, organizationTranslationUpdate, organizationUpdate } from "@local/shared";
-import { hasProfanity } from "../utils/censor";
-import { ResourceModel } from "./resource";
 import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
+import { ResourceListModel } from "./resourceList";
 
 //==============================================================
 /* #region Custom Components */
@@ -23,7 +22,7 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         'projects': GraphQLModelType.Project,
         'projectsCreated': GraphQLModelType.Project,
         'reports': GraphQLModelType.Report,
-        'resources': GraphQLModelType.Resource,
+        'resourceLists': GraphQLModelType.ResourceList,
         'routines': GraphQLModelType.Routine,
         'routersCreated': GraphQLModelType.Routine,
         'standards': GraphQLModelType.Standard,
@@ -87,8 +86,8 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, bio: {...insensitive} } } },
-                { translations: { some: { language: languages ? { in: languages } : undefined, name: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
@@ -98,13 +97,14 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
         const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resources: { some: { usedFor: { in: input.resourceTypes } } } } : {};
+        const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
+        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};
         const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
         const userIdQuery = input.userId ? { members: { some: { id: input.userId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...isOpenToNewMembersQuery, ...languagesQuery, ...minStarsQuery, ...projectIdQuery, ...resourceTypesQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...tagsQuery };
+        return { ...isOpenToNewMembersQuery, ...languagesQuery, ...minStarsQuery, ...projectIdQuery, ...resourceListsQuery, ...resourceTypesQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...tagsQuery };
     },
 })
 
@@ -138,7 +138,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
         return {
             id: (data as OrganizationUpdateInput)?.id ?? undefined,
             isOpenToNewMembers: data.isOpenToNewMembers,
-            resources: ResourceModel(prisma).relationshipBuilder(userId, data, false),
+            resourceLists: ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }

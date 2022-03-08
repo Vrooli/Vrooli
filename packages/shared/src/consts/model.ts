@@ -76,6 +76,17 @@ export enum ResourceSortBy {
     DateCreatedAsc = "DateCreatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
+    IndexAsc = "IndexAsc",
+    IndexDesc = "IndexDesc",
+}
+
+export enum ResourceListSortBy {
+    DateCreatedDesc = "DateCreatedDesc",
+    DateCreatedAsc = "DateCreatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+    IndexAsc = "IndexAsc",
+    IndexDesc = "IndexDesc",
 }
 
 export enum RoutineSortBy {
@@ -153,17 +164,28 @@ export const ResourceUsedFor = {
     Developer: "Developer",
     Donation: "Donation",
     ExternalService: "ExternalService",
+    Feed: "Feed",
     Install: "Install",
     Learning: "Learning",
     Notes : "Notes",
     OfficialWebsite: "OfficialWebsite",
     Proposal: "Proposal",
     Related: "Related",
+    Researching: "Researching",
     Scheduling: "Scheduling",
     Social: "Social",
     Tutorial: "Tutorial",
 }
 export type ResourceUsedFor = ValueOf<typeof ResourceUsedFor>;
+
+export const ResourceListUsedFor = {
+    Custom: "Custom",
+    Display: "Display",
+    Learn: "Learn",
+    Research: "Research",
+    Develop: "Develop",
+}
+export type ResourceListUsedFor = ValueOf<typeof ResourceListUsedFor>;
 
 export const MemberRole = {
     Admin: "Admin",

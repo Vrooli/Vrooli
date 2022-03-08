@@ -1,4 +1,4 @@
-import { User, UserSortBy, UserSearchInput, } from "../schema/types";
+import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../schema/types";
 import { addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialInfo, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../types";
 import { StarModel } from "./star";
@@ -12,7 +12,7 @@ export const userFormatter = (): FormatConverter<User> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.User,
         'comments': GraphQLModelType.Comment,
-        'resources': GraphQLModelType.Resource,
+        'resourceLists': GraphQLModelType.ResourceList,
         'projects': GraphQLModelType.Project,
         'starredBy': GraphQLModelType.User,
         'reports': GraphQLModelType.Report,
@@ -74,11 +74,11 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const organizationIdQuery = input.organizationId ? { organizations: { some: { organizationId: input.organizationId } } } : {};
         const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resources: { some: { usedFor: { in: input.resourceTypes } } } } : {};
-        const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
+        const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
+        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};        const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-        return { ...languagesQuery, ...minStarsQuery, ...organizationIdQuery, ...projectIdQuery, ...resourceTypesQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery };
+        return { ...languagesQuery, ...minStarsQuery, ...organizationIdQuery, ...projectIdQuery, ...resourceListsQuery, ...resourceTypesQuery, ...routineIdQuery, ...reportIdQuery, ...standardIdQuery };
     },
 })
 

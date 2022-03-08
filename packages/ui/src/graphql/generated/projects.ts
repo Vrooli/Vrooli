@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectSearchInput, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { ProjectSearchInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: projects
@@ -15,7 +15,15 @@ export interface projects_projects_pageInfo {
   hasNextPage: boolean;
 }
 
-export interface projects_projects_edges_node_resources_translations {
+export interface projects_projects_edges_node_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projects_projects_edges_node_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -23,7 +31,7 @@ export interface projects_projects_edges_node_resources_translations {
   title: string | null;
 }
 
-export interface projects_projects_edges_node_resources {
+export interface projects_projects_edges_node_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -31,7 +39,17 @@ export interface projects_projects_edges_node_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: projects_projects_edges_node_resources_translations[];
+  translations: projects_projects_edges_node_resourceLists_resources_translations[];
+}
+
+export interface projects_projects_edges_node_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: projects_projects_edges_node_resourceLists_translations[];
+  resources: projects_projects_edges_node_resourceLists_resources[];
 }
 
 export interface projects_projects_edges_node_tags_translations {
@@ -88,7 +106,7 @@ export interface projects_projects_edges_node {
   role: MemberRole | null;
   score: number;
   stars: number;
-  resources: projects_projects_edges_node_resources[] | null;
+  resourceLists: projects_projects_edges_node_resourceLists[] | null;
   tags: projects_projects_edges_node_tags[];
   translations: projects_projects_edges_node_translations[];
   owner: projects_projects_edges_node_owner | null;

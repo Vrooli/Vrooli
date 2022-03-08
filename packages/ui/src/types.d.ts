@@ -1,6 +1,6 @@
 // Defines common props
 import { organization_organization } from 'graphql/generated/organization';
-import { profile_profile_emails, profile_profile_wallets } from 'graphql/generated/profile';
+import { profile_profile_emails, profile_profile_resourceLists, profile_profile_wallets } from 'graphql/generated/profile';
 import { project_project } from 'graphql/generated/project';
 import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { resource_resource } from 'graphql/generated/resource';
@@ -40,6 +40,7 @@ export type Organization = organization_organization;
 export type Project = project_project;
 export type Report = reportCreate_reportCreate;
 export type Resource = resource_resource;
+export type ResourceList = profile_profile_resourceLists
 export type Routine = routine_routine;
 export type Standard = standard_standard;
 export type Tag = tag_tag;

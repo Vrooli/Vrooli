@@ -122,18 +122,30 @@ export const deepRoutineFields = gql`
             }
         }
     }
-    fragment deepRoutineResourceFields on Resource {
+    fragment deepRoutineResourceListFields on ResourceList {
         id
         created_at
         index
-        link
-        updated_at
         usedFor
         translations {
             id
             language
             description
             title
+        }
+        resources {
+            id
+            created_at
+            index
+            link
+            updated_at
+            usedFor
+            translations {
+                id
+                language
+                description
+                title
+            }
         }
     }
     fragment deepRoutineFields on Routine {
@@ -179,8 +191,8 @@ export const deepRoutineFields = gql`
                 title
             }
         }
-        resources {
-            ...deepRoutineResourceFields
+        resourceLists {
+            ...deepRoutineResourceListFields
         }
         score
         stars

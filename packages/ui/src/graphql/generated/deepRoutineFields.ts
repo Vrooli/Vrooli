@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: deepRoutineFields
@@ -234,7 +234,15 @@ export interface deepRoutineFields_parent {
   translations: deepRoutineFields_parent_translations[];
 }
 
-export interface deepRoutineFields_resources_translations {
+export interface deepRoutineFields_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface deepRoutineFields_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -242,7 +250,7 @@ export interface deepRoutineFields_resources_translations {
   title: string | null;
 }
 
-export interface deepRoutineFields_resources {
+export interface deepRoutineFields_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -250,7 +258,17 @@ export interface deepRoutineFields_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: deepRoutineFields_resources_translations[];
+  translations: deepRoutineFields_resourceLists_resources_translations[];
+}
+
+export interface deepRoutineFields_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: deepRoutineFields_resourceLists_translations[];
+  resources: deepRoutineFields_resourceLists_resources[];
 }
 
 export interface deepRoutineFields_tags_translations {
@@ -292,7 +310,7 @@ export interface deepRoutineFields {
   outputs: deepRoutineFields_outputs[];
   owner: deepRoutineFields_owner | null;
   parent: deepRoutineFields_parent | null;
-  resources: deepRoutineFields_resources[];
+  resourceLists: deepRoutineFields_resourceLists[];
   score: number;
   stars: number;
   role: MemberRole | null;

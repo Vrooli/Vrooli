@@ -104,26 +104,27 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
+        relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
         console.log('tag relationshipBuilder', input, isAdd);
         // If any tag creates, check if they're supposed to be connects
-        if (Array.isArray(input.tagCreate)) {
+        if (Array.isArray(input[`${relationshipName}Create`])) {
             // Query for all creating tags
             const existingTags = await prisma.tag.findMany({
-                where: { tag: { in: input.tagCreate.map(c => c.tag) } },
+                where: { tag: { in: input[`${relationshipName}Create`].map((c: any) => c.tag) } },
                 select: { id: true, tag: true }
             });
             console.log('tag relationshipbuilder existingTags', existingTags);
             // All results should be connects
             const connectTags = existingTags.map(t => ({ id: t.id }));
             // All tags that didn't exist are creates
-            const createTags = input.tagCreate.filter(c => !connectTags.some(t => t.id === c.id));
-            input.tagConnect = Array.isArray(input.tagConnect) ? [...input.tagConnect, ...connectTags] : createTags;
-            input.tagCreate = createTags;
+            const createTags = input[`${relationshipName}Create`].filter((c: any) => !connectTags.some(t => t.id === c.id));
+            input[`${relationshipName}Connect`] = Array.isArray(input[`${relationshipName}Connect`]) ? [...input[`${relationshipName}Connect`], ...connectTags] : createTags;
+            input[`${relationshipName}Create`] = createTags;
         }
         // Validate create
-        if (Array.isArray(input.tagCreate)) {
-            for (const tag of input.tagCreate) {
+        if (Array.isArray(input[`${relationshipName}Create`])) {
+            for (const tag of input[`${relationshipName}Create`]) {
                 // Check for valid arguments
                 tagCreate.validateSync(tag, { abortEarly: false });
                 // Check for censored words
@@ -132,7 +133,7 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         }
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
-        let formattedInput = joinRelationshipToPrisma({ data: input, relationshipName: 'tags', joinFieldName: 'tag', isAdd, relExcludes: [RelationshipTypes.update, RelationshipTypes.delete] })
+        let formattedInput = joinRelationshipToPrisma({ data: input, relationshipName, joinFieldName: 'tag', isAdd, relExcludes: [RelationshipTypes.update, RelationshipTypes.delete] })
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({

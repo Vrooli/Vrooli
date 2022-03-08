@@ -11,6 +11,7 @@ export * from './profile';
 export * from './project';
 export * from './report';
 export * from './resource';
+export * from './resourceList';
 export * from './role';
 export * from './routine';
 export * from './standard';

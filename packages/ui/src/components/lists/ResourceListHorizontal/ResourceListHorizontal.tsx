@@ -13,6 +13,7 @@ import {
     Download as InstallIcon,
     EventNote as SchedulingIcon,
     Facebook as FacebookIcon,
+    Feed as FeedIcon,
     FormatListNumbered as NotesIcon,
     Help as TutorialIcon,
     HowToVote as ProposalIcon,
@@ -23,6 +24,7 @@ import {
     Reddit as RedditIcon,
     Redeem as DonationIcon,
     School as LearningIcon,
+    Science as ResearchingIcon,
     Terminal as DeveloperIcon,
     Twitter as TwitterIcon,
     VideoCameraFront as SocialVideoIcon,
@@ -37,12 +39,14 @@ const IconMap = {
     [ResourceUsedFor.Developer]: DeveloperIcon,
     [ResourceUsedFor.Donation]: DonationIcon,
     [ResourceUsedFor.ExternalService]: OfficialWebsiteIcon,
+    [ResourceUsedFor.Feed]: FeedIcon,
     [ResourceUsedFor.Install]: InstallIcon,
     [ResourceUsedFor.Learning]: LearningIcon,
     [ResourceUsedFor.Notes]: NotesIcon,
     [ResourceUsedFor.OfficialWebsite]: OfficialWebsiteIcon,
     [ResourceUsedFor.Proposal]: ProposalIcon,
     [ResourceUsedFor.Related]: RelatedIcon,
+    [ResourceUsedFor.Researching]: ResearchingIcon,
     [ResourceUsedFor.Scheduling]: SchedulingIcon,
     [ResourceUsedFor.Tutorial]: TutorialIcon,
 }
@@ -62,7 +66,7 @@ export const ResourceListHorizontal = ({
     title = '📌 Resources',
     canEdit = true,
     handleUpdate,
-    resources,
+    list,
 }: ResourceListHorizontalProps) => {
 
     // Determine icon to display based on resource type
@@ -136,7 +140,7 @@ export const ResourceListHorizontal = ({
                     },
                 }}>
                     {/* Resources */}
-                    {resources.map((c: Resource, index) => (
+                    {list?.resources?.map((c: Resource, index) => (
                         <ResourceCard
                             key={`resource-card-${index}`}
                             data={c}

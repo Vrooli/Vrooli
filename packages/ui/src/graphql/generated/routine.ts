@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, NodeType, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { FindByIdInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: routine
@@ -234,7 +234,15 @@ export interface routine_routine_parent {
   translations: routine_routine_parent_translations[];
 }
 
-export interface routine_routine_resources_translations {
+export interface routine_routine_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface routine_routine_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -242,7 +250,7 @@ export interface routine_routine_resources_translations {
   title: string | null;
 }
 
-export interface routine_routine_resources {
+export interface routine_routine_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -250,7 +258,17 @@ export interface routine_routine_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: routine_routine_resources_translations[];
+  translations: routine_routine_resourceLists_resources_translations[];
+}
+
+export interface routine_routine_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: routine_routine_resourceLists_translations[];
+  resources: routine_routine_resourceLists_resources[];
 }
 
 export interface routine_routine_tags_translations {
@@ -292,7 +310,7 @@ export interface routine_routine {
   outputs: routine_routine_outputs[];
   owner: routine_routine_owner | null;
   parent: routine_routine_parent | null;
-  resources: routine_routine_resources[];
+  resourceLists: routine_routine_resourceLists[];
   score: number;
   stars: number;
   role: MemberRole | null;

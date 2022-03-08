@@ -33,7 +33,7 @@ import { ResourceListHorizontal } from 'components';
 import { DeleteRoutineDialog } from '..';
 import { getTranslation, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
-import { Resource, User } from 'types';
+import { Resource, ResourceList, User } from 'types';
 import { useLocation } from 'wouter';
 
 enum ActionOption {
@@ -165,8 +165,8 @@ export const OrchestrationInfoDialog = ({
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
                     {/* Resources */}
-                    {Array.isArray(routine?.resources) && (routine?.resources as Resource[]).length > 0 ? <ResourceListHorizontal
-                        resources={routine?.resources ?? []}
+                    {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
+                        list={routine?.resourceLists[0] as ResourceList}
                         canEdit={isEditing}
                         handleUpdate={() => { }}
                     /> : null}

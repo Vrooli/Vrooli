@@ -28,11 +28,12 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
+        relationshipName: string = 'emails',
     ): Promise<{ [x: string]: any } | undefined> {
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by emails (since they can only be applied to one object)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'emails', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] });
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] });
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({
             userId,

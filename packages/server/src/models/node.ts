@@ -117,11 +117,12 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         routineId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
+        relationshipName: string = 'nodes',
     ): Promise<{ [x: string]: any } | undefined> {
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by nodes (since they can only be applied to one routine)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodes', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate input, with routine ID added to each update node
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         if (updateMany) updateMany = updateMany.map(node => ({ ...node, routineId }));

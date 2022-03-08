@@ -273,7 +273,7 @@ model organization {
     projects           project[]                  @relation("project_organization_owner") // Projects the organization can contorl
     projectsCreated    project[]                  @relation("project_organization_creator") // Projects the organization created, but cannot necessarily control
     reports            report[]
-    resources          resource[]                 @relation("resource_organization") // Links displayed on the organization's page
+    resourceLists      resource_list[]
     routines           routine[]                  @relation("routine_organization_owner") // Routines the organization can control
     routinesCreated    routine[]                  @relation("routine_organization_creator") // Routines the organization created, but cannot necessarily control
     standards          standard[]
@@ -348,7 +348,7 @@ model project {
     forks                   project[]             @relation("project_fork")
     parent                  project?              @relation("project_fork", fields: [parentId], references: [id], onDelete: SetNull)
     reports                 report[]
-    resources               resource[]            @relation("resource_project")
+    resourceLists           resource_list[]
     routines                routine[] // Routines created by this project
     starredBy               star[]                @relation("star_project")
     tags                    project_tags[] // Categorical tags set by creators or community-voted
@@ -429,25 +429,15 @@ model report {
 //==============================================================
 
 model resource {
-    id             String                 @id @default(uuid()) @db.Uuid
-    created_at     DateTime               @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime               @default(now()) @db.Timestamptz(6)
-    index          Int?                   @default(0) // Index in resource list, if any
-    link           String                 @db.VarChar(1024) // The actual link
-    usedFor        ResourceUsedFor        @default(Context)
-    organizationId String?                @db.Uuid
-    projectId      String?                @db.Uuid
-    routineId      String?                @db.Uuid
-    userId         String?                @db.Uuid
-    userLearningId String?                @db.Uuid
-    userResearchId String?                @db.Uuid
-    organization   organization?          @relation("resource_organization", fields: [organizationId], references: [id], onDelete: Cascade)
-    project        project?               @relation("resource_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine        routine?               @relation("resource_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    translations   resource_translation[]
-    user           user?                  @relation("resource_user", fields: [userId], references: [id], onDelete: Cascade)
-    userLearn      user?                  @relation("resource_user_learn", fields: [userLearningId], references: [id], onDelete: Cascade)
-    userResearch   user?                  @relation("resource_user_research", fields: [userResearchId], references: [id], onDelete: Cascade)
+    id           String                 @id @default(uuid()) @db.Uuid
+    created_at   DateTime               @default(now()) @db.Timestamptz(6)
+    updated_at   DateTime               @default(now()) @db.Timestamptz(6)
+    index        Int?                   @default(0) // Index in resource list, if any
+    link         String                 @db.VarChar(1024) // The actual link
+    usedFor      ResourceUsedFor        @default(Context)
+    listId       String                 @db.Uuid
+    list         resource_list          @relation(fields: [listId], references: [id], onDelete: Cascade)
+    translations resource_translation[]
 }
 
 model resource_translation {
@@ -459,6 +449,36 @@ model resource_translation {
     resource    resource @relation(fields: [resourceId], references: [id])
 
     @@unique([resourceId, language])
+}
+
+// A list of resources
+model resource_list {
+    id             String                      @id @default(uuid()) @db.Uuid
+    created_at     DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime                    @default(now()) @db.Timestamptz(6)
+    index          Int?                        @default(0) // Index in list of lists, if any
+    usedFor        ResourceListUsedFor         @default(Display) // Allows ui to determine which lists aren't deletable (e.g. list displayed on learn dashboard)
+    organizationId String?                      @db.Uuid
+    projectId      String?                      @db.Uuid
+    routineId      String?                      @db.Uuid
+    userId         String?                      @db.Uuid
+    organization   organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    project        project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    routine        routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    user           user?                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    resources      resource[]
+    translations   resource_list_translation[]
+}
+
+model resource_list_translation {
+    id          String        @id @default(uuid()) @db.Uuid
+    description String?       @db.VarChar(512)
+    title       String?       @db.VarChar(128)
+    language    String        @db.VarChar(2)
+    listId      String        @db.Uuid
+    list        resource_list @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+    @@unique([listId, language])
 }
 
 //==============================================================
@@ -524,7 +544,7 @@ model routine {
     nodeLists               node_routine_list_item[] // Routine list nodes the routine is a part of
     parent                  routine?                 @relation("routine_fork", fields: [parentId], references: [id], onDelete: SetNull)
     reports                 report[]
-    resources               resource[]               @relation("resource_routine")
+    resourceLists           resource_list[]
     starredBy               star[]                   @relation("star_routine")
     tags                    routine_tags[] // Categorical tags set by creators or community-voted
     translations            routine_translation[]
@@ -764,9 +784,7 @@ model user {
     history                        log[]
     languages                      user_language[]
     reports                        report[]
-    resources                      resource[]           @relation("resource_user") // Resources associated with user profile
-    resourcesLearn                 resource[]           @relation("resource_user_learn") // User's learning resources
-    resourcesResearch              resource[]           @relation("resource_user_research") // User's research resources
+    resourceLists                  resource_list[]
     roles                          user_roles[]
     standards                      standard[]
     tags                           tag[] // Tags the user CREATED - not tags applied to the user's profile
@@ -914,15 +932,25 @@ enum ResourceUsedFor {
     Developer // e.g. GitHub readme link with an alternative approach to completing the routine
     Donation // e.g. Patreon link
     ExternalService // e.g. Fill out form link
+    Feed // e.g. social media feed
     Install // e.g. Install a required program link
     Learning // e.g. White Paper link
     Notes // e.g. Notion board, notes app
     OfficialWebsite // e.g. Website or Github link
     Proposal // e.g. IdeaScale link
     Related // e.g. Anything that's related to the project, but doesn't fit into any of the other categories
+    Researching // e.g. knowledge base, research paper
     Scheduling // e.g. Google calendar, tasking app
     Social // e.g. Twitter, Facebook, Instagram
     Tutorial // e.g. Youtube video link
+}
+
+enum ResourceListUsedFor {
+    Custom // User-created resource list, which can be deleted
+    Display // e.g. Oranization view, Profile page
+    Learn // learn dashboard
+    Research // research dashboard
+    Develop // develop dashboard
 }
 
 enum StandardType {

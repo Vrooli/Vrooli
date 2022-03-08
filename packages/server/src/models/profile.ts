@@ -12,6 +12,7 @@ import { EmailModel } from "./email";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
+import { ResourceListModel } from "./resourceList";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -32,7 +33,7 @@ export const profileFormatter = (): FormatConverter<User> => ({
         'wallets': GraphQLModelType.Wallet,
         'standards': GraphQLModelType.Standard,
         'tags': GraphQLModelType.Tag,
-        'resources': GraphQLModelType.Resource,
+        'resourceLists': GraphQLModelType.ResourceList,
         'organizations': GraphQLModelType.Member,
         'projects': GraphQLModelType.Project,
         'projectsCreated': GraphQLModelType.Project,
@@ -391,17 +392,7 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
                 tagsConnect: input.hiddenTagsConnect,
                 tagsDisconnect: input.hiddenTagsDisconnect,
             }, true),
-            resources: await ResourceModel(prisma).relationshipBuilder(userId, input, false),
-            resourcesLearn: await ResourceModel(prisma).relationshipBuilder(userId, {
-                resourcesCreate: input.resourcesLearnCreate,
-                resourcesUpdate: input.resourcesLearnUpdate,
-                resourcesDelete: input.resourcesLearnDelete,
-            }, true),
-            resourcesResearch: await ResourceModel(prisma).relationshipBuilder(userId, {
-                resourcesCreate: input.resourcesResearchCreate,
-                resourcesUpdate: input.resourcesResearchUpdate,
-                resourcesDelete: input.resourcesResearchDelete,
-            }, true),
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
             stars: await TagModel(prisma).relationshipBuilder(userId, {
                 tagsCreate: input.starredTagsCreate,
                 tagsConnect: input.starredTagsConnect,

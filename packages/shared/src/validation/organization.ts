@@ -1,5 +1,5 @@
 import { bio, id, idArray, language, name } from './base';
-import { resourcesCreate, resourcesUpdate } from './resource';
+import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
@@ -27,7 +27,7 @@ export const organizationCreate = yup.object().shape({
     isOpenToNewMembers,
     // You are automatically added as an admin. IDs you add here will be requested to be added as a member
     membersConnect: idArray,
-    resourcesCreate,
+    resourceListsCreate,
     tagsConnect: idArray,
     tagsCreate,
     translationsCreate: organizationTranslationsCreate,
@@ -40,9 +40,9 @@ export const organizationUpdate = yup.object().shape({
     isOpenToNewMembers,
     membersConnect: idArray,
     membersDisconnect: idArray,
-    resourcesDelete: idArray,
-    resourcesCreate,
-    resourcesUpdate,
+    resourceListsDelete: idArray,
+    resourceListsCreate,
+    resourceListsUpdate,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
     tagsCreate,

@@ -1,6 +1,6 @@
 import { description, idArray, id, name, title, language } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
-import { resourcesCreate, resourcesUpdate } from './resource';
+import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
@@ -101,7 +101,7 @@ export const routineCreate = yup.object().shape({
     nodeLinksCreate,
     inputsCreate,
     outputsCreate,
-    resourcesCreate,
+    resourceListsCreate,
     tagsConnect: idArray,
     tagsCreate,
     translationsCreate: routineTranslationsCreate,
@@ -130,9 +130,9 @@ export const routineUpdate = yup.object().shape({
     outputsDelete: idArray,
     outputsCreate,
     outputsUpdate,
-    resourcesDelete: idArray,
-    resourcesCreate: resourcesCreate,
-    resourcesUpdate: resourcesUpdate,
+    resourceListsDelete: idArray,
+    resourceListsCreate: resourceListsCreate,
+    resourceListsUpdate: resourceListsUpdate,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
     tagsCreate,

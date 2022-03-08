@@ -3,13 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole, ResourceUsedFor } from "./globalTypes";
+import { MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: projectFields
 // ====================================================
 
-export interface projectFields_resources_translations {
+export interface projectFields_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projectFields_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -17,7 +25,7 @@ export interface projectFields_resources_translations {
   title: string | null;
 }
 
-export interface projectFields_resources {
+export interface projectFields_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -25,7 +33,17 @@ export interface projectFields_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: projectFields_resources_translations[];
+  translations: projectFields_resourceLists_resources_translations[];
+}
+
+export interface projectFields_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: projectFields_resourceLists_translations[];
+  resources: projectFields_resourceLists_resources[];
 }
 
 export interface projectFields_tags_translations {
@@ -82,7 +100,7 @@ export interface projectFields {
   role: MemberRole | null;
   score: number;
   stars: number;
-  resources: projectFields_resources[] | null;
+  resourceLists: projectFields_resourceLists[] | null;
   tags: projectFields_tags[];
   translations: projectFields_translations[];
   owner: projectFields_owner | null;

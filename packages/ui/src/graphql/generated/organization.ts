@@ -3,13 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { FindByIdInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: organization
 // ====================================================
 
-export interface organization_organization_resources_translations {
+export interface organization_organization_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface organization_organization_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -17,7 +25,7 @@ export interface organization_organization_resources_translations {
   title: string | null;
 }
 
-export interface organization_organization_resources {
+export interface organization_organization_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -25,7 +33,17 @@ export interface organization_organization_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: organization_organization_resources_translations[];
+  translations: organization_organization_resourceLists_resources_translations[];
+}
+
+export interface organization_organization_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: organization_organization_resourceLists_translations[];
+  resources: organization_organization_resourceLists_resources[];
 }
 
 export interface organization_organization_tags_translations {
@@ -58,7 +76,7 @@ export interface organization_organization {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
-  resources: organization_organization_resources[];
+  resourceLists: organization_organization_resourceLists[];
   tags: organization_organization_tags[];
   translations: organization_organization_translations[];
 }

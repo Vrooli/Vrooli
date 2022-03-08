@@ -175,9 +175,10 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
+        relationshipName: string = 'standards',
     ): Promise<{ [x: string]: any } | undefined> {
         const fieldExcludes: string[] = [];
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'standard', isAdd, fieldExcludes })
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes })
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({

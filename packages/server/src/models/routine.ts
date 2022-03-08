@@ -1,4 +1,4 @@
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count } from "../schema/types";
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
@@ -13,6 +13,7 @@ import { NodeModel } from "./node";
 import { StandardModel } from "./standard";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
+import { ResourceListModel } from "./resourceList";
 
 //==============================================================
 /* #region Custom Components */
@@ -38,7 +39,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         'parent': GraphQLModelType.Routine,
         'project': GraphQLModelType.Project,
         'reports': GraphQLModelType.Report,
-        'resources': GraphQLModelType.Resource,
+        'resourceLists': GraphQLModelType.ResourceList,
         'starredBy': GraphQLModelType.User,
         'tags': GraphQLModelType.Tag,
     },
@@ -152,14 +153,14 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resources: { some: { usedFor: { in: input.resourceTypes } } } } : {};
-        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
+        const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
+        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const projectIdQuery = input.projectId ? { projectId: input.projectId } : {};
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { isInternal: false, ...isCompleteQuery, ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
+        return { isInternal: false, ...isCompleteQuery, ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...resourceListsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
     },
 })
 
@@ -176,7 +177,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             isInternal: data.isInternal,
             parentId: data.parentId,
             version: data.version,
-            resources: ResourceModel(prisma).relationshipBuilder(userId, data, false),
+            resourceLists: ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
             inputs: this.relationshipBuilderInput(userId, data, false),
             outpus: this.relationshipBuilderOutput(userId, data, false),
@@ -303,9 +304,10 @@ export const routineMutater = (prisma: PrismaType) => ({
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
+        relationshipName: string = 'routines',
     ): Promise<{ [x: string]: any } | undefined> {
         const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'routine', isAdd, fieldExcludes })
+        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes })
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({

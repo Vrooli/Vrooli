@@ -69,6 +69,14 @@ export enum ResourceFor {
   User = "User",
 }
 
+export enum ResourceListUsedFor {
+  Custom = "Custom",
+  Develop = "Develop",
+  Display = "Display",
+  Learn = "Learn",
+  Research = "Research",
+}
+
 export enum ResourceSortBy {
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
@@ -84,12 +92,14 @@ export enum ResourceUsedFor {
   Developer = "Developer",
   Donation = "Donation",
   ExternalService = "ExternalService",
+  Feed = "Feed",
   Install = "Install",
   Learning = "Learning",
   Notes = "Notes",
   OfficialWebsite = "OfficialWebsite",
   Proposal = "Proposal",
   Related = "Related",
+  Researching = "Researching",
   Scheduling = "Scheduling",
   Social = "Social",
   Tutorial = "Tutorial",
@@ -478,7 +488,7 @@ export interface OrganizationCountInput {
 
 export interface OrganizationCreateInput {
   isOpenToNewMembers?: boolean | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
   translationsCreate?: OrganizationTranslationCreateInput[] | null;
@@ -493,6 +503,7 @@ export interface OrganizationSearchInput {
   minStars?: number | null;
   projectId?: string | null;
   reportId?: string | null;
+  resourceLists?: string[] | null;
   resourceTypes?: ResourceUsedFor[] | null;
   routineId?: string | null;
   searchString?: string | null;
@@ -522,9 +533,9 @@ export interface OrganizationUpdateInput {
   isOpenToNewMembers?: boolean | null;
   membersConnect?: string[] | null;
   membersDisconnect?: string[] | null;
-  resourcesDelete?: string[] | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
-  resourcesUpdate?: ResourceUpdateInput[] | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
@@ -567,15 +578,9 @@ export interface ProfileUpdateInput {
   hiddenTagsConnect?: string[] | null;
   hiddenTagsDisconnect?: string[] | null;
   hiddenTagsCreate?: TagCreateInput[] | null;
-  resourcesDelete?: string[] | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
-  resourcesUpdate?: ResourceUpdateInput[] | null;
-  resourcesLearnDelete?: string[] | null;
-  resourcesLearnCreate?: ResourceCreateInput[] | null;
-  resourcesLearnUpdate?: ResourceUpdateInput[] | null;
-  resourcesResearchDelete?: string[] | null;
-    resourcesResearchCreate?: ResourceCreateInput[] | null;
-    resourcesResearchUpdate?: ResourceUpdateInput[] | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceCreateInput[] | null;
+  resourceListsUpdate?: ResourceUpdateInput[] | null;
   starredTagsConnect?: string[] | null;
   starredTagsDisconnect?: string[] | null;
   starredTagsCreate?: TagCreateInput[] | null;
@@ -595,7 +600,7 @@ export interface ProjectCreateInput {
   isComplete?: boolean | null;
   name: string;
   parentId?: string | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
   translationsCreate?: ProjectTranslationCreateInput[] | null;
@@ -612,6 +617,7 @@ export interface ProjectSearchInput {
   organizationId?: string | null;
   parentId?: string | null;
   reportId?: string | null;
+  resourceLists?: string[] | null;
   resourceTypes?: ResourceUsedFor[] | null;
   searchString?: string | null;
   sortBy?: ProjectSortBy | null;
@@ -641,9 +647,9 @@ export interface ProjectUpdateInput {
   organizationId?: string | null;
   parentId?: string | null;
   userId?: string | null;
-  resourcesDelete?: string[] | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
-  resourcesUpdate?: ResourceUpdateInput[] | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
@@ -683,6 +689,46 @@ export interface ResourceCreateInput {
   link: string;
   translationsCreate?: ResourceTranslationCreateInput[] | null;
   usedFor: ResourceUsedFor;
+}
+
+export interface ResourceListCreateInput {
+  index?: number | null;
+  usedFor: ResourceListUsedFor;
+  organizationId?: string | null;
+  projectId?: string | null;
+  routineId?: string | null;
+  userId?: string | null;
+  translationsCreate?: ResourceListTranslationCreateInput[] | null;
+  resourcesCreate?: ResourceCreateInput[] | null;
+}
+
+export interface ResourceListTranslationCreateInput {
+  language: string;
+  description?: string | null;
+  title?: string | null;
+}
+
+export interface ResourceListTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
+  title?: string | null;
+}
+
+export interface ResourceListUpdateInput {
+  id: string;
+  index?: number | null;
+  usedFor?: ResourceListUsedFor | null;
+  organizationId?: string | null;
+  projectId?: string | null;
+  routineId?: string | null;
+  userId?: string | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: ResourceListTranslationCreateInput[] | null;
+  translationsUpdate?: ResourceListTranslationUpdateInput[] | null;
+  resourcesDelete?: string[] | null;
+  resourcesCreate?: ResourceCreateInput[] | null;
+  resourcesUpdate?: ResourceUpdateInput[] | null;
 }
 
 export interface ResourceSearchInput {
@@ -741,7 +787,7 @@ export interface RoutineCreateInput {
   nodeLinksCreate?: NodeLinkCreateInput[] | null;
   inputsCreate?: InputItemCreateInput[] | null;
   outputsCreate?: OutputItemCreateInput[] | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
   translationsCreate?: RoutineTranslationCreateInput[] | null;
@@ -759,6 +805,7 @@ export interface RoutineSearchInput {
   projectId?: string | null;
   parentId?: string | null;
   reportId?: string | null;
+  resourceLists?: string[] | null;
   resourceTypes?: ResourceUsedFor[] | null;
   searchString?: string | null;
   sortBy?: RoutineSortBy | null;
@@ -804,9 +851,9 @@ export interface RoutineUpdateInput {
   outputsCreate?: OutputItemCreateInput[] | null;
   outputsUpdate?: OutputItemUpdateInput[] | null;
   outputsDelete?: string[] | null;
-  resourcesDelete?: string[] | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
-  resourcesUpdate?: ResourceUpdateInput[] | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
@@ -949,6 +996,7 @@ export interface UserSearchInput {
   reportId?: string | null;
   standardId?: string | null;
   ids?: string[] | null;
+  resourceLists?: string[] | null;
   resourceTypes?: ResourceUsedFor[] | null;
   sortBy?: UserSortBy | null;
   searchString?: string | null;

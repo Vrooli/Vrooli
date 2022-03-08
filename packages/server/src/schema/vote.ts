@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { CODE, VoteFor } from '@local/shared';
+import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { VoteInput, Success } from './types';
+import { VoteInput, Success, VoteFor } from './types';
 import { IWrap } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';

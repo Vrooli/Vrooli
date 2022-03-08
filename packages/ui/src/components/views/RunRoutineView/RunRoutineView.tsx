@@ -38,8 +38,8 @@ export const RunRoutineView = ({
     return (
         <>
             {/* Resources */}
-            {data?.routine?.resources && <ResourceListHorizontal 
-                resources={data.routine.resources ?? []}
+            {data?.routine?.resourceLists && <ResourceListHorizontal 
+                list={data.routine.resourceLists[0]}
                 canEdit={false}
             /> }
             {/* Description */}

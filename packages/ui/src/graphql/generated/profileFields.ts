@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ResourceUsedFor } from "./globalTypes";
+import { ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: profileFields
@@ -70,7 +70,15 @@ export interface profileFields_hiddenTags {
   tag: profileFields_hiddenTags_tag;
 }
 
-export interface profileFields_resources_translations {
+export interface profileFields_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface profileFields_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -78,7 +86,7 @@ export interface profileFields_resources_translations {
   title: string | null;
 }
 
-export interface profileFields_resources {
+export interface profileFields_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -86,26 +94,17 @@ export interface profileFields_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: profileFields_resources_translations[];
+  translations: profileFields_resourceLists_resources_translations[];
 }
 
-export interface profileFields_resourcesLearn_translations {
-  __typename: "ResourceTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string | null;
-}
-
-export interface profileFields_resourcesLearn {
-  __typename: "Resource";
+export interface profileFields_resourceLists {
+  __typename: "ResourceList";
   id: string;
   created_at: any;
   index: number | null;
-  link: string;
-  updated_at: any;
-  usedFor: ResourceUsedFor | null;
-  translations: profileFields_resourcesLearn_translations[];
+  usedFor: ResourceListUsedFor | null;
+  translations: profileFields_resourceLists_translations[];
+  resources: profileFields_resourceLists_resources[];
 }
 
 export interface profileFields {
@@ -118,6 +117,5 @@ export interface profileFields {
   translations: profileFields_translations[];
   starredTags: profileFields_starredTags[] | null;
   hiddenTags: profileFields_hiddenTags[] | null;
-  resources: profileFields_resources[];
-  resourcesLearn: profileFields_resourcesLearn[];
+  resourceLists: profileFields_resourceLists[];
 }

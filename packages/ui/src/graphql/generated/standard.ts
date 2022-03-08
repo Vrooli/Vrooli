@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole, StandardType, ResourceUsedFor } from "./globalTypes";
+import { FindByIdInput, MemberRole, StandardType, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standard
@@ -38,7 +38,15 @@ export interface standard_standard_creator_Organization_translations {
   bio: string | null;
 }
 
-export interface standard_standard_creator_Organization_resources_translations {
+export interface standard_standard_creator_Organization_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface standard_standard_creator_Organization_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -46,7 +54,7 @@ export interface standard_standard_creator_Organization_resources_translations {
   title: string | null;
 }
 
-export interface standard_standard_creator_Organization_resources {
+export interface standard_standard_creator_Organization_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -54,7 +62,17 @@ export interface standard_standard_creator_Organization_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: standard_standard_creator_Organization_resources_translations[];
+  translations: standard_standard_creator_Organization_resourceLists_resources_translations[];
+}
+
+export interface standard_standard_creator_Organization_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: standard_standard_creator_Organization_resourceLists_translations[];
+  resources: standard_standard_creator_Organization_resourceLists_resources[];
 }
 
 export interface standard_standard_creator_Organization_tags_translations {
@@ -80,7 +98,7 @@ export interface standard_standard_creator_Organization {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
-  resources: standard_standard_creator_Organization_resources[];
+  resourceLists: standard_standard_creator_Organization_resourceLists[];
   tags: standard_standard_creator_Organization_tags[];
 }
 

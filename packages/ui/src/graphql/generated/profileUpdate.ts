@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProfileUpdateInput, ResourceUsedFor } from "./globalTypes";
+import { ProfileUpdateInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: profileUpdate
@@ -70,7 +70,15 @@ export interface profileUpdate_profileUpdate_hiddenTags {
   tag: profileUpdate_profileUpdate_hiddenTags_tag;
 }
 
-export interface profileUpdate_profileUpdate_resources_translations {
+export interface profileUpdate_profileUpdate_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface profileUpdate_profileUpdate_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -78,7 +86,7 @@ export interface profileUpdate_profileUpdate_resources_translations {
   title: string | null;
 }
 
-export interface profileUpdate_profileUpdate_resources {
+export interface profileUpdate_profileUpdate_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -86,26 +94,17 @@ export interface profileUpdate_profileUpdate_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: profileUpdate_profileUpdate_resources_translations[];
+  translations: profileUpdate_profileUpdate_resourceLists_resources_translations[];
 }
 
-export interface profileUpdate_profileUpdate_resourcesLearn_translations {
-  __typename: "ResourceTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string | null;
-}
-
-export interface profileUpdate_profileUpdate_resourcesLearn {
-  __typename: "Resource";
+export interface profileUpdate_profileUpdate_resourceLists {
+  __typename: "ResourceList";
   id: string;
   created_at: any;
   index: number | null;
-  link: string;
-  updated_at: any;
-  usedFor: ResourceUsedFor | null;
-  translations: profileUpdate_profileUpdate_resourcesLearn_translations[];
+  usedFor: ResourceListUsedFor | null;
+  translations: profileUpdate_profileUpdate_resourceLists_translations[];
+  resources: profileUpdate_profileUpdate_resourceLists_resources[];
 }
 
 export interface profileUpdate_profileUpdate {
@@ -118,8 +117,7 @@ export interface profileUpdate_profileUpdate {
   translations: profileUpdate_profileUpdate_translations[];
   starredTags: profileUpdate_profileUpdate_starredTags[] | null;
   hiddenTags: profileUpdate_profileUpdate_hiddenTags[] | null;
-  resources: profileUpdate_profileUpdate_resources[];
-  resourcesLearn: profileUpdate_profileUpdate_resourcesLearn[];
+  resourceLists: profileUpdate_profileUpdate_resourceLists[];
 }
 
 export interface profileUpdate {

@@ -1,8 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { TagSortBy } from '@local/shared';
 import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, TagModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSearchResult } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSearchResult, TagSortBy } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 

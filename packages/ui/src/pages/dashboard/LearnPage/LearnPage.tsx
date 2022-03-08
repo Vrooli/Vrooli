@@ -1,7 +1,7 @@
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
-import { ProjectSortBy, ResourceUsedFor, RoutineSortBy } from 'graphql/generated/globalTypes';
+import { ProjectSortBy, ResourceListUsedFor, ResourceUsedFor, RoutineSortBy } from 'graphql/generated/globalTypes';
 import { profile } from 'graphql/generated/profile';
 import { projects, projectsVariables } from 'graphql/generated/projects';
 import { routines, routinesVariables } from 'graphql/generated/routines';
@@ -9,7 +9,7 @@ import { profileUpdateMutation } from 'graphql/mutation';
 import { profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Project, Resource, Routine } from 'types';
+import { Project, Resource, ResourceList, Routine } from 'types';
 import { formatForUpdate, Pubs } from 'utils';
 import { LearnPageProps } from '../types';
 import courseMarkdown from './courseHelp.md';
@@ -19,85 +19,88 @@ import tutorialMarkdown from './tutorialHelp.md';
 /**
  * Default learning resources
  */
-const defaultResources: Resource[] = [
-    {
-        link: 'https://www.goodreads.com/review/list/138131443?shelf=must-reads-for-everyone',
-        usedFor: ResourceUsedFor.Learning,
-        translations: [
-            { 
-                language: 'en',
-                title: 'Reading list',
-                description: 'Must-read books',
-            }
-        ]
-    } as any,
-    {
-        link: 'https://www.notion.so/',
-        usedFor: ResourceUsedFor.Notes,
-        translations: [
-            {
-                language: 'en',
-                title: 'Notion',
-                description: 'Jot down your thoughts and ideas',
-            }
-        ]
-    } as any,
-    {
-        link: 'https://calendar.google.com/calendar/u/0/r',
-        usedFor: ResourceUsedFor.Scheduling,
-        translations: [
-            {
-                language: 'en',
-                title: 'My Schedule',
-                description: 'Schedule study sessions',
-            }
-        ]
-    } as any,
-    {
-        link: 'https://lifeat.io/',
-        usedFor: ResourceUsedFor.Learning,
-        translations: [
-            {
-                language: 'en',
-                title: 'Study Session',
-                description: 'Start a study session on LifeAt',
-            }
-        ]
-    } as any,
-    {
-        link: 'https://github.com/MattHalloran/Vrooli',
-        usedFor: ResourceUsedFor.Learning,
-        translations: [
-            {
-                language: 'en',
-                title: 'TED Talks',
-                description: 'Find some inspiration by watching educational videos',
-            }
-        ]
-    } as any,
-    {
-        link: 'https://www.duolingo.com/learn',
-        usedFor: ResourceUsedFor.Learning,
-        translations: [
-            {
-                language: 'en',
-                title: 'Duolingo',
-                description: 'Learn a new language',
-            }
-        ]
-    } as any,
-    {
-        link: 'https://www.khanacademy.org/profile/me/courses',
-        usedFor: ResourceUsedFor.Learning,
-        translations: [
-            {
-                language: 'en',
-                title: 'Khan Academy',
-                description: 'Brush up on your math skills',
-            }
-        ]
-    } as any
-]
+const defaultResourceList: ResourceList = {    
+    usedFor: ResourceListUsedFor.Learn,
+    resources: [
+        {
+            link: 'https://www.goodreads.com/review/list/138131443?shelf=must-reads-for-everyone',
+            usedFor: ResourceUsedFor.Learning,
+            translations: [
+                { 
+                    language: 'en',
+                    title: 'Reading list',
+                    description: 'Must-read books',
+                }
+            ]
+        } as any,
+        {
+            link: 'https://www.notion.so/',
+            usedFor: ResourceUsedFor.Notes,
+            translations: [
+                {
+                    language: 'en',
+                    title: 'Notion',
+                    description: 'Jot down your thoughts and ideas',
+                }
+            ]
+        } as any,
+        {
+            link: 'https://calendar.google.com/calendar/u/0/r',
+            usedFor: ResourceUsedFor.Scheduling,
+            translations: [
+                {
+                    language: 'en',
+                    title: 'My Schedule',
+                    description: 'Schedule study sessions',
+                }
+            ]
+        } as any,
+        {
+            link: 'https://lifeat.io/',
+            usedFor: ResourceUsedFor.Learning,
+            translations: [
+                {
+                    language: 'en',
+                    title: 'Study Session',
+                    description: 'Start a study session on LifeAt',
+                }
+            ]
+        } as any,
+        {
+            link: 'https://github.com/MattHalloran/Vrooli',
+            usedFor: ResourceUsedFor.Learning,
+            translations: [
+                {
+                    language: 'en',
+                    title: 'TED Talks',
+                    description: 'Find some inspiration by watching educational videos',
+                }
+            ]
+        } as any,
+        {
+            link: 'https://www.duolingo.com/learn',
+            usedFor: ResourceUsedFor.Learning,
+            translations: [
+                {
+                    language: 'en',
+                    title: 'Duolingo',
+                    description: 'Learn a new language',
+                }
+            ]
+        } as any,
+        {
+            link: 'https://www.khanacademy.org/profile/me/courses',
+            usedFor: ResourceUsedFor.Learning,
+            translations: [
+                {
+                    language: 'en',
+                    title: 'Khan Academy',
+                    description: 'Brush up on your math skills',
+                }
+            ]
+        } as any
+    ]
+} as any;
 
 export const LearnPage = ({
     session,
@@ -106,7 +109,10 @@ export const LearnPage = ({
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
     
-    const resources = useMemo(() => profileData?.profile?.resourcesLearn ?? defaultResources, [profileData]);
+    const resourceList = useMemo(() => {
+        if (!profileData?.profile?.resourceLists) return defaultResourceList;
+        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? null;
+    }, [profileData]);
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: Resource[]) => {
         mutationWrapper({
@@ -182,7 +188,7 @@ export const LearnPage = ({
                 {/* Resources */}
                 <ResourceListHorizontal 
                     title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
-                    resources={resources}
+                    list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
                 />

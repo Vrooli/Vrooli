@@ -3,13 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectUpdateInput, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { ProjectUpdateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: projectUpdate
 // ====================================================
 
-export interface projectUpdate_projectUpdate_resources_translations {
+export interface projectUpdate_projectUpdate_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projectUpdate_projectUpdate_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -17,7 +25,7 @@ export interface projectUpdate_projectUpdate_resources_translations {
   title: string | null;
 }
 
-export interface projectUpdate_projectUpdate_resources {
+export interface projectUpdate_projectUpdate_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -25,7 +33,17 @@ export interface projectUpdate_projectUpdate_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: projectUpdate_projectUpdate_resources_translations[];
+  translations: projectUpdate_projectUpdate_resourceLists_resources_translations[];
+}
+
+export interface projectUpdate_projectUpdate_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: projectUpdate_projectUpdate_resourceLists_translations[];
+  resources: projectUpdate_projectUpdate_resourceLists_resources[];
 }
 
 export interface projectUpdate_projectUpdate_tags_translations {
@@ -82,7 +100,7 @@ export interface projectUpdate_projectUpdate {
   role: MemberRole | null;
   score: number;
   stars: number;
-  resources: projectUpdate_projectUpdate_resources[] | null;
+  resourceLists: projectUpdate_projectUpdate_resourceLists[] | null;
   tags: projectUpdate_projectUpdate_tags[];
   translations: projectUpdate_projectUpdate_translations[];
   owner: projectUpdate_projectUpdate_owner | null;

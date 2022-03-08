@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ResourceUsedFor } from "./globalTypes";
+import { ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: profile
@@ -70,7 +70,15 @@ export interface profile_profile_hiddenTags {
   tag: profile_profile_hiddenTags_tag;
 }
 
-export interface profile_profile_resources_translations {
+export interface profile_profile_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface profile_profile_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -78,7 +86,7 @@ export interface profile_profile_resources_translations {
   title: string | null;
 }
 
-export interface profile_profile_resources {
+export interface profile_profile_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -86,26 +94,17 @@ export interface profile_profile_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: profile_profile_resources_translations[];
+  translations: profile_profile_resourceLists_resources_translations[];
 }
 
-export interface profile_profile_resourcesLearn_translations {
-  __typename: "ResourceTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string | null;
-}
-
-export interface profile_profile_resourcesLearn {
-  __typename: "Resource";
+export interface profile_profile_resourceLists {
+  __typename: "ResourceList";
   id: string;
   created_at: any;
   index: number | null;
-  link: string;
-  updated_at: any;
-  usedFor: ResourceUsedFor | null;
-  translations: profile_profile_resourcesLearn_translations[];
+  usedFor: ResourceListUsedFor | null;
+  translations: profile_profile_resourceLists_translations[];
+  resources: profile_profile_resourceLists_resources[];
 }
 
 export interface profile_profile {
@@ -118,8 +117,7 @@ export interface profile_profile {
   translations: profile_profile_translations[];
   starredTags: profile_profile_starredTags[] | null;
   hiddenTags: profile_profile_hiddenTags[] | null;
-  resources: profile_profile_resources[];
-  resourcesLearn: profile_profile_resourcesLearn[];
+  resourceLists: profile_profile_resourceLists[];
 }
 
 export interface profile {

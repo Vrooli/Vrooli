@@ -1,10 +1,9 @@
 import { gql } from 'apollo-server-express';
-import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentUpdateInput, DeleteOneInput, FindByIdInput, Success } from './types';
+import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, DeleteOneInput, FindByIdInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
 import { CommentModel, countHelper, createHelper, deleteOneHelper, GraphQLModelType, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { CommentSortBy } from '@local/shared';
 
 export const typeDef = gql`
     enum CommentFor {

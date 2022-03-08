@@ -1,5 +1,5 @@
 import { description, idArray, id, name, language } from './base';
-import { resourcesCreate, resourcesUpdate } from './resource';
+import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
@@ -27,7 +27,7 @@ export const projectCreate = yup.object().shape({
     parentId: id, // If forked, the parent's id
     createdByUserId: id, // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: id, // If associating with an organization you are an admin of, the organization's id
-    resourcesCreate,
+    resourceListsCreate,
     tagsConnect: idArray,
     tagsCreate,
     translationsCreate: projectTranslationsCreate,
@@ -40,9 +40,9 @@ export const projectUpdate = yup.object().shape({
     isComplete,
     userId: id, // Allows you to request transfer ownership of the project
     organizationId: id, // Allows you to request transfer ownership of the project
-    resourcesDelete: idArray,
-    resourcesCreate,
-    resourcesUpdate,
+    resourceListsDelete: idArray,
+    resourceListsCreate,
+    resourceListsUpdate,
     tagsConnect: idArray,
     tagsDisconnect: idArray,
     tagsCreate,

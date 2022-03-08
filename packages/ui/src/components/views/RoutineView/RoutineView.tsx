@@ -14,7 +14,7 @@ import {
 import { BaseObjectActionDialog, ResourceListHorizontal, StarButton } from "components";
 import { RoutineViewProps } from "../types";
 import { getTranslation, Pubs } from "utils";
-import { Resource, User } from "types";
+import { Resource, ResourceList, User } from "types";
 import Markdown from "markdown-to-jsx";
 import { starMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/wrappers";
@@ -180,9 +180,9 @@ export const RoutineView = ({
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
             <Stack direction="column" spacing={2} padding={1}>
                 {/* Resources */}
-                {Array.isArray(routine?.resources) && (routine?.resources as Resource[]).length > 0 ? <ResourceListHorizontal
+                {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
                     title={'Resources'}
-                    resources={routine?.resources ?? []}
+                    list={(routine as any).resourceLists[0]}
                     canEdit={false}
                     handleUpdate={() => { }}
                 /> : null}

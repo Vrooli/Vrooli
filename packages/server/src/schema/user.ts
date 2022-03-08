@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { CODE, UserSortBy } from '@local/shared';
+import { CODE } from '@local/shared';
 import { CustomError } from '../error';
 import { countHelper, ProfileModel, readManyHelper, readOneHelper, UserModel } from '../models';
-import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput } from './types';
+import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput, UserSortBy } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -30,9 +30,7 @@ export const typeDef = gql`
         roles: [Role!]!
         emails: [Email!]!
         wallets: [Wallet!]!
-        resources: [Resource!]!
-        resourcesLearn: [Resource!]!
-        resourcesResearch: [Resource!]!
+        resourceLists: [ResourceList!]!
         projects: [Project!]!
         projectsCreated: [Project!]!
         routines: [Routine!]!
@@ -55,7 +53,7 @@ export const typeDef = gql`
         stars: Int!
         isStarred: Boolean!
         comments: [Comment!]!
-        resources: [Resource!]!
+        resourceLists: [ResourceList!]!
         projects: [Project!]!
         projectsCreated: [Project!]!
         starredBy: [User!]!
@@ -86,15 +84,9 @@ export const typeDef = gql`
         hiddenTagsConnect: [ID!]
         hiddenTagsDisconnect: [ID!]
         hiddenTagsCreate: [TagCreateInput!]
-        resourcesDelete: [ID!]
-        resourcesCreate: [ResourceCreateInput!]
-        resourcesUpdate: [ResourceUpdateInput!]
-        resourcesLearnDelete: [ID!]
-        resourcesLearnCreate: [ResourceCreateInput!]
-        resourcesLearnUpdate: [ResourceUpdateInput!]
-        resourcesResearchDelete: [ID!]
-        resourcesResearchCreate: [ResourceCreateInput!]
-        resourcesResearchUpdate: [ResourceUpdateInput!]
+        resourceListsDelete: [ID!]
+        resourceListsCreate: [ResourceCreateInput!]
+        resourceListsUpdate: [ResourceUpdateInput!]
         starredTagsConnect: [ID!]
         starredTagsDisconnect: [ID!]
         starredTagsCreate: [TagCreateInput!]
@@ -124,6 +116,7 @@ export const typeDef = gql`
         reportId: ID
         standardId: ID
         ids: [ID!]
+        resourceLists: [String!]
         resourceTypes: [ResourceUsedFor!]
         sortBy: UserSortBy
         searchString: String

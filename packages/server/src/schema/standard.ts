@@ -1,8 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { StandardSortBy } from '@local/shared';
 import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, StandardModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult } from './types';
+import { DeleteOneInput, FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, Success, StandardSearchResult, StandardSortBy } from './types';
 import { Context } from '../context';
 import pkg from '@prisma/client';
 import { GraphQLResolveInfo } from 'graphql';

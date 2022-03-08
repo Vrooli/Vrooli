@@ -443,6 +443,9 @@ export type Mutation = {
   reportUpdate: Report;
   resourceCreate: Resource;
   resourceDeleteMany: Count;
+  resourceListCreate: ResourceList;
+  resourceListDeleteMany: Count;
+  resourceListUpdate: ResourceList;
   resourceUpdate: Resource;
   routineCreate: Routine;
   routineDeleteOne: Success;
@@ -601,6 +604,21 @@ export type MutationResourceCreateArgs = {
 
 export type MutationResourceDeleteManyArgs = {
   input: DeleteManyInput;
+};
+
+
+export type MutationResourceListCreateArgs = {
+  input: ResourceListCreateInput;
+};
+
+
+export type MutationResourceListDeleteManyArgs = {
+  input: DeleteManyInput;
+};
+
+
+export type MutationResourceListUpdateArgs = {
+  input: ResourceListUpdateInput;
 };
 
 
@@ -924,7 +942,7 @@ export type Organization = {
   members: Array<Member>;
   projects: Array<Project>;
   reports: Array<Report>;
-  resources: Array<Resource>;
+  resourceLists: Array<ResourceList>;
   role?: Maybe<MemberRole>;
   routines: Array<Routine>;
   routinesCreated: Array<Routine>;
@@ -943,7 +961,7 @@ export type OrganizationCountInput = {
 
 export type OrganizationCreateInput = {
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
@@ -964,6 +982,7 @@ export type OrganizationSearchInput = {
   minStars?: InputMaybe<Scalars['Int']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
+  resourceLists?: InputMaybe<Array<Scalars['String']>>;
   resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -1016,9 +1035,9 @@ export type OrganizationUpdateInput = {
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   membersConnect?: InputMaybe<Array<Scalars['ID']>>;
   membersDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
+  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1088,9 +1107,7 @@ export type Profile = {
   projects: Array<Project>;
   projectsCreated: Array<Project>;
   reports: Array<Report>;
-  resources: Array<Resource>;
-  resourcesLearn: Array<Resource>;
-  resourcesResearch: Array<Resource>;
+  resourceLists: Array<ResourceList>;
   roles: Array<Role>;
   routines: Array<Routine>;
   routinesCreated: Array<Routine>;
@@ -1119,15 +1136,9 @@ export type ProfileUpdateInput = {
   hiddenTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   hiddenTagsCreate?: InputMaybe<Array<TagCreateInput>>;
   hiddenTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesLearnCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  resourcesLearnDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesLearnUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
-  resourcesResearchCreate?: InputMaybe<Array<ResourceCreateInput>>;
-    resourcesResearchDelete?: InputMaybe<Array<Scalars['ID']>>;
-    resourcesResearchUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
-  resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  resourceListsCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourceListsUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   starredTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   starredTagsCreate?: InputMaybe<Array<TagCreateInput>>;
   starredTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1152,7 +1163,7 @@ export type Project = {
   owner?: Maybe<Contributor>;
   parent?: Maybe<Project>;
   reports: Array<Report>;
-  resources?: Maybe<Array<Resource>>;
+  resourceLists?: Maybe<Array<ResourceList>>;
   role?: Maybe<MemberRole>;
   routines: Array<Routine>;
   score: Scalars['Int'];
@@ -1175,7 +1186,7 @@ export type ProjectCreateInput = {
   isComplete?: InputMaybe<Scalars['Boolean']>;
   name: Scalars['String'];
   parentId?: InputMaybe<Scalars['ID']>;
-  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<ProjectTranslationCreateInput>>;
@@ -1198,6 +1209,7 @@ export type ProjectSearchInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
+  resourceLists?: InputMaybe<Array<Scalars['String']>>;
   resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectSortBy>;
@@ -1257,9 +1269,9 @@ export type ProjectUpdateInput = {
   name?: InputMaybe<Scalars['String']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
-  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
+  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1289,6 +1301,9 @@ export type Query = {
   reports: ReportSearchResult;
   reportsCount: Scalars['Int'];
   resource?: Maybe<Resource>;
+  resourceList?: Maybe<Resource>;
+  resourceLists: ResourceListSearchResult;
+  resourceListsCount: Scalars['Int'];
   resources: ResourceSearchResult;
   resourcesCount: Scalars['Int'];
   routine?: Maybe<Routine>;
@@ -1389,6 +1404,21 @@ export type QueryReportsCountArgs = {
 
 export type QueryResourceArgs = {
   input: FindByIdInput;
+};
+
+
+export type QueryResourceListArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryResourceListsArgs = {
+  input: ResourceListSearchInput;
+};
+
+
+export type QueryResourceListsCountArgs = {
+  input: ResourceListCountInput;
 };
 
 
@@ -1580,6 +1610,118 @@ export enum ResourceFor {
   User = 'User'
 }
 
+export type ResourceList = {
+  __typename?: 'ResourceList';
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  index?: Maybe<Scalars['Int']>;
+  organization?: Maybe<Organization>;
+  project?: Maybe<Project>;
+  resources: Array<Resource>;
+  routine?: Maybe<Routine>;
+  translations: Array<ResourceListTranslation>;
+  updated_at: Scalars['Date'];
+  usedFor?: Maybe<ResourceListUsedFor>;
+  user?: Maybe<User>;
+};
+
+export type ResourceListCountInput = {
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+};
+
+export type ResourceListCreateInput = {
+  index?: InputMaybe<Scalars['Int']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  routineId?: InputMaybe<Scalars['ID']>;
+  translationsCreate?: InputMaybe<Array<ResourceListTranslationCreateInput>>;
+  usedFor: ResourceListUsedFor;
+  userId?: InputMaybe<Scalars['ID']>;
+};
+
+export type ResourceListEdge = {
+  __typename?: 'ResourceListEdge';
+  cursor: Scalars['String'];
+  node: ResourceList;
+};
+
+export type ResourceListSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<ResourceListSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+};
+
+export type ResourceListSearchResult = {
+  __typename?: 'ResourceListSearchResult';
+  edges: Array<ResourceListEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum ResourceListSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  IndexAsc = 'IndexAsc',
+  IndexDesc = 'IndexDesc'
+}
+
+export type ResourceListTranslation = {
+  __typename?: 'ResourceListTranslation';
+  description?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  title?: Maybe<Scalars['String']>;
+};
+
+export type ResourceListTranslationCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  language: Scalars['String'];
+  title?: InputMaybe<Scalars['String']>;
+};
+
+export type ResourceListTranslationUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  title?: InputMaybe<Scalars['String']>;
+};
+
+export type ResourceListUpdateInput = {
+  id: Scalars['ID'];
+  index?: InputMaybe<Scalars['Int']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  routineId?: InputMaybe<Scalars['ID']>;
+  translationsCreate?: InputMaybe<Array<ResourceListTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<ResourceListTranslationUpdateInput>>;
+  usedFor?: InputMaybe<ResourceListUsedFor>;
+  userId?: InputMaybe<Scalars['ID']>;
+};
+
+export enum ResourceListUsedFor {
+  Custom = 'Custom',
+  Develop = 'Develop',
+  Display = 'Display',
+  Learn = 'Learn',
+  Research = 'Research'
+}
+
 export type ResourceSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
@@ -1647,12 +1789,14 @@ export enum ResourceUsedFor {
   Developer = 'Developer',
   Donation = 'Donation',
   ExternalService = 'ExternalService',
+  Feed = 'Feed',
   Install = 'Install',
   Learning = 'Learning',
   Notes = 'Notes',
   OfficialWebsite = 'OfficialWebsite',
   Proposal = 'Proposal',
   Related = 'Related',
+  Researching = 'Researching',
   Scheduling = 'Scheduling',
   Social = 'Social',
   Tutorial = 'Tutorial'
@@ -1694,7 +1838,7 @@ export type Routine = {
   parent?: Maybe<Routine>;
   project?: Maybe<Project>;
   reports: Array<Report>;
-  resources: Array<Resource>;
+  resourceLists: Array<ResourceList>;
   role?: Maybe<MemberRole>;
   score: Scalars['Int'];
   starredBy: Array<User>;
@@ -1722,7 +1866,7 @@ export type RoutineCreateInput = {
   outputsCreate?: InputMaybe<Array<OutputItemCreateInput>>;
   parentId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
-  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<RoutineTranslationCreateInput>>;
@@ -1747,6 +1891,7 @@ export type RoutineSearchInput = {
   parentId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
+  resourceLists?: InputMaybe<Array<Scalars['String']>>;
   resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineSortBy>;
@@ -1822,9 +1967,9 @@ export type RoutineUpdateInput = {
   outputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   outputsUpdate?: InputMaybe<Array<OutputItemUpdateInput>>;
   parentId?: InputMaybe<Scalars['ID']>;
-  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
+  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -2123,7 +2268,7 @@ export type User = {
   projects: Array<Project>;
   projectsCreated: Array<Project>;
   reports: Array<Report>;
-  resources: Array<Resource>;
+  resourceLists: Array<ResourceList>;
   routines: Array<Routine>;
   routinesCreated: Array<Routine>;
   starredBy: Array<User>;
@@ -2162,6 +2307,7 @@ export type UserSearchInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
+  resourceLists?: InputMaybe<Array<Scalars['String']>>;
   resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;

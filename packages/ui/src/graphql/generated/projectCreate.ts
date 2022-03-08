@@ -3,13 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectCreateInput, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { ProjectCreateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: projectCreate
 // ====================================================
 
-export interface projectCreate_projectCreate_resources_translations {
+export interface projectCreate_projectCreate_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projectCreate_projectCreate_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -17,7 +25,7 @@ export interface projectCreate_projectCreate_resources_translations {
   title: string | null;
 }
 
-export interface projectCreate_projectCreate_resources {
+export interface projectCreate_projectCreate_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -25,7 +33,17 @@ export interface projectCreate_projectCreate_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: projectCreate_projectCreate_resources_translations[];
+  translations: projectCreate_projectCreate_resourceLists_resources_translations[];
+}
+
+export interface projectCreate_projectCreate_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: projectCreate_projectCreate_resourceLists_translations[];
+  resources: projectCreate_projectCreate_resourceLists_resources[];
 }
 
 export interface projectCreate_projectCreate_tags_translations {
@@ -82,7 +100,7 @@ export interface projectCreate_projectCreate {
   role: MemberRole | null;
   score: number;
   stars: number;
-  resources: projectCreate_projectCreate_resources[] | null;
+  resourceLists: projectCreate_projectCreate_resourceLists[] | null;
   tags: projectCreate_projectCreate_tags[];
   translations: projectCreate_projectCreate_translations[];
   owner: projectCreate_projectCreate_owner | null;

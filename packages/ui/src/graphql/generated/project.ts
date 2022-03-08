@@ -3,13 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { FindByIdInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: project
 // ====================================================
 
-export interface project_project_resources_translations {
+export interface project_project_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface project_project_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -17,7 +25,7 @@ export interface project_project_resources_translations {
   title: string | null;
 }
 
-export interface project_project_resources {
+export interface project_project_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -25,7 +33,17 @@ export interface project_project_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: project_project_resources_translations[];
+  translations: project_project_resourceLists_resources_translations[];
+}
+
+export interface project_project_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: project_project_resourceLists_translations[];
+  resources: project_project_resourceLists_resources[];
 }
 
 export interface project_project_tags_translations {
@@ -82,7 +100,7 @@ export interface project_project {
   role: MemberRole | null;
   score: number;
   stars: number;
-  resources: project_project_resources[] | null;
+  resourceLists: project_project_resourceLists[] | null;
   tags: project_project_tags[];
   translations: project_project_translations[];
   owner: project_project_owner | null;

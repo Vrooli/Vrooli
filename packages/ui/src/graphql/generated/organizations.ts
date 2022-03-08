@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationSearchInput, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { OrganizationSearchInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: organizations
@@ -15,7 +15,15 @@ export interface organizations_organizations_pageInfo {
   hasNextPage: boolean;
 }
 
-export interface organizations_organizations_edges_node_resources_translations {
+export interface organizations_organizations_edges_node_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface organizations_organizations_edges_node_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -23,7 +31,7 @@ export interface organizations_organizations_edges_node_resources_translations {
   title: string | null;
 }
 
-export interface organizations_organizations_edges_node_resources {
+export interface organizations_organizations_edges_node_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -31,7 +39,17 @@ export interface organizations_organizations_edges_node_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: organizations_organizations_edges_node_resources_translations[];
+  translations: organizations_organizations_edges_node_resourceLists_resources_translations[];
+}
+
+export interface organizations_organizations_edges_node_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: organizations_organizations_edges_node_resourceLists_translations[];
+  resources: organizations_organizations_edges_node_resourceLists_resources[];
 }
 
 export interface organizations_organizations_edges_node_tags_translations {
@@ -64,7 +82,7 @@ export interface organizations_organizations_edges_node {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
-  resources: organizations_organizations_edges_node_resources[];
+  resourceLists: organizations_organizations_edges_node_resourceLists[];
   tags: organizations_organizations_edges_node_tags[];
   translations: organizations_organizations_edges_node_translations[];
 }

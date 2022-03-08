@@ -29,6 +29,7 @@ export * from './organization';
 export * from './project';
 export * from './report';
 export * from './resource';
+export * from './resourceList';
 export * from './routine';
 export * from './standard';
 export * from './tag';

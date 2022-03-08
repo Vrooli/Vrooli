@@ -3,13 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationCreateInput, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { OrganizationCreateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: organizationCreate
 // ====================================================
 
-export interface organizationCreate_organizationCreate_resources_translations {
+export interface organizationCreate_organizationCreate_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface organizationCreate_organizationCreate_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -17,7 +25,7 @@ export interface organizationCreate_organizationCreate_resources_translations {
   title: string | null;
 }
 
-export interface organizationCreate_organizationCreate_resources {
+export interface organizationCreate_organizationCreate_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -25,7 +33,17 @@ export interface organizationCreate_organizationCreate_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: organizationCreate_organizationCreate_resources_translations[];
+  translations: organizationCreate_organizationCreate_resourceLists_resources_translations[];
+}
+
+export interface organizationCreate_organizationCreate_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: organizationCreate_organizationCreate_resourceLists_translations[];
+  resources: organizationCreate_organizationCreate_resourceLists_resources[];
 }
 
 export interface organizationCreate_organizationCreate_tags_translations {
@@ -58,7 +76,7 @@ export interface organizationCreate_organizationCreate {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
-  resources: organizationCreate_organizationCreate_resources[];
+  resourceLists: organizationCreate_organizationCreate_resourceLists[];
   tags: organizationCreate_organizationCreate_tags[];
   translations: organizationCreate_organizationCreate_translations[];
 }

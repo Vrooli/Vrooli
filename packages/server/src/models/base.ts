@@ -25,6 +25,8 @@ import { memberFormatter } from './member';
 import { resolveGraphQLInfo } from '../utils';
 import { inputItemFormatter } from './inputItem';
 import { outputItemFormatter } from './outputItem';
+import { resourceListFormatter, resourceListSearcher } from './resourceList';
+import { tagHiddenFormatter } from './tagHidden';
 const { isObject } = pkg;
 
 
@@ -47,6 +49,7 @@ export enum GraphQLModelType {
     Project = 'Project',
     Report = 'Report',
     Resource = 'Resource',
+    ResourceList = 'ResourceList',
     Role = 'Role',
     Routine = 'Routine',
     Standard = 'Standard',
@@ -209,11 +212,13 @@ export const FormatterMap: { [x: string]: FormatConverter<any> } = {
     [GraphQLModelType.Project]: projectFormatter(),
     [GraphQLModelType.Report]: reportFormatter(),
     [GraphQLModelType.Resource]: resourceFormatter(),
+    [GraphQLModelType.ResourceList]: resourceListFormatter(),
     [GraphQLModelType.Role]: roleFormatter(),
     [GraphQLModelType.Routine]: routineFormatter(),
     [GraphQLModelType.Standard]: standardFormatter(),
     [GraphQLModelType.Star]: starFormatter(),
     [GraphQLModelType.Tag]: tagFormatter(),
+    [GraphQLModelType.TagHidden]: tagHiddenFormatter(),
     [GraphQLModelType.User]: userFormatter(),
     [GraphQLModelType.Vote]: voteFormatter(),
 }
@@ -225,6 +230,7 @@ export const SearcherMap: { [x: string]: Searcher<any> } = {
     [GraphQLModelType.Project]: projectSearcher(),
     [GraphQLModelType.Report]: reportSearcher(),
     [GraphQLModelType.Resource]: resourceSearcher(),
+    [GraphQLModelType.ResourceList]: resourceListSearcher(),
     [GraphQLModelType.Routine]: routineSearcher(),
     [GraphQLModelType.Standard]: standardSearcher(),
     // 'Star': starSearcher(),

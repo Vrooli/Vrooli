@@ -3,13 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole, ResourceUsedFor } from "./globalTypes";
+import { MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: organizationFields
 // ====================================================
 
-export interface organizationFields_resources_translations {
+export interface organizationFields_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface organizationFields_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -17,7 +25,7 @@ export interface organizationFields_resources_translations {
   title: string | null;
 }
 
-export interface organizationFields_resources {
+export interface organizationFields_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -25,7 +33,17 @@ export interface organizationFields_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: organizationFields_resources_translations[];
+  translations: organizationFields_resourceLists_resources_translations[];
+}
+
+export interface organizationFields_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: organizationFields_resourceLists_translations[];
+  resources: organizationFields_resourceLists_resources[];
 }
 
 export interface organizationFields_tags_translations {
@@ -58,7 +76,7 @@ export interface organizationFields {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
-  resources: organizationFields_resources[];
+  resourceLists: organizationFields_resourceLists[];
   tags: organizationFields_tags[];
   translations: organizationFields_translations[];
 }

@@ -1,7 +1,6 @@
 import { gql } from 'apollo-server-express';
-import { ProjectSortBy } from '@local/shared';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult } from './types';
+import { DeleteOneInput, FindByIdInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
 import { Context } from '../context';
 import { countHelper, createHelper, deleteOneHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
@@ -30,7 +29,7 @@ export const typeDef = gql`
         isComplete: Boolean
         name: String!
         parentId: ID
-        resourcesCreate: [ResourceCreateInput!]
+        resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [ProjectTranslationCreateInput!]
@@ -42,9 +41,9 @@ export const typeDef = gql`
         organizationId: ID
         parentId: ID
         userId: ID
-        resourcesDelete: [ID!]
-        resourcesCreate: [ResourceCreateInput!]
-        resourcesUpdate: [ResourceUpdateInput!]
+        resourceListsDelete: [ID!]
+        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListsUpdate: [ResourceListUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
@@ -69,7 +68,7 @@ export const typeDef = gql`
         owner: Contributor
         parent: Project
         reports: [Report!]!
-        resources: [Resource!]
+        resourceLists: [ResourceList!]
         routines: [Routine!]!
         starredBy: [User!]
         tags: [Tag!]!
@@ -106,6 +105,7 @@ export const typeDef = gql`
         organizationId: ID
         parentId: ID
         reportId: ID
+        resourceLists: [String!]
         resourceTypes: [ResourceUsedFor!]
         searchString: String
         sortBy: ProjectSortBy

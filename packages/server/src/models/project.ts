@@ -1,16 +1,15 @@
 import { CODE, MemberRole, projectCreate, projectTranslationCreate, projectTranslationUpdate, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
-import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count } from "../schema/types";
+import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../schema/types";
 import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
-import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
-import { ResourceModel } from "./resource";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
+import { ResourceListModel } from "./resourceList";
 
 //==============================================================
 /* #region Custom Components */
@@ -32,7 +31,7 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         },
         'parent': GraphQLModelType.Project,
         'reports': GraphQLModelType.Report,
-        'resources': GraphQLModelType.Resource,
+        'resourceLists': GraphQLModelType.ResourceList,
         'routines': GraphQLModelType.Routine,
         'starredBy': GraphQLModelType.User,
         'tags': GraphQLModelType.Tag,
@@ -142,13 +141,13 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
         const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resources: { some: { usedFor: { in: input.resourceTypes } } } } : {};
-        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
+        const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
+        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...isCompleteQuery, ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...tagsQuery };
+        return { ...isCompleteQuery, ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...resourceListsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...tagsQuery };
     },
 })
 
@@ -200,7 +199,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             completedAt: input.isComplete ? new Date().toISOString() : null,
             name: input.name,
             parentId: input.parentId,
-            resources: ResourceModel(prisma).relationshipBuilder(userId, input, true),
+            resourceLists: ResourceListModel(prisma).relationshipBuilder(userId, input, true),
             tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
         })

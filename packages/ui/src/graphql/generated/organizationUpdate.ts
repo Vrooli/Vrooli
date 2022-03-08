@@ -3,13 +3,21 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationUpdateInput, MemberRole, ResourceUsedFor } from "./globalTypes";
+import { OrganizationUpdateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: organizationUpdate
 // ====================================================
 
-export interface organizationUpdate_organizationUpdate_resources_translations {
+export interface organizationUpdate_organizationUpdate_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface organizationUpdate_organizationUpdate_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -17,7 +25,7 @@ export interface organizationUpdate_organizationUpdate_resources_translations {
   title: string | null;
 }
 
-export interface organizationUpdate_organizationUpdate_resources {
+export interface organizationUpdate_organizationUpdate_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -25,7 +33,17 @@ export interface organizationUpdate_organizationUpdate_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: organizationUpdate_organizationUpdate_resources_translations[];
+  translations: organizationUpdate_organizationUpdate_resourceLists_resources_translations[];
+}
+
+export interface organizationUpdate_organizationUpdate_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: organizationUpdate_organizationUpdate_resourceLists_translations[];
+  resources: organizationUpdate_organizationUpdate_resourceLists_resources[];
 }
 
 export interface organizationUpdate_organizationUpdate_tags_translations {
@@ -58,7 +76,7 @@ export interface organizationUpdate_organizationUpdate {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
-  resources: organizationUpdate_organizationUpdate_resources[];
+  resourceLists: organizationUpdate_organizationUpdate_resourceLists[];
   tags: organizationUpdate_organizationUpdate_tags[];
   translations: organizationUpdate_organizationUpdate_translations[];
 }

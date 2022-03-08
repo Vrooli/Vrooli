@@ -1,18 +1,30 @@
 import { gql } from 'graphql-tag';
 
 export const organizationFields = gql`
-    fragment organizationResourceFields on Resource {
+    fragment organizationResourceListFields on ResourceList {
         id
         created_at
         index
-        link
-        updated_at
         usedFor
         translations {
             id
             language
             description
             title
+        }
+        resources {
+            id
+            created_at
+            index
+            link
+            updated_at
+            usedFor
+            translations {
+                id
+                language
+                description
+                title
+            }
         }
     }
     fragment organizationTagFields on Tag {
@@ -31,8 +43,8 @@ export const organizationFields = gql`
         isStarred
         role
         stars
-        resources {
-            ...organizationResourceFields
+        resourceLists {
+            ...organizationResourceListFields
         }
         tags {
             ...organizationTagFields

@@ -1,6 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { ReportFor, ReportSortBy } from '@local/shared';
-import { DeleteOneInput, FindByIdInput, Report, ReportCountInput, ReportCreateInput, ReportSearchInput, ReportSearchResult, ReportUpdateInput, Success } from './types';
+import { DeleteOneInput, FindByIdInput, Report, ReportCountInput, ReportCreateInput, ReportFor, ReportSearchInput, ReportSearchResult, ReportSortBy, ReportUpdateInput, Success } from './types';
 import { IWrap, RecursivePartial } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';

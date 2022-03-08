@@ -1,8 +1,7 @@
 import { gql } from 'apollo-server-express';
-import { ResourceFor, ResourceSortBy, ResourceUsedFor } from '@local/shared';
 import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, ResourceModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from 'types';
-import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult, ResourceFor, ResourceSortBy, ResourceUsedFor } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -29,12 +28,14 @@ export const typeDef = gql`
         Developer
         Donation
         ExternalService
+        Feed
         Install
         Learning
         Notes
         OfficialWebsite
         Proposal
         Related
+        Researching
         Scheduling
         Social
         Tutorial
