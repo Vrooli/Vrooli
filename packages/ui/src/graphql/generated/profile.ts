@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { ResourceUsedFor } from "./globalTypes";
+
 // ====================================================
 // GraphQL query operation: profile
 // ====================================================
@@ -68,6 +70,44 @@ export interface profile_profile_hiddenTags {
   tag: profile_profile_hiddenTags_tag;
 }
 
+export interface profile_profile_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface profile_profile_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: profile_profile_resources_translations[];
+}
+
+export interface profile_profile_resourcesLearning_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface profile_profile_resourcesLearning {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: profile_profile_resourcesLearning_translations[];
+}
+
 export interface profile_profile {
   __typename: "Profile";
   id: string;
@@ -78,6 +118,8 @@ export interface profile_profile {
   translations: profile_profile_translations[];
   starredTags: profile_profile_starredTags[] | null;
   hiddenTags: profile_profile_hiddenTags[] | null;
+  resources: profile_profile_resources[];
+  resourcesLearning: profile_profile_resourcesLearning[];
 }
 
 export interface profile {

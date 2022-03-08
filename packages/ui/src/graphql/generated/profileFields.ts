@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { ResourceUsedFor } from "./globalTypes";
+
 // ====================================================
 // GraphQL fragment: profileFields
 // ====================================================
@@ -68,6 +70,44 @@ export interface profileFields_hiddenTags {
   tag: profileFields_hiddenTags_tag;
 }
 
+export interface profileFields_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface profileFields_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: profileFields_resources_translations[];
+}
+
+export interface profileFields_resourcesLearning_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface profileFields_resourcesLearning {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: profileFields_resourcesLearning_translations[];
+}
+
 export interface profileFields {
   __typename: "Profile";
   id: string;
@@ -78,4 +118,6 @@ export interface profileFields {
   translations: profileFields_translations[];
   starredTags: profileFields_starredTags[] | null;
   hiddenTags: profileFields_hiddenTags[] | null;
+  resources: profileFields_resources[];
+  resourcesLearning: profileFields_resourcesLearning[];
 }

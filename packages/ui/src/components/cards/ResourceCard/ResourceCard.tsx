@@ -7,13 +7,10 @@ import {
 } from '@mui/material';
 import { getTranslation, openLink } from 'utils';
 import { useCallback, useEffect, useMemo } from 'react';
-import { readOpenGraphQuery } from 'graphql/query';
-import { useLazyQuery } from '@apollo/client';
 import { useLocation } from 'wouter';
 import { ResourceCardProps } from '../types';
 import { cardRoot } from '../styles';
 import { multiLineEllipsis } from 'styles';
-import { readOpenGraph, readOpenGraphVariables } from 'graphql/generated/readOpenGraph';
 import {
     Delete as DeleteIcon,
     Edit as EditIcon,
@@ -39,16 +36,14 @@ export const ResourceCard = ({
     onRightClick,
 }: ResourceCardProps) => {
     const [, setLocation] = useLocation();
-    const [getOpenGraphData, { data: queryResult }] = useLazyQuery<readOpenGraph, readOpenGraphVariables>(readOpenGraphQuery);
-    const queryData = useMemo(() => queryResult?.readOpenGraph, [queryResult]);
 
     const { description, title } = useMemo(() => {
         const languages = navigator.languages; //session?.languages ?? navigator.languages;
         return {
             description: getTranslation(data, 'description', languages, true) ?? '',
-            title:  getTranslation(data, 'title', languages, true) ?? queryData?.title ?? '',
+            title:  getTranslation(data, 'title', languages, true) ?? '',
         };
-    }, [data, queryData]);
+    }, [data]);
 
     const handleClick = useCallback((event: any) => {
         if (onClick) onClick(data);
@@ -57,12 +52,6 @@ export const ResourceCard = ({
     const handleRightClick = useCallback((event: any) => {
         if (onRightClick) onRightClick(event, data);
     }, [onRightClick, data]);
-
-    useEffect(() => {
-        if (data.link && !title) {
-            getOpenGraphData({ variables: { input: { url: data.link } } })
-        }
-    }, [getOpenGraphData, data, title])
 
     // const display = useMemo(() => {
     //     if (!data || !data.displayUrl) {

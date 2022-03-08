@@ -2,8 +2,8 @@ import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo, GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
-import ogs from 'open-graph-scraper';
-import { AutocompleteInput, AutocompleteResult, OpenGraphResponse } from './types';
+// import ogs from 'open-graph-scraper';
+import { AutocompleteInput, AutocompleteResult } from './types';
 import { CODE, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
@@ -46,20 +46,8 @@ export const typeDef = gql`
         message: String!
     }
 
-    # Return type for Open Graph queries
-    type OpenGraphResponse {
-        site: String
-        title: String
-        description: String
-        imageUrl: String
-    }
-
     input ReadAssetsInput {
         files: [String!]!
-    }
-
-    input ReadOpenGraphInput {
-        url: String!
     }
 
     input WriteAssetsInput {
@@ -116,7 +104,6 @@ export const typeDef = gql`
     type Query {
         # _empty: String
         readAssets(input: ReadAssetsInput!): [String]!
-        readOpenGraph(input: ReadOpenGraphInput!): OpenGraphResponse!
         autocomplete(input: AutocompleteInput!): AutocompleteResult!
         statistics: StatisticsResult!
     }
@@ -154,21 +141,6 @@ export const resolvers = {
     Query: {
         readAssets: async (_parent: undefined, { input }: any): Promise<Array<String | null>> => {
             return await readFiles(input.files);
-        },
-        readOpenGraph: async (_parent: undefined, { input }: any): Promise<OpenGraphResponse> => {
-            return await ogs({ url: input.url })
-                .then((data: any) => {
-                    const { result } = data;
-                    return {
-                        site: result?.ogSiteName,
-                        title: result?.ogTitle,
-                        description: result?.ogDescription,
-                        imageUrl: result?.ogImage?.url,
-                    };
-                }).catch(err => {
-                    console.error('Caught error fetching Open Graph url', err);
-                    return {};
-                }).finally(() => { return {} })
         },
         /**
          * Autocomplete endpoint for main page. Combines search queries for all main objects

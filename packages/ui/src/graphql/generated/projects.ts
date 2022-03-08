@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectSearchInput, MemberRole } from "./globalTypes";
+import { ProjectSearchInput, MemberRole, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: projects
@@ -13,6 +13,25 @@ export interface projects_projects_pageInfo {
   __typename: "PageInfo";
   endCursor: string | null;
   hasNextPage: boolean;
+}
+
+export interface projects_projects_edges_node_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projects_projects_edges_node_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: projects_projects_edges_node_resources_translations[];
 }
 
 export interface projects_projects_edges_node_tags_translations {
@@ -69,6 +88,7 @@ export interface projects_projects_edges_node {
   role: MemberRole | null;
   score: number;
   stars: number;
+  resources: projects_projects_edges_node_resources[] | null;
   tags: projects_projects_edges_node_tags[];
   translations: projects_projects_edges_node_translations[];
   owner: projects_projects_edges_node_owner | null;

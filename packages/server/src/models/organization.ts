@@ -136,6 +136,7 @@ export const organizationVerifier = (prisma: PrismaType) => ({
 export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShape(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
         return {
+            id: (data as OrganizationUpdateInput)?.id ?? undefined,
             isOpenToNewMembers: data.isOpenToNewMembers,
             resources: ResourceModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
@@ -176,6 +177,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
      * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
      */
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<CUDResult<Organization>> {
+        console.log('in organization cud start', partial, userId, createMany);
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -184,10 +186,13 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             for (const input of createMany) {
                 // Call createData helper function
                 const data = await this.toDBShape(userId, input);
+                console.log('organization create input loop db shape', data);
                 // Create object
                 const currCreated = await prisma.organization.create({ data, ...selectHelper(partial) });
+                console.log('organization create input loop currCreated', currCreated);
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currCreated, partial);
+                console.log('organization create input loop tographql', converted)
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }

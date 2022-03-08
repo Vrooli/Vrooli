@@ -169,6 +169,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
 export const routineMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput): Promise<any> {
         return {
+            id: (data as RoutineUpdateInput)?.id ?? undefined,
             isAutomatable: data.isAutomatable,
             isComplete: data.isComplete,
             completedAt: data.isComplete ? new Date().toISOString() : null,

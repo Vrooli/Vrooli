@@ -3,11 +3,30 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationUpdateInput, MemberRole } from "./globalTypes";
+import { OrganizationUpdateInput, MemberRole, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: organizationUpdate
 // ====================================================
+
+export interface organizationUpdate_organizationUpdate_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface organizationUpdate_organizationUpdate_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: organizationUpdate_organizationUpdate_resources_translations[];
+}
 
 export interface organizationUpdate_organizationUpdate_tags_translations {
   __typename: "TagTranslation";
@@ -39,6 +58,7 @@ export interface organizationUpdate_organizationUpdate {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
+  resources: organizationUpdate_organizationUpdate_resources[];
   tags: organizationUpdate_organizationUpdate_tags[];
   translations: organizationUpdate_organizationUpdate_translations[];
 }

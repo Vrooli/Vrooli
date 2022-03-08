@@ -1,6 +1,20 @@
 import { gql } from 'graphql-tag';
 
 export const profileFields = gql`
+    fragment profileResourceFields on Resource {
+        id
+        created_at
+        index
+        link
+        updated_at
+        usedFor
+        translations {
+            id
+            language
+            description
+            title
+        }
+    }
     fragment profileFields on Profile {
         id
         username
@@ -46,6 +60,12 @@ export const profileFields = gql`
                     description
                 }
             }
+        }
+        resources {
+            ...profileResourceFields
+        }
+        resourcesLearning {
+            ...profileResourceFields
         }
     }
 `

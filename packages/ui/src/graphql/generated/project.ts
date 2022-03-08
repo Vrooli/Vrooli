@@ -3,11 +3,30 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole } from "./globalTypes";
+import { FindByIdInput, MemberRole, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: project
 // ====================================================
+
+export interface project_project_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface project_project_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: project_project_resources_translations[];
+}
 
 export interface project_project_tags_translations {
   __typename: "TagTranslation";
@@ -63,6 +82,7 @@ export interface project_project {
   role: MemberRole | null;
   score: number;
   stars: number;
+  resources: project_project_resources[] | null;
   tags: project_project_tags[];
   translations: project_project_translations[];
   owner: project_project_owner | null;

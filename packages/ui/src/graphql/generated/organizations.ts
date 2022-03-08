@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { OrganizationSearchInput, MemberRole } from "./globalTypes";
+import { OrganizationSearchInput, MemberRole, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: organizations
@@ -13,6 +13,25 @@ export interface organizations_organizations_pageInfo {
   __typename: "PageInfo";
   endCursor: string | null;
   hasNextPage: boolean;
+}
+
+export interface organizations_organizations_edges_node_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface organizations_organizations_edges_node_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: organizations_organizations_edges_node_resources_translations[];
 }
 
 export interface organizations_organizations_edges_node_tags_translations {
@@ -45,6 +64,7 @@ export interface organizations_organizations_edges_node {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
+  resources: organizations_organizations_edges_node_resources[];
   tags: organizations_organizations_edges_node_tags[];
   translations: organizations_organizations_edges_node_translations[];
 }

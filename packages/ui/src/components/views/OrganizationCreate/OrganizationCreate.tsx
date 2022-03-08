@@ -49,7 +49,14 @@ export const OrganizationCreate = ({
             console.log('submitting', tags);
             mutationWrapper({
                 mutation,
-                input: formatForCreate({ ...values, tags }),
+                input: formatForCreate({
+                    translations: [{
+                        language: 'en',
+                        name: values.name,
+                        bio: values.bio,
+                    }],
+                    tags,
+                }),
                 onSuccess: (response) => { onCreated(response.data.organizationCreate) },
             })
         },

@@ -439,11 +439,13 @@ model resource {
     projectId      String?                @db.Uuid
     routineId      String?                @db.Uuid
     userId         String?                @db.Uuid
+    userLearningId String?                @db.Uuid
     organization   organization?          @relation("resource_organization", fields: [organizationId], references: [id], onDelete: Cascade)
     project        project?               @relation("resource_project", fields: [projectId], references: [id], onDelete: Cascade)
     routine        routine?               @relation("resource_routine", fields: [routineId], references: [id], onDelete: Cascade)
     translations   resource_translation[]
     user           user?                  @relation("resource_user", fields: [userId], references: [id], onDelete: Cascade)
+    userLearning   user?                  @relation("resource_user_learning", fields: [userLearningId], references: [id], onDelete: Cascade)
 }
 
 model resource_translation {
@@ -761,6 +763,7 @@ model user {
     languages                      user_language[]
     reports                        report[]
     resources                      resource[]           @relation("resource_user") // Resources associated with user profile
+    resourcesLearning              resource[]           @relation("resource_user_learning") // User's learning resources
     roles                          user_roles[]
     standards                      standard[]
     tags                           tag[] // Tags the user CREATED - not tags applied to the user's profile
@@ -910,9 +913,11 @@ enum ResourceUsedFor {
     ExternalService // e.g. Fill out form link
     Install // e.g. Install a required program link
     Learning // e.g. White Paper link
+    Notes // e.g. Notion board, notes app
     OfficialWebsite // e.g. Website or Github link
     Proposal // e.g. IdeaScale link
     Related // e.g. Anything that's related to the project, but doesn't fit into any of the other categories
+    Scheduling // e.g. Google calendar, tasking app
     Social // e.g. Twitter, Facebook, Instagram
     Tutorial // e.g. Youtube video link
 }

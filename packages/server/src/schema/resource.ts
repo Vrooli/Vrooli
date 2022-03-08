@@ -31,9 +31,11 @@ export const typeDef = gql`
         ExternalService
         Install
         Learning
+        Notes
         OfficialWebsite
         Proposal
         Related
+        Scheduling
         Social
         Tutorial
     }

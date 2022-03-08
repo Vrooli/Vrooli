@@ -86,11 +86,13 @@ export enum ResourceUsedFor {
   ExternalService = "ExternalService",
   Install = "Install",
   Learning = "Learning",
+  Notes = "Notes",
   OfficialWebsite = "OfficialWebsite",
   Proposal = "Proposal",
   Related = "Related",
   Social = "Social",
   Tutorial = "Tutorial",
+  Scheduling = "Scheduling",
 }
 
 export enum RoutineSortBy {
@@ -562,12 +564,18 @@ export interface OutputItemUpdateInput {
 export interface ProfileUpdateInput {
   username?: string | null;
   theme?: string | null;
-  starredTagsConnect?: string[] | null;
-  starredTagsDisconnect?: string[] | null;
-  starredTagsCreate?: TagCreateInput[] | null;
   hiddenTagsConnect?: string[] | null;
   hiddenTagsDisconnect?: string[] | null;
   hiddenTagsCreate?: TagCreateInput[] | null;
+  resourcesDelete?: string[] | null;
+  resourcesCreate?: ResourceCreateInput[] | null;
+  resourcesUpdate?: ResourceUpdateInput[] | null;
+  resourcesLearningDelete?: string[] | null;
+  resourcesLearningCreate?: ResourceCreateInput[] | null;
+  resourcesLearningUpdate?: ResourceUpdateInput[] | null;
+  starredTagsConnect?: string[] | null;
+  starredTagsDisconnect?: string[] | null;
+  starredTagsCreate?: TagCreateInput[] | null;
   translationsDelete?: string[] | null;
   translationsCreate?: UserTranslationCreateInput[] | null;
   translationsUpdate?: UserTranslationUpdateInput[] | null;
@@ -643,10 +651,6 @@ export interface ProjectUpdateInput {
 
 export interface ReadAssetsInput {
   files: string[];
-}
-
-export interface ReadOpenGraphInput {
-  url: string;
 }
 
 export interface ReportCreateInput {

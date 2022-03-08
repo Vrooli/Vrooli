@@ -3,11 +3,30 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { MemberRole } from "./globalTypes";
+import { MemberRole, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: projectFields
 // ====================================================
+
+export interface projectFields_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projectFields_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: projectFields_resources_translations[];
+}
 
 export interface projectFields_tags_translations {
   __typename: "TagTranslation";
@@ -63,6 +82,7 @@ export interface projectFields {
   role: MemberRole | null;
   score: number;
   stars: number;
+  resources: projectFields_resources[] | null;
   tags: projectFields_tags[];
   translations: projectFields_translations[];
   owner: projectFields_owner | null;

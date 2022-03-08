@@ -1,20 +1,123 @@
-import { useQuery } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
-import { ProjectSortBy, RoutineSortBy } from 'graphql/generated/globalTypes';
+import { ProjectSortBy, ResourceUsedFor, RoutineSortBy } from 'graphql/generated/globalTypes';
+import { profile } from 'graphql/generated/profile';
 import { projects, projectsVariables } from 'graphql/generated/projects';
 import { routines, routinesVariables } from 'graphql/generated/routines';
-import { projectsQuery, routinesQuery } from 'graphql/query';
-import { useEffect, useMemo, useState } from 'react';
-import { Project, Routine } from 'types';
+import { profileUpdateMutation } from 'graphql/mutation';
+import { profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
+import { mutationWrapper } from 'graphql/utils/wrappers';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Project, Resource, Routine } from 'types';
+import { formatForUpdate, Pubs } from 'utils';
 import { LearnPageProps } from '../types';
 import courseMarkdown from './courseHelp.md';
 import learnPageMarkdown from './learnPageHelp.md';
 import tutorialMarkdown from './tutorialHelp.md';
 
+/**
+ * Default learning resources
+ */
+const defaultResources: Resource[] = [
+    {
+        link: 'https://www.goodreads.com/review/list/138131443?shelf=must-reads-for-everyone',
+        usedFor: ResourceUsedFor.Learning,
+        translations: [
+            { 
+                language: 'en',
+                title: 'Reading list',
+                description: 'Must-read books',
+            }
+        ]
+    } as any,
+    {
+        link: 'https://www.notion.so/',
+        usedFor: ResourceUsedFor.Notes,
+        translations: [
+            {
+                language: 'en',
+                title: 'Notion',
+                description: 'Jot down your thoughts and ideas',
+            }
+        ]
+    } as any,
+    {
+        link: 'https://calendar.google.com/calendar/u/0/r',
+        usedFor: ResourceUsedFor.Scheduling,
+        translations: [
+            {
+                language: 'en',
+                title: 'Google Calendar',
+                description: 'Schedule study sessions',
+            }
+        ]
+    } as any,
+    {
+        link: 'https://lifeat.io/',
+        usedFor: ResourceUsedFor.Learning,
+        translations: [
+            {
+                language: 'en',
+                title: 'LifeAt',
+                description: 'Start a study session',
+            }
+        ]
+    } as any,
+    {
+        link: 'https://github.com/MattHalloran/Vrooli',
+        usedFor: ResourceUsedFor.Learning,
+        translations: [
+            {
+                language: 'en',
+                title: 'TED Talks',
+                description: 'Find some inspiration by watching educational videos',
+            }
+        ]
+    } as any,
+    {
+        link: 'https://www.duolingo.com/learn',
+        usedFor: ResourceUsedFor.Learning,
+        translations: [
+            {
+                language: 'en',
+                title: 'Duolingo',
+                description: 'Learn a new language',
+            }
+        ]
+    } as any,
+    {
+        link: 'https://www.khanacademy.org/profile/me/courses',
+        usedFor: ResourceUsedFor.Learning,
+        translations: [
+            {
+                language: 'en',
+                title: 'Khan Academy',
+                description: 'Brush up on your math skills',
+            }
+        ]
+    } as any
+]
+
 export const LearnPage = ({
     session,
 }: LearnPageProps) => {
+
+    const { data: profileData, loading: resourcesLoading } = useQuery<profile>(profileQuery);
+    const resources = useMemo(() => profileData?.profile?.resourcesLearning ?? defaultResources, [profileData]);
+    const [updateResources] = useMutation<profile>(profileUpdateMutation);
+    const handleResourcesUpdate = useCallback((updatedList: Resource[]) => {
+        mutationWrapper({
+            mutation: updateResources,
+            input: formatForUpdate(profileData?.profile, {
+                ...profileData?.profile,
+                resourcesLearning: updatedList
+            }, [], []),
+            onError: (response) => {
+                PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
+            }
+        })
+    }, [updateResources]);
 
     const { data: coursesData, loading: coursesLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
         variables: { input: { 
@@ -75,7 +178,11 @@ export const LearnPage = ({
             </Stack>
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
-                <ResourceListHorizontal />
+                <ResourceListHorizontal 
+                    resources={resources}
+                    canEdit={Boolean(session?.id)}
+                    handleUpdate={handleResourcesUpdate}
+                />
                 {/* Available courses */}
                 <TitleContainer
                     title={"Courses"}

@@ -1,4 +1,4 @@
-import { CODE, resourceCreate, ResourceFor, resourceUpdate } from "@local/shared";
+import { CODE, resourceCreate, ResourceFor, resourceTranslationCreate, resourceTranslationsUpdate, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../schema/types";
 import { PrismaType } from "types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
@@ -31,8 +31,8 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
-                { translations: { some: { language: languages ? { in: languages } : undefined, title: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
                 { link: { ...insensitive } },
             ]
         })
@@ -64,6 +64,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 projectId: null,
                 routineId: null,
                 userId: null,
+                translations: TranslationModel().relationshipBuilder(userId, data, { create: resourceTranslationCreate, update: resourceTranslationsUpdate }, false),
                 [forMap[createdFor]]: createdForId
             };
         }
@@ -91,6 +92,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
         });
         // Shape
         if (Array.isArray(formattedInput.create)) {
+            // If title or description is not provided, try querying for the link's og tags TODO
             formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any));
         }
         if (Array.isArray(formattedInput.update)) {
@@ -124,6 +126,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (createMany) {
             // Loop through each create input
             for (const input of createMany) {
+                // If title or description is not provided, try querying for the link's og tags TODO
                 // Call createData helper function
                 const data = await this.toDBShape(userId, input);
                 // Create object

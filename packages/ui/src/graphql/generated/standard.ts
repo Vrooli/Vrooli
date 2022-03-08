@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, MemberRole, StandardType } from "./globalTypes";
+import { FindByIdInput, MemberRole, StandardType, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standard
@@ -38,6 +38,25 @@ export interface standard_standard_creator_Organization_translations {
   bio: string | null;
 }
 
+export interface standard_standard_creator_Organization_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface standard_standard_creator_Organization_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: standard_standard_creator_Organization_resources_translations[];
+}
+
 export interface standard_standard_creator_Organization_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -61,6 +80,7 @@ export interface standard_standard_creator_Organization {
   isStarred: boolean;
   role: MemberRole | null;
   stars: number;
+  resources: standard_standard_creator_Organization_resources[];
   tags: standard_standard_creator_Organization_tags[];
 }
 

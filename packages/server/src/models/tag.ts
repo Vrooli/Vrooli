@@ -94,6 +94,7 @@ export const tagVerifier = () => ({
 export const tagMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShape(userId: string | null, data: TagCreateInput | TagUpdateInput): Promise<any> {
         return {
+            id: (data as TagUpdateInput)?.id ?? undefined,
             name: data.tag,
             createdByUserId: userId,
             translations: TranslationModel().relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),

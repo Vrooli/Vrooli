@@ -11,6 +11,7 @@ import { TagModel } from "./tag";
 import { EmailModel } from "./email";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
+import { ResourceModel } from "./resource";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -385,15 +386,21 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
             username: input.username,
             theme: input.theme,
             // Handle tags TODO probably doesn't work
-            stars: await TagModel(prisma).relationshipBuilder(userId, {
-                tagsCreate: input.starredTagsCreate,
-                tagsConnect: input.starredTagsConnect,
-                tagsDisconnect: input.starredTagsDisconnect,
-            }, true),
             hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
                 tagsCreate: input.hiddenTagsCreate,
                 tagsConnect: input.hiddenTagsConnect,
                 tagsDisconnect: input.hiddenTagsDisconnect,
+            }, true),
+            resources: await ResourceModel(prisma).relationshipBuilder(userId, input, false),
+            resourcesLearning: await ResourceModel(prisma).relationshipBuilder(userId, {
+                resourcesCreate: input.resourcesLearningCreate,
+                resourcesUpdate: input.resourcesLearningUpdate,
+                resourcesDelete: input.resourcesLearningDelete,
+            }, true),
+            stars: await TagModel(prisma).relationshipBuilder(userId, {
+                tagsCreate: input.starredTagsCreate,
+                tagsConnect: input.starredTagsConnect,
+                tagsDisconnect: input.starredTagsDisconnect,
             }, true),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
         };

@@ -958,7 +958,7 @@ export const addSupplementalFields = async (
     console.log('addsupplementalfields start', partial.__typename, data);
     // Strip all fields which are not the ID or a child array/object from data
     const dataIds: { [x: string]: any}[] = data.map(pickId);
-    console.log('data ids here', dataIds);
+    console.log('data ids here', JSON.stringify(dataIds));
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: { [x: string]: any }[] } = {};
@@ -1247,9 +1247,10 @@ export async function createHelper<GraphQLModel>(
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     const partial = toPartialSelect(info, model.relationshipMap);
     if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
-    const { created } = await model.cud({ partial, userId, createMany: [input] });
+    const boop = await model.cud({ partial, userId, createMany: [input] });
+    const { created } = boop
     if (created && created.length > 0) {
-        return await addSupplementalFields(model.prisma, userId, created, partial) as any;
+        return (await addSupplementalFields(model.prisma, userId, created, partial))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown);
 }
@@ -1276,7 +1277,7 @@ export async function updateHelper<GraphQLModel>(
     if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
     const { updated } = await model.cud({ partial, userId, updateMany: [input] });
     if (updated && updated.length > 0) {
-        return await addSupplementalFields(model.prisma, userId, updated, partial) as any;
+        return (await addSupplementalFields(model.prisma, userId, updated, partial))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown);
 }

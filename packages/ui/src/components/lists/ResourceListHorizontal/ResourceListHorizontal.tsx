@@ -11,7 +11,9 @@ import {
     Add as AddIcon,
     ConnectWithoutContact as DefaultSocialIcon,
     Download as InstallIcon,
+    EventNote as SchedulingIcon,
     Facebook as FacebookIcon,
+    FormatListNumbered as NotesIcon,
     Help as TutorialIcon,
     HowToVote as ProposalIcon,
     Info as ContextIcon,
@@ -29,59 +31,6 @@ import {
 } from '@mui/icons-material';
 import { cardRoot } from 'components/cards/styles';
 
-//TODO Temp data for designing card
-// Tries to use open graph metadata when fields not specified
-const cardData: any[] = [
-    {
-        title: 'Chill Beats',
-        description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris',
-        link: 'https://www.youtube.com/c/LofiGirl',
-        usedFor: ResourceUsedFor.Community,
-    },
-    {
-        title: 'Code repo',
-        description: null,
-        link: 'https://github.com/MattHalloran/Vrooli',
-        usedFor: ResourceUsedFor.Context,
-    },
-    {
-        title: null,
-        description: null,
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        usedFor: ResourceUsedFor.Donation,
-    },
-    {
-        title: null,
-        description: null,
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        usedFor: ResourceUsedFor.Learning,
-    },
-    {
-        title: null,
-        description: null,
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        usedFor: ResourceUsedFor.OfficialWebsite,
-    },
-    {
-        title: null,
-        description: null,
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        usedFor: ResourceUsedFor.Related,
-    },
-    {
-        title: null,
-        description: null,
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        usedFor: ResourceUsedFor.Social,
-    },
-    {
-        title: null,
-        description: null,
-        link: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        usedFor: ResourceUsedFor.Tutorial,
-    },
-]
-
 const IconMap = {
     [ResourceUsedFor.Community]: CommunityIcon,
     [ResourceUsedFor.Context]: ContextIcon,
@@ -90,9 +39,11 @@ const IconMap = {
     [ResourceUsedFor.ExternalService]: OfficialWebsiteIcon,
     [ResourceUsedFor.Install]: InstallIcon,
     [ResourceUsedFor.Learning]: LearningIcon,
+    [ResourceUsedFor.Notes]: NotesIcon,
     [ResourceUsedFor.OfficialWebsite]: OfficialWebsiteIcon,
     [ResourceUsedFor.Proposal]: ProposalIcon,
     [ResourceUsedFor.Related]: RelatedIcon,
+    [ResourceUsedFor.Scheduling]: SchedulingIcon,
     [ResourceUsedFor.Tutorial]: TutorialIcon,
 }
 
@@ -110,6 +61,8 @@ const SocialIconMap = {
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
     canEdit = true,
+    handleUpdate,
+    resources,
 }: ResourceListHorizontalProps) => {
 
     // Determine icon to display based on resource type
@@ -183,7 +136,7 @@ export const ResourceListHorizontal = ({
                     },
                 }}>
                     {/* Resources */}
-                    {cardData.map((c: Resource, index) => (
+                    {resources.map((c: Resource, index) => (
                         <ResourceCard
                             key={`resource-card-${index}`}
                             data={c}
@@ -194,7 +147,7 @@ export const ResourceListHorizontal = ({
                         />
                     ))}
                     {/* Add resource button */}
-                    <Tooltip placement="top" title="Add resource">
+                    { canEdit ? <Tooltip placement="top" title="Add resource">
                         <Box
                             onClick={() => { }}
                             aria-label="Add resource"
@@ -210,7 +163,7 @@ export const ResourceListHorizontal = ({
                         >
                             <AddIcon color="primary" sx={{ width: '50px', height: '50px' }} />
                         </Box>
-                    </Tooltip>
+                    </Tooltip> : null }
                 </Stack>
             </Box>
         </Box>

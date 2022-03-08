@@ -155,9 +155,11 @@ export const ResourceUsedFor = {
     ExternalService: "ExternalService",
     Install: "Install",
     Learning: "Learning",
+    Notes : "Notes",
     OfficialWebsite: "OfficialWebsite",
     Proposal: "Proposal",
     Related: "Related",
+    Scheduling: "Scheduling",
     Social: "Social",
     Tutorial: "Tutorial",
 }

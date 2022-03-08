@@ -914,14 +914,6 @@ export type NodeUpdateInput = {
   type?: InputMaybe<NodeType>;
 };
 
-export type OpenGraphResponse = {
-  __typename?: 'OpenGraphResponse';
-  description?: Maybe<Scalars['String']>;
-  imageUrl?: Maybe<Scalars['String']>;
-  site?: Maybe<Scalars['String']>;
-  title?: Maybe<Scalars['String']>;
-};
-
 export type Organization = {
   __typename?: 'Organization';
   comments: Array<Comment>;
@@ -1097,6 +1089,7 @@ export type Profile = {
   projectsCreated: Array<Project>;
   reports: Array<Report>;
   resources: Array<Resource>;
+  resourcesLearning: Array<Resource>;
   roles: Array<Role>;
   routines: Array<Routine>;
   routinesCreated: Array<Routine>;
@@ -1125,6 +1118,12 @@ export type ProfileUpdateInput = {
   hiddenTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   hiddenTagsCreate?: InputMaybe<Array<TagCreateInput>>;
   hiddenTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourcesLearningCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourcesLearningDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourcesLearningUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   starredTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   starredTagsCreate?: InputMaybe<Array<TagCreateInput>>;
   starredTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1282,7 +1281,6 @@ export type Query = {
   projects: ProjectSearchResult;
   projectsCount: Scalars['Int'];
   readAssets: Array<Maybe<Scalars['String']>>;
-  readOpenGraph: OpenGraphResponse;
   report?: Maybe<Report>;
   reports: ReportSearchResult;
   reportsCount: Scalars['Int'];
@@ -1367,11 +1365,6 @@ export type QueryProjectsCountArgs = {
 
 export type QueryReadAssetsArgs = {
   input: ReadAssetsInput;
-};
-
-
-export type QueryReadOpenGraphArgs = {
-  input: ReadOpenGraphInput;
 };
 
 
@@ -1466,10 +1459,6 @@ export type QueryUsersCountArgs = {
 
 export type ReadAssetsInput = {
   files: Array<Scalars['String']>;
-};
-
-export type ReadOpenGraphInput = {
-  url: Scalars['String'];
 };
 
 export type Report = {
@@ -1656,9 +1645,11 @@ export enum ResourceUsedFor {
   ExternalService = 'ExternalService',
   Install = 'Install',
   Learning = 'Learning',
+  Notes = 'Notes',
   OfficialWebsite = 'OfficialWebsite',
   Proposal = 'Proposal',
   Related = 'Related',
+  Scheduling = 'Scheduling',
   Social = 'Social',
   Tutorial = 'Tutorial'
 }

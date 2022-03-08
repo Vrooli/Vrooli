@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProfileUpdateInput } from "./globalTypes";
+import { ProfileUpdateInput, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: profileUpdate
@@ -70,6 +70,44 @@ export interface profileUpdate_profileUpdate_hiddenTags {
   tag: profileUpdate_profileUpdate_hiddenTags_tag;
 }
 
+export interface profileUpdate_profileUpdate_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface profileUpdate_profileUpdate_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: profileUpdate_profileUpdate_resources_translations[];
+}
+
+export interface profileUpdate_profileUpdate_resourcesLearning_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface profileUpdate_profileUpdate_resourcesLearning {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: profileUpdate_profileUpdate_resourcesLearning_translations[];
+}
+
 export interface profileUpdate_profileUpdate {
   __typename: "Profile";
   id: string;
@@ -80,6 +118,8 @@ export interface profileUpdate_profileUpdate {
   translations: profileUpdate_profileUpdate_translations[];
   starredTags: profileUpdate_profileUpdate_starredTags[] | null;
   hiddenTags: profileUpdate_profileUpdate_hiddenTags[] | null;
+  resources: profileUpdate_profileUpdate_resources[];
+  resourcesLearning: profileUpdate_profileUpdate_resourcesLearning[];
 }
 
 export interface profileUpdate {

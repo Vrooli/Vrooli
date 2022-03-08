@@ -3,11 +3,30 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectCreateInput, MemberRole } from "./globalTypes";
+import { ProjectCreateInput, MemberRole, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: projectCreate
 // ====================================================
+
+export interface projectCreate_projectCreate_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projectCreate_projectCreate_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: projectCreate_projectCreate_resources_translations[];
+}
 
 export interface projectCreate_projectCreate_tags_translations {
   __typename: "TagTranslation";
@@ -63,6 +82,7 @@ export interface projectCreate_projectCreate {
   role: MemberRole | null;
   score: number;
   stars: number;
+  resources: projectCreate_projectCreate_resources[] | null;
   tags: projectCreate_projectCreate_tags[];
   translations: projectCreate_projectCreate_translations[];
   owner: projectCreate_projectCreate_owner | null;

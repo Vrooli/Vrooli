@@ -31,6 +31,7 @@ export const typeDef = gql`
         emails: [Email!]!
         wallets: [Wallet!]!
         resources: [Resource!]!
+        resourcesLearning: [Resource!]!
         projects: [Project!]!
         projectsCreated: [Project!]!
         routines: [Routine!]!
@@ -81,12 +82,18 @@ export const typeDef = gql`
     input ProfileUpdateInput {
         username: String
         theme: String
-        starredTagsConnect: [ID!]
-        starredTagsDisconnect: [ID!]
-        starredTagsCreate: [TagCreateInput!]
         hiddenTagsConnect: [ID!]
         hiddenTagsDisconnect: [ID!]
         hiddenTagsCreate: [TagCreateInput!]
+        resourcesDelete: [ID!]
+        resourcesCreate: [ResourceCreateInput!]
+        resourcesUpdate: [ResourceUpdateInput!]
+        resourcesLearningDelete: [ID!]
+        resourcesLearningCreate: [ResourceCreateInput!]
+        resourcesLearningUpdate: [ResourceUpdateInput!]
+        starredTagsConnect: [ID!]
+        starredTagsDisconnect: [ID!]
+        starredTagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
         translationsCreate: [UserTranslationCreateInput!]
         translationsUpdate: [UserTranslationUpdateInput!]

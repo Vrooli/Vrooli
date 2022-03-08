@@ -48,6 +48,8 @@ export interface DateRangeMenuProps {
 export interface ResourceListHorizontalProps {
     title?: string;
     canEdit?: boolean;
+    handleUpdate: (updatedList: Resource[]) => void;
+    resources: Resource[];
 }
 
 export interface ResourceListVerticalProps {
