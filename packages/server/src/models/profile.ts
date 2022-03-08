@@ -392,10 +392,15 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
                 tagsDisconnect: input.hiddenTagsDisconnect,
             }, true),
             resources: await ResourceModel(prisma).relationshipBuilder(userId, input, false),
-            resourcesLearning: await ResourceModel(prisma).relationshipBuilder(userId, {
-                resourcesCreate: input.resourcesLearningCreate,
-                resourcesUpdate: input.resourcesLearningUpdate,
-                resourcesDelete: input.resourcesLearningDelete,
+            resourcesLearn: await ResourceModel(prisma).relationshipBuilder(userId, {
+                resourcesCreate: input.resourcesLearnCreate,
+                resourcesUpdate: input.resourcesLearnUpdate,
+                resourcesDelete: input.resourcesLearnDelete,
+            }, true),
+            resourcesResearch: await ResourceModel(prisma).relationshipBuilder(userId, {
+                resourcesCreate: input.resourcesResearchCreate,
+                resourcesUpdate: input.resourcesResearchUpdate,
+                resourcesDelete: input.resourcesResearchDelete,
             }, true),
             stars: await TagModel(prisma).relationshipBuilder(userId, {
                 tagsCreate: input.starredTagsCreate,

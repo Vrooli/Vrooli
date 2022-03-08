@@ -64,7 +64,10 @@ export const profileFields = gql`
         resources {
             ...profileResourceFields
         }
-        resourcesLearning {
+        resourcesLearn {
+            ...profileResourceFields
+        }
+        resourcesResearch {
             ...profileResourceFields
         }
     }

@@ -19,6 +19,8 @@ import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
+import { useMemo } from 'react';
+import { parseSearchParams } from 'utils/urlTools';
 
 export const LogInForm = ({
     code,
@@ -26,6 +28,8 @@ export const LogInForm = ({
     onFormChange = () => { }
 }: LogInFormProps) => {
     const [, setLocation] = useLocation();
+    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
+
     const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
 
     const formik = useFormik({
@@ -39,13 +43,13 @@ export const LogInForm = ({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode: code },
                 successCondition: (response) => response.data.emailLogIn !== null,
-                onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); setLocation(APP_LINKS.Home) },
+                onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(Pubs.AlertDialog, {
                             message: 'Before signing in, please follow the link sent to your email to change your password.',
                             buttons: [
-                                { text: 'Ok', onClick: () => { setLocation(APP_LINKS.Home) } },
+                                { text: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
                             ]
                         });
                     }

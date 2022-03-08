@@ -128,6 +128,7 @@ export const deepRoutineFields = gql`
         index
         link
         updated_at
+        usedFor
         translations {
             id
             language

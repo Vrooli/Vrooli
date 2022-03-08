@@ -17,7 +17,7 @@ export async function init(prisma: PrismaType) {
     console.info('🌱 Starting database intial seed...');
 
     // Check for required .env variables
-    if (['ADMIN_WALLET', 'SITE_EMAIL_USERNAME'].some(name => !envVariableExists(name))) {
+    if (['ADMIN_WALLET', 'ADMIN_PASSWORD', 'SITE_EMAIL_USERNAME'].some(name => !envVariableExists(name))) {
         console.error('🚨 Missing required .env variables. Not seeding database.');
         return;
     };
@@ -89,12 +89,12 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     const admin = await prisma.user.upsert({
         where: {
-            username: 'admin',
+            username: 'matthalloran',
         },
         update: {},
         create: {
-            username: 'admin',
-            password: profileModel.hashPassword('admin'),
+            username: 'matthalloran',
+            password: profileModel.hashPassword(process.env.ADMIN_PASSWORD ?? ''),
             status: AccountStatus.Unlocked,
             emails: {
                 create: [
@@ -320,8 +320,7 @@ export async function init(prisma: PrismaType) {
                         {
                             language: EN,
                             description: 'Mint a fungible token on the Cardano blockchain.',
-                            instructions: `To mint through a web interface, select the online resource and follow the instructions.\n
-                            To mint through the command line, select the developer resource and follow the instructions.`,
+                            instructions: `To mint through a web interface, select the online resource and follow the instructions.\nTo mint through the command line, select the developer resource and follow the instructions.`,
                             title: 'Mint Native Token',
                         }
                     ]
@@ -374,8 +373,7 @@ export async function init(prisma: PrismaType) {
                         {
                             language: EN,
                             description: 'Mint a non-fungible token (NFT) on the Cardano blockchain.',
-                            instructions: `To mint through a web interface, select one of the online resources and follow the instructions.\n
-                            To mint through the command line, select the developer resource and follow the instructions.`,
+                            instructions: `To mint through a web interface, select one of the online resources and follow the instructions.\nTo mint through the command line, select the developer resource and follow the instructions.`,
                             title: 'Mint NFT',
                         }
                     ]

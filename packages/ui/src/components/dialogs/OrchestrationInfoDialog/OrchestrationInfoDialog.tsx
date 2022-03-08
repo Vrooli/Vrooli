@@ -17,6 +17,7 @@ import {
     Checkbox,
     FormControlLabel,
     IconButton,
+    Link,
     List,
     ListItem,
     ListItemIcon,
@@ -30,7 +31,10 @@ import { OrchestrationInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { ResourceListHorizontal } from 'components';
 import { DeleteRoutineDialog } from '..';
-import { getTranslation } from 'utils';
+import { getTranslation, Pubs } from 'utils';
+import { APP_LINKS } from '@local/shared';
+import { Resource, User } from 'types';
+import { useLocation } from 'wouter';
 
 enum ActionOption {
     Cancel = 'cancel',
@@ -47,6 +51,7 @@ export const OrchestrationInfoDialog = ({
     routine,
     sxs,
 }: OrchestrationInfoDialogProps) => {
+    const [, setLocation] = useLocation();
     // Open boolean for drawer
     const [open, setOpen] = useState(false);
     // Open boolean for delete routine confirmation
@@ -61,6 +66,22 @@ export const OrchestrationInfoDialog = ({
         if (!routine?.owner) return null;
         return getTranslation(routine.owner, 'username', [language]) ?? getTranslation(routine.owner, 'name', [language]);
     }, [routine?.owner, language]);
+
+    /**
+     * Navigate to owner's profile
+     */
+    const toOwner = useCallback(() => {
+        if (!routine?.owner) {
+            PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });
+            return;
+        }
+        // Check if user or organization
+        if (routine.owner.hasOwnProperty('username')) {
+            setLocation(`${APP_LINKS.User}/${(routine.owner as User).username}`);
+        } else {
+            setLocation(`${APP_LINKS.Organization}/${routine.owner.id}`);
+        }
+    }, [routine?.owner, setLocation]);
 
     /**
      * Determines which action buttons to display
@@ -121,7 +142,11 @@ export const OrchestrationInfoDialog = ({
                     <Stack direction="column" spacing={1} alignItems="center" sx={{ marginLeft: 'auto' }}>
                         <Typography variant="h5">{getTranslation(routine, 'title', [language])}</Typography>
                         <Stack direction="row" spacing={1}>
-                            {ownedBy ? <Typography variant="body1">{ownedBy} - </Typography> : null}
+                            {ownedBy ? (
+                                <Link onClick={toOwner}>
+                                    <Typography variant="body1" sx={{color: (t) => t.palette.primary.contrastText, cursor: 'pointer'}}>{ownedBy} - </Typography>
+                                </Link>
+                            ) : null}
                             <Typography variant="body1">{routine?.version}</Typography>
                         </Stack>
                     </Stack>
@@ -140,7 +165,11 @@ export const OrchestrationInfoDialog = ({
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
                     {/* Resources */}
-                    <ResourceListHorizontal />
+                    {Array.isArray(routine?.resources) && (routine?.resources as Resource[]).length > 0 ? <ResourceListHorizontal
+                        resources={routine?.resources ?? []}
+                        canEdit={isEditing}
+                        handleUpdate={() => { }}
+                    /> : null}
                     {/* Description */}
                     <Box sx={{
                         padding: 1,

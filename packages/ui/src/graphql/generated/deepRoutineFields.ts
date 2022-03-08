@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType, MemberRole } from "./globalTypes";
+import { NodeType, MemberRole, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: deepRoutineFields
@@ -249,6 +249,7 @@ export interface deepRoutineFields_resources {
   index: number | null;
   link: string;
   updated_at: any;
+  usedFor: ResourceUsedFor | null;
   translations: deepRoutineFields_resources_translations[];
 }
 

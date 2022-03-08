@@ -31,7 +31,8 @@ export const typeDef = gql`
         emails: [Email!]!
         wallets: [Wallet!]!
         resources: [Resource!]!
-        resourcesLearning: [Resource!]!
+        resourcesLearn: [Resource!]!
+        resourcesResearch: [Resource!]!
         projects: [Project!]!
         projectsCreated: [Project!]!
         routines: [Routine!]!
@@ -88,9 +89,12 @@ export const typeDef = gql`
         resourcesDelete: [ID!]
         resourcesCreate: [ResourceCreateInput!]
         resourcesUpdate: [ResourceUpdateInput!]
-        resourcesLearningDelete: [ID!]
-        resourcesLearningCreate: [ResourceCreateInput!]
-        resourcesLearningUpdate: [ResourceUpdateInput!]
+        resourcesLearnDelete: [ID!]
+        resourcesLearnCreate: [ResourceCreateInput!]
+        resourcesLearnUpdate: [ResourceUpdateInput!]
+        resourcesResearchDelete: [ID!]
+        resourcesResearchCreate: [ResourceCreateInput!]
+        resourcesResearchUpdate: [ResourceUpdateInput!]
         starredTagsConnect: [ID!]
         starredTagsDisconnect: [ID!]
         starredTagsCreate: [TagCreateInput!]

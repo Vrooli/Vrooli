@@ -1,4 +1,4 @@
-import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
 import { useQuery } from "@apollo/client";
@@ -18,7 +18,7 @@ import { OrganizationViewProps } from "../types";
 import { User, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { getTranslation } from "utils";
+import { getTranslation, Pubs } from "utils";
 
 const tabLabels = ['Resources', 'Members', 'Projects', 'Routines', 'Standards'];
 
@@ -43,6 +43,11 @@ export const OrganizationView = ({
             bio: getTranslation(organization, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
         };
     }, [organization, partialData, session]);
+
+    const shareLink = () => {
+        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Organization}/${id}`);
+        PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
+    }
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
@@ -146,7 +151,7 @@ export const OrganizationView = ({
                     onSearchSelect: (o: any) => { },
                     searchItemFactory: (a: any, b: any) => null
                 }
-            }
+        }
     }, [session, id, tabIndex]);
 
     // Handle url search
@@ -231,8 +236,13 @@ export const OrganizationView = ({
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
+                {/* Title */}
                 {
-                    canEdit ? (
+                    loading ? (
+                        <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : canEdit ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit organization">
@@ -247,11 +257,29 @@ export const OrganizationView = ({
                         </Stack>
                     ) : (
                         <Typography variant="h4" textAlign="center">{name}</Typography>
-
                     )
                 }
-                <Typography variant="body1" sx={{ color: "#00831e" }}>{organization?.created_at ? `🕔 Joined ${new Date(organization.created_at).toDateString()}` : ''}</Typography>
-                <Typography variant="body1" sx={{ color: bio ? 'black' : 'gray' }}>{bio ?? 'No bio set'}</Typography>
+                {/* Joined date */}
+                {
+                    loading ? (
+                        <Box sx={{ width: '33%', color: "#00831e" }}>
+                            <LinearProgress color="inherit" />
+                        </Box>
+                    ) : (
+                        <Typography variant="body1" sx={{ color: "#00831e" }}>{organization?.created_at ? `🕔 Joined ${new Date(organization.created_at).toDateString()}` : ''}</Typography>
+                    )
+                }
+                {/* Bio */}
+                {
+                    loading ? (
+                        <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : (
+                        <Typography variant="body1" sx={{ color: 'black' }}>{bio ?? 'No bio set'}</Typography>
+                    )
+                }
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
@@ -259,7 +287,7 @@ export const OrganizationView = ({
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small" onClick={() => { }}>
+                        <IconButton aria-label="Share" size="small" onClick={shareLink}>
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
@@ -276,7 +304,7 @@ export const OrganizationView = ({
                     }
                 </Stack>
             </Stack>
-        </Box>
+        </Box >
     ), [bio, session, name, organization, partialData, canEdit, onEdit]);
 
     return (

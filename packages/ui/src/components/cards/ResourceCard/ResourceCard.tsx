@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { ResourceCardProps } from '../types';
 import { cardRoot } from '../styles';
-import { multiLineEllipsis } from 'styles';
+import { multiLineEllipsis, noSelect } from 'styles';
 import {
     Delete as DeleteIcon,
     Edit as EditIcon,
@@ -32,7 +32,6 @@ const buttonProps = {
 export const ResourceCard = ({
     data,
     Icon,
-    onClick,
     onRightClick,
 }: ResourceCardProps) => {
     const [, setLocation] = useLocation();
@@ -40,15 +39,14 @@ export const ResourceCard = ({
     const { description, title } = useMemo(() => {
         const languages = navigator.languages; //session?.languages ?? navigator.languages;
         return {
-            description: getTranslation(data, 'description', languages, true) ?? '',
-            title:  getTranslation(data, 'title', languages, true) ?? '',
+            description: getTranslation(data, 'description', languages, true),
+            title:  getTranslation(data, 'title', languages, true),
         };
     }, [data]);
 
     const handleClick = useCallback((event: any) => {
-        if (onClick) onClick(data);
-        else if (data.link) openLink(setLocation, data.link);
-    }, [onClick, data]);
+        if (data.link) openLink(setLocation, data.link);
+    }, [data]);
     const handleRightClick = useCallback((event: any) => {
         if (onRightClick) onRightClick(event, data);
     }, [onRightClick, data]);
@@ -69,17 +67,18 @@ export const ResourceCard = ({
     // }, [data])
 
     return (
-        <Tooltip placement="top" title={description}>
+        <Tooltip placement="top" title={description ?? data.link}>
             <Box
                 onClick={handleClick}
                 onContextMenu={handleRightClick}
                 sx={{
                     ...cardRoot,
+                    ...noSelect,
                     padding: 1,
                     width: '120px',
                     minWidth: '120px',
                     position: 'relative'
-                }}
+                } as any}
             >
                 {/* Delete/edit buttons */}
                 <Box sx={{
@@ -102,15 +101,18 @@ export const ResourceCard = ({
                     </IconButton>
                 </Box>
                 {/* Content */}
-                <Stack direction="column" justifyContent="center" alignItems="center">
+                <Stack direction="column" justifyContent="center" alignItems="center" sx={{overflow: 'overlay'}}>
                     <Icon sx={{ fill: 'white' }} />
                     <Typography
                         gutterBottom
                         variant="body2"
                         component="h3"
-                        sx={{ ...multiLineEllipsis(3) }}
+                        sx={{ 
+                            ...multiLineEllipsis(3),
+                            lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
+                        }}
                     >
-                        {title}
+                        {title ?? data.link}
                     </Typography>
                 </Stack>
             </Box>

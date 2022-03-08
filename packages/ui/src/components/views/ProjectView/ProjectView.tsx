@@ -1,4 +1,4 @@
-import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
 import { useQuery } from "@apollo/client";
@@ -18,7 +18,7 @@ import { ProjectViewProps } from "../types";
 import { Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { getTranslation } from "utils";
+import { getTranslation, Pubs } from "utils";
 
 const tabLabels = ['Resources', 'Routines', 'Standards'];
 
@@ -44,8 +44,13 @@ export const ProjectView = ({
         };
     }, [project, partialData, session]);
 
+    const shareLink = () => {
+        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Project}/${id}`);
+        PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
+    }
+
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal organization page
+        // Depends on if we're in a search popup or a normal page
         setLocation(Boolean(params?.id) ? `${APP_LINKS.Project}/${id}/edit` : `${APP_LINKS.SearchProjects}/edit/${id}`);
     }, [setLocation, id]);
 
@@ -194,8 +199,13 @@ export const ProjectView = ({
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
+                {/* Title */}
                 {
-                    canEdit ? (
+                    loading ? (
+                        <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : canEdit ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit project">
@@ -210,11 +220,29 @@ export const ProjectView = ({
                         </Stack>
                     ) : (
                         <Typography variant="h4" textAlign="center">{name}</Typography>
-
                     )
                 }
-                <Typography variant="body1" sx={{ color: "#00831e" }}>{project?.created_at ? `🕔 Created ${new Date(project.created_at).toDateString()}` : ''}</Typography>
-                <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
+                {/* Joined date */}
+                {
+                    loading ? (
+                        <Box sx={{ width: '33%', color: "#00831e" }}>
+                            <LinearProgress color="inherit" />
+                        </Box>
+                    ) : (
+                        <Typography variant="body1" sx={{ color: "#00831e" }}>{project?.created_at ? `🕔 Joined ${new Date(project.created_at).toDateString()}` : ''}</Typography>
+                    )
+                }
+                {/* Description */}
+                {
+                    loading ? (
+                        <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : (
+                        <Typography variant="body1" sx={{ color: 'black' }}>{description ?? 'No bio set'}</Typography>
+                    )
+                }
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
@@ -222,7 +250,7 @@ export const ProjectView = ({
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small" onClick={() => { }}>
+                        <IconButton aria-label="Share" size="small" onClick={shareLink}>
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>

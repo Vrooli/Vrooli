@@ -89,7 +89,7 @@ export interface profileFields_resources {
   translations: profileFields_resources_translations[];
 }
 
-export interface profileFields_resourcesLearning_translations {
+export interface profileFields_resourcesLearn_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -97,7 +97,7 @@ export interface profileFields_resourcesLearning_translations {
   title: string | null;
 }
 
-export interface profileFields_resourcesLearning {
+export interface profileFields_resourcesLearn {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -105,7 +105,7 @@ export interface profileFields_resourcesLearning {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: profileFields_resourcesLearning_translations[];
+  translations: profileFields_resourcesLearn_translations[];
 }
 
 export interface profileFields {
@@ -119,5 +119,5 @@ export interface profileFields {
   starredTags: profileFields_starredTags[] | null;
   hiddenTags: profileFields_hiddenTags[] | null;
   resources: profileFields_resources[];
-  resourcesLearning: profileFields_resourcesLearning[];
+  resourcesLearn: profileFields_resourcesLearn[];
 }

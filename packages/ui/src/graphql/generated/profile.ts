@@ -89,7 +89,7 @@ export interface profile_profile_resources {
   translations: profile_profile_resources_translations[];
 }
 
-export interface profile_profile_resourcesLearning_translations {
+export interface profile_profile_resourcesLearn_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -97,7 +97,7 @@ export interface profile_profile_resourcesLearning_translations {
   title: string | null;
 }
 
-export interface profile_profile_resourcesLearning {
+export interface profile_profile_resourcesLearn {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -105,7 +105,7 @@ export interface profile_profile_resourcesLearning {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: profile_profile_resourcesLearning_translations[];
+  translations: profile_profile_resourcesLearn_translations[];
 }
 
 export interface profile_profile {
@@ -119,7 +119,7 @@ export interface profile_profile {
   starredTags: profile_profile_starredTags[] | null;
   hiddenTags: profile_profile_hiddenTags[] | null;
   resources: profile_profile_resources[];
-  resourcesLearning: profile_profile_resourcesLearning[];
+  resourcesLearn: profile_profile_resourcesLearn[];
 }
 
 export interface profile {

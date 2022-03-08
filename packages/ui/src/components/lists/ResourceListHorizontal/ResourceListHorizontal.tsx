@@ -141,7 +141,6 @@ export const ResourceListHorizontal = ({
                             key={`resource-card-${index}`}
                             data={c}
                             Icon={getIcon(c.usedFor ?? ResourceUsedFor.Related, c.link)}
-                            onClick={() => { }}
                             onRightClick={openContext}
                             aria-owns={Boolean(selected) ? contextId : undefined}
                         />

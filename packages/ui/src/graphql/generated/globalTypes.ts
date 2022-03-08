@@ -90,9 +90,9 @@ export enum ResourceUsedFor {
   OfficialWebsite = "OfficialWebsite",
   Proposal = "Proposal",
   Related = "Related",
+  Scheduling = "Scheduling",
   Social = "Social",
   Tutorial = "Tutorial",
-  Scheduling = "Scheduling",
 }
 
 export enum RoutineSortBy {
@@ -570,9 +570,12 @@ export interface ProfileUpdateInput {
   resourcesDelete?: string[] | null;
   resourcesCreate?: ResourceCreateInput[] | null;
   resourcesUpdate?: ResourceUpdateInput[] | null;
-  resourcesLearningDelete?: string[] | null;
-  resourcesLearningCreate?: ResourceCreateInput[] | null;
-  resourcesLearningUpdate?: ResourceUpdateInput[] | null;
+  resourcesLearnDelete?: string[] | null;
+  resourcesLearnCreate?: ResourceCreateInput[] | null;
+  resourcesLearnUpdate?: ResourceUpdateInput[] | null;
+  resourcesResearchDelete?: string[] | null;
+    resourcesResearchCreate?: ResourceCreateInput[] | null;
+    resourcesResearchUpdate?: ResourceUpdateInput[] | null;
   starredTagsConnect?: string[] | null;
   starredTagsDisconnect?: string[] | null;
   starredTagsCreate?: TagCreateInput[] | null;

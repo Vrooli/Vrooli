@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@apollo/client';
+import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
 import { ProjectSortBy, ResourceUsedFor, RoutineSortBy } from 'graphql/generated/globalTypes';
@@ -48,7 +48,7 @@ const defaultResources: Resource[] = [
         translations: [
             {
                 language: 'en',
-                title: 'Google Calendar',
+                title: 'My Schedule',
                 description: 'Schedule study sessions',
             }
         ]
@@ -59,8 +59,8 @@ const defaultResources: Resource[] = [
         translations: [
             {
                 language: 'en',
-                title: 'LifeAt',
-                description: 'Start a study session',
+                title: 'Study Session',
+                description: 'Start a study session on LifeAt',
             }
         ]
     } as any,
@@ -103,15 +103,17 @@ export const LearnPage = ({
     session,
 }: LearnPageProps) => {
 
-    const { data: profileData, loading: resourcesLoading } = useQuery<profile>(profileQuery);
-    const resources = useMemo(() => profileData?.profile?.resourcesLearning ?? defaultResources, [profileData]);
+    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
+    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+    
+    const resources = useMemo(() => profileData?.profile?.resourcesLearn ?? defaultResources, [profileData]);
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: Resource[]) => {
         mutationWrapper({
             mutation: updateResources,
             input: formatForUpdate(profileData?.profile, {
                 ...profileData?.profile,
-                resourcesLearning: updatedList
+                resourcesLearn: updatedList
             }, [], []),
             onError: (response) => {
                 PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
@@ -179,6 +181,7 @@ export const LearnPage = ({
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
                 <ResourceListHorizontal 
+                    title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
                     resources={resources}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}

@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { ResourceUsedFor } from "./globalTypes";
+
 // ====================================================
 // GraphQL fragment: deepRoutineResourceFields
 // ====================================================
@@ -22,5 +24,6 @@ export interface deepRoutineResourceFields {
   index: number | null;
   link: string;
   updated_at: any;
+  usedFor: ResourceUsedFor | null;
   translations: deepRoutineResourceFields_translations[];
 }

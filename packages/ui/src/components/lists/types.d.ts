@@ -48,7 +48,7 @@ export interface DateRangeMenuProps {
 export interface ResourceListHorizontalProps {
     title?: string;
     canEdit?: boolean;
-    handleUpdate: (updatedList: Resource[]) => void;
+    handleUpdate?: (updatedList: Resource[]) => void;
     resources: Resource[];
 }
 
@@ -85,6 +85,7 @@ export interface UpvoteDownvoteProps {
 export interface StarButtonProps {
     session: Session;
     isStar?: boolean | null; // Defaults to false
+    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
     stars?: number | null; // Defaults to 0
     objectId: string;
     starFor: StarFor;

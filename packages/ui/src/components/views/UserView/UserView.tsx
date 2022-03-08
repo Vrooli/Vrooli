@@ -1,4 +1,4 @@
-import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery, useMutation } from "@apollo/client";
@@ -15,7 +15,7 @@ import {
 import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { getTranslation, LabelledSortOption } from "utils";
+import { getTranslation, LabelledSortOption, Pubs } from "utils";
 import { Organization, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
@@ -49,6 +49,11 @@ export const UserView = ({
             username: user?.username ?? partialData?.username,
         };
     }, [user, partialData, session]);
+    
+    const shareLink = () => {
+        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.User}/${id}`);
+        PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
+    }
 
     console.log('isProfile', isProfile, id);
 
@@ -239,8 +244,13 @@ export const UserView = ({
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
+                {/* Title */}
                 {
-                    isOwn ? (
+                    loading ? (
+                        <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : isOwn ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{username}</Typography>
                             <Tooltip title="Edit profile">
@@ -255,11 +265,29 @@ export const UserView = ({
                         </Stack>
                     ) : (
                         <Typography variant="h4" textAlign="center">{username}</Typography>
-
                     )
                 }
-                <Typography variant="body1" sx={{ color: "#00831e" }}>{user?.created_at ? `🕔 Joined ${new Date(user.created_at).toDateString()}` : ''}</Typography>
-                <Typography variant="body1" sx={{ color: bio ? 'black' : 'gray' }}>{bio ?? 'No bio set'}</Typography>
+                {/* Joined date */}
+                {
+                    loading ? (
+                        <Box sx={{ width: '33%', color: "#00831e" }}>
+                            <LinearProgress color="inherit" />
+                        </Box>
+                    ) : (
+                        <Typography variant="body1" sx={{ color: "#00831e" }}>{user?.created_at ? `🕔 Joined ${new Date(user.created_at).toDateString()}` : ''}</Typography>
+                    )
+                }
+                {/* Description */}
+                {
+                    loading ? (
+                        <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : (
+                        <Typography variant="body1" sx={{ color: 'black' }}>{bio ?? 'No bio set'}</Typography>
+                    )
+                }
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
@@ -267,7 +295,7 @@ export const UserView = ({
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small" onClick={() => { }}>
+                        <IconButton aria-label="Share" size="small" onClick={shareLink}>
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>

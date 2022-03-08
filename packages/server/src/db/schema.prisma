@@ -440,12 +440,14 @@ model resource {
     routineId      String?                @db.Uuid
     userId         String?                @db.Uuid
     userLearningId String?                @db.Uuid
+    userResearchId String?                @db.Uuid
     organization   organization?          @relation("resource_organization", fields: [organizationId], references: [id], onDelete: Cascade)
     project        project?               @relation("resource_project", fields: [projectId], references: [id], onDelete: Cascade)
     routine        routine?               @relation("resource_routine", fields: [routineId], references: [id], onDelete: Cascade)
     translations   resource_translation[]
     user           user?                  @relation("resource_user", fields: [userId], references: [id], onDelete: Cascade)
-    userLearning   user?                  @relation("resource_user_learning", fields: [userLearningId], references: [id], onDelete: Cascade)
+    userLearn      user?                  @relation("resource_user_learn", fields: [userLearningId], references: [id], onDelete: Cascade)
+    userResearch   user?                  @relation("resource_user_research", fields: [userResearchId], references: [id], onDelete: Cascade)
 }
 
 model resource_translation {
@@ -763,7 +765,8 @@ model user {
     languages                      user_language[]
     reports                        report[]
     resources                      resource[]           @relation("resource_user") // Resources associated with user profile
-    resourcesLearning              resource[]           @relation("resource_user_learning") // User's learning resources
+    resourcesLearn                 resource[]           @relation("resource_user_learn") // User's learning resources
+    resourcesResearch              resource[]           @relation("resource_user_research") // User's research resources
     roles                          user_roles[]
     standards                      standard[]
     tags                           tag[] // Tags the user CREATED - not tags applied to the user's profile

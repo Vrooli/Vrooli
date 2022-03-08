@@ -254,7 +254,7 @@ export const HomePage = ({
                             key={`example-${index}`}
                             component="p"
                             variant="h6"
-                            onClick={() => { setLocation(`${APP_LINKS.Run}/${example[1]}`) }}
+                            onClick={() => { setLocation(`${APP_LINKS.Routine}/${example[1]}`) }}
                             sx={{
                                 color: (t) => t.palette.text.secondary,
                                 fontStyle: 'italic',

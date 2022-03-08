@@ -1089,7 +1089,8 @@ export type Profile = {
   projectsCreated: Array<Project>;
   reports: Array<Report>;
   resources: Array<Resource>;
-  resourcesLearning: Array<Resource>;
+  resourcesLearn: Array<Resource>;
+  resourcesResearch: Array<Resource>;
   roles: Array<Role>;
   routines: Array<Routine>;
   routinesCreated: Array<Routine>;
@@ -1120,9 +1121,12 @@ export type ProfileUpdateInput = {
   hiddenTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesLearningCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  resourcesLearningDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourcesLearningUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  resourcesLearnCreate?: InputMaybe<Array<ResourceCreateInput>>;
+  resourcesLearnDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourcesLearnUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
+  resourcesResearchCreate?: InputMaybe<Array<ResourceCreateInput>>;
+    resourcesResearchDelete?: InputMaybe<Array<Scalars['ID']>>;
+    resourcesResearchUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
   starredTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   starredTagsCreate?: InputMaybe<Array<TagCreateInput>>;
