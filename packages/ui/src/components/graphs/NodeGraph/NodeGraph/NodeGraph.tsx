@@ -13,9 +13,9 @@ import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
 
 type DragRefs = {
-    currPosition: { x: number, y: number } | null;
-    speed: number;
-    timeout: NodeJS.Timeout | null;
+    currPosition: { x: number, y: number } | null; // Current position of the cursor
+    speed: number; // Current graph scroll speed, based on proximity of currPosition to the edge of the graph
+    timeout: NodeJS.Timeout | null; // Timeout for scrolling the graph
 }
 
 type PinchRefs = {
@@ -47,7 +47,6 @@ export const NodeGraph = ({
     const [edges, setEdges] = useState<JSX.Element[]>([])
     // Dragging a node
     const [dragId, setDragId] = useState<string | null>(null);
-    const handleDragStart = useCallback((nodeId: string) => { setDragId(nodeId) }, []);
     const dragRefs = useRef<DragRefs>({
         currPosition: null,
         speed: 0,
@@ -372,7 +371,7 @@ export const NodeGraph = ({
         // Add PubSub subscribers
         let dragStartSub = PubSub.subscribe(Pubs.NodeDrag, (_, data) => {
             dragRefs.current.timeout = setTimeout(nodeScroll, 50);
-            handleDragStart(data.nodeId);
+            setDragId(data.nodeId)
         });
         let dragDropSub = PubSub.subscribe(Pubs.NodeDrop, (_, data) => {
             clearScroll();
@@ -387,7 +386,7 @@ export const NodeGraph = ({
             PubSub.unsubscribe(dragStartSub);
             PubSub.unsubscribe(dragDropSub);
         }
-    }, [handleDragStart, handleDragStop, setIsShiftKeyPressed]);
+    }, [handleDragStop, setIsShiftKeyPressed]);
 
     /**
      * Edges (links) displayed between nodes
