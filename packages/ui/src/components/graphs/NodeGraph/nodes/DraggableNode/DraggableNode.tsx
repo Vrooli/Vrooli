@@ -32,7 +32,7 @@ export const DraggableNode = ({
     const handleMouseDown = useCallback((ev: any) => {
         const x = (ev as MouseEvent)?.clientX ?? (ev as TouchEvent)?.touches[0].clientX ?? 0;
         const y = (ev as MouseEvent)?.clientY ?? (ev as TouchEvent)?.touches[0].clientY ?? 0;
-        console.log('DRAGGABLE NODE handleMouseDown', x, y);
+        console.log('DRAGGABLE NODE handleMouseDown', x, y, ev);
         dragStartRef.current = { x, y };
     }, []);
 
@@ -40,7 +40,7 @@ export const DraggableNode = ({
      * Handles start of drag. Draggable expects either false or void, so we can't return true
      */
     const handleDragStart = useCallback(() => {
-        console.log('DRAGGABLE NODE handleDragStart');
+        console.log('DRAGGABLE NODE handleDragStart', canDrag);
         if (canDrag) {
             setIsDragging(true);
             // Initialize drag distance
@@ -61,9 +61,7 @@ export const DraggableNode = ({
         }
     }, [nodeId]);
 
-    const handleDrop = useCallback((_e: any, data: any) => {
-        // Reset drag data
-        isDragPublished.current = false;
+    const handleDrop = useCallback((_e: any, data: any) => { //TODO dragging along grid messes up the position. maybe store grid's scroll position on drag start?
         setIsDragging(false);
         // Determine dropped distance. Add with absolute start position to get absolute drop position
         const { x: distX, y: distY } = data;
@@ -74,7 +72,10 @@ export const DraggableNode = ({
         dragDistanceRef.current = { x: 0, y: 0 };
         dragStartRef.current = { x: 0, y: 0 };
         // Send drop event to parent
-        PubSub.publish(Pubs.NodeDrop, { nodeId, position: { x: dropX, y: dropY } });
+        if (isDragPublished.current) {
+            PubSub.publish(Pubs.NodeDrop, { nodeId, position: { x: dropX, y: dropY } });
+            isDragPublished.current = false;
+        }
     }, [nodeId]);
 
     return (

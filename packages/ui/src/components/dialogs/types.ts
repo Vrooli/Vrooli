@@ -2,7 +2,8 @@ import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
-import { Node, Organization, Project, Routine, Session, Standard, User } from 'types';
+import { Node, NodeDataRoutineListItem, NodeLink, Organization, Project, Routine, Session, Standard, User } from 'types';
+import { BuildDialogOption } from 'utils';
 
 export interface AlertDialogProps extends DialogProps { };
 
@@ -142,11 +143,12 @@ export interface BaseObjectActionDialogProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (data: any) => any;
-    handleDelete: () => any;
+    handleClose: (data: any) => void;
+    handleDelete: (link: NodeLink) => void;
     isAdd: boolean;
     isOpen: boolean;
     language: string; // Language to display/edit
+    link?: NodeLink; // Link to display on open, if editing
     routine: Routine;
 }
 
@@ -169,5 +171,8 @@ export interface UnlinkedNodesDialogProps {
     open: boolean;
     nodes: Node[];
     handleToggleOpen: () => any; // Expand/shrink dialog
-    handleDeleteNode: (node: Node) => any;
+    handleNodeDelete: (nodeId: string) => any;
+    handleNodeUnlink: (nodeId: string) => any;
+    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
+    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
 }

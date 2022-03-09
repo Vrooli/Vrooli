@@ -27,6 +27,7 @@ export const LinkDialog = ({
     isAdd,
     isOpen,
     language,
+    link,
     routine,
 }: LinkDialogProps) => {
     // Selected "From" and "To" nodes
@@ -118,17 +119,7 @@ export const LinkDialog = ({
      * Delete node option if editing (i.e. not a new link)
      */
     const deleteOption = useMemo(() => isAdd ? (
-        <Link onClick={handleDelete}>
-            <Typography
-                sx={{
-                    color: (t) => t.palette.secondary.dark,
-                    display: 'flex',
-                    alignItems: 'center',
-                }}
-            >
-                Already have an account? Log in
-            </Typography>
-        </Link>
+        <></>
     ) : null, [])
 
     return (

@@ -25,7 +25,10 @@ export const UnlinkedNodesDialog = ({
     open,
     nodes,
     handleToggleOpen,
-    handleDeleteNode,
+    handleNodeDelete,
+    handleNodeUnlink,
+    handleRoutineListItemAdd,
+    handleDialogOpen,
 }: UnlinkedNodesDialogProps) => {
 
     /**
@@ -51,7 +54,16 @@ export const UnlinkedNodesDialog = ({
             case NodeType.Redirect:
                 return <RedirectNode {...nodeProps} />
             case NodeType.RoutineList:
-                return <RoutineListNode {...nodeProps} canExpand={false} labelVisible={true} onAdd={() => { }} onResize={() => { }} handleDialogOpen={() => { }} />
+                return (
+                <RoutineListNode 
+                    {...nodeProps} 
+                    canExpand={false} 
+                    labelVisible={true} 
+                    handleNodeUnlink={handleNodeUnlink}
+                    handleNodeDelete={handleNodeDelete}
+                    handleRoutineListItemAdd={handleRoutineListItemAdd}
+                    handleDialogOpen={handleDialogOpen} 
+                />)
             default:
                 return null;
         }
@@ -109,7 +121,7 @@ export const UnlinkedNodesDialog = ({
                                 <Box sx={{ marginLeft: 'auto' }}>
                                     <IconButton
                                         color="inherit"
-                                        onClick={() => handleDeleteNode(node)}
+                                        onClick={() => handleNodeDelete(node.id)}
                                         aria-label={'Delete unlinked node'}
                                     >
                                         <DeleteIcon sx={{ 

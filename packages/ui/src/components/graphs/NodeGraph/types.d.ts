@@ -20,11 +20,14 @@ export type BuildStatusObject = {
     messages: string[],
 }
 export interface NodeGraphProps {
+    /**
+     * 2D array of nodes, by column then row
+     */
+    columns: Node[][];
     scale?: number;
     isEditing?: boolean;
     labelVisible?: boolean;
     language: string; // Language to display/edit
-    nodes: Node[];
     links: NodeLink[];
     /**
       * Prompts parent to open a specific dialog
@@ -50,14 +53,18 @@ export interface NodeGraphProps {
      * Updates a link between two nodes
      */
     handleLinkUpdate: (link: NodeLink, data: any) => void;
-}
-
-export type ColumnDimensions = {
-    width: number; // Max width of node in column
-    heights: number[]; // Height of each node in column, from top to bottom
-    nodeIds: string[]; // Node IDs in column, from top to bottom
-    tops: number[]; // Top y of each node in column, from top to bottom
-    centers: number[]; // Center y of each node in column, from top to bottom
+    /**
+     * Delete a link between two nodes
+     */
+    handleLinkDelete: (link: NodeLink) => void;
+    /**
+     * Adds a routine item to a routine list
+     */
+    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
+    /**
+     * Dictionary of row and column pairs for every node ID on graph
+     */
+    nodesById: { [x: string]: Node };
 }
 
 /**
@@ -71,16 +78,19 @@ export interface NodeColumnProps {
     labelVisible: boolean;
     columnIndex: number;
     nodes: Node[];
-    onDimensionsChange: (columnIndex: number, dimensions: ColumnDimensions) => void;
     /**
       * Prompts parent to open a specific dialog
       */
     handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
+    handleNodeDelete: (nodeId: string) => void;
+    handleNodeUnlink: (nodeId: string) => void;
+    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
 }
 
 export interface NodeEdgeProps {
     link: NodeLink;
     handleAdd: (link: NodeLink) => void; // Adding a node always creates a routine list node. Other node types are automatically added
+    handleDelete: (link: NodeLink) => void;
     handleEdit: (link: NodeLink) => void;
     isEditing?: boolean;
     isFromRoutineList: boolean; // If true, puts edit button further right

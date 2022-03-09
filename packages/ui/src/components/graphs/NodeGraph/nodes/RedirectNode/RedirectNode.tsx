@@ -49,7 +49,7 @@ export const RedirectNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <DraggableNode canDrag={canDrag} nodeId={node.id}>
+        <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}>
             {dialog}
             <NodeContextMenu
                 id={contextId}

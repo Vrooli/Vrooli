@@ -23,23 +23,22 @@ import {
     routineNodeListOptions,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import Measure from 'react-measure';
 import { NodeDataRoutineList } from 'types';
 import { getTranslation, BuildDialogOption, Pubs } from 'utils';
 
 export const RoutineListNode = ({
-    node,
-    scale = 1,
+    canDrag,
+    canExpand,
+    handleDialogOpen,
+    handleNodeUnlink,
+    handleNodeDelete,
+    handleRoutineListItemAdd,
     isLinked,
     labelVisible,
     isEditing,
-    canDrag,
-    canExpand,
-    onAdd = () => { },
-    onResize,
-    handleDialogOpen,
+    node,
+    scale = 1,
 }: RoutineListNodeProps) => {
-    console.log('ROUTINELIST NODE', node);
     // Stores position of click/touch start, to cancel click event if drag occurs
     const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
     // Stores if touch event was a drag
@@ -47,7 +46,7 @@ export const RoutineListNode = ({
     const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
 
     const { label } = useMemo(() => {
-        return { 
+        return {
             label: getTranslation(node, 'title', ['en'], true),
         }
     }, [node]);
@@ -80,18 +79,15 @@ export const RoutineListNode = ({
     const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
     const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
 
-    const handleResize = useCallback(({ bounds }: any) => {
-        onResize(node.id, bounds.height);
-    }, [node.id, onResize])
-
     const confirmDelete = useCallback((event: any) => {
-        event.stopPropagation();
+        console.log('in confirm delete', event);
+        event.preventDefault();
         PubSub.publish(Pubs.AlertDialog, {
             message: 'What would you like to do?',
             buttons: [
-                { text: 'Unlink', onClick: () => { } },
-                { text: 'Remove', onClick: () => { } },
-                { text: 'Cancel', onClick: () => { } }
+                { text: 'Unlink', onClick: () => { handleNodeUnlink(node.id) } },
+                { text: 'Remove', onClick: () => { handleNodeDelete(node.id) } },
+                { text: 'Cancel' }
             ]
         });
     }, [])
@@ -206,85 +202,77 @@ export const RoutineListNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Measure
-            bounds
-            onResize={handleResize}
+        <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}
+            sx={{
+                zIndex: 5,
+                width: nodeSize,
+                fontSize: fontSize,
+                position: 'relative',
+                display: 'block',
+                borderRadius: '12px',
+                overflow: 'overlay',
+                backgroundColor: (t) => t.palette.background.paper,
+                color: (t) => t.palette.background.textPrimary,
+                boxShadow: '0px 0px 12px gray',
+            }}
         >
-            {({ measureRef }) => (
-                <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}
+            <NodeContextMenu
+                id={contextId}
+                anchorEl={contextAnchor}
+                node={node}
+                onClose={closeContext}
+                onAddBefore={() => { }}
+                onAddAfter={() => { }}
+                onDelete={() => { }}
+                onEdit={() => { }}
+                onMove={() => { }}
+            />
+            <Tooltip placement={'top'} title={label ?? 'Routine List'}>
+                <Container
+                    id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
+                    onMouseDown={handleMouseDown}
+                    onMouseUp={handleMouseUp}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    aria-owns={contextOpen ? contextId : undefined}
+                    onContextMenu={openContext}
                     sx={{
-                        zIndex: 5,
-                        width: nodeSize,
-                        fontSize: fontSize,
-                        position: 'relative',
-                        display: 'block',
-                        borderRadius: '12px',
-                        overflow: 'overlay',
-                        backgroundColor: (t) => t.palette.background.paper,
-                        color: (t) => t.palette.background.textPrimary,
-                        boxShadow: '0px 0px 12px gray',
+                        display: 'flex',
+                        height: '48px', // Lighthouse SEO requirement
+                        alignItems: 'center',
+                        backgroundColor: (t) => t.palette.primary.dark,
+                        color: (t) => t.palette.primary.contrastText,
+                        padding: '0.1em',
+                        textAlign: 'center',
+                        cursor: isEditing ? 'grab' : 'pointer',
+                        '&:active': {
+                            cursor: isEditing ? 'grabbing' : 'pointer',
+                        },
+                        '&:hover': {
+                            filter: `brightness(120%)`,
+                            transition: 'filter 0.2s',
+                        },
                     }}
                 >
-                    <NodeContextMenu
-                        id={contextId}
-                        anchorEl={contextAnchor}
-                        node={node}
-                        onClose={closeContext}
-                        onAddBefore={() => { }}
-                        onAddAfter={() => { }}
-                        onDelete={() => { }}
-                        onEdit={() => { }}
-                        onMove={() => { }}
-                    />
-                    <Tooltip placement={'top'} title={label ?? 'Routine List'}>
-                        <Container
-                            id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
-                            ref={measureRef}
-                            onMouseDown={handleMouseDown}
-                            onMouseUp={handleMouseUp}
-                            onTouchMove={handleTouchMove}
-                            onTouchEnd={handleTouchEnd}
-                            aria-owns={contextOpen ? contextId : undefined}
-                            onContextMenu={openContext}
-                            sx={{
-                                display: 'flex',
-                                height: '48px', // Lighthouse SEO requirement
-                                alignItems: 'center',
-                                backgroundColor: (t) => t.palette.primary.dark,
-                                color: (t) => t.palette.primary.contrastText,
-                                padding: '0.1em',
-                                textAlign: 'center',
-                                cursor: isEditing ? 'grab': 'pointer',
-                                '&:active': {
-                                    cursor: isEditing ? 'grabbing' : 'pointer',
-                                },
-                                '&:hover': {
-                                    filter: `brightness(120%)`,
-                                    transition: 'filter 0.2s',
-                                },
-                            }}
-                        >
-                            {canExpand ?
-                                collapseOpen ?
-                                    <ExpandLessIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-shrink-icon-${node.id}`} /> :
-                                    <ExpandMoreIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-expand-icon-${node.id}`} />
-                                : null}
-                            {labelObject}
-                            {isEditing ? <DeleteIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-delete-icon-${node.id}`} onClick={confirmDelete} /> : null}
-                        </Container>
-                    </Tooltip>
-                    {optionsCollapse}
-                    <Collapse
-                        in={collapseOpen}
-                        sx={{
-                            padding: collapseOpen ? '0.5em' : '0'
-                        }}
-                    >
-                        {routines}
-                        {addButton}
-                    </Collapse>
-                </DraggableNode>
-            )}
-        </Measure>
+                    {canExpand ?
+                        collapseOpen ?
+                            <ExpandLessIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-shrink-icon-${node.id}`} /> :
+                            <ExpandMoreIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-expand-icon-${node.id}`} />
+                        : null}
+                    {labelObject}
+                    {isEditing ? <DeleteIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-delete-icon-${node.id}`} onClick={confirmDelete} /> : null}
+                </Container>
+            </Tooltip>
+            {optionsCollapse}
+            <Collapse
+                in={collapseOpen}
+                sx={{
+                    padding: collapseOpen ? '0.5em' : '0'
+                }}
+            >
+                {routines}
+                {addButton}
+            </Collapse>
+        </DraggableNode>
     )
 }

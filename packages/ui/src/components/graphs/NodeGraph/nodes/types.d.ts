@@ -77,11 +77,9 @@ export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledPr
  */
 export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
     canExpand: boolean;
-    onAdd: (data: NodeDataRoutineListItem) => void;
-    /**
-     * Callback for cell resize
-     */
-    onResize: (nodeId: string, height: number) => void;
+    handleNodeUnlink: (nodeId: string) => void;
+    handleNodeDelete: (nodeId: string) => void;
+    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
     /**
      * Prompts parent to open a specific dialog
      */

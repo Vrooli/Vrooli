@@ -30,12 +30,12 @@ const AlertDialog = () => {
     let open = Boolean(state.title) || Boolean(state.message);
 
     useEffect(() => {
-        let dialogSub = PubSub.subscribe(Pubs.AlertDialog, (_, o) => setState({...default_state, ...o}));
+        let dialogSub = PubSub.subscribe(Pubs.AlertDialog, (_, o) => setState({ ...default_state, ...o }));
         return () => { PubSub.unsubscribe(dialogSub) };
     }, [])
 
-    const handleClick = useCallback((action: (() => void) | null | undefined) => {
-        if (action) action();
+    const handleClick = useCallback((event: any, action: ((e?: any) => void) | null | undefined) => {
+        if (action) action(event);
         setState(default_state);
     }, []);
 
@@ -57,12 +57,12 @@ const AlertDialog = () => {
             </DialogContent>
             <DialogActions>
                 {state?.buttons && state.buttons.length > 0 ? (
-                    state.buttons.map((b:StateButton, index) => (
-                        <Button key={`alert-button-${index}`} onClick={() => handleClick(b.onClick)} color="secondary">
+                    state.buttons.map((b: StateButton, index) => (
+                        <Button key={`alert-button-${index}`} onClick={(e) => handleClick(e, b.onClick)} color="secondary">
                             {b.text}
                         </Button>
                     ))
-                ): null}
+                ) : null}
             </DialogActions>
         </Dialog>
     );

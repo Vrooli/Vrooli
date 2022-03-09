@@ -3,6 +3,7 @@ import { NodeEdgeProps } from '../types';
 import {
     Add as AddIcon,
     Edit as EditIcon,
+    Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { Box, IconButton, Tooltip } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
@@ -30,6 +31,7 @@ type EdgePositions = {
  */
 export const NodeEdge = ({
     handleAdd,
+    handleDelete,
     handleEdit,
     isEditing,
     isFromRoutineList,
@@ -147,7 +149,6 @@ export const NodeEdge = ({
      */
     const dragRef = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
-        console.log('IN DA THING', dragId, link.id);
         // Update edge quickly when dragging, and slowly when not dragging
         // Updates are needed when not dragging to handle adding/removing nodes
         let delta = 1000; // Milliseconds
@@ -231,6 +232,30 @@ export const NodeEdge = ({
                 }}>
                     {isEditOpen ? (
                         <>
+                        {/* Insert Node */}
+                        <Tooltip title='Insert node'>
+                                <IconButton
+                                    id="insert-node-on-edge-button"
+                                    size="small"
+                                    onClick={() => { handleAdd(link) }}
+                                    aria-label='Insert node on edge'
+                                    sx={{
+                                        position: "absolute",
+                                        top: -50,
+                                        left: -40,
+                                        background: (t) => t.palette.secondary.main,
+                                        marginLeft: 'auto',
+                                        marginRight: 1,
+                                        transition: 'brightness 0.2s ease-in-out',
+                                        '&:hover': {
+                                            filter: `brightness(105%)`,
+                                            background: (t) => t.palette.secondary.main,
+                                        },
+                                    }}
+                                >
+                                    <AddIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
+                                </IconButton>
+                            </Tooltip>
                             {/* Edit Link */}
                             <Tooltip title='Edit link'>
                                 <IconButton
@@ -240,8 +265,8 @@ export const NodeEdge = ({
                                     aria-label='Edit link'
                                     sx={{
                                         position: "absolute",
-                                        top: -40,
-                                        left: -21,
+                                        top: -50,
+                                        left: -4,
                                         background: '#c5ab17',
                                         marginLeft: 'auto',
                                         marginRight: 1,
@@ -255,28 +280,28 @@ export const NodeEdge = ({
                                     <EditIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
                                 </IconButton>
                             </Tooltip>
-                            {/* Insert Node */}
-                            <Tooltip title='Insert node'>
+                            {/* Delete link */}
+                            <Tooltip title='Delete link'>
                                 <IconButton
-                                    id="insert-node-on-edge-button"
+                                    id="delete-link-on-edge-button"
                                     size="small"
-                                    onClick={() => { handleAdd(link) }}
-                                    aria-label='Insert node on edge'
+                                    onClick={() => { handleDelete(link) }}
+                                    aria-label='Delete link button'
                                     sx={{
                                         position: "absolute",
-                                        top: -40,
-                                        left: 15,
-                                        background: (t) => t.palette.secondary.main,
+                                        top: -50,
+                                        left: 32,
+                                        background: (t) => t.palette.error.main,
                                         marginLeft: 'auto',
                                         marginRight: 1,
                                         transition: 'brightness 0.2s ease-in-out',
                                         '&:hover': {
                                             filter: `brightness(105%)`,
-                                            background: (t) => t.palette.secondary.main,
+                                            background: (t) => t.palette.error.main,
                                         },
                                     }}
                                 >
-                                    <AddIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
+                                    <DeleteIcon id="delete-link-on-edge-button-icon" sx={{ fill: 'white' }} />
                                 </IconButton>
                             </Tooltip>
                         </>

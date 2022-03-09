@@ -42,7 +42,7 @@ export const EndNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <DraggableNode nodeId={node.id} canDrag={canDrag}>
+        <DraggableNode className="handle" nodeId={node.id} canDrag={canDrag}>
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}

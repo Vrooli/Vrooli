@@ -7,8 +7,8 @@
 import { Box, Stack } from '@mui/material';
 import { NodeColumn, NodeEdge } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getTranslation, Pubs, updateArray } from 'utils';
-import { ColumnDimensions, NodeGraphProps } from '../types';
+import { getTranslation, Pubs } from 'utils';
+import { NodeGraphProps } from '../types';
 import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
 
@@ -26,23 +26,23 @@ type PinchRefs = {
 }
 
 export const NodeGraph = ({
-    scale = 1,
-    isEditing = true,
-    labelVisible = true,
-    language,
-    links,
-    nodes,
+    columns,
     handleDialogOpen,
     handleNodeUnlink,
     handleNodeDelete,
     handleNodeUpdate,
     handleLinkCreate,
     handleLinkUpdate,
-    // handleScaleChange,
+    handleLinkDelete,
+    handleRoutineListItemAdd,
+    isEditing = true,
+    labelVisible = true,
+    language,
+    links,
+    nodesById,
+    scale = 1,
 }: NodeGraphProps) => {
-    console.log(' IN NODE GRAPH', nodes, links);
-    // Size and position data of each column
-    const [columnDimensions, setColumnDimensions] = useState<ColumnDimensions[]>([]);
+    console.log(' IN NODE GRAPH', nodesById, links);
     // Stores edges
     const [edges, setEdges] = useState<JSX.Element[]>([])
     // Dragging a node
@@ -138,7 +138,7 @@ export const NodeGraph = ({
         const distY = y - lastY;
         const dist = Math.sqrt(distX * distX + distY * distY);
         console.log('PINCH DIST', dist, x, y, lastX, lastY)
-        PubSub.publish(Pubs.Snack, { message: dist})
+        PubSub.publish(Pubs.Snack, { message: dist })
         // Determine if the pinch is expanding or contracting
         //TODO
         // Set last position to current position
@@ -153,61 +153,53 @@ export const NodeGraph = ({
     }
 
     /**
-     * Updates dimensions of a column
-     */
-    const onColumnDimensionsChange = useCallback((columnIndex: number, dimensions: ColumnDimensions) => {
-        if (columnDimensions.length === 0) return;
-        console.log('onColumnDimensionsChange', columnIndex, dimensions);
-        if (columnIndex < 0 || columnIndex >= columnDimensions.length) {
-            console.error(`Invalid column index: ${columnIndex}`);
-            return;
-        }
-        setColumnDimensions(updateArray(columnDimensions, columnIndex, dimensions));
-    }, [columnDimensions]);
-
-    /**
      * Checks if a point is inside a rectangle
      * @param point - The point to check
-     * @param rectange - The rectangle to check
+     * @param id - The ID of the rectangle to check
      * @param padding - The padding to add to the rectangle
      * @returns True if position is within the bounds of a rectangle
      */
-    const isInsideRectangle = (point: { x: number, y: number }, rectangle: DOMRect, padding: number = 75) => {
-        console.log('isInsideRectangle check', point, rectangle);
+    const isInsideRectangle = (point: { x: number, y: number }, id: string, padding: number = 75) => {
+        const rectangle = document.getElementById(id)?.getBoundingClientRect();
+        if (!rectangle) return false;
         const zone = {
-            x: rectangle.x - padding,
-            y: rectangle.y - padding,
-            width: rectangle.width + padding * 2,
-            height: rectangle.height + padding * 2,
+            xStart: rectangle.x - padding,
+            yStart: rectangle.y - padding,
+            xEnd: rectangle.x + rectangle.width + padding * 2,
+            yEnd: rectangle.y + rectangle.height + padding * 2,
         }
-        return (
-            point.x > zone.x &&
-            point.x < zone.x + zone.width &&
-            point.y > zone.y &&
-            point.y < zone.y + zone.height
+        console.log('isinsiderectangle ZONE', id, point, zone, Boolean(
+            point.x >= zone.xStart &&
+            point.x <= zone.xEnd &&
+            point.y >= zone.yStart &&
+            point.y <= zone.yEnd
+        ));
+        console.log('checks', point.x >= zone.xStart, point.x <= zone.xEnd, point.y >= zone.yStart, point.y <= zone.yEnd);
+        return Boolean(
+            point.x >= zone.xStart &&
+            point.x <= zone.xEnd &&
+            point.y >= zone.yStart &&
+            point.y <= zone.yEnd
         );
     }
 
     /**
      * Makes sure drop is valid, then updates order of nodes
+     * @param nodeId - The id of the node to drop
+     * @param {x, y} - Absolute drop position of the node
      */
     const handleDragStop = useCallback((nodeId: string, { x, y }: { x: number, y: number }) => {
         setDragId(null);
         // First, find the node being dropped
-        const node = nodes.find(n => n.id === nodeId);
+        const node: Node = nodesById[nodeId];
         if (!node) {
             console.error(`Dropped node ${nodeId} not found`);
             return;
         }
         // Next, check if the node was dropped into the "Delete" button or "Unlinked" container. 
-        // Find delete button and unlinked container
-        const deleteButton = document.getElementById('delete-node-button');
-        const unlinkedContainer = document.getElementById('unlinked-nodes-dialog');
-        // Get their bounding rectangles
-        const deleteButtonRect = deleteButton ? deleteButton.getBoundingClientRect() : null;
-        const unlinkedContainerRect = unlinkedContainer ? unlinkedContainer.getBoundingClientRect() : null;
         // If the drop position is within the delete button, delete the node
-        if (deleteButtonRect && isInsideRectangle({ x, y }, deleteButtonRect)) {
+        if (isInsideRectangle({ x, y }, 'delete-node-button')) {
+            console.log('deleting node....')
             // If this is a routine list node, prompt for confirmation
             if (node.type === NodeType.RoutineList) {
                 PubSub.publish(Pubs.AlertDialog, {
@@ -223,33 +215,44 @@ export const NodeGraph = ({
             return;
         }
         // If the drop position is within the unlinked container, unlink the node
-        if (unlinkedContainerRect && isInsideRectangle({ x, y }, unlinkedContainerRect)) {
+        if (isInsideRectangle({ x, y }, 'unlinked-nodes-dialog')) {
             handleNodeUnlink(nodeId);
             return;
         }
 
-        // If the node wasn't dropped into a button or container, find the position it was dropped in
-        // Calculate column using column dimensions and padding
-        const columnPadding = scale * 25;
-        let graphWidth = 0;
-        let columnIndex = 0;
-        //TODO bug causes first index to have 0 width. We know this is the start node, so this can be calculated
-        graphWidth += (100 * scale) + (2 * columnPadding);
-        for (let i = 1; i < columnDimensions.length; i++) {
-            graphWidth += columnDimensions[i].width + (2 * columnPadding);
-            if (x < graphWidth) {
+        // If the node wasn't dropped into a button or container, find row and column it was dropped into
+        let columnIndex = -1;
+        let rowIndex = -1;
+        // Check if node dropped into each column
+        for (let i = 0; i < columns.length; i++) {
+            if (isInsideRectangle({ x, y }, `node-column-${i}`, 0)) {
+                console.log('WAS INSIDE REXTANGLE!', i);
                 columnIndex = i;
                 break;
             }
         }
-        // If columnIndex is greater than max, set to max
-        if (columnIndex > columnDimensions.length - 1) columnIndex = columnDimensions.length - 1;
+        console.log('DROPPED COLUMN INDEX AAAAA', columnIndex);
         // If columnIndex is start node or earlier, return
-        if (columnIndex < 1 || columnIndex >= columnData.length) {
+        if (columnIndex < 1 || columnIndex >= columns.length) {
             PubSub.publish(Pubs.Snack, { message: 'Cannot drop node here', severity: 'error' })
             return;
         }
-        console.log('DROPPED COLUMN INDEX', columnIndex, columnDimensions);
+        // Get the drop row
+        const rowRects = columns[columnIndex].map(node => document.getElementById(`node-${node.id}`)?.getBoundingClientRect());
+        if (rowRects.some(rect => !rect)) return -1;
+        // Calculate the absolute center Y of each node
+        const centerYs = rowRects.map((rect: any) => rect.y);
+        console.log('CENTER YS', centerYs, y);
+        // Check if the drop is above each node
+        for (let i = 0; i < centerYs.length; i++) {
+            if (y < centerYs[i]) {
+                rowIndex = i
+                break;
+            }
+        }
+        // If not above any nodes, must be below   
+        if (rowIndex === -1) rowIndex = centerYs.length;
+        console.log('DROPPED ROW, COL', columnIndex, rowIndex);
         // Determine if node can be dropped without conflicts
         //TODO
         // Otherwise, determine if node can be dropped with conflicts
@@ -258,7 +261,7 @@ export const NodeGraph = ({
         //TODO
         // If the node was not dropped, but it back to its original position
         //TODO
-    }, [scale, columnDimensions]);
+    }, [scale, nodesById]);
 
     // Set listeners for:
     // - click-and-drag background
@@ -387,36 +390,6 @@ export const NodeGraph = ({
     }, [handleDragStart, handleDragStop, setIsShiftKeyPressed]);
 
     /**
-     * Node data map converted to a 2D array of columns
-     */
-    const columnData = useMemo(() => {
-        // 2D node data array, ordered by column. Each column is ordered by row index
-        const columns: Node[][] = [];
-        // Loop through node data map
-        for (const node of nodes) {
-            console.log('calculating columns loop', node);
-            // Skips nodes without a columnIndex or rowIndex
-            if (node.columnIndex === null || node.columnIndex === undefined || node.rowIndex === null || node.rowIndex === undefined) continue;
-            // Add new column(s) if necessary
-            while (columns.length <= node.columnIndex) {
-                columns.push([]);
-            }
-            // Add node to column
-            columns[node.columnIndex].push(node);
-        }
-        // Now sort each column by row index
-        for (const column of columns) {
-            column.sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
-        }
-        console.log('calculated column data....', columns);
-        return columns;
-    }, [nodes]);
-
-    useEffect(() => {
-        setColumnDimensions(Array(columnData.length).fill({ width: 0, heights: [], nodeIds: [], tops: [], centers: [] }));
-    }, [columnData]);
-
-    /**
      * Edges (links) displayed between nodes
      */
     const calculateEdges = useCallback(() => {
@@ -427,8 +400,8 @@ export const NodeGraph = ({
         console.log('calculating edges');
         return links?.map(link => {
             if (!link.fromId || !link.toId) return null;
-            const fromNode = nodes.find(node => node.id === link.fromId);
-            const toNode = nodes.find(node => node.id === link.toId);
+            const fromNode = nodesById[link.fromId];
+            const toNode = nodesById[link.toId];
             if (!fromNode || !toNode) return null;
             return <NodeEdge
                 key={`edge-${link.id ?? 'new-' + fromNode.id + '-to-' + toNode.id}`}
@@ -439,32 +412,35 @@ export const NodeGraph = ({
                 dragId={dragId}
                 scale={scale ?? 1}
                 handleAdd={() => { }}
+                handleDelete={(link) => { handleLinkDelete(link) }}
                 handleEdit={() => { }}
             />
         }).filter(edge => edge) as JSX.Element[];
-    }, [dragId, nodes, isEditing, links, scale]);
+    }, [dragId, nodesById, isEditing, links, scale]);
 
     useEffect(() => {
         setEdges(calculateEdges());
-    }, [columnDimensions, dragId, nodes, isEditing, links, scale]);
+    }, [dragId, nodesById, isEditing, links, scale]);
 
     /**
      * Node column objects
      */
-    const columns = useMemo(() => {
-        return columnData.map((columnData, index) => <NodeColumn
+    const nodeColumns = useMemo(() => {
+        return columns.map((col, index) => <NodeColumn
             key={`node-column-${index}`}
             id={`node-column-${index}`}
             columnIndex={index}
-            nodes={columnData}
-            isEditing={isEditing}
             dragId={dragId}
-            scale={scale}
-            labelVisible={labelVisible}
-            onDimensionsChange={onColumnDimensionsChange}
             handleDialogOpen={handleDialogOpen}
+            handleNodeDelete={handleNodeDelete}
+            handleNodeUnlink={handleNodeUnlink}
+            handleRoutineListItemAdd={handleRoutineListItemAdd}
+            isEditing={isEditing}
+            labelVisible={labelVisible}
+            nodes={col}
+            scale={scale}
         />)
-    }, [columnData, isEditing, scale, labelVisible, onColumnDimensionsChange, dragId]);
+    }, [columns, isEditing, scale, labelVisible, dragId]);
 
     return (
         <Box id="graph-root" position="relative" sx={{
@@ -508,7 +484,7 @@ export const NodeGraph = ({
                 background: `var(--small-squares), var(--large-squares)`,
             }}>
                 {/* Nodes */}
-                {columns}
+                {nodeColumns}
             </Stack>
         </Box>
     )
