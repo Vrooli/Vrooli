@@ -21,6 +21,7 @@ import { BuildStatusObject } from 'components/graphs/NodeGraph/types';
 import { MemberRole, NodeType } from 'graphql/generated/globalTypes';
 import { BuildPageProps } from 'pages/types';
 import _ from 'lodash';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -391,6 +392,56 @@ export const BuildPage = ({
     }, [changedRoutine]);
 
     /**
+     * Inserts a new routine list node along an edge
+     */
+    const handleNodeInsert = useCallback((link: NodeLink) => {
+        if (!changedRoutine) return;
+        // Find link index
+        const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.id === link.id);
+        // Delete link
+        const linksList = deleteArrayIndex(changedRoutine.nodeLinks, linkIndex);
+        // Find "to" node. New node will be placed in its row and column
+        const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
+        if (!toNode) {
+            PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'Error' });
+            return;
+        }
+        const { columnIndex, rowIndex } = toNode;
+        // Move every node starting from the "to" node to the right by one
+        const nodesList = changedRoutine.nodes.map(n => {
+            if (!_.isNil(n.columnIndex) && n.columnIndex >= (columnIndex ?? 0)) {
+                return { ...n, columnIndex: n.columnIndex + 1 };
+            }
+            return n;
+        });
+        // Create new routine list node
+        const newNode: Partial<Node> = {
+            id: uuidv4(),
+            type: NodeType.RoutineList,
+            rowIndex,
+            columnIndex,
+            data: {
+                isOrdered: false,
+                isOptional: false,
+                routines: [],
+            } as any,
+        }
+        // Find every node 
+        // Create two new links
+        const newLinks: Partial<NodeLink>[] = [
+            { fromId: link.fromId, toId: newNode.id },
+            { fromId: newNode.id, toId: link.toId },
+        ];
+        // Insert new node and links
+        const newRoutine = {
+            ...changedRoutine,
+            nodes: [...nodesList, newNode as any],
+            nodeLinks: [...linksList, ...newLinks as any],
+        };
+        setChangedRoutine(newRoutine);
+    }, [changedRoutine]);
+
+    /**
      * Adds a routine list item to a routine list
      */
     const handleRoutineListItemAdd = useCallback((nodeId: string, data: NodeDataRoutineListItem) => {
@@ -570,6 +621,7 @@ export const BuildPage = ({
                     handleLinkUpdate={handleLinkUpdate}
                     handleLinkDelete={handleLinkDelete}
                     handleNodeDelete={handleNodeDelete}
+                    handleNodeInsert={handleNodeInsert}
                     handleNodeUpdate={handleNodeUpdate}
                     handleNodeUnlink={handleNodeUnlink}
                     handleRoutineListItemAdd={handleRoutineListItemAdd}

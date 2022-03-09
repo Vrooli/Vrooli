@@ -31,6 +31,7 @@ export const NodeGraph = ({
     handleNodeUnlink,
     handleNodeDelete,
     handleNodeUpdate,
+    handleNodeInsert,
     handleLinkCreate,
     handleLinkUpdate,
     handleLinkDelete,
@@ -158,7 +159,7 @@ export const NodeGraph = ({
      * @param padding - The padding to add to the rectangle
      * @returns True if position is within the bounds of a rectangle
      */
-    const isInsideRectangle = (point: { x: number, y: number }, id: string, padding: number = 75) => {
+    const isInsideRectangle = (point: { x: number, y: number }, id: string, padding: number = 25) => {
         const rectangle = document.getElementById(id)?.getBoundingClientRect();
         if (!rectangle) return false;
         const zone = {
@@ -410,8 +411,8 @@ export const NodeGraph = ({
                 isToRoutineList={toNode.type === NodeType.RoutineList}
                 dragId={dragId}
                 scale={scale ?? 1}
-                handleAdd={() => { }}
-                handleDelete={(link) => { handleLinkDelete(link) }}
+                handleAdd={handleNodeInsert}
+                handleDelete={handleLinkDelete}
                 handleEdit={() => { }}
             />
         }).filter(edge => edge) as JSX.Element[];

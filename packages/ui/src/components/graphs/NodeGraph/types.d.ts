@@ -42,6 +42,10 @@ export interface NodeGraphProps {
      */
     handleNodeDelete: (nodeId: string) => void;
     /**
+     * Inserts a new routine list node along an edge
+     */
+    handleNodeInsert: (link: NodeLink) => void;
+    /**
      * Updates a node's data
      */
     handleNodeUpdate: (node: Node) => void;
