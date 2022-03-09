@@ -1,4 +1,4 @@
-import { Box, Button, Grid, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material"
+import { Box, Button, CircularProgress, Grid, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
@@ -19,7 +19,7 @@ import Markdown from "markdown-to-jsx";
 import { starMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/wrappers";
 import { star } from "graphql/generated/star";
-import { StarFor } from "graphql/generated/globalTypes";
+import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 
@@ -98,8 +98,14 @@ export const RoutineView = ({
      * Start a routine now (i.e. navigate to start page)
      */
     const startNow = useCallback(() => {
-        setLocation(`${APP_LINKS.Run}/${id}`);
-    }, [id, setLocation]);
+        // Find first node
+        const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
+        if (!firstNode) {
+            PubSub.publish(Pubs.Snack, { message: 'Routine invalid.', severity: 'Error' });
+            return;
+        }
+        setLocation(`${APP_LINKS.Run}/${id}/${firstNode.id}`);
+    }, [id, routine?.nodes, setLocation]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -128,6 +134,76 @@ export const RoutineView = ({
         return options;
     }, [routine, canEdit, session]);
 
+    /**
+     * If routine has nodes (i.e. is not just this page), display "Start Later" and "Start Now" buttons
+     */
+    const actions = useMemo(() => {
+        if (!routine?.nodes?.length) return null;
+        return (
+            <Grid container spacing={1}>
+                <Grid item xs={12} sm={6}>
+                    <Button fullWidth onClick={startLater} color="secondary">Start Later</Button>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                    <Button fullWidth onClick={startNow} color="secondary">Start Now</Button>
+                </Grid>
+            </Grid>
+        )
+    }, [routine, startLater, startNow]);
+
+    /**
+     * Display body or loading indicator
+     */
+    const body = useMemo(() => {
+        if (loading) return (
+            <Box sx={{
+                minHeight: 'min(300px, 25vh)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+            }}>
+                <CircularProgress color="secondary" />
+            </Box>
+        )
+        return (
+            <>
+                {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
+                <Stack direction="column" spacing={2} padding={1}>
+                    {/* Resources */}
+                    {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
+                        title={'Resources'}
+                        list={(routine as any).resourceLists[0]}
+                        canEdit={false}
+                        handleUpdate={() => { }}
+                        session={session}
+                    /> : null}
+                    {/* Description */}
+                    <Box sx={{
+                        padding: 1,
+                        border: `1px solid ${(t) => t.palette.primary.dark}`,
+                        borderRadius: 1,
+                        color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
+                    }}>
+                        <Typography variant="h6">Description</Typography>
+                        <Markdown>{description ?? 'No description'}</Markdown>
+                    </Box>
+                    {/* Instructions */}
+                    <Box sx={{
+                        padding: 1,
+                        border: `1px solid ${(t) => t.palette.background.paper}`,
+                        borderRadius: 1,
+                        color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
+                    }}>
+                        <Typography variant="h6">Instructions</Typography>
+                        <Markdown>{instructions ?? 'No instructions'}</Markdown>
+                    </Box>
+                </Stack>
+                {/* Action buttons */}
+                {actions}
+            </>
+        )
+    }, [loading, actions, description, instructions]);
+
     return (
         <Box sx={{
             display: 'flex',
@@ -150,7 +226,7 @@ export const RoutineView = ({
             <Box sx={{
                 background: (t) => t.palette.background.paper,
                 overflowY: 'auto',
-                maxWidth: '600px',
+                width: 'min(100vw, 600px)',
                 borderRadius: '8px',
                 overflow: 'overlay',
                 ...containerShadow
@@ -162,7 +238,7 @@ export const RoutineView = ({
                     justifyContent: 'center',
                     padding: 2,
                     marginBottom: 1,
-                    background: (t) => t.palette.primary.dark,
+                    background: (t) => t.palette.primary.main,
                     color: (t) => t.palette.primary.contrastText,
                 }}>
                     {/* Show star button and ellipsis next to title */}
@@ -177,7 +253,7 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { }}
                             tooltipPlacement="bottom"
                         />
-                        <Typography variant="h5">{getTranslation(routine, 'title', languages)}</Typography>
+                        <Typography variant="h5">{title}</Typography>
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"
@@ -187,10 +263,9 @@ export const RoutineView = ({
                                     display: 'block',
                                     marginLeft: 'auto',
                                     marginRight: 1,
-                                    fill: (t) => t.palette.primary.contrastText,
                                 }}
                             >
-                                <EllipsisIcon />
+                                <EllipsisIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                             </IconButton>
                         </Tooltip>
                     </Stack>
@@ -207,44 +282,7 @@ export const RoutineView = ({
                 <Box sx={{
                     padding: 2,
                 }}>
-                    {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-                    <Stack direction="column" spacing={2} padding={1}>
-                        {/* Resources */}
-                        {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
-                            title={'Resources'}
-                            list={(routine as any).resourceLists[0]}
-                            canEdit={false}
-                            handleUpdate={() => { }}
-                            session={session}
-                        /> : null}
-                        {/* Description */}
-                        <Box sx={{
-                            padding: 1,
-                            border: `1px solid ${(t) => t.palette.primary.dark}`,
-                            borderRadius: 1,
-                        }}>
-                            <Typography variant="h6">Description</Typography>
-                            <Markdown>{getTranslation(routine, 'description', languages) ?? ''}</Markdown>
-                        </Box>
-                        {/* Instructions */}
-                        <Box sx={{
-                            padding: 1,
-                            border: `1px solid ${(t) => t.palette.background.paper}`,
-                            borderRadius: 1,
-                        }}>
-                            <Typography variant="h6">Instructions</Typography>
-                            <Markdown>{instructions ?? ''}</Markdown>
-                        </Box>
-                    </Stack>
-                    {/* Action buttons */}
-                    <Grid container spacing={1}>
-                        <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={startLater} color="secondary">Start Later</Button>
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={startNow} color="secondary">Start Now</Button>
-                        </Grid>
-                    </Grid>
+                    {body}
                 </Box>
             </Box>
         </Box >

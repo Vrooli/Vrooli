@@ -621,6 +621,13 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -629,7 +636,6 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         },
-                                                        //TODO
                                                     }
                                                 }
                                             },
@@ -656,6 +662,13 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -664,7 +677,6 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         },
-                                                        //TODO
                                                     }
                                                 }
                                             },
@@ -691,6 +703,13 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -699,13 +718,19 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         },
-                                                        //TODO
                                                     }
                                                 }
                                             },
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -714,7 +739,6 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         },
-                                                        //TODO
                                                     }
                                                 }
                                             },
@@ -751,6 +775,13 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -759,13 +790,19 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         },
-                                                        //TODO
                                                     }
                                                 }
                                             },
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -774,7 +811,6 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         },
-                                                        //TODO
                                                     }
                                                 }
                                             }
@@ -801,6 +837,13 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -809,13 +852,19 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         },
-                                                        //TODO
                                                     }
                                                 }
                                             },
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -824,13 +873,19 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         },
-                                                        //TODO
                                                     }
                                                 }
                                             },
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -839,7 +894,6 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         }
-                                                        //TODO
                                                     }
                                                 }
                                             },
@@ -949,6 +1003,13 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        isAutomatable: true,
+                                                        isInternal: true,
+                                                        version: '1.0.0',
+                                                        createdByOrganization: { connect: { id: vrooli.id } },
+                                                        organization: { connect: { id: vrooli.id } },
+                                                        inputs: {}, //TODO
+                                                        outputs: {}, //TODO
                                                         translations: {
                                                             create: [{
                                                                 language: EN,
@@ -957,7 +1018,6 @@ export async function init(prisma: PrismaType) {
                                                                 instructions: 'Fill out the form below.',
                                                             }]
                                                         }
-                                                        //TODO
                                                     }
                                                 }
                                             },

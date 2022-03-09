@@ -50,7 +50,10 @@ function Snack() {
     const [state, setState] = useState<SnackState>(new SnackState());
 
     useEffect(() => {
-        let snackSub = PubSub.subscribe(Pubs.Snack, (_, o) => setState({ ...(new SnackState()), ...o }));
+        let snackSub = PubSub.subscribe(Pubs.Snack, (_, o) => {
+            const severity = o.severity ? o.severity.trim().toLowerCase() : SnackSeverity.Default;
+            setState({ ...(new SnackState()), ...o, severity });
+        });
         return () => { PubSub.unsubscribe(snackSub) };
     }, [])
 
