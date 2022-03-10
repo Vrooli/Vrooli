@@ -226,7 +226,7 @@ export const RoutineView = ({
             <Box sx={{
                 background: (t) => t.palette.background.paper,
                 overflowY: 'auto',
-                width: 'min(100vw, 600px)',
+                width: 'min(96vw, 600px)',
                 borderRadius: '8px',
                 overflow: 'overlay',
                 ...containerShadow
