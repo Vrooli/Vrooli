@@ -80,7 +80,6 @@ export const SubroutineInfoDialog = ({
             }}>
                 {/* Close button */}
                 <IconButton onClick={onClose} sx={{
-                    background: (t) => t.palette.primary.light,
                     color: (t) => t.palette.primary.contrastText,
                     borderRadius: 0,
                     borderBottom: `1px solid ${(t) => t.palette.primary.dark}`,
@@ -99,6 +98,12 @@ export const SubroutineInfoDialog = ({
                     ) : null}
                     <Typography variant="body1">{subroutine?.version}</Typography>
                 </Box>
+            </Box>
+            {/* Main content */}
+            <Box sx={{
+                padding: 2,
+                overflowY: 'auto',
+            }}>
                 {/* Description and instructions */}
                 <Grid container>
                     {/* Description */}

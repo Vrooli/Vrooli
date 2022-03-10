@@ -750,103 +750,63 @@ export const deconstructUnion = (partial: any, unionField: string, relationshipT
 }
 
 /**
- * Custom merge for object type dictionary arrays (e.g. { 'User': [{ id: '321' }], 'Standard': [{ id: '123' }, { id: '555'}] }). 
- * If an object within a type array appears in both a and b, its fields are merged.
- * @param a First object 
- * @param b Second object
- * @returns a and b merged together
- */
-const mergeObjectTypeDict = (
-    a: { [x: string]: { [x: string]: any }[] },
-    b: { [x: string]: { [x: string]: any }[] }
-): { [x: string]: { [x: string]: any }[] } => {
-    const result: { [x: string]: { [x: string]: any }[] } = {};
-    // Initialize result with a. If any of a's values are not arrays, make them arrays
-    for (const [key, value] of Object.entries(a)) {
-        if (Array.isArray(value)) {
-            result[key] = value;
-        } else {
-            result[key] = [value];
-        }
-    }
-    // Loop through b
-    for (const [key, value] of Object.entries(b)) {
-        // If key is not in result, add it
-        if (!result[key]) {
-            result[key] = value;
-        }
-        // If key is in result, merge values
-        else {
-            // Check if item in b array is already in result array for this key. If so, merge its values
-            for (const item of value) {
-                const index = result[key].findIndex(e => e.id === item.id);
-                if (index !== -1) {
-                    result[key][index] = { ...result[key][index], ...item };
-                } else {
-                    result[key].push(item);
-                }
-            }
-        }
-    }
-    return result;
-}
-
-/**
  * Combines fields from a Prisma object with arbitrarily nested relationships
  * @param data GraphQL-shaped data, where each object contains at least an ID
  * @param partial GraphQL info object, partially converted to Prisma select
  * @returns [objectDict, selectFieldsDict], where objectDict is a dictionary of object arrays (sorted by type), 
  * and selectFieldsDict is a dictionary of select fields for each type (unioned if they show up in multiple places)
  */
-const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x: string]: object[] }, { [x: string]: any }] => {
+const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x: string]: string[] }, { [x: string]: any }] => {
     console.log('groupIdsByType', partial?.__typename);
-    // Skip if __typename not in partial
-    if (!partial?.__typename) return [{}, {}];
-    let objectIdsDict: { [x: string]: { [x: string]: any }[] } = {};
-    // Select fields for each type. If a type appears twice, the fields are combined.
+    if (!data || !partial) return [{}, {}];
+    let objectIdsDict: { [x: string]: string[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: { [x: string]: any } } } = {};
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
         const childPartial: PartialInfo = partial[key] as any;
-        // If __typename for key exists, add to selectFieldsDict
-        if (partial[key] && (typeof partial[key] === 'object') && (partial[key] as any)?.__typename) {
-            const childType: string = childPartial.__typename as string;
-            selectFieldsDict[childType] = _.merge(selectFieldsDict[childType] ?? {}, childPartial);
-        }
         // If value is an array, add each element to the correct key in objectDict
         if (Array.isArray(value)) {
             console.log('is array', key, value.length)
             // Pass each element through groupSupplementsByType
             for (const v of value) {
                 const [childObjectsDict, childSelectFieldsDict] = groupIdsByType(v, childPartial);
-                objectIdsDict = mergeObjectTypeDict(objectIdsDict, childObjectsDict);
+                for (const [childType, childObjects] of Object.entries(childObjectsDict)) {
+                    objectIdsDict[childType] = objectIdsDict[childType] ?? [];
+                    objectIdsDict[childType].push(...childObjects);
+                }
                 selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
             }
         }
         // If value is an object (and not date), add it to the correct key in objectDict
         else if (isRelationshipObject(value)) {
             console.log('is object', key)
+            if (key === 'data') console.log('is data object!!!', JSON.stringify(value), JSON.stringify(childPartial))
             // Pass value through groupIdsByType
             const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(value, childPartial);
-            objectIdsDict = mergeObjectTypeDict(objectIdsDict, childObjectIdsDict);
+            for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
+                objectIdsDict[childType] = objectIdsDict[childType] ?? [];
+                objectIdsDict[childType].push(...childObjects);
+            }
             selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
         }
-        else if (key === 'id') {
-            console.log('is id', key, value)
+        else if (key === 'id' && partial.__typename) {
+            console.log('is id', partial.__typename, value)
+            console.log('is id continued', objectIdsDict[partial.__typename])
             // Add to objectIdsDict
-            const type: string = partial.__typename as string;
+            const type: string = partial.__typename;
             objectIdsDict[type] = objectIdsDict[type] ?? [];
-            objectIdsDict[type].push({ id: value });
+            objectIdsDict[type].push(value);
         }
     }
-    // Handle base case
-    // Remove anything that's not a primitive from partial
-    const partialPrimitives = Object.keys(partial)
-        .filter(key => !(typeof partial[key] === 'object') || (partial[key] as any)?.__typename)
-        .reduce((res: any, key) => (res[key] = partial[key], res), {});
-    // Finally, add the base object to objectDict (primitives only) and selectFieldsDict
-    const currType: string = partial.__typename;
-    selectFieldsDict[currType] = _.merge(selectFieldsDict[currType] ?? {}, partialPrimitives);
+    // Add primitives to selectFieldsDict
+    const currType = partial?.__typename;
+    if (currType) {
+        // Remove anything that's not a primitive from partial
+        const partialPrimitives = Object.keys(partial)
+            .filter(key => !isRelationshipObject(partial[key]))
+            .reduce((res: any, key) => (res[key] = partial[key], res), {});
+        selectFieldsDict[currType] = _.merge(selectFieldsDict[currType] ?? {}, partialPrimitives);
+    }
     // Return objectDict and selectFieldsDict
     return [objectIdsDict, selectFieldsDict];
 }
@@ -927,9 +887,11 @@ const pickId = (data: { [x: string]: any }): { [x: string]: any } => {
         if (key === 'id') {
             result[key] = data[key];
         } else if (_.isArray(data[key])) {
-            result[key] = data[key].map((v: any) => pickId(v));
+            const idArray = data[key].map((v: any) => pickId(v));
+            if (idArray.length > 0) result[key] = idArray;
         } else if (isRelationshipObject(data[key])) {
-            result[key] = pickId(data[key]);
+            const idObject = pickId(data[key]);
+            if (Object.keys(idObject).length > 0) result[key] = idObject;
         }
     });
     return result;
@@ -980,14 +942,19 @@ export const addSupplementalFields = async (
     console.log('addsupplementalfields start', partial.__typename); //TODO node routine list routines not in object id dict. not sure why. Know that before addsupplementalfields is called, prisma data and partial and __typenames are 100% correct. This means the error is likely in groupIdsByType
     // Strip all fields which are not the ID or a child array/object from data
     const dataIds: { [x: string]: any }[] = data.map(pickId);
+    console.log('addsupple b got data ids', JSON.stringify(dataIds));
+    console.log('addsupple c', JSON.stringify(partial));
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
-    let objectIdsDict: { [x: string]: { [x: string]: any }[] } = {};
+    let objectIdsDict: { [x: string]: string[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
     for (const d of dataIds) {
         const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(d, partial);
         // Merge each array in childObjectIdsDict into objectIdsDict
-        objectIdsDict = mergeObjectTypeDict(objectIdsDict, childObjectIdsDict);
+        for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
+            objectIdsDict[childType] = objectIdsDict[childType] ?? [];
+            objectIdsDict[childType].push(...childObjects);
+        }
         // Merge each object in childSelectFieldsDict into selectFieldsDict
         selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
     }
@@ -1000,8 +967,8 @@ export const addSupplementalFields = async (
     for (const [type, ids] of Object.entries(objectIdsDict)) {
         // Find the data for each id in ids. Since the data parameter is an array,
         // we must loop through each element in it and call pickObjectById
-        const objectData = ids.map((id: { [x: string]: any }) => {
-            return pickObjectById(data, id.id);
+        const objectData = ids.map((id: string) => {
+            return pickObjectById(data, id);
         });
         // console.log('object data324 ', type, objectData);
         // Now that we have the data for each object, we can add the supplemental fields
