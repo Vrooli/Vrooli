@@ -26,15 +26,8 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
         'routine': GraphQLModelType.Routine,
     },
     constructUnions: (data) => {
-        let { nodeEnd, nodeRoutineList, nodeRedirect, ...modified } = data;
-        if (nodeEnd) {
-            modified.data = nodeEnd;
-        }
-        else if (nodeRoutineList) {
-            modified.data = nodeRoutineList;
-        }
-        // else if (nodeRedirect) { TODO
-        // }
+        let { nodeEnd, nodeRoutineList, ...modified } = data;
+        modified.data = nodeEnd ?? nodeRoutineList;
         return modified;
     },
     deconstructUnions: (partial) => {
@@ -52,6 +45,7 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
 export const nodeRoutineListFormatter = (): FormatConverter<Node> => ({
     relationshipMap: {
         'routines': {
+            '__typename': GraphQLModelType.NodeRoutineList,
             'routine': GraphQLModelType.Routine,
         },
     },

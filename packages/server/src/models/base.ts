@@ -807,15 +807,15 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
     let selectFieldsDict: { [x: string]: { [x: string]: { [x: string]: any } } } = {};
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
+        const childPartial: PartialInfo = partial[key] as any;
+        // If __typename for key exists, add to selectFieldsDict
+        if (partial[key] && (typeof partial[key] === 'object') && (partial[key] as any)?.__typename) {
+            const childType: string = childPartial.__typename as string;
+            selectFieldsDict[childType] = _.merge(selectFieldsDict[childType] ?? {}, childPartial);
+        }
         // If value is an array, add each element to the correct key in objectDict
         if (Array.isArray(value)) {
             console.log('is array', key, value.length)
-            const childPartial: PartialInfo = partial[key] as any;
-            // If __typename for key exists, add to selectFieldsDict
-            if (partial[key] && (typeof partial[key] === 'object') && (partial[key] as any)?.__typename) {
-                const childType: string = childPartial.__typename as string;
-                selectFieldsDict[childType] = _.merge(selectFieldsDict[childType] ?? {}, childPartial);
-            }
             // Pass each element through groupSupplementsByType
             for (const v of value) {
                 const [childObjectsDict, childSelectFieldsDict] = groupIdsByType(v, childPartial);
@@ -824,18 +824,19 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
             }
         }
         // If value is an object (and not date), add it to the correct key in objectDict
-        else if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
+        else if (isRelationshipObject(value)) {
             console.log('is object', key)
-            const childPartial: PartialInfo = partial[key] as any;
-            // If __typename for key exists, add to selectFieldsDict
-            if (partial[key] && (typeof partial[key] === 'object') && (partial[key] as any)?.__typename) {
-                const childType: string = childPartial.__typename as string;
-                selectFieldsDict[childType] = _.merge(selectFieldsDict[childType] ?? {}, childPartial);
-            }
             // Pass value through groupIdsByType
             const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(value, childPartial);
             objectIdsDict = mergeObjectTypeDict(objectIdsDict, childObjectIdsDict);
             selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
+        }
+        else if (key === 'id') {
+            console.log('is id', key, value)
+            // Add to objectIdsDict
+            const type: string = partial.__typename as string;
+            objectIdsDict[type] = objectIdsDict[type] ?? [];
+            objectIdsDict[type].push({ id: value });
         }
     }
     // Handle base case
@@ -845,15 +846,24 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
         .reduce((res: any, key) => (res[key] = partial[key], res), {});
     // Finally, add the base object to objectDict (primitives only) and selectFieldsDict
     const currType: string = partial.__typename;
-    if (currType in objectIdsDict) {
-        objectIdsDict[currType].push(data);
-    } else {
-        objectIdsDict[currType] = [data];
-    }
     selectFieldsDict[currType] = _.merge(selectFieldsDict[currType] ?? {}, partialPrimitives);
     // Return objectDict and selectFieldsDict
     return [objectIdsDict, selectFieldsDict];
 }
+
+/**
+ * Determines if an object is a relationship object, and not an array of relationship objects.
+ * @param obj - object to check
+ * @returns true if obj is a relationship object, false otherwise
+ */
+const isRelationshipObject = (obj: any): boolean => _.isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
+
+/**
+ * Determines if an object is an array of relationship objects, and not a relationship object.
+ * @param obj - object to check
+ * @returns true if obj is an array of relationship objects, false otherwise
+ */
+const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.every(e => isRelationshipObject(e));
 
 /**
  * Recombines objects from supplementalFields calls into shape that matches info
@@ -862,21 +872,22 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
  * @returns data with supplemental fields added
  */
 const combineSupplements = (data: { [x: string]: any }, objectsById: { [x: string]: any }) => {
+    let result: { [x: string]: any } = {};
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
         // If value is an array, add each element to the correct key in objectDict
         if (Array.isArray(value)) {
             // Pass each element through combineSupplements
-            data[key] = data[key].map((v: any) => combineSupplements(v, objectsById));
+            result[key] = data[key].map((v: any) => combineSupplements(v, objectsById));
         }
         // If value is an object (and not a date), add it to the correct key in objectDict
-        else if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
+        else if (isRelationshipObject(value)) {
             // Pass value through combineSupplements
-            data[key] = combineSupplements(value, objectsById);
+            result[key] = combineSupplements(value, objectsById);
         }
     }
     // Handle base case
-    return _.merge(data, objectsById[data.id])
+    return _.merge(result, objectsById[data.id])
 }
 
 /**
@@ -917,7 +928,7 @@ const pickId = (data: { [x: string]: any }): { [x: string]: any } => {
             result[key] = data[key];
         } else if (_.isArray(data[key])) {
             result[key] = data[key].map((v: any) => pickId(v));
-        } else if (_.isObject(data[key]) && !(Object.prototype.toString.call(data[key]) === '[object Date]')) {
+        } else if (isRelationshipObject(data[key])) {
             result[key] = pickId(data[key]);
         }
     });
@@ -939,7 +950,7 @@ const pickObjectById = (data: any, id: string): any => {
         }
     }
     // If data is an object (and not a date), check for ID and return if found
-    else if (_.isObject(data) && !(Object.prototype.toString.call(data) === '[object Date]')) {
+    else if (isRelationshipObject(data)) {
         if ((data as any).id === id) return data; // Base case
         // If ID doesn't match, check children
         for (const value of Object.values(data)) {
@@ -1025,7 +1036,7 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
     // Loop through each key/value pair in partial
     for (const [key, value] of Object.entries(partial)) {
         // If value is an object (and not date), recursively call selectToDB
-        if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
+        if (isRelationshipObject(value)) {
             // console.log('selectToDB recursion', key, value, selectToDB(value as PartialInfo));
             result[key] = selectToDB(value as PartialInfo);
         }
@@ -1035,17 +1046,11 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
         }
     }
     // Handle base case
-    const typename = partial?.__typename;
-    // console.log('will selectdb handle base case?', typename, partial)
-    if (typename && typename in FormatterMap) {
-        const formatter = FormatterMap[typename];
-        // Remove calculated fields and/or add fields for calculating
+    if (partial?.__typename ?? '' in FormatterMap) {
+        const formatter = FormatterMap[partial?.__typename ?? ''];
         if (formatter.removeCalculatedFields) result = formatter.removeCalculatedFields(result);
-        // Deconstruct unions
         if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
-        // Add join tables
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
-        // Add count fields
         if (formatter.addCountFields) result = formatter.addCountFields(result);
     }
     return result;
@@ -1059,14 +1064,10 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
  */
 export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial: PartialInfo): GraphQLModel {
     // First convert data to usable shape
-    const typename = partial?.__typename;
-    if (typename && typename in FormatterMap) {
-        const formatter = FormatterMap[typename];
-        // Construct unions
+    if (partial?.__typename ?? '' in FormatterMap) {
+        const formatter = FormatterMap[partial?.__typename ?? ''];
         if (formatter.constructUnions) data = formatter.constructUnions(data);
-        // Remove join tables
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
-        // Remove count fields
         if (formatter.removeCountFields) data = formatter.removeCountFields(data);
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
@@ -1079,7 +1080,7 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
             data[key] = data[key].map((v: any) => modelToGraphQL(v, partial[key] as PartialInfo));
         }
         // If value is an object (and not date), call modelToGraphQL on it
-        else if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
+        else if (isRelationshipObject(value)) {
             data[key] = modelToGraphQL(value, (partial as any)[key]);
         }
     }
