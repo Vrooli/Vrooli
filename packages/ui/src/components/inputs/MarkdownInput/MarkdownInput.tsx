@@ -37,16 +37,6 @@ const headerMarkdowns = {
     [Headers.H6]: '###### ',
 }
 
-enum TextStyles {
-    Normal = 'Normal',
-    Italic = 'Italic',
-    Bold = 'Bold',
-    Strikethrough = 'Strikethrough',
-    Blockquote = 'Blockquote',
-    InlineCode = 'Inline Code',
-    Code = 'Code',
-}
-
 // TODO - changing textarea programmatically breaks undo/redo functionality
 export const MarkdownInput = ({
     id,
@@ -100,7 +90,7 @@ export const MarkdownInput = ({
         textarea.value = textarea.value.substring(0, startLine) + headerMarkdowns[header] + textarea.value.substring(startLine);
         onChange(textarea.value);
         closeHeader();
-    }, []);
+    }, [id, onChange]);
 
     /**
      * Pads selection with the given substring
@@ -122,7 +112,7 @@ export const MarkdownInput = ({
         // Insert ~~ before the selection, and ~~ after the selection
         textarea.value = textarea.value.substring(0, startPosition) + padStart + textarea.value.substring(startPosition, endPosition) + padEnd + textarea.value.substring(endPosition);
         onChange(textarea.value);
-    }, []);
+    }, [id, onChange]);
 
     const strikethrough = useCallback(() => { padSelection('~~', '~~') }, []);
     const bold = useCallback(() => { padSelection('**', '**') }, []);
@@ -143,7 +133,7 @@ export const MarkdownInput = ({
         }
         // Otherwise, call padSelection
         padSelection('[', '](url)');
-    }, []);
+    }, [id, onChange]);
 
     const insertBulletList = useCallback(() => {
         // Find the textarea element
@@ -170,7 +160,7 @@ export const MarkdownInput = ({
         textarea.value = newText;
         onChange(textarea.value);
         closeList();
-    }, []);
+    }, [id, onChange]);
 
     const insertNumberList = useCallback(() => {
         // Find the textarea element
@@ -199,7 +189,7 @@ export const MarkdownInput = ({
         textarea.value = newText;
         onChange(textarea.value);
         closeList();
-    }, []);
+    }, [id, onChange]);
 
     const togglePreview = useCallback(() => { setIsPreviewOn(on => !on) }, []);
 
@@ -219,7 +209,7 @@ export const MarkdownInput = ({
                 <Stack direction="row" spacing={1} sx={{ marginRight: 'auto' }}>
                     {/* Insert header selector */}
                     <Tooltip title="Insert header" placement="top">
-                        <IconButton aria-describedBy={`markdown-input-header-popover-${id}`} size="small" onClick={openHeaderSelect}>
+                        <IconButton aria-describedby={`markdown-input-header-popover-${id}`} size="small" onClick={openHeaderSelect}>
                             <HeaderIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>
@@ -275,7 +265,7 @@ export const MarkdownInput = ({
                     </Tooltip>
                     {/* Insert bulleted or numbered list selector */}
                     <Tooltip title="Insert list" placement="top">
-                        <IconButton aria-describedBy={`markdown-input-list-popover-${id}`} size="small" onClick={openListSelect}>
+                        <IconButton aria-describedby={`markdown-input-list-popover-${id}`} size="small" onClick={openListSelect}>
                             <ListIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>

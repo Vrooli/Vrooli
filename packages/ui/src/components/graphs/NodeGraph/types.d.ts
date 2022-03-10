@@ -66,6 +66,10 @@ export interface NodeGraphProps {
      */
     handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
     /**
+     * Opens a subroutine info dialog
+     */
+    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
+    /**
      * Dictionary of row and column pairs for every node ID on graph
      */
     nodesById: { [x: string]: Node };
@@ -89,6 +93,7 @@ export interface NodeColumnProps {
     handleNodeDelete: (nodeId: string) => void;
     handleNodeUnlink: (nodeId: string) => void;
     handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
+    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
 }
 
 export interface NodeEdgeProps {

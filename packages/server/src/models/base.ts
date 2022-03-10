@@ -114,6 +114,14 @@ export type FormatConverter<GraphQLModel> = {
      */
     removeJoinTables?: (data: { [x: string]: any }) => any;
     /**
+     * Add _count fields
+     */
+    addCountFields?: (partial: { [x: string]: any }) => any;
+    /**
+     * Remove _count fields
+     */
+    removeCountFields?: (data: { [x: string]: any }) => any;
+    /**
      * Adds fields which are calculated after the main query
      * @param userId ID of the user making the request
      * @param objects
@@ -316,7 +324,7 @@ export const removeJoinTablesHelper = (obj: any, map: JoinMap | undefined): any 
  * @param obj - GraphQL-shaped object
  * @param map - Mapping of GraphQL field names to Prisma relationship names
  */
-export const addCountQueries = (obj: any, map: CountMap | undefined): any => {
+export const addCountFieldsHelper = (obj: any, map: CountMap | undefined): any => {
     if (!map) return obj;
     // Create result object
     let result: any = {};
@@ -391,7 +399,7 @@ export const removeOwnerField = (select: any): any => {
  * @param obj - Prisma-shaped object
  * @param map - Mapping of GraphQL field names to Prisma relationship names
  */
-export const removeCountQueries = (obj: any, map: CountMap): any => {
+export const removeCountFieldsHelper = (obj: any, map: CountMap): any => {
     // Create result object
     let result: any = {};
     // If no counts, no reason to continue
@@ -441,16 +449,13 @@ const removeTypenames = (obj: { [x: string]: any }): { [x: string]: any } => {
  */
 export const toPartialSelect = (info: InfoType, relationshipMap: RelationshipMap): PartialInfo | undefined => {
     // Return undefined if info not set
-    console.log('topartialselect start', info)
     if (!info) return undefined;
     // Find select fields in info object
     let select;
     const isGraphQLResolveInfo = info.hasOwnProperty('fieldNodes') && info.hasOwnProperty('returnType');
     if (isGraphQLResolveInfo) {
         select = resolveGraphQLInfo(JSON.parse(JSON.stringify(info)));
-        console.log('topartialselect isgraphqlresolveinfo', select?.nodes?.loop);
     } else {
-        console.log('is not graphql resolve info');
         select = info;
     }
     // If fields are in the shape of a paginated search query, convert to a Prisma select object
@@ -458,9 +463,8 @@ export const toPartialSelect = (info: InfoType, relationshipMap: RelationshipMap
         select = select.edges.node;
     }
     // Inject __typename fields
-    console.log('going to inject typenames', JSON.stringify(select))
     select = injectTypenames(select, relationshipMap);
-    console.log('injected typenames', select)
+    console.log('injected typenames', JSON.stringify(select))
     return select;
 }
 
@@ -473,7 +477,6 @@ export const toPartialSelect = (info: InfoType, relationshipMap: RelationshipMap
  * @return select with __typename fields
  */
 const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: RelationshipMap, nestedFields: string[] = []): PartialInfo => {
-    console.log('in injectTypenames start', select, parentRelationshipMap, nestedFields);
     // Create result object
     let result: any = {};
     // Iterate over select object
@@ -489,15 +492,12 @@ const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: Re
         // Find nested value in parent relationship map, using nestedFields
         let nestedValue: any = parentRelationshipMap;
         for (const field of nestedFields) {
-            console.log('in field of nestedfields loop', field, nestedValue);
             if (!_.isObject(nestedValue)) break;
             if (field in nestedValue) {
                 nestedValue = (nestedValue as any)[field];
             }
         }
-        console.log('got nested value a', nestedValue)
         if (nestedValue) nestedValue = nestedValue[selectKey];
-        console.log('got nested value b', nestedValue)
         // If nestedValue is not an object, try to get its relationshipMap
         let relationshipMap;
         if (typeof nestedValue !== 'object') relationshipMap = FormatterMap[nestedValue]?.relationshipMap;
@@ -799,6 +799,7 @@ const mergeObjectTypeDict = (
  * and selectFieldsDict is a dictionary of select fields for each type (unioned if they show up in multiple places)
  */
 const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x: string]: object[] }, { [x: string]: any }] => {
+    console.log('groupIdsByType', partial?.__typename);
     // Skip if __typename not in partial
     if (!partial?.__typename) return [{}, {}];
     let objectIdsDict: { [x: string]: { [x: string]: any }[] } = {};
@@ -808,11 +809,13 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
     for (const [key, value] of Object.entries(data)) {
         // If value is an array, add each element to the correct key in objectDict
         if (Array.isArray(value)) {
-            // If __typename for key does not exist (i.e. it was not requested), skip
-            if (!partial[key] || !(typeof partial[key] === 'object') || !(partial[key] as any)?.__typename) continue;
+            console.log('is array', key, value.length)
             const childPartial: PartialInfo = partial[key] as any;
-            const childType: string = childPartial.__typename as string;
-            selectFieldsDict[childType] = _.merge(selectFieldsDict[childType] ?? {}, childPartial);
+            // If __typename for key exists, add to selectFieldsDict
+            if (partial[key] && (typeof partial[key] === 'object') && (partial[key] as any)?.__typename) {
+                const childType: string = childPartial.__typename as string;
+                selectFieldsDict[childType] = _.merge(selectFieldsDict[childType] ?? {}, childPartial);
+            }
             // Pass each element through groupSupplementsByType
             for (const v of value) {
                 const [childObjectsDict, childSelectFieldsDict] = groupIdsByType(v, childPartial);
@@ -822,12 +825,14 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
         }
         // If value is an object (and not date), add it to the correct key in objectDict
         else if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
-            // If __typename for key does not exist (i.e. it was not requested), skip
-            if (!partial[key] || !(typeof partial[key] === 'object') || !(partial[key] as any)?.__typename) continue;
+            console.log('is object', key)
             const childPartial: PartialInfo = partial[key] as any;
-            const childType: string = childPartial.__typename as string;
-            selectFieldsDict[childType] = _.merge(selectFieldsDict[childType] ?? {}, childPartial);
-            // Pass value through groupSupplementsByType
+            // If __typename for key exists, add to selectFieldsDict
+            if (partial[key] && (typeof partial[key] === 'object') && (partial[key] as any)?.__typename) {
+                const childType: string = childPartial.__typename as string;
+                selectFieldsDict[childType] = _.merge(selectFieldsDict[childType] ?? {}, childPartial);
+            }
+            // Pass value through groupIdsByType
             const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(value, childPartial);
             objectIdsDict = mergeObjectTypeDict(objectIdsDict, childObjectIdsDict);
             selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
@@ -905,7 +910,7 @@ const findObjectById = (data: { [x: string]: any }, id: string): any => {
  * @param data Object to pick ID from
  * @returns Object with all fields except nexted objects/arrays and ID removed
  */
- const pickId = (data: { [x: string]: any }): { [x: string]: any } => {
+const pickId = (data: { [x: string]: any }): { [x: string]: any } => {
     var result: { [x: string]: any } = {};
     Object.keys(data).forEach((key) => {
         if (key === 'id') {
@@ -961,10 +966,9 @@ export const addSupplementalFields = async (
     data: { [x: string]: any }[],
     partial: PartialInfo,
 ): Promise<{ [x: string]: any }[]> => {
-    console.log('addsupplementalfields start', partial.__typename, data);
+    console.log('addsupplementalfields start', partial.__typename); //TODO node routine list routines not in object id dict. not sure why. Know that before addsupplementalfields is called, prisma data and partial and __typenames are 100% correct. This means the error is likely in groupIdsByType
     // Strip all fields which are not the ID or a child array/object from data
-    const dataIds: { [x: string]: any}[] = data.map(pickId);
-    console.log('data ids here', JSON.stringify(dataIds));
+    const dataIds: { [x: string]: any }[] = data.map(pickId);
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: { [x: string]: any }[] } = {};
@@ -988,24 +992,24 @@ export const addSupplementalFields = async (
         const objectData = ids.map((id: { [x: string]: any }) => {
             return pickObjectById(data, id.id);
         });
-        console.log('object data324 ', type, objectData);
+        // console.log('object data324 ', type, objectData);
         // Now that we have the data for each object, we can add the supplemental fields
         if (type in FormatterMap) {
             const valuesWithSupplements = FormatterMap[type]?.addSupplementalFields
                 ? await (FormatterMap[type] as any).addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type])
                 : objectData;
-            console.log('called object addSupplementalFields', type, valuesWithSupplements);
+            // console.log('called object addSupplementalFields', type, valuesWithSupplements);
             // Add each value to objectsById
             for (const v of valuesWithSupplements) {
-                console.log('adding to objectsById', v.id);
+                // console.log('adding to objectsById', v.id);
                 objectsById[v.id] = v;
             }
         }
     }
 
-    console.log('going to recursive combineSupplements', objectsById); //TODO only 9ea8 Cardano tag shows up here
+    // console.log('going to recursive combineSupplements', objectsById);
     let result = data.map(d => combineSupplements(d, objectsById));
-    console.log('got result', partial.__typename, JSON.stringify(result));
+    // console.log('got result', partial.__typename, JSON.stringify(result));
     // Convert objectsById dictionary back into shape of data
     return result
 }
@@ -1022,7 +1026,7 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
     for (const [key, value] of Object.entries(partial)) {
         // If value is an object (and not date), recursively call selectToDB
         if (_.isObject(value) && !(Object.prototype.toString.call(value) === '[object Date]')) {
-            console.log('selectToDB recursion', key, value, selectToDB(value as PartialInfo));
+            // console.log('selectToDB recursion', key, value, selectToDB(value as PartialInfo));
             result[key] = selectToDB(value as PartialInfo);
         }
         // Otherwise, add key/value pair to result
@@ -1032,7 +1036,7 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
     }
     // Handle base case
     const typename = partial?.__typename;
-    console.log('will selectdb handle base case?', typename, partial)
+    // console.log('will selectdb handle base case?', typename, partial)
     if (typename && typename in FormatterMap) {
         const formatter = FormatterMap[typename];
         // Remove calculated fields and/or add fields for calculating
@@ -1041,6 +1045,8 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
         if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
         // Add join tables
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
+        // Add count fields
+        if (formatter.addCountFields) result = formatter.addCountFields(result);
     }
     return result;
 }
@@ -1060,6 +1066,8 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
         if (formatter.constructUnions) data = formatter.constructUnions(data);
         // Remove join tables
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
+        // Remove count fields
+        if (formatter.removeCountFields) data = formatter.removeCountFields(data);
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {
@@ -1092,12 +1100,10 @@ export async function readOneHelper<GraphQLModel>(
     info: InfoType,
     model: ModelBusinessLayer<GraphQLModel, any>,
 ): Promise<RecursivePartial<GraphQLModel>> {
-    console.log('in readOneHelper');
     // Validate input
     if (!input.id) throw new CustomError(CODE.InvalidArgs, 'id is required');
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = toPartialSelect(info, model.relationshipMap);
-    console.log('in readonheler after topartialselect', JSON.stringify(partial))
     if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
     // Uses __typename to determine which Prisma object is being queried
     const objectType = partial.__typename;
@@ -1109,7 +1115,8 @@ export async function readOneHelper<GraphQLModel>(
     if (!object) throw new CustomError(CODE.NotFound, `${objectType} not found`);
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partial) as RecursivePartial<GraphQLModel>;
-    console.log('ffffffffff formatted', formatted);
+    console.log('ffffffffff formatted', JSON.stringify(formatted));
+    console.log('ggggg partial', JSON.stringify(partial));
     return (await addSupplementalFields(model.prisma, userId, [formatted], partial))[0] as RecursivePartial<GraphQLModel>;
 }
 

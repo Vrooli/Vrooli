@@ -63,6 +63,7 @@ export const UnlinkedNodesDialog = ({
                     handleNodeDelete={handleNodeDelete}
                     handleRoutineListItemAdd={handleRoutineListItemAdd}
                     handleDialogOpen={handleDialogOpen} 
+                    handleSubroutineOpen={() => {}}
                 />)
             default:
                 return null;

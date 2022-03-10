@@ -12,6 +12,7 @@ export const NodeColumn = ({
     handleRoutineListItemAdd,
     handleNodeDelete,
     handleNodeUnlink,
+    handleSubroutineOpen,
     id,
     isEditing,
     columnIndex,
@@ -79,6 +80,7 @@ export const NodeColumn = ({
                         handleNodeDelete={handleNodeDelete}
                         handleNodeUnlink={handleNodeUnlink}
                         handleRoutineListItemAdd={handleRoutineListItemAdd} 
+                        handleSubroutineOpen={handleSubroutineOpen}
                     />)
                 case NodeType.Start:
                     return <StartNode {...nodeProps} />

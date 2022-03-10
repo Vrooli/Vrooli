@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
 import { CODE, inputCreate, inputUpdate, MemberRole, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
@@ -20,6 +20,7 @@ import { ResourceListModel } from "./resourceList";
 //==============================================================
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
+const countMapper = { nodesCount: 'nodes' }
 export const routineFormatter = (): FormatConverter<Routine> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Routine,
@@ -48,7 +49,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         return rest;
     },
     constructUnions: (data) => {
-        console.log('CONSTRUCT UNIONS routine', data);
+        // console.log('CONSTRUCT UNIONS routine', data);
         let modified = addCreatorField(data);
         modified = addOwnerField(modified);
         return modified;
@@ -59,11 +60,18 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         return modified;
     },
     addJoinTables: (partial) => {
-        console.log('fhdkasfdas routine add join tables', partial);
+        // console.log('fhdkasfdas routine add join tables', partial);
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
+    },
+    addCountFields: (partial) => {
+        // console.log('fhdkasfdas routine add count fields', partial);
+        return addCountFieldsHelper(partial, countMapper);
+    },
+    removeCountFields: (data) => {
+        return removeCountFieldsHelper(data, countMapper);
     },
     async addSupplementalFields(
         prisma: PrismaType,
@@ -71,7 +79,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Routine>[]> {
-        console.log('ROUTINE ADD SUPPL FILEDS', objects);
+        // console.log('ROUTINE ADD SUPPL FILEDS', objects);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -91,7 +99,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         // Query for role
         if (partial.role) {
             console.log('ROUTINE QUERYING FOR ROLE');
-            console.log('routine supplemental fields', objects)
+            // console.log('routine supplemental fields', objects)
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
             const organizationIds = objects

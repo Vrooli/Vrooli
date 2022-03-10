@@ -80,6 +80,7 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
     handleNodeUnlink: (nodeId: string) => void;
     handleNodeDelete: (nodeId: string) => void;
     handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
+    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
     /**
      * Prompts parent to open a specific dialog
      */
@@ -92,10 +93,7 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
 export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, EditableProps {
     nodeId: string; //ID of parent node
     data: NodeDataRoutineListItem;
-    /**
-      * Prompts parent to open a specific dialog
-      */
-    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
+    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
 }
 
 /**

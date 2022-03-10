@@ -33,6 +33,7 @@ export const RoutineListNode = ({
     handleNodeUnlink,
     handleNodeDelete,
     handleRoutineListItemAdd,
+    handleSubroutineOpen,
     isLinked,
     labelVisible,
     isEditing,
@@ -157,7 +158,7 @@ export const RoutineListNode = ({
         <RoutineSubnode
             key={`${routine.id}`}
             data={routine}
-            handleDialogOpen={handleDialogOpen}
+            handleSubroutineOpen={handleSubroutineOpen}
             isEditing={isEditing}
             labelVisible={labelVisible}
             nodeId={node.id}

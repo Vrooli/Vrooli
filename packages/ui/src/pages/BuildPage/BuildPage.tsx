@@ -1,5 +1,5 @@
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, RoutineInfoDialog, UnlinkedNodesDialog } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
@@ -53,9 +53,6 @@ export const BuildPage = ({
     const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
     const language = 'en';
 
-    // Open/close routine info drawer
-    const [isRoutineInfoOpen, setIsRoutineInfoOpen] = useState<boolean>(false);
-    const closeRoutineInfo = useCallback(() => setIsRoutineInfoOpen(false), []);
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
     const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
@@ -217,14 +214,27 @@ export const BuildPage = ({
     }, [changedRoutine]);
 
     const handleDialogOpen = useCallback((nodeId: string, dialog: BuildDialogOption) => {
+        const node = nodesById[nodeId];
         switch (dialog) {
             case BuildDialogOption.AddRoutineItem:
                 break;
-            case BuildDialogOption.ViewRoutineItem:
-                setIsRoutineInfoOpen(true);
-                break;
         }
-    }, []);
+    }, [nodesById]);
+
+
+    // Subroutine info drawer
+    const [selectedSubroutine, setSelectedSubroutine] = useState<Routine | null>(null);
+    const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
+        const node = nodesById[nodeId];
+        if (node) {
+            const subroutine = (node.data as NodeDataRoutineList).routines.find(r => r.id === subroutineId);
+            if (subroutine) {
+                setSelectedSubroutine(subroutine as any);
+            }
+        }
+    }, [nodesById]);
+    const closeRoutineInfo = useCallback(() => setSelectedSubroutine(null), []);
+
     const handleAddLinkDialogOpen = useCallback((fromId?: string, toId?: string) => {
     }, []);
 
@@ -484,9 +494,10 @@ export const BuildPage = ({
             {/* <DeleteNodeDialog
             /> */}
             {/* Displays routine information when you click on a routine list item*/}
-            <RoutineInfoDialog
-                open={isRoutineInfoOpen}
-                routineInfo={changedRoutine}
+            <SubroutineInfoDialog
+                language={language}
+                open={Boolean(selectedSubroutine)}
+                subroutine={selectedSubroutine}
                 onClose={closeRoutineInfo}
             />
             {/* Displays main routine's information and some buttons */}
@@ -625,6 +636,7 @@ export const BuildPage = ({
                     handleNodeUpdate={handleNodeUpdate}
                     handleNodeUnlink={handleNodeUnlink}
                     handleRoutineListItemAdd={handleRoutineListItemAdd}
+                    handleSubroutineOpen={handleSubroutineOpen}
                     isEditing={isEditing}
                     labelVisible={true}
                     language={language}

@@ -230,7 +230,7 @@ export const BuildInfoContainer = ({
                 ) : null}
                 {/* Help button */}
                 <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
-                {/* Switch to routine metadata page */}
+                {/* Display routine description, insturctionss, etc. */}
                 <BuildInfoDialog
                     handleUpdate={handleRoutineUpdate}
                     isEditing={isEditing}

@@ -1833,6 +1833,7 @@ export type Routine = {
   nodeLinks: Array<NodeLink>;
   nodeLists: Array<NodeRoutineList>;
   nodes: Array<Node>;
+  nodesCount?: Maybe<Scalars['Int']>;
   outputs: Array<OutputItem>;
   owner?: Maybe<Contributor>;
   parent?: Maybe<Routine>;

@@ -18,7 +18,8 @@ import {
     routineNodeCheckboxLabel,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { getTranslation, BuildDialogOption } from 'utils';
+import { getTranslation } from 'utils';
+import { MemberRole } from 'graphql/generated/globalTypes';
 
 export const RoutineSubnode = ({
     nodeId,
@@ -26,10 +27,12 @@ export const RoutineSubnode = ({
     scale = 1,
     labelVisible = true,
     isEditing = true,
-    handleDialogOpen,
+    handleSubroutineOpen,
 }: RoutineSubnodeProps) => {
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
+    // Determines if the subroutine is one you can edit
+    const canEdit = useMemo(() => data.routine.role && [MemberRole.Owner, MemberRole.Admin].includes(data.routine.role), [data.routine.role]);
 
     const { title } = useMemo(() => {
         const languages = navigator.languages;
@@ -71,11 +74,11 @@ export const RoutineSubnode = ({
             }}
         >
             <Container
-                onClick={() => handleDialogOpen(nodeId, BuildDialogOption.ViewRoutineItem)}
+                onClick={() => handleSubroutineOpen(nodeId, data.id)}
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    backgroundColor: (t) => t.palette.primary.main,
+                    backgroundColor: canEdit ? (t) => t.palette.primary.main : '#667899',
                     color: (t) => t.palette.primary.contrastText,
                     padding: '0.1em',
                     textAlign: 'center',
@@ -87,7 +90,7 @@ export const RoutineSubnode = ({
                 }}
             >
                 {labelObject}
-                {isEditing ? <EditIcon /> : null}
+                {isEditing && canEdit ? <EditIcon /> : null}
                 {isEditing ? <DeleteIcon /> : null}
             </Container>
             <Stack direction="row" justifyContent="space-between" borderRadius={0}>

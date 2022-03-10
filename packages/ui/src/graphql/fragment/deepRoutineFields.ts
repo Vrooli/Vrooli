@@ -68,12 +68,30 @@ export const deepRoutineFields = gql`
                     routine {
                         id
                         isInternal
+                        nodesCount
                         role
+                        owner {
+                            ... on Organization {
+                                id
+                                translations {
+                                    id
+                                    language
+                                    name
+                                }
+                            }
+                            ... on User {
+                                id
+                                username
+                            }
+                        }
                         translations {
                             id
                             language
                             title
+                            description
+                            instructions
                         }
+                        version
                     }
                     translations {
                         id

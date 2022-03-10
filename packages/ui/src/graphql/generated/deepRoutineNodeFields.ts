@@ -15,19 +15,45 @@ export interface deepRoutineNodeFields_data_NodeEnd {
   wasSuccessful: boolean;
 }
 
+export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
+}
+
+export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_Organization {
+  __typename: "Organization";
+  id: string;
+  translations: deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
+}
+
+export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner = deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_Organization | deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_User;
+
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_translations {
   __typename: "RoutineTranslation";
   id: string;
   language: string;
   title: string;
+  description: string | null;
+  instructions: string;
 }
 
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
   isInternal: boolean | null;
+  nodesCount: number | null;
   role: MemberRole | null;
+  owner: deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner | null;
   translations: deepRoutineNodeFields_data_NodeRoutineList_routines_routine_translations[];
+  version: string | null;
 }
 
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines_translations {

@@ -92,6 +92,7 @@ export const typeDef = gql`
         inputs: [InputItem!]!
         nodeLists: [NodeRoutineList!]!
         nodes: [Node!]!
+        nodesCount: Int
         nodeLinks: [NodeLink!]!
         outputs: [OutputItem!]!
         owner: Contributor

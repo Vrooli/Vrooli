@@ -18,7 +18,7 @@ import {
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
-import { TagSelector } from "components";
+import { MarkdownInput, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 
 export const RoutineUpdate = ({
@@ -96,22 +96,54 @@ export const RoutineUpdate = ({
         </Grid>
     ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
 
-
     return (
         <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
-            {loading ? (
-                <Box sx={{
-                    position: 'absolute',
-                    top: '-5vh', // Half of toolbar height
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    <CircularProgress size={100} color="secondary" />
-                </Box>
-            ) : formInput}
+            <Grid container spacing={2} sx={{ padding: 2 }}>
+                <Grid item xs={12}>
+                    <TextField
+                        fullWidth
+                        id="title"
+                        name="title"
+                        label="title"
+                        value={formik.values.title}
+                        onBlur={formik.handleBlur}
+                        onChange={formik.handleChange}
+                        error={formik.touched.title && Boolean(formik.errors.title)}
+                        helperText={formik.touched.title && formik.errors.title}
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <MarkdownInput
+                        id="description"
+                        placeholder="Description"
+                        value={formik.values.description}
+                        minRows={2}
+                        onChange={(newText: string) => formik.setFieldValue('description', newText)}
+                        error={formik.touched.description && Boolean(formik.errors.description)}
+                        helperText={formik.touched.description ? formik.errors.description : null}
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <MarkdownInput
+                        id="instructions"
+                        placeholder="Instructions"
+                        value={formik.values.instructions}
+                        minRows={4}
+                        onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
+                        error={formik.touched.instructions && Boolean(formik.errors.instructions)}
+                        helperText={formik.touched.instructions ? formik.errors.instructions : null}
+                    />
+                </Grid>
+                <Grid item xs={12} marginBottom={4}>
+                    <TagSelector
+                        session={session}
+                        tags={tags}
+                        onTagAdd={addTag}
+                        onTagRemove={removeTag}
+                        onTagsClear={clearTags}
+                    />
+                </Grid>
+            </Grid>
             <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )

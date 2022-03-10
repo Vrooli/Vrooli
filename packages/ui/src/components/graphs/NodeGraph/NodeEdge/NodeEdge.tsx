@@ -5,7 +5,7 @@ import {
     Edit as EditIcon,
     Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, Popover, Stack, Tooltip } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { ListMenu } from 'components';
@@ -45,8 +45,14 @@ export const NodeEdge = ({
     const [dims, setDims] = useState<EdgePositions | null>(null);
     const thiccness = useMemo(() => Math.ceil(scale * 3), [scale]);
 
-    const [isEditOpen, setIsEditOpen] = useState(false);
-    const toggleIsEditOpen = useCallback(() => setIsEditOpen(o => !o), []);
+    // Handle opening/closing of the edit popover menu
+    const [anchorEl, setAnchorEl] = useState(null);
+    const toggleEdit = useCallback((event) => {
+        if (Boolean(anchorEl)) setAnchorEl(null);
+        else setAnchorEl(event.currentTarget);
+    }, []);
+    const closeEdit = () => { setAnchorEl(null) };
+    const isEditOpen = Boolean(anchorEl);
 
     // Triggers edit menu in parent. This is needed because the link's from and to nodes
     // can be updated, and the edge doesn't have this information
@@ -211,103 +217,109 @@ export const NodeEdge = ({
         const bezierPoint = getBezierPoint(t, ...dims.bezier);
         const diameter: number = isEditOpen ? scale * 30 : scale * 25
         return (
-            <Tooltip title={isEditOpen ? '' : "Edit edge or insert node"}>
-                <Box onClick={toggleIsEditOpen} sx={{
-                    position: "absolute",
-                    top: dims.top + bezierPoint.y - (diameter / 2),
-                    left: dims.left + bezierPoint.x - (diameter / 2),
-                    height: `${diameter}px`,
-                    width: `${diameter}px`,
-                    borderRadius: '100%',
-                    border: isEditOpen ? `2px solid #9e3984` : `none`,
-                    cursor: 'pointer',
-                    zIndex: 2,
-                    background: isEditOpen ? 'transparent' : '#9e3984',
-                    '&:hover': {
-                        height: `${scale * 30}px`,
-                        width: `${scale * 30}px`,
-                        top: dims.top + bezierPoint.y - (scale * 30 / 2),
-                        left: dims.left + bezierPoint.x - (scale * 30 / 2),
-                    }
-                }}>
-                    {isEditOpen ? (
-                        <>
+            <>
+                <Tooltip title={isEditOpen ? '' : "Edit edge or insert node"}>
+                    <Box onClick={toggleEdit} sx={{
+                        position: "absolute",
+                        top: dims.top + bezierPoint.y - (diameter / 2),
+                        left: dims.left + bezierPoint.x - (diameter / 2),
+                        height: `${diameter}px`,
+                        width: `${diameter}px`,
+                        borderRadius: '100%',
+                        border: isEditOpen ? `2px solid #9e3984` : `none`,
+                        cursor: 'pointer',
+                        zIndex: 2,
+                        background: isEditOpen ? 'transparent' : '#9e3984',
+                        '&:hover': {
+                            height: `${scale * 30}px`,
+                            width: `${scale * 30}px`,
+                            top: dims.top + bezierPoint.y - (scale * 30 / 2),
+                            left: dims.left + bezierPoint.x - (scale * 30 / 2),
+                        }
+                    }} />
+                </Tooltip >
+                <Popover
+                    open={isEditOpen}
+                    anchorEl={anchorEl}
+                    onClose={closeEdit}
+                    anchorOrigin={{
+                        vertical: 'top',
+                        horizontal: 'center',
+                    }}
+                    transformOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'center',
+                    }}
+                    sx={{
+                        '& .MuiPopover-paper': {
+                            background: 'transparent',
+                            boxShadow: 'none',
+                            border: 'none',
+                            paddingBottom: 1,
+                        }
+                    }}
+                >
+                    <Stack direction="row" spacing={1}>
                         {/* Insert Node */}
                         <Tooltip title='Insert node'>
-                                <IconButton
-                                    id="insert-node-on-edge-button"
-                                    size="small"
-                                    onClick={() => { handleAdd(link) }}
-                                    aria-label='Insert node on edge'
-                                    sx={{
-                                        position: "absolute",
-                                        top: -50,
-                                        left: -40,
+                            <IconButton
+                                id="insert-node-on-edge-button"
+                                size="small"
+                                onClick={() => { handleAdd(link) }}
+                                aria-label='Insert node on edge'
+                                sx={{
+                                    background: (t) => t.palette.secondary.main,
+                                    transition: 'brightness 0.2s ease-in-out',
+                                    '&:hover': {
+                                        filter: `brightness(105%)`,
                                         background: (t) => t.palette.secondary.main,
-                                        marginLeft: 'auto',
-                                        marginRight: 1,
-                                        transition: 'brightness 0.2s ease-in-out',
-                                        '&:hover': {
-                                            filter: `brightness(105%)`,
-                                            background: (t) => t.palette.secondary.main,
-                                        },
-                                    }}
-                                >
-                                    <AddIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
-                                </IconButton>
-                            </Tooltip>
-                            {/* Edit Link */}
-                            <Tooltip title='Edit link'>
-                                <IconButton
-                                    id="edit-edge-button"
-                                    size="small"
-                                    onClick={handleEditClick}
-                                    aria-label='Edit link'
-                                    sx={{
-                                        position: "absolute",
-                                        top: -50,
-                                        left: -4,
+                                    },
+                                }}
+                            >
+                                <AddIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
+                            </IconButton>
+                        </Tooltip>
+                        {/* Edit Link */}
+                        <Tooltip title='Edit link'>
+                            <IconButton
+                                id="edit-edge-button"
+                                size="small"
+                                onClick={handleEditClick}
+                                aria-label='Edit link'
+                                sx={{
+                                    background: '#c5ab17',
+                                    transition: 'brightness 0.2s ease-in-out',
+                                    '&:hover': {
+                                        filter: `brightness(105%)`,
                                         background: '#c5ab17',
-                                        marginLeft: 'auto',
-                                        marginRight: 1,
-                                        transition: 'brightness 0.2s ease-in-out',
-                                        '&:hover': {
-                                            filter: `brightness(105%)`,
-                                            background: '#c5ab17',
-                                        },
-                                    }}
-                                >
-                                    <EditIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
-                                </IconButton>
-                            </Tooltip>
-                            {/* Delete link */}
-                            <Tooltip title='Delete link'>
-                                <IconButton
-                                    id="delete-link-on-edge-button"
-                                    size="small"
-                                    onClick={() => { handleDelete(link) }}
-                                    aria-label='Delete link button'
-                                    sx={{
-                                        position: "absolute",
-                                        top: -50,
-                                        left: 32,
+                                    },
+                                }}
+                            >
+                                <EditIcon id="insert-node-on-edge-button-icon" sx={{ fill: 'white' }} />
+                            </IconButton>
+                        </Tooltip>
+                        {/* Delete link */}
+                        <Tooltip title='Delete link'>
+                            <IconButton
+                                id="delete-link-on-edge-button"
+                                size="small"
+                                onClick={() => { handleDelete(link) }}
+                                aria-label='Delete link button'
+                                sx={{
+                                    background: (t) => t.palette.error.main,
+                                    transition: 'brightness 0.2s ease-in-out',
+                                    '&:hover': {
+                                        filter: `brightness(105%)`,
                                         background: (t) => t.palette.error.main,
-                                        marginLeft: 'auto',
-                                        marginRight: 1,
-                                        transition: 'brightness 0.2s ease-in-out',
-                                        '&:hover': {
-                                            filter: `brightness(105%)`,
-                                            background: (t) => t.palette.error.main,
-                                        },
-                                    }}
-                                >
-                                    <DeleteIcon id="delete-link-on-edge-button-icon" sx={{ fill: 'white' }} />
-                                </IconButton>
-                            </Tooltip>
-                        </>
-                    ) : null}
-                </Box>
-            </Tooltip>
+                                    },
+                                }}
+                            >
+                                <DeleteIcon id="delete-link-on-edge-button-icon" sx={{ fill: 'white' }} />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
+                </Popover>
+            </>
         );
     }, [isEditOpen, isEditing, isFromRoutineList, isToRoutineList, dims, scale]);
 

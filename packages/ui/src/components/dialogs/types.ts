@@ -161,9 +161,10 @@ export interface BuildInfoDialogProps {
     sxs?: { icon: any };
 }
 
-export interface RoutineInfoDialogProps {
+export interface SubroutineInfoDialogProps {
     open: boolean;
-    routineInfo: Routine | null;
+    language: string; // Language to display/edit
+    subroutine: Routine | null;
     onClose: () => any;
 }
 

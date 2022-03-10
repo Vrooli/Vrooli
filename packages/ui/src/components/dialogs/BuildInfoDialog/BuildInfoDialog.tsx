@@ -29,12 +29,18 @@ import {
 } from '@mui/material';
 import { BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { ResourceListHorizontal } from 'components';
+import { MarkdownInput, ResourceListHorizontal } from 'components';
 import { DeleteRoutineDialog } from '..';
-import { getTranslation, Pubs } from 'utils';
+import { formatForUpdate, getTranslation, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import { Resource, ResourceList, User } from 'types';
 import { useLocation } from 'wouter';
+import { routine } from "graphql/generated/routine";
+import { useMutation } from '@apollo/client';
+import { useFormik } from 'formik';
+import { routineUpdate as validationSchema } from '@local/shared';
+import { mutationWrapper } from 'graphql/utils/wrappers';
+import { routineUpdateMutation } from 'graphql/mutation';
 
 enum ActionOption {
     Cancel = 'cancel',
@@ -108,6 +114,37 @@ export const BuildInfoDialog = ({
         return results;
     }, [isEditing, routine]);
 
+    // Handle update
+    const [mutation] = useMutation<routine>(routineUpdateMutation);
+    const formik = useFormik({
+        initialValues: {
+            description: getTranslation(routine, 'description', [language]) ?? '',
+            instructions: getTranslation(routine, 'instructions', [language]) ?? '',
+            title: getTranslation(routine, 'title', [language]) ?? '',
+            version: routine?.version ?? '',
+        },
+        enableReinitialize: true, // Needed because existing data is obtained from async fetch
+        validationSchema,
+        onSubmit: (values) => {
+            mutationWrapper({
+                mutation,
+                input: formatForUpdate(routine, {
+                    translations: [{
+                        language: 'en',
+                        title: values.title,
+                        description: values.description,
+                        instructions: values.instructions,
+                    }],
+                    ...values,
+                }),
+                onSuccess: (response) => { handleUpdate(response.data.routineUpdate) },
+                onError: (response) => {
+                    PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
+                }
+            })
+        },
+    });
+
     const handleAction = useCallback((option: ActionOption) => {
         //TODO
     }, []);
@@ -145,7 +182,7 @@ export const BuildInfoDialog = ({
                         <Stack direction="row" spacing={1}>
                             {ownedBy ? (
                                 <Link onClick={toOwner}>
-                                    <Typography variant="body1" sx={{color: (t) => t.palette.primary.contrastText, cursor: 'pointer'}}>{ownedBy} - </Typography>
+                                    <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
                                 </Link>
                             ) : null}
                             <Typography variant="body1">{routine?.version}</Typography>
@@ -179,7 +216,21 @@ export const BuildInfoDialog = ({
                         borderRadius: 1,
                     }}>
                         <Typography variant="h6">Description</Typography>
-                        <Markdown>{getTranslation(routine, 'description', [language]) ?? ''}</Markdown>
+                        {
+                            isEditing ? (
+                                <MarkdownInput
+                                    id="description"
+                                    placeholder="Description"
+                                    value={formik.values.description}
+                                    minRows={2}
+                                    onChange={(newText: string) => formik.setFieldValue('description', newText)}
+                                    error={formik.touched.description && Boolean(formik.errors.description)}
+                                    helperText={formik.touched.description ? formik.errors.description as string : null}
+                                />
+                            ) : (
+                                <Markdown>{getTranslation(routine, 'description', [language]) ?? ''}</Markdown>
+                            )
+                        }
                     </Box>
                     {/* Instructions */}
                     <Box sx={{
@@ -188,7 +239,21 @@ export const BuildInfoDialog = ({
                         borderRadius: 1,
                     }}>
                         <Typography variant="h6">Instructions</Typography>
-                        <Markdown>{getTranslation(routine, 'instructions', [language]) ?? ''}</Markdown>
+                        {
+                            isEditing ? (
+                                <MarkdownInput
+                                    id="instructions"
+                                    placeholder="Instructions"
+                                    value={formik.values.instructions}
+                                    minRows={2}
+                                    onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
+                                    error={formik.touched.instructions && Boolean(formik.errors.instructions)}
+                                    helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
+                                />
+                            ) : (
+                                <Markdown>{getTranslation(routine, 'instructions', [language]) ?? ''}</Markdown>
+                            )
+                        }
                     </Box>
                     {/* Inputs/Outputs TODO*/}
                     {/* Is internal checkbox */}

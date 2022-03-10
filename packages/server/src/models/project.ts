@@ -47,7 +47,7 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         return modified;
     },
     deconstructUnions: (partial) => {
-        console.log('IN DECONSTRUCT UNIONS PROJECT', partial);
+        // console.log('IN DECONSTRUCT UNIONS PROJECT', partial);
         let modified = removeCreatorField(partial);
         modified = removeOwnerField(modified);
         return modified;

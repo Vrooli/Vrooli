@@ -44,7 +44,6 @@ export type DragTypes = ValueOf<typeof DragTypes>;
  */
 export enum BuildDialogOption {
     AddRoutineItem,
-    ViewRoutineItem,
 }
 
 /**
