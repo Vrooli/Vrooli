@@ -142,8 +142,8 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
-                { translations: { some: { language: languages ? { in: languages } : undefined, title: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
@@ -154,7 +154,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
+        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}; const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const projectIdQuery = input.projectId ? { projectId: input.projectId } : {};
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
@@ -168,6 +168,19 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
  * Handles authorized creates, updates, and deletes
  */
 export const routineMutater = (prisma: PrismaType) => ({
+    /**
+     * Validates node positions
+     */
+    validateNodePositions(input: RoutineCreateInput | RoutineUpdateInput): void {
+        // Check that node columnIndexes and rowIndexes are valid
+        let combinedNodes = [];
+        if (input.nodesCreate) combinedNodes.push(...input.nodesCreate);
+        if ((input as RoutineUpdateInput).nodesUpdate) combinedNodes.push(...(input as any).nodesUpdate);
+        if ((input as RoutineUpdateInput).nodesDelete) combinedNodes = combinedNodes.filter(node => !(input as any).nodesDelete.includes(node.id));
+        // Remove nodes that have duplicate rowIndexes and columnIndexes
+        const uniqueNodes = _.uniqBy(combinedNodes, (n) => `${n.rowIndex}-${n.columnIndex}`);
+        if (uniqueNodes.length < combinedNodes.length) throw new CustomError(CODE.NodeDuplicatePosition);
+    },
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput): Promise<any> {
         return {
             id: (data as RoutineUpdateInput)?.id ?? undefined,
@@ -203,22 +216,8 @@ export const routineMutater = (prisma: PrismaType) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'inputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         const standardModel = StandardModel(prisma);
         console.log('relationshipBuilderInput formattedInput', formattedInput);
-        // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs TODO
-        // Also check that node columnIndexes and rowIndexes are valid TODO
-        // Also handle node links. Links that are connected to new nodes use a UUID 
-        // that refers to a new node (i.e. not added to the database before). These UUIDs will
-        // look something like 'new-uuid-12345' instead of 'f5f5f5f5-f5f5-f5f5-f5f5-f5f5f5f5f5f5' TODO
-        if (Object.keys(input).some(key => key.startsWith('nodes'))) {
-            // NOTE: nodes cannot be connected/disconnected from a routine, so we don't need to check for that here
-            const creates = Array.isArray(input.nodesCreate) ? input.nodesCreate : [];
-            const updates = Array.isArray(input.nodesUpdate) ? input.nodesUpdate : [];
-            const deletes = Array.isArray(input.nodesDelete) ? input.nodesDelete : [];
-            // Make sure not passing node limit
-            // if (creates.length - )
-            // If node links relationship provided, replace ID
-            if (Object.keys(input).some(key => key.startsWith('nodeLinks'))) {
-            }
-        }
+        // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs 
+        //TODO
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -259,20 +258,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'outputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         const standardModel = StandardModel(prisma);
         // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs
-        // Also calculate each node's previous and next nodes, if those fields are using a UUID 
-        // that refers to a new node (i.e. not added to the database before). These UUIDs will
-        // look something like 'new-uuid-12345' instead of 'f5f5f5f5-f5f5-f5f5-f5f5-f5f5f5f5f5f5' TODO
-        if (Object.keys(input).some(key => key.startsWith('nodes'))) {
-            // NOTE: nodes cannot be connected/disconnected from a routine, so we don't need to check for that here
-            const creates = Array.isArray(input.nodesCreate) ? input.nodesCreate : [];
-            const updates = Array.isArray(input.nodesUpdate) ? input.nodesUpdate : [];
-            const deletes = Array.isArray(input.nodesDelete) ? input.nodesDelete : [];
-            // Make sure not passing node limit
-            // if (creates.length - )
-            // If node links relationship provided, replace ID
-            if (Object.keys(input).some(key => key.startsWith('nodeLinks'))) {
-            }
-        }
+        //TODO
         // Validate create
         if (Array.isArray(formattedInput.create)) {
             for (const data of formattedInput.create) {
@@ -335,12 +321,25 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (createMany) {
             createMany.forEach(input => routineCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
-            // Check if user will pass max routines limit TODO
+            createMany.forEach(input => this.validateNodePositions(input));
+            // Check if user will pass max routines limit
+            const existingCount = await prisma.routine.count({
+                where: {
+                    OR: [
+                        { user: { id: userId ?? '' } },
+                        { organization: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } },
+                    ]
+                }
+            })
+            if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
+                throw new CustomError(CODE.MaxRoutinesReached);
+            }
         }
         if (updateMany) {
             console.log('ROUTINE VALIDATE MUTATIONS UPDATEMANY', updateMany);
             updateMany.forEach(input => routineUpdate.validateSync(input, { abortEarly: false }));
             updateMany.forEach(input => TranslationModel().profanityCheck(input));
+            updateMany.forEach(input => this.validateNodePositions(input));
         }
         if (deleteMany) {
             // Check if user is authorized to delete

@@ -146,19 +146,24 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<void> {
+        console.log('in organization validatemutations')
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
         if (createMany) {
+            console.log('creating many validating', createMany);
             createMany.forEach(input => organizationCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
+            createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
+            console.log('passed create many validations');
             // Check if user will pass max organizations limit
             const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } });
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
-                throw new CustomError(CODE.ErrorUnknown, 'To prevent spam, user cannot own more than 100 organizations. If you think this is a mistake, please contact us');
+                throw new CustomError(CODE.MaxOrganizationsReached);
             }
         }
         if (updateMany) {
             updateMany.forEach(input => organizationUpdate.validateSync(input, { abortEarly: false }));
             updateMany.forEach(input => TranslationModel().profanityCheck(input));
+            updateMany.forEach(input => TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
             // Check that user is owner OR admin of each organization
             const roles = userId
                 ? await verifier.getRoles(userId, updateMany.map(input => input.id))

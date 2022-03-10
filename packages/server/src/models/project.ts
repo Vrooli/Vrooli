@@ -130,8 +130,8 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
-                { translations: { some: { language: languages ? { in: languages } : undefined, name: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
@@ -142,7 +142,7 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
         const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};        const userIdQuery = input.userId ? { userId: input.userId } : undefined;
+        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}; const userIdQuery = input.userId ? { userId: input.userId } : undefined;
         const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
@@ -162,11 +162,24 @@ export const projectMutater = (prisma: PrismaType) => ({
         if (createMany) {
             createMany.forEach(input => projectCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
-            // Check if user will pass max projects limit TODO
+            createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['description'], CODE.LineBreaksDescription));
+            // Check if user will pass max projects limit
+            const existingCount = await prisma.project.count({
+                where: {
+                    OR: [
+                        { user: { id: userId ?? '' } },
+                        { organization: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } },
+                    ]
+                }
+            })
+            if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
+                throw new CustomError(CODE.MaxProjectsReached);
+            }
         }
         if (updateMany) {
             updateMany.forEach(input => projectUpdate.validateSync(input, { abortEarly: false }));
             updateMany.forEach(input => TranslationModel().profanityCheck(input));
+            updateMany.forEach(input => TranslationModel().validateLineBreaks(input, ['description'], CODE.LineBreaksDescription));
         }
         if (deleteMany) {
             // Check if user is authorized to delete

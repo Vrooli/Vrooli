@@ -379,6 +379,7 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         // Check for censored words
         if (hasProfanity(input.username)) throw new CustomError(CODE.BannedWord);
         TranslationModel().profanityCheck(input);
+        TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio)
         // Convert info to partial select
         const partial = toPartialSelect(info, formatter.relationshipMap);
         if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');

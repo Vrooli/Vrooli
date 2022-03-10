@@ -19,22 +19,54 @@ export const translationMutater = () => ({
         translationsCreate,
         translationsUpdate,
     }: { [x: string]: any }): void {
+        console.log('translationMutater.profanityCheck()', translationsCreate, translationsUpdate);
         let fields: string[] = [];
         if (translationsCreate) {
-            for (const [key, value] of Object.entries(translationsCreate)) {
-                if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
-                    fields.push(key);
+            console.log('in translationsCreate');
+            for (let i = 0; i < translationsCreate.length; i++) {
+                const currTranslation = translationsCreate[i];
+                console.log("currTranslation", currTranslation);
+                for (const [key, value] of Object.entries(currTranslation)) {
+                    console.log('key', key, 'value', value);
+                    if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
+                        fields.push(value);
+                    }
                 }
             }
         }
         if (translationsUpdate) {
-            for (const [key, value] of Object.entries(translationsUpdate)) {
-                if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
-                    fields.push(key);
+            for (let i = 0; i < translationsUpdate.length; i++) {
+                const currTranslation = translationsUpdate[i];
+                for (const [key, value] of Object.entries(currTranslation)) {
+                    if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
+                        fields.push(value);
+                    }
                 }
             }
         }
+        console.log('in profanityCheck', fields);
         if (hasProfanity(...fields)) throw new CustomError(CODE.BannedWord)
+    },
+    /**
+     * Makes sure there are no more than k line breaks in the specified fields
+     * @param input The input to check
+     * @param fields The field names to check
+     * @param error - The error to throw if failed
+     * @param k - The maximum number of line breaks allowed
+     */
+    validateLineBreaks: (input: any, fields: string[], error: any, k: number = 2): void => {
+        // Helper method
+        const checkTranslations = (translations: any[], fields: string[]): void => {
+            translations.forEach((x: any) => {
+                fields.forEach(field => {
+                    if (x[field] && x[field].split('\n').length > (k + 1)) {
+                        throw new CustomError(error)
+                    }
+                })
+            })
+        }
+        if (input.translationsCreate) checkTranslations(input.translationsCreate, fields);
+        if (input.translationsUpdate) checkTranslations(input.translationsUpdate, fields);
     },
     /**
     * Add, update, or remove translation data for an object.

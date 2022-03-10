@@ -1093,6 +1093,8 @@ export async function readOneHelper<GraphQLModel>(
     model: ModelBusinessLayer<GraphQLModel, any>,
 ): Promise<RecursivePartial<GraphQLModel>> {
     console.log('in readOneHelper');
+    // Validate input
+    if (!input.id) throw new CustomError(CODE.InvalidArgs, 'id is required');
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = toPartialSelect(info, model.relationshipMap);
     console.log('in readonheler after topartialselect', JSON.stringify(partial))
@@ -1100,16 +1102,9 @@ export async function readOneHelper<GraphQLModel>(
     // Uses __typename to determine which Prisma object is being queried
     const objectType = partial.__typename;
     if (!objectType || !(objectType in PrismaMap)) {
-        console.log('uh oh spaghetti o\'', partial);
         throw new CustomError(CODE.InternalError, `${objectType} not found`);
     }
     // Get the Prisma object
-    console.log('yui got hereeee', input) // TODO input.id might be wrong
-    try {
-        await PrismaMap[objectType](model.prisma).findUnique({ where: { id: input.id }, ...selectHelper(partial) });
-    } catch (error: any) {
-        console.log('YUP CAUGHT DAT PRISMA ERROR', error);
-    }
     let object = await PrismaMap[objectType](model.prisma).findUnique({ where: { id: input.id }, ...selectHelper(partial) });
     if (!object) throw new CustomError(CODE.NotFound, `${objectType} not found`);
     // Return formatted for GraphQL
