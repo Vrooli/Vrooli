@@ -15,12 +15,20 @@ import {
 import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { getTranslation, LabelledSortOption, Pubs } from "utils";
+import { getTranslation, Pubs } from "utils";
 import { Organization, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
+import Markdown from "markdown-to-jsx";
+import { validate as uuidValidate } from 'uuid';
 
-const tabLabels = ['Resources', 'Organizations', 'Projects', 'Routines', 'Standards'];
+enum TabOptions {
+    Resources = "Resources",
+    Organizations = "Organizations",
+    Projects = "Projects",
+    Routines = "Routines",
+    Standards = "Standards",
+}
 
 export const UserView = ({
     session,
@@ -36,10 +44,10 @@ export const UserView = ({
     }, [isProfile, params2, session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery);
     const user = useMemo(() => isProfile ? partialData : data?.user, [data]);
     useEffect(() => {
-        if (id && !isProfile) getData();
+        if (uuidValidate(id) && !isProfile) getData({ variables: { input: { id } } })
     }, [getData, id, isProfile]);
 
     const { bio, username, resourceList } = useMemo(() => {
@@ -58,6 +66,25 @@ export const UserView = ({
             session={session}
         />
     ) : null, [resourceList, session]);
+
+    // Handle tabs
+    const [tabIndex, setTabIndex] = useState<number>(0);
+    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
+
+    /**
+     * Calculate which tabs to display
+     */
+    const availableTabs = useMemo(() => {
+        const tabs: TabOptions[] = [];
+        // Only display resources if there are any
+        if (resources) tabs.push(TabOptions.Resources);
+        // Always display others (for now)
+        tabs.push(TabOptions.Routines);
+        tabs.push(TabOptions.Standards);
+        return tabs;
+    }, [resources]);
+
+    const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
     const shareLink = () => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.User}/${id}`);
@@ -88,16 +115,12 @@ export const UserView = ({
         return options;
     }, [user, isOwn, session]);
 
-    // Handle tabs
-    const [tabIndex, setTabIndex] = useState<number>(0);
-    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
-
     // Create search data
     const { placeholder, sortOptions, defaultSortOption, sortOptionLabel, searchQuery, where, noResultsText, onSearchSelect, searchItemFactory } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the user's set resources
-        switch (tabIndex) {
-            case 1:
+        switch (currTabType) {
+            case TabOptions.Organizations:
                 return {
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
@@ -116,7 +139,7 @@ export const UserView = ({
                             onClick={(_e, selected: Organization) => openLink(APP_LINKS.Organization, selected.id)}
                         />)
                 }
-            case 2:
+            case TabOptions.Projects:
                 return {
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
@@ -135,7 +158,7 @@ export const UserView = ({
                             onClick={(_e, selected: Project) => openLink(APP_LINKS.Project, selected.id)}
                         />)
                 }
-            case 3:
+            case TabOptions.Routines:
                 return {
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
@@ -154,7 +177,7 @@ export const UserView = ({
                             onClick={(_e, selected: Routine) => openLink(APP_LINKS.Run, selected.id)}
                         />)
                 }
-            case 4:
+            case TabOptions.Standards:
                 return {
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
@@ -186,7 +209,7 @@ export const UserView = ({
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [tabIndex]);
+    }, [currTabType, id, session]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -294,7 +317,7 @@ export const UserView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: 'black' }}>{bio ?? 'No bio set'}</Typography>
+                        <Markdown>{bio ?? 'No bio set'}</Markdown>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -352,22 +375,22 @@ export const UserView = ({
                     sx={{
                         marginBottom: 1,
                         '& .MuiTabs-flexContainer': {
-                            justifyContent: 'space-between',
+                            justifyContent: 'space-around',
                         },
                     }}
                 >
-                    {tabLabels.map((label, index) => (
+                    {availableTabs.map((tabType, index) => (
                         <Tab
                             key={index}
                             id={`profile-tab-${index}`}
                             {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                            label={<span style={{ color: index === 0 ? '#8e6b00' : 'default' }}>{label}</span>}
+                            label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
                         />
                     ))}
                 </Tabs>
                 <Box p={2}>
                     {
-                        tabIndex === 0 ? resources : (
+                        currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 searchPlaceholder={placeholder}
                                 sortOptions={sortOptions}

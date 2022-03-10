@@ -1,8 +1,8 @@
 import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
-import { useQuery } from "@apollo/client";
-import { project } from "graphql/generated/project";
+import { useLazyQuery } from "@apollo/client";
+import { project, projectVariables } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -19,8 +19,14 @@ import { Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { getTranslation, Pubs } from "utils";
+import Markdown from "markdown-to-jsx";
+import { validate as uuidValidate } from 'uuid';
 
-const tabLabels = ['Resources', 'Routines', 'Standards'];
+enum TabOptions {
+    Resources = "Resources",
+    Routines = "Routines",
+    Standards = "Standards",
+}
 
 export const ProjectView = ({
     session,
@@ -32,7 +38,12 @@ export const ProjectView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/view/:id`);
     const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
-    const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
+    useEffect(() => {
+        if (uuidValidate(id)) {
+            getData({ variables: { input: { id } } })
+        }
+    }, [getData, id]);
     const project = useMemo(() => data?.project, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
 
@@ -52,6 +63,25 @@ export const ProjectView = ({
             session={session}
         />
     ) : null, [resourceList, session]);
+
+    // Handle tabs
+    const [tabIndex, setTabIndex] = useState<number>(0);
+    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
+
+    /**
+     * Calculate which tabs to display
+     */
+    const availableTabs = useMemo(() => {
+        const tabs: TabOptions[] = [];
+        // Only display resources if there are any
+        if (resources) tabs.push(TabOptions.Resources);
+        // Always display others (for now)
+        tabs.push(TabOptions.Routines);
+        tabs.push(TabOptions.Standards);
+        return tabs;
+    }, [resources]);
+
+    const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
     const shareLink = () => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Project}/${id}`);
@@ -89,16 +119,12 @@ export const ProjectView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    // Handle tabs
-    const [tabIndex, setTabIndex] = useState<number>(0);
-    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
-
     // Create search data
     const { placeholder, sortOptions, defaultSortOption, sortOptionLabel, searchQuery, where, noResultsText, onSearchSelect, searchItemFactory } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the project's set resources
-        switch (tabIndex) {
-            case 1:
+        switch (currTabType) {
+            case TabOptions.Routines:
                 return {
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
@@ -117,7 +143,7 @@ export const ProjectView = ({
                             onClick={(_e, selected: Routine) => openLink(APP_LINKS.Run, selected.id)}
                         />)
                 };
-            case 2:
+            case TabOptions.Standards:
                 return {
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
@@ -149,7 +175,7 @@ export const ProjectView = ({
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [tabIndex]);
+    }, [currTabType,id, session]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -249,7 +275,7 @@ export const ProjectView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: 'black' }}>{description ?? 'No bio set'}</Typography>
+                        <Markdown>{description ?? 'No description set'}</Markdown>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -307,22 +333,22 @@ export const ProjectView = ({
                     sx={{
                         marginBottom: 1,
                         '& .MuiTabs-flexContainer': {
-                            justifyContent: 'space-between',
+                            justifyContent: 'space-around',
                         },
                     }}
                 >
-                    {tabLabels.map((label, index) => (
+                    {availableTabs.map((tabType, index) => (
                         <Tab
                             key={index}
                             id={`profile-tab-${index}`}
                             {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                            label={<span style={{ color: index === 0 ? '#8e6b00' : 'default' }}>{label}</span>}
+                            label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
                         />
                     ))}
                 </Tabs>
                 <Box p={2}>
                     {
-                        tabIndex === 0 ? resources : (
+                        currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 searchPlaceholder={placeholder}
                                 sortOptions={sortOptions}

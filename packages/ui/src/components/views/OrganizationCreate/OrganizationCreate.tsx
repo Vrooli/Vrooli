@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { MarkdownInput } from "components/inputs";
 
 export const OrganizationCreate = ({
     session,
@@ -65,7 +66,7 @@ export const OrganizationCreate = ({
     const actions: DialogActionItem[] = useMemo(() => {
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
         return [
-            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting || !formik.isValid), true, () => {}],
+            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting || !formik.isValid), true, () => { }],
             ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
         ] as DialogActionItem[]
     }, [formik, onCancel, session]);

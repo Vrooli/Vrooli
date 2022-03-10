@@ -1,4 +1,4 @@
-import { InputProps, SelectProps, UseSwitchProps } from '@mui/material';
+import { InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { ChangeEvent } from 'react';
 import { Organization, Session, Tag } from 'types';
 
@@ -33,6 +33,17 @@ export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
     onChange: (updatedText: string) => any;
     onInputChange: (newValue: T) => any;
     debounce?: number;
+}
+
+export interface MarkdownInputProps extends TextFieldProps {
+    id: string;
+    disabled?: boolean;
+    error?: boolean;
+    helperText?: string | null | undefined;
+    onChange: (newText: string) => any;
+    placeholder?: string;
+    minRows?: number;
+    value: string;
 }
 
 export interface SelectorProps extends SelectProps {

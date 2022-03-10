@@ -351,14 +351,14 @@ export async function init(prisma: PrismaType) {
                                         usedFor: ResourceUsedFor.ExternalService as any,
                                         link: 'https://minterr.io/mint-cardano-tokens/',
                                         translations: {
-                                            create: [{ language: EN, description: "minterr.io" }]
+                                            create: [{ language: EN, title: "minterr.io" }]
                                         },
                                     },
                                     {
                                         usedFor: ResourceUsedFor.Developer as any,
                                         link: 'https://developers.cardano.org/docs/native-tokens/minting/',
                                         translations: {
-                                            create: [{ language: EN, description: "cardano.org guide" }]
+                                            create: [{ language: EN, title: "cardano.org guide" }]
                                         },
                                     },
                                 ]
@@ -411,21 +411,21 @@ export async function init(prisma: PrismaType) {
                                         usedFor: ResourceUsedFor.ExternalService as any,
                                         link: 'https://minterr.io/mint-cardano-tokens/',
                                         translations: {
-                                            create: [{ language: EN, description: "minterr.io" }]
+                                            create: [{ language: EN, title: "minterr.io" }]
                                         },
                                     },
                                     {
                                         usedFor: ResourceUsedFor.ExternalService as any,
                                         link: 'https://cardano-tools.io/mint',
                                         translations: {
-                                            create: [{ language: EN, description: "cardano-tools.io" }]
+                                            create: [{ language: EN, title: "cardano-tools.io" }]
                                         },
                                     },
                                     {
                                         usedFor: ResourceUsedFor.Developer as any,
                                         link: 'https://developers.cardano.org/docs/native-tokens/minting-nfts',
                                         translations: {
-                                            create: [{ language: EN, description: "cardano.org guide" }]
+                                            create: [{ language: EN, title: "cardano.org guide" }]
                                         },
                                     },
                                 ]

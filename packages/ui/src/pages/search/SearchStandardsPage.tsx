@@ -37,7 +37,7 @@ export const SearchStandardsPage = ({
         }
         else {
             PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
-            setLocation(APP_LINKS.Start)
+            setLocation(`${APP_LINKS.Start}?redirect=${encodeURIComponent(APP_LINKS.SearchStandards)}`);
         }
     }, [session?.roles, setLocation]);
 
