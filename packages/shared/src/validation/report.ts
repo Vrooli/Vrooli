@@ -2,9 +2,9 @@ import { id, language } from './base';
 import * as yup from 'yup';
 import { ReportFor } from '../consts';
 
-const createdFor = yup.string().oneOf(Object.values(ReportFor)).optional();
-const details = yup.string().max(1024).optional();
-const reason = yup.string().min(1).max(128).optional();
+const createdFor = yup.string().oneOf(Object.values(ReportFor))
+const details = yup.string().max(1024)
+const reason = yup.string().min(1).max(128)
 
 /**
  * Information required when creating a comment
@@ -12,7 +12,7 @@ const reason = yup.string().min(1).max(128).optional();
 export const reportCreate = yup.object().shape({
     createdFor: createdFor.required(),
     createdForId: id.required(),
-    details,
+    details: details.notRequired().default(undefined),
     language: language.required(),
     reason: reason.required(),
 })
@@ -22,7 +22,7 @@ export const reportCreate = yup.object().shape({
  */
 export const reportUpdate = yup.object().shape({
     id: id.required(),
-    details,
-    language,
-    reason,
+    details: details.notRequired().default(undefined),
+    language: language.notRequired().default(undefined),
+    reason: reason.notRequired().default(undefined),
 })

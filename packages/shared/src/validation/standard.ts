@@ -3,51 +3,52 @@ import { tagsCreate } from './tag';
 import * as yup from 'yup';
 import { StandardType } from '../consts';
 
-const standardDefault = yup.string().max(1024).optional();
+const standardDefault = yup.string().max(1024)
 const schema = yup.string().max(8192).required();
-const type = yup.string().oneOf(Object.values(StandardType)).optional();
+const type = yup.string().oneOf(Object.values(StandardType))
 
 export const standardTranslationCreate = yup.object().shape({
-    language,
-    description,
+    language: language.required(),
+    description: description.required(),
 });
 export const standardTranslationUpdate = yup.object().shape({
     id: id.required(),
-    language,
-    description,
+    language: language.notRequired().default(undefined),
+    description: description.notRequired().default(undefined),
 });
-export const standardTranslationsCreate = yup.array().of(standardTranslationCreate.required()).optional();
-export const standardTranslationsUpdate = yup.array().of(standardTranslationUpdate.required()).optional();
+export const standardTranslationsCreate = yup.array().of(standardTranslationCreate.required())
+export const standardTranslationsUpdate = yup.array().of(standardTranslationUpdate.required())
 
 /**
  * Information required when creating a standard. 
  */
 export const standardCreate = yup.object().shape({
-    default: standardDefault,
-    isFile: yup.boolean().optional(),
+    default: standardDefault.notRequired().default(undefined),
+    isFile: yup.boolean().notRequired().default(undefined),
     name: name.required(),
-    schema,
-    type,
-    version,
-    createdByUserId: id, // If associating with yourself, your own id. Cannot associate with another user
-    createdByOrganizationId: id, // If associating with an organization you are an admin of, the organization's id
-    tagsConnect: idArray,
-    tagsCreate,
-    translationsCreate: standardTranslationsCreate,
+    schema: schema.notRequired().default(undefined),
+    type: type.required(),
+    version: version.notRequired().default(undefined),
+    createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
+    createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
+    tagsConnect: idArray.notRequired().default(undefined),
+    tagsCreate: tagsCreate.notRequired().default(undefined),
+    translationsCreate: standardTranslationsCreate.notRequired().default(undefined),
 })
 
 /**
  * Information required when updating a routine
  */
 export const standardUpdate = yup.object().shape({
-    makingAnonymous: yup.boolean().optional(), // If you want the standard to be made anonymous
-    tagsConnect: idArray,
-    tagsDisconnect: idArray,
-    tagsCreate,
-    translationsDelete: idArray,
-    translationsCreate: standardTranslationsCreate,
-    translationsUpdate: standardTranslationsUpdate,
+    id: id.required(),
+    makingAnonymous: yup.boolean().notRequired().default(undefined), // If you want the standard to be made anonymous
+    tagsConnect: idArray.notRequired().default(undefined),
+    tagsDisconnect: idArray.notRequired().default(undefined),
+    tagsCreate: tagsCreate.notRequired().default(undefined),
+    translationsDelete: idArray.notRequired().default(undefined),
+    translationsCreate: standardTranslationsCreate.notRequired().default(undefined),
+    translationsUpdate: standardTranslationsUpdate.notRequired().default(undefined),
 })
 
-export const standardsCreate = yup.array().of(standardCreate.required()).optional();
-export const standardsUpdate = yup.array().of(standardUpdate.required()).optional();
+export const standardsCreate = yup.array().of(standardCreate.required())
+export const standardsUpdate = yup.array().of(standardUpdate.required())

@@ -1,4 +1,4 @@
-import { description, idArray, id, title, language, bio } from './base';
+import { idArray, id, language, bio } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
@@ -17,22 +17,9 @@ export const passwordSchema = yup.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASS
 
 export const emailSchema = yup.object().shape({
     emailAddress: yup.string().max(128).required(),
-    receivesAccountUpdates: yup.bool().default(true).optional(),
-    receivesBusinessUpdates: yup.bool().default(true).optional(),
-    userId: id,
-});
-
-export const roleSchema = yup.object().shape({
-    title,
-    description,
-    userIds: idArray,
-});
-
-export const userSchema = yup.object().shape({
-    id,
-    username: yup.string().max(128).required(),
-    emails: yup.array().of(emailSchema).required(),
-    status: yup.mixed().oneOf(["Deleted", "Unlocked", "SoftLocked", "HardLocked"]).optional(),
+    receivesAccountUpdates: yup.bool().default(true).notRequired().default(undefined),
+    receivesBusinessUpdates: yup.bool().default(true).notRequired().default(undefined),
+    userId: id.required(),
 });
 
 
@@ -46,34 +33,34 @@ export const emailSignUpSchema = yup.object().shape({
 });
 
 export const userTranslationCreate = yup.object().shape({
-    language,
-    bio,
+    language: language.required(),
+    bio: bio.required(),
 });
 export const userTranslationUpdate = yup.object().shape({
     id: id.required(),
-    language,
-    bio,
+    language: language.notRequired().default(undefined),
+    bio: bio.notRequired().default(undefined),
 });
-export const userTranslationsCreate = yup.array().of(userTranslationCreate.required()).optional();
-export const userTranslationsUpdate = yup.array().of(userTranslationUpdate.required()).optional();
+export const userTranslationsCreate = yup.array().of(userTranslationCreate.required())
+export const userTranslationsUpdate = yup.array().of(userTranslationUpdate.required())
 
 export const profileUpdateSchema = yup.object().shape({
     username: usernameSchema.required(),
     email: yup.string().email().required(),
     theme: yup.string().max(128).required(),
-    starredTagsCreate: tagsCreate,
-    starredTagsConnect: idArray,
-    starredTagsDisconnect: idArray,
-    hiddenTagsCreate: tagsCreate,
-    hiddenTagsConnect: idArray,
-    hiddenTagsDisconnect: idArray,
+    starredTagsCreate: tagsCreate.notRequired().default(undefined),
+    starredTagsConnect: idArray.notRequired().default(undefined),
+    starredTagsDisconnect: idArray.notRequired().default(undefined),
+    hiddenTagsCreate: tagsCreate.notRequired().default(undefined),
+    hiddenTagsConnect: idArray.notRequired().default(undefined),
+    hiddenTagsDisconnect: idArray.notRequired().default(undefined),
     // Don't apply validation to current password. If you change password requirements, users would be unable to change their password
     currentPassword: yup.string().max(128).required(),
-    newPassword: passwordSchema.optional(),
+    newPassword: passwordSchema.notRequired().default(undefined),
     newPasswordConfirmation: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match'),
-    translationsDelete: idArray,
-    translationsCreate: userTranslationsCreate,
-    translationsUpdate: userTranslationsUpdate,
+    translationsDelete: idArray.notRequired().default(undefined),
+    translationsCreate: userTranslationsCreate.notRequired().default(undefined),
+    translationsUpdate: userTranslationsUpdate.notRequired().default(undefined),
 });
 
 /**
