@@ -17,10 +17,10 @@ import {
     ListItemIcon,
     ListItemText,
 } from '@mui/material';
-import { UserRoles } from 'types';
 import { ROLES, ValueOf } from '@local/shared';
 import { openLink } from 'utils';
 import { Path } from 'wouter';
+import { CSSProperties } from '@mui/styled-engine';
 
 export const ACTION_TAGS = {
     Home: 'home',
@@ -44,10 +44,10 @@ export interface Action {
 
 // Returns navigational actions available to the user
 interface GetUserActionsProps {
-    userRoles: UserRoles;
+    roles: string[];
     exclude?: ACTION_TAGS[] | undefined;
 }
-export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps): Action[] {
+export function getUserActions({ roles, exclude = [] }: GetUserActionsProps): Action[] {
     // Home action always available
     let actions: ActionArray[] = [['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0]];
     // Available for all users
@@ -57,7 +57,7 @@ export function getUserActions({ userRoles, exclude = [] }: GetUserActionsProps)
         ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
     );
     // Log in/out
-    if (!userRoles?.includes(ROLES.Actor)) {
+    if (!roles?.includes(ROLES.Actor)) {
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
     } else {
         actions.push(
@@ -81,15 +81,15 @@ export const createActions = (actions: ActionArray[]): Action[] => actions.map(a
 interface ActionsToListProps {
     actions: Action[];
     setLocation: (to: Path, options?: { replace?: boolean }) => void;
-    classes?: { [key: string]: string };
+    sxs?: { listItem: { [x: string]: any }, listItemIcon: { [x: string]: any } };
     showIcon?: boolean;
     onAnyClick?: () => any;
 }
-export const actionsToList = ({ actions, setLocation, classes = { listItem: '', listItemIcon: '' }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
+export const actionsToList = ({ actions, setLocation, sxs = { listItem: {}, listItemIcon: {} }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
     return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
         <ListItem
             key={value}
-            classes={{ root: classes.listItem }}
+            sx={{ ...sxs.listItem }}
             onClick={() => {
                 openLink(setLocation, link);
                 if (onClick) onClick();
@@ -98,7 +98,7 @@ export const actionsToList = ({ actions, setLocation, classes = { listItem: '', 
             {showIcon && Icon ?
                 (<ListItemIcon>
                     <Badge badgeContent={numNotifications} color="error">
-                        <Icon className={classes.listItemIcon} />
+                        <Icon sx={{ ...sxs.listItemIcon }} />
                     </Badge>
                 </ListItemIcon>) : ''}
             <ListItemText primary={label} />

@@ -3,26 +3,82 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectCreateInput, MemberRole } from "./globalTypes";
+import { ProjectCreateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: projectCreate
 // ====================================================
 
+export interface projectCreate_projectCreate_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projectCreate_projectCreate_resourceLists_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projectCreate_projectCreate_resourceLists_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: projectCreate_projectCreate_resourceLists_resources_translations[];
+}
+
+export interface projectCreate_projectCreate_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: projectCreate_projectCreate_resourceLists_translations[];
+  resources: projectCreate_projectCreate_resourceLists_resources[];
+}
+
+export interface projectCreate_projectCreate_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface projectCreate_projectCreate_tags {
   __typename: "Tag";
   id: string;
   tag: string;
+  translations: projectCreate_projectCreate_tags_translations[];
+}
+
+export interface projectCreate_projectCreate_translations {
+  __typename: "ProjectTranslation";
+  id: string;
+  language: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  name: string;
+}
+
+export interface projectCreate_projectCreate_owner_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
 }
 
 export interface projectCreate_projectCreate_owner_Organization {
   __typename: "Organization";
   id: string;
-  name: string;
+  translations: projectCreate_projectCreate_owner_Organization_translations[];
 }
 
 export interface projectCreate_projectCreate_owner_User {
@@ -36,16 +92,18 @@ export type projectCreate_projectCreate_owner = projectCreate_projectCreate_owne
 export interface projectCreate_projectCreate {
   __typename: "Project";
   id: string;
-  name: string;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
-  tags: projectCreate_projectCreate_tags[];
-  owner: projectCreate_projectCreate_owner | null;
-  stars: number;
+  isComplete: boolean;
   isStarred: boolean;
-  score: number;
-  role: MemberRole | null;
   isUpvoted: boolean | null;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
+  resourceLists: projectCreate_projectCreate_resourceLists[] | null;
+  tags: projectCreate_projectCreate_tags[];
+  translations: projectCreate_projectCreate_translations[];
+  owner: projectCreate_projectCreate_owner | null;
 }
 
 export interface projectCreate {

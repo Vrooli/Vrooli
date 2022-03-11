@@ -72,7 +72,7 @@ export const TagSelector = ({
         variables: {
             input: {
                 searchString: inputValue,
-                sortBy: TagSortBy.AlphabeticalAsc,
+                sortBy: TagSortBy.StarsDesc,
                 take: 25,
             }
         }

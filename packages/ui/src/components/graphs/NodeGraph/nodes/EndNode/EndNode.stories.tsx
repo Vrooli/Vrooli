@@ -1,6 +1,6 @@
 import { Meta, Story } from "@storybook/react";
 import { EndNode as Component } from '..';
-import { CombineNodeProps as Props } from '../types';
+import { EndNodeProps as Props } from '../types';
 
 // Define story metadata
 export default {

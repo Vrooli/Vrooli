@@ -14,6 +14,7 @@ export interface emailSignUp_emailSignUp {
   id: string | null;
   theme: string;
   roles: string[];
+  languages: string[] | null;
 }
 
 export interface emailSignUp {

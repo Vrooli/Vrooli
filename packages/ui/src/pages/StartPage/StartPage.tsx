@@ -32,6 +32,7 @@ import { guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import helpMarkdown from './startHelp.md';
+import { parseSearchParams } from 'utils/urlTools';
 
 const buttonProps: SxProps = {
     height: '4em',
@@ -41,6 +42,8 @@ export const StartPage = ({
     onSessionUpdate
 }: Pick<CommonProps, 'onSessionUpdate'>) => {
     const [, setLocation] = useLocation();
+    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
+
     const [guestLogIn] = useMutation<any>(guestLogInMutation);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
@@ -116,25 +119,25 @@ export const StartPage = ({
         }
         // Validate wallet
         const walletCompleteResult = await validateWallet(provider);
-        console.log('wallet validation', walletCompleteResult?.session);
+        console.log('wallet validation', walletCompleteResult);
         if (walletCompleteResult) {
             PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
             // Set actor role
             onSessionUpdate(walletCompleteResult?.session)
             // Redirect to main dashboard
-            setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : APP_LINKS.Home);
+            setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
         }
-    }, [downloadExtension, setLocation, onSessionUpdate, toEmailLogIn])
+    }, [downloadExtension, setLocation, onSessionUpdate, redirect, toEmailLogIn])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({
             mutation: guestLogIn,
             onSuccess: () => {
                 onSessionUpdate({ roles: [{ role: { title: ROLES.Guest } }] });
-                setLocation(APP_LINKS.Welcome);
+                setLocation(redirect ?? APP_LINKS.Welcome);
             },
         })
-    }, [guestLogIn, setLocation, onSessionUpdate]);
+    }, [guestLogIn, setLocation, onSessionUpdate, redirect]);
 
     const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
         console.log('handleWalletDialogSelect', selected);

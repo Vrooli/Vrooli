@@ -16,7 +16,6 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { RoutineListNodeData } from '@local/shared';
 import { NodeContextMenu, NodeWidth } from '../..';
 import {
     routineNodeCheckboxOption,
@@ -24,16 +23,22 @@ import {
     routineNodeListOptions,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import Measure from 'react-measure';
+import { NodeDataRoutineList } from 'types';
+import { getTranslation, BuildDialogOption, Pubs } from 'utils';
 
 export const RoutineListNode = ({
+    canDrag,
+    canExpand,
+    handleDialogOpen,
+    handleNodeUnlink,
+    handleNodeDelete,
+    handleRoutineListItemAdd,
+    handleSubroutineOpen,
+    isLinked,
+    labelVisible,
+    isEditing,
     node,
     scale = 1,
-    label = 'Routine List',
-    labelVisible = true,
-    isEditable = true,
-    onAdd = () => { },
-    onResize,
 }: RoutineListNodeProps) => {
     // Stores position of click/touch start, to cancel click event if drag occurs
     const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
@@ -41,40 +46,56 @@ export const RoutineListNode = ({
     const touchIsDrag = useRef(false);
     const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
 
+    const { label } = useMemo(() => {
+        return {
+            label: getTranslation(node, 'title', ['en'], true),
+        }
+    }, [node]);
+
     const handleTouchMove = useCallback((e: any) => {
+        if (!canExpand) return;
         touchIsDrag.current = true;
-    }, []);
+    }, [canExpand]);
     const handleTouchEnd = useCallback((e: any) => {
+        if (!canExpand) return;
         if (!touchIsDrag.current) {
             setCollapseOpen(curr => !curr)
         }
         touchIsDrag.current = false;
-    }, []);
+    }, [canExpand]);
     const handleMouseDown = useCallback((e: any) => {
+        if (!canExpand) return;
         clickStartPosition.current = { x: e.pageX, y: e.pageY };
-    }, []);
+    }, [canExpand]);
     const handleMouseUp = useCallback((e: any) => {
+        if (!canExpand) return;
         const { x, y } = clickStartPosition.current;
         const { pageX, pageY } = e;
         if (Math.abs(pageX - x) < 5 && Math.abs(pageY - y) < 5) {
             setCollapseOpen(curr => !curr)
         }
-    }, []);
+    }, [canExpand]);
 
     const nodeSize = useMemo(() => `${NodeWidth.RoutineList * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.RoutineList * scale / 5}px, 2em)`, [scale]);
     const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
 
-    const handleResize = useCallback(({ bounds }: any) => {
-        onResize(node.id, { width: bounds.width, height: bounds.height });
-    }, [node.id, onResize])
-
-    const addRoutine = () => {
-        console.log('ADD ROUTINE CALLED')
-    };
+    const confirmDelete = useCallback((event: any) => {
+        console.log('in confirm delete', event);
+        event.preventDefault();
+        PubSub.publish(Pubs.AlertDialog, {
+            message: 'What would you like to do?',
+            buttons: [
+                { text: 'Unlink', onClick: () => { handleNodeUnlink(node.id) } },
+                { text: 'Remove', onClick: () => { handleNodeDelete(node.id) } },
+                { text: 'Cancel' }
+            ]
+        });
+    }, [])
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography
+            id={`${isLinked ? '' : 'unlinked-'}node-routinelist-title-${node.id}`}
             variant="h6"
             sx={{
                 ...noSelect,
@@ -88,13 +109,13 @@ export const RoutineListNode = ({
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [labelVisible, label, node.id]);
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{ ...routineNodeListOptions }}>
             <Tooltip placement={'top'} title='Must complete routines in order'>
                 <FormControlLabel
-                    disabled={!isEditable}
+                    disabled={!isEditing}
                     label='Ordered'
                     control={
                         <Checkbox
@@ -103,7 +124,7 @@ export const RoutineListNode = ({
                             name='isOrderedCheckbox'
                             value='isOrderedCheckbox'
                             color='secondary'
-                            checked={(node?.data as RoutineListNodeData)?.isOrdered}
+                            checked={(node?.data as NodeDataRoutineList)?.isOrdered}
                             onChange={() => { }}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
@@ -113,7 +134,7 @@ export const RoutineListNode = ({
             </Tooltip>
             <Tooltip placement={'top'} title='Routine can be skipped'>
                 <FormControlLabel
-                    disabled={!isEditable}
+                    disabled={!isEditing}
                     label='Optional'
                     control={
                         <Checkbox
@@ -122,7 +143,7 @@ export const RoutineListNode = ({
                             name='isOptionalCheckbox'
                             value='isOptionalCheckbox'
                             color='secondary'
-                            checked={(node?.data as RoutineListNodeData)?.isOptional}
+                            checked={(node?.data as NodeDataRoutineList)?.isOptional}
                             onChange={() => { }}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
@@ -131,20 +152,23 @@ export const RoutineListNode = ({
                 />
             </Tooltip>
         </Collapse>
-    ), [collapseOpen, node?.data, isEditable, label]);
+    ), [collapseOpen, node?.data, isEditing, label]);
 
-    const routines = useMemo(() => (node?.data as RoutineListNodeData)?.routines?.map(routine => (
+    const routines = useMemo(() => (node?.data as NodeDataRoutineList)?.routines?.map(routine => (
         <RoutineSubnode
             key={`${routine.id}`}
-            scale={scale}
-            labelVisible={labelVisible}
             data={routine}
+            handleSubroutineOpen={handleSubroutineOpen}
+            isEditing={isEditing}
+            labelVisible={labelVisible}
+            nodeId={node.id}
+            scale={scale}
         />
-    )), [node?.data, labelVisible, scale]);
+    )), [node?.data, isEditing, labelVisible, scale]);
 
-    const addButton = useMemo(() => isEditable ? (
+    const addButton = useMemo(() => isEditing ? (
         <IconButton
-            onClick={addRoutine}
+            onClick={() => handleDialogOpen(node.id, BuildDialogOption.AddRoutineItem)}
             sx={{
                 ...containerShadow,
                 width: addSize,
@@ -166,7 +190,7 @@ export const RoutineListNode = ({
         >
             <AddIcon />
         </IconButton>
-    ) : null, [addSize, isEditable]);
+    ) : null, [addSize, isEditing]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -179,76 +203,77 @@ export const RoutineListNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Measure
-            bounds
-            onResize={handleResize}
+        <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}
+            sx={{
+                zIndex: 5,
+                width: nodeSize,
+                fontSize: fontSize,
+                position: 'relative',
+                display: 'block',
+                borderRadius: '12px',
+                overflow: 'overlay',
+                backgroundColor: (t) => t.palette.background.paper,
+                color: (t) => t.palette.background.textPrimary,
+                boxShadow: '0px 0px 12px gray',
+            }}
         >
-            {({ measureRef }) => (
-                <DraggableNode className="handle" nodeId={node.id}
+            <NodeContextMenu
+                id={contextId}
+                anchorEl={contextAnchor}
+                node={node}
+                onClose={closeContext}
+                onAddBefore={() => { }}
+                onAddAfter={() => { }}
+                onDelete={() => { }}
+                onEdit={() => { }}
+                onMove={() => { }}
+            />
+            <Tooltip placement={'top'} title={label ?? 'Routine List'}>
+                <Container
+                    id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
+                    onMouseDown={handleMouseDown}
+                    onMouseUp={handleMouseUp}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    aria-owns={contextOpen ? contextId : undefined}
+                    onContextMenu={openContext}
                     sx={{
-                        width: nodeSize,
-                        fontSize: fontSize,
-                        position: 'relative',
-                        display: 'block',
-                        borderRadius: '12px',
-                        overflow: 'overlay',
-                        backgroundColor: (t) => t.palette.background.paper,
-                        color: (t) => t.palette.background.textPrimary,
-                        boxShadow: '0px 0px 12px gray',
+                        display: 'flex',
+                        height: '48px', // Lighthouse SEO requirement
+                        alignItems: 'center',
+                        backgroundColor: (t) => t.palette.primary.dark,
+                        color: (t) => t.palette.primary.contrastText,
+                        padding: '0.1em',
+                        textAlign: 'center',
+                        cursor: isEditing ? 'grab' : 'pointer',
+                        '&:active': {
+                            cursor: isEditing ? 'grabbing' : 'pointer',
+                        },
+                        '&:hover': {
+                            filter: `brightness(120%)`,
+                            transition: 'filter 0.2s',
+                        },
                     }}
                 >
-                    <NodeContextMenu
-                        id={contextId}
-                        anchorEl={contextAnchor}
-                        node={node}
-                        onClose={closeContext}
-                        onAddBefore={() => { }}
-                        onAddAfter={() => { }}
-                        onDelete={() => { }}
-                        onEdit={() => { }}
-                        onMove={() => { }}
-                    />
-                    <Tooltip placement={'top'} title={label ?? 'Routine List'}>
-                        <Container
-                            ref={measureRef}
-                            onMouseDown={handleMouseDown}
-                            onMouseUp={handleMouseUp}
-                            onTouchMove={handleTouchMove}
-                            onTouchEnd={handleTouchEnd}
-                            aria-owns={contextOpen ? contextId : undefined}
-                            onContextMenu={openContext}
-                            sx={{
-                                display: 'flex',
-                                height: '48px', // Lighthouse SEO requirement
-                                alignItems: 'center',
-                                backgroundColor: (t) => t.palette.primary.dark,
-                                color: (t) => t.palette.primary.contrastText,
-                                padding: '0.1em',
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                '&:hover': {
-                                    filter: `brightness(120%)`,
-                                    transition: 'filter 0.2s',
-                                },
-                            }}
-                        >
-                            {collapseOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                            {labelObject}
-                            {isEditable ? <DeleteIcon /> : null}
-                        </Container>
-                    </Tooltip>
-                    {optionsCollapse}
-                    <Collapse
-                        in={collapseOpen}
-                        sx={{
-                            padding: collapseOpen ? '0.5em' : '0'
-                        }}
-                    >
-                        {routines}
-                        {addButton}
-                    </Collapse>
-                </DraggableNode>
-            )}
-        </Measure>
+                    {canExpand ?
+                        collapseOpen ?
+                            <ExpandLessIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-shrink-icon-${node.id}`} /> :
+                            <ExpandMoreIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-expand-icon-${node.id}`} />
+                        : null}
+                    {labelObject}
+                    {isEditing ? <DeleteIcon id={`${isLinked ? '' : 'unlinked-'}node-routinelist-delete-icon-${node.id}`} onClick={confirmDelete} /> : null}
+                </Container>
+            </Tooltip>
+            {optionsCollapse}
+            <Collapse
+                in={collapseOpen}
+                sx={{
+                    padding: collapseOpen ? '0.5em' : '0'
+                }}
+            >
+                {routines}
+                {addButton}
+            </Collapse>
+        </DraggableNode>
     )
 }

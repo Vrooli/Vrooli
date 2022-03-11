@@ -18,7 +18,7 @@ export const TagList = ({
         let chipResult: JSX.Element[] = [];
         for (let i = 0; i < tags.length; i++) {
             const tag = tags[i];
-            if (tag.tag.length < charactersBeforeCutoff) {
+            if (tag?.tag && tag.tag.length < charactersBeforeCutoff) {
                 charactersBeforeCutoff -= tag.tag.length;
                 chipResult.push(
                     <Chip

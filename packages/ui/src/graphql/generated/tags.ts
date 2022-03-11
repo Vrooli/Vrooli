@@ -15,14 +15,21 @@ export interface tags_tags_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface tags_tags_edges_node_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface tags_tags_edges_node {
   __typename: "Tag";
   id: string;
   tag: string;
-  description: string | null;
   created_at: any;
   stars: number;
   isStarred: boolean;
+  translations: tags_tags_edges_node_translations[];
 }
 
 export interface tags_tags_edges {

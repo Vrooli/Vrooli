@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { profileSchema } from '@local/shared';
+import { profileUpdateSchema } from '@local/shared';
 import { useMutation, useQuery } from '@apollo/client';
 import { profileUpdateMutation } from 'graphql/mutation';
 import { profileQuery } from 'graphql/query';
@@ -41,7 +41,7 @@ export const ProfileForm = () => {
             newPassword: '',
             newPasswordConfirmation: ''
         },
-        validationSchema: profileSchema,
+        validationSchema: profileUpdateSchema,
         onSubmit: (values) => {
             let input = ({
                 id: profile?.profile?.id,

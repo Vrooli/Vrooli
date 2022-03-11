@@ -1,15 +1,18 @@
 import { gql } from 'graphql-tag';
 
 export const standardFields = gql`
-    fragment tagFields on Tag {
+    fragment standardTagFields on Tag {
         id
-        description
         tag
+        translations {
+            id
+            language
+            description
+        }
     }
     fragment standardFields on Standard {
         id
         name
-        description
         role
         type
         schema
@@ -17,12 +20,21 @@ export const standardFields = gql`
         isFile
         created_at
         tags {
-            ...tagFields
+            ...standardTagFields
+        }
+        translations {
+            id
+            language
+            description
         }
         creator {
             ... on Organization {
                 id
-                name
+                translations {
+                    id
+                    language
+                    name
+                }
             }
             ... on User {
                 id

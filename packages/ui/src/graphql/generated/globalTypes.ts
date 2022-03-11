@@ -8,11 +8,9 @@
 //==============================================================
 
 export enum CommentFor {
-  Organization = "Organization",
   Project = "Project",
   Routine = "Routine",
   Standard = "Standard",
-  User = "User",
 }
 
 export enum MemberRole {
@@ -22,18 +20,13 @@ export enum MemberRole {
 }
 
 export enum NodeType {
-  Combine = "Combine",
-  Decision = "Decision",
   End = "End",
-  Loop = "Loop",
   Redirect = "Redirect",
   RoutineList = "RoutineList",
   Start = "Start",
 }
 
 export enum OrganizationSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -43,10 +36,10 @@ export enum OrganizationSortBy {
 }
 
 export enum ProjectSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
+  DateCompletedAsc = "DateCompletedAsc",
+  DateCompletedDesc = "DateCompletedDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -72,37 +65,51 @@ export enum ReportFor {
 export enum ResourceFor {
   Organization = "Organization",
   Project = "Project",
-  RoutineContextual = "RoutineContextual",
-  RoutineExternal = "RoutineExternal",
+  Routine = "Routine",
   User = "User",
 }
 
+export enum ResourceListUsedFor {
+  Custom = "Custom",
+  Develop = "Develop",
+  Display = "Display",
+  Learn = "Learn",
+  Research = "Research",
+}
+
 export enum ResourceSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
+  IndexAsc = "IndexAsc",
+  IndexDesc = "IndexDesc",
 }
 
 export enum ResourceUsedFor {
   Community = "Community",
   Context = "Context",
+  Developer = "Developer",
   Donation = "Donation",
+  ExternalService = "ExternalService",
+  Feed = "Feed",
+  Install = "Install",
   Learning = "Learning",
+  Notes = "Notes",
   OfficialWebsite = "OfficialWebsite",
   Proposal = "Proposal",
   Related = "Related",
+  Researching = "Researching",
+  Scheduling = "Scheduling",
   Social = "Social",
   Tutorial = "Tutorial",
 }
 
 export enum RoutineSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
+  DateCompletedAsc = "DateCompletedAsc",
+  DateCompletedDesc = "DateCompletedDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -116,8 +123,6 @@ export enum RoutineSortBy {
 }
 
 export enum StandardSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   CommentsAsc = "CommentsAsc",
   CommentsDesc = "CommentsDesc",
   DateCreatedAsc = "DateCreatedAsc",
@@ -151,8 +156,6 @@ export enum StarFor {
 }
 
 export enum TagSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -162,8 +165,6 @@ export enum TagSortBy {
 }
 
 export enum UserSortBy {
-  AlphabeticalAsc = "AlphabeticalAsc",
-  AlphabeticalDesc = "AlphabeticalDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
@@ -186,14 +187,27 @@ export interface AutocompleteInput {
 }
 
 export interface CommentCreateInput {
-  text: string;
   createdFor: CommentFor;
   forId: string;
+  translationsCreate?: CommentTranslationCreateInput[] | null;
+}
+
+export interface CommentTranslationCreateInput {
+  language: string;
+  text: string;
+}
+
+export interface CommentTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  text?: string | null;
 }
 
 export interface CommentUpdateInput {
   id: string;
-  text?: string | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: CommentTranslationCreateInput[] | null;
+  translationsUpdate?: CommentTranslationUpdateInput[] | null;
 }
 
 export interface DeleteManyInput {
@@ -251,80 +265,91 @@ export interface FindByIdInput {
 }
 
 export interface InputItemCreateInput {
-  description?: string | null;
   isRequired?: boolean | null;
   name?: string | null;
   standardConnect?: string | null;
   standardCreate?: StandardCreateInput | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: InputItemTranslationCreateInput[] | null;
+  translationsUpdate?: InputItemTranslationUpdateInput[] | null;
+}
+
+export interface InputItemTranslationCreateInput {
+  language: string;
+  description?: string | null;
+}
+
+export interface InputItemTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
 }
 
 export interface InputItemUpdateInput {
   id: string;
-  description?: string | null;
   isRequired?: boolean | null;
   name?: string | null;
   standardConnect?: string | null;
   standardCreate?: StandardCreateInput | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: InputItemTranslationCreateInput[] | null;
+  translationsUpdate?: InputItemTranslationUpdateInput[] | null;
 }
 
-export interface NodeCombineCreateInput {
-  from: string[];
+export interface LoopCreateInput {
+  loops?: number | null;
+  maxLoops?: number | null;
+  operation?: string | null;
+  whilesCreate: LoopWhileCreateInput[];
 }
 
-export interface NodeCombineUpdateInput {
+export interface LoopUpdateInput {
   id: string;
-  from?: string[] | null;
+  loops?: number | null;
+  maxLoops?: number | null;
+  operation?: string | null;
+  whilesCreate: LoopWhileCreateInput[];
+  whilesUpdate: LoopWhileUpdateInput[];
+  whilesDelete?: string[] | null;
 }
 
-export interface NodeCreateInput {
-  description?: string | null;
-  title?: string | null;
-  type?: NodeType | null;
-  nodeCombineCreate?: NodeCombineCreateInput | null;
-  nodeDecisionCreate?: NodeDecisionCreateInput | null;
-  nodeEndCreate?: NodeEndCreateInput | null;
-  nodeLoopCreate?: NodeLoopCreateInput | null;
-  nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
-  previousId?: string | null;
-  nextId?: string | null;
-  routineId: string;
+export interface LoopWhileCreateInput {
+  translationsCreate?: LoopWhileTranslationCreateInput[] | null;
+  condition: string;
+  toId?: string | null;
 }
 
-export interface NodeDecisionCreateInput {
-  decisionsCreate: NodeDecisionItemCreateInput[];
-}
-
-export interface NodeDecisionItemCreateInput {
+export interface LoopWhileTranslationCreateInput {
+  language: string;
   description?: string | null;
   title: string;
-  whenCreate: NodeDecisionItemWhenCreateInput[];
-  toId?: string | null;
 }
 
-export interface NodeDecisionItemUpdateInput {
+export interface LoopWhileTranslationUpdateInput {
   id: string;
+  language?: string | null;
   description?: string | null;
   title?: string | null;
-  whenCreate?: NodeDecisionItemWhenCreateInput[] | null;
-  whenUpdate?: NodeDecisionItemWhenUpdateInput[] | null;
-  whenDelete?: string[] | null;
-  toId?: string | null;
 }
 
-export interface NodeDecisionItemWhenCreateInput {
-  condition: string;
-}
-
-export interface NodeDecisionItemWhenUpdateInput {
+export interface LoopWhileUpdateInput {
   id: string;
+  toId?: string | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: LoopWhileTranslationCreateInput[] | null;
+  translationsUpdate?: LoopWhileTranslationUpdateInput[] | null;
   condition?: string | null;
 }
 
-export interface NodeDecisionUpdateInput {
-  id: string;
-  decisionsCreate?: NodeDecisionItemCreateInput[] | null;
-  decisionsUpdate?: NodeDecisionItemUpdateInput[] | null;
-  decisionsDelete?: string[] | null;
+export interface NodeCreateInput {
+  columnIndex?: number | null;
+  rowIndex?: number | null;
+  type?: NodeType | null;
+  loopCreate?: LoopCreateInput | null;
+  nodeEndCreate?: NodeEndCreateInput | null;
+  nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
+  routineId: string;
+  translationsCreate?: NodeTranslationCreateInput[] | null;
 }
 
 export interface NodeEndCreateInput {
@@ -336,45 +361,49 @@ export interface NodeEndUpdateInput {
   wasSuccessful?: boolean | null;
 }
 
-export interface NodeLoopCreateInput {
-  loops?: number | null;
-  maxLoops?: number | null;
-  whilesCreate: NodeLoopWhileCreateInput[];
+export interface NodeLinkCreateInput {
+  whens?: NodeLinkWhenCreateInput[] | null;
+  operation?: string | null;
+  fromId: string;
+  toId: string;
 }
 
-export interface NodeLoopUpdateInput {
+export interface NodeLinkUpdateInput {
   id: string;
-  loops?: number | null;
-  maxLoops?: number | null;
-  whilesCreate: NodeLoopWhileCreateInput[];
-  whilesUpdate: NodeLoopWhileUpdateInput[];
-  whilesDelete?: string[] | null;
+  whensCreate?: NodeLinkWhenCreateInput[] | null;
+  whensUpdate?: NodeLinkWhenUpdateInput[] | null;
+  whensDelete?: string[] | null;
+  operation?: string | null;
+  fromId?: string | null;
+  toId?: string | null;
 }
 
-export interface NodeLoopWhileCaseCreateInput {
+export interface NodeLinkWhenCreateInput {
+  toId?: string | null;
+  translationsCreate?: NodeLinkWhenTranslationCreateInput[] | null;
   condition: string;
 }
 
-export interface NodeLoopWhileCaseUpdateInput {
-  id: string;
-  condition?: string | null;
-}
-
-export interface NodeLoopWhileCreateInput {
+export interface NodeLinkWhenTranslationCreateInput {
+  language: string;
   description?: string | null;
   title: string;
-  whenCreate: NodeLoopWhileCaseCreateInput[];
-  toId?: string | null;
 }
 
-export interface NodeLoopWhileUpdateInput {
+export interface NodeLinkWhenTranslationUpdateInput {
   id: string;
+  language?: string | null;
   description?: string | null;
   title?: string | null;
-  whenCreate?: NodeLoopWhileCaseCreateInput[] | null;
-  whenUpdate?: NodeLoopWhileCaseUpdateInput[] | null;
-  whenDelete?: string[] | null;
+}
+
+export interface NodeLinkWhenUpdateInput {
+  id: string;
   toId?: string | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: NodeLinkWhenTranslationCreateInput[] | null;
+  translationsUpdate?: NodeLinkWhenTranslationUpdateInput[] | null;
+  condition?: string | null;
 }
 
 export interface NodeRoutineListCreateInput {
@@ -385,18 +414,31 @@ export interface NodeRoutineListCreateInput {
 }
 
 export interface NodeRoutineListItemCreateInput {
-  description?: string | null;
   isOptional?: boolean | null;
-  title?: string | null;
   routineConnect: string;
+  translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
+}
+
+export interface NodeRoutineListItemTranslationCreateInput {
+  language: string;
+  description?: string | null;
+  title?: string | null;
+}
+
+export interface NodeRoutineListItemTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
+  title?: string | null;
 }
 
 export interface NodeRoutineListItemUpdateInput {
   id: string;
-  description?: string | null;
   isOptional?: boolean | null;
-  title?: string | null;
   routineConnect?: string | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
+  translationsUpdate?: NodeRoutineListItemTranslationUpdateInput[] | null;
 }
 
 export interface NodeRoutineListUpdateInput {
@@ -410,24 +452,33 @@ export interface NodeRoutineListUpdateInput {
   routinesUpdate?: NodeRoutineListItemUpdateInput[] | null;
 }
 
+export interface NodeTranslationCreateInput {
+  language: string;
+  title: string;
+  description?: string | null;
+}
+
+export interface NodeTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  title?: string | null;
+  description?: string | null;
+}
+
 export interface NodeUpdateInput {
   id: string;
-  description?: string | null;
-  title?: string | null;
+  columnIndex?: number | null;
+  rowIndex?: number | null;
   type?: NodeType | null;
-  nodeCombineCreate?: NodeCombineCreateInput | null;
-  nodeCombineUpdate?: NodeCombineUpdateInput | null;
-  nodeDecisionCreate?: NodeDecisionCreateInput | null;
-  nodeDecisionUpdate?: NodeDecisionUpdateInput | null;
-  nodeEndCreate?: NodeEndCreateInput | null;
+  loopDelete?: string | null;
+  loopCreate?: LoopCreateInput | null;
+  loopUpdate?: LoopUpdateInput | null;
   nodeEndUpdate?: NodeEndUpdateInput | null;
-  nodeLoopCreate?: NodeLoopCreateInput | null;
-  nodeLoopUpdate?: NodeLoopUpdateInput | null;
-  nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
   nodeRoutineListUpdate?: NodeRoutineListUpdateInput | null;
-  previousId?: string | null;
-  nextId?: string | null;
   routineId?: string | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: NodeTranslationCreateInput[] | null;
+  translationsUpdate?: NodeTranslationUpdateInput[] | null;
 }
 
 export interface OrganizationCountInput {
@@ -436,67 +487,106 @@ export interface OrganizationCountInput {
 }
 
 export interface OrganizationCreateInput {
-  bio?: string | null;
-  name: string;
-  resourcesCreate?: ResourceCreateInput[] | null;
+  isOpenToNewMembers?: boolean | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
+  translationsCreate?: OrganizationTranslationCreateInput[] | null;
 }
 
 export interface OrganizationSearchInput {
-  userId?: string | null;
-  projectId?: string | null;
-  routineId?: string | null;
-  standardId?: string | null;
-  reportId?: string | null;
-  ids?: string[] | null;
-  sortBy?: OrganizationSortBy | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-  searchString?: string | null;
   after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  isOpenToNewMembers?: boolean | null;
+  languages?: string[] | null;
+  minStars?: number | null;
+  projectId?: string | null;
+  reportId?: string | null;
+  resourceLists?: string[] | null;
+  resourceTypes?: ResourceUsedFor[] | null;
+  routineId?: string | null;
+  searchString?: string | null;
+  standardId?: string | null;
+  sortBy?: OrganizationSortBy | null;
+  tags?: string[] | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
+}
+
+export interface OrganizationTranslationCreateInput {
+  language: string;
+  bio?: string | null;
+  name: string;
+}
+
+export interface OrganizationTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  bio?: string | null;
+  name?: string | null;
 }
 
 export interface OrganizationUpdateInput {
   id: string;
-  bio?: string | null;
-  name?: string | null;
+  isOpenToNewMembers?: boolean | null;
   membersConnect?: string[] | null;
   membersDisconnect?: string[] | null;
-  resourcesDelete?: string[] | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
-  resourcesUpdate?: ResourceUpdateInput[] | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: OrganizationTranslationCreateInput[] | null;
+  translationsUpdate?: OrganizationTranslationUpdateInput[] | null;
 }
 
 export interface OutputItemCreateInput {
-  description?: string | null;
   name?: string | null;
   standardConnect?: string | null;
   standardCreate?: StandardCreateInput | null;
+  translationsCreate?: OutputItemTranslationCreateInput[] | null;
+}
+
+export interface OutputItemTranslationCreateInput {
+  language: string;
+  description?: string | null;
+}
+
+export interface OutputItemTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
 }
 
 export interface OutputItemUpdateInput {
   id: string;
-  description?: string | null;
   name?: string | null;
   standardConnect?: string | null;
   standardCreate?: StandardCreateInput | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: OutputItemTranslationCreateInput[] | null;
+  translationsUpdate?: OutputItemTranslationUpdateInput[] | null;
 }
 
 export interface ProfileUpdateInput {
   username?: string | null;
-  bio?: string | null;
   theme?: string | null;
-  starredTagsConnect?: string[] | null;
-  starredTagsDisconnect?: string[] | null;
-  starredTagsCreate?: TagCreateInput[] | null;
   hiddenTagsConnect?: string[] | null;
   hiddenTagsDisconnect?: string[] | null;
   hiddenTagsCreate?: TagCreateInput[] | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceCreateInput[] | null;
+  resourceListsUpdate?: ResourceUpdateInput[] | null;
+  starredTagsConnect?: string[] | null;
+  starredTagsDisconnect?: string[] | null;
+  starredTagsCreate?: TagCreateInput[] | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: UserTranslationCreateInput[] | null;
+  translationsUpdate?: UserTranslationUpdateInput[] | null;
 }
 
 export interface ProjectCountInput {
@@ -505,63 +595,85 @@ export interface ProjectCountInput {
 }
 
 export interface ProjectCreateInput {
-  description?: string | null;
+  createdByOrganizationId?: string | null;
+  createdByUserId?: string | null;
+  isComplete?: boolean | null;
   name: string;
   parentId?: string | null;
-  createdByUserId?: string | null;
-  createdByOrganizationId?: string | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
+  translationsCreate?: ProjectTranslationCreateInput[] | null;
 }
 
 export interface ProjectSearchInput {
-  userId?: string | null;
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  isComplete?: boolean | null;
+  languages?: string[] | null;
+  minScore?: number | null;
+  minStars?: number | null;
   organizationId?: string | null;
   parentId?: string | null;
   reportId?: string | null;
-  ids?: string[] | null;
-  sortBy?: ProjectSortBy | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
+  resourceLists?: string[] | null;
+  resourceTypes?: ResourceUsedFor[] | null;
   searchString?: string | null;
-  after?: string | null;
+  sortBy?: ProjectSortBy | null;
+  tags?: string[] | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
+}
+
+export interface ProjectTranslationCreateInput {
+  language: string;
+  description?: string | null;
+  name: string;
+}
+
+export interface ProjectTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
+  name?: string | null;
 }
 
 export interface ProjectUpdateInput {
   id: string;
-  description?: string | null;
+  isComplete?: boolean | null;
   name?: string | null;
+  organizationId?: string | null;
   parentId?: string | null;
   userId?: string | null;
-  organizationId?: string | null;
-  resourcesDelete?: string[] | null;
-  resourcesCreate?: ResourceCreateInput[] | null;
-  resourcesUpdate?: ResourceUpdateInput[] | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: ProjectTranslationCreateInput[] | null;
+  translationsUpdate?: ProjectTranslationUpdateInput[] | null;
 }
 
 export interface ReadAssetsInput {
   files: string[];
 }
 
-export interface ReadOpenGraphInput {
-  url: string;
-}
-
 export interface ReportCreateInput {
   createdFor: ReportFor;
   createdForId: string;
   details?: string | null;
+  language: string;
   reason: string;
 }
 
 export interface ReportUpdateInput {
   id: string;
   details?: string | null;
+  language?: string | null;
   reason?: string | null;
 }
 
@@ -573,16 +685,57 @@ export interface ResourceCountInput {
 export interface ResourceCreateInput {
   createdFor: ResourceFor;
   createdForId: string;
-  description?: string | null;
+  index?: number | null;
   link: string;
+  translationsCreate?: ResourceTranslationCreateInput[] | null;
+  usedFor: ResourceUsedFor;
+}
+
+export interface ResourceListCreateInput {
+  index?: number | null;
+  usedFor: ResourceListUsedFor;
+  organizationId?: string | null;
+  projectId?: string | null;
+  routineId?: string | null;
+  userId?: string | null;
+  translationsCreate?: ResourceListTranslationCreateInput[] | null;
+  resourcesCreate?: ResourceCreateInput[] | null;
+}
+
+export interface ResourceListTranslationCreateInput {
+  language: string;
+  description?: string | null;
   title?: string | null;
-  usedFor?: ResourceUsedFor | null;
+}
+
+export interface ResourceListTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
+  title?: string | null;
+}
+
+export interface ResourceListUpdateInput {
+  id: string;
+  index?: number | null;
+  usedFor?: ResourceListUsedFor | null;
+  organizationId?: string | null;
+  projectId?: string | null;
+  routineId?: string | null;
+  userId?: string | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: ResourceListTranslationCreateInput[] | null;
+  translationsUpdate?: ResourceListTranslationUpdateInput[] | null;
+  resourcesDelete?: string[] | null;
+  resourcesCreate?: ResourceCreateInput[] | null;
+  resourcesUpdate?: ResourceUpdateInput[] | null;
 }
 
 export interface ResourceSearchInput {
   forId?: string | null;
   forType?: ResourceFor | null;
   ids?: string[] | null;
+  languages?: string[] | null;
   sortBy?: ResourceSortBy | null;
   createdTimeFrame?: TimeFrame | null;
   updatedTimeFrame?: TimeFrame | null;
@@ -591,13 +744,28 @@ export interface ResourceSearchInput {
   take?: number | null;
 }
 
+export interface ResourceTranslationCreateInput {
+  language: string;
+  description?: string | null;
+  title?: string | null;
+}
+
+export interface ResourceTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
+  title?: string | null;
+}
+
 export interface ResourceUpdateInput {
   id: string;
   createdFor?: ResourceFor | null;
   createdForId?: string | null;
-  description?: string | null;
+  index?: number | null;
   link?: string | null;
-  title?: string | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: ResourceTranslationCreateInput[] | null;
+  translationsUpdate?: ResourceTranslationUpdateInput[] | null;
   usedFor?: ResourceUsedFor | null;
 }
 
@@ -607,69 +775,91 @@ export interface RoutineCountInput {
 }
 
 export interface RoutineCreateInput {
-  description?: string | null;
-  instructions?: string | null;
   isAutomatable?: boolean | null;
-  title: string;
+  isComplete?: boolean | null;
+  isInternal?: boolean | null;
   version?: string | null;
   parentId?: string | null;
   projectId?: string | null;
   createdByUserId?: string | null;
   createdByOrganizationId?: string | null;
-  nodesConnect?: string[] | null;
   nodesCreate?: NodeCreateInput[] | null;
+  nodeLinksCreate?: NodeLinkCreateInput[] | null;
   inputsCreate?: InputItemCreateInput[] | null;
   outputsCreate?: OutputItemCreateInput[] | null;
-  resourcesContextualCreate?: ResourceCreateInput[] | null;
-  resourcesExternalCreate?: ResourceCreateInput[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
+  translationsCreate?: RoutineTranslationCreateInput[] | null;
 }
 
 export interface RoutineSearchInput {
-  userId?: string | null;
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  isComplete?: boolean | null;
+  languages?: string[] | null;
+  minScore?: number | null;
+  minStars?: number | null;
   organizationId?: string | null;
+  projectId?: string | null;
   parentId?: string | null;
   reportId?: string | null;
-  ids?: string[] | null;
-  sortBy?: RoutineSortBy | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
+  resourceLists?: string[] | null;
+  resourceTypes?: ResourceUsedFor[] | null;
   searchString?: string | null;
-  after?: string | null;
+  sortBy?: RoutineSortBy | null;
+  tags?: string[] | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
+}
+
+export interface RoutineTranslationCreateInput {
+  language: string;
+  description?: string | null;
+  instructions: string;
+  title: string;
+}
+
+export interface RoutineTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
+  instructions?: string | null;
+  title?: string | null;
 }
 
 export interface RoutineUpdateInput {
   id: string;
-  description?: string | null;
-  instructions?: string | null;
   isAutomatable?: boolean | null;
-  title?: string | null;
+  isComplete?: boolean | null;
+  isInternal?: boolean | null;
   version?: string | null;
   parentId?: string | null;
   userId?: string | null;
   organizationId?: string | null;
-  nodesConnect?: string[] | null;
-  nodesDisconnect?: string[] | null;
   nodesDelete?: string[] | null;
   nodesCreate?: NodeCreateInput[] | null;
   nodesUpdate?: NodeUpdateInput[] | null;
+  nodeLinksDelete?: string[] | null;
+  nodeLinksCreate?: NodeLinkCreateInput[] | null;
+  nodeLinksUpdate?: NodeLinkUpdateInput[] | null;
   inputsCreate?: InputItemCreateInput[] | null;
   inputsUpdate?: InputItemUpdateInput[] | null;
   inputsDelete?: string[] | null;
   outputsCreate?: OutputItemCreateInput[] | null;
   outputsUpdate?: OutputItemUpdateInput[] | null;
   outputsDelete?: string[] | null;
-  resourcesContextualDelete?: string[] | null;
-  resourcesContextualCreate?: ResourceCreateInput[] | null;
-  resourcesContextualUpdate?: ResourceUpdateInput[] | null;
-  resourcesExternalDelete?: string[] | null;
-  resourcesExternalCreate?: ResourceCreateInput[] | null;
-  resourcesExternalUpdate?: ResourceUpdateInput[] | null;
+  resourceListsDelete?: string[] | null;
+  resourceListsCreate?: ResourceListCreateInput[] | null;
+  resourceListsUpdate?: ResourceListUpdateInput[] | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: RoutineTranslationCreateInput[] | null;
+  translationsUpdate?: RoutineTranslationUpdateInput[] | null;
 }
 
 export interface StandardCountInput {
@@ -679,7 +869,6 @@ export interface StandardCountInput {
 
 export interface StandardCreateInput {
   default?: string | null;
-  description?: string | null;
   isFile?: boolean | null;
   name: string;
   schema?: string | null;
@@ -689,29 +878,48 @@ export interface StandardCreateInput {
   createdByOrganizationId?: string | null;
   tagsConnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
+  translationsCreate?: StandardTranslationCreateInput[] | null;
 }
 
 export interface StandardSearchInput {
-  userId?: string | null;
-  organizationId?: string | null;
-  routineId?: string | null;
-  reportId?: string | null;
-  ids?: string[] | null;
-  sortBy?: StandardSortBy | null;
-  searchString?: string | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
   after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  languages?: string[] | null;
+  minScore?: number | null;
+  minStars?: number | null;
+  organizationId?: string | null;
+  projectId?: string | null;
+  reportId?: string | null;
+  routineId?: string | null;
+  searchString?: string | null;
+  sortBy?: StandardSortBy | null;
+  tags?: string[] | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+  userId?: string | null;
+}
+
+export interface StandardTranslationCreateInput {
+  language: string;
+  description?: string | null;
+}
+
+export interface StandardTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
 }
 
 export interface StandardUpdateInput {
-  id?: string | null;
-  description?: string | null;
+  id: string;
   makeAnonymous?: boolean | null;
   tagsConnect?: string[] | null;
   tagsDisconnect?: string[] | null;
   tagsCreate?: TagCreateInput[] | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: StandardTranslationCreateInput[] | null;
+  translationsUpdate?: StandardTranslationUpdateInput[] | null;
 }
 
 export interface StarInput {
@@ -727,26 +935,42 @@ export interface TagCountInput {
 
 export interface TagCreateInput {
   anonymous?: boolean | null;
-  description?: string | null;
   tag: string;
+  translationsCreate?: TagTranslationCreateInput[] | null;
 }
 
 export interface TagSearchInput {
-  myTags?: boolean | null;
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
   hidden?: boolean | null;
   ids?: string[] | null;
-  sortBy?: TagSortBy | null;
+  languages?: string[] | null;
+  minStars?: number | null;
+  myTags?: boolean | null;
   searchString?: string | null;
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-  after?: string | null;
+  sortBy?: TagSortBy | null;
   take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
+}
+
+export interface TagTranslationCreateInput {
+  language: string;
+  description?: string | null;
+}
+
+export interface TagTranslationUpdateInput {
+  id: string;
+  language?: string | null;
+  description?: string | null;
 }
 
 export interface TagUpdateInput {
+  id: string;
   anonymous?: boolean | null;
-  description?: string | null;
   tag?: string | null;
+  translationsDelete?: string[] | null;
+  translationsCreate?: TagTranslationCreateInput[] | null;
+  translationsUpdate?: TagTranslationUpdateInput[] | null;
 }
 
 export interface TimeFrame {
@@ -764,18 +988,33 @@ export interface UserDeleteInput {
 }
 
 export interface UserSearchInput {
+  languages?: string[] | null;
+  minStars?: number | null;
   organizationId?: string | null;
   projectId?: string | null;
   routineId?: string | null;
   reportId?: string | null;
   standardId?: string | null;
   ids?: string[] | null;
+  resourceLists?: string[] | null;
+  resourceTypes?: ResourceUsedFor[] | null;
   sortBy?: UserSortBy | null;
   searchString?: string | null;
   createdTimeFrame?: TimeFrame | null;
   updatedTimeFrame?: TimeFrame | null;
   after?: string | null;
   take?: number | null;
+}
+
+export interface UserTranslationCreateInput {
+  language: string;
+  bio?: string | null;
+}
+
+export interface UserTranslationUpdateInput {
+  id: string;
+  language: string;
+  bio?: string | null;
 }
 
 export interface VoteInput {

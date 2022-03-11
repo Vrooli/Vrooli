@@ -10,10 +10,8 @@ const SESSION_MILLI = 30*86400*1000;
 // Verifies if a user is authenticated, using an http cookie
 export async function authenticate(req: Request, _: Response, next: NextFunction) {
     const { cookies } = req;
-    console.log('authenticate', cookies);
     // First, check if a valid session cookie was supplied
     const token = cookies[COOKIE.Session];
-    console.log('token', token);
     if (token === null || token === undefined) {
         next();
         return;
@@ -25,16 +23,15 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
     // Second, verify that the session token is valid
     jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
-            console.log('first jwt error', error, payload.exp, Date.now())
             next();
             return;
         }
         // Now, set token and role variables for other middleware to use
+        req.isLoggedIn = payload.isLoggedIn ?? false;
+        req.languages = payload.languages ?? [];
+        req.roles = payload.roles ?? [];
+        req.userId = payload.userId ?? null;
         req.validToken = true;
-        req.userId = payload.userId;
-        req.roles = payload.roles;
-        req.isLoggedIn = payload.isLoggedIn;
-        console.log('no jwt error', req.validToken, req.userId, req.roles, req.isLoggedIn)
         next();
     })
 }
@@ -45,9 +42,10 @@ interface BasicToken {
     exp: number;
 }
 interface SessionToken extends BasicToken {
-    userId?: string;
-    roles: string[];
     isLoggedIn: boolean;
+    languages: string[] | null;
+    roles: string[];
+    userId: string | null;
 }
 
 /**
@@ -57,7 +55,6 @@ const basicToken = (): BasicToken => ({
     iat: Date.now(),
     iss: `https://app.vrooli.com/`,
     exp: Date.now() + SESSION_MILLI,
-
 })
 
 /**
@@ -68,12 +65,12 @@ const basicToken = (): BasicToken => ({
  * @returns 
  */
 export async function generateSessionToken(res: Response, session: RecursivePartial<Session>): Promise<undefined> {
-    console.log('generateSessionToken', session);
     const tokenContents: SessionToken = {
         ...basicToken(),
-        userId: session.id || undefined,
-        roles: (session.roles as string[]) ?? [],
         isLoggedIn: Array.isArray(session.roles) ? session.roles.includes(ROLES.Actor) : false,
+        languages: (session.languages as string[]) ?? [],
+        roles: (session.roles as string[]) ?? [],
+        userId: session.id ?? null,
     }
     if (!process.env.JWT_SECRET) {
         console.error('❗️ JWT_SECRET not set! Please check .env file');

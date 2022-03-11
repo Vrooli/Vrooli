@@ -3,10 +3,10 @@ import { useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { useMemo } from "react";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { APP_LINKS, profileSchema as validationSchema } from '@local/shared';
+import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate } from "utils";
+import { formatForUpdate, getTranslation } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -27,7 +27,7 @@ export const SettingsProfile = ({
     const [mutation] = useMutation<user>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            bio: profile?.bio ?? "",
+            bio: getTranslation(profile, 'bio', ['en'], false),
             username: profile?.username ?? "",
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
@@ -36,7 +36,7 @@ export const SettingsProfile = ({
             if (!formik.isValid) return;
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(profile, { ...values }),
+                input: formatForUpdate(profile, { ...values }), //TODO translations will break
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
             })
         },

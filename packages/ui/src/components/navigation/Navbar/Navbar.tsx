@@ -9,7 +9,7 @@ import { useLocation } from 'wouter';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
 
-const SHOW_HAMBURGER_AT = 1000;
+const SHOW_HAMBURGER_AT = 900;
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -55,15 +55,13 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 export const Navbar = ({
-    userRoles
+    session
 }: NavbarProps) => {
     const classes = useStyles();
     const [, setLocation] = useLocation();
     const [show_hamburger, setShowHamburger] = useState(false);
 
-    let child_props = { 
-        userRoles: userRoles,
-    }
+    let child_props = { session };
 
     useEffect(() => {
         updateWindowDimensions();

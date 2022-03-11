@@ -113,21 +113,36 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
  * - disconnections - existing objects which are being disconnected from the object (e.g. disassociating a standard from a routine input)
  * - creates - new objects which are being created (e.g. creating a new standard to a routine input)
  * - updates - existing objects which are being updated (e.g. changing a standard's name)
+ * - deletes - existing objects which are being deleted (e.g. deleting a node from a routine)
+ * NOTE: By default, missing relationships are assumed to be disconnections. You must specify the relationship in 
+ * the "treatLikeDeletes" parameter to treat them as deletes.
  * @param original - The orginal object fetched from the database, in query return format. Needed to exclude fields in the update object that 
  * haven't actually been updated
  * @param updated - The updated object, or partial update changes (which is a superset of the original)
- * @param treatLikeConnects - Array of field names that should be treated as connections (i.e. if object has id, ignore extra fields)
+ * @param treatLikeConnects - Array of field names (supports dot notation) that should be treated as connections (i.e. if object has id, ignore extra fields)
+ * @param treatLikeDeletes - Array of field names (supports dot notation) that should be treated as deletes (i.e. if object has id, ignore extra fields)
  */
-export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, updated: Partial<T>, treatLikeConnects: string[] = []): Partial<T> => {
+export const formatForUpdate = <S, T>(
+    original: Partial<S> | null | undefined, 
+    updated: Partial<T>, 
+    treatLikeConnects: string[] = [],
+    treatLikeDeletes: string[] = [],
+): Partial<T> => {
+    // Create return object
     let changed = {};
-    console.log('formatForUpdate start', original, updated);
+    // Create child treatLikeConnects and treatLikeDeletes arrays
+    const childTreatLikeConnects = treatLikeConnects.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
+    const childTreatLikeDeletes = treatLikeDeletes.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
     // Helper method to add to arrays which might not exist
     const addToChangedArray = (key, value) => {
         if (Array.isArray(changed[key])) {
             if (Array.isArray(value)) changed[key] = [...changed[key], ...value];
             else changed[key] = [...changed[key], value];
         }
-        else changed[key] = value;
+        else {
+            if (Array.isArray(value)) changed[key] = value;
+            else changed[key] = [value];
+        }
     }
     // Iterate through each field in the updated object
     for (const [key, value] of Object.entries(updated)) {
@@ -147,8 +162,10 @@ export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, u
                 if (original && Array.isArray(original[key])) {
                     originalValue = original[key].find(o => o.id === curr.id);
                 }
+                // If the current value is equal to the original value, skip it
+                if (originalValue && _.isEqual(originalValue, curr)) continue;
                 // Find the changed value at this index
-                const changedValue = _.isObject(curr) ? formatForUpdate(originalValue, curr) : curr;
+                const changedValue = _.isObject(curr) ? formatForUpdate(originalValue, curr, childTreatLikeConnects, childTreatLikeDeletes) : curr;
                 // Check if create (i.e does not contain an id)
                 if (!Boolean(curr.id)) {
                     addToChangedArray(`${key}Create`, changedValue);
@@ -160,7 +177,9 @@ export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, u
                 }
                 // Check if update
                 else if (Boolean(curr?.id)) {
+                    console.log('adding to update array', changed[`${key}Update`], curr)
                     addToChangedArray(`${key}Update`, changedValue);
+                    console.log('added to update array', changed[`${key}Update`], curr)
                 }
                 // Shouldn't hit this point under normal circumstances. But if you do,
                 // add the value to the changed array
@@ -168,16 +187,20 @@ export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, u
             }
             // Loop through original values and determine which are disconnections
             if (original && Array.isArray(original[key])) {
-                for (let i = 0; i < original[key]; i++) {
+                console.log('in original array check', key, original);
+                for (let i = 0; i < original[key].length; i++) {
                     const curr = original[key][i];
                     // If the current value is an object, try to find the changed value
                     let changedValue = value.find(o => o.id === curr.id);
-                    // If the changed value is not found, it must have been deleted
+                    console.log('checking original', curr, changedValue)
+                    // If the changed value is not found, it must have been deleted/disconnected
                     if (!changedValue) {
-                        addToChangedArray(`${key}Disconnect`, curr.id);
+                        if (treatLikeDeletes && treatLikeDeletes.includes(key)) addToChangedArray(`${key}Delete`, curr.id);
+                        else addToChangedArray(`${key}Disconnect`, curr.id);
                     }
                 }
             }
+            else console.log('no original array', key, original);
         }
         // If the value is an object
         else if (_.isObject(value)) {
@@ -185,7 +208,7 @@ export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, u
             // Try to find the original value
             let originalValue = original ? original[key] : undefined;
             // Find the changed value
-            const changedValue = formatForUpdate(originalValue, curr);
+            const changedValue = formatForUpdate(originalValue, curr, childTreatLikeConnects, childTreatLikeDeletes);
             // Check if disconnect
             if (!changedValue && originalValue) {
                 changed[`${key}Disconnect`] = curr.id;
@@ -211,4 +234,26 @@ export const formatForUpdate = <S, T>(original: Partial<S> | null | undefined, u
     }
     console.log('formatForUpdate complete', changed);
     return changed;
+}
+
+/**
+ * Retrieves a value from an object's translations
+ * @param obj The object to retrieve the value from
+ * @param field The field to retrieve the value from
+ * @param languages The languages the user is requesting
+ * @param showAny If true, will default to returning the first language if no value is found
+ * @returns The value of the field in the object's translations
+ */
+export const getTranslation = (obj: any, field: string, languages: readonly string[], showAny: boolean = true): any => {
+    if (!obj || !obj.translations) return undefined;
+    // Loop through translations
+    for (const translation of obj.translations) {
+        // If this translation is one of the languages we're looking for, check for the field
+        if (languages.includes(translation.language)) {
+            if (translation[field]) return translation[field];
+        }
+    }
+    if (showAny && obj.translations.length > 0) return obj.translations[0][field];
+    // If we didn't find a translation, return undefined
+    return undefined;
 }

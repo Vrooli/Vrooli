@@ -3,7 +3,7 @@
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
 import { gql } from 'apollo-server-express';
-import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES, AccountStatus } from '@local/shared';
+import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES } from '@local/shared';
 import { CustomError } from '../error';
 import { generateNonce, randomString, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionToken } from '../auth/auth.js';
@@ -11,8 +11,10 @@ import { IWrap, RecursivePartial } from '../types';
 import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context } from '../context';
-import { UserModel, userSessioner } from '../models';
+import { profileValidater } from '../models';
 import { hasProfanity } from '../utils/censor';
+import pkg from '@prisma/client';
+const { AccountStatus } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -68,6 +70,7 @@ export const typeDef = gql`
         id: ID
         roles: [String!]!
         theme: String!
+        languages: [String!]
     }
 
     type Wallet {
@@ -106,14 +109,14 @@ export const resolvers = {
             if (!user) throw new CustomError(CODE.InternalError, 'User not found');
             // Check for password in database, if doesn't exist, send a password reset link
             if (!Boolean(user.password)) {
-                await UserModel(prisma).setupPasswordReset(user);
+                await profileValidater().setupPasswordReset(user, prisma);
                 throw new CustomError(CODE.MustResetPassword);
             }
             // Validate verification code, if supplied
             if (Boolean(input?.verificationCode)) {
-                await UserModel(prisma).validateVerificationCode(email.emailAddress, user.id, input?.verificationCode as string);
+                await profileValidater().validateVerificationCode(email.emailAddress, user.id, input?.verificationCode as string, prisma);
             }
-            const session = await UserModel(prisma).logIn(input?.password as string, user);
+            const session = await profileValidater().logIn(input?.password as string, user, prisma);
             if (session) {
                 // Set session token
                 await generateSessionToken(res, session);
@@ -141,7 +144,7 @@ export const resolvers = {
             const user = await prisma.user.create({
                 data: {
                     username: input.username,
-                    password: UserModel(prisma).hashPassword(input.password),
+                    password: profileValidater().hashPassword(input.password),
                     theme: input.theme,
                     status: AccountStatus.Unlocked,
                     emails: {
@@ -156,12 +159,12 @@ export const resolvers = {
             });
             if (!user) throw new CustomError(CODE.ErrorUnknown);
             // Create session from user object
-            const session = UserModel(prisma).toSession(user);
+            const session = profileValidater().toSession(user);
             console.log('session', session);
             // Set up session token
             await generateSessionToken(res, session);
             // Send verification email
-            await UserModel(prisma).setupVerificationCode(input.email);
+            await profileValidater().setupVerificationCode(input.email, prisma);
             // Return user data
             return session;
         },
@@ -177,7 +180,7 @@ export const resolvers = {
             let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
             if (!user) throw new CustomError(CODE.NoUser);
             // Generate and send password reset code
-            const success = await UserModel(prisma).setupPasswordReset(user);
+            const success = await profileValidater().setupPasswordReset(user, prisma);
             return { success };
         },
         emailResetPassword: async (_parent: undefined, { input }: IWrap<EmailResetPasswordInput>, { prisma }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
@@ -198,9 +201,9 @@ export const resolvers = {
             });
             if (!user) throw new CustomError(CODE.ErrorUnknown);
             // If code is invalid
-            if (!UserModel(prisma).validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
+            if (!profileValidater().validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
                 // Generate and send new code
-                await UserModel(prisma).setupPasswordReset(user);
+                await profileValidater().setupPasswordReset(user, prisma);
                 // Return error
                 throw new CustomError(CODE.InvalidResetCode);
             }
@@ -210,11 +213,11 @@ export const resolvers = {
                 data: {
                     resetPasswordCode: null,
                     lastResetPasswordReqestAttempt: null,
-                    password: UserModel(prisma).hashPassword(input.newPassword)
+                    password: profileValidater().hashPassword(input.newPassword)
                 }
             })
             // Return session
-            return userSessioner().toSession(user);
+            return profileValidater().toSession(user);
         },
         guestLogIn: async (_parent: undefined, _args: undefined, { res }: Context, _info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Create session
@@ -256,7 +259,7 @@ export const resolvers = {
                 }
             });
             console.log('userData', userData);
-            if (userData) return UserModel(prisma).toSession(userData);
+            if (userData) return profileValidater().toSession(userData);
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Session);
             throw new CustomError(CODE.ErrorUnknown);
@@ -317,7 +320,7 @@ export const resolvers = {
                     nonceCreationTime: true,
                     userId: true,
                     user: {
-                        select: { id: true, theme: true }
+                        select: { id: true, theme: true, languages: { select: { language: true } } }
                     }
                 }
             });
@@ -340,9 +343,12 @@ export const resolvers = {
                         username: `user${randomString(8)}`,
                         roles: {
                             create: [{ role: { connect: { id: actorRoleId } } }]
+                        },
+                        wallets: {
+                            connect: { id: walletData.id }
                         }
                     },
-                    select: { id: true, theme: true }
+                    select: { id: true, theme: true, languages: { select: { language: true } } }
                 });
             }
             // Update wallet and remove nonce data
@@ -358,6 +364,7 @@ export const resolvers = {
             // Create session token
             const session = {
                 id: userData.id,
+                languages: userData.languages.map((l: any) => l.language),
                 roles: [ROLES.Actor],
                 theme: userData.theme ?? 'light',
             }

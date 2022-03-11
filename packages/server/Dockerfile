@@ -13,7 +13,7 @@ RUN mkdir -p ${PROJECT_DIR}/${ui}/node_modules/.cache ${PROJECT_DIR}/${server}/n
     chown -R node:node ${PROJECT_DIR}
 
 # Install global packages (must be done as the root user)
-RUN yarn global add typescript ts-node nodemon prisma
+RUN yarn global add typescript ts-node nodemon prisma@3.10.0
 
 # Switch to a user with less permissions
 USER node

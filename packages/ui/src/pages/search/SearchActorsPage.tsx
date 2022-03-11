@@ -39,7 +39,7 @@ export const SearchActorsPage = ({
             index={index}
             session={session}
             data={node}
-            onClick={(selected: User) => setSelectedItem(selected)}
+            onClick={(_e, selected: User) => setSelectedItem(selected)}
         />)
 
     return (

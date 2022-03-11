@@ -12,4 +12,5 @@ export interface sessionFields {
   id: string | null;
   theme: string;
   roles: string[];
+  languages: string[] | null;
 }

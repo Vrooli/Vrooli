@@ -14,6 +14,7 @@ import {
     Apartment as OrganizationIcon,
     Person as SelfIcon
 } from '@mui/icons-material';
+import { getTranslation } from 'utils';
 
 const blue = {
     700: '#0059B2',
@@ -32,13 +33,14 @@ export function UserOrganizationSwitch({
     ...props
 }: UserOrganizationSwitchProps) {
     const [location, setLocation] = useLocation();
+    const languages = ['en'];
 
     // Query for organizations the user is a member of, including ones where 
     // the user doesn't have permissions to perform this action
     const [getOrganizationsData, { data: organizationsData, loading }] = useLazyQuery<organizations, organizationsVariables>(organizationsQuery, {
         variables: {
             input: {
-                sortBy: OrganizationSortBy.AlphabeticalAsc,
+                sortBy: OrganizationSortBy.DateUpdatedAsc,
                 userId: session?.id,
             }
         }
@@ -70,7 +72,7 @@ export function UserOrganizationSwitch({
     }, []);
 
     const organizationListItems: JSX.Element[] = useMemo(() => {
-        const filtered = organizations?.filter((o: Organization) => o.name.toLowerCase().includes(search.toLowerCase()));
+        const filtered = organizations?.filter((o: Organization) => getTranslation(o, 'name', languages, true)?.toLowerCase()?.includes(search.toLowerCase()) ?? '');
         return filtered?.map((o: Organization, index) => {
             const canSelect = o.role && [MemberRole.Admin, MemberRole.Owner].includes(o.role);
             return (
@@ -83,7 +85,7 @@ export function UserOrganizationSwitch({
                         cursor: canSelect ? 'pointer' : 'default',
                     }}
                 >
-                    <ListItemText primary={o.name} sx={{ marginRight: 2 }} />
+                    <ListItemText primary={getTranslation(o, 'name', languages, true)} sx={{ marginRight: 2 }} />
                     {!canSelect && <Typography color="error">Not an admin</Typography>}
                 </ListItem>
             )
@@ -225,7 +227,7 @@ export function UserOrganizationSwitch({
                             cursor: 'pointer',
                         }} />
                 </Box >
-                <Typography variant="h6" sx={{ ...noSelect }}>{Boolean(selected) ? selected?.name : 'Self'}</Typography>
+                <Typography variant="h6" sx={{ ...noSelect }}>{Boolean(selected) ? getTranslation(selected, 'name', languages, true) : 'Self'}</Typography>
             </Stack>
         </>
     )

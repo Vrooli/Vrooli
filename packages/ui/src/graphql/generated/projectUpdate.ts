@@ -3,26 +3,82 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProjectUpdateInput, MemberRole } from "./globalTypes";
+import { ProjectUpdateInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: projectUpdate
 // ====================================================
 
+export interface projectUpdate_projectUpdate_resourceLists_translations {
+  __typename: "ResourceListTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projectUpdate_projectUpdate_resourceLists_resources_translations {
+  __typename: "ResourceTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface projectUpdate_projectUpdate_resourceLists_resources {
+  __typename: "Resource";
+  id: string;
+  created_at: any;
+  index: number | null;
+  link: string;
+  updated_at: any;
+  usedFor: ResourceUsedFor | null;
+  translations: projectUpdate_projectUpdate_resourceLists_resources_translations[];
+}
+
+export interface projectUpdate_projectUpdate_resourceLists {
+  __typename: "ResourceList";
+  id: string;
+  created_at: any;
+  index: number | null;
+  usedFor: ResourceListUsedFor | null;
+  translations: projectUpdate_projectUpdate_resourceLists_translations[];
+  resources: projectUpdate_projectUpdate_resourceLists_resources[];
+}
+
+export interface projectUpdate_projectUpdate_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface projectUpdate_projectUpdate_tags {
   __typename: "Tag";
   id: string;
   tag: string;
+  translations: projectUpdate_projectUpdate_tags_translations[];
+}
+
+export interface projectUpdate_projectUpdate_translations {
+  __typename: "ProjectTranslation";
+  id: string;
+  language: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  name: string;
+}
+
+export interface projectUpdate_projectUpdate_owner_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
 }
 
 export interface projectUpdate_projectUpdate_owner_Organization {
   __typename: "Organization";
   id: string;
-  name: string;
+  translations: projectUpdate_projectUpdate_owner_Organization_translations[];
 }
 
 export interface projectUpdate_projectUpdate_owner_User {
@@ -36,16 +92,18 @@ export type projectUpdate_projectUpdate_owner = projectUpdate_projectUpdate_owne
 export interface projectUpdate_projectUpdate {
   __typename: "Project";
   id: string;
-  name: string;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
-  tags: projectUpdate_projectUpdate_tags[];
-  owner: projectUpdate_projectUpdate_owner | null;
-  stars: number;
+  isComplete: boolean;
   isStarred: boolean;
-  score: number;
-  role: MemberRole | null;
   isUpvoted: boolean | null;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
+  resourceLists: projectUpdate_projectUpdate_resourceLists[] | null;
+  tags: projectUpdate_projectUpdate_tags[];
+  translations: projectUpdate_projectUpdate_translations[];
+  owner: projectUpdate_projectUpdate_owner | null;
 }
 
 export interface projectUpdate {

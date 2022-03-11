@@ -1,16 +1,12 @@
 import { gql } from 'apollo-server-express';
-import { CODE, TagSortBy } from '@local/shared';
-import { CustomError } from '../error';
-import { TagModel } from '../models';
+import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, TagModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSearchResult } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSearchResult, TagSortBy } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     enum TagSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
@@ -21,37 +17,63 @@ export const typeDef = gql`
 
     input TagCreateInput {
         anonymous: Boolean
-        description: String
         tag: String!
+        translationsCreate: [TagTranslationCreateInput!]
     }
     input TagUpdateInput {
+        id: ID!
         anonymous: Boolean
-        description: String
         tag: String
+        translationsDelete: [ID!]
+        translationsCreate: [TagTranslationCreateInput!]
+        translationsUpdate: [TagTranslationUpdateInput!]
     }
 
     type Tag {
         id: ID!
         tag: String!
-        description: String
         created_at: Date!
         updated_at: Date!
         stars: Int!
         isStarred: Boolean!
         isOwn: Boolean!
         starredBy: [User!]!
+        translations: [TagTranslation!]!
+    }
+
+    input TagTranslationCreateInput {
+        language: String!
+        description: String
+    }
+    input TagTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+    }
+    type TagTranslation {
+        id: ID!
+        language: String!
+        description: String
+    }
+
+    # Wraps tag with hidden/blurred option
+    type TagHidden {
+        isBlur: Boolean!
+        tag: Tag!
     }
 
     input TagSearchInput {
-        myTags: Boolean
+        after: String
+        createdTimeFrame: TimeFrame
         hidden: Boolean
         ids: [ID!]
-        sortBy: TagSortBy
+        languages: [String!]
+        minStars: Int
+        myTags: Boolean
         searchString: String
-        createdTimeFrame: TimeFrame
-        updatedTimeFrame: TimeFrame
-        after: String
+        sortBy: TagSortBy
         take: Int
+        updatedTimeFrame: TimeFrame
     }
 
     # Return type for search result
@@ -89,17 +111,13 @@ export const resolvers = {
     TagSortBy: TagSortBy,
     Query: {
         tag: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag> | null> => {
-            const data = await TagModel(prisma).find(req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readOneHelper(req.userId, input, info, TagModel(prisma));
         },
         tags: async (_parent: undefined, { input }: IWrap<TagSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<TagSearchResult> => {
-            const data = await TagModel(prisma).search({}, req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readManyHelper(req.userId, input, info, TagModel(prisma));
         },
         tagsCount: async (_parent: undefined, { input }: IWrap<TagCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return await TagModel(prisma).count({}, input);
+            return countHelper(input, TagModel(prisma));
         },
     },
     Mutation: {
@@ -108,33 +126,21 @@ export const resolvers = {
          * @returns Tag object if successful
          */
         tagCreate: async (_parent: undefined, { input }: IWrap<TagCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            const created = await TagModel(prisma).create(req.userId, input, info);
-            if (!created) throw new CustomError(CODE.ErrorUnknown);
-            return created;
+            return createHelper(req.userId, input, info, TagModel(prisma));
         },
         /**
          * Update tags you've created
          * @returns 
          */
         tagUpdate: async (_parent: undefined, { input }: IWrap<TagUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Update object
-            const updated = await TagModel(prisma).update(req.userId, input, info);
-            if (!updated) throw new CustomError(CODE.ErrorUnknown);
-            return updated;
+            return updateHelper(req.userId, input, info, TagModel(prisma));
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system
          * @returns 
          */
         tagDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await TagModel(prisma).deleteMany(req.userId, input);
+            return deleteManyHelper(req.userId, input, TagModel(prisma));
         },
     }
 }

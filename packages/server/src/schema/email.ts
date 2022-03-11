@@ -1,10 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@local/shared';
-import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
 import { DeleteOneInput, Email, EmailCreateInput, EmailUpdateInput, Success } from './types';
 import { Context } from '../context';
-import { EmailModel } from '../models';
+import { createHelper, deleteOneHelper, EmailModel, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
@@ -43,29 +41,16 @@ export const resolvers = {
          * Associate a new email address to your account.
          */
         emailCreate: async (_parent: undefined, { input }: IWrap<EmailCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            const created = await EmailModel(prisma).create(req.userId, input, info);
-            if (!created) throw new CustomError(CODE.ErrorUnknown);
-            return created;
+            return createHelper(req.userId, input, info, EmailModel(prisma));
         },
         /**
          * Update an existing email address that is associated with your account.
          */
         emailUpdate: async (_parent: undefined, { input }: IWrap<EmailUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Update object
-            const updated = await EmailModel(prisma).update(req.userId, input, info);
-            if (!updated) throw new CustomError(CODE.ErrorUnknown);
-            return updated;
+            return updateHelper(req.userId, input, info, EmailModel(prisma));
         },
         emailDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Delete object
-            return await EmailModel(prisma).delete(req.userId, input);
+            return deleteOneHelper(req.userId, input, EmailModel(prisma));
         }
     }
 }

@@ -1,19 +1,20 @@
-import { NodeData, NodeType } from "@local/shared";
-import { NodeData, RoutineListNodeItemData } from '@local/shared';
 import { BoxProps } from '@mui/material';
+import { NodeType } from 'graphql/generated/globalTypes';
+import { Node, NodeDataRoutineListItem } from "types";
+import { BuildDialogOption } from 'utils';
 
 /**
  * Props for all nodes (besides the Add node)
  */
 export interface NodeDataProps {
-    node: NodeData;
+    node: Node;
 }
 
 /**
- * Props for all scalable objects (so every component involved with routine orchestration)
+ * Props for all scalable objects
  */
 export interface ScaleProps {
-    scale?: number;
+    scale: number;
 }
 
 /**
@@ -21,14 +22,25 @@ export interface ScaleProps {
  */
 export interface LabelledProps {
     label?: string | null;
-    labelVisible?: boolean;
+    labelVisible: boolean;
 }
 
 /**
  * Props for editable node objects
  */
 export interface EditableProps {
-    isEditable?: boolean;
+    isEditing: boolean;
+}
+
+/**
+ * Props for draggable node objects
+ */
+export interface DraggableProps {
+    isLinked: boolean; // True if node is connected to routine graph
+    /**
+    * Specified if the cell is allowed to be dragged
+    */
+    canDrag: boolean;
 }
 
 /**
@@ -40,23 +52,9 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
 }
 
 /**
- * Props for the Combine node
- */
-export interface CombineNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-
-}
-
-/**
- * Props for the Decision node
- */
-export interface DecisionNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    text?: string;
-}
-
-/**
  * Props for the End node
  */
-export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps {
+export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
 
 }
 
@@ -78,18 +76,24 @@ export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledPr
  * Props for the Routine List node
  */
 export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    onAdd: (data: RoutineListNodeItemData) => void;
+    canExpand: boolean;
+    handleNodeUnlink: (nodeId: string) => void;
+    handleNodeDelete: (nodeId: string) => void;
+    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
+    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
     /**
-     * Callback for cell resize
+     * Prompts parent to open a specific dialog
      */
-     onResize: (nodeId: string, dimensions: { width: number, height: number }) => void;
+    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
 }
 
 /**
  * Props for a Routine List's subroutine
  */
 export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, EditableProps {
-    data?: RoutineListNodeItemData;
+    nodeId: string; //ID of parent node
+    data: NodeDataRoutineListItem;
+    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
 }
 
 /**
@@ -99,11 +103,7 @@ export interface StartNodeProps extends NodeDataProps, ScaleProps, LabelledProps
 
 }
 
-export interface DraggableNodeProps extends BoxProps {
-    /**
-     * Specified if the cell is allowed to be dragged
-     */
-    draggable?: boolean;
+export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, 'isLinked'> {
     /**
      * ID of node in this cell. Used for drag events
      */

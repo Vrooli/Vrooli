@@ -10,13 +10,11 @@ import {
     AccountCircle as ProfileIcon,
     SvgIconComponent
 } from '@mui/icons-material';
-import { logOutMutation } from 'graphql/mutation';
-import { useMutation, useQuery } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import PubSub from 'pubsub-js';
-import { mutationWrapper } from 'graphql/utils/wrappers';
 import { Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
-import { useLocation, useRoute } from 'wouter';
+import { useLocation } from 'wouter';
 import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
 import { parseSearchParams } from 'utils/urlTools';
 import { profile, profile_profile } from 'graphql/generated/profile';
@@ -54,14 +52,6 @@ export function SettingsPage({
 
     const [drawerOpen, setDrawerOpen] = useState(false);
     const toggleDrawer = useCallback(() => { console.log('in toggle drawer'); setDrawerOpen(o => !o) }, [setDrawerOpen]);
-
-    const [logOut] = useMutation<any>(logOutMutation);
-    const onLogOut = useCallback(() => {
-        mutationWrapper({
-            mutation: logOut,
-        })
-        PubSub.publish(Pubs.LogOut);
-    }, []);
 
     const listItems = useMemo(() => {
         console.log('in list items', selectedPage);

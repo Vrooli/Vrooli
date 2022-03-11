@@ -1,10 +1,11 @@
-import { DialogProps, MenuProps } from '@mui/material';
+import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
 import { ReportFor } from '@local/shared';
-import { Organization, Project, Routine, Session, Standard, User } from 'types';
+import { Node, NodeDataRoutineListItem, NodeLink, Organization, Project, Routine, Session, Standard, User } from 'types';
+import { BuildDialogOption } from 'utils';
 
-export interface AlertDialogProps extends DialogProps {};
+export interface AlertDialogProps extends DialogProps { };
 
 export interface FormDialogProps {
     title: string;
@@ -54,6 +55,13 @@ export interface BaseObjectDialogProps extends DialogProps {
     onAction: (state: ObjectDialogAction) => any; // Callback when option button or close button is pressed
     children: JSX.Element | JSX.Element[];
 };
+
+export interface DeleteRoutineDialogProps {
+    handleClose: () => any;
+    handleDelete: () => any;
+    isOpen: boolean;
+    routineName: string;
+}
 
 export interface ShareDialogProps extends DialogProps {
     open: boolean;
@@ -111,7 +119,7 @@ export interface UserDialogProps {
 /**
  * All available actions an object can possibly have
  */
- export enum BaseObjectAction {
+export enum BaseObjectAction {
     Copy = 'Copy',
     Delete = "Delete",
     Donate = "Donate",
@@ -132,4 +140,40 @@ export interface BaseObjectActionDialogProps {
     anchorEl: HTMLElement | null;
     availableOptions: BaseObjectAction[];
     onClose: () => any;
+}
+
+export interface LinkDialogProps {
+    handleClose: (data: any) => void;
+    handleDelete: (link: NodeLink) => void;
+    isAdd: boolean;
+    isOpen: boolean;
+    language: string; // Language to display/edit
+    link?: NodeLink; // Link to display on open, if editing
+    routine: Routine;
+}
+
+export interface BuildInfoDialogProps {
+    handleUpdate: (routine: Routine) => any;
+    isEditing: boolean;
+    language: string; // Language to display/edit
+    routine: Routine | null;
+    session: Session;
+    sxs?: { icon: any };
+}
+
+export interface SubroutineInfoDialogProps {
+    open: boolean;
+    language: string; // Language to display/edit
+    subroutine: Routine | null;
+    onClose: () => any;
+}
+
+export interface UnlinkedNodesDialogProps {
+    open: boolean;
+    nodes: Node[];
+    handleToggleOpen: () => any; // Expand/shrink dialog
+    handleNodeDelete: (nodeId: string) => any;
+    handleNodeUnlink: (nodeId: string) => any;
+    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
+    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
 }

@@ -9,14 +9,21 @@ import { FindByIdInput } from "./globalTypes";
 // GraphQL query operation: tag
 // ====================================================
 
+export interface tag_tag_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface tag_tag {
   __typename: "Tag";
   id: string;
   tag: string;
-  description: string | null;
   created_at: any;
   stars: number;
   isStarred: boolean;
+  translations: tag_tag_translations[];
 }
 
 export interface tag {

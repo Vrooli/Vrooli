@@ -25,6 +25,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     getOptionLabel,
     onObjectSelect,
     onScrolledFar,
+    where,
+    noResultsText = 'No results',
 }: SearchListProps<DataType, SortBy>) {
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
@@ -42,7 +44,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return result;
     }, [timeFrame]);
 
-    const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after: after.current, take, sortBy, searchString, createdTimeFrame } } as any) });
+    const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after: after.current, take, sortBy, searchString, createdTimeFrame, ...where } } as any) });
     const [allData, setAllData] = useState<DataType[]>([]);
 
     // On search filters/sort change, reset the page
@@ -170,7 +172,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                             <List sx={{padding: 0}}>
                                 {listItems}
                             </List>
-                        ) : (<Typography variant="h6" textAlign="center">No results</Typography>)
+                        ) : (<Typography variant="h6" textAlign="center">{noResultsText}</Typography>)
                     )
                 }
             </Box>

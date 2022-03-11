@@ -16,6 +16,7 @@ export const StarButton = ({
     isStar = false,
     stars = 0,
     objectId,
+    showStars = true,
     starFor,
     onChange,
     tooltipPlacement = "left"
@@ -61,10 +62,10 @@ export const StarButton = ({
             <Tooltip placement={tooltipPlacement} title={tooltip}>
                 <Icon onClick={handleClick} sx={{ fill: color, cursor: session?.id ? 'pointer' : 'default' }} />
             </Tooltip>
-            <ListItemText
+            { showStars ? <ListItemText
                 primary={internalStars}
                 sx={{ ...multiLineEllipsis(1) }}
-            />
+            /> : null }
         </Stack>
     )
 }

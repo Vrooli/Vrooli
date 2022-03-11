@@ -37,7 +37,7 @@ export const SearchProjectsPage = ({
         }
         else {
             PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
-            setLocation(APP_LINKS.Start)
+            setLocation(`${APP_LINKS.Start}?redirect=${encodeURIComponent(APP_LINKS.SearchProjects)}`);
         }
     }, [session?.roles, setLocation]);
 
@@ -47,7 +47,7 @@ export const SearchProjectsPage = ({
             index={index}
             session={session}
             data={node}
-            onClick={(selected: Project) => setSelectedItem(selected)}
+            onClick={(_e, selected: Project) => setSelectedItem(selected)}
         />)
 
     return (

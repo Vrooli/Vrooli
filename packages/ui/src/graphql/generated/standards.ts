@@ -15,20 +15,38 @@ export interface standards_standards_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface standards_standards_edges_node_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface standards_standards_edges_node_tags {
   __typename: "Tag";
   id: string;
   tag: string;
+  translations: standards_standards_edges_node_tags_translations[];
+}
+
+export interface standards_standards_edges_node_translations {
+  __typename: "StandardTranslation";
+  id: string;
+  language: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+}
+
+export interface standards_standards_edges_node_creator_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
 }
 
 export interface standards_standards_edges_node_creator_Organization {
   __typename: "Organization";
   id: string;
-  name: string;
+  translations: standards_standards_edges_node_creator_Organization_translations[];
 }
 
 export interface standards_standards_edges_node_creator_User {
@@ -43,7 +61,6 @@ export interface standards_standards_edges_node {
   __typename: "Standard";
   id: string;
   name: string;
-  description: string | null;
   role: MemberRole | null;
   type: StandardType;
   schema: string;
@@ -51,6 +68,7 @@ export interface standards_standards_edges_node {
   isFile: boolean;
   created_at: any;
   tags: standards_standards_edges_node_tags[];
+  translations: standards_standards_edges_node_translations[];
   creator: standards_standards_edges_node_creator | null;
   stars: number;
   isStarred: boolean;

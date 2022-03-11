@@ -1,25 +1,36 @@
 import { gql } from 'graphql-tag';
 
 export const routineFields = gql`
-    fragment tagFields on Tag {
+    fragment routineTagFields on Tag {
         id
-        description
         tag
+        translations {
+            id
+            language
+            description
+        }
     }
     fragment routineFields on Routine {
         id
-        version
-        title
-        description
+        completedAt
         created_at
         isAutomatable
-        role
-        tags {
-            ...tagFields
-        }
-        stars
+        isInternal
+        isComplete
         isStarred
-        score
         isUpvoted
+        role
+        score
+        stars
+        tags {
+            ...routineTagFields
+        }
+        translations {
+            id
+            language
+            description
+            title
+        }
+        version
     }
 `

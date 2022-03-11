@@ -12,6 +12,7 @@ export interface guestLogIn_guestLogIn {
   id: string | null;
   theme: string;
   roles: string[];
+  languages: string[] | null;
 }
 
 export interface guestLogIn {

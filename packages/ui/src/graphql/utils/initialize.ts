@@ -28,11 +28,19 @@ const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
             console.error('GraphQL network error occurred', networkError);
         }
     });
+    // Determine origin of API server
+    let uri: string;
+    // If running locally
+    if (window.location.host.includes('localhost') || window.location.host.includes('192.168.0.')) {
+        uri = `http://${window.location.hostname}:5329/api/v1`;
+    }
+    // If running on server
+    else {
+        uri = `https://app.vrooli.com/api/v1`
+    }
     // Define link for handling file uploads
     const uploadLink = createUploadLink({
-        uri: window.location.origin.includes('localhost:') ? 
-            `http://localhost:5329/api/v1` : 
-            `https://app.vrooli.com/api/v1`,
+        uri,
         credentials: 'include'
     });
     // Define link for removing '__typename'. This field cannot be in queries or mutations, 

@@ -15,7 +15,7 @@ import {
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
-import { TagSelector } from "components";
+import { MarkdownInput, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 
 export const RoutineCreate = ({
@@ -63,7 +63,7 @@ export const RoutineCreate = ({
     const actions: DialogActionItem[] = useMemo(() => {
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
         return [
-            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting || !formik.isValid), true, () => {}],
+            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting || !formik.isValid), true, () => { }],
             ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
         ] as DialogActionItem[]
     }, [formik, onCancel, session]);
@@ -89,18 +89,25 @@ export const RoutineCreate = ({
                     />
                 </Grid>
                 <Grid item xs={12}>
-                    <TextField
-                        fullWidth
+                    <MarkdownInput
                         id="description"
-                        name="description"
-                        label="description"
-                        multiline
-                        minRows={4}
+                        placeholder="Description"
                         value={formik.values.description}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
+                        minRows={2}
+                        onChange={(newText: string) => formik.setFieldValue('description', newText)}
                         error={formik.touched.description && Boolean(formik.errors.description)}
-                        helperText={formik.touched.description && formik.errors.description}
+                        helperText={formik.touched.description ? formik.errors.description : null}
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <MarkdownInput
+                        id="instructions"
+                        placeholder="Instructions"
+                        value={formik.values.instructions}
+                        minRows={4}
+                        onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
+                        error={formik.touched.instructions && Boolean(formik.errors.instructions)}
+                        helperText={formik.touched.instructions ? formik.errors.instructions : null}
                     />
                 </Grid>
                 <Grid item xs={12} marginBottom={4}>

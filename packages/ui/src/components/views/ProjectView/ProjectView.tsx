@@ -1,8 +1,8 @@
-import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
-import { useQuery } from "@apollo/client";
-import { project } from "graphql/generated/project";
+import { useLazyQuery } from "@apollo/client";
+import { project, projectVariables } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -12,14 +12,21 @@ import {
     Person as PersonIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
-import { LabelledSortOption } from "utils";
 import { Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
+import { SearchListGenerator } from "components/lists/types";
+import { getTranslation, Pubs } from "utils";
+import Markdown from "markdown-to-jsx";
+import { validate as uuidValidate } from 'uuid';
 
-const tabLabels = ['Resources', 'Routines', 'Standards'];
+enum TabOptions {
+    Resources = "Resources",
+    Routines = "Routines",
+    Standards = "Standards",
+}
 
 export const ProjectView = ({
     session,
@@ -31,12 +38,58 @@ export const ProjectView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/view/:id`);
     const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
-    const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
+    useEffect(() => {
+        if (uuidValidate(id)) {
+            getData({ variables: { input: { id } } })
+        }
+    }, [getData, id]);
     const project = useMemo(() => data?.project, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
 
+    const { name, description, resourceList } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        const resourceLists = project?.resourceLists ?? partialData?.resourceLists ?? [];
+        return {
+            name: getTranslation(project, 'name', languages) ?? getTranslation(partialData, 'name', languages),
+            description: getTranslation(project, 'description', languages) ?? getTranslation(partialData, 'description', languages),
+            resourceList: resourceLists.length > 0 ? resourceLists[0] : null,
+        };
+    }, [project, partialData, session]);
+
+    const resources = useMemo(() => resourceList ? (
+        <ResourceListVertical
+            list={resourceList}
+            session={session}
+        />
+    ) : null, [resourceList, session]);
+
+    // Handle tabs
+    const [tabIndex, setTabIndex] = useState<number>(0);
+    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
+
+    /**
+     * Calculate which tabs to display
+     */
+    const availableTabs = useMemo(() => {
+        const tabs: TabOptions[] = [];
+        // Only display resources if there are any
+        if (resources) tabs.push(TabOptions.Resources);
+        // Always display others (for now)
+        tabs.push(TabOptions.Routines);
+        tabs.push(TabOptions.Standards);
+        return tabs;
+    }, [resources]);
+
+    const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
+
+    const shareLink = () => {
+        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Project}/${id}`);
+        PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
+    }
+
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal organization page
+        // Depends on if we're in a search popup or a normal page
         setLocation(Boolean(params?.id) ? `${APP_LINKS.Project}/${id}/edit` : `${APP_LINKS.SearchProjects}/edit/${id}`);
     }, [setLocation, id]);
 
@@ -66,69 +119,63 @@ export const ProjectView = ({
     }, []);
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
-    // Handle tabs
-    const [tabIndex, setTabIndex] = useState<number>(0);
-    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
-
     // Create search data
-    const [
-        placeholder,
-        sortOptions,
-        defaultSortOption,
-        sortOptionLabel,
-        searchQuery,
-        onSearchSelect,
-        searchItemFactory,
-    ] = useMemo<[string, LabelledSortOption<any>[], { label: string, value: any }, (o: any) => string, any, (objectData: any) => void, (node: any, index: number) => JSX.Element]>(() => {
+    const { placeholder, sortOptions, defaultSortOption, sortOptionLabel, searchQuery, where, noResultsText, onSearchSelect, searchItemFactory } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the project's set resources
-        switch (tabIndex) {
-            case 1:
-                return [
-                    "Search project's routines...",
-                    RoutineSortOptions,
-                    routineDefaultSortOption,
-                    routineOptionLabel,
-                    routinesQuery,
-                    (newValue) => openLink(APP_LINKS.Routine, newValue.id),
-                    (node: Routine, index: number) => (
+        switch (currTabType) {
+            case TabOptions.Routines:
+                return {
+                    placeholder: "Search project's routines...",
+                    noResultsText: "No routines found",
+                    sortOptions: RoutineSortOptions,
+                    defaultSortOption: routineDefaultSortOption,
+                    sortOptionLabel: routineOptionLabel,
+                    searchQuery: routinesQuery,
+                    where: { projectId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
+                    searchItemFactory: (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
+                            onClick={(_e, selected: Routine) => openLink(APP_LINKS.Run, selected.id)}
                         />)
-                ];
-            case 2:
-                return [
-                    "Search project's standards...",
-                    StandardSortOptions,
-                    standardDefaultSortOption,
-                    standardOptionLabel,
-                    standardsQuery,
-                    (newValue) => openLink(APP_LINKS.Standard, newValue.id),
-                    (node: Standard, index: number) => (
+                };
+            case TabOptions.Standards:
+                return {
+                    placeholder: "Search project's standards...",
+                    noResultsText: "No standards found",
+                    sortOptions: StandardSortOptions,
+                    defaultSortOption: standardDefaultSortOption,
+                    sortOptionLabel: standardOptionLabel,
+                    searchQuery: standardsQuery,
+                    where: { projectId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    searchItemFactory: (node: Standard, index: number) => (
                         <StandardListItem
                             key={`standard-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
+                            onClick={(_e, selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
-                ];
+                }
             default:
-                return [
-                    '',
-                    [],
-                    { label: '', value: null },
-                    () => '',
-                    null,
-                    () => { },
-                    () => (<></>)
-                ];
+                return {
+                    placeholder: '',
+                    noResultsText: '',
+                    sortOptions: [],
+                    defaultSortOption: { label: '', value: null },
+                    sortOptionLabel: (o: any) => '',
+                    searchQuery: null,
+                    where: {},
+                    onSearchSelect: (o: any) => { },
+                    searchItemFactory: (a: any, b: any) => null
+                }
         }
-    }, [tabIndex]);
+    }, [currTabType,id, session]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -187,10 +234,15 @@ export const ProjectView = ({
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
+                {/* Title */}
                 {
-                    canEdit ? (
+                    loading ? (
+                        <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : canEdit ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{project?.name ?? partialData?.name}</Typography>
+                            <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit project">
                                 <IconButton
                                     aria-label="Edit project"
@@ -202,12 +254,30 @@ export const ProjectView = ({
                             </Tooltip>
                         </Stack>
                     ) : (
-                        <Typography variant="h4" textAlign="center">{project?.name ?? partialData?.name}</Typography>
-
+                        <Typography variant="h4" textAlign="center">{name}</Typography>
                     )
                 }
-                <Typography variant="body1" sx={{ color: "#00831e" }}>{project?.created_at ? `🕔 Created ${new Date(project.created_at).toDateString()}` : ''}</Typography>
-                <Typography variant="body1" sx={{ color: project?.description ? 'black' : 'gray' }}>{project?.description ?? partialData?.description ?? 'No description set'}</Typography>
+                {/* Joined date */}
+                {
+                    loading ? (
+                        <Box sx={{ width: '33%', color: "#00831e" }}>
+                            <LinearProgress color="inherit" />
+                        </Box>
+                    ) : (
+                        <Typography variant="body1" sx={{ color: "#00831e" }}>{project?.created_at ? `🕔 Joined ${new Date(project.created_at).toDateString()}` : ''}</Typography>
+                    )
+                }
+                {/* Description */}
+                {
+                    loading ? (
+                        <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : (
+                        <Markdown>{description ?? 'No description set'}</Markdown>
+                    )
+                }
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
@@ -215,7 +285,7 @@ export const ProjectView = ({
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small" onClick={() => { }}>
+                        <IconButton aria-label="Share" size="small" onClick={shareLink}>
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
@@ -263,24 +333,22 @@ export const ProjectView = ({
                     sx={{
                         marginBottom: 1,
                         '& .MuiTabs-flexContainer': {
-                            justifyContent: 'space-between',
+                            justifyContent: 'space-around',
                         },
                     }}
                 >
-                    {tabLabels.map((label, index) => (
+                    {availableTabs.map((tabType, index) => (
                         <Tab
                             key={index}
                             id={`profile-tab-${index}`}
                             {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                            label={<span style={{ color: index === 0 ? '#8e6b00' : 'default' }}>{label}</span>}
+                            label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
                         />
                     ))}
                 </Tabs>
                 <Box p={2}>
                     {
-                        tabIndex === 0 ? (
-                            <></>
-                        ) : (
+                        currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 searchPlaceholder={placeholder}
                                 sortOptions={sortOptions}
@@ -290,6 +358,8 @@ export const ProjectView = ({
                                 searchString={searchString}
                                 sortBy={sortBy}
                                 timeFrame={timeFrame}
+                                where={where}
+                                noResultsText={noResultsText}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}
                                 setTimeFrame={setTimeFrame}

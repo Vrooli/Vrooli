@@ -1,57 +1,43 @@
 import { gql } from 'graphql-tag';
 
 export const nodeFields = gql`
-    fragment tagFields on Tag {
+    fragment nodeTagFields on Tag {
         id
-        description
         tag
+        translations {
+            id
+            language
+            description
+        }
     }
-    fragment routineFields on Routine {
+    fragment nodeRoutineFields on Routine {
         id
         version
-        title
-        description
         created_at
         isAutomatable
+        isInternal
         role
         tags {
-            ...tagFields
+            ...nodeTagFields
+        }
+        translations {
+            id
+            language
+            description
+            title
         }
     }
     fragment nodeFields on Node {
         id
+        columnIndex
         created_at
-        description
-        role
-        next
-        previous
-        title
+        rowIndex
         type
         updated_at
         data {
-            ... on NodeCombine {
-                id
-                from
-            }
-            ... on NodeDecision {
-                id
-                decisions {
-                    id
-                    description
-                    title
-                    toId
-                    when {
-                        id
-                        condition
-                    }
-                }
-            }
             ... on NodeEnd {
                 id
                 wasSuccessful
-            }
-            ... on NodeLoop {
-                id
             }
             ... on NodeRoutineList {
                 id
@@ -59,14 +45,40 @@ export const nodeFields = gql`
                 isOrdered
                 routines {
                     id
-                    title
-                    description
                     isOptional
                     routine {
-                        ...routineFields
+                        ...nodeRoutineFields
+                    }
+                    translations {
+                        id
+                        language
+                        description
+                        title
                     }
                 }
             }
+        }
+        loop {
+            id
+            loops
+            maxLoops
+            operation
+            whiles {
+                id
+                condition
+                translations {
+                    id
+                    language
+                    description
+                    title
+                }
+            }
+        }
+        translations {
+            id
+            language
+            description
+            title
         }
     }
 `

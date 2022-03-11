@@ -37,7 +37,7 @@ export const SearchRoutinesPage = ({
         }
         else {
             PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
-            setLocation(APP_LINKS.Start)
+            setLocation(`${APP_LINKS.Start}?redirect=${encodeURIComponent(APP_LINKS.SearchRoutines)}`);
         }
     }, [session?.roles, setLocation]);
 
@@ -47,7 +47,7 @@ export const SearchRoutinesPage = ({
             index={index}
             session={session}
             data={node}
-            onClick={(selected: Routine) => setSelectedItem(selected)}
+            onClick={(_e, selected: Routine) => setSelectedItem(selected)}
         />)
 
     return (

@@ -1,58 +1,109 @@
-import { NodeData } from '@local/shared';
 import { BoxProps } from '@mui/material';
-
-/**
- * Describes the data and general position of a node in the graph. 
- * A completely linear graph would have all nodes at the same level (i.e. one per column, each at row 0).
- * A column with a decision node adds ONE row to the following column FOR EACH possible decision. 
- * A column with a combine node removes ONE row from the following column FOR EACH possible combination, AND 
- * places itself in the vertical center of each combined node
- */
-export type NodePos = {
-    column: number; // column in which node is displayed
-    // rows: number; // number of rows in the column the node is displayed in
-    // pos: number; // relative position in column. 0 is top, 1 is bottom
-    node: NodeData;
-}
+import { NodeType } from 'graphql/generated/globalTypes';
+import { Node, NodeLink } from 'types';
+import { BuildDialogOption, BuildStatus } from 'utils';
 
 export interface NodeContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
-    node: NodeData;
+    node: Node;
     onClose: () => void;
-    onAddBefore: (node: NodeData) => void;
-    onAddAfter: (node: NodeData) => void;
-    onEdit: (node: NodeData) => void;
-    onDelete: (node: NodeData) => void;
-    onMove: (node: NodeData) => void;
+    onAddBefore: (node: Node) => void;
+    onAddAfter: (node: Node) => void;
+    onEdit: (node: Node) => void;
+    onDelete: (node: Node) => void;
+    onMove: (node: Node) => void;
 }
 
+export type BuildStatusObject = {
+    code: BuildStatus,
+    messages: string[],
+}
 export interface NodeGraphProps {
+    /**
+     * 2D array of nodes, by column then row
+     */
+    columns: Node[][];
     scale?: number;
-    isEditable?: boolean;
+    isEditing?: boolean;
     labelVisible?: boolean;
-    nodes?: NodeData[]
+    language: string; // Language to display/edit
+    links: NodeLink[];
+    /**
+      * Prompts parent to open a specific dialog
+      */
+    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
+    /**
+     * Moves a node to the unlinked container
+     */
+    handleNodeUnlink: (nodeId: string) => void;
+    /**
+     * Deletes a node permanently
+     */
+    handleNodeDelete: (nodeId: string) => void;
+    /**
+     * Inserts a new routine list node along an edge
+     */
+    handleNodeInsert: (link: NodeLink) => void;
+    /**
+     * Updates a node's data
+     */
+    handleNodeUpdate: (node: Node) => void;
+    /**
+     * Create a link between two nodes
+     */
+    handleLinkCreate: (link: NodeLink) => void;
+    /**
+     * Updates a link between two nodes
+     */
+    handleLinkUpdate: (link: NodeLink, data: any) => void;
+    /**
+     * Delete a link between two nodes
+     */
+    handleLinkDelete: (link: NodeLink) => void;
+    /**
+     * Adds a routine item to a routine list
+     */
+    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
+    /**
+     * Opens a subroutine info dialog
+     */
+    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
+    /**
+     * Dictionary of row and column pairs for every node ID on graph
+     */
+    nodesById: { [x: string]: Node };
 }
 
 /**
  * Props for the Node Column (a container for displaying nodes on separate branches)
  */
-export interface NodeGraphColumnProps {
+export interface NodeColumnProps {
     id?: string;
-    scale?: number;
-    isEditable?: boolean;
-    labelVisible?: boolean;
-    columnNumber: number;
-    nodes: NodeData[];
+    scale: number;
+    isEditing: boolean;
+    dragId: string | null; // ID of node being dragged. Used to display valid drop locations
+    labelVisible: boolean;
+    columnIndex: number;
+    nodes: Node[];
     /**
-    * Callback for cell resize
-    */
-    onResize: (nodeId: string, dimensions: { width: number, height: number }) => void;
+      * Prompts parent to open a specific dialog
+      */
+    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
+    handleNodeDelete: (nodeId: string) => void;
+    handleNodeUnlink: (nodeId: string) => void;
+    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
+    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
 }
 
-export interface NodeGraphEdgeProps {
-    start: { x: number, y: number };
-    end: { x: number, y: number };
-    isEditable?: boolean;
-    onAdd: any,
+export interface NodeEdgeProps {
+    link: NodeLink;
+    handleAdd: (link: NodeLink) => void; // Adding a node always creates a routine list node. Other node types are automatically added
+    handleDelete: (link: NodeLink) => void;
+    handleEdit: (link: NodeLink) => void;
+    isEditing?: boolean;
+    isFromRoutineList: boolean; // If true, puts edit button further right
+    isToRoutineList: boolean; // If true, puts edit button further left
+    dragId: string | null; // ID of node being dragged. Used to determine if 
+    scale: number; // Line thickness changes with scale
 }

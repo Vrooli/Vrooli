@@ -8,6 +8,8 @@ import { noSelect } from 'styles';
 import { DraggableNode } from '../';
 
 export const RedirectNode = ({
+    canDrag,
+    isLinked = true,
     node,
     scale = 1,
     label = 'Redirect',
@@ -20,7 +22,7 @@ export const RedirectNode = ({
         <div>TODO</div>
     ) : null, [dialogOpen])
 
-    const labelObject = useMemo(() => labelVisible ? (
+    const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
             variant="h6"
             sx={{
@@ -31,7 +33,7 @@ export const RedirectNode = ({
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [labelVisible, label, scale]);
 
     const nodeSize = useMemo(() => `${NodeWidth.Redirect * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.Redirect * scale / 5}px, 2em)`, [scale]);
@@ -47,7 +49,7 @@ export const RedirectNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <DraggableNode nodeId={node.id}>
+        <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}>
             {dialog}
             <NodeContextMenu
                 id={contextId}
@@ -62,6 +64,7 @@ export const RedirectNode = ({
             />
             <Tooltip placement={'top'} title='Redirect'>
                 <IconButton
+                    id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     className="handle"
                     onClick={openDialog}
                     aria-owns={contextOpen ? contextId : undefined}
@@ -83,6 +86,7 @@ export const RedirectNode = ({
                     }}
                 >
                     <RedirectIcon
+                        id={`${isLinked ? '' : 'unlinked-'}node-redirect-icon-${node.id}`}
                         sx={{
                             width: '100%',
                             height: '100%',

@@ -5,6 +5,7 @@ import { buildYup } from 'schema-to-yup';
  * Generate a yup schema from a form schema
  */
 export const generateYupSchema = (formSchema: FormSchema): any => {
+    if (!formSchema) return null;
     // Create shape object to describe yup validation
     const shape: YupSchema = {
         title: 'validationSchema',

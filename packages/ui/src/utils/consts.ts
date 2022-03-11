@@ -29,3 +29,28 @@ export const DragTypes = {
     Node: 'node',
 }
 export type DragTypes = ValueOf<typeof DragTypes>;
+
+/**
+ * Only routines that are valid or incomplete can be run
+ */
+ export enum BuildStatus {
+    Incomplete = 'Incomplete', // Routine would be valid, except there are unlinked nodes
+    Invalid = 'Invalid', // Something is wrong with the routine (e.g. no end node)
+    Valid = 'Valid', // The routine is valid, and all nodes are linked
+}
+
+/**
+ * Prompts Build page to open a specific dialog
+ */
+export enum BuildDialogOption {
+    AddRoutineItem,
+}
+
+/**
+ * State of build page's routine run simulation
+ */
+export enum BuildRunState {
+    Paused,
+    Running,
+    Stopped,
+}

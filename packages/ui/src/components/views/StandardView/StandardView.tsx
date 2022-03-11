@@ -16,6 +16,7 @@ import { containerShadow } from "styles";
 import { StandardViewProps } from "../types";
 import { BaseObjectActionDialog } from "components";
 import { BaseObjectAction } from "components/dialogs/types";
+import { getTranslation } from "utils";
 
 export const StandardView = ({
     session,
@@ -31,14 +32,18 @@ export const StandardView = ({
     const standard = useMemo(() => data?.standard, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(standard?.role ?? ''), [standard]);
 
-    const contributedBy = useMemo(() => {
-        if (!standard || !standard.creator) return null;
-        const creator = standard.creator;
-        if (creator.__typename === 'User') {
-            return (creator as standard_standard_creator_User).username;
-        }
-        return (creator as standard_standard_creator_Organization).name;
-    }, [standard])
+    const { contributedBy, description, name } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            contributedBy: standard?.creator ?
+                standard.creator.__typename === 'User' ? 
+                (standard?.creator as standard_standard_creator_User).username :
+                getTranslation((standard?.creator as standard_standard_creator_Organization), 'name', session?.languages ?? navigator.languages):
+                null,
+            description: getTranslation(standard, 'description', languages) ?? getTranslation(partialData, 'description', languages),
+            name: standard?.name ?? partialData?.name,
+        };
+    }, [standard, partialData, session]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -86,9 +91,9 @@ export const StandardView = ({
                 </Tooltip>
             </Stack>
             <Stack direction="column" spacing={1} mt={5}>
-                <Typography variant="h4" textAlign="center">{standard?.name ?? partialData?.name}</Typography>
+                <Typography variant="h4" textAlign="center">{name}</Typography>
                 <Typography variant="h4" textAlign="center">Submitted by: {contributedBy}</Typography>
-                <Typography variant="body1" sx={{ color: (standard?.description || partialData?.description) ? 'black' : 'gray' }}>{standard?.description ?? partialData?.description ?? 'No description set'}</Typography>
+                <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
                 <Stack direction="row" spacing={4} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small">

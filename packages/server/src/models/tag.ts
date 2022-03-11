@@ -1,241 +1,208 @@
-import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
+import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addJoinTables, counter, FormatConverter, InfoType, joinRelationshipToPrisma, MODEL_TYPES, PaginatedSearchResult, relationshipToPrisma, removeCreatorField, removeJoinTables, searcher, selectHelper, Sortable } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
-import { CODE, tagCreate, tagUpdate } from "@local/shared";
+import { CODE, tagCreate, tagTranslationCreate, tagTranslationUpdate, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
-import { tag } from "@prisma/client";
 import { StarModel } from "./star";
+import _ from "lodash";
+import { TranslationModel } from "./translation";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-/**
- * Component for formatting between graphql and prisma types
- */
-export const tagFormatter = (): FormatConverter<Tag, tag> => {
-    const joinMapper = {
-        organizations: 'tagged',
-        projects: 'tagged',
-        routines: 'tagged',
-        standards: 'tagged',
-        starredBy: 'user',
-    };
-    return {
-        toDB: (obj: RecursivePartial<Tag>): RecursivePartial<tag> => {
-            let modified = addJoinTables(obj, joinMapper)
-            // Add creator field, so we can calculate isOwn
-            modified.createdByUserId = true;
-            // Remove calculated fields
-            delete modified.isStarred;
-            delete modified.isOwn;
-            return modified
-        },
-        toGraphQL: (obj: RecursivePartial<tag>): RecursivePartial<Tag> => {
-            let modified = removeJoinTables(obj, joinMapper);
-            return modified;
+const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' };
+export const tagFormatter = (): FormatConverter<Tag> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Tag,
+        'starredBy': GraphQLModelType.User,
+    },
+    removeCalculatedFields: (partial) => {
+        let { isStarred, isOwn, ...rest } = partial;
+        // Add createdByUserId field so we can calculate isOwn
+        return { ...rest, createdByUserId: true }
+    },
+    addJoinTables: (partial) => {
+        console.log('in tag addJoinTables', partial)
+        return addJoinTablesHelper(partial, joinMapper);
+    },
+    removeJoinTables: (data) => {
+        console.log('in tag removeJoinTables', data)
+        return removeJoinTablesHelper(data, joinMapper);
+    },
+    async addSupplementalFields(
+        prisma: PrismaType,
+        userId: string | null, // Of the user making the request
+        objects: RecursivePartial<any>[],
+        partial: PartialInfo,
+    ): Promise<RecursivePartial<Tag>[]> {
+        console.log('in tag supplemental fields', partial, objects)
+        // Get all of the ids
+        const ids = objects.map(x => x.id) as string[];
+        // Query for isStarred
+        if (partial.isStarred) {
+            console.log('tag isStarred start', ids)
+            const isStarredArray = userId
+                ? await StarModel(prisma).getIsStarreds(userId, ids, 'tag')
+                : Array(ids.length).fill(false);
+            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
-    }
-}
+        // Query for isOwn
+        if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.createdByUserId === userId }));
+        // Convert Prisma objects to GraphQL objects
+        console.log('tag supplemental fields COMPLETE', objects)
+        return objects as RecursivePartial<Tag>[];
+    },
+})
 
-/**
- * Component for search filters
- */
-export const tagSorter = (): Sortable<TagSortBy> => ({
-    defaultSort: TagSortBy.AlphabeticalAsc,
+export const tagSearcher = (): Searcher<TagSearchInput> => ({
+    defaultSort: TagSortBy.StarsDesc,
     getSortQuery: (sortBy: string): any => {
         return {
-            [TagSortBy.AlphabeticalAsc]: { tag: 'asc' },
-            [TagSortBy.AlphabeticalDesc]: { tag: 'desc' },
             [TagSortBy.DateCreatedAsc]: { created_at: 'asc' },
             [TagSortBy.DateCreatedDesc]: { created_at: 'desc' },
             [TagSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
             [TagSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [TagSortBy.StarsAsc]: { starredBy: { _count: 'asc' } },
-            [TagSortBy.StarsDesc]: { starredBy: { _count: 'desc' } },
+            [TagSortBy.StarsAsc]: { stars: 'asc' },
+            [TagSortBy.StarsDesc]: { stars: 'desc' },
         }[sortBy]
     },
-    getSearchStringQuery: (searchString: string): any => {
+    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
                 { tag: { ...insensitive } },
-                { description: { ...insensitive } },
             ]
         })
-    }
+    },
+    customQueries(input: TagSearchInput): { [x: string]: any } {
+        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
+        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
+        return { ...languagesQuery, ...minStarsQuery };
+    },
 })
 
-/**
- * Handles the authorized adding, updating, and deleting of tags.
- */
-const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, prisma: PrismaType) => ({
-    /**
-     * Add, update, or remove a tag relationship from an object. 
-     * This is different than most relationship builders, as tags are a many-to-many relationship.
-     */
+export const tagVerifier = () => ({
+    profanityCheck(data: TagCreateInput | TagUpdateInput): void {
+        if (hasProfanity(data.tag)) throw new CustomError(CODE.BannedWord);
+        TranslationModel().profanityCheck(data);
+    },
+})
+
+export const tagMutater = (prisma: PrismaType, verifier: any) => ({
+    async toDBShape(userId: string | null, data: TagCreateInput | TagUpdateInput): Promise<any> {
+        return {
+            id: (data as TagUpdateInput)?.id ?? undefined,
+            name: data.tag,
+            createdByUserId: userId,
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
+        }
+    },
     async relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
+        relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
         console.log('tag relationshipBuilder', input, isAdd);
         // If any tag creates, check if they're supposed to be connects
-        if (Array.isArray(input.tagCreate)) {
+        if (Array.isArray(input[`${relationshipName}Create`])) {
             // Query for all creating tags
             const existingTags = await prisma.tag.findMany({
-                where: { tag: { in: input.tagCreate.map(c => c.tag) } },
+                where: { tag: { in: input[`${relationshipName}Create`].map((c: any) => c.tag) } },
                 select: { id: true, tag: true }
             });
             console.log('tag relationshipbuilder existingTags', existingTags);
             // All results should be connects
             const connectTags = existingTags.map(t => ({ id: t.id }));
             // All tags that didn't exist are creates
-            const createTags = input.tagCreate.filter(c => !connectTags.some(t => t.id === c.id));
-            input.tagConnect = Array.isArray(input.tagConnect) ? [...input.tagConnect, ...connectTags] : createTags;
-            input.tagCreate = createTags;
+            const createTags = input[`${relationshipName}Create`].filter((c: any) => !connectTags.some(t => t.id === c.id));
+            input[`${relationshipName}Connect`] = Array.isArray(input[`${relationshipName}Connect`]) ? [...input[`${relationshipName}Connect`], ...connectTags] : createTags;
+            input[`${relationshipName}Create`] = createTags;
         }
         // Validate create
-        if (Array.isArray(input.tagCreate)) {
-            for (const tag of input.tagCreate) {
+        if (Array.isArray(input[`${relationshipName}Create`])) {
+            for (const tag of input[`${relationshipName}Create`]) {
                 // Check for valid arguments
-                tagCreate.validateSync(input, { abortEarly: false });
+                tagCreate.validateSync(tag, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(tag.tag, tag.description)) throw new CustomError(CODE.BannedWord);
+                verifier.profanityCheck(tag as TagCreateInput);
             }
         }
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
-        let formattedInput = joinRelationshipToPrisma(input, 'tags', 'tag', isAdd, [], false);
-        delete formattedInput.update;
-        delete formattedInput.delete;
+        let formattedInput = joinRelationshipToPrisma({ data: input, relationshipName, joinFieldName: 'tag', isAdd, relExcludes: [RelationshipTypes.update, RelationshipTypes.delete] })
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
-    async find(
-        userId: string | null | undefined, // Of the user making the request, not the tag's creator
-        input: FindByIdInput,
-        info: InfoType = null,
-    ): Promise<RecursivePartial<Tag> | null> {
-        // Create selector
-        const select = selectHelper<Tag, tag>(info, format.toDB);
-        // Access database
-        let tag = await prisma.tag.findUnique({ where: { id: input.id }, ...select });
-        // Return tag with "isStarred" field. This must be queried separately.
-        if (!tag) throw new CustomError(CODE.InternalError, 'Tag not found');
-        // Format and add supplemental/calculated fields
-        const formatted = await this.supplementalFields(userId, [format.toGraphQL(tag)], {});
-        return formatted[0];
-    },
-    async search(
-        where: { [x: string]: any },
-        userId: string | null | undefined,
-        input: TagSearchInput,
-        info: InfoType = null,
-    ): Promise<PaginatedSearchResult> {
-        // If myId or hidden specified, limit results.
-        let idsLimit: string[] | undefined = undefined;
-        // Looking for tags the requesting user has starred
-        if (userId && input.myTags) {
-            idsLimit = (await prisma.star.findMany({
-                where: {
-                    AND: [
-                        { byId: userId },
-                        { NOT: { tagId: null } }
-                    ]
-                }
-            })).map(s => s.tagId).filter(s => s !== null) as string[];
+    async validateMutations({
+        userId, createMany, updateMany, deleteMany
+    }: ValidateMutationsInput<TagCreateInput, TagUpdateInput>): Promise<void> {
+        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if (createMany) {
+            createMany.forEach(input => tagCreate.validateSync(input, { abortEarly: false }));
+            createMany.forEach(input => verifier.profanityCheck(input));
+            // Check for max tags on object TODO
         }
-        // Looking for tags the requesting user has hidden
-        else if (userId && input.hidden) {
-            idsLimit = (await prisma.user_tag_hidden.findMany({
-                where: { userId }
-            })).map(s => s.tagId).filter(s => s !== null) as string[]
+        if (updateMany) {
+            updateMany.forEach(input => tagUpdate.validateSync(input, { abortEarly: false }));
+            updateMany.forEach(input => verifier.profanityCheck(input));
         }
-        // Search
-        const search = searcher<TagSortBy, TagSearchInput, Tag, tag>(MODEL_TYPES.Tag, format.toDB, format.toGraphQL, sort, prisma);
-        let searchResults = await search.search({ ...where }, { ...input, ids: idsLimit }, info);
-        // Format and add supplemental/calculated fields to each result node
-        let formattedNodes = searchResults.edges.map(({ node }) => node);
-        formattedNodes = await this.supplementalFields(userId, formattedNodes, {});
-        return { pageInfo: searchResults.pageInfo, edges: searchResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
     },
-    async create(
-        userId: string,
-        input: TagCreateInput,
-        info: InfoType = null,
-    ): Promise<RecursivePartial<Tag>> {
-        // Check for valid arguments
-        tagCreate.validateSync(input, { abortEarly: false });
-        // Check for censored words
-        if (hasProfanity(input.tag, input.description)) throw new CustomError(CODE.BannedWord);
-        // Create tag data
-        let tagData: { [x: string]: any } = { name: input.tag, description: input.description, createdByUserId: userId };
-        // Create tag
-        const tag = await prisma.tag.create({
-            data: tagData,
-            ...selectHelper<Tag, tag>(info, format.toDB)
-        })
-        // Return tag with "isStarred" and "isOwn" fields. This will be its default value.
-        return { ...format.toGraphQL(tag), isStarred: false, isOwn: true };
-    },
-    async update(
-        userId: string,
-        input: TagUpdateInput,
-        info: InfoType = null,
-    ): Promise<RecursivePartial<Tag>> {
-        // Check for valid arguments
-        tagUpdate.validateSync(input, { abortEarly: false });
-        // Check for censored words
-        if (hasProfanity(input.tag, input.description)) throw new CustomError(CODE.BannedWord);
-        // Create tag data
-        let tagData: { [x: string]: any } = { name: input.tag, description: input.description };
-        // Update tag
-        const tag = await prisma.tag.update({
-            where: { createdByUserId: userId },
-            data: tagData,
-            ...selectHelper<Tag, tag>(info, format.toDB)
-        });
-        // Format and add supplemental/calculated fields
-        const formatted = await this.supplementalFields(userId, [format.toGraphQL(tag)], {});
-        return formatted[0];
-    },
-    async deleteMany(userId: string, input: DeleteManyInput): Promise<Count> {
-        // Find
-        const tags = await prisma.tag.findMany({
-            where: { id: { in: input.ids } },
-        })
-        if (!tags || tags.length === 0) throw new CustomError(CODE.NotFound, "Tags not found");
-        if (tags.some(t => t.createdByUserId !== userId)) throw new CustomError(CODE.Unauthorized, "You can't delete tags you didn't create");
-        // Delete
-        return await prisma.tag.deleteMany({
-            where: { id: { in: tags.map(t => t.id) } },
-        });
-    },
-    /**
-     * Supplemental fields are isOwn and isStarred
-     */
-    async supplementalFields(
-        userId: string | null | undefined, // Of the user making the request
-        objects: RecursivePartial<Tag & { createdByUserId: string | null }>[],
-        known: { [x: string]: any[] }, // Known values (i.e. don't need to query), in same order as objects
-    ): Promise<RecursivePartial<Tag>[]> {
-        // If userId not provided, return the input with isOwn false
-        if (!userId) return objects.map(x => ({ ...x, isOwn: false, isStarred: false }));
-        // Get all of the ids
-        const ids = objects.map(x => x.id) as string[];
-        // Check if isStarred is provided
-        if (known.isStarred) objects = objects.map((x, i) => ({ ...x, isStarred: known.isStarred[i] }));
-        // Otherwise, query for isStarred
-        else {
-            const isStarredArray = await StarModel(prisma).getIsStarreds(userId, ids, 'tag');
-            objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+    async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
+        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
+        // Perform mutations
+        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
+        if (createMany) {
+            // Loop through each create input
+            for (const input of createMany) {
+                // Call createData helper function
+                const data = await this.toDBShape(input.anonymous ? null : userId, input);
+                // Create object
+                const currCreated = await prisma.tag.create({ data, ...selectHelper(partial) });
+                // Convert to GraphQL
+                const converted = modelToGraphQL(currCreated, partial);
+                // Add to created array
+                created = created ? [...created, converted] : [converted];
+            }
         }
-        // Check is isOwn is provided
-        if (known.isOwn) objects = objects.map((x, i) => ({ ...x, isOwn: known.isOwn[i] }));
-        // Otherwise, query for isOwn
-        else objects = objects.map((x) => ({ ...x, isOwn: x.createdByUserId === userId }));
-        return objects;
+        if (updateMany) {
+            // Loop through each update input
+            for (const input of updateMany) {
+                // Call createData helper function
+                const data = await this.toDBShape(input.anonymous ? null : userId, input);
+                // Find in database
+                let object = await prisma.tag.findFirst({
+                    where: { id: input.id, createdByUserId: userId },
+                })
+                if (!object) throw new CustomError(CODE.ErrorUnknown);
+                // Update object
+                const currUpdated = await prisma.tag.update({
+                    where: { createdByUserId: userId },
+                    data,
+                    ...selectHelper(partial)
+                });
+                // Convert to GraphQL
+                const converted = modelToGraphQL(currUpdated, partial);
+                // Add to updated array
+                updated = updated ? [...updated, converted] : [converted];
+            }
+        }
+        if (deleteMany) {
+            const tags = await prisma.tag.findMany({
+                where: { id: { in: deleteMany } },
+            })
+            if (tags.some(t => t.createdByUserId !== userId)) throw new CustomError(CODE.Unauthorized, "You can't delete tags you didn't create");
+            deleted = await prisma.tag.deleteMany({
+                where: { id: { in: tags.map(t => t.id) } },
+            });
+        }
+        return {
+            created: createMany ? created : undefined,
+            updated: updateMany ? updated : undefined,
+            deleted: deleteMany ? deleted : undefined,
+        };
     },
 })
 
@@ -248,24 +215,22 @@ const tagger = (format: FormatConverter<Tag, tag>, sort: Sortable<TagSortBy>, pr
 //==============================================================
 
 export function TagModel(prisma: PrismaType) {
-    const model = MODEL_TYPES.Tag;
+    const prismaObject = prisma.tag;
     const format = tagFormatter();
-    const sort = tagSorter();
+    const search = tagSearcher();
+    const verify = tagVerifier();
+    const mutate = tagMutater(prisma, verify);
 
     return {
         prisma,
-        model,
+        prismaObject,
         ...format,
-        ...sort,
-        ...counter<TagCountInput>(model, prisma),
-        ...tagger(format, sort, prisma),
+        ...search,
+        ...verify,
+        ...mutate,
     }
 }
 
-
-function AddCreatorField(modified: any): any {
-    throw new Error("Function not implemented.");
-}
 //==============================================================
 /* #endregion Model */
 //==============================================================

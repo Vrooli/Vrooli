@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, UserSortBy } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton } from '..';
-import { LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
 import { User } from 'types';
 import { Person as PersonIcon } from '@mui/icons-material';
 
@@ -34,9 +34,16 @@ export const ActorListItem = ({
 
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
 
-    const handleClick = useCallback(() => {
+    const { bio } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            bio: getTranslation(data, 'bio', languages, true),
+        }
+    }, [data, session]);
+
+    const handleClick = useCallback((e: any) => {
         // If onClick provided, call it
-        if (onClick) onClick(data);
+        if (onClick) onClick(e, data);
         // Otherwise, navigate to the actor's profile
         else setLocation(`${APP_LINKS.User}/${data.id}`)
     }, [onClick, data, setLocation]);
@@ -76,7 +83,7 @@ export const ActorListItem = ({
                             sx={{ ...multiLineEllipsis(1) }}
                         />
                         <ListItemText
-                            primary={data.bio}
+                            primary={bio}
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                     </Stack>

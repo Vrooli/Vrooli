@@ -5,11 +5,13 @@ import * as Auth from './auth';
 import * as Comment from './comment';
 import * as Email from './email';
 import * as Feedback from './feedback';
+import * as Log from './log';
 import * as Node from './node';
 import * as Organization from './organization';
 import * as Project from './project';
 import * as Report from './report';
 import * as Resource from './resource';
+import * as ResourceList from './resourceList';
 import * as Role from './role';
 import * as Routine from './routine';
 import * as Standard from './standard';
@@ -19,8 +21,8 @@ import * as User from './user';
 import * as Vote from './vote';
 
 const models = [
-    Root, Auth, Comment, Email, Feedback, Node,
-    Organization, Project, Report, Resource, Role,
+    Root, Auth, Comment, Email, Feedback, Log, Node,
+    Organization, Project, Report, Resource, ResourceList, Role,
     Routine, Standard, Star, Tag, User, Vote
 ]
 

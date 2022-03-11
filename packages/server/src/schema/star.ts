@@ -1,11 +1,11 @@
 import { gql } from 'apollo-server-express';
-import { CODE, StarFor } from '@local/shared';
+import { CODE } from '@local/shared';
 import { CustomError } from '../error';
-import { StarInput, Success } from './types';
+import { StarFor, StarInput, Success } from './types';
 import { IWrap } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { StarModel } from '../models';
+import { GraphQLModelType, StarModel } from '../models';
 
 export const typeDef = gql`
     enum StarFor {
@@ -18,12 +18,16 @@ export const typeDef = gql`
         User
     }   
 
-    union Stars = Comment | Organization | Project | Routine | Standard | Tag
+    union StarTo = Comment | Organization | Project | Routine | Standard | Tag
 
     input StarInput {
         isStar: Boolean!
         starFor: StarFor!
         forId: ID!
+    }
+    type Star {
+        from: User!
+        to: StarTo!
     }
 
     extend type Mutation {
@@ -33,21 +37,13 @@ export const typeDef = gql`
 
 export const resolvers = {
     StarFor: StarFor,
-    Stars: {
+    Star: {
         __resolveType(obj: any) {
-            console.log('IN STAR __resolveType', obj);
-            console.log('IN Contributor __resolveType', obj);
-            // Only an Organization has a name and bio field
-            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('bio')) return 'Organization';
-            // Only a Project has a name and description field
-            if (obj.hasOwnProperty('name') && obj.hasOwnProperty('description')) return 'Project';
-            // Only a Routine has a title and description field
-            if (obj.hasOwnProperty('title') && obj.hasOwnProperty('description')) return 'Routine';
-            // Only a Standard has an isFile field
-            if (obj.hasOwnProperty('isFile')) return 'Standard';
-            // Only a user has a username field
-            if (obj.hasOwnProperty('username')) return 'User';
-            return null; // GraphQLError is thrown
+            if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
+            if (obj.hasOwnProperty('username')) return GraphQLModelType.User;
+            if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
+            if (obj.hasOwnProperty('isOpenToNewMembers')) return GraphQLModelType.Organization;
+            return GraphQLModelType.Routine;
         },
     },
     Mutation: {

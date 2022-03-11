@@ -12,6 +12,7 @@ import { ReportUpdateInput } from "./globalTypes";
 export interface reportUpdate_reportUpdate {
   __typename: "Report";
   id: string | null;
+  language: string;
   reason: string;
   details: string | null;
   isOwn: boolean;

@@ -59,15 +59,45 @@ export const CODE = {
         message: 'Reset code expired or invalid. Sending a new code to your email.',
         snack: 'Invalid reset code',
     },
+    LineBreaksBio: {
+        code: 'TooManyLineBreaks',
+        message: 'Bio cannot have more than 2 line breaks',
+        snack: 'Too many line breaks in bio',
+    },
+    LineBreaksDescription: {
+        code: 'TooManyLineBreaks',
+        message: 'Description cannot have more than 2 line breaks',
+        snack: 'Too many line breaks in description',
+    },
     MaxNodesReached: {
         code: 'MaxNodesReached',
         message: 'Maximum number of nodes reached for routine. This limit has been set to an extreme value. If you believe this is a mistake, please contact us.',
         snack: 'Max nodes reached',
     },
+    MaxOrganizationsReached: {
+        code: 'MaxOrganizationsReached',
+        message: 'To prevent spam, users cannot own more than 100 organizations. If you think this is a mistake, please contact us',
+        snack: 'Max organizations reached',
+    },
+    MaxProjectsReached: {
+        code: 'MaxProjectsReached',
+        message: 'To prevent spam, users cannot own more than 100 projects. If you think this is a mistake, please contact us',
+        snack: 'Max projects reached',
+    },
+    MaxRoutinesReached: {
+        code: 'MaxRoutineReached',
+        message: 'To prevent spam, users cannot own more than 100 routines. If you think this is a mistake, please contact us',
+        snack: 'Max routines reached',
+    },
     MustResetPassword: {
         code: 'MustResetPassword',
         message: 'Before signing in, please follow the link sent to your email to change your password.',
         snack: 'Must reset password',
+    },
+    NodeDuplicatePosition: {
+        code: 'NodeDuplicatePosition',
+        message: 'Nodes with duplicate row and column positions are not allowed',
+        snack: 'Duplicate node position detected',
     },
     NonceExpired: {
         code: 'NonceExpired',

@@ -1,12 +1,53 @@
 import { CODE, StarFor } from "@local/shared";
 import { CustomError } from "../error";
-import { StarInput } from "schema/types";
+import { Star, StarInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { BaseType } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
+import _ from "lodash";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
+
+export const starFormatter = (): FormatConverter<Star> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Star,
+        'from': GraphQLModelType.User,
+        'to': {
+            'Comment': GraphQLModelType.Comment,
+            'Organization': GraphQLModelType.Organization,
+            'Project': GraphQLModelType.Project,
+            'Routine': GraphQLModelType.Routine,
+            'Standard': GraphQLModelType.Standard,
+            'Tag': GraphQLModelType.Tag,
+            'User': GraphQLModelType.User,
+        }
+    },
+    constructUnions: (data) => {
+        let { comment, organization, project, routine, standard, tag, user, ...modified } = data;
+        if (comment) modified.to = comment;
+        else if (organization) modified.to = organization;
+        else if (project) modified.to = project;
+        else if (routine) modified.to = routine;
+        else if (standard) modified.to = standard;
+        else if (tag) modified.to = tag;
+        else if (user) modified.to = user;
+        console.log('starFormatter.toGraphQL finished', modified);
+        return modified;
+    },
+    deconstructUnions: (partial) => {
+        let modified = deconstructUnion(partial, 'to', [
+            [GraphQLModelType.Comment, 'comment'],
+            [GraphQLModelType.Organization, 'organization'],
+            [GraphQLModelType.Project, 'project'],
+            [GraphQLModelType.Routine, 'routine'],
+            [GraphQLModelType.Standard, 'standard'],
+            [GraphQLModelType.Tag, 'tag'],
+            [GraphQLModelType.User, 'user'],
+        ]);
+        return modified;
+    },
+})
 
 const forMapper = {
     [StarFor.Comment]: 'comment',
@@ -27,7 +68,7 @@ const starrer = (prisma: PrismaType) => ({
     async star(userId: string, input: StarInput): Promise<boolean> {
         console.log('going to star', input)
         // Define prisma type for object being starred
-        const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as BaseType);
+        const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as any);
         console.log('prismaFor', prismaFor)
         // Check if object being starred exists
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
@@ -75,12 +116,24 @@ const starrer = (prisma: PrismaType) => ({
         ids: string[],
         starFor: StarFor
     ): Promise<boolean[]> {
+        // Create result array that is the same length as ids
+        console.log('in getisstarreds', userId, ids, starFor)
+        const result = new Array(ids.length).fill(false); //TODO something wrong with this method. not getting isstarred on tags again
+        // Filter out nulls and undefineds from ids
+        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
+        console.log('ids filtered', idsFiltered)
         const fieldName = `${starFor.toLowerCase()}Id`;
-        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, [fieldName]: { in: ids } } });
-        return ids.map(id => {
-            const isStarred = isStarredArray.find((star: any) => star[fieldName] === id);
-            return Boolean(isStarred);
-        });
+        const isStarredArray = await prisma.star.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+        console.log('isStarredArray', isStarredArray)
+        // Replace the nulls in the result array with true or false
+        for (let i = 0; i < ids.length; i++) {
+            // check if this id is in isStarredArray
+            if (ids[i] !== null && ids[i] !== undefined && 
+                isStarredArray.find((star: any) => star[fieldName] === ids[i])) {
+                result[i] = true;
+            }
+        }
+        return result;
     },
 })
 
@@ -93,8 +146,13 @@ const starrer = (prisma: PrismaType) => ({
 //==============================================================
 
 export function StarModel(prisma: PrismaType) {
+    const prismaObject = prisma.star;
+    const format = starFormatter();
+
     return {
         prisma,
+        prismaObject,
+        ...format,
         ...starrer(prisma),
     }
 }

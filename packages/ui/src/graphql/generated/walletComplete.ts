@@ -14,6 +14,7 @@ export interface walletComplete_walletComplete_session {
   id: string | null;
   theme: string;
   roles: string[];
+  languages: string[] | null;
 }
 
 export interface walletComplete_walletComplete {

@@ -1,16 +1,12 @@
 import { gql } from 'apollo-server-express';
-import { CODE, MemberRole, OrganizationSortBy } from '@local/shared';
-import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult } from './types';
+import { DeleteOneInput, FindByIdInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, Success, OrganizationSearchResult, OrganizationSortBy, MemberRole } from './types';
 import { Context } from '../context';
-import { OrganizationModel } from '../models';
+import { countHelper, createHelper, deleteOneHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     enum OrganizationSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
@@ -26,31 +22,32 @@ export const typeDef = gql`
     }
 
     input OrganizationCreateInput {
-        bio: String
-        name: String!
-        resourcesCreate: [ResourceCreateInput!]
+        isOpenToNewMembers: Boolean
+        resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsCreate: [OrganizationTranslationCreateInput!]
     }
     input OrganizationUpdateInput {
         id: ID!
-        bio: String
-        name: String
+        isOpenToNewMembers: Boolean
         membersConnect: [ID!]
         membersDisconnect: [ID!]
-        resourcesDelete: [ID!]
-        resourcesCreate: [ResourceCreateInput!]
-        resourcesUpdate: [ResourceUpdateInput!]
+        resourceListsDelete: [ID!]
+        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListsUpdate: [ResourceListUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsDelete: [ID!]
+        translationsCreate: [OrganizationTranslationCreateInput!]
+        translationsUpdate: [OrganizationTranslationUpdateInput!]
     }
     type Organization {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        bio: String
-        name: String!
+        isOpenToNewMembers: Boolean!
         stars: Int!
         isStarred: Boolean!
         role: MemberRole
@@ -58,12 +55,31 @@ export const typeDef = gql`
         members: [Member!]!
         projects: [Project!]!
         reports: [Report!]!
-        resources: [Resource!]!
+        resourceLists: [ResourceList!]!
         routines: [Routine!]!
         routinesCreated: [Routine!]!
         starredBy: [User!]!
         tags: [Tag!]!
+        translations: [OrganizationTranslation!]!
         wallets: [Wallet!]!
+    }
+
+    input OrganizationTranslationCreateInput {
+        language: String!
+        bio: String
+        name: String!
+    }
+    input OrganizationTranslationUpdateInput {
+        id: ID!
+        language: String
+        bio: String
+        name: String
+    }
+    type OrganizationTranslation {
+        id: ID!
+        language: String!
+        bio: String
+        name: String!
     }
 
     type Member {
@@ -72,18 +88,24 @@ export const typeDef = gql`
     }
 
     input OrganizationSearchInput {
-        userId: ID
-        projectId: ID
-        routineId: ID
-        standardId: ID
-        reportId: ID
-        ids: [ID!]
-        sortBy: OrganizationSortBy
-        createdTimeFrame: TimeFrame
-        updatedTimeFrame: TimeFrame
-        searchString: String
         after: String
+        createdTimeFrame: TimeFrame
+        ids: [ID!]
+        isOpenToNewMembers: Boolean
+        languages: [String!]
+        minStars: Int
+        projectId: ID
+        reportId: ID
+        resourceLists: [String!]
+        resourceTypes: [ResourceUsedFor!]
+        routineId: ID
+        searchString: String
+        standardId: ID
+        sortBy: OrganizationSortBy
+        tags: [String!]
         take: Int
+        updatedTimeFrame: TimeFrame
+        userId: ID
     }
 
     # Return type for search result
@@ -122,40 +144,24 @@ export const resolvers = {
     MemberRole: MemberRole,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
-            const data = await OrganizationModel(prisma).find(req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readOneHelper(req.userId, input, info, OrganizationModel(prisma));
         },
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
-            const data = await OrganizationModel(prisma).search({}, req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readManyHelper(req.userId, input, info, OrganizationModel(prisma));
         },
         organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return await OrganizationModel(prisma).count({}, input);
+            return countHelper(input, OrganizationModel(prisma));
         },
     },
     Mutation: {
         organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            const created = await OrganizationModel(prisma).create(req.userId, input, info);
-            if (!created) throw new CustomError(CODE.ErrorUnknown);
-            return created;
+            return createHelper(req.userId, input, info, OrganizationModel(prisma));
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Update object
-            const updated = await OrganizationModel(prisma).update(req.userId, input, info);
-            if (!updated) throw new CustomError(CODE.ErrorUnknown);
-            return updated;
+            return updateHelper(req.userId, input, info, OrganizationModel(prisma));
         },
         organizationDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await OrganizationModel(prisma).delete(req.userId, input);
+            return deleteOneHelper(req.userId, input, OrganizationModel(prisma));
         },
     }
 }

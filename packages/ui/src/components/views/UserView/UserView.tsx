@@ -1,4 +1,4 @@
-import { Box, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery, useMutation } from "@apollo/client";
@@ -12,14 +12,23 @@ import {
     Person as PersonIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { LabelledSortOption } from "utils";
+import { getTranslation, Pubs } from "utils";
 import { Organization, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
+import { SearchListGenerator } from "components/lists/types";
+import Markdown from "markdown-to-jsx";
+import { validate as uuidValidate } from 'uuid';
 
-const tabLabels = ['Resources', 'Organizations', 'Projects', 'Routines', 'Standards'];
+enum TabOptions {
+    Resources = "Resources",
+    Organizations = "Organizations",
+    Projects = "Projects",
+    Routines = "Routines",
+    Standards = "Standards",
+}
 
 export const UserView = ({
     session,
@@ -35,11 +44,52 @@ export const UserView = ({
     }, [isProfile, params2, session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery);
     const user = useMemo(() => isProfile ? partialData : data?.user, [data]);
     useEffect(() => {
-        if (id && !isProfile) getData();
+        if (uuidValidate(id) && !isProfile) getData({ variables: { input: { id } } })
     }, [getData, id, isProfile]);
+
+    const { bio, username, resourceList } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        const resourceLists = (user as any)?.resourceLists ?? (partialData as any)?.resourceLists ?? [];
+        return {
+            bio: getTranslation(user, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
+            username: user?.username ?? partialData?.username,
+            resourceList: resourceLists.length > 0 ? resourceLists[0] : null,
+        };
+    }, [user, partialData, session]);
+
+    const resources = useMemo(() => resourceList ? (
+        <ResourceListVertical
+            list={resourceList}
+            session={session}
+        />
+    ) : null, [resourceList, session]);
+
+    // Handle tabs
+    const [tabIndex, setTabIndex] = useState<number>(0);
+    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
+
+    /**
+     * Calculate which tabs to display
+     */
+    const availableTabs = useMemo(() => {
+        const tabs: TabOptions[] = [];
+        // Only display resources if there are any
+        if (resources) tabs.push(TabOptions.Resources);
+        // Always display others (for now)
+        tabs.push(TabOptions.Routines);
+        tabs.push(TabOptions.Standards);
+        return tabs;
+    }, [resources]);
+
+    const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
+
+    const shareLink = () => {
+        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.User}/${id}`);
+        PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
+    }
 
     console.log('isProfile', isProfile, id);
 
@@ -65,103 +115,101 @@ export const UserView = ({
         return options;
     }, [user, isOwn, session]);
 
-    // Handle tabs
-    const [tabIndex, setTabIndex] = useState<number>(0);
-    const handleTabChange = (event, newValue) => { setTabIndex(newValue) };
-
     // Create search data
-    const [
-        placeholder,
-        sortOptions,
-        defaultSortOption,
-        sortOptionLabel,
-        searchQuery,
-        onSearchSelect,
-        searchItemFactory,
-    ] = useMemo<[string, LabelledSortOption<any>[], { label: string, value: any }, (o: any) => string, any, (objectData: any) => void, (node: any, index: number) => JSX.Element]>(() => {
+    const { placeholder, sortOptions, defaultSortOption, sortOptionLabel, searchQuery, where, noResultsText, onSearchSelect, searchItemFactory } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the user's set resources
-        switch (tabIndex) {
-            case 1:
-                return [
-                    "Search user's organizations...",
-                    OrganizationSortOptions,
-                    organizationDefaultSortOption,
-                    organizationOptionLabel,
-                    organizationsQuery,
-                    (newValue) => openLink(APP_LINKS.Organization, newValue.id),
-                    (node: Organization, index: number) => (
+        switch (currTabType) {
+            case TabOptions.Organizations:
+                return {
+                    placeholder: "Search user's organizations...",
+                    noResultsText: "No organizations found",
+                    sortOptions: OrganizationSortOptions,
+                    defaultSortOption: organizationDefaultSortOption,
+                    sortOptionLabel: organizationOptionLabel,
+                    searchQuery: organizationsQuery,
+                    where: { userId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Organization, newValue.id),
+                    searchItemFactory: (node: Organization, index: number) => (
                         <OrganizationListItem
                             key={`organization-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Organization) => openLink(APP_LINKS.Organization, selected.id)}
+                            onClick={(_e, selected: Organization) => openLink(APP_LINKS.Organization, selected.id)}
                         />)
-                ];
-            case 2:
-                return [
-                    "Search user's projects...",
-                    ProjectSortOptions,
-                    projectDefaultSortOption,
-                    projectOptionLabel,
-                    projectsQuery,
-                    (newValue) => openLink(APP_LINKS.Project, newValue.id),
-                    (node: Project, index: number) => (
+                }
+            case TabOptions.Projects:
+                return {
+                    placeholder: "Search user's projects...",
+                    noResultsText: "No projects found",
+                    sortOptions: ProjectSortOptions,
+                    defaultSortOption: projectDefaultSortOption,
+                    sortOptionLabel: projectOptionLabel,
+                    searchQuery: projectsQuery,
+                    where: { userId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
+                    searchItemFactory: (node: Project, index: number) => (
                         <ProjectListItem
                             key={`project-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Project) => openLink(APP_LINKS.Project, selected.id)}
+                            onClick={(_e, selected: Project) => openLink(APP_LINKS.Project, selected.id)}
                         />)
-                ];
-            case 3:
-                return [
-                    "Search user's routines...",
-                    RoutineSortOptions,
-                    routineDefaultSortOption,
-                    routineOptionLabel,
-                    routinesQuery,
-                    (newValue) => openLink(APP_LINKS.Routine, newValue.id),
-                    (node: Routine, index: number) => (
+                }
+            case TabOptions.Routines:
+                return {
+                    placeholder: "Search user's routines...",
+                    noResultsText: "No routines found",
+                    sortOptions: RoutineSortOptions,
+                    defaultSortOption: routineDefaultSortOption,
+                    sortOptionLabel: routineOptionLabel,
+                    searchQuery: routinesQuery,
+                    where: { userId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
+                    searchItemFactory: (node: Routine, index: number) => (
                         <RoutineListItem
                             key={`routine-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Routine) => openLink(APP_LINKS.Routine, selected.id)}
+                            onClick={(_e, selected: Routine) => openLink(APP_LINKS.Run, selected.id)}
                         />)
-                ];
-            case 4:
-                return [
-                    "Search user's standards...",
-                    StandardSortOptions,
-                    standardDefaultSortOption,
-                    standardOptionLabel,
-                    standardsQuery,
-                    (newValue) => openLink(APP_LINKS.Standard, newValue.id),
-                    (node: Standard, index: number) => (
+                }
+            case TabOptions.Standards:
+                return {
+                    placeholder: "Search user's standards...",
+                    noResultsText: "No standards found",
+                    sortOptions: StandardSortOptions,
+                    defaultSortOption: standardDefaultSortOption,
+                    sortOptionLabel: standardOptionLabel,
+                    searchQuery: standardsQuery,
+                    where: { userId: id },
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
+                    searchItemFactory: (node: Standard, index: number) => (
                         <StandardListItem
                             key={`standard-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
+                            onClick={(_e, selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
                         />)
-                ];
+                }
             default:
-                return [
-                    '',
-                    [],
-                    { label: '', value: null },
-                    () => '',
-                    null,
-                    () => { },
-                    () => (<></>)
-                ];
+                return {
+                    placeholder: '',
+                    noResultsText: '',
+                    sortOptions: [],
+                    defaultSortOption: { label: '', value: null },
+                    sortOptionLabel: (o: any) => '',
+                    searchQuery: null,
+                    where: {},
+                    onSearchSelect: (o: any) => { },
+                    searchItemFactory: (a: any, b: any) => null
+                }
         }
-    }, [tabIndex]);
+    }, [currTabType, id, session]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -228,10 +276,15 @@ export const UserView = ({
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
+                {/* Title */}
                 {
-                    isOwn ? (
+                    loading ? (
+                        <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : isOwn ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{user?.username ?? partialData?.username}</Typography>
+                            <Typography variant="h4" textAlign="center">{username}</Typography>
                             <Tooltip title="Edit profile">
                                 <IconButton
                                     aria-label="Edit profile"
@@ -243,12 +296,30 @@ export const UserView = ({
                             </Tooltip>
                         </Stack>
                     ) : (
-                        <Typography variant="h4" textAlign="center">{user?.username ?? partialData?.username}</Typography>
-
+                        <Typography variant="h4" textAlign="center">{username}</Typography>
                     )
                 }
-                <Typography variant="body1" sx={{ color: "#00831e" }}>{user?.created_at ? `🕔 Joined ${new Date(user.created_at).toDateString()}` : ''}</Typography>
-                <Typography variant="body1" sx={{ color: user?.bio ? 'black' : 'gray' }}>{user?.bio ?? partialData?.bio ?? 'No bio set'}</Typography>
+                {/* Joined date */}
+                {
+                    loading ? (
+                        <Box sx={{ width: '33%', color: "#00831e" }}>
+                            <LinearProgress color="inherit" />
+                        </Box>
+                    ) : (
+                        <Typography variant="body1" sx={{ color: "#00831e" }}>{user?.created_at ? `🕔 Joined ${new Date(user.created_at).toDateString()}` : ''}</Typography>
+                    )
+                }
+                {/* Description */}
+                {
+                    loading ? (
+                        <Stack sx={{ width: '85%', color: 'grey.500' }} spacing={2}>
+                            <LinearProgress color="inherit" />
+                            <LinearProgress color="inherit" />
+                        </Stack>
+                    ) : (
+                        <Markdown>{bio ?? 'No bio set'}</Markdown>
+                    )
+                }
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Tooltip title="Donate">
                         <IconButton aria-label="Donate" size="small" onClick={() => { }}>
@@ -256,7 +327,7 @@ export const UserView = ({
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Share">
-                        <IconButton aria-label="Share" size="small" onClick={() => { }}>
+                        <IconButton aria-label="Share" size="small" onClick={shareLink}>
                             <ShareIcon />
                         </IconButton>
                     </Tooltip>
@@ -304,24 +375,22 @@ export const UserView = ({
                     sx={{
                         marginBottom: 1,
                         '& .MuiTabs-flexContainer': {
-                            justifyContent: 'space-between',
+                            justifyContent: 'space-around',
                         },
                     }}
                 >
-                    {tabLabels.map((label, index) => (
+                    {availableTabs.map((tabType, index) => (
                         <Tab
                             key={index}
                             id={`profile-tab-${index}`}
                             {...{ 'aria-controls': `profile-tabpanel-${index}` }}
-                            label={<span style={{ color: index === 0 ? '#8e6b00' : 'default' }}>{label}</span>}
+                            label={<span style={{ color: tabType === TabOptions.Resources ? '#8e6b00' : 'default' }}>{tabType}</span>}
                         />
                     ))}
                 </Tabs>
                 <Box p={2}>
                     {
-                        tabIndex === 0 ? (
-                            <></>
-                        ) : (
+                        currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 searchPlaceholder={placeholder}
                                 sortOptions={sortOptions}
@@ -331,6 +400,8 @@ export const UserView = ({
                                 searchString={searchString}
                                 sortBy={sortBy}
                                 timeFrame={timeFrame}
+                                where={where}
+                                noResultsText={noResultsText}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}
                                 setTimeFrame={setTimeFrame}

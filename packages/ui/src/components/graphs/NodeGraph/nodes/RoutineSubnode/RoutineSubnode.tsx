@@ -18,16 +18,28 @@ import {
     routineNodeCheckboxLabel,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
+import { getTranslation } from 'utils';
+import { MemberRole } from 'graphql/generated/globalTypes';
 
 export const RoutineSubnode = ({
+    nodeId,
     data,
     scale = 1,
-    label = 'Routine Item',
     labelVisible = true,
-    isEditable = true,
+    isEditing = true,
+    handleSubroutineOpen,
 }: RoutineSubnodeProps) => {
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
+    // Determines if the subroutine is one you can edit
+    const canEdit = useMemo(() => data.routine.role && [MemberRole.Owner, MemberRole.Admin].includes(data.routine.role), [data.routine.role]);
+
+    const { title } = useMemo(() => {
+        const languages = navigator.languages;
+        return {
+            title: getTranslation(data, 'title', languages, true),
+        }
+    }, [data]);
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography
@@ -42,13 +54,12 @@ export const RoutineSubnode = ({
                 whiteSpace: 'pre',
             } as CSSProperties}
         >
-            {label}
+            {title ?? 'Untitled'}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [title, labelVisible]);
 
     return (
         <Box
-            borderRadius={'12px 12px 0 0'}
             sx={{
                 ...containerShadow,
                 minWidth: nodeSize,
@@ -56,16 +67,18 @@ export const RoutineSubnode = ({
                 position: 'relative',
                 display: 'block',
                 marginBottom: '8px',
+                borderRadius: '12px',
+                overflow: 'overlay',
                 backgroundColor: (t) => t.palette.background.paper,
                 color: (t) => t.palette.background.textPrimary,
             }}
         >
             <Container
+                onClick={() => handleSubroutineOpen(nodeId, data.id)}
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    borderRadius: '12px 12px 0 0',
-                    backgroundColor: (t) => t.palette.primary.main,
+                    backgroundColor: canEdit ? (t) => t.palette.primary.main : '#667899',
                     color: (t) => t.palette.primary.contrastText,
                     padding: '0.1em',
                     textAlign: 'center',
@@ -77,17 +90,17 @@ export const RoutineSubnode = ({
                 }}
             >
                 {labelObject}
-                {isEditable ? <EditIcon /> : null}
-                {isEditable ? <DeleteIcon /> : null}
+                {isEditing && canEdit ? <EditIcon /> : null}
+                {isEditing ? <DeleteIcon /> : null}
             </Container>
             <Stack direction="row" justifyContent="space-between" borderRadius={0}>
                 <Tooltip placement={'top'} title='Routine can be skipped'>
                     <FormControlLabel
-                        disabled={!isEditable}
+                        disabled={!isEditing}
                         label='Optional'
                         control={
                             <Checkbox
-                                id={`${data?.title}-optional-option`}
+                                id={`${title ?? ''}-optional-option`}
                                 size="small"
                                 name='isOptionalCheckbox'
                                 value='isOptionalCheckbox'

@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Stack, Typography } from '@mui/material';
+import { Box, Button, Grid, Link, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
@@ -15,6 +15,7 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
+import { getTranslation } from 'utils';
 
 const ObjectType = {
     Organization: 'Organization',
@@ -27,7 +28,7 @@ const ObjectType = {
 const linkMap: { [x: string]: [string, string] } = {
     [ObjectType.Organization]: [APP_LINKS.SearchOrganizations, APP_LINKS.Organization],
     [ObjectType.Project]: [APP_LINKS.SearchProjects, APP_LINKS.Project],
-    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Routine],
+    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Run],
     [ObjectType.Standard]: [APP_LINKS.SearchStandards, APP_LINKS.Standard],
     [ObjectType.User]: [APP_LINKS.SearchUsers, APP_LINKS.Profile],
 }
@@ -39,17 +40,12 @@ interface AutocompleteListItem {
     objectType: string;
 }
 
-const examples = [
-    'Start a new business',
-    'Learn about Project Catalyst',
-    'Fund your project',
-    'Create a Cardano native asset token',
-].map(example => (
-    <Typography component="p" variant="h6" sx={{
-        color: (t) => t.palette.text.secondary,
-        fontStyle: 'italics'
-    }}>"{example}"</Typography>
-))
+const examplesData: [string, string][] = [
+    ['Start a new business', '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
+    ['Learn about Project Catalyst', ''], //TODO
+    ['Fund your project', ''], //TODO
+    ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
+]
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -73,6 +69,8 @@ export const HomePage = ({
     //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
     useEffect(() => { console.log('refetching...', session); refetch() }, [refetch, searchString]);
 
+    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+
     const { routines, projects, organizations, standards, users } = useMemo(() => {
         if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
         const { routines, projects, organizations, standards, users } = data.autocomplete;
@@ -81,9 +79,9 @@ export const HomePage = ({
 
     const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
         if (!data) return [];
-        const routines = data.autocomplete.routines.map(r => ({ title: r.title, id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
-        const projects = data.autocomplete.projects.map(p => ({ title: p.name, id: p.id, stars: p.stars, objectType: ObjectType.Project }));
-        const organizations = data.autocomplete.organizations.map(o => ({ title: o.name, id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
+        const routines = data.autocomplete.routines.map(r => ({ title: getTranslation(r, 'title', languages, true), id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
+        const projects = data.autocomplete.projects.map(p => ({ title: getTranslation(p, 'name', languages, true), id: p.id, stars: p.stars, objectType: ObjectType.Project }));
+        const organizations = data.autocomplete.organizations.map(o => ({ title: getTranslation(o, 'name', languages, true), id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
         const standards = data.autocomplete.standards.map(s => ({ title: s.name, id: s.id, stars: s.stars, objectType: ObjectType.Standard }));
         const users = data.autocomplete.users.map(u => ({ title: u.username, id: u.id, stars: u.stars, objectType: ObjectType.User }));
         const options = [...routines, ...projects, ...organizations, ...standards, ...users].sort((a: any, b: any) => {
@@ -104,7 +102,8 @@ export const HomePage = ({
         const selectedItem = autocompleteOptions.find(o => o.id === newValue.id);
         if (!selectedItem) return;
         console.log('selectedItem', selectedItem);
-        return openSearch(linkMap[selectedItem.objectType], selectedItem.id);
+        const linkBases = linkMap[selectedItem.objectType];
+        setLocation(selectedItem.id ? `${linkBases[1]}/${selectedItem.id}` : linkBases[0]);
     }, [autocompleteOptions]);
 
     // Feed title is Popular when no search
@@ -114,8 +113,9 @@ export const HomePage = ({
     }, [searchString]);
 
     // Opens correct search page
-    const openSearch = useCallback((linkBases: [string, string], id?: string) => {
-        console.log('open search', searchString, id ? `${linkBases[1]}/${id}` : linkBases[0])
+    const openSearch = useCallback((event: any, linkBases: [string, string], id?: string) => {
+        console.log('OPEN SEARCHHHHHH', event);
+        event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
         setLocation(id ? `${linkBases[1]}/${id}` : linkBases[0]);
@@ -154,7 +154,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -165,7 +165,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -176,7 +176,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -187,7 +187,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -198,7 +198,7 @@ export const HomePage = ({
                             index={index}
                             session={session}
                             data={o}
-                            onClick={() => openSearch(linkMap[objectType], o.id)}
+                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
                         />
                     ))
                     break;
@@ -209,8 +209,8 @@ export const HomePage = ({
                         key={`feed-list-${objectType}`}
                         title={getFeedTitle(`${objectType}s`)}
                         loading={loading}
-                        onClick={() => openSearch(linkMap[objectType])}
-                        options={[['See more results', () => openSearch(linkMap[objectType])]]}
+                        onClick={(e) => openSearch(e, linkMap[objectType])}
+                        options={[['See more results', (e) => { openSearch(e, linkMap[objectType]) }]]}
                     >
                         {listFeedItems}
                     </TitleContainer>
@@ -247,10 +247,24 @@ export const HomePage = ({
                 />
                 {/* =========  #endregion ========= */}
             </Stack>
-            {/* Examples stack TODO */}
+            {/* Examples stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '40px', paddingBottom: '40px' }}>
                 <Typography component="h2" variant="h5" pb={1}>Examples</Typography>
-                {examples}
+                {
+                    examplesData.map((example, index) => (
+                        <Typography
+                            key={`example-${index}`}
+                            component="p"
+                            variant="h6"
+                            onClick={() => { setLocation(`${APP_LINKS.Run}/${example[1]}`) }}
+                            sx={{
+                                color: (t) => t.palette.text.secondary,
+                                fontStyle: 'italic',
+                                cursor: 'pointer',
+                            }}
+                        >"{example[0]}"</Typography>
+                    ))
+                }
             </Stack>
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">

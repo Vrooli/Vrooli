@@ -2,6 +2,7 @@ import { EMAIL, SOCIALS } from '@local/shared';
 import {  
     BottomNavigation, 
     BottomNavigationAction, 
+    Box, 
     IconButton, 
     Theme, 
     Tooltip 
@@ -50,7 +51,7 @@ export const ContactInfo = ({
     ]
 
     return (
-        <div style={{ minWidth: 'fit-content', height: 'fit-content'}} {...props}>
+        <Box sx={{ minWidth: 'fit-content', height: 'fit-content' }} {...props}>
             <BottomNavigation className={classes.nav} showLabels>
                 {contactInfo.map(([tooltip, label, link, Icon], index: number) => (
                     <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
@@ -62,6 +63,6 @@ export const ContactInfo = ({
                     </Tooltip>
                 ))}
             </BottomNavigation>
-        </div>
+        </Box>
     );
 }

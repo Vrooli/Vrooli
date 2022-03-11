@@ -7,13 +7,16 @@ import { Close as CloseIcon } from '@mui/icons-material';
 
 export const HelpButton = ({
     id = 'help-details-menu',
-    markdown, // Markdown to display in the menu
-    sx, // Styles to apply to the question mark icon
+    markdown,
+    onClick,
+    sxRoot,
+    sx,
 }: HelpButtonProps) => {
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
 
     const openMenu = useCallback((event) => {
+        if (onClick) onClick(event);
         if (!anchorEl) setAnchorEl(event.currentTarget);
     }, [anchorEl])
     const closeMenu = () => {
@@ -23,18 +26,9 @@ export const HelpButton = ({
     const menu = useMemo(() => {
         return (
             <Box>
-                <Box
-                    sx={{
-                        background: (t) => t.palette.primary.dark,
-                    }}
-                >
+                <Box sx={{ background: (t) => t.palette.primary.dark }}>
                     <IconButton edge="start" color="inherit" onClick={closeMenu} aria-label="close">
-                        <CloseIcon
-                            sx={{
-                                fill: 'white',
-                                marginLeft: '0.5em',
-                            }}
-                        />
+                        <CloseIcon sx={{ fill: 'white', marginLeft: '0.5em' }}/>
                     </IconButton>
                 </Box>
                 <Box sx={{ padding: 1 }}>
@@ -48,6 +42,7 @@ export const HelpButton = ({
         <Box
             sx={{
                 display: 'inline',
+                ...sxRoot,
             }}
         >
             <Tooltip placement='top' title={!open ? "Open Help Menu" : ''}>

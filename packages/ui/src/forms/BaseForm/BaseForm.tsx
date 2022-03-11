@@ -13,7 +13,7 @@ export const BaseForm = ({
     onSubmit,
 }: BaseFormProps) => {
     // Add non-specified props to each input field
-    const fieldInputs = useMemo<FieldData[]>(() => generateDefaultProps(schema.fields), [schema.fields]);
+    const fieldInputs = useMemo<FieldData[]>(() => generateDefaultProps(schema?.fields), [schema?.fields]);
 
     // Parse default values from fieldInputs, to use in formik
     const initialValues = useMemo(() => {
@@ -37,7 +37,10 @@ export const BaseForm = ({
         onSubmit: (values) => onSubmit(values),
     });
 
-    const grid = useMemo(() => generateGrid(schema.formLayout, schema.containers, schema.fields, formik), [schema, formik])
+    const grid = useMemo(() => {
+        if (!schema) return null;
+        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik)
+    }, [schema, formik])
 
     return (
         <form onSubmit={formik.handleSubmit}>

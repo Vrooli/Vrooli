@@ -55,10 +55,13 @@ const defaultMap = {
  * Populates a form's field data with unset default values
  * @param fields The form's field data
  */
-export const generateDefaultProps = (fields: FieldData[]): FieldData[] => fields.map(field => {
-    const { props, ...otherKeys } = field;
-    return {
-        props: defaultMap[field.type](props as any),
-        ...otherKeys
-    }
-})
+export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
+    if (!fields) return [];
+    return fields.map(field => {
+        const { props, ...otherKeys } = field;
+        return {
+            props: defaultMap[field.type](props as any),
+            ...otherKeys
+        }
+    });
+}

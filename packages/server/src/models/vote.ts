@@ -1,12 +1,45 @@
 import { CODE, VoteFor } from "@local/shared";
 import { CustomError } from "../error";
-import { VoteInput } from "schema/types";
+import { Vote, VoteInput } from "schema/types";
 import { PrismaType } from "../types";
-import { BaseType } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
+import _ from "lodash";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
+
+export const voteFormatter = (): FormatConverter<Vote> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Vote,
+        'from': GraphQLModelType.User,
+        'to': {
+            'Comment': GraphQLModelType.Comment,
+            'Project': GraphQLModelType.Project,
+            'Routine': GraphQLModelType.Routine,
+            'Standard': GraphQLModelType.Standard,
+            'Tag': GraphQLModelType.Tag,
+        }
+    },
+    constructUnions: (data) => {
+        let { comment, project, routine, standard, ...modified } = data;
+        if (comment) modified.to = comment;
+        else if (project) modified.to = project;
+        else if (routine) modified.to = routine;
+        else if (standard) modified.to = standard;
+        console.log('voteFormatter.toGraphQL finished', modified);
+        return modified;
+    },
+    deconstructUnions: (partial) => {
+        let modified = deconstructUnion(partial, 'to', [
+            [GraphQLModelType.Comment, 'comment'],
+            [GraphQLModelType.Project, 'project'],
+            [GraphQLModelType.Routine, 'routine'],
+            [GraphQLModelType.Standard, 'standard'],
+        ]);
+        return modified;
+    },
+})
 
 const forMapper = {
     [VoteFor.Comment]: 'comment',
@@ -24,15 +57,17 @@ const forMapper = {
 const voter = (prisma: PrismaType) => ({
     async vote(userId: string, input: VoteInput): Promise<boolean> {
         // Define prisma type for voted-on object
-        const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as BaseType);
+        const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);
         // Check if object being voted on exists
-        const votingFor: null | { id: string, score: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, score: true} });
+        const votingFor: null | { id: string, score: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, score: true } });
         if (!votingFor) throw new CustomError(CODE.ErrorUnknown);
         // Check if vote exists
-        const vote = await prisma.vote.findFirst({ where: {
-            userId,
-            [`${forMapper[input.voteFor]}Id`]: input.forId
-        }})
+        const vote = await prisma.vote.findFirst({
+            where: {
+                byId: userId,
+                [`${forMapper[input.voteFor]}Id`]: input.forId
+            }
+        })
         console.log('existing vote', vote)
         // If vote already existed
         if (vote) {
@@ -41,8 +76,8 @@ const voter = (prisma: PrismaType) => ({
             // If setting note to null, delete it
             if (input.isUpvote === null) {
                 // Delete vote
-                await prisma.vote.delete({ where: { id: vote.id }})
-            } 
+                await prisma.vote.delete({ where: { id: vote.id } })
+            }
             // Otherwise, update the vote
             else {
                 await prisma.vote.update({
@@ -68,7 +103,7 @@ const voter = (prisma: PrismaType) => ({
             // Create the vote
             await prisma.vote.create({
                 data: {
-                    userId,
+                    byId: userId,
                     isUpvote: input.isUpvote,
                     [`${forMapper[input.voteFor]}Id`]: input.forId
                 }
@@ -87,11 +122,21 @@ const voter = (prisma: PrismaType) => ({
         ids: string[],
         voteFor: VoteFor
     ): Promise<Array<boolean | null>> {
+        // Create result array that is the same length as ids
+        const result = new Array(ids.length).fill(null);
+        // Filter out nulls and undefineds from ids
+        const idsFiltered = ids.filter(id => id !== null && id !== undefined);
         const fieldName = `${voteFor.toLowerCase()}Id`;
-        const isUpvotedArray = await prisma.vote.findMany({ where: { userId, [fieldName]: { in: ids } } });
-        return ids.map(id => {
-            return isUpvotedArray.find((x: any) => x[fieldName] === id)?.isUpvote ?? null
-        });
+        const isUpvotedArray = await prisma.vote.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
+        // Replace the nulls in the result array with true or false
+        for (let i = 0; i < ids.length; i++) {
+            // Try to find this id in the isUpvoted array
+            if (ids[i] !== null && ids[i] !== undefined) {
+                // If found, set result index to value of isUpvote field
+                result[i] = isUpvotedArray.find((vote: any) => vote[fieldName] === ids[i])?.isUpvote ?? null;
+            }
+        }
+        return result;
     },
 })
 
@@ -104,8 +149,13 @@ const voter = (prisma: PrismaType) => ({
 //==============================================================
 
 export function VoteModel(prisma: PrismaType) {
+    const prismaObject = prisma.vote;
+    const format = voteFormatter();
+
     return {
         prisma,
+        prismaObject,
+        ...format,
         ...voter(prisma),
     }
 }

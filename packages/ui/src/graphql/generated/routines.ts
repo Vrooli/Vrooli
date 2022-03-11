@@ -15,30 +15,44 @@ export interface routines_routines_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface routines_routines_edges_node_tags_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface routines_routines_edges_node_tags {
   __typename: "Tag";
   id: string;
   tag: string;
+  translations: routines_routines_edges_node_tags_translations[];
+}
+
+export interface routines_routines_edges_node_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
   description: string | null;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
+  title: string;
 }
 
 export interface routines_routines_edges_node {
   __typename: "Routine";
   id: string;
-  version: string | null;
-  title: string | null;
-  description: string | null;
+  completedAt: any | null;
   created_at: any;
   isAutomatable: boolean | null;
-  role: MemberRole | null;
-  tags: routines_routines_edges_node_tags[];
-  stars: number;
+  isInternal: boolean | null;
+  isComplete: boolean;
   isStarred: boolean;
-  score: number;
   isUpvoted: boolean | null;
+  role: MemberRole | null;
+  score: number;
+  stars: number;
+  tags: routines_routines_edges_node_tags[];
+  translations: routines_routines_edges_node_translations[];
+  version: string | null;
 }
 
 export interface routines_routines_edges {

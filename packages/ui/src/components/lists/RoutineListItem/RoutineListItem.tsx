@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { APP_LINKS, MemberRole, RoutineSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from '..';
-import { LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
 import { Routine } from 'types';
 
 export function RoutineListItem({
@@ -18,11 +18,19 @@ export function RoutineListItem({
     const [, setLocation] = useLocation();
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
 
-    const handleClick = useCallback(() => {
+    const { description, title } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            description: getTranslation(data, 'description', languages, true),
+            title: getTranslation(data, 'title', languages, true),
+        }
+    }, [data, session]);
+
+    const handleClick = useCallback((e: any) => {
         // If onClick provided, call if
-        if (onClick) onClick(data);
+        if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Routine}/${data.id}`)
+        else setLocation(`${APP_LINKS.Run}/${data.id}`)
     }, [onClick, data, setLocation]);
 
     return (
@@ -46,11 +54,11 @@ export function RoutineListItem({
                     />
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         <ListItemText
-                            primary={data.title}
+                            primary={title}
                             sx={{ ...multiLineEllipsis(1) }}
                         />
                         <ListItemText
-                            primary={data.description}
+                            primary={description}
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                         {/* Tags */}
@@ -74,4 +82,4 @@ export function RoutineListItem({
 
 export const RoutineSortOptions: LabelledSortOption<RoutineSortBy>[] = labelledSortOptions(RoutineSortBy);
 export const routineDefaultSortOption = RoutineSortOptions[1];
-export const routineOptionLabel = (o: Routine) => o.title ?? '';
+export const routineOptionLabel = (o: Routine) => getTranslation(o, 'title', ['en'], true) ?? '';

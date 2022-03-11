@@ -1,24 +1,24 @@
-import { role } from "@prisma/client";
-import { RecursivePartial, PrismaType } from "types";
+import { PrismaType } from "types";
 import { Role } from "../schema/types";
-import { FormatConverter, addJoinTables, removeJoinTables, MODEL_TYPES } from "./base";
+import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper, GraphQLModelType } from "./base";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-/**
- * Component for formatting between graphql and prisma types
- */
- const formatter = (): FormatConverter<Role, role> => {
-    const joinMapper = {
-        users: 'user',
-    };
-    return {
-        toDB: (obj: RecursivePartial<Role>): RecursivePartial<role> => addJoinTables(obj, joinMapper),
-        toGraphQL: (obj: RecursivePartial<role>): RecursivePartial<Role> => removeJoinTables(obj, joinMapper)
-    }
-}
+const joinMapper = { users: 'user' };
+export const roleFormatter = (): FormatConverter<Role> => ({
+    relationshipMap: {
+        '__typename': GraphQLModelType.Role,
+        'users': GraphQLModelType.User,
+    },
+    addJoinTables: (partial) => {
+        return addJoinTablesHelper(partial, joinMapper);
+    },
+    removeJoinTables: (data) => {
+        return removeJoinTablesHelper(data, joinMapper);
+    },
+})
 
 //==============================================================
 /* #endregion Custom Components */
@@ -29,14 +29,13 @@ import { FormatConverter, addJoinTables, removeJoinTables, MODEL_TYPES } from ".
 //==============================================================
 
 export function RoleModel(prisma: PrismaType) {
-    const model = MODEL_TYPES.Role;
-    const format = formatter();
+    const prismaObject = prisma.role;
+    const format = roleFormatter();
 
     return {
         prisma,
-        model,
+        prismaObject,
         ...format,
-        ...formatter(),
     }
 }
 

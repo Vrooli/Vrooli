@@ -1,21 +1,59 @@
 import { gql } from 'graphql-tag';
 
 export const organizationFields = gql`
-    fragment tagFields on Tag {
+    fragment organizationResourceListFields on ResourceList {
         id
-        description
+        created_at
+        index
+        usedFor
+        translations {
+            id
+            language
+            description
+            title
+        }
+        resources {
+            id
+            created_at
+            index
+            link
+            updated_at
+            usedFor
+            translations {
+                id
+                language
+                description
+                title
+            }
+        }
+    }
+    fragment organizationTagFields on Tag {
+        id
         tag
+        translations {
+            id
+            language
+            description
+        }
     }
     fragment organizationFields on Organization {
         id
-        name
-        bio
         created_at
-        tags {
-            ...tagFields
-        }
-        stars
+        isOpenToNewMembers
         isStarred
         role
+        stars
+        resourceLists {
+            ...organizationResourceListFields
+        }
+        tags {
+            ...organizationTagFields
+        }
+        translations {
+            id
+            language
+            bio
+            name
+        }
     }
 `

@@ -12,7 +12,7 @@ export const StartNode = ({
     labelVisible = true,
 }: StartNodeProps) => {
 
-    const labelObject = useMemo(() => labelVisible ? (
+    const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
             variant="h6"
             sx={{
@@ -22,7 +22,7 @@ export const StartNode = ({
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [labelVisible, label, scale]);
 
     const nodeSize = useMemo(() => `${NodeWidth.Start * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${NodeWidth.Start * scale / 5}px, 2em)`, [scale]);
@@ -30,6 +30,7 @@ export const StartNode = ({
     return (
         <Tooltip placement={'top'} title={label ?? ''}>
             <Box
+                id={`node-${node.id}`}
                 sx={{
                     ...containerShadow,
                     width: nodeSize,

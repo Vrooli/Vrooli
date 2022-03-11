@@ -1,10 +1,11 @@
 import { StarFor, VoteFor } from '@local/shared';
-import { Organization, Project, Resource, Routine, Session, Standard, Tag, User } from 'types';
+import { Organization, Project, Resource, ResourceList, Routine, Session, Standard, Tag, User } from 'types';
+import { LabelledSortOption } from 'utils';
 
 export interface ObjectListItemProps {
     session: Session;
     index: number; // Index in list
-    onClick?: (data: any) => void; // Full data passed back, to display while more details load
+    onClick?: (e: any, data: any) => void; // Full data passed back, to display while more details load
 }
 
 export interface ActorListItemProps extends ObjectListItemProps {
@@ -44,30 +45,8 @@ export interface DateRangeMenuProps {
     onSubmit: (after?: Date | null, before?: Date | null) => void;
 }
 
-export interface ResourceListHorizontalProps {
-    title?: string;
-    canEdit?: boolean;
-}
-
-export interface ResourceListVerticalProps {
-    title?: string;
-    canEdit?: boolean;
-}
-
 export interface StatsListProps {
     data: Array<any>;
-}
-
-export interface ResourceListItemContextMenuProps {
-    id: string;
-    anchorEl: HTMLElement | null;
-    resource: Resource | null;
-    onClose: () => void;
-    onAddBefore: (resource: Resource) => void;
-    onAddAfter: (resource: Resource) => void;
-    onEdit: (resource: Resource) => void;
-    onDelete: (resource: Resource) => void;
-    onMove: (resource: Resource) => void;
 }
 
 export interface UpvoteDownvoteProps {
@@ -82,6 +61,7 @@ export interface UpvoteDownvoteProps {
 export interface StarButtonProps {
     session: Session;
     isStar?: boolean | null; // Defaults to false
+    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
     stars?: number | null; // Defaults to 0
     objectId: string;
     starFor: StarFor;
@@ -97,6 +77,21 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
+/**
+ * Return type for a SearchList generator function
+ */
+export interface SearchListGenerator {
+    placeholder: string;
+    noResultsText: string;
+    sortOptions: LabelledSortOption<any>[];
+    defaultSortOption: LabelledSortOption<any>;
+    sortOptionLabel: (sortOption: any) => string;
+    searchQuery: any;
+    where: any;
+    onSearchSelect: (objectData: any) => void;
+    searchItemFactory: (node: any, index: number) => JSX.Element | null;
+}
+
 export interface SearchListProps<DataType, SortBy> {
     searchPlaceholder?: string;
     sortOptions: SearchSortBy<SortBy>[];
@@ -109,14 +104,16 @@ export interface SearchListProps<DataType, SortBy> {
     setSearchString: (searchString: string) => void;
     setSortBy: (sortBy: string | undefined) => void;
     setTimeFrame: (timeFrame: string | undefined) => void;
-    listItemFactory: (node: DataType, index: number) => JSX.Element;
+    listItemFactory: (node: DataType, index: number) => JSX.Element | null;
     getOptionLabel: (option: any) => string;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
+    where?: any; // Additional where clause to pass to the query
+    noResultsText?: string; // Text to display when no results are found
 }
 
 export interface TagListProps {
     session: Seession;
     parentId: string;
-    tags: Tag[];
+    tags: Partial<Tag>[];
 }

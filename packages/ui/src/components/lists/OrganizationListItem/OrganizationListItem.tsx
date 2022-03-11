@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { APP_LINKS, MemberRole, OrganizationSortBy, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList } from '..';
-import { LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
 import { Organization } from 'types';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 
@@ -31,14 +31,20 @@ export function OrganizationListItem({
 }: OrganizationListItemProps) {
     const [, setLocation] = useLocation();
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
-
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
+    const { bio, name } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            bio: getTranslation(data, 'bio', languages, true),
+            name: getTranslation(data, 'name', languages, true),
+        };
+    }, [data, session]);
 
     const handleClick = useCallback((e: any) => {
         // Prevent propagation
         e.stopPropagation();
         // If onClick provided, call it
-        if (onClick) onClick(data);
+        if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
         else setLocation(`${APP_LINKS.Organization}/${data.id}`)
     }, [onClick, data, setLocation]);
@@ -75,12 +81,12 @@ export function OrganizationListItem({
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         {/* Name/Title */}
                         <ListItemText
-                            primary={data.name}
+                            primary={name}
                             sx={{ ...multiLineEllipsis(1) }}
                         />
                         {/* Bio/Description */}
                         <ListItemText
-                            primary={data.bio}
+                            primary={bio}
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                         {/* Tags */}
@@ -104,4 +110,4 @@ export function OrganizationListItem({
 
 export const OrganizationSortOptions: LabelledSortOption<OrganizationSortBy>[] = labelledSortOptions(OrganizationSortBy);
 export const organizationDefaultSortOption = OrganizationSortOptions[1];
-export const organizationOptionLabel = (o: Organization) => o.name ?? '';
+export const organizationOptionLabel = (o: Organization) => getTranslation(o, 'name', ['en'], true) ?? '';

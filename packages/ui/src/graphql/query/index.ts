@@ -7,7 +7,6 @@ export * from './project';
 export * from './projects';
 export * from './projectsCount';
 export * from './readAssets';
-export * from './readOpenGraph';
 export * from './resource';
 export * from './resources';
 export * from './resourcesCount';

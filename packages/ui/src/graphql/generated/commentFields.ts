@@ -9,30 +9,30 @@ import { MemberRole } from "./globalTypes";
 // GraphQL fragment: commentFields
 // ====================================================
 
-export interface commentFields_creator_Organization {
-  __typename: "Organization";
+export interface commentFields_commentedOn_Project_translations {
+  __typename: "ProjectTranslation";
   id: string;
+  language: string;
   name: string;
 }
-
-export interface commentFields_creator_User {
-  __typename: "User";
-  id: string;
-  username: string | null;
-}
-
-export type commentFields_creator = commentFields_creator_Organization | commentFields_creator_User;
 
 export interface commentFields_commentedOn_Project {
   __typename: "Project";
   id: string;
-  name: string;
+  translations: commentFields_commentedOn_Project_translations[];
+}
+
+export interface commentFields_commentedOn_Routine_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
+  title: string;
 }
 
 export interface commentFields_commentedOn_Routine {
   __typename: "Routine";
   id: string;
-  title: string | null;
+  translations: commentFields_commentedOn_Routine_translations[];
 }
 
 export interface commentFields_commentedOn_Standard {
@@ -43,16 +43,44 @@ export interface commentFields_commentedOn_Standard {
 
 export type commentFields_commentedOn = commentFields_commentedOn_Project | commentFields_commentedOn_Routine | commentFields_commentedOn_Standard;
 
+export interface commentFields_creator_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
+}
+
+export interface commentFields_creator_Organization {
+  __typename: "Organization";
+  id: string;
+  translations: commentFields_creator_Organization_translations[];
+}
+
+export interface commentFields_creator_User {
+  __typename: "User";
+  id: string;
+  username: string | null;
+}
+
+export type commentFields_creator = commentFields_creator_Organization | commentFields_creator_User;
+
+export interface commentFields_translations {
+  __typename: "CommentTranslation";
+  id: string;
+  language: string;
+  text: string;
+}
+
 export interface commentFields {
   __typename: "Comment";
   id: string;
-  text: string | null;
   created_at: any;
   updated_at: any;
   score: number | null;
   isUpvoted: boolean | null;
   role: MemberRole | null;
   isStarred: boolean;
-  creator: commentFields_creator | null;
   commentedOn: commentFields_commentedOn;
+  creator: commentFields_creator | null;
+  translations: commentFields_translations[];
 }

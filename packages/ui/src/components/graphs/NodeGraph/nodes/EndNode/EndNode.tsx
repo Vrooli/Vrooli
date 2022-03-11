@@ -1,18 +1,20 @@
 import { Box, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
-import { NodeContextMenu, NodeWidth } from '../..';
+import { DraggableNode, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 
 export const EndNode = ({
+    isLinked = true,
     node,
     scale = 1,
     label = 'End',
     labelVisible = true,
+    canDrag = true,
 }: EndNodeProps) => {
 
-    const labelObject = useMemo(() => labelVisible ? (
+    const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
             variant="h6"
             sx={{
@@ -23,7 +25,7 @@ export const EndNode = ({
         >
             {label}
         </Typography>
-    ) : null, [labelVisible, label]);
+    ) : null, [labelVisible, label, scale]);
 
     const outerCircleSize = useMemo(() => `${NodeWidth.End * scale}px`, [scale]);
     const innerCircleSize = useMemo(() => `${NodeWidth.End * scale / 1.5}px`, [scale]);
@@ -40,7 +42,7 @@ export const EndNode = ({
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
-        <Box>
+        <DraggableNode className="handle" nodeId={node.id} canDrag={canDrag}>
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
@@ -54,6 +56,7 @@ export const EndNode = ({
             />
             <Tooltip placement={'top'} title={'End'}>
                 <Box
+                    id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
                     onClick={() => { }}
@@ -74,6 +77,7 @@ export const EndNode = ({
                     }}
                 >
                     <Box
+                        id={`${isLinked ? '' : 'unlinked-'}node-end-inner-circle-${node.id}`}
                         sx={{
                             width: innerCircleSize,
                             height: innerCircleSize,
@@ -91,6 +95,6 @@ export const EndNode = ({
                     </Box>
                 </Box>
             </Tooltip>
-        </Box>
+        </DraggableNode>
     )
 }

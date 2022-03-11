@@ -19,7 +19,7 @@ export function TitleContainer({
         <Tooltip placement="bottom" title={tooltip}>
             <Box id={id} display="flex" justifyContent="center">
                 <Box
-                    onClick={onClick ? onClick : () => {}}
+                    onClick={(e) => { onClick && (onClick as any)(e) }}
                     sx={{
                         ...containerShadow,
                         borderRadius: '8px',
@@ -48,8 +48,8 @@ export function TitleContainer({
                     {/* Main content */}
                     <Stack direction="column">
                         <Box sx={{
-                            minHeight: 'min(300px, 25vh)',
                             ...(loading ? {
+                                minHeight: 'min(300px, 25vh)',
                                 display: 'flex',
                                 justifyContent: 'center',
                                 alignItems: 'center',

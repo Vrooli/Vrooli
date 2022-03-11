@@ -10,9 +10,9 @@ import { context } from './context';
 import { envVariableExists } from './utils/envVariableExists';
 import { setupDatabase } from './utils/setupDatabase';
 
-const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ? 
-`http://localhost:5329/api` : 
-`https://app.vrooli.com/api`;
+const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
+    `http://localhost:5329/api` :
+    `https://app.vrooli.com/api`;
 
 const main = async () => {
     console.info('Starting server...')
@@ -36,14 +36,23 @@ const main = async () => {
 
     // Cross-Origin access. Accepts requests from localhost and dns
     // If you want a public server, this can be set to ['*']
-    let origins = [
-        /^http:\/\/localhost(?::[0-9]+)?$/,
-        'https://studio.apollographql.com',
-        `http://app.vrooli.com`,
-        `http://www.app.vrooli.com`,
-        `https://app.vrooli.com`,
-        `https://www.app.vrooli.com`
-    ]
+    let origins;
+    if (process.env.REACT_APP_SERVER_LOCATION === 'local') {
+        origins = [
+            /^http:\/\/localhost(?::[0-9]+)?$/,
+            /^http:\/\/192.168.0.[0-9]{1,2}(?::[0-9]+)?$/,
+            'https://studio.apollographql.com',
+        ]
+    }
+    else {
+        origins = [
+            `http://app.vrooli.com`,
+            `http://www.app.vrooli.com`,
+            `https://app.vrooli.com`,
+            `https://www.app.vrooli.com`
+        ]
+    }
+
     app.use(cors({
         credentials: true,
         origin: origins

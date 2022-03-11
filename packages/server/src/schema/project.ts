@@ -1,20 +1,18 @@
 import { gql } from 'apollo-server-express';
-import { CODE, ProjectSortBy } from '@local/shared';
-import { CustomError } from '../error';
 import { IWrap, RecursivePartial } from 'types';
-import { DeleteOneInput, FindByIdInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult } from './types';
+import { DeleteOneInput, FindByIdInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
 import { Context } from '../context';
-import { ProjectModel } from '../models';
+import { countHelper, createHelper, deleteOneHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
     enum ProjectSortBy {
-        AlphabeticalAsc
-        AlphabeticalDesc
         CommentsAsc
         CommentsDesc
         ForksAsc
         ForksDesc
+        DateCompletedAsc
+        DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
@@ -26,65 +24,95 @@ export const typeDef = gql`
     }
 
     input ProjectCreateInput {
-        description: String
+        createdByOrganizationId: ID
+        createdByUserId: ID
+        isComplete: Boolean
         name: String!
         parentId: ID
-        createdByUserId: ID
-        createdByOrganizationId: ID
-        resourcesCreate: [ResourceCreateInput!]
+        resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsCreate: [ProjectTranslationCreateInput!]
     }
     input ProjectUpdateInput {
         id: ID!
-        description: String
+        isComplete: Boolean
         name: String
+        organizationId: ID
         parentId: ID
         userId: ID
-        organizationId: ID
-        resourcesDelete: [ID!]
-        resourcesCreate: [ResourceCreateInput!]
-        resourcesUpdate: [ResourceUpdateInput!]
+        resourceListsDelete: [ID!]
+        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListsUpdate: [ResourceListUpdateInput!]
         tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        translationsDelete: [ID!]
+        translationsCreate: [ProjectTranslationCreateInput!]
+        translationsUpdate: [ProjectTranslationUpdateInput!]
     }
     type Project {
         id: ID!
+        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        description: String
-        name: String!
-        stars: Int!
+        isComplete: Boolean!
         isStarred: Boolean!
-        role: MemberRole
         isUpvoted: Boolean
+        role: MemberRole
         score: Int!
+        stars: Int!
         comments: [Comment!]!
         creator: Contributor
         forks: [Project!]!
         owner: Contributor
         parent: Project
         reports: [Report!]!
-        resources: [Resource!]
+        resourceLists: [ResourceList!]
         routines: [Routine!]!
         starredBy: [User!]
         tags: [Tag!]!
+        translations: [ProjectTranslation!]!
         wallets: [Wallet!]
     }
 
+    input ProjectTranslationCreateInput {
+        language: String!
+        description: String
+        name: String!
+    }
+    input ProjectTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+        name: String
+    }
+    type ProjectTranslation {
+        id: ID!
+        language: String!
+        description: String
+        name: String!
+    }
+
     input ProjectSearchInput {
-        userId: ID
+        after: String
+        createdTimeFrame: TimeFrame
+        ids: [ID!]
+        isComplete: Boolean
+        languages: [String!]
+        minScore: Int
+        minStars: Int
         organizationId: ID
         parentId: ID
         reportId: ID
-        ids: [ID!]
-        sortBy: ProjectSortBy
-        createdTimeFrame: TimeFrame
-        updatedTimeFrame: TimeFrame
+        resourceLists: [String!]
+        resourceTypes: [ResourceUsedFor!]
         searchString: String
-        after: String
+        sortBy: ProjectSortBy
+        tags: [String!]
         take: Int
+        updatedTimeFrame: TimeFrame
+        userId: ID
     }
 
     # Return type for search result
@@ -122,40 +150,24 @@ export const resolvers = {
     ProjectSortBy: ProjectSortBy,
     Query: {
         project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
-            const data = await ProjectModel(prisma).find(req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readOneHelper(req.userId, input, info, ProjectModel(prisma));
         },
         projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
-            const data = await ProjectModel(prisma).search({}, req.userId, input, info);
-            if (!data) throw new CustomError(CODE.ErrorUnknown);
-            return data;
+            return readManyHelper(req.userId, input, info, ProjectModel(prisma));
         },
         projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return await ProjectModel(prisma).count({}, input);
+            return countHelper(input, ProjectModel(prisma));
         },
     },
     Mutation: {
         projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Create object
-            const created = await ProjectModel(prisma).create(req.userId, input, info);
-            if (!created) throw new CustomError(CODE.ErrorUnknown);
-            return created;
+            return createHelper(req.userId, input, info, ProjectModel(prisma));
         },
         projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            // Update object
-            const updated = await ProjectModel(prisma).update(req.userId, input, info);
-            if (!updated) throw new CustomError(CODE.ErrorUnknown);
-            return updated;
+            return updateHelper(req.userId, input, info, ProjectModel(prisma));
         },
         projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await ProjectModel(prisma).delete(req.userId, input);
+            return deleteOneHelper(req.userId, input, ProjectModel(prisma));
         },
     }
 }
