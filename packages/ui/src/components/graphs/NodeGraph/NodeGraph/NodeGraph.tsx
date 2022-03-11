@@ -27,9 +27,10 @@ type PinchRefs = {
 
 export const NodeGraph = ({
     columns,
+    handleContextItemSelect,
     handleDialogOpen,
-    handleNodeUnlink,
     handleNodeDelete,
+    handleNodeDrop,
     handleNodeUpdate,
     handleNodeInsert,
     handleLinkCreate,
@@ -194,30 +195,13 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            console.error(`Dropped node ${nodeId} not found`);
+            PubSub.publish(Pubs.Snack, { message: `Dropped node ${nodeId} not found` });
             return;
         }
-        // Next, check if the node was dropped into the "Delete" button or "Unlinked" container. 
-        // If the drop position is within the delete button, delete the node
-        if (isInsideRectangle({ x, y }, 'delete-node-button')) {
-            console.log('deleting node....')
-            // If this is a routine list node, prompt for confirmation
-            if (node.type === NodeType.RoutineList) {
-                PubSub.publish(Pubs.AlertDialog, {
-                    message: `Are you sure you want to delete the routine list "${getTranslation(node, 'title', [language])}"?`,
-                    buttons: [
-                        { text: 'Yes', onClick: () => { handleNodeDelete(nodeId); } },
-                        { text: 'Cancel' },
-                    ]
-                });
-            }
-            // Otherwise, just delete the node
-            else handleNodeDelete(nodeId);
-            return;
-        }
+        // Next, check if the node was dropped into "Unlinked" container. 
         // If the drop position is within the unlinked container, unlink the node
         if (isInsideRectangle({ x, y }, 'unlinked-nodes-dialog')) {
-            handleNodeUnlink(nodeId);
+            handleNodeDrop(nodeId, null, null);
             return;
         }
 
@@ -254,14 +238,8 @@ export const NodeGraph = ({
         // If not above any nodes, must be below   
         if (rowIndex === -1) rowIndex = centerYs.length;
         console.log('DROPPED ROW, COL', columnIndex, rowIndex);
-        // Determine if node can be dropped without conflicts
-        //TODO
-        // Otherwise, determine if node can be dropped with conflicts
-        //TODO
-        // If the node was dropped, center it in the column
-        //TODO
-        // If the node was not dropped, but it back to its original position
-        //TODO
+        // Complete drop
+        handleNodeDrop(nodeId, columnIndex, rowIndex);
     }, [scale, nodesById]);
 
     // Set listeners for:
@@ -432,9 +410,10 @@ export const NodeGraph = ({
             id={`node-column-${index}`}
             columnIndex={index}
             dragId={dragId}
+            handleContextItemSelect={handleContextItemSelect}
             handleDialogOpen={handleDialogOpen}
             handleNodeDelete={handleNodeDelete}
-            handleNodeUnlink={handleNodeUnlink}
+            handleNodeDrop={handleNodeDrop}
             handleRoutineListItemAdd={handleRoutineListItemAdd}
             handleSubroutineOpen={handleSubroutineOpen}
             isEditing={isEditing}

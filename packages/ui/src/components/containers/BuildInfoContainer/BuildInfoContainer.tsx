@@ -39,6 +39,7 @@ const TERTIARY_COLOR = '#95f3cd';
 export const BuildInfoContainer = ({
     canEdit,
     handleRoutineUpdate,
+    handleRoutineDelete,
     handleStartEdit,
     handleTitleUpdate,
     isEditing,
@@ -233,6 +234,7 @@ export const BuildInfoContainer = ({
                 {/* Display routine description, insturctionss, etc. */}
                 <BuildInfoDialog
                     handleUpdate={handleRoutineUpdate}
+                    handleDelete={handleRoutineDelete}
                     isEditing={isEditing}
                     language={language}
                     routine={routine}

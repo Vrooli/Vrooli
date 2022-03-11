@@ -1,9 +1,9 @@
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, DeleteRoutineDialog, NodeContextMenu, NodeContextMenuOptions } from 'components';
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
-import { routineUpdateMutation } from 'graphql/mutation';
+import { routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
 import { deleteArrayIndex, formatForUpdate, BuildDialogOption, BuildRunState, BuildStatus, Pubs, updateArray } from 'utils';
@@ -11,11 +11,10 @@ import {
     Add as AddIcon,
     AddLink as AddLinkIcon,
     Compress as CleanUpIcon,
-    DeleteForever as DeleteIcon,
 } from '@mui/icons-material';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import isEqual from 'lodash/isEqual';
-import { useRoute } from 'wouter';
+import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { BuildStatusObject } from 'components/graphs/NodeGraph/types';
 import { MemberRole, NodeType } from 'graphql/generated/globalTypes';
@@ -35,16 +34,19 @@ const STATUS_COLOR = {
 export const BuildPage = ({
     session,
 }: BuildPageProps) => {
+    const [, setLocation] = useLocation();
     // Get routine ID from URL
     const [, params] = useRoute(`${APP_LINKS.Build}/:id`);
     const id: string = useMemo(() => params?.id ?? '', [params]);
     // Queries routine data
-    const { data: routineData } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
+    const { data: routineData, loading: loadingRead } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const [routine, setRoutine] = useState<Routine | null>(null);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     useEffect(() => { setRoutine(routineData?.routine ?? null) }, [routineData]);
-    // Routine mutator
-    const [routineUpdate, { loading }] = useMutation<any>(routineUpdateMutation);
+    // Routine mutators
+    const [routineUpdate, { loading: loadingUpdate }] = useMutation<any>(routineUpdateMutation);
+    const [routineDelete, { loading: loadingDelete }] = useMutation<any>(routineDeleteOneMutation);
+    const loading = useMemo(() => loadingRead || loadingUpdate || loadingDelete, [loadingRead, loadingUpdate, loadingDelete]);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<BuildStatusObject>({ code: BuildStatus.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
@@ -235,12 +237,26 @@ export const BuildPage = ({
     }, [nodesById]);
     const closeRoutineInfo = useCallback(() => setSelectedSubroutine(null), []);
 
-    const handleAddLinkDialogOpen = useCallback((fromId?: string, toId?: string) => {
-    }, []);
-
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-    const handleLinkDialogClose = useCallback(() => {
-    }, []);
+    const openLinkDialog = useCallback(() => setIsLinkDialogOpen(true), []);
+    const handleLinkDialogClose = useCallback((link?: NodeLink) => {
+        if (!changedRoutine) return;
+        setIsLinkDialogOpen(false);
+        // If no link data, return
+        if (!link) return;
+        // Upsert link
+        const newLinks = [...changedRoutine.nodeLinks];
+        const existingLinkIndex = newLinks.findIndex(l => l.fromId === link.fromId && l.toId === link.toId);
+        if (existingLinkIndex >= 0) {
+            newLinks[existingLinkIndex] = { ...link };
+        } else {
+            newLinks.push(link);
+        }
+        setChangedRoutine({
+            ...changedRoutine,
+            nodeLinks: newLinks,
+        });
+    }, [changedRoutine]);
 
     /**
      * Deletes a link, without deleting any nodes. This may make the graph invalid.
@@ -290,6 +306,19 @@ export const BuildPage = ({
         setChangedRoutine(routine);
         setIsEditing(false);
     }, [routine])
+
+    /**
+     * Deletes the entire routine. Assumes confirmation was already given.
+     */
+    const deleteRoutine = useCallback(() => {
+        if (!routine) return;
+        mutationWrapper({
+            mutation: routineDelete,
+            input: { id: routine.id },
+            successMessage: () => 'Routine deleted.',
+            onSuccess: () => { setLocation(APP_LINKS.Home) },
+        })
+    }, [routine, routineDelete])
 
     /**
      * Creates a link between two nodes which already exist in the linked routine. 
@@ -367,25 +396,67 @@ export const BuildPage = ({
     }, [changedRoutine]);
 
     /**
-     * Unlinks a node. This means the node is still in the routine, but every link associated with 
-     * it is removed.
+     * Drops or unlinks a node
      */
-    const handleNodeUnlink = useCallback((nodeId: string) => {
-        console.log('HANDLE NODE UNLINK', nodeId, changedRoutine?.nodeLinks.length);
+    const handleNodeDrop = useCallback((nodeId: string, columnIndex: number | null, rowIndex: number | null) => {
+        console.log('HANDLE NODE DROP', nodeId, columnIndex, rowIndex);
         if (!changedRoutine) return;
-        const linksList = calculateNewLinksList(nodeId);
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
-        console.log('node index', nodeIndex);
-        console.log('links list', linksList);
-        setChangedRoutine({
-            ...changedRoutine,
-            nodes: updateArray(changedRoutine.nodes, nodeIndex, {
-                ...changedRoutine.nodes[nodeIndex],
-                rowIndex: null,
-                columnIndex: null,
-            }),
-            nodeLinks: linksList,
-        });
+        if (nodeIndex === -1) return;
+        // If columnIndex and rowIndex null, then it is being unlinked
+        if (columnIndex === null && rowIndex === null) {
+            const linksList = calculateNewLinksList(nodeId);
+            console.log('node index', nodeIndex);
+            console.log('links list', linksList);
+            setChangedRoutine({
+                ...changedRoutine,
+                nodes: updateArray(changedRoutine.nodes, nodeIndex, {
+                    ...changedRoutine.nodes[nodeIndex],
+                    rowIndex: null,
+                    columnIndex: null,
+                }),
+                nodeLinks: linksList,
+            });
+        }
+        // If one or the other is null, then there must be an error
+        else if (columnIndex === null || rowIndex === null) {
+            PubSub.publish(Pubs.Snack, { message: 'Error: Invalid drop location.', severity: 'errror' });
+        }
+        // Otherwise, is a drop
+        else {
+            console.log('ITS A DROP')
+            // If dropped into a new column, no other node positions need to be updated
+            const isNewColumn = changedRoutine.nodes.some(n => n.columnIndex === columnIndex && n.id !== nodeId);
+            console.log('isNewColumn', isNewColumn);
+            if (isNewColumn) {
+                setChangedRoutine({
+                    ...changedRoutine,
+                    nodes: updateArray(changedRoutine.nodes, nodeIndex, {
+                        ...changedRoutine.nodes[nodeIndex],
+                        columnIndex,
+                        rowIndex,
+                    }),
+                });
+            }
+            // If dropped into an existing column, update the the row of every node in the column
+            // that's below the dropped node
+            else {
+                const updatedNodes = changedRoutine.nodes.map(n => {
+                    if (n.columnIndex === columnIndex && n.rowIndex !== null && n.rowIndex > rowIndex) {
+                        return { ...n, rowIndex: n.rowIndex + 1}
+                    }
+                    return n;
+                });
+                setChangedRoutine({
+                    ...changedRoutine,
+                    nodes: updateArray(updatedNodes, nodeIndex, {
+                        ...changedRoutine.nodes[nodeIndex],
+                        columnIndex,
+                        rowIndex,
+                    }),
+                });
+            }
+        }
     }, [changedRoutine]);
 
     /**
@@ -471,6 +542,46 @@ export const BuildPage = ({
         });
     }, [changedRoutine]);
 
+    const handleContextItemSelect = useCallback((nodeId: string, option: NodeContextMenuOptions) => {
+        if (!changedRoutine) return;
+        const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
+        if (nodeIndex === -1) return;
+        switch (option) {
+            case NodeContextMenuOptions.AddAfter:
+                // Find links where this node is the "from" node
+                const links = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId);
+                // If multiple links, open a dialog to select which one to add after
+                if (links.length > 1) {
+                    //TODO
+                }
+                // If only one link, add after that link
+                else if (links.length === 1) {
+                    const link = links[0];
+                    handleNodeInsert(link);
+                }
+                // If no links, create link and node
+                else {
+                    //TODO
+                }
+                break;
+            case NodeContextMenuOptions.AddBefore:
+                // TODO like add after, but before
+                break;
+            case NodeContextMenuOptions.Delete:
+                handleNodeDelete(nodeId);
+                break;
+            case NodeContextMenuOptions.Edit:
+                // TODO
+                break;
+            case NodeContextMenuOptions.Move:
+                // handleNodeDrop(nodeId, columnIndex, rowIndex);
+                break;
+            case NodeContextMenuOptions.Unlink:
+                handleNodeDrop(nodeId, null, null);
+                break;
+        }
+    }, [changedRoutine]);
+
     return (
         <Box sx={{
             display: 'flex',
@@ -490,9 +601,6 @@ export const BuildPage = ({
                 routine={changedRoutine}
             // partial={ }
             /> : null}
-            {/* Popup for deleting nodes (or the entire routine) */}
-            {/* <DeleteNodeDialog
-            /> */}
             {/* Displays routine information when you click on a routine list item*/}
             <SubroutineInfoDialog
                 language={language}
@@ -504,6 +612,7 @@ export const BuildPage = ({
             <BuildInfoContainer
                 canEdit={canEdit}
                 handleRoutineUpdate={updateRoutine}
+                handleRoutineDelete={deleteRoutine}
                 handleStartEdit={startEditing}
                 handleTitleUpdate={updateRoutineTitle}
                 isEditing={isEditing}
@@ -522,37 +631,12 @@ export const BuildPage = ({
                 marginRight: 1,
                 zIndex: isDragging ? 'unset' : 2,
             }}>
-                {/* Delete node (or whole routine) */}
-                <Tooltip title='Delete a node'>
-                    <IconButton
-                        id="delete-node-button"
-                        edge="start"
-                        size="large"
-                        onClick={() => { }}
-                        aria-label='Delete node'
-                        sx={{
-                            marginLeft: 1,
-                            marginRight: 'auto',
-                            '&:hover': {
-                                background: 'transparent',
-                            },
-                        }}
-                    >
-                        <DeleteIcon id="delete-node-button-icon" sx={{
-                            fill: '#8f969b',
-                            transform: 'scale(1.5)',
-                            '&:hover': {
-                                fill: (t) => t.palette.error.main,
-                            }
-                        }} />
-                    </IconButton>
-                </Tooltip>
                 {/* Clean up graph */}
                 <Tooltip title='Clean up graph'>
                     <IconButton
                         id="clean-graph-button"
                         edge="end"
-                        onClick={() => { }}
+                        onClick={cleanUpGraph}
                         aria-label='Clean up graph'
                         sx={{
                             background: '#ab9074',
@@ -573,7 +657,7 @@ export const BuildPage = ({
                     <IconButton
                         id="add-link-button"
                         edge="end"
-                        onClick={() => { }}
+                        onClick={openLinkDialog}
                         aria-label='Add link'
                         sx={{
                             background: '#9e3984',
@@ -612,11 +696,8 @@ export const BuildPage = ({
                 <UnlinkedNodesDialog
                     open={isUnlinkedNodesOpen}
                     nodes={nodesOffGraph}
-                    handleToggleOpen={toggleUnlinkedNodes}
                     handleNodeDelete={handleNodeDelete}
-                    handleDialogOpen={handleDialogOpen}
-                    handleNodeUnlink={handleNodeUnlink}
-                    handleRoutineListItemAdd={handleRoutineListItemAdd}
+                    handleToggleOpen={toggleUnlinkedNodes}
                 />
             </Box> : null}
             <Box sx={{
@@ -627,6 +708,7 @@ export const BuildPage = ({
                 bottom: '0',
             }}>
                 <NodeGraph
+                    handleContextItemSelect={handleContextItemSelect}
                     handleDialogOpen={handleDialogOpen}
                     handleLinkCreate={handleLinkCreate}
                     handleLinkUpdate={handleLinkUpdate}
@@ -634,7 +716,7 @@ export const BuildPage = ({
                     handleNodeDelete={handleNodeDelete}
                     handleNodeInsert={handleNodeInsert}
                     handleNodeUpdate={handleNodeUpdate}
-                    handleNodeUnlink={handleNodeUnlink}
+                    handleNodeDrop={handleNodeDrop}
                     handleRoutineListItemAdd={handleRoutineListItemAdd}
                     handleSubroutineOpen={handleSubroutineOpen}
                     isEditing={isEditing}

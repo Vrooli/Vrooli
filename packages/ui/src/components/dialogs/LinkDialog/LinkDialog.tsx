@@ -53,20 +53,22 @@ export const LinkDialog = ({
         <Box sx={{
             background: (t) => t.palette.primary.dark,
             color: (t) => t.palette.primary.contrastText,
-            padding: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
         }}>
-            <Stack direction="row" justifyContent="center" alignItems="center">
-                <Typography component="h2" variant="h4" textAlign="center">
-                    {isAdd ? 'Add Link' : 'Edit Link'}
-                </Typography>
+            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
+                {isAdd ? 'Add Link' : 'Edit Link'}
+            </Typography>
+            <Box sx={{ marginLeft: 'auto' }}>
                 <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
                 <IconButton
-                    edge="end"
-                    onClick={(e) => { handleClose(null) }}
+                    edge="start"
+                    onClick={(e) => { handleClose() }}
                 >
                     <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                 </IconButton>
-            </Stack>
+            </Box>
         </Box>
     ), [])
 
@@ -86,12 +88,12 @@ export const LinkDialog = ({
             />
             {/* Right arrow */}
             <Box sx={{
-                width: '1em',
-                height: '1em',
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
-                borderRadius: '50%',
-                margin: 0.5,
+                width: '3em',
+                height: '3em',
+                color: 'black',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
             }}>
                 <Typography variant="h6" textAlign="center">
                     ⮕
@@ -125,13 +127,10 @@ export const LinkDialog = ({
     return (
         <Dialog
             open={isOpen}
-            onClose={() => { handleClose(null) }}
-        // aria-labelledby="delete-routine-dialog-title"
-        // aria-describedby="delete-routine-dialog-description"
+            onClose={() => { handleClose() }}
         >
-            {/* <DialogTitle id="delete-routine-dialog-title">Delete {}</DialogTitle> */}
+            {titleBar}
             <DialogContent>
-                {titleBar}
                 {nodeSelections}
                 {conditions}
                 {deleteOption}

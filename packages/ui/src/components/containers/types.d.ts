@@ -41,6 +41,7 @@ export interface BuildBottomContainerProps {
 export interface BuildInfoContainerProps {
     canEdit: boolean;
     handleRoutineUpdate: (changedRoutine: Routine) => void;
+    handleRoutineDelete: () => any;
     handleStartEdit: () => void;
     handleTitleUpdate: (newTitle: string) => void;
     isEditing: boolean;

@@ -143,7 +143,7 @@ export interface BaseObjectActionDialogProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (data: any) => void;
+    handleClose: (newLink?: NodeLink) => void;
     handleDelete: (link: NodeLink) => void;
     isAdd: boolean;
     isOpen: boolean;
@@ -154,6 +154,7 @@ export interface LinkDialogProps {
 
 export interface BuildInfoDialogProps {
     handleUpdate: (routine: Routine) => any;
+    handleDelete: () => any;
     isEditing: boolean;
     language: string; // Language to display/edit
     routine: Routine | null;
@@ -171,9 +172,11 @@ export interface SubroutineInfoDialogProps {
 export interface UnlinkedNodesDialogProps {
     open: boolean;
     nodes: Node[];
-    handleToggleOpen: () => any; // Expand/shrink dialog
     handleNodeDelete: (nodeId: string) => any;
-    handleNodeUnlink: (nodeId: string) => any;
-    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
-    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
+    handleToggleOpen: () => any; // Expand/shrink dialog
+}
+
+export interface CreateNewDialogProps {
+    handleClose: () => any;
+    isOpen: boolean;
 }

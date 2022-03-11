@@ -10,17 +10,27 @@ import {
 } from '@mui/icons-material';
 import { ListMenu } from 'components';
 
-const listOptionsMap: {[x: string]: [string, SvgIconComponent]} = {
-    'addBefore': ['Add node before', MoveDownIcon],
-    'addAfter': ['Add node after', MoveUpIcon],
-    'delete': ['Delete node', DeleteIcon],
-    'edit': ['Edit node', EditIcon],
-    'move': ['Move node', EditLocationIcon],
+export enum NodeContextMenuOptions {
+    AddBefore = 'add-before',
+    AddAfter = 'add-after',
+    Delete = 'delete',
+    Edit = 'edit',
+    Move = 'move',
+    Unlink = 'unlink',
 }
 
-const listOptions: ListMenuItemData<string>[] = Object.keys(listOptionsMap).map(o => ({ 
+const listOptionsMap: {[index in NodeContextMenuOptions]: [string, SvgIconComponent]}  = {
+    [NodeContextMenuOptions.AddBefore]: ['Add node before', MoveDownIcon],
+    [NodeContextMenuOptions.AddAfter]: ['Add node after', MoveUpIcon],
+    [NodeContextMenuOptions.Delete]: ['Delete node', DeleteIcon],
+    [NodeContextMenuOptions.Edit]: ['Edit node', EditIcon],
+    [NodeContextMenuOptions.Move]: ['Move node', EditLocationIcon],
+    [NodeContextMenuOptions.Unlink]: ['Unlink node', EditIcon],
+}
+
+const listOptions: ListMenuItemData<NodeContextMenuOptions>[] = Object.keys(listOptionsMap).map(o => ({ 
     label: listOptionsMap[o][0],
-    value: o,
+    value: o as NodeContextMenuOptions,
     Icon: listOptionsMap[o][1]
 }));
 
@@ -28,43 +38,17 @@ const listOptions: ListMenuItemData<string>[] = Object.keys(listOptionsMap).map(
 export const NodeContextMenu = ({
     id,
     anchorEl,
-    node,
-    onClose,
-    onAddBefore,
-    onAddAfter,
-    onEdit,
-    onDelete,
-    onMove,
+    handleClose,
+    handleContextItemSelect,
 }: NodeContextMenuProps) => {
-    const onMenuItemSelect = (value: string) => {
-        switch (value) {
-            case 'addBefore':
-                onAddBefore(node);
-                break;
-            case 'addAfter':
-                onAddAfter(node);
-                break;
-            case 'edit':
-                onEdit(node);
-                break;
-            case 'delete':
-                onDelete(node);
-                break;
-            case 'move':
-                onMove(node);
-                break;
-        }
-        onClose();
-    }
-
     return (
         <ListMenu
             id={id}
             anchorEl={anchorEl}
             title='Node Options'
             data={listOptions}
-            onSelect={onMenuItemSelect}
-            onClose={onClose}
+            onSelect={handleContextItemSelect}
+            onClose={handleClose}
         />
     )
 }

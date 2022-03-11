@@ -52,6 +52,7 @@ enum ActionOption {
 
 export const BuildInfoDialog = ({
     handleUpdate,
+    handleDelete,
     isEditing,
     language,
     routine,
@@ -61,10 +62,12 @@ export const BuildInfoDialog = ({
     const [, setLocation] = useLocation();
     // Open boolean for drawer
     const [open, setOpen] = useState(false);
-    // Open boolean for delete routine confirmation
-    const [deleteOpen, setDeleteOpen] = useState(false);
     const toggleOpen = () => setOpen(o => !o);
     const closeMenu = () => setOpen(false);
+    // Open boolean for delete routine confirmation
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const openDelete = () => setDeleteOpen(true);
+    const closeDelete = () => setDeleteOpen(false);
 
     /**
      * Name of user or organization that owns this routine
@@ -145,8 +148,24 @@ export const BuildInfoDialog = ({
         },
     });
 
-    const handleAction = useCallback((option: ActionOption) => {
-        //TODO
+    const handleAction = useCallback((action: ActionOption) => {
+        switch (action) {
+            case ActionOption.Cancel:
+                //TODO
+                break;
+            case ActionOption.Delete:
+                openDelete();
+                break;
+            case ActionOption.Fork:
+                //TODO
+                break;
+            case ActionOption.Stats:
+                //TODO
+                break;
+            case ActionOption.Update:
+                //TODO
+                break;
+        }
     }, []);
 
     return (
@@ -295,7 +314,7 @@ export const BuildInfoDialog = ({
             <DeleteRoutineDialog
                 isOpen={deleteOpen}
                 routineName={getTranslation(routine, 'title', [language]) ?? ''}
-                handleClose={() => setDeleteOpen(false)}
+                handleClose={closeDelete}
                 handleDelete={() => { }}
             />
         </>

@@ -8,10 +8,11 @@ import { EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
 import { NodeType } from 'graphql/generated/globalTypes';
 
 export const NodeColumn = ({
+    handleContextItemSelect,
     handleDialogOpen,
     handleRoutineListItemAdd,
     handleNodeDelete,
-    handleNodeUnlink,
+    handleNodeDrop,
     handleSubroutineOpen,
     id,
     isEditing,
@@ -58,6 +59,7 @@ export const NodeColumn = ({
             // Common node props
             const nodeProps = {
                 key: `node-${columnIndex}-${index}`,
+                handleContextItemSelect: handleContextItemSelect,
                 isLinked: true,
                 node,
                 scale,
@@ -73,13 +75,13 @@ export const NodeColumn = ({
                 case NodeType.Redirect:
                     return <RedirectNode {...nodeProps} />
                 case NodeType.RoutineList:
-                    return (<RoutineListNode 
-                        {...nodeProps} 
-                        canExpand={true} 
-                        handleDialogOpen={handleDialogOpen} 
+                    return (<RoutineListNode
+                        {...nodeProps}
+                        canExpand={true}
+                        handleDialogOpen={handleDialogOpen}
                         handleNodeDelete={handleNodeDelete}
-                        handleNodeUnlink={handleNodeUnlink}
-                        handleRoutineListItemAdd={handleRoutineListItemAdd} 
+                        handleNodeUnlink={(nodeId) => { handleNodeDrop(nodeId, null, null) }}
+                        handleRoutineListItemAdd={handleRoutineListItemAdd}
                         handleSubroutineOpen={handleSubroutineOpen}
                     />)
                 case NodeType.Start:

@@ -5,7 +5,6 @@ import { CustomError } from "../error";
 import { CODE, inputCreate, inputUpdate, MemberRole, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
-import { ResourceModel } from "./resource";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -202,7 +201,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
             inputs: this.relationshipBuilderInput(userId, data, false),
             outpus: this.relationshipBuilderOutput(userId, data, false),
-            nodes: await NodeModel(prisma).relationshipBuilder(userId, null, data, false),
+            nodes: await NodeModel(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, false),
             nodeLinks: NodeModel(prisma).relationshipBuilderNodeLink(userId, data, false),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, false),
         }
@@ -344,7 +343,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             }
         }
         if (updateMany) {
-            console.log('ROUTINE VALIDATE MUTATIONS UPDATEMANY', updateMany);
+            console.log('ROUTINE VALIDATE MUTATIONS UPDATEMANY', JSON.stringify(updateMany));
             updateMany.forEach(input => routineUpdate.validateSync(input, { abortEarly: false }));
             updateMany.forEach(input => TranslationModel().profanityCheck(input));
             updateMany.forEach(input => this.validateNodePositions(input));
@@ -409,10 +408,11 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input);
-                console.log('ROUTINE UPDATEMANY TODBSHAPE AFTER', data);
+                console.log('ROUTINE UPDATEMANY TODBSHAPE AFTER', JSON.stringify(data));
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.organizationId) {
                     // Make sure the user is an admin of the organization
+                    console.log('checking isauthorized org', userId, input);
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.organizationId);
                     if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
                     data = {
@@ -421,6 +421,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                         user: { disconnect: true },
                     };
                 } else {
+                    console.log('checking isauthorized user', userId, input);
                     data = {
                         ...data,
                         user: { connect: { id: userId } },

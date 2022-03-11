@@ -2,6 +2,7 @@ import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeDataRoutineListItem } from "types";
 import { BuildDialogOption } from 'utils';
+import { MouseEvent } from 'react';
 
 /**
  * Props for all nodes (besides the Add node)
@@ -55,7 +56,7 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
  * Props for the End node
  */
 export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-
+    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
 }
 
 /**
@@ -69,7 +70,7 @@ export interface LoopNodeProps extends NodeDataProps, ScaleProps, LabelledProps,
  * Props for the Redirect node
  */
 export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-
+    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
 }
 
 /**
@@ -77,6 +78,7 @@ export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledPr
  */
 export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
     canExpand: boolean;
+    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
     handleNodeUnlink: (nodeId: string) => void;
     handleNodeDelete: (nodeId: string) => void;
     handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;

@@ -6,6 +6,7 @@ import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 
 export const EndNode = ({
+    handleContextItemSelect,
     isLinked = true,
     node,
     scale = 1,
@@ -36,9 +37,11 @@ export const EndNode = ({
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((ev: MouseEvent<HTMLDivElement>) => {
+        // Ignore if not linked or editing
+        if (!canDrag || !isLinked) return;
         setContextAnchor(ev.currentTarget)
         ev.preventDefault();
-    }, []);
+    }, [canDrag, isLinked]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
@@ -46,13 +49,8 @@ export const EndNode = ({
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                node={node}
-                onClose={closeContext}
-                onAddBefore={() => { }}
-                onAddAfter={() => { }}
-                onDelete={() => { }}
-                onEdit={() => { }}
-                onMove={() => { }}
+                handleClose={closeContext}
+                handleContextItemSelect={(option) => { handleContextItemSelect(node.id, option) }}
             />
             <Tooltip placement={'top'} title={'End'}>
                 <Box
