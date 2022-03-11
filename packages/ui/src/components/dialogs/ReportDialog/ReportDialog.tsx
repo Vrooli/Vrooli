@@ -1,10 +1,27 @@
 import { useMutation } from '@apollo/client';
-import { Autocomplete, Button, Dialog, DialogTitle, Grid, Stack, TextField } from '@mui/material';
-import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
+import { reportCreate as validationSchema } from '@local/shared';
+import { Autocomplete, Box, Button, Dialog, Grid, IconButton, Stack, TextField, Typography } from '@mui/material';
+import { HelpButton } from 'components/buttons';
+import { useFormik } from 'formik';
+import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCreate';
 import { reportCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useCallback, useState } from 'react';
 import { ReportDialogProps } from '../types';
+import { 
+    Close as CloseIcon
+} from '@mui/icons-material';
+import { Pubs } from 'utils';
+
+const helpText =
+    `
+# Header1 test
+## Header2 test
+**bold test**
+fkdjslakfd;
+
+fdsjlakfjdl;k
+`
 
 enum ReportOptions {
     Inappropriate,
@@ -41,7 +58,27 @@ export const ReportDialog = ({
         setDetails(e.target.value);
     }, []);
 
-    const [mutation] = useMutation<reportCreate_reportCreate>(reportCreateMutation);
+    const [mutation, { loading }] = useMutation<reportCreate>(reportCreateMutation);
+    const formik = useFormik({
+        initialValues: {
+            reason: '',
+            details: ''
+        },
+        validationSchema,
+        onSubmit: (values) => {
+            mutationWrapper({
+                mutation,
+                input: values,
+                successCondition: (response) => response.data.emailLogIn !== null,
+                onSuccess: (response) => {
+                    PubSub.publish(Pubs.Snack, { message: 'Report submitted.' });
+                    onClose() 
+                },
+            })
+        },
+    });
+
+
     const onSubmit = useCallback(() => {
         mutationWrapper({
             mutation,
@@ -65,9 +102,26 @@ export const ReportDialog = ({
                 overflow: 'hidden',
             }}
         >
-            <DialogTitle sx={{ background: (t) => t.palette.primary.light }}>
-                {title}
-            </DialogTitle>
+            <Box sx={{
+                background: (t) => t.palette.primary.dark,
+                color: (t) => t.palette.primary.contrastText,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+            }}>
+                <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
+                    {title}
+                </Typography>
+                <Box sx={{ marginLeft: 'auto' }}>
+                    <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
+                    <IconButton
+                        edge="start"
+                        onClick={onClose}
+                    >
+                        <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    </IconButton>
+                </Box>
+            </Box>
             <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
                 {/* Text displaying what you are reporting */}
                 <Autocomplete

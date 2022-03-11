@@ -195,7 +195,7 @@ export const AllRoutes = (props: CommonProps) => {
                 <Route path={LINKS.Start}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Start')} {...props}>
-                            <StartPage {...props} />
+                            <StartPage />
                         </Page>
                     </Suspense>
                 </Route>
@@ -213,7 +213,7 @@ export const AllRoutes = (props: CommonProps) => {
                         <Suspense fallback={Fallback}>
                             <Page title={title('Reset Password')} {...props}>
                                 <FormPage title="Reset Password" maxWidth="700px">
-                                    <ResetPasswordForm userId={params.userId} code={params.code} onSessionUpdate={props.onSessionUpdate} />
+                                    <ResetPasswordForm userId={params.userId} code={params.code} />
                                 </FormPage>
                             </Page>
                         </Suspense>

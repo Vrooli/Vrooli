@@ -4,7 +4,7 @@ import { centeredDiv } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
 import { useQuery } from '@apollo/client';
 import { autocompleteQuery } from 'graphql/query';
-import { ActorListItem, OrganizationListItem, ProjectListItem, RoutineListItem, AutocompleteSearchBar, StandardListItem, TitleContainer } from 'components';
+import { ActorListItem, OrganizationListItem, ProjectListItem, RoutineListItem, AutocompleteSearchBar, StandardListItem, TitleContainer, CreateNewDialog } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
@@ -90,18 +90,23 @@ export const HomePage = ({
         return options;
     }, [data]);
 
+    const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
+    const openCreateDialog = useCallback(() => { setCreateDialogOpen(true) }, [setCreateDialogOpen]);
+    const closeCreateDialog = useCallback(() => { setCreateDialogOpen(false) }, [setCreateDialogOpen]);
+    const openAdvancedSearch = useCallback(() => {
+        //TODO
+    }, [setLocation]);
+
     /**
      * When an autocomplete item is selected, navigate to object
      */
     const onInputSelect = useCallback((newValue: AutocompleteListItem) => {
-        console.log('onInputSelect', newValue);
         if (!newValue) return;
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
         // Determine object from selected label
         const selectedItem = autocompleteOptions.find(o => o.id === newValue.id);
         if (!selectedItem) return;
-        console.log('selectedItem', selectedItem);
         const linkBases = linkMap[selectedItem.objectType];
         setLocation(selectedItem.id ? `${linkBases[1]}/${selectedItem.id}` : linkBases[0]);
     }, [autocompleteOptions]);
@@ -114,7 +119,6 @@ export const HomePage = ({
 
     // Opens correct search page
     const openSearch = useCallback((event: any, linkBases: [string, string], id?: string) => {
-        console.log('OPEN SEARCHHHHHH', event);
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
@@ -228,6 +232,11 @@ export const HomePage = ({
 
     return (
         <Box id="page">
+            {/* Create new popup */}
+            <CreateNewDialog 
+                isOpen={isCreateDialogOpen}
+                handleClose={closeCreateDialog}
+            />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '30vh' } }}>
                 <Typography component="h1" variant="h2" textAlign="center">What would you like to do?</Typography>
@@ -275,10 +284,10 @@ export const HomePage = ({
                     <Typography component="h3" variant="h4" textAlign="center">Can't find what you're looking for?</Typography>
                     <Grid container spacing={2} sx={{ width: 'min(100%, 500px)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                         <Grid item xs={12} sm={6}>
-                            <Button fullWidth startIcon={<SearchIcon />}>Advanced Search</Button>
+                            <Button fullWidth onClick={openAdvancedSearch} startIcon={<SearchIcon />}>Advanced Search</Button>
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <Button fullWidth startIcon={<CreateIcon />}>Create New</Button>
+                            <Button fullWidth onClick={openCreateDialog} startIcon={<CreateIcon />}>Create New</Button>
                         </Grid>
                     </Grid>
                 </Stack>

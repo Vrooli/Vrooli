@@ -18,11 +18,9 @@ export type Session = {
     roles?: string[] | null;
     theme?: string;
 }
-export type OnSessionUpdate = any;
 export interface CommonProps {
     session: Session;
     sessionChecked: SessionChecked;
-    onSessionUpdate: OnSessionUpdate;
 }
 
 // Rename auto-generated query objects

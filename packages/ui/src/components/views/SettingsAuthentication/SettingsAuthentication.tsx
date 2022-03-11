@@ -27,7 +27,7 @@ export const SettingsAuthentication = ({
     const [logOut] = useMutation<any>(logOutMutation);
     const onLogOut = useCallback(() => {
         mutationWrapper({ mutation: logOut })
-        PubSub.publish(Pubs.LogOut);
+        PubSub.publish(Pubs.Session, undefined);
         setLocation(APP_LINKS.Home);
     }, []);
 

@@ -38,9 +38,7 @@ const buttonProps: SxProps = {
     height: '4em',
 }
 
-export const StartPage = ({
-    onSessionUpdate
-}: Pick<CommonProps, 'onSessionUpdate'>) => {
+export const StartPage = () => {
     const [, setLocation] = useLocation();
     const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
 
@@ -123,21 +121,21 @@ export const StartPage = ({
         if (walletCompleteResult) {
             PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
             // Set actor role
-            onSessionUpdate(walletCompleteResult?.session)
+            PubSub.publish(Pubs.Session, walletCompleteResult?.session)
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
         }
-    }, [downloadExtension, setLocation, onSessionUpdate, redirect, toEmailLogIn])
+    }, [downloadExtension, setLocation, redirect, toEmailLogIn])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({
             mutation: guestLogIn,
             onSuccess: () => {
-                onSessionUpdate({ roles: [{ role: { title: ROLES.Guest } }] });
+                PubSub.publish(Pubs.Session, { roles: [{ role: { title: ROLES.Guest } }] })
                 setLocation(redirect ?? APP_LINKS.Welcome);
             },
         })
-    }, [guestLogIn, setLocation, onSessionUpdate, redirect]);
+    }, [guestLogIn, setLocation, redirect]);
 
     const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
         console.log('handleWalletDialogSelect', selected);
@@ -228,10 +226,7 @@ export const StartPage = ({
                     <Typography variant="h6" textAlign="center">{formTitle}</Typography>
                 </Box>
                 <Box sx={{ padding: 1 }}>
-                    <Form
-                        onSessionUpdate={onSessionUpdate}
-                        onFormChange={handleFormChange}
-                    />
+                    <Form onFormChange={handleFormChange} />
                 </Box>
             </Dialog>
         </Box>

@@ -24,7 +24,6 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 
 export const SignUpForm = ({
-    onSessionUpdate,
     onFormChange = () => { },
 }: FormProps) => {
     const theme = useTheme();
@@ -49,7 +48,7 @@ export const SignUpForm = ({
                     theme: theme.palette.mode ?? 'light',
                 },
                 onSuccess: (response) => {
-                    onSessionUpdate(response.data.emailSignUp);
+                    PubSub.publish(Pubs.Session, response.data.emailSignUp)
                     PubSub.publish(Pubs.AlertDialog, {
                         message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
                         buttons: [{ text: 'OK', onClick: () => setLocation(APP_LINKS.Welcome) }]

@@ -6,6 +6,7 @@ export const Pubs = {
     Loading: "loading",
     LogOut: "logout",
     AlertDialog: "alertDialog",
+    Session: "session",
     Snack: "snack",
     BurgerMenuOpen: "burgerMenuOpen",
     ArrowMenuOpen: "arrowMenuOpen",
