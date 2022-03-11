@@ -79,7 +79,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Routine>[]> {
-        // console.log('ROUTINE ADD SUPPL FILEDS', objects);
+        console.log('ROUTINE ADD SUPPL FILEDS', objects.length);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred

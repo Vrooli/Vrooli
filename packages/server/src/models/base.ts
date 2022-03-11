@@ -750,6 +750,61 @@ export const deconstructUnion = (partial: any, unionField: string, relationshipT
 }
 
 /**
+ * Counts the "matchness" of two objects. The more fields that match, the higher the score.
+ * @returns Total number of matching fields, or 0
+ */
+const countSubset = (obj1: any, obj2: any): number => {
+    let count = 0;
+    if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return count;
+    for (const key of Object.keys(obj1)) {
+        // If union, add greatest count
+        if (key[0] === key[0].toUpperCase()) {
+            let highestCount = 0;
+            for (const unionType of Object.keys(obj2)) {
+                const currCount = countSubset(obj1[key], unionType);
+                if (currCount > highestCount) highestCount = currCount;
+            }
+            count += highestCount;
+        }
+        if (Array.isArray((obj1)[key])) {
+            // Only add count for one object in array
+            if (obj1[key].length > 0) {
+                count += countSubset(obj1[key][0], obj2[key]);
+            }
+        }
+        else if (typeof (obj1)[key] === 'object') {
+            count += countSubset(obj1[key], obj2[key]);
+        }
+        else count++
+    }
+    return count;
+}
+
+// /**
+//  * Checks if the first object contains a subset of the nested keys of the second object. 
+//  * If any key in the first object is not in the second object, returns false.
+//  * @param obj1 - first object
+//  * @param obj2 - second object
+//  * @returns True if every key in the first object is in the second object
+//  */
+// export const isSubset = (obj1: any, obj2: any): boolean => {
+//     console.log('IN ISSUBSET', JSON.stringify(obj1), JSON.stringify(obj2));
+//     if (!_.isObject(obj1) || !_.isObject(obj2)) return false;
+//     for (const key of Object.keys(obj1)) {
+//         // Skip unions, for now
+//         if (key[0] === key[0].toUpperCase()) continue;
+//         if (!obj2.hasOwnProperty(key)) return false;
+//         if (Array.isArray((obj1 as any)[key])) {
+//             if (!(obj1 as any)[key].every((e: any) => isSubset(e, (obj2 as any)[key]))) return false;
+//         }
+//         else if (typeof (obj1 as any)[key] === 'object') {
+//             if (!isSubset((obj1 as any)[key], (obj2 as any)[key])) return false;
+//         }
+//     }
+//     return true;
+// }
+
+/**
  * Combines fields from a Prisma object with arbitrarily nested relationships
  * @param data GraphQL-shaped data, where each object contains at least an ID
  * @param partial GraphQL info object, partially converted to Prisma select
@@ -757,16 +812,40 @@ export const deconstructUnion = (partial: any, unionField: string, relationshipT
  * and selectFieldsDict is a dictionary of select fields for each type (unioned if they show up in multiple places)
  */
 const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x: string]: string[] }, { [x: string]: any }] => {
-    console.log('groupIdsByType', partial?.__typename);
     if (!data || !partial) return [{}, {}];
     let objectIdsDict: { [x: string]: string[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: { [x: string]: any } } } = {};
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
-        const childPartial: PartialInfo = partial[key] as any;
+        let childPartial: PartialInfo = partial[key] as any;
+        // TODO find better way to handle unions, than this hack
+        if (childPartial)
+            // If every key in childPartial starts with a capital letter, then it is a union.
+            // In this case, we must determine which union to use based on the shape of value
+            if (_.isObject(childPartial) && Object.keys(childPartial).every(k => k[0] === k[0].toUpperCase())) {
+                console.log('CHILD PARTIAL IS UNION A', partial?.__typename);
+                console.log('CHILD PARTIAL IS UNION B', key);
+                console.log('CHILD PARTIAL IS UNION C', value);
+                console.log('CHILD PARTIAL IS UNION D', childPartial);
+                // Find the union type which matches the shape of value, using countSubset
+                let highestCount = 0;
+                let highestType: string = '';
+                for (const unionType of Object.keys(childPartial)) {
+                    const currCount = countSubset(value, partial[unionType]);
+                    if (currCount > highestCount) {
+                        highestCount = currCount;
+                        highestType = unionType;
+                    }
+                }
+                // const unionType = Object.keys(childPartial).find(k => isSubset(value, childPartial[k]));
+                console.log('UNION TYPE', highestType);
+                // If no union type matches, skip
+                if (!highestType) continue;
+                // If union type, update child partial
+                childPartial = childPartial[highestType] as PartialInfo;
+            }
         // If value is an array, add each element to the correct key in objectDict
         if (Array.isArray(value)) {
-            console.log('is array', key, value.length)
             // Pass each element through groupSupplementsByType
             for (const v of value) {
                 const [childObjectsDict, childSelectFieldsDict] = groupIdsByType(v, childPartial);
@@ -779,8 +858,6 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
         }
         // If value is an object (and not date), add it to the correct key in objectDict
         else if (isRelationshipObject(value)) {
-            console.log('is object', key)
-            if (key === 'data') console.log('is data object!!!', JSON.stringify(value), JSON.stringify(childPartial))
             // Pass value through groupIdsByType
             const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(value, childPartial);
             for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
@@ -790,8 +867,6 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
             selectFieldsDict = _.merge(selectFieldsDict, childSelectFieldsDict);
         }
         else if (key === 'id' && partial.__typename) {
-            console.log('is id', partial.__typename, value)
-            console.log('is id continued', objectIdsDict[partial.__typename])
             // Add to objectIdsDict
             const type: string = partial.__typename;
             objectIdsDict[type] = objectIdsDict[type] ?? [];
@@ -941,14 +1016,12 @@ export const addSupplementalFields = async (
 ): Promise<{ [x: string]: any }[]> => {
     console.log('addsupplementalfields start', partial.__typename); //TODO node routine list routines not in object id dict. not sure why. Know that before addsupplementalfields is called, prisma data and partial and __typenames are 100% correct. This means the error is likely in groupIdsByType
     // Strip all fields which are not the ID or a child array/object from data
-    const dataIds: { [x: string]: any }[] = data.map(pickId);
-    console.log('addsupple b got data ids', JSON.stringify(dataIds));
     console.log('addsupple c', JSON.stringify(partial));
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: string[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
-    for (const d of dataIds) {
+    for (const d of data) {
         const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(d, partial);
         // Merge each array in childObjectIdsDict into objectIdsDict
         for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
@@ -1030,6 +1103,7 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
  * @returns Valid GraphQL object
  */
 export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial: PartialInfo): GraphQLModel {
+    console.log("in model to graphql", partial?.__typename);
     // First convert data to usable shape
     if (partial?.__typename ?? '' in FormatterMap) {
         const formatter = FormatterMap[partial?.__typename ?? ''];
@@ -1037,17 +1111,39 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
         if (formatter.removeCountFields) data = formatter.removeCountFields(data);
     }
+    // Remove top-level union from partial, if necessary
+    // If every key starts with a capital letter, it's a union
+    if (Object.keys(partial).every(k => k[0] === k[0].toUpperCase())) {
+        if ('NodeRoutineList' in partial) console.log('FOUND NODE UNION', JSON.stringify(partial), JSON.stringify(data));
+        // Find the union type which matches the shape of value, using countSubset
+        let highestCount = 0;
+        let highestType: string = '';
+        for (const unionType of Object.keys(partial)) {
+            const currCount = countSubset(data, partial[unionType]);
+            console.log('currCount', unionType, currCount);
+            if (currCount > highestCount) {
+                highestCount = currCount;
+                highestType = unionType;
+            }
+        }
+        // const unionType = Object.keys(partial).find(k => isSubset(data, partial[k]));
+        console.log('UNION TYPE', highestType);
+        if (highestType) partial = partial[highestType] as PartialInfo;
+    }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {
-        // If key doesn't exist in partial, skip
+        if (key === 'data' || key === 'NodeEnd' || key === 'NodeRoutineList') console.log(key)
+        // If key doesn't exist in partial, check if union
         if (!_.isObject(partial) || !(partial as any)[key]) continue;
         // If value is an array, call modelToGraphQL on each element
         if (Array.isArray(value)) {
+            console.log('array', key, partial[key]);
             // Pass each element through modelToGraphQL
             data[key] = data[key].map((v: any) => modelToGraphQL(v, partial[key] as PartialInfo));
         }
         // If value is an object (and not date), call modelToGraphQL on it
         else if (isRelationshipObject(value)) {
+            console.log('object', key, partial[key]);
             data[key] = modelToGraphQL(value, (partial as any)[key]);
         }
     }
