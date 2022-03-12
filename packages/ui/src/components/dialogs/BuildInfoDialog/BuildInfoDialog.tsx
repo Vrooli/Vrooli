@@ -123,6 +123,7 @@ export const BuildInfoDialog = ({
         initialValues: {
             description: getTranslation(routine, 'description', [language]) ?? '',
             instructions: getTranslation(routine, 'instructions', [language]) ?? '',
+            isInternal: routine?.isInternal ?? false,
             title: getTranslation(routine, 'title', [language]) ?? '',
             version: routine?.version ?? '',
         },
@@ -287,8 +288,8 @@ export const BuildInfoDialog = ({
                                     name='isInternalCheckbox'
                                     value='isInternalCheckbox'
                                     color='secondary'
-                                    checked={routine?.isInternal ?? false}
-                                    onChange={() => { }}
+                                    checked={formik.values.isInternal}
+                                    onChange={formik.handleChange}
                                 />
                             }
                         />

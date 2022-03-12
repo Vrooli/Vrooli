@@ -238,6 +238,11 @@ export const NodeGraph = ({
         // If not above any nodes, must be below   
         if (rowIndex === -1) rowIndex = centerYs.length;
         console.log('DROPPED ROW, COL', columnIndex, rowIndex);
+        // If dropped into its same position, return
+        if (node.columnIndex === columnIndex && node.rowIndex === rowIndex) return;
+        // If dropped into its own column and no other nodes in that column, return
+        const nodesInColumn = Object.values(nodesById).filter(node => node.columnIndex === columnIndex);
+        if (nodesInColumn.length === 1 && nodesInColumn[0].id === nodeId) return;
         // Complete drop
         handleNodeDrop(nodeId, columnIndex, rowIndex);
     }, [scale, nodesById]);

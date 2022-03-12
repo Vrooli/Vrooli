@@ -108,6 +108,7 @@ export const BuildPage = ({
         const statuses: [BuildStatus, string][] = []; // Holds all status messages, so multiple can be displayed
         // Loop through nodes and add to appropriate array (and also populate nodesById dictionary)
         for (const node of changedRoutine.nodes) {
+            console.log('changed routine loop', node)
             if (!_.isNil(node.columnIndex) && !_.isNil(node.rowIndex)) {
                 nodesOnGraph.push(node);
             } else {
@@ -150,6 +151,7 @@ export const BuildPage = ({
         // Second check
         const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.toId !== node.id));
         if (nodesWithoutIncomingEdges.length === 0) {
+            console.log('uh oh spaghetti o', nodesWithoutIncomingEdges, nodesOnGraph)
             //TODO this would be fine with a redirect link
             statuses.push([BuildStatus.Invalid, 'Error determining start node']);
         }
@@ -424,38 +426,45 @@ export const BuildPage = ({
         }
         // Otherwise, is a drop
         else {
-            console.log('ITS A DROP')
-            // If dropped into a new column, no other node positions need to be updated
-            const isNewColumn = changedRoutine.nodes.some(n => n.columnIndex === columnIndex && n.id !== nodeId);
-            console.log('isNewColumn', isNewColumn);
-            if (isNewColumn) {
-                setChangedRoutine({
-                    ...changedRoutine,
-                    nodes: updateArray(changedRoutine.nodes, nodeIndex, {
-                        ...changedRoutine.nodes[nodeIndex],
-                        columnIndex,
-                        rowIndex,
-                    }),
-                });
-            }
-            // If dropped into an existing column, update the the row of every node in the column
-            // that's below the dropped node
-            else {
-                const updatedNodes = changedRoutine.nodes.map(n => {
-                    if (n.columnIndex === columnIndex && n.rowIndex !== null && n.rowIndex > rowIndex) {
+            console.log('ITS A DROP', nodeIndex)
+            let updatedNodes = [...changedRoutine.nodes];
+            // If dropped into an existing column, shift rows in dropped column that are below the dropped node
+            if (changedRoutine.nodes.some(n => n.columnIndex === columnIndex)) {
+                console.log('shift rows below');
+                updatedNodes = updatedNodes.map(n => {
+                    if (n.columnIndex === columnIndex && n.rowIndex !== null && n.rowIndex >= rowIndex) {
+                        console.log('shifting a row', n)
                         return { ...n, rowIndex: n.rowIndex + 1}
                     }
                     return n;
                 });
-                setChangedRoutine({
-                    ...changedRoutine,
-                    nodes: updateArray(updatedNodes, nodeIndex, {
-                        ...changedRoutine.nodes[nodeIndex],
-                        columnIndex,
-                        rowIndex,
-                    }),
+            }
+            // If the column the node was from is now empty, then shift all columns after it
+            const originalColumnIndex = changedRoutine.nodes[nodeIndex].columnIndex;
+            const isRemovingColumn = originalColumnIndex !== null && changedRoutine.nodes.filter(n => n.columnIndex === originalColumnIndex).length === 1;
+            console.log('original column index', originalColumnIndex);
+            if (isRemovingColumn) {
+                console.log('shift columns');
+                updatedNodes = updatedNodes.map(n => {
+                    if (n.columnIndex !== null && n.columnIndex > originalColumnIndex) {
+                        return { ...n, columnIndex: n.columnIndex - 1 }
+                    }
+                    return n;
                 });
             }
+            console.log('updated nodes a', updatedNodes);
+            const updated = updateArray(updatedNodes, nodeIndex, {
+                ...changedRoutine.nodes[nodeIndex],
+                columnIndex: (isRemovingColumn && originalColumnIndex < columnIndex) ? columnIndex - 1 : columnIndex,
+                rowIndex,
+            })
+            console.log('updated nodes b', updated);
+            console.log('testttttt', { ...changedRoutine,  nodes: updated});
+            // Update the routine
+            setChangedRoutine({
+                ...changedRoutine,
+                nodes: updated,
+            });
         }
     }, [changedRoutine]);
 
