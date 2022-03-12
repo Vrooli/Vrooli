@@ -1,9 +1,8 @@
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
-import { ReportFor } from '@local/shared';
-import { Node, NodeDataRoutineListItem, NodeLink, Organization, Project, Routine, Session, Standard, User } from 'types';
-import { BuildDialogOption } from 'utils';
+import { ReportFor, ResourceFor } from '@local/shared';
+import { Node, NodeLink, Organization, Project, Resource, Routine, Session, Standard, User } from 'types';
 
 export interface AlertDialogProps extends DialogProps { };
 
@@ -74,6 +73,14 @@ export interface ReportDialogProps extends DialogProps {
     title?: string;
     reportFor: ReportFor;
     forId: string;
+}
+
+export interface AddResourceDialogProps extends DialogProps {
+    open: boolean;
+    onClose: () => any;
+    onCreated: (resource: Resource) => any;
+    title?: string;
+    listId: string;
 }
 
 export interface OrganizationDialogProps {

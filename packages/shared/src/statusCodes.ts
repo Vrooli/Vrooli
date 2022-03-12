@@ -133,6 +133,11 @@ export const CODE = {
         message: 'Account with that phone number already exists',
         snack: 'Phone number taken',
     },
+    ReportExists: {
+        code: 'ReportExists',
+        message: 'You have already submitted a report on this object.',
+        snack: 'Report already submitted',
+    },
     SessionExpired: {
         code: 'SessionExpired',
         message: 'Session has expired. Please log back in',

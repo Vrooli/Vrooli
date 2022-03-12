@@ -86,7 +86,7 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
         return {
             reason: data.reason,
             details: data.details,
-            from: { connect: { id: userId } },
+            fromId: userId,
             [forMapper[data.createdFor]]: data.createdForId,
         }
     },
@@ -103,7 +103,18 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
         if (createMany) {
             createMany.forEach(input => reportCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => verifier.profanityCheck(input));
-            // Check if report already exists by user on object TODO
+            // Check if report already exists by user on object
+            for (const input of createMany) {
+                const existingReport = await prisma.report.count({
+                    where: {
+                        fromId: userId as string,
+                        [forMapper[input.createdFor]]: input.createdForId,
+                    }
+                })
+                if (existingReport > 0) {
+                    throw new CustomError(CODE.ReportExists);
+                }
+            }
         }
         if (updateMany) {
             updateMany.forEach(input => reportUpdate.validateSync(input, { abortEarly: false }));

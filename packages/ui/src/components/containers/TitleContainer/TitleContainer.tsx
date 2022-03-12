@@ -68,8 +68,12 @@ export function TitleContainer({
                                 }}
                                 >
                                     {options.map(([label, onClick], index) => (
-                                        <Link key={index} onClick={onClick}>
-                                            <Typography sx={{ marginRight: 2, color: (t) => t.palette.secondary.dark }}>{label}</Typography>
+                                        <Link key={index} onClick={onClick} sx={{
+                                            marginTop: 'auto',
+                                            marginBottom: 'auto',
+                                            marginRight: 2,
+                                        }}>
+                                            <Typography sx={{ color: (t) => t.palette.secondary.dark }}>{label}</Typography>
                                         </Link>
                                     ))}
                                 </Stack>

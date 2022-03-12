@@ -1,14 +1,13 @@
 import { useMutation } from '@apollo/client';
 import { reportCreate as validationSchema } from '@local/shared';
-import { Autocomplete, Box, Button, Dialog, Grid, IconButton, Stack, TextField, Typography } from '@mui/material';
+import { Autocomplete, Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
-import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCreate';
+import { reportCreate } from 'graphql/generated/reportCreate';
 import { reportCreateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { useCallback, useState } from 'react';
 import { ReportDialogProps } from '../types';
-import { 
+import {
     Close as CloseIcon
 } from '@mui/icons-material';
 import { Pubs } from 'utils';
@@ -24,11 +23,11 @@ fdsjlakfjdl;k
 `
 
 enum ReportOptions {
-    Inappropriate,
-    PII,
-    Scam,
-    Spam,
-    Other
+    Inappropriate = 'Inappropriate',
+    PII = 'PII',
+    Scam = 'Scam',
+    Spam = 'Spam',
+    Other = 'Other',
 }
 
 const ReportReasons = {
@@ -46,123 +45,116 @@ export const ReportDialog = ({
     reportFor,
     forId,
 }: ReportDialogProps) => {
-    const [reason, setReason] = useState<string | undefined>(undefined);
-    const [details, setDetails] = useState<string>('');
-
-    console.log('reason', reason);
-
-    const handleReasonChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setReason(e.target.value);
-    }, []);
-    const handleDetailsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setDetails(e.target.value);
-    }, []);
 
     const [mutation, { loading }] = useMutation<reportCreate>(reportCreateMutation);
     const formik = useFormik({
         initialValues: {
             reason: '',
+            otherReason: '',
             details: ''
         },
         validationSchema,
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: values,
-                successCondition: (response) => response.data.emailLogIn !== null,
+                input: {
+                    reason: values.otherReason.length > 0 ? values.otherReason : values.reason,
+                    createdFor: reportFor,
+                    createdForId: forId
+                },
+                successCondition: (response) => response.data.reportCreate !== null,
                 onSuccess: (response) => {
                     PubSub.publish(Pubs.Snack, { message: 'Report submitted.' });
-                    onClose() 
+                    onClose()
                 },
             })
         },
     });
-
-
-    const onSubmit = useCallback(() => {
-        mutationWrapper({
-            mutation,
-            input: {
-                createdFor: reportFor as any,
-                createdForId: forId,
-                details,
-                reason,
-            },
-        })
-    }, [details, reason, reportFor, forId]);
+    console.log('fdksafldafd reason', formik.values.reason)
 
     return (
         <Dialog
             onClose={onClose}
             open={open}
             sx={{
-                zIndex: 10000,
-                width: 'min(500px, 100vw)',
-                textAlign: 'center',
-                overflow: 'hidden',
+                '& .MuiDialog-paper': {
+                    width: 'min(500px, 100vw)',
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                }
             }}
         >
-            <Box sx={{
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-            }}>
-                <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                    {title}
-                </Typography>
-                <Box sx={{ marginLeft: 'auto' }}>
-                    <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-                    <IconButton
-                        edge="start"
-                        onClick={onClose}
-                    >
-                        <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
-                    </IconButton>
+            <form onSubmit={formik.handleSubmit}>
+                <Box sx={{
+                    padding: 1,
+                    background: (t) => t.palette.primary.dark,
+                    color: (t) => t.palette.primary.contrastText,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                }}>
+                    <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
+                        {title}
+                    </Typography>
+                    <Box sx={{ marginLeft: 'auto' }}>
+                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
+                        <IconButton
+                            edge="start"
+                            onClick={onClose}
+                        >
+                            <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                        </IconButton>
+                    </Box>
                 </Box>
-            </Box>
-            <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
-                {/* Text displaying what you are reporting */}
-                <Autocomplete
-                    disablePortal
-                    id="report-reason"
-                    options={Object.entries(ReportReasons)}
-                    inputValue={reason}
-                    getOptionLabel={(option) => option[1]}
-                    renderInput={(params) => (
-                        <TextField
-                            fullWidth
-                            id="report-reason-input"
-                            name="reason"
+                <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
+                    {/* Text displaying what you are reporting */}
+                    <FormControl fullWidth>
+                        <InputLabel id="report-reason-label">Reason</InputLabel>
+                        <Select
+                            labelId="report-reason-label"
+                            id="reason"
+                            value={formik.values.reason}
                             label="Reason"
-                            value={reason}
-                            onChange={handleReasonChange}
-                            helperText="Select or enter the reason you're submitting this report..."
-                        />
-                    )}
-                />
-                {/* Reason selector (with other option) */}
-                <TextField
-                    fullWidth
-                    id="report-details"
-                    name="details"
-                    label="Details (Optional)"
-                    value={details}
-                    onChange={handleDetailsChange}
-                    helperText="Enter any details you'd like to share about this indcident. DO NOT include any personal information!"
-                />
-                {/* Details multi-line text field */}
-                {/* Action buttons */}
-                <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                        <Button fullWidth onClick={onSubmit}>Submit</Button>
+                            onChange={(e) => formik.setFieldValue('reason', e.target.value)}
+                        >
+                            {Object.entries(ReportReasons).map(([key, value]) => (
+                                <MenuItem key={key} value={key}>{value}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    {/* Textfield displayed if "Other" reason selected */}
+                    {(formik.values.reason as any) === ReportOptions.Other ? <TextField
+                        fullWidth
+                        id="otherReason"
+                        name="otherReason"
+                        label="Custom Reason"
+                        value={formik.values.otherReason}
+                        onChange={formik.handleChange}
+                        helperText="Enter custom reason..."
+                    /> : null}
+                    {/* Reason selector (with other option) */}
+                    <TextField
+                        fullWidth
+                        id="details"
+                        name="details"
+                        label="Details (Optional)"
+                        value={formik.values.details}
+                        onChange={formik.handleChange}
+                        helperText="Enter any details you'd like to share about this indcident. DO NOT include any personal information!"
+                        rows={4}
+                    />
+                    {/* Details multi-line text field */}
+                    {/* Action buttons */}
+                    <Grid container sx={{ padding: 0 }}>
+                        <Grid item xs={12} sm={6} sx={{ paddingRight: 1 }}>
+                            <Button fullWidth type="submit">Submit</Button>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <Button fullWidth onClick={onClose} sx={{ paddingLeft: 1 }}>Cancel</Button>
+                        </Grid>
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Button fullWidth onClick={onClose}>Cancel</Button>
-                    </Grid>
-                </Grid>
-            </Stack>
+                </Stack>
+            </form>
         </Dialog>
     )
 }

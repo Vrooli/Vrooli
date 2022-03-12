@@ -429,6 +429,11 @@ export const routineMutater = (prisma: PrismaType) => ({
                     };
                 }
                 // Find in database
+                let test = await prisma.routine.findFirst({ 
+                    where: {id: input.id },
+                    select: { id: true, userId: true, organizationId: true }
+                });
+                console.log('ROUTIEN TEST', test);
                 let object = await prisma.routine.findFirst({
                     where: {
                         AND: [
@@ -442,6 +447,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                         ]
                     }
                 })
+                console.log('routine found: ', input.id, userId, input.organizationId, JSON.stringify(object));
                 if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.routine.update({

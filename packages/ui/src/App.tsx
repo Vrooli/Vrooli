@@ -147,7 +147,8 @@ export function App() {
             }
         });
         let sessionSub = PubSub.subscribe(Pubs.Session, (_, session) => {
-            setSession(s => (s === undefined ? undefined : { ...s, session }));
+            console.log('in session pub', session)
+            setSession(s => (session === undefined ? undefined : { ...s, session }));
         });
         let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
         return (() => {

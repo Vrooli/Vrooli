@@ -112,6 +112,19 @@ export async function init(prisma: PrismaType) {
             languages: {
                 create: [{ language: EN }],
             },
+            resourceLists: {
+                create: [
+                    {
+                        usedFor: ResourceListUsedFor.Learn,
+                    },
+                    {
+                        usedFor: ResourceListUsedFor.Research,
+                    },
+                    {
+                        usedFor: ResourceListUsedFor.Develop
+                    }
+                ]
+            }
         },
     })
     //==============================================================

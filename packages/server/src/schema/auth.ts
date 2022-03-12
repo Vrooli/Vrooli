@@ -14,7 +14,7 @@ import { Context } from '../context';
 import { profileValidater } from '../models';
 import { hasProfanity } from '../utils/censor';
 import pkg from '@prisma/client';
-const { AccountStatus } = pkg;
+const { AccountStatus, ResourceListUsedFor } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -154,6 +154,19 @@ export const resolvers = {
                     },
                     roles: {
                         create: [{ role: { connect: { id: actorRoleId } } }]
+                    },
+                    resourceLists: {
+                        create: [
+                            {
+                                usedFor: ResourceListUsedFor.Learn,
+                            },
+                            {
+                                usedFor: ResourceListUsedFor.Research,
+                            },
+                            {
+                                usedFor: ResourceListUsedFor.Develop
+                            }
+                        ]
                     }
                 }
             });
@@ -346,6 +359,19 @@ export const resolvers = {
                         },
                         wallets: {
                             connect: { id: walletData.id }
+                        },
+                        resourceLists: {
+                            create: [
+                                {
+                                    usedFor: ResourceListUsedFor.Learn,
+                                },
+                                {
+                                    usedFor: ResourceListUsedFor.Research,
+                                },
+                                {
+                                    usedFor: ResourceListUsedFor.Develop
+                                }
+                            ]
                         }
                     },
                     select: { id: true, theme: true, languages: { select: { language: true } } }

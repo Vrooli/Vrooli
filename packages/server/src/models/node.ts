@@ -36,7 +36,6 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
         [
             [GraphQLModelType.NodeEnd, 'nodeEnd'],
             [GraphQLModelType.NodeRoutineList, 'nodeRoutineList'],
-            // TODO modified.nodeRedirect
         ]);
         return modified;
     },
@@ -142,19 +141,17 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'whens', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
+            // Check for valid arguments
+            whensCreate.validateSync(formattedInput.create, { abortEarly: false });
             for (const data of formattedInput.create) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                whensCreate.validateSync(data, { abortEarly: false });
-                // Check for banned words
                 TranslationModel().profanityCheck(data);
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
+            // Check for valid arguments
+            whensUpdate.validateSync(formattedInput.update, { abortEarly: false });
             for (const data of formattedInput.update) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                whensUpdate.validateSync(data, { abortEarly: false });
-                // Check for banned words
                 TranslationModel().profanityCheck(data);
             }
         }
@@ -174,11 +171,9 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeLinks', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
+            // Check for valid arguments
+            nodeLinksCreate.validateSync(formattedInput.create, { abortEarly: false });
             for (let data of formattedInput.create) {
-                // Check for valid arguments
-                console.log('going to validate node link create', data)
-                nodeLinksCreate.validateSync(data, { abortEarly: false });
-                console.log('past validation')
                 // Convert nested relationships
                 data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
                 let { fromId, toId, ...rest } = data;
@@ -191,9 +186,9 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
+            // Check for valid arguments
+            nodeLinksUpdate.validateSync(formattedInput.update, { abortEarly: false });
             for (let data of formattedInput.update) {
-                // Check for valid arguments
-                nodeLinksUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
                 let { fromId, toId, ...rest } = data;
@@ -248,17 +243,13 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'whiles', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
-            for (const data of formattedInput.create) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                whilesCreate.validateSync(data, { abortEarly: false });
-            }
+            // Check for valid arguments (censored words must be checked in earlier function)
+            whilesCreate.validateSync(formattedInput.create, { abortEarly: false });
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
-                // Check for valid arguments
-                whilesUpdate.validateSync(data, { abortEarly: false });
-            }
+            // Check for valid arguments (censored words must be checked in earlier function)
+            whilesUpdate.validateSync(formattedInput.update, { abortEarly: false });
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -309,18 +300,18 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         const routineModel = RoutineModel(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
+            // Check for valid arguments
+            nodeRoutineListItemsCreate.validateSync(formattedInput.create, { abortEarly: false });
             for (const data of formattedInput.create) {
-                // Check for valid arguments
-                nodeRoutineListItemsCreate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.routines = routineModel.relationshipBuilder(userId, data, isAdd);
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
+            // Check for valid arguments
+            nodeRoutineListItemsUpdate.validateSync(formattedInput.update, { abortEarly: false });
             for (const data of formattedInput.update) {
-                // Check for valid arguments
-                nodeRoutineListItemsUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.routines = routineModel.relationshipBuilder(userId, data, isAdd);
             }

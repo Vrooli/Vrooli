@@ -86,7 +86,7 @@ export const ResearchPage = ({
         return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Develop) ?? null;
     }, [profileData]);
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
-    const handleResourcesUpdate = useCallback((updatedList: Resource[]) => {
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         mutationWrapper({
             mutation: updateResources,
             input: formatForUpdate(profileData?.profile, {

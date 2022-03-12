@@ -110,11 +110,12 @@ export const LearnPage = ({
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
     
     const resourceList = useMemo(() => {
+        console.log('calculating resource listsssssssssss', profileData)
         if (!profileData?.profile?.resourceLists) return defaultResourceList;
         return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? null;
     }, [profileData]);
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
-    const handleResourcesUpdate = useCallback((updatedList: Resource[]) => {
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         mutationWrapper({
             mutation: updateResources,
             input: formatForUpdate(profileData?.profile, {
