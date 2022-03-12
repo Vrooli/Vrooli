@@ -48,10 +48,12 @@ export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_tra
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   isInternal: boolean | null;
   nodesCount: number | null;
   role: MemberRole | null;
   owner: deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner | null;
+  simplicity: number;
   translations: deepRoutineNodeFields_data_NodeRoutineList_routines_routine_translations[];
   version: string | null;
 }

@@ -1,4 +1,4 @@
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor } from "../schema/types";
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeLink, NodeRoutineList, NodeRoutineListItem, Node, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemUpdateInput, NodeRoutineListItemCreateInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
@@ -158,6 +158,10 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
         const isCompleteQuery = input.isComplete ? { isComplete: true } : {};
         const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
+        const minComplexity = input.minComplexity ? { complexity: { gte: input.minComplexity } } : {};
+        const maxComplexity = input.maxComplexity ? { complexity: { lte: input.maxComplexity } } : {};
+        const minSimplicity = input.minSimplicity ? { simplicity: { gte: input.minSimplicity } } : {};
+        const maxSimplicity = input.maxSimplicity ? { simplicity: { lte: input.maxSimplicity } } : {};
         const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
@@ -167,14 +171,183 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { isInternal: false, ...isCompleteQuery, ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...resourceListsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
+        return { isInternal: false, ...isCompleteQuery, ...languagesQuery, ...minComplexity, ...maxComplexity, ...minSimplicity, ...maxSimplicity, ...minScoreQuery, ...minStarsQuery, ...resourceListsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
     },
 })
+
+/**
+ * Calculates the shortest AND longest weighted path on a directed cyclic graph. (loops are actually not the cyclic part, but redirects)
+ * A routine with no nodes has a complexity of 1.
+ * Each decision the user makes (i.e. multiple edges coming out of a node) has a weight of 1.
+ * Each node has a weight that is the summation of its contained subroutines.
+ * @param nodes A map of node IDs to their weight (simplicity/complexity)
+ * @param edges The edges of the graph, with each object containing a fromId and toId
+ * @returns [shortestPath, longestPath] The shortest and longest weighted distance
+ */
+export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: { simplicity: number, complexity: number } }, edges: { fromId: string, toId: string }[]): [number, number] => {
+    // If no nodes or edges, return 1
+    if (Object.keys(nodes).length === 0 || edges.length === 0) return [1, 1];
+    // Create a dictionary of edges, where the key is a node ID and the value is an array of edges that END at that node
+    const edgesByNode: { [id: string]: { fromId: string, toId: string }[] } = {};
+    edges.forEach(edge => {
+        edgesByNode[edge.toId] = edgesByNode[edge.toId] ? edgesByNode[edge.toId].concat(edge) : [edge];
+    });
+    /**
+     * Calculates the shortest and longest weighted distance
+     * @param currentNodeId The current node ID
+     * @param visitedEdges The edges that have been visited so far
+     * @param currShortest The current shortest distance
+     * @param currLongest The current longest distance
+     * @returns [shortest, longest] The shortest and longest distance. -1 if doesn't 
+     * end with a start node (i.e. caught in a loop)
+     */
+    const getShortLong = (currentNodeId: string, visitedEdges: { fromId: string, toId: string }[], currShortest: number, currLongest: number): [number, number] => {
+        const fromEdges = edgesByNode[currentNodeId];
+        // If no from edges, must be start node. Return currShortest and currLongest unchanged
+        if (!fromEdges || fromEdges.length === 0) return [currShortest, currLongest];
+        // If edges but all have been visited, must be a loop. Return -1
+        if (fromEdges.every(edge => visitedEdges.some(visitedEdge => visitedEdge.fromId === edge.fromId && visitedEdge.toId === edge.toId))) return [-1, -1];
+        // Otherwise, calculate the shortest and longest distance
+        let edgeShorts: number[] = [];
+        let edgeLongs: number[] = [];
+        for (const edge of fromEdges) {
+            // Find the weight of the edge from the node's complexity. Add one if there are multiple edges,
+            // since the user has to make a decision
+            let weight = nodes[edge.fromId];
+            if (fromEdges.length > 1) weight = { complexity: weight.complexity + 1, simplicity: weight.simplicity + 1 };
+            // Add edge to visited edges
+            const newVisitedEdges = visitedEdges.concat([edge]);
+            // Recurse on the next node
+            const [shortest, longest] = getShortLong(edge.fromId, newVisitedEdges, currShortest + weight.simplicity, currLongest + weight.complexity);
+            // If shortest is not -1, add to edgeShorts
+            if (shortest !== -1) edgeShorts.push(shortest);
+            // If longest is not -1, add to edgeLongs
+            if (longest !== -1) edgeLongs.push(longest);
+        }
+        // Calculate the shortest and longest distance
+        const shortest = edgeShorts.length > 0 ? Math.min(...edgeShorts) : -1;
+        const longest = edgeLongs.length > 0 ? Math.max(...edgeLongs) : -1;
+        return [shortest, longest];
+    }
+    // Find all of the end nodes, by finding all nodes without any outgoing edges
+    const endNodes = Object.keys(nodes).filter(nodeId => !edges.find(e => e.fromId === nodeId));
+    // Calculate the shortest and longest for each end node
+    const distances: [number, number][] = endNodes.map(nodeId => getShortLong(nodeId, [], 0, 0));
+    // Return shortest short and longest long
+    return [
+        Math.min(...distances.map(d => d[0])),
+        Math.max(...distances.map(d => d[1]))
+    ]
+}
 
 /**
  * Handles authorized creates, updates, and deletes
  */
 export const routineMutater = (prisma: PrismaType) => ({
+    /**
+     * Calculates the maximum and minimum complexity of a routine based on the number of steps.
+     * @param data The routine data, either a create or update
+     * @returns [simplicity, complexity] Numbers representing the shorted and longest weighted paths
+     */
+    async calculateComplexity(data: RoutineCreateInput | RoutineUpdateInput): Promise<[number, number]> {
+        // If the routine is being updated, Find the complexity of existing subroutines
+        let existingRoutine;
+        if ((data as RoutineUpdateInput).id) {
+            existingRoutine = await prisma.routine.findUnique({
+                where: { id: (data as RoutineUpdateInput).id },
+                select: {
+                    nodeLinks: { select: { fromId: true, toId: true } },
+                    nodes: {
+                        select: {
+                            id: true, // Needed to associate with links
+                            nodeRoutineList: {
+                                select: {
+                                    routines: {
+                                        select: {
+                                            routine: { select: { id: true, complexity: true, simplicity: true } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        }
+        // Calculate the list of links after mutations are applied
+        let nodeLinks: any[] = existingRoutine?.nodeLinks || [];
+        if (data.nodeLinksCreate) nodeLinks = nodeLinks.concat(data.nodeLinksCreate);
+        if ((data as RoutineUpdateInput).nodeLinksUpdate) {
+            nodeLinks = nodeLinks.map(link => {
+                const updatedLink = (data as RoutineUpdateInput).nodeLinksUpdate?.find(updatedLink => link.id && updatedLink.id === link.id);
+                return updatedLink ? { ...link, ...updatedLink } : link;
+            })
+        }
+        if ((data as RoutineUpdateInput).nodeLinksDelete) {
+            nodeLinks = nodeLinks.filter(link => !(data as RoutineUpdateInput).nodeLinksDelete?.find(deletedLink => deletedLink === link.id));
+        }
+        // Calculate the list of nodes after mutations are applied
+        let nodes: any[] = existingRoutine?.nodes || [];
+        if (data.nodesCreate) nodes = nodes.concat(data.nodesCreate);
+        if ((data as RoutineUpdateInput).nodesUpdate) {
+            nodes = nodes.map(node => {
+                const updatedNode = (data as RoutineUpdateInput).nodesUpdate?.find(updatedNode => node.id && updatedNode.id === node.id);
+                return updatedNode ? { ...node, ...updatedNode } : node;
+            })
+        }
+        if ((data as RoutineUpdateInput).nodesDelete) {
+            nodes = nodes.filter(node => !(data as RoutineUpdateInput).nodesDelete?.find(deletedNode => deletedNode === node.id));
+        }
+        // Initialize node dictionary to map node IDs to their subroutine IDs
+        const nodeDictionary: { [id: string]: string[] } = {};
+        // Find the ID of every subroutine
+        const subroutineIds: string[] = nodes.map((node: any | NodeCreateInput | NodeUpdateInput) => {
+            // Calculate the list of subroutines after mutations are applied
+            let ids: string[] = node.nodeRoutineList?.map((list: any) => list.routines.routine.id) ?? [];
+            if ((data as NodeCreateInput).nodeRoutineListCreate) {
+                const listCreate = (data as NodeCreateInput).nodeRoutineListCreate as NodeRoutineListCreateInput;
+                // Handle creates
+                ids = ids.concat(listCreate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
+            }
+            else if ((data as NodeUpdateInput).nodeRoutineListUpdate) {
+                const listUpdate = (data as NodeUpdateInput).nodeRoutineListUpdate as NodeRoutineListUpdateInput;
+                // Handle creates
+                ids = ids.concat(listUpdate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
+                // Handle deletes. No need to handle updates, as routine items cannot switch their routine associations
+                if (listUpdate.routinesDelete) {
+                    ids = ids.filter(id => !listUpdate.routinesDelete?.find(deletedId => deletedId === id));
+                }
+            }
+            nodeDictionary[node.id] = ids;
+            return ids
+        }).flat();
+        // Query every subroutine's complexity/simplicity in one go
+        const complicities = await prisma.routine.findMany({
+            where: { id: { in: subroutineIds } },
+            select: {
+                id: true,
+                complexity: true,
+                simplicity: true
+            }
+        })
+        // Convert compexity/simplicity to a map for easy lookup
+        let routineComplicityDict: { [routineId: string]: { complexity: number, simplicity: number } } = {};
+        for (const sub of complicities) {
+            routineComplicityDict[sub.id] = { complexity: sub.complexity, simplicity: sub.simplicity };
+        }
+        // Calculate the complexity/simplicity of each node. If node has no subroutines, its complexity is 0 (e.g. start node, end node)
+        let nodeComplicityDict: { [nodeId: string]: { complexity: number, simplicity: number } } = {};
+        for (const node of nodes) {
+            nodeComplicityDict[node.id] = {
+                complexity: nodeDictionary[node.id]?.reduce((acc, cur) => acc + routineComplicityDict[cur].complexity, 0) || 0,
+                simplicity: nodeDictionary[node.id]?.reduce((acc, cur) => acc + routineComplicityDict[cur].simplicity, 0) || 0,
+            }
+        }
+        // Using the node links, determine the most complex path through the routine
+        const [shortest, longest] = calculateShortestLongestWeightedPath(nodeComplicityDict, nodeLinks);
+        // return with +1 
+        return [shortest + 1, longest + 1];
+    },
     /**
      * Validates node positions
      */
@@ -189,11 +362,14 @@ export const routineMutater = (prisma: PrismaType) => ({
         if (uniqueNodes.length < combinedNodes.length) throw new CustomError(CODE.NodeDuplicatePosition);
     },
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput): Promise<any> {
+        const [simplicity, complexity] = await this.calculateComplexity(data);
         return {
             id: (data as RoutineUpdateInput)?.id ?? undefined,
             isAutomatable: data.isAutomatable,
             isComplete: data.isComplete,
             completedAt: data.isComplete ? new Date().toISOString() : null,
+            complexity: complexity,
+            simplicity: simplicity,
             isInternal: data.isInternal,
             parentId: data.parentId,
             version: data.version,
@@ -429,8 +605,8 @@ export const routineMutater = (prisma: PrismaType) => ({
                     };
                 }
                 // Find in database
-                let test = await prisma.routine.findFirst({ 
-                    where: {id: input.id },
+                let test = await prisma.routine.findFirst({
+                    where: { id: input.id },
                     select: { id: true, userId: true, organizationId: true }
                 });
                 console.log('ROUTIEN TEST', test);

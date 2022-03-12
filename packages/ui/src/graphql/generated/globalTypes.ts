@@ -342,6 +342,7 @@ export interface LoopWhileUpdateInput {
 }
 
 export interface NodeCreateInput {
+  id: string;
   columnIndex?: number | null;
   rowIndex?: number | null;
   type?: NodeType | null;
@@ -409,7 +410,6 @@ export interface NodeLinkWhenUpdateInput {
 export interface NodeRoutineListCreateInput {
   isOrdered?: boolean | null;
   isOptional?: boolean | null;
-  routinesConnect?: string[] | null;
   routinesCreate?: NodeRoutineListItemCreateInput[] | null;
 }
 
@@ -435,7 +435,6 @@ export interface NodeRoutineListItemTranslationUpdateInput {
 export interface NodeRoutineListItemUpdateInput {
   id: string;
   isOptional?: boolean | null;
-  routineConnect?: string | null;
   translationsDelete?: string[] | null;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
   translationsUpdate?: NodeRoutineListItemTranslationUpdateInput[] | null;
@@ -445,8 +444,6 @@ export interface NodeRoutineListUpdateInput {
   id: string;
   isOrdered?: boolean | null;
   isOptional?: boolean | null;
-  routinesConnect?: string[] | null;
-  routinesDisconnect?: string[] | null;
   routinesDelete?: string[] | null;
   routinesCreate?: NodeRoutineListItemCreateInput[] | null;
   routinesUpdate?: NodeRoutineListItemUpdateInput[] | null;
@@ -799,6 +796,10 @@ export interface RoutineSearchInput {
   ids?: string[] | null;
   isComplete?: boolean | null;
   languages?: string[] | null;
+  minComplexity?: number | null;
+  maxComplexity?: number | null;
+  minSimplicity?: number | null;
+  maxSimplicity?: number | null;
   minScore?: number | null;
   minStars?: number | null;
   organizationId?: string | null;

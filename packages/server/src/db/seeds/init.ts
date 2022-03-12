@@ -347,6 +347,8 @@ export async function init(prisma: PrismaType) {
                         }
                     ]
                 },
+                complexity: 1,
+                simplicity: 1,
                 isAutomatable: false,
                 isInternal: false,
                 version: '1.0.0',
@@ -407,6 +409,8 @@ export async function init(prisma: PrismaType) {
                         }
                     ]
                 },
+                complexity: 1,
+                simplicity: 1,
                 isAutomatable: false,
                 isInternal: false,
                 version: '1.0.0',
@@ -475,6 +479,8 @@ export async function init(prisma: PrismaType) {
         frameworkBusinessIdea = await prisma.routine.create({
             data: {
                 id: frameworkBusinessIdeaId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
+                complexity: 16, // 1 + 0 + 2 + 1 + 1 + 2 + 0 + 2 + 3 + 3 + 1 + 0 = 16
+                simplicity: 11, // 16 - 2 - 3
                 isAutomatable: true,
                 isInternal: false,
                 version: '1.0.0',
@@ -544,7 +550,7 @@ export async function init(prisma: PrismaType) {
                 },
                 nodes: {
                     create: [
-                        // Start node
+                        // Start node - complexity = 0, since it has no routines
                         {
                             id: startId,
                             columnIndex: 0,
@@ -554,7 +560,7 @@ export async function init(prisma: PrismaType) {
                                 create: [{ language: EN, title: 'Start' }]
                             },
                         },
-                        // Collect thoughts
+                        // Collect thoughts - complexity = 2, since it has 2 routines
                         {
                             id: explainId,
                             columnIndex: 1,
@@ -572,6 +578,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -593,6 +601,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -616,7 +626,7 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
-                        // Describe business
+                        // Describe business - complexity = 1
                         {
                             id: describeId,
                             columnIndex: 2,
@@ -634,6 +644,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -657,7 +669,7 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
-                        // Validate idea
+                        // Validate idea - complexity = 1
                         {
                             id: validateId,
                             columnIndex: 3,
@@ -675,6 +687,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -698,7 +712,7 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
-                        // Presentation
+                        // Presentation - complexity = 2
                         {
                             id: presentationId,
                             columnIndex: 4,
@@ -716,6 +730,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -737,6 +753,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -760,7 +778,7 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
-                        // Not worth pursuing end node
+                        // Not worth pursuing end node - complexity = 0
                         {
                             id: notWorthItId,
                             columnIndex: 4,
@@ -770,7 +788,7 @@ export async function init(prisma: PrismaType) {
                                 create: [{ language: EN, title: 'End' }]
                             },
                         },
-                        // Team
+                        // Team - complexity = 2, but isn't on shortest path
                         {
                             id: teamId,
                             columnIndex: 5,
@@ -788,6 +806,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -809,6 +829,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -832,7 +854,7 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
-                        // Venture
+                        // Venture - complexity = 3
                         {
                             id: ventureId,
                             columnIndex: 5,
@@ -850,6 +872,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -871,6 +895,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -892,6 +918,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -915,7 +943,7 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
-                        // Finances
+                        // Finances - complexity = 3, but isn't on shortest path
                         {
                             id: financesId,
                             columnIndex: 6,
@@ -933,6 +961,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -954,6 +984,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -975,6 +1007,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -998,7 +1032,7 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
-                        // Scale
+                        // Scale - complexity = 1
                         {
                             id: scaleId,
                             columnIndex: 6,
@@ -1016,6 +1050,8 @@ export async function init(prisma: PrismaType) {
                                             {
                                                 routine: {
                                                     create: {
+                                                        complexity: 1,
+                                                        simplicity: 1,
                                                         isAutomatable: true,
                                                         isInternal: true,
                                                         version: '1.0.0',
@@ -1039,7 +1075,7 @@ export async function init(prisma: PrismaType) {
                                 }
                             }
                         },
-                        // Successful end node
+                        // Successful end node - complexity = 0
                         {
                             id: successEndId,
                             columnIndex: 7,

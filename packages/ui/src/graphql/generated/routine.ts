@@ -109,10 +109,12 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_tra
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   isInternal: boolean | null;
   nodesCount: number | null;
   role: MemberRole | null;
   owner: routine_routine_nodes_data_NodeRoutineList_routines_routine_owner | null;
+  simplicity: number;
   translations: routine_routine_nodes_data_NodeRoutineList_routines_routine_translations[];
   version: string | null;
 }
@@ -324,6 +326,7 @@ export interface routine_routine {
   __typename: "Routine";
   id: string;
   completedAt: any | null;
+  complexity: number;
   created_at: any;
   inputs: routine_routine_inputs[];
   isAutomatable: boolean | null;
@@ -338,6 +341,7 @@ export interface routine_routine {
   parent: routine_routine_parent | null;
   resourceLists: routine_routine_resourceLists[];
   score: number;
+  simplicity: number;
   stars: number;
   role: MemberRole | null;
   tags: routine_routine_tags[];

@@ -40,11 +40,13 @@ export interface nodeFields_data_NodeRoutineList_routines_routine_translations {
 export interface nodeFields_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   version: string | null;
   created_at: any;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
   role: MemberRole | null;
+  simplicity: number;
   tags: nodeFields_data_NodeRoutineList_routines_routine_tags[];
   translations: nodeFields_data_NodeRoutineList_routines_routine_translations[];
 }

@@ -518,10 +518,12 @@ model routine {
     created_at              DateTime                 @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
     completedAt             DateTime?                @db.Timestamptz(6) // If the routine is complete, this is the time it was completed
+    complexity              Int                      @default(1) // complexity = 1 + (complexity of each subroutine) along the longest path
     isAutomatable           Boolean                  @default(false) // Indicates if the routine can be run automatically, if all conditions are met
     isComplete              Boolean                  @default(true) // If the routine is complete, or in a working state. Determined by the user
     isInternal              Boolean                  @default(false) // Indicates if the routine should appear in searches, or if it is only meant to be a subnode of another routine
     score                   Int                      @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    simplicity              Int                      @default(1) // Opposite of completixy - 1 + (complexity of each subroutine) along the shortest path
     stars                   Int                      @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
     createdByUserId         String?                  @db.Uuid // User who created this routine
     createdByOrganizationId String?                  @db.Uuid // Organization who created this routine

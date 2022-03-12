@@ -40,11 +40,13 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tra
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   version: string | null;
   created_at: any;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
   role: MemberRole | null;
+  simplicity: number;
   tags: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags[];
   translations: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_translations[];
 }

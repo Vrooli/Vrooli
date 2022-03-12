@@ -67,6 +67,7 @@ export const deepRoutineFields = gql`
                     isOptional
                     routine {
                         id
+                        complexity
                         isInternal
                         nodesCount
                         role
@@ -84,6 +85,7 @@ export const deepRoutineFields = gql`
                                 username
                             }
                         }
+                        simplicity
                         translations {
                             id
                             language
@@ -169,6 +171,7 @@ export const deepRoutineFields = gql`
     fragment deepRoutineFields on Routine {
         id
         completedAt
+        complexity
         created_at
         inputs {
             ...deepRoutineInputFields
@@ -213,6 +216,7 @@ export const deepRoutineFields = gql`
             ...deepRoutineResourceListFields
         }
         score
+        simplicity
         stars
         role
         tags {

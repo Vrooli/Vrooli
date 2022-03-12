@@ -395,6 +395,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
          */
         const createData = async (input: NodeCreateInput | NodeUpdateInput): Promise<{ [x: string]: any }> => {
             let nodeData: { [x: string]: any } = {
+                id: input.id,
                 columnIndex: input.columnIndex,
                 routineId: input.routineId,
                 rowIndex: input.rowIndex,

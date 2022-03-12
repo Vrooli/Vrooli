@@ -75,6 +75,7 @@ export const typeDef = gql`
     type Routine {
         id: ID!
         completedAt: Date
+        complexity: Int!
         created_at: Date!
         updated_at: Date!
         isAutomatable: Boolean
@@ -84,6 +85,7 @@ export const typeDef = gql`
         role: MemberRole
         isUpvoted: Boolean
         score: Int!
+        simplicity: Int!
         stars: Int!
         version: String
         comments: [Comment!]!
@@ -213,6 +215,10 @@ export const typeDef = gql`
         ids: [ID!]
         isComplete: Boolean
         languages: [String!]
+        minComplexity: Int
+        maxComplexity: Int
+        minSimplicity: Int
+        maxSimplicity: Int
         minScore: Int
         minStars: Int
         organizationId: ID

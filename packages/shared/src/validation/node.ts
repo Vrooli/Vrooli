@@ -128,13 +128,14 @@ export const nodeRoutineListItemTranslationsCreate = yup.array().of(nodeRoutineL
 export const nodeRoutineListItemTranslationsUpdate = yup.array().of(nodeRoutineListItemTranslationUpdate.required())
 export const nodeRoutineListItemCreate = yup.object().shape({
     isOptional: isOptional.notRequired().default(undefined),
-    routineId: id.required(),
+    routineConnect: id.notRequired().default(undefined), // Creating subroutines must be done in a separate request
     translationsCreate: nodeRoutineListItemTranslationsCreate.notRequired().default(undefined),
 });
-export const nodeRoutineListItemUpdate = yup.object().shape({
+export const nodeRoutineListItemUpdate: any = yup.object().shape({
     id: id.required(),
     isOptional: isOptional.notRequired().default(undefined),
-    routineId: id.notRequired().default(undefined),
+    routineConnect: id.notRequired().default(undefined), // Create/update/delete of subroutines must be done in a separate request
+    routineDisconnect: id.notRequired().default(undefined),
     translationsDelete: idArray.notRequired().default(undefined),
     translationsCreate: nodeRoutineListItemTranslationsCreate.notRequired().default(undefined),
     translationsUpdate: nodeRoutineListItemTranslationsUpdate.notRequired().default(undefined),
@@ -145,15 +146,12 @@ export const nodeRoutineListItemsUpdate = yup.array().of(nodeRoutineListItemUpda
 export const nodeRoutineListCreate = yup.object().shape({
     isOrdered: yup.boolean().notRequired().default(undefined),
     isOptional: yup.boolean().notRequired().default(undefined),
-    routinesConnect: idArray.notRequired().default(undefined),
     routinesCreate: nodeRoutineListItemsCreate.notRequired().default(undefined),
 })
 export const nodeRoutineListUpdate = yup.object().shape({
     id: id.required(),
     isOrdered: yup.boolean().notRequired().default(undefined),
     isOptional: yup.boolean().notRequired().default(undefined),
-    routinesConnect: idArray.notRequired().default(undefined),
-    routinesDisconnect: idArray.notRequired().default(undefined),
     routinesDelete: idArray.notRequired().default(undefined),
     routinesCreate: nodeRoutineListItemsCreate.notRequired().default(undefined),
     routinesUpdate: nodeRoutineListItemsUpdate.notRequired().default(undefined),
