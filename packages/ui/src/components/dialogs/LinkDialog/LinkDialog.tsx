@@ -7,19 +7,21 @@ import {
     Dialog,
     DialogContent,
     IconButton,
-    Link,
-    Menu,
     Stack,
     TextField,
     Typography
 } from '@mui/material';
 import { HelpButton } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
-import helpMarkdown from './LinkDialogHelp.md';
 import { Node } from 'types';
 import { getTranslation } from 'utils';
+
+const helpText = 
+`
+TODO
+`
 
 export const LinkDialog = ({
     handleClose,
@@ -39,12 +41,6 @@ export const LinkDialog = ({
     const handleToSelect = useCallback((node: Node) => {
         setToNode(node);
     }, [setToNode]);
-
-    // Parse markdown from .md file
-    const [helpText, setHelpText] = useState<string>('');
-    useEffect(() => {
-        fetch(helpMarkdown).then((r) => r.text()).then((text) => { setHelpText(text) });
-    }, []);
 
     /**
      * Title bar with help button and close icon

@@ -24,6 +24,7 @@ import {
     ListItemText,
     Stack,
     SwipeableDrawer,
+    TextField,
     Tooltip,
     Typography,
 } from '@mui/material';
@@ -238,14 +239,17 @@ export const BuildInfoDialog = ({
                         <Typography variant="h6">Description</Typography>
                         {
                             isEditing ? (
-                                <MarkdownInput
+                                <TextField
+                                    fullWidth
                                     id="description"
-                                    placeholder="Description"
+                                    name="description"
+                                    label="description"
                                     value={formik.values.description}
-                                    minRows={2}
-                                    onChange={(newText: string) => formik.setFieldValue('description', newText)}
+                                    rows={3}
+                                    onBlur={formik.handleBlur}
+                                    onChange={formik.handleChange}
                                     error={formik.touched.description && Boolean(formik.errors.description)}
-                                    helperText={formik.touched.description ? formik.errors.description as string : null}
+                                    helperText={formik.touched.description && formik.errors.description}
                                 />
                             ) : (
                                 <Markdown>{getTranslation(routine, 'description', [language]) ?? ''}</Markdown>
@@ -265,7 +269,7 @@ export const BuildInfoDialog = ({
                                     id="instructions"
                                     placeholder="Instructions"
                                     value={formik.values.instructions}
-                                    minRows={2}
+                                    minRows={3}
                                     onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
                                     error={formik.touched.instructions && Boolean(formik.errors.instructions)}
                                     helperText={formik.touched.instructions ? formik.errors.instructions as string : null}

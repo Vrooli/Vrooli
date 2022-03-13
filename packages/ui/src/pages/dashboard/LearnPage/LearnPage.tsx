@@ -12,21 +12,37 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Project, Resource, ResourceList, Routine } from 'types';
 import { formatForUpdate, Pubs } from 'utils';
 import { LearnPageProps } from '../types';
-import courseMarkdown from './courseHelp.md';
-import learnPageMarkdown from './learnPageHelp.md';
-import tutorialMarkdown from './tutorialHelp.md';
+
+const courseText =
+`Courses are community-created projects, each designed to teach a specific skill. Any project associated with the "learn" tag will be listed here.
+
+In the long term, we would like to be able to generate digital certificates for completing courses. These certificates would be issued on [Atala Prism](https://atalaprism.io/app). The legitimacy of a certificate would be generated through a [web-of-trust](https://en.wikipedia.org/wiki/Web_of_trust).`
+
+const learnPageText =
+`The **Learn Dashboard** is designed to help you achieve your goals of self-actualization and self-improvement. 
+
+Currently, the page is bare-bones. It contains a section to pin your learning resources, and lists of popular courses and tutorials.
+
+If you are not logged in, default learning resources will be displayed.
+
+In the future, we will add many new learning features, such as:  
+- [Atala Prism](https://atalaprism.io/app) certifications to courses, so you can display your skills
+- The ability to set time and skill-based goals for learning, with reminders to keep you on track`
+
+const tutorialText =
+`Tutorials are community-created routines, each designed to teach a specific skill. Any routine associated with the "learn" tag will be listed here.`
 
 /**
  * Default learning resources
  */
-const defaultResourceList: ResourceList = {    
+const defaultResourceList: ResourceList = {
     usedFor: ResourceListUsedFor.Learn,
     resources: [
         {
             link: 'https://www.goodreads.com/review/list/138131443?shelf=must-reads-for-everyone',
             usedFor: ResourceUsedFor.Learning,
             translations: [
-                { 
+                {
                     language: 'en',
                     title: 'Reading list',
                     description: 'Must-read books',
@@ -108,7 +124,7 @@ export const LearnPage = ({
 
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
-    
+
     const resourceList = useMemo(() => {
         console.log('calculating resource listsssssssssss', profileData)
         if (!profileData?.profile?.resourceLists) return defaultResourceList;
@@ -128,19 +144,23 @@ export const LearnPage = ({
         })
     }, [updateResources]);
 
-    const { data: coursesData, loading: coursesLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
-        variables: { input: { 
-            take: 5,
-            sortBy: ProjectSortBy.VotesDesc,
-            tags: ['learn'],
-        } } 
+    const { data: coursesData, loading: coursesLoading } = useQuery<projects, projectsVariables>(projectsQuery, {
+        variables: {
+            input: {
+                take: 5,
+                sortBy: ProjectSortBy.VotesDesc,
+                tags: ['learn'],
+            }
+        }
     });
-    const { data: tutorialsData, loading: tutorialsLoading } = useQuery<routines, routinesVariables>(routinesQuery, { 
-        variables: { input: { 
-            take: 5,
-            sortBy: RoutineSortBy.VotesDesc,
-            tags: ['learn'],
-        } } 
+    const { data: tutorialsData, loading: tutorialsLoading } = useQuery<routines, routinesVariables>(routinesQuery, {
+        variables: {
+            input: {
+                take: 5,
+                sortBy: RoutineSortBy.VotesDesc,
+                tags: ['learn'],
+            }
+        }
     });
 
     const courses = useMemo(() => coursesData?.projects?.edges?.map((o, index) => (
@@ -163,31 +183,21 @@ export const LearnPage = ({
         />
     )) ?? [], [tutorialsData]);
 
-    // Parse help button markdown
-    const [courseText, setCourseText] = useState('');
-    const [learnPageText, setLearnPageText] = useState('');
-    const [tutorialText, setTutorialText] = useState('');   
-    useEffect(() => {
-        fetch(courseMarkdown).then((r) => r.text()).then((text) => { setCourseText(text) });
-        fetch(learnPageMarkdown).then((r) => r.text()).then((text) => { setLearnPageText(text) });
-        fetch(tutorialMarkdown).then((r) => r.text()).then((text) => { setTutorialText(text) });
-    }, []);
-
     return (
         <Box id="page">
             {/* Title and help button */}
-            <Stack 
-                direction="row" 
-                justifyContent="center" 
-                alignItems="center" 
-                sx={{ marginTop: 2, marginBottom: 2}}
+            <Stack
+                direction="row"
+                justifyContent="center"
+                alignItems="center"
+                sx={{ marginTop: 2, marginBottom: 2 }}
             >
                 <Typography component="h1" variant="h3">Learn Dashboard</Typography>
-                <HelpButton markdown={learnPageText} sx={{width: '40px', height: '40px'}} />
+                <HelpButton markdown={learnPageText} sx={{ width: '40px', height: '40px' }} />
             </Stack>
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
-                <ResourceListHorizontal 
+                <ResourceListHorizontal
                     title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
                     list={resourceList}
                     canEdit={Boolean(session?.id)}

@@ -19,7 +19,6 @@ import { getTranslation, Pubs } from "utils";
 import { Organization, Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import Markdown from "markdown-to-jsx";
 import { validate as uuidValidate } from 'uuid';
 
 enum TabOptions {
@@ -317,7 +316,7 @@ export const UserView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Markdown>{bio ?? 'No bio set'}</Markdown>
+                        <Typography variant="body1" sx={{ color: bio ? 'black' : 'gray' }}>{bio ?? 'No bio set'}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">

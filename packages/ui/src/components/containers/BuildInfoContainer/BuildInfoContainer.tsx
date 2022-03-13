@@ -15,10 +15,18 @@ import {
 } from '@mui/icons-material';
 import { getTranslation, BuildStatus } from 'utils';
 import { BuildInfoContainerProps } from '../types';
-import helpMarkdown from './BuildHelp.md';
 import { HelpButton, BuildInfoDialog } from 'components';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
+
+const helpText = 
+`## What am I looking at?
+Lorem ipsum dolor sit amet consectetur adipisicing elit. 
+
+
+## How does it work?
+Lorem ipsum dolor sit amet consectetur adipisicing elit.
+`
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -62,12 +70,6 @@ export const BuildInfoContainer = ({
         setChangedTitle(getTranslation(routine, 'title', [language], false));
         setTitleActive(false);
     }, [routine?.translations]);
-
-    // Parse markdown from .md file
-    const [helpText, setHelpText] = useState<string>('');
-    useEffect(() => {
-        fetch(helpMarkdown).then((r) => r.text()).then((text) => { setHelpText(text) });
-    }, []);
 
     const titleObject = useMemo(() => {
         return titleActive ?

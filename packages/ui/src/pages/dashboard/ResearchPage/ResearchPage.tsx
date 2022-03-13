@@ -14,12 +14,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Organization, Project, Resource, ResourceList, Routine } from 'types';
 import { formatForUpdate, Pubs } from 'utils';
 import { ResearchPageProps } from '../types';
-import donateOrInvestMarkdown from './donateOrInvestHelp.md';
-import joinATeamMarkdown from './joinATeamHelp.md';
-import newlyCompletedMarkdown from './newlyCompletedHelp.md';
-import processesMarkdown from './processesHelp.md';
-import researchPageMarkdown from './researchPageHelp.md';
-import voteMarkdown from './voteHelp.md';
+
+const donateOrInvestText = 
+``
+
+const joinATeamText = 
+`Organizations listed here have indicated that they are open to new members. Check them out and contact them if you have anything to contribute!`
+
+const newlyCompletedText =
+`Projects listed here have been recently completed, which means their main routine(s) are ready to run.`
+
+const processesText = 
+``
+
+const researchPageText = 
+``
+
+const voteText = 
+`Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
 
 /**
  * Default research resources
@@ -188,22 +200,6 @@ export const ResearchPage = ({
             onClick={() => {}}
         />
     )) ?? [], []);
-
-    // Parse help button markdown
-    const [donateOrInvestText, setDonateOrInvestText] = useState('');
-    const [joinATeamText, setJoinATeamText] = useState('');
-    const [newlyCompletedText, setNewlyCompletedText] = useState('');
-    const [processesText, setProcessesText] = useState('');
-    const [researchPageText, setResearchPageText] = useState('');
-    const [voteText, setVoteText] = useState('');
-    useEffect(() => {
-        fetch(donateOrInvestMarkdown).then((r) => r.text()).then((text) => { setDonateOrInvestText(text) });
-        fetch(joinATeamMarkdown).then((r) => r.text()).then((text) => { setJoinATeamText(text) });
-        fetch(newlyCompletedMarkdown).then((r) => r.text()).then((text) => { setNewlyCompletedText(text) });
-        fetch(processesMarkdown).then((r) => r.text()).then((text) => { setProcessesText(text) });
-        fetch(researchPageMarkdown).then((r) => r.text()).then((text) => { setResearchPageText(text) });
-        fetch(voteMarkdown).then((r) => r.text()).then((text) => { setVoteText(text) });
-    }, []);
 
     return (
         <Box id="page">

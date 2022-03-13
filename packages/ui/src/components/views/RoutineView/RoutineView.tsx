@@ -185,7 +185,7 @@ export const RoutineView = ({
                         color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
                     }}>
                         <Typography variant="h6">Description</Typography>
-                        <Markdown>{description ?? 'No description'}</Markdown>
+                        <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
                     </Box>
                     {/* Instructions */}
                     <Box sx={{

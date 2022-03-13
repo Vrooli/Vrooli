@@ -89,14 +89,17 @@ export const RoutineCreate = ({
                     />
                 </Grid>
                 <Grid item xs={12}>
-                    <MarkdownInput
+                    <TextField
+                        fullWidth
                         id="description"
-                        placeholder="Description"
+                        name="description"
+                        label="description"
                         value={formik.values.description}
-                        minRows={2}
-                        onChange={(newText: string) => formik.setFieldValue('description', newText)}
+                        rows={3}
+                        onBlur={formik.handleBlur}
+                        onChange={formik.handleChange}
                         error={formik.touched.description && Boolean(formik.errors.description)}
-                        helperText={formik.touched.description ? formik.errors.description : null}
+                        helperText={formik.touched.description && formik.errors.description}
                     />
                 </Grid>
                 <Grid item xs={12}>

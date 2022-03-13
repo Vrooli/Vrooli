@@ -19,7 +19,6 @@ import { Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { getTranslation, Pubs } from "utils";
-import Markdown from "markdown-to-jsx";
 import { validate as uuidValidate } from 'uuid';
 
 enum TabOptions {
@@ -275,7 +274,7 @@ export const ProjectView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Markdown>{description ?? 'No description set'}</Markdown>
+                        <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">

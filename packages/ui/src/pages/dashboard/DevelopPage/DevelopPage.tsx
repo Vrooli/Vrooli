@@ -6,10 +6,26 @@ import { routines, routinesVariables } from 'graphql/generated/routines';
 import { routinesQuery } from 'graphql/query';
 import { useEffect, useMemo, useState } from 'react';
 import { DevelopPageProps } from '../types';
-import completedMarkdown from './completedHelp.md';
-import developPageMarkdown from './developPageHelp.md';
-import inProgressMarkdown from './inProgressHelp.md';
-import recentMarkdown from './recentHelp.md';
+
+const completedText = 
+`
+TODO
+`
+
+const developPageText = 
+`
+TODO
+`
+
+const inProgressText =
+`
+TODO
+`
+
+const recentText = 
+`
+TODO
+`
 
 export const DevelopPage = ({
     session
@@ -44,18 +60,6 @@ export const DevelopPage = ({
             onClick={() => { }}
         />
     )), []);
-
-    // Parse help button markdown
-    const [completedText, setCompletedText] = useState('');
-    const [developPageText, setDevelopPageText] = useState('');
-    const [inProgressText, setInProgressText] = useState('');
-    const [recentText, setRecentText] = useState('');
-    useEffect(() => {
-        fetch(completedMarkdown).then((r) => r.text()).then((text) => { setCompletedText(text) });
-        fetch(developPageMarkdown).then((r) => r.text()).then((text) => { setDevelopPageText(text) });
-        fetch(inProgressMarkdown).then((r) => r.text()).then((text) => { setInProgressText(text) });
-        fetch(recentMarkdown).then((r) => r.text()).then((text) => { setRecentText(text) });
-    }, []);
 
     return (
         <Box id="page">

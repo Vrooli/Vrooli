@@ -86,7 +86,7 @@ export const ResourceListHorizontal = ({
                 }}
             >
                 <Stack direction="row" spacing={2} p={2} sx={{
-                    overflowX: 'scroll',
+                    overflowX: 'auto',
                     "&::-webkit-scrollbar": {
                         width: 5,
                     },
