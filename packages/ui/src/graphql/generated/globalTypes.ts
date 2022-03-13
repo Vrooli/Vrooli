@@ -682,8 +682,7 @@ export interface ResourceCountInput {
 }
 
 export interface ResourceCreateInput {
-  createdFor: ResourceFor;
-  createdForId: string;
+  listId: string;
   index?: number | null;
   link: string;
   translationsCreate?: ResourceTranslationCreateInput[] | null;
@@ -691,6 +690,7 @@ export interface ResourceCreateInput {
 }
 
 export interface ResourceListCreateInput {
+  id?: string | null;
   index?: number | null;
   usedFor: ResourceListUsedFor;
   organizationId?: string | null;
@@ -758,8 +758,7 @@ export interface ResourceTranslationUpdateInput {
 
 export interface ResourceUpdateInput {
   id: string;
-  createdFor?: ResourceFor | null;
-  createdForId?: string | null;
+  listId?: string | null;
   index?: number | null;
   link?: string | null;
   translationsDelete?: string[] | null;

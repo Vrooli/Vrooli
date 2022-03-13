@@ -72,7 +72,7 @@ export const StandardDialog = ({
             hasPrevious={hasPrevious}
             hasNext={hasNext}
             canEdit={canEdit}
-            state={Object.values(ObjectDialogState).includes(state ?? '') ? state as any : ObjectDialogState.View}
+            state={Object.values(ObjectDialogState).includes(state as ObjectDialogState) ? state as any : ObjectDialogState.View}
             onAction={onAction}
         >
             {child}

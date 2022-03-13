@@ -100,7 +100,7 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
         const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
         const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};
         const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
-        const userIdQuery = input.userId ? { members: { some: { id: input.userId } } } : {};
+        const userIdQuery = input.userId ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
@@ -138,7 +138,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
         return {
             id: (data as OrganizationUpdateInput)?.id ?? undefined,
             isOpenToNewMembers: data.isOpenToNewMembers,
-            resourceLists: ResourceListModel(prisma).relationshipBuilder(userId, data, false),
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }

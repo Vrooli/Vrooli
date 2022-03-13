@@ -42,8 +42,7 @@ export const typeDef = gql`
     }
 
     input ResourceCreateInput {
-        createdFor: ResourceFor!
-        createdForId: ID!
+        listId: ID!
         index: Int
         link: String!
         translationsCreate: [ResourceTranslationCreateInput!]
@@ -51,8 +50,7 @@ export const typeDef = gql`
     }
     input ResourceUpdateInput {
         id: ID!
-        createdFor: ResourceFor
-        createdForId: ID
+        listId: ID
         index: Int
         link: String
         translationsDelete: [ID!]
@@ -64,8 +62,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        createdFor: ResourceFor!
-        createdForId: ID!
+        listId: ID!
         index: Int
         link: String!
         translations: [ResourceTranslation!]!

@@ -28,7 +28,17 @@ const processesText =
 ``
 
 const researchPageText = 
-``
+`The **Research Dashboard** is designed to help you validate ideas and discover new projects and routines.
+
+Currently, the page is bare-bones. It contains sections for:  
+- Projects looking for funding/investments
+- Organizations looking for new members
+- Projects recently completed
+- Routines to help you validate ideas or perform general research
+- Projects looking for votes
+
+The top of this page also contains a list of resources, which you can update with your favorite research-related links. 
+If you are not logged in, default resources will be displayed.`
 
 const voteText = 
 `Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
@@ -37,7 +47,7 @@ const voteText =
  * Default research resources
  */
  const defaultResourceList: ResourceList = {    
-    usedFor: ResourceListUsedFor.Develop,
+    usedFor: ResourceListUsedFor.Research,
     resources: [
         {
             link: 'https://cardano.stackexchange.com/',
@@ -95,7 +105,7 @@ export const ResearchPage = ({
 
     const resourceList = useMemo(() => {
         if (!profileData?.profile?.resourceLists) return defaultResourceList;
-        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Develop) ?? null;
+        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Research) ?? null;
     }, [profileData]);
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {

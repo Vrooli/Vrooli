@@ -2,11 +2,10 @@ import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { routine } from "graphql/generated/routine";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import PubSub from 'pubsub-js';
-import { ROLES, routineCreate as validationSchema } from '@local/shared';
+import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
-import { formatForCreate, Pubs } from "utils";
+import { formatForCreate } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -15,14 +14,24 @@ import {
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
-import { MarkdownInput, TagSelector } from "components";
+import { MarkdownInput, ResourceListHorizontal, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { ResourceList } from "types";
+import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { v4 as uuidv4 } from 'uuid';
 
 export const RoutineCreate = ({
     session,
     onCreated,
     onCancel,
 }: RoutineCreateProps) => {
+
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        setResourceList(updatedList);
+    }, [setResourceList]);
+
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
     const addTag = useCallback((tag: TagSelectorTag) => {
@@ -49,13 +58,25 @@ export const RoutineCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
+            const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
+            const tagsAdd = tags.length > 0 ? {
+                tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
+                tagsConnect: tags.filter(t => t.id).map(t => ({ id: t.id })),
+            } : {};
             mutationWrapper({
                 mutation,
-                input: formatForCreate({ ...values, tags }),
+                input: formatForCreate({
+                    translations: [{
+                        language: 'en',
+                        description: values.description,
+                        instructions: values.instructions,
+                        title: values.title,
+                    }],
+                    resourceListsCreate: [resourceListAdd],
+                    ...tagsAdd,
+                    version: values.version,
+                }) as any,
                 onSuccess: (response) => { onCreated(response.data.routineCreate) },
-                onError: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                }
             })
         },
     });
@@ -63,7 +84,7 @@ export const RoutineCreate = ({
     const actions: DialogActionItem[] = useMemo(() => {
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
         return [
-            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting || !formik.isValid), true, () => { }],
+            ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting), true, () => { }],
             ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
         ] as DialogActionItem[]
     }, [formik, onCancel, session]);
@@ -111,6 +132,16 @@ export const RoutineCreate = ({
                         onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
                         error={formik.touched.instructions && Boolean(formik.errors.instructions)}
                         helperText={formik.touched.instructions ? formik.errors.instructions : null}
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <ResourceListHorizontal
+                        title={'Resources'}
+                        list={resourceList}
+                        canEdit={true}
+                        handleUpdate={handleResourcesUpdate}
+                        session={session}
+                        mutate={false}
                     />
                 </Grid>
                 <Grid item xs={12} marginBottom={4}>

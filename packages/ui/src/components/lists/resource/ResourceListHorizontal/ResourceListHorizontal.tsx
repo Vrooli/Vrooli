@@ -17,6 +17,7 @@ export const ResourceListHorizontal = ({
     title = '📌 Resources',
     canEdit = true,
     handleUpdate,
+    mutate = true,
     list,
     session,
 }: ResourceListHorizontalProps) => {
@@ -57,6 +58,7 @@ export const ResourceListHorizontal = ({
                 open={isAddDialogOpen}
                 onClose={closeAddDialog}
                 onCreated={handleAdd}
+                mutate={mutate}
             /> : null
     ), [handleAdd, isAddDialogOpen, list]);
 

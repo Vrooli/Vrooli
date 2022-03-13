@@ -48,6 +48,7 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
     }
     // Iterate through each field in the object
     for (const [key, value] of Object.entries(obj)) {
+        console.log('keeeyeyeyeyeye', key, value);
         // If the key is already one of the relationship mutation types, don't parse it
         if (['Connect', 'Create'].some(s => key.endsWith(s))) {
             addToChangedArray(key, value);
@@ -59,7 +60,9 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
             for (let i = 0; i < value.length; i++) {
                 const curr = value[i];
                 // Find the changed value at this index
+                console.log('array loop', i, curr)
                 const changedValue = _.isObject(curr) ? formatForCreate(curr) : curr;
+                console.log('array loop after changedvalie', changedValue)
                 // Check if create (i.e does not contain an id)
                 if (changedValue && curr.id === undefined) {
                     addToChangedArray(`${key}Create`, changedValue);

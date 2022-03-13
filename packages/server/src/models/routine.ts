@@ -373,7 +373,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             isInternal: data.isInternal,
             parentId: data.parentId,
             version: data.version,
-            resourceLists: ResourceListModel(prisma).relationshipBuilder(userId, data, false),
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
             inputs: this.relationshipBuilderInput(userId, data, false),
             outpus: this.relationshipBuilderOutput(userId, data, false),

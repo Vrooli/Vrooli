@@ -1572,12 +1572,11 @@ export type ReportUpdateInput = {
 
 export type Resource = {
   __typename?: 'Resource';
-  createdFor: ResourceFor;
-  createdForId: Scalars['ID'];
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   index?: Maybe<Scalars['Int']>;
   link: Scalars['String'];
+  listId: Scalars['ID'];
   translations: Array<ResourceTranslation>;
   updated_at: Scalars['Date'];
   usedFor?: Maybe<ResourceUsedFor>;
@@ -1589,10 +1588,9 @@ export type ResourceCountInput = {
 };
 
 export type ResourceCreateInput = {
-  createdFor: ResourceFor;
-  createdForId: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
   link: Scalars['String'];
+  listId: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
   usedFor: ResourceUsedFor;
 };
@@ -1631,6 +1629,7 @@ export type ResourceListCountInput = {
 };
 
 export type ResourceListCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   index?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
@@ -1772,11 +1771,10 @@ export type ResourceTranslationUpdateInput = {
 };
 
 export type ResourceUpdateInput = {
-  createdFor?: InputMaybe<ResourceFor>;
-  createdForId?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
   link?: InputMaybe<Scalars['String']>;
+  listId?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<ResourceTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<ResourceTranslationUpdateInput>>;
@@ -2383,6 +2381,7 @@ export type VoteTo = Comment | Project | Routine | Standard | Tag;
 export type Wallet = {
   __typename?: 'Wallet';
   id: Scalars['ID'];
+  name?: Maybe<Scalars['String']>;
   organization?: Maybe<Organization>;
   publicAddress: Scalars['String'];
   user?: Maybe<User>;

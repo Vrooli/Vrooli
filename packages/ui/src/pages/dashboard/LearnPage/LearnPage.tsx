@@ -23,7 +23,7 @@ const learnPageText =
 
 Currently, the page is bare-bones. It contains a section to pin your learning resources, and lists of popular courses and tutorials.
 
-If you are not logged in, default learning resources will be displayed.
+If you are not logged in, default resources will be displayed.
 
 In the future, we will add many new learning features, such as:  
 - [Atala Prism](https://atalaprism.io/app) certifications to courses, so you can display your skills

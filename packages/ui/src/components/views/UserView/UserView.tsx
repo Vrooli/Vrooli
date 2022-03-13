@@ -1,4 +1,4 @@
-import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, Button, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery, useMutation } from "@apollo/client";
@@ -6,6 +6,7 @@ import { user, userVariables } from "graphql/generated/user";
 import { organizationsQuery, projectsQuery, routinesQuery, standardsQuery, userQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
+    Add as AddIcon,
     CardGiftcard as DonateIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
@@ -16,7 +17,7 @@ import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationList
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { getTranslation, Pubs } from "utils";
-import { Organization, Project, Routine, Standard } from "types";
+import { Organization, Project, Routine, Standard, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
@@ -44,10 +45,13 @@ export const UserView = ({
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery);
-    const user = useMemo(() => isProfile ? partialData : data?.user, [data]);
+    const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id) && !isProfile) getData({ variables: { input: { id } } })
     }, [getData, id, isProfile]);
+    useEffect(() => {
+        setUser(isProfile ? partialData as any : data?.user as any);
+    }, [data, isProfile, partialData]);
 
     const { bio, username, resourceList } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -55,16 +59,24 @@ export const UserView = ({
         return {
             bio: getTranslation(user, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
             username: user?.username ?? partialData?.username,
-            resourceList: resourceLists.length > 0 ? resourceLists[0] : null,
+            resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
         };
     }, [user, partialData, session]);
 
-    const resources = useMemo(() => resourceList ? (
+    const resources = useMemo(() => (resourceList || isOwn) ? (
         <ResourceListVertical
             list={resourceList}
             session={session}
+            canEdit={isOwn}
+            handleUpdate={(updatedList) => {
+                if (!user) return;
+                setUser({
+                    ...user,
+                    resourceLists: [updatedList]
+                })
+            }}
         />
-    ) : null, [resourceList, session]);
+    ) : null, [isOwn, resourceList, session, user]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -78,6 +90,8 @@ export const UserView = ({
         // Only display resources if there are any
         if (resources) tabs.push(TabOptions.Resources);
         // Always display others (for now)
+        tabs.push(TabOptions.Organizations);
+        tabs.push(TabOptions.Projects);
         tabs.push(TabOptions.Routines);
         tabs.push(TabOptions.Standards);
         return tabs;
@@ -346,6 +360,26 @@ export const UserView = ({
         </Box>
     ), [user, partialData, isOwn, session]);
 
+    /**
+     * Opens add new page
+     */
+    const toAddNew = useCallback(() => {
+        switch (currTabType) {
+            case TabOptions.Organizations:
+                setLocation(`${APP_LINKS.Organization}/add`);
+                break;
+            case TabOptions.Projects:
+                setLocation(`${APP_LINKS.Project}/add`);
+                break;
+            case TabOptions.Routines:
+                // setLocation(`${APP_LINKS.Routine}/add`);TODO
+                break;
+            case TabOptions.Standards:
+                setLocation(`${APP_LINKS.Standard}/add`);
+                break;
+        }
+    }, [currTabType]);
+
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
@@ -401,6 +435,7 @@ export const UserView = ({
                                 timeFrame={timeFrame}
                                 where={where}
                                 noResultsText={noResultsText}
+                                handleAdd={toAddNew}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}
                                 setTimeFrame={setTimeFrame}

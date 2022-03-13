@@ -6,6 +6,7 @@ export interface ResourceListHorizontalProps {
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null;
     session: Session;
+    mutate?: boolean;
 }
 
 export interface ResourceListVerticalProps {
@@ -14,6 +15,7 @@ export interface ResourceListVerticalProps {
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null;
     session: session
+    mutate?: boolean;
 }
 
 export interface ResourceListItemProps {

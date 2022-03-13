@@ -1,35 +1,70 @@
-import { useQuery } from '@apollo/client';
-import { RoutineSortBy } from '@local/shared';
+import { useLazyQuery, useMutation } from '@apollo/client';
+import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ProjectListItem, TitleContainer } from 'components';
-import { routines, routinesVariables } from 'graphql/generated/routines';
-import { routinesQuery } from 'graphql/query';
-import { useEffect, useMemo, useState } from 'react';
+import { HelpButton, ProjectListItem, ResourceListHorizontal, TitleContainer } from 'components';
+import { profile } from 'graphql/generated/profile';
+import { profileUpdateMutation } from 'graphql/mutation';
+import { profileQuery } from 'graphql/query';
+import { mutationWrapper } from 'graphql/utils/wrappers';
+import { useCallback, useEffect, useMemo } from 'react';
+import { ResourceList } from 'types';
+import { formatForUpdate, Pubs } from 'utils';
 import { DevelopPageProps } from '../types';
 
-const completedText = 
-`
-TODO
+const completedText =
+`Find projects and routines that you've recently completed
 `
 
-const developPageText = 
-`
-TODO
-`
+const developPageText =
+`The **Develop Dashboard** is designed to help you implement new projects and routines.
+
+Currently, the page is bare-bones. It contains sections for:  
+- Projects and routines you've recently completed
+- Projects and routines you're still working on
+- Projects and routines you've recently updated
+
+The top of this page also contains a list of resources, which you can update with your favorite work-related links. 
+If you are not logged in, default resources will be displayed.`
 
 const inProgressText =
-`
-TODO
-`
+    `Continue working on projects and routines you've recently started`
 
-const recentText = 
-`
-TODO
-`
+const recentText =
+    `Recently updated projects and routines`
+
+/**
+ * Default develop resources TODO
+ */
+const defaultResourceList: ResourceList = {
+    usedFor: ResourceListUsedFor.Develop,
+    resources: [
+    ]
+} as any;
 
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
+
+    const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
+    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+
+    const resourceList = useMemo(() => {
+        if (!profileData?.profile?.resourceLists) return defaultResourceList;
+        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Research) ?? null;
+    }, [profileData]);
+    const [updateResources] = useMutation<profile>(profileUpdateMutation);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        mutationWrapper({
+            mutation: updateResources,
+            input: formatForUpdate(profileData?.profile, {
+                ...profileData?.profile,
+                resourcesLearn: updatedList
+            }, [], []),
+            onError: (response) => {
+                PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
+            }
+        })
+    }, [updateResources]);
 
     const inProgress = useMemo(() => [].map((o, index) => (
         <ProjectListItem
@@ -64,17 +99,25 @@ export const DevelopPage = ({
     return (
         <Box id="page">
             {/* Title and help button */}
-            <Stack 
-                direction="row" 
-                justifyContent="center" 
-                alignItems="center" 
-                sx={{ marginTop: 2, marginBottom: 2}}
+            <Stack
+                direction="row"
+                justifyContent="center"
+                alignItems="center"
+                sx={{ marginTop: 2, marginBottom: 2 }}
             >
                 <Typography component="h1" variant="h3">Develop Dashboard</Typography>
-                <HelpButton markdown={developPageText} sx={{width: '40px', height: '40px'}} />
+                <HelpButton markdown={developPageText} sx={{ width: '40px', height: '40px' }} />
             </Stack>
             <Stack direction="column" spacing={10}>
                 {/* TODO my organizations list */}
+                {/* Resources */}
+                <ResourceListHorizontal
+                    title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
+                    list={resourceList}
+                    canEdit={Boolean(session?.id)}
+                    handleUpdate={handleResourcesUpdate}
+                    session={session}
+                />
                 <TitleContainer
                     title={"In Progress"}
                     helpText={inProgressText}

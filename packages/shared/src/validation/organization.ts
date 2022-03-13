@@ -19,6 +19,10 @@ export const organizationTranslationUpdate = yup.object().shape({
 export const organizationTranslationsCreate = yup.array().of(organizationTranslationCreate.required())
 export const organizationTranslationsUpdate = yup.array().of(organizationTranslationUpdate.required())
 
+export const organizationCreateForm = yup.object().shape({
+    name: name.required(),
+    isOpenToNewMembers: isOpenToNewMembers.notRequired().default(undefined),
+})
 /**
  * Information required when creating an organization. 
  * You are automatically created as an admin

@@ -168,6 +168,20 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
+                <Route path={`${LINKS.Organization}/add`}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Organization')} {...props}>
+                            <OrganizationViewPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Organization}/update/:id?`}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Organization')} {...props}>
+                            <OrganizationViewPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
                 <Route path={`${LINKS.Project}/:id?`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Project')} {...props}>

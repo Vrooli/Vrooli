@@ -1,8 +1,7 @@
 import { description, id, idArray, language, title } from './base';
 import * as yup from 'yup';
-import { ResourceFor, ResourceUsedFor } from '../consts';
+import { ResourceUsedFor } from '../consts';
 
-const createdFor = yup.string().oneOf(Object.values(ResourceFor))
 const index = yup.number().integer().min(0)
 const link = yup.string().max(1024)
 const usedFor = yup.string().oneOf(Object.values(ResourceUsedFor))
@@ -21,9 +20,14 @@ export const resourceTranslationUpdate = yup.object().shape({
 export const resourceTranslationsCreate = yup.array().of(resourceTranslationCreate.required())
 export const resourceTranslationsUpdate = yup.array().of(resourceTranslationUpdate.required())
 
+export const resourceCreateForm = yup.object().shape({
+    link: link.required(),
+    description: description.notRequired().default(undefined),
+    title: title.notRequired().default(undefined),
+    usedFor: usedFor.notRequired().default(undefined),
+})
 export const resourceCreate = yup.object().shape({
-    createdFor: createdFor.required(),
-    createdForId: id.required(),
+    listId: id.required(),
     index: index.notRequired().default(undefined),
     link: link.required(),
     usedFor: usedFor.notRequired().default(undefined),
@@ -32,8 +36,7 @@ export const resourceCreate = yup.object().shape({
 
 export const resourceUpdate = yup.object().shape({
     id: id.required(),
-    createdFor: createdFor.notRequired().default(undefined),
-    createdForId: id.notRequired().default(undefined),
+    listId: id.notRequired().default(undefined),
     index: index.notRequired().default(undefined),
     link: link.notRequired().default(undefined),
     usedFor: usedFor.notRequired().default(undefined),

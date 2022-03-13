@@ -36,7 +36,6 @@ export const ResourceCard = ({
     onRightClick,
     session,
 }: ResourceCardProps) => {
-    console.log('in description car', data);
     const [, setLocation] = useLocation();
 
     const { description, title } = useMemo(() => {

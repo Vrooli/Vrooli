@@ -30,18 +30,18 @@ export interface ListMenuProps<T> {
 }
 
 export enum ObjectDialogState {
-    Add,
-    Edit,
-    View,
+    Add = 'Add',
+    Edit = 'Edit',
+    View = 'View',
 }
 export enum ObjectDialogAction {
-    Add,
-    Cancel,
-    Close,
-    Edit,
-    Next,
-    Previous,
-    Save,
+    Add = 'Add',
+    Cancel = 'Cancel',
+    Close = 'Close',
+    Edit = 'Edit',
+    Next = 'Next',
+    Previous = 'Previous',
+    Save = 'Save',
 }
 
 export interface BaseObjectDialogProps extends DialogProps {
@@ -76,6 +76,7 @@ export interface ReportDialogProps extends DialogProps {
 }
 
 export interface AddResourceDialogProps extends DialogProps {
+    mutate?: boolean; // Determines if add resource should be called by this dialog, or is handled later
     open: boolean;
     onClose: () => any;
     onCreated: (resource: Resource) => any;

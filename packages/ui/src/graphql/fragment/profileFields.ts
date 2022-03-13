@@ -37,6 +37,7 @@ export const profileFields = gql`
             receivesBusinessUpdates
         }
         wallets {
+            name
             publicAddress
             verified
         }

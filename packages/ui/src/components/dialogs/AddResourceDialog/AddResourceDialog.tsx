@@ -1,5 +1,5 @@
 import { useMutation } from '@apollo/client';
-import { reportCreate as validationSchema } from '@local/shared';
+import { resourceCreateForm as validationSchema } from '@local/shared';
 import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
@@ -14,8 +14,19 @@ import { resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 
 const helpText =
-`# Test
-this is a test`
+`## What are resources?
+
+Resources provide context to the object they are attached to, such as a  user, organization, project, or routine.
+
+## Examples
+**For a user** - Social media links, GitHub profile, Patreon
+
+**For an organization** - Official website, tools used by your team, news article explaining the vision
+
+**For a project** - Project Catalyst proposal, Donation wallet address
+
+**For a routine** - Guide, external service
+`
 
 const UsedForDisplay = {
     [ResourceUsedFor.Community]: 'Community',
@@ -37,6 +48,7 @@ const UsedForDisplay = {
 }
 
 export const AddResourceDialog = ({
+    mutate = true,
     open,
     onClose,
     onCreated,
@@ -54,26 +66,36 @@ export const AddResourceDialog = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
-                mutation,
-                input: { 
-                    listId,
-                    link: values.link,
-                    translations: [{
-                        language: 'en',
-                        title: values.title,
-                        description: values.description,
-                    }],
-                },
-                successCondition: (response) => response.data.resourceCreate !== null,
-                onSuccess: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Resource created.' });
-                    onCreated(response.data.resourceCreate);
-                    onClose();
-                },
-            })
+            console.log('in onsubmit', values);
+            const input = {
+                listId,
+                link: values.link,
+                usedFor: values.usedFor,
+                translationsCreate: [{
+                    language: 'en',
+                    title: values.title,
+                    description: values.description,
+                }],
+            }
+            if (mutate) {
+                mutationWrapper({
+                    mutation,
+                    input,
+                    successCondition: (response) => response.data.resourceCreate !== null,
+                    onSuccess: (response) => {
+                        PubSub.publish(Pubs.Snack, { message: 'Resource created.' });
+                        onCreated(response.data.resourceCreate);
+                        onClose();
+                    },
+                })
+            } else {
+                onCreated(input as any);
+                onClose();
+            }
         },
     });
+
+    console.log('FORMIK ERROR', listId, formik.errors, formik.values)
 
     return (
         <Dialog
@@ -98,9 +120,9 @@ export const AddResourceDialog = ({
                 }}>
                     <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
                         {title}
+                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
                     </Typography>
                     <Box sx={{ marginLeft: 'auto' }}>
-                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
                         <IconButton
                             edge="start"
                             onClick={onClose}
@@ -118,7 +140,8 @@ export const AddResourceDialog = ({
                         label="Link"
                         value={formik.values.link}
                         onChange={formik.handleChange}
-                        helperText="Enter URL of resource"
+                        error={formik.touched.link && Boolean(formik.errors.link)}
+                        helperText={(formik.touched.link && formik.errors.link) ?? "Enter URL of resource"}
                     />
                     {/* Select resource type */}
                     <FormControl fullWidth>
@@ -143,7 +166,8 @@ export const AddResourceDialog = ({
                         label="Title"
                         value={formik.values.title}
                         onChange={formik.handleChange}
-                        helperText="Enter title (optional)"
+                        error={formik.touched.title && Boolean(formik.errors.title)}
+                        helperText={(formik.touched.title && formik.errors.title) ?? "Enter title (optional)"}
                     />
                     {/* Enter description */}
                     <TextField
@@ -153,7 +177,8 @@ export const AddResourceDialog = ({
                         label="Description"
                         value={formik.values.description}
                         onChange={formik.handleChange}
-                        helperText="Enter description (optional)"
+                        error={formik.touched.description && Boolean(formik.errors.description)}
+                        helperText={(formik.touched.description && formik.errors.description) ?? "Enter description (optional)"}
                     />
                     {/* Action buttons */}
                     <Grid container sx={{ padding: 0 }}>

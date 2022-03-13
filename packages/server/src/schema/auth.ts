@@ -75,6 +75,7 @@ export const typeDef = gql`
 
     type Wallet {
         id: ID!
+        name: String
         publicAddress: String!
         verified: Boolean!
         user: User

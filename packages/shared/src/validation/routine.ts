@@ -88,6 +88,12 @@ export const routineTranslationUpdate = yup.object().shape({
 export const routineTranslationsCreate = yup.array().of(routineTranslationCreate.required())
 export const routineTranslationsUpdate = yup.array().of(routineTranslationUpdate.required())
 
+export const routineCreateForm = yup.object().shape({
+    description: description.notRequired().default(undefined),
+    instructions: instructions.required(),
+    title: title.required(),
+    version: version.notRequired().default(undefined),
+})
 /**
  * Information required when creating a routine. 
  */

@@ -37,19 +37,19 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
         })
     },
     customQueries(input: ResourceSearchInput): { [x: string]: any } {
-        const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
+        // const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
         const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        return { ...forQuery, ...languagesQuery };
+        return { ...languagesQuery };
     },
 })
 
-// Maps resource for type to correct field
-const forMap = {
-    [ResourceFor.Organization]: 'organizationId',
-    [ResourceFor.Project]: 'projectId',
-    [ResourceFor.Routine]: 'routineId',
-    [ResourceFor.User]: 'userId',
-}
+// // Maps resource for type to correct field
+// const forMap = {
+//     [ResourceFor.Organization]: 'organizationId',
+//     [ResourceFor.Project]: 'projectId',
+//     [ResourceFor.Routine]: 'routineId',
+//     [ResourceFor.User]: 'userId',
+// }
 
 // Queries for finding resource ownership
 const userOwnerQuery = { user: { select: { id: true } } }
@@ -135,22 +135,15 @@ export const resourceMutater = (prisma: PrismaType) => ({
         }
         if (!existingResources.some(r => isOwner(userId, r))) throw new CustomError(CODE.Unauthorized, 'User does not own the resource, or is not an admin of its organization');
     },
-    async toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput): Promise<any> {
-        // Filter out for and forId, since they are not part of the resource object
-        const { createdFor, createdForId, ...rest } = data;
-        // Map forId to correct field
-        if (createdFor) {
-            return {
-                ...rest,
-                organizationId: null,
-                projectId: null,
-                routineId: null,
-                userId: null,
-                translations: TranslationModel().relationshipBuilder(userId, data, { create: resourceTranslationCreate, update: resourceTranslationsUpdate }, false),
-                [forMap[createdFor]]: createdForId,
-            };
-        }
-        return rest;
+    async toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean): Promise<any> {
+        return {
+            id: (data as ResourceUpdateInput)?.id ?? undefined,
+            listId: data.listId,
+            index: data.index,
+            link: data.link,
+            usedFor: data.usedFor,
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: resourceCreate, update: resourceUpdate }, isAdd),
+        };
     },
     async relationshipBuilder(
         userId: string | null,
@@ -176,10 +169,10 @@ export const resourceMutater = (prisma: PrismaType) => ({
         // Shape
         if (Array.isArray(formattedInput.create)) {
             // If title or description is not provided, try querying for the link's og tags TODO
-            formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any));
+            formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any, true));
         }
         if (Array.isArray(formattedInput.update)) {
-            formattedInput.update = formattedInput.update.map(async (data) => await this.toDBShape(userId, data as any));
+            formattedInput.update = formattedInput.update.map(async (data) => await this.toDBShape(userId, data as any, false));
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -212,7 +205,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             for (const input of createMany) {
                 // If title or description is not provided, try querying for the link's og tags TODO
                 // Call createData helper function
-                const data = await this.toDBShape(userId, input);
+                const data = await this.toDBShape(userId, input, true);
                 // Create object
                 const currCreated = await prisma.resource.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
@@ -225,7 +218,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Call createData helper function
-                const data = await this.toDBShape(userId, input);
+                const data = await this.toDBShape(userId, input, false);
                 // Find in database
                 let object = await prisma.report.findFirst({
                     where: {
