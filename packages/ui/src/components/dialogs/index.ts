@@ -12,6 +12,7 @@ export * from './OrganizationDialog/OrganizationDialog';
 export * from './ProjectDialog/ProjectDialog';
 export * from './ReportDialog/ReportDialog';
 export * from './RoutineDialog/RoutineDialog';
+export * from './RunStepsDialog/RunStepsDialog';
 export * from './SubroutineInfoDialog/SubroutineInfoDialog';
 export * from './StandardDialog/StandardDialog';
 export * from './ShareDialog/ShareDialog';

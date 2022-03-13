@@ -62,6 +62,7 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_translation
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
+  index: number;
   isOptional: boolean;
   routine: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine;
   translations: nodeCreate_nodeCreate_data_NodeRoutineList_routines_translations[];

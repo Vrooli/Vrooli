@@ -746,7 +746,9 @@ export const BuildPage = ({
                     hasNext={false}
                     isEditing={isEditing}
                     loading={loading}
+                    routineId={id}
                     scale={scale}
+                    session={session}
                     sliderColor={STATUS_COLOR[status.code]}
                     runState={BuildRunState.Stopped}
                 />

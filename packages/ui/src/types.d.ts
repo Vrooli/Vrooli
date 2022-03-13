@@ -9,6 +9,7 @@ import { routines_routines_edges_node } from 'graphql/generated/routines';
 import { standard_standard } from 'graphql/generated/standard';
 import { tag_tag } from 'graphql/generated/tag';
 import { user_user } from 'graphql/generated/user';
+import { RoutineStepType } from 'utils';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -42,6 +43,11 @@ export type Standard = standard_standard;
 export type Tag = tag_tag;
 export type User = user_user;
 export type Wallet = profile_profile_wallets;
+
+// Routine-related props
+export type DecisionStep = { type: RoutineStepType, links: NodeLink[] }
+export type RoutineListStep = { type: RoutineStepType, node: Node }
+export type RoutineStep = RoutineListStep | DecisionStep;
 
 // Enable Nami integration
 declare global {

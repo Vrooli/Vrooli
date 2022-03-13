@@ -414,6 +414,7 @@ export interface NodeRoutineListCreateInput {
 }
 
 export interface NodeRoutineListItemCreateInput {
+  index?: number | null;
   isOptional?: boolean | null;
   routineConnect: string;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
@@ -434,6 +435,7 @@ export interface NodeRoutineListItemTranslationUpdateInput {
 
 export interface NodeRoutineListItemUpdateInput {
   id: string;
+  index?: number | null;
   isOptional?: boolean | null;
   translationsDelete?: string[] | null;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;

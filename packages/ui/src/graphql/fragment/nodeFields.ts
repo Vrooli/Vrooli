@@ -47,6 +47,7 @@ export const nodeFields = gql`
                 isOrdered
                 routines {
                     id
+                    index
                     isOptional
                     routine {
                         ...nodeRoutineFields

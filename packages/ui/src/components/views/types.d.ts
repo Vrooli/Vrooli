@@ -60,3 +60,7 @@ export interface SubroutineViewProps {
     partialData?: Partial<Routine>;
     session: Session;
 }
+
+export interface RunRoutineViewProps extends ViewProps<Routine> {
+    handleClose: () => void; // View is always in a dialog
+}

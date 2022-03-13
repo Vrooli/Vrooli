@@ -62,6 +62,7 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_translation
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
+  index: number;
   isOptional: boolean;
   routine: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routine;
   translations: nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_translations[];

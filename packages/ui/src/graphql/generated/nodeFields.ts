@@ -62,6 +62,7 @@ export interface nodeFields_data_NodeRoutineList_routines_translations {
 export interface nodeFields_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
+  index: number;
   isOptional: boolean;
   routine: nodeFields_data_NodeRoutineList_routines_routine;
   translations: nodeFields_data_NodeRoutineList_routines_translations[];

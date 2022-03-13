@@ -6,6 +6,7 @@
 import { description, idArray, id, title, language } from './base';
 import * as yup from 'yup';
 
+const index = yup.number().integer().min(0).nullable();
 const columnIndex = yup.number().integer().min(0).nullable()
 const rowIndex = yup.number().integer().min(0).nullable()
 export const condition = yup.string().max(8192)
@@ -127,12 +128,14 @@ export const nodeRoutineListItemTranslationUpdate = yup.object().shape({
 export const nodeRoutineListItemTranslationsCreate = yup.array().of(nodeRoutineListItemTranslationCreate.required())
 export const nodeRoutineListItemTranslationsUpdate = yup.array().of(nodeRoutineListItemTranslationUpdate.required())
 export const nodeRoutineListItemCreate = yup.object().shape({
+    index: index.notRequired().default(undefined),
     isOptional: isOptional.notRequired().default(undefined),
     routineConnect: id.notRequired().default(undefined), // Creating subroutines must be done in a separate request
     translationsCreate: nodeRoutineListItemTranslationsCreate.notRequired().default(undefined),
 });
 export const nodeRoutineListItemUpdate: any = yup.object().shape({
     id: id.required(),
+    index: index.notRequired().default(undefined),
     isOptional: isOptional.notRequired().default(undefined),
     routineConnect: id.notRequired().default(undefined), // Create/update/delete of subroutines must be done in a separate request
     routineDisconnect: id.notRequired().default(undefined),

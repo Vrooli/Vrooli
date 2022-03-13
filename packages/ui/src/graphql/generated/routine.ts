@@ -130,6 +130,7 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_translation
 export interface routine_routine_nodes_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
+  index: number;
   isOptional: boolean;
   routine: routine_routine_nodes_data_NodeRoutineList_routines_routine;
   translations: routine_routine_nodes_data_NodeRoutineList_routines_translations[];

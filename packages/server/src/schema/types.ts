@@ -836,12 +836,14 @@ export type NodeRoutineListCreateInput = {
 export type NodeRoutineListItem = {
   __typename?: 'NodeRoutineListItem';
   id: Scalars['ID'];
+  index: Scalars['Int'];
   isOptional: Scalars['Boolean'];
   routine: Routine;
   translations: Array<NodeRoutineListItemTranslation>;
 };
 
 export type NodeRoutineListItemCreateInput = {
+  index?: InputMaybe<Scalars['Int']>;
   isOptional?: InputMaybe<Scalars['Boolean']>;
   routineConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
@@ -870,6 +872,7 @@ export type NodeRoutineListItemTranslationUpdateInput = {
 
 export type NodeRoutineListItemUpdateInput = {
   id: Scalars['ID'];
+  index?: InputMaybe<Scalars['Int']>;
   isOptional?: InputMaybe<Scalars['Boolean']>;
   translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;

@@ -64,6 +64,7 @@ export const deepRoutineFields = gql`
                 isOrdered
                 routines {
                     id
+                    index
                     isOptional
                     routine {
                         id

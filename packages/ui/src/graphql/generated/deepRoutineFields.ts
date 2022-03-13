@@ -130,6 +130,7 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_translati
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
+  index: number;
   isOptional: boolean;
   routine: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine;
   translations: deepRoutineFields_nodes_data_NodeRoutineList_routines_translations[];

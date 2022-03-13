@@ -55,3 +55,8 @@ export enum BuildRunState {
     Running,
     Stopped,
 }
+
+export enum RoutineStepType {
+    RoutineList = 'RoutineList',
+    Decision = 'Decision',
+}
