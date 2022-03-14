@@ -32,11 +32,11 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
     },
     deconstructUnions: (partial) => {
         console.log('in node deconstructunions')
-        let modified = deconstructUnion(partial, 'data', 
-        [
-            [GraphQLModelType.NodeEnd, 'nodeEnd'],
-            [GraphQLModelType.NodeRoutineList, 'nodeRoutineList'],
-        ]);
+        let modified = deconstructUnion(partial, 'data',
+            [
+                [GraphQLModelType.NodeEnd, 'nodeEnd'],
+                [GraphQLModelType.NodeRoutineList, 'nodeRoutineList'],
+            ]);
         return modified;
     },
 })
@@ -116,14 +116,14 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by nodes (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        console.log('node relationshipbuilder formattedinput', JSON.stringify(formattedInput));
         // Validate input, with routine ID added to each update node
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        if (updateMany) updateMany = updateMany.map(node => ({ ...node, routineId }));
-        await this.validateMutations({ 
-            userId, 
-            createMany: createMany as NodeCreateInput[], 
-            updateMany: updateMany as NodeUpdateInput[], 
-            deleteMany: deleteMany?.map(d => d.id) 
+        await this.validateMutations({
+            userId,
+            createMany: createMany as NodeCreateInput[],
+            updateMany: updateMany?.map(d => ({ ...d.data, routineId })) as NodeUpdateInput[],
+            deleteMany: deleteMany?.map(d => d.id)
         });
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -356,6 +356,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<NodeCreateInput, NodeUpdateInput>): Promise<void> {
+        console.log('node validate mutations', { userId, createMany, updateMany, deleteMany });
         if (!userId) throw new CustomError(CODE.Unauthorized);
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
         // Make sure every node applies to the same routine

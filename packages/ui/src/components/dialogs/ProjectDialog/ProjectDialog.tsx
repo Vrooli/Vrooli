@@ -2,7 +2,7 @@ import { ProjectView } from 'components';
 import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { ProjectUpdate } from 'components/views/ProjectUpdate/ProjectUpdate';
-import { ProjectDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
+import { ProjectDialogProps, ObjectDialogAction } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ProjectCreate } from 'components/views/ProjectCreate/ProjectCreate';
@@ -71,8 +71,6 @@ export const ProjectDialog = ({
             open={Boolean(params?.params)}
             hasPrevious={hasPrevious}
             hasNext={hasNext}
-            canEdit={canEdit}
-            state={Object.values(ObjectDialogState).includes(state as ObjectDialogState) ? state as any : ObjectDialogState.View}
             onAction={onAction}
         >
             {child}

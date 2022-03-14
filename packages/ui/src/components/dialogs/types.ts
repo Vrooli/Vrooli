@@ -47,10 +47,8 @@ export enum ObjectDialogAction {
 export interface BaseObjectDialogProps extends DialogProps {
     title: string;
     open: boolean;
-    canEdit?: boolean; // Can only edit if you own the object
     hasPrevious?: boolean;
     hasNext?: boolean;
-    state: ObjectDialogState; // Determines what options to show
     onAction: (state: ObjectDialogAction) => any; // Callback when option button or close button is pressed
     children: JSX.Element | JSX.Element[];
 };

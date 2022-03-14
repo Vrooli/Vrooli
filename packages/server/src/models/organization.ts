@@ -60,6 +60,7 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         }
         // Query for role
         if (partial.role) {
+            console.log('organization role query', userId, ids)
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, ids)
                 : Array(ids.length).fill(null);
@@ -113,9 +114,10 @@ export const organizationVerifier = (prisma: PrismaType) => ({
         console.log('getroles start', userId, ids);
         // Query member data for each ID
         const roleArray = await prisma.organization_users.findMany({
-            where: { organization: { id: { in: ids } }, userId },
+            where: { organization: { id: { in: ids } }, user: { id: userId } },
             select: { organizationId: true, role: true }
         });
+        console.log('getroles middle', roleArray);
         return ids.map(id => {
             const role = roleArray.find(({ organizationId }) => organizationId === id);
             return role?.role as MemberRole | undefined;

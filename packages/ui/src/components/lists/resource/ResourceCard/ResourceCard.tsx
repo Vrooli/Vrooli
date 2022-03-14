@@ -39,12 +39,14 @@ export const ResourceCard = ({
     const [, setLocation] = useLocation();
 
     const { description, title } = useMemo(() => {
-        const languages = navigator.languages; //session?.languages ?? navigator.languages;
+        console.log('getting resource translations', data)
+        const languages = session?.languages ?? navigator.languages;
         return {
             description: getTranslation(data, 'description', languages, true),
             title:  getTranslation(data, 'title', languages, true),
         };
     }, [data]);
+    console.log('resource ', title)
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)

@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { OrganizationCreate } from 'components/views/OrganizationCreate/OrganizationCreate';
 import { OrganizationUpdate } from 'components/views/OrganizationUpdate/OrganizationUpdate';
-import { OrganizationDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
+import { OrganizationDialogProps, ObjectDialogAction } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { Organization } from 'types';
@@ -72,8 +72,6 @@ export const OrganizationDialog = ({
             open={Boolean(params?.params)}
             hasPrevious={hasPrevious}
             hasNext={hasNext}
-            canEdit={canEdit}
-            state={Object.values(ObjectDialogState).includes(state as ObjectDialogState) ? state as any : ObjectDialogState.View}
             onAction={onAction}
         >
             {child}

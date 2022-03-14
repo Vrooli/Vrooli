@@ -54,12 +54,12 @@ export const ResourceListHorizontal = ({
 
     const addDialog = useMemo(() => (
         list ? <AddResourceDialog
-                listId={list.id}
-                open={isAddDialogOpen}
-                onClose={closeAddDialog}
-                onCreated={handleAdd}
-                mutate={mutate}
-            /> : null
+            listId={list.id}
+            open={isAddDialogOpen}
+            onClose={closeAddDialog}
+            onCreated={handleAdd}
+            mutate={mutate}
+        /> : null
     ), [handleAdd, isAddDialogOpen, list]);
 
     return (

@@ -9,7 +9,7 @@ import { AddResourceDialogProps } from '../types';
 import {
     Close as CloseIcon
 } from '@mui/icons-material';
-import { Pubs } from 'utils';
+import { formatForCreate, Pubs } from 'utils';
 import { resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 
@@ -67,16 +67,17 @@ export const AddResourceDialog = ({
         validationSchema,
         onSubmit: (values) => {
             console.log('in onsubmit', values);
-            const input = {
+            const input = formatForCreate({
                 listId,
                 link: values.link,
                 usedFor: values.usedFor,
-                translationsCreate: [{
+                translations: [{
                     language: 'en',
                     title: values.title,
                     description: values.description,
                 }],
-            }
+            })
+            console.log('add resource input', input);
             if (mutate) {
                 mutationWrapper({
                     mutation,

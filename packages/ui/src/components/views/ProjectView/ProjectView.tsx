@@ -15,7 +15,7 @@ import {
 import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
-import { Routine, Standard } from "types";
+import { Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { getTranslation, Pubs } from "utils";
@@ -38,12 +38,13 @@ export const ProjectView = ({
     const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
+    const [project, setProject] = useState<Project | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id)) {
-            getData({ variables: { input: { id } } })
-        }
+        if (uuidValidate(id)) getData({ variables: { input: { id } } })
     }, [getData, id]);
-    const project = useMemo(() => data?.project, [data]);
+    useEffect(() => {
+        setProject(data?.project);
+    }, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
 
     const { name, description, resourceList } = useMemo(() => {
@@ -52,16 +53,24 @@ export const ProjectView = ({
         return {
             name: getTranslation(project, 'name', languages) ?? getTranslation(partialData, 'name', languages),
             description: getTranslation(project, 'description', languages) ?? getTranslation(partialData, 'description', languages),
-            resourceList: resourceLists.length > 0 ? resourceLists[0] : null,
+            resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
         };
     }, [project, partialData, session]);
 
-    const resources = useMemo(() => resourceList ? (
+    const resources = useMemo(() => (resourceList || canEdit) ? (
         <ResourceListVertical
-            list={resourceList}
+            list={resourceList as any}
             session={session}
+            canEdit={canEdit}
+            handleUpdate={(updatedList) => {
+                if (!project) return;
+                setProject({
+                    ...project,
+                    resourceLists: [updatedList]
+                })
+            }}
         />
-    ) : null, [resourceList, session]);
+    ) : null, [canEdit, project, resourceList, session]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -174,7 +183,7 @@ export const ProjectView = ({
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [currTabType,id, session]);
+    }, [currTabType, id, session]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -304,6 +313,20 @@ export const ProjectView = ({
         </Box>
     ), [project, partialData, canEdit, openMoreMenu, session]);
 
+    /**
+    * Opens add new page
+    */
+    const toAddNew = useCallback(() => {
+        switch (currTabType) {
+            case TabOptions.Routines:
+                // setLocation(`${APP_LINKS.Routine}/add`);TODO
+                break;
+            case TabOptions.Standards:
+                setLocation(`${APP_LINKS.Standard}/add`);
+                break;
+        }
+    }, [currTabType]);
+
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
@@ -358,6 +381,7 @@ export const ProjectView = ({
                                 sortBy={sortBy}
                                 timeFrame={timeFrame}
                                 where={where}
+                                handleAdd={toAddNew}
                                 noResultsText={noResultsText}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}

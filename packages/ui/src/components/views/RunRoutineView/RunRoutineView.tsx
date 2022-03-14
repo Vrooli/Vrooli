@@ -150,7 +150,7 @@ export const RunRoutineView = ({
                         justifyContent: 'space-between',
                         padding: '0.5rem',
                         width: '100%',
-                        backgroundColor: (t) => t.palette.primary.light,
+                        backgroundColor: (t) => t.palette.primary.dark,
                         color: (t) => t.palette.primary.contrastText,
                     }}>
                         {/* Close Icon */}
@@ -186,17 +186,27 @@ export const RunRoutineView = ({
                         />
                     </Box>
                     {/* Progress bar */}
-                    <LinearProgress color="secondary" variant="determinate" value={progress} />
+                    <LinearProgress color="secondary" variant="determinate" value={progress} sx={{ height: '15px' }} />
                 </Stack>
                 {/* Main content. For now, either looks like view of a basic routine, or options to select an edge */}
-                <SubroutineView
-                    hasPrevious={false}
-                    hasNext={false}
-                    session={session}
-                />
+                <Box sx={{
+                    background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: 'auto',
+                    overflowY: 'auto',
+                    minHeight: '88vh',
+                }}>
+                    <SubroutineView
+                        hasPrevious={false}
+                        hasNext={false}
+                        session={session}
+                    />
+                </Box>
                 {/* Action bar */}
                 <Box p={2} sx={{
-                    background: (t) => t.palette.primary.light,
+                    background: (t) => t.palette.primary.dark,
                     position: 'fixed',
                     bottom: 0,
                     width: '100vw',

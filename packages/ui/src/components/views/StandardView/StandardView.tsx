@@ -1,10 +1,10 @@
 import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole } from "@local/shared";
-import { useQuery } from "@apollo/client";
-import { standard, standard_standard_creator_Organization, standard_standard_creator_User } from "graphql/generated/standard";
+import { useLazyQuery } from "@apollo/client";
+import { standard, standardVariables, standard_standard_creator_Organization, standard_standard_creator_User } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     CardGiftcard as DonateIcon,
     MoreHoriz as EllipsisIcon,
@@ -17,6 +17,8 @@ import { StandardViewProps } from "../types";
 import { BaseObjectActionDialog } from "components";
 import { BaseObjectAction } from "components/dialogs/types";
 import { getTranslation } from "utils";
+import { validate as uuidValidate } from 'uuid';
+import { Standard } from "types";
 
 export const StandardView = ({
     session,
@@ -28,8 +30,15 @@ export const StandardView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/view/:id`);
     const id: string = params?.id ?? params2?.id ?? '';
     // Fetch data
-    const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id } } });
-    const standard = useMemo(() => data?.standard, [data]);
+    // Fetch data
+    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
+    const [standard, setStandard] = useState<Standard | null | undefined>(null);
+    useEffect(() => {
+        if (uuidValidate(id)) getData({ variables: { input: { id } } })
+    }, [getData, id]);
+    useEffect(() => {
+        setStandard(data?.standard);
+    }, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(standard?.role ?? ''), [standard]);
 
     const { contributedBy, description, name } = useMemo(() => {

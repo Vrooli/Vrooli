@@ -69,6 +69,9 @@ export const ResourceListVertical = ({
                 ...containerShadow, 
                 overflow: 'overlay',
                 borderRadius: '8px',
+                maxWidth: '1000px',
+                marginLeft: 'auto',
+                marginRight: 'auto',
             }}>
                 {/* Add resource dialog */}
                 {addDialog}

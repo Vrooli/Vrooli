@@ -153,6 +153,9 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return (
             <Box sx={{
                 marginTop: 2,
+                maxWidth: '1000px',
+                marginLeft: 'auto',
+                marginRight: 'auto',
                 ...(hasItems ? {
                     ...containerShadow,
                     background: (t) => t.palette.background.paper,

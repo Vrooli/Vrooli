@@ -287,9 +287,14 @@ export const BuildPage = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
+        const input: any = formatForUpdate(routine, changedRoutine, ['tags'], ['nodes', 'nodeLinks'])
+        // If routine belongs to an organization, add organizationId to input
+        if (routine?.owner?.__typename === 'Organization') {
+            input.organizationId = routine.owner.id;
+        };
         mutationWrapper({
             mutation: routineUpdate,
-            input: formatForUpdate(routine, changedRoutine, ['tags'], ['nodes', 'nodeLinks']),
+            input,
             successMessage: () => 'Routine updated.',
             onSuccess: ({ data }) => { setRoutine(data.routineUpdate); },
         })

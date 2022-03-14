@@ -7,7 +7,7 @@
 import { Box, Stack } from '@mui/material';
 import { NodeColumn, NodeEdge } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getTranslation, Pubs } from 'utils';
+import { Pubs } from 'utils';
 import { NodeGraphProps } from '../types';
 import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
@@ -432,7 +432,7 @@ export const NodeGraph = ({
         <Box id="graph-root" position="relative" sx={{
             cursor: isShiftKeyPressed ? 'nesw-resize' : 'move',
             minWidth: '100%',
-            height: { xs: '70vh', md: '80vh' },
+            height: { xs: '72vh', md: '80vh' },
             overflowX: 'auto',
             overflowY: 'auto',
             margin: 0,
@@ -453,7 +453,7 @@ export const NodeGraph = ({
             {edges}
             <Stack id="graph-grid" direction="row" spacing={0} zIndex={5} sx={{
                 width: 'fit-content',
-                height: '-webkit-fill-available',
+                minHeight: '-webkit-fill-available',
                 // Create grid background pattern
                 backgroundColor: `#a8b6c3`,
                 '--line-color': `rgba(0 0 0 / .05)`,

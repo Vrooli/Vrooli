@@ -163,7 +163,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
         await this.validateMutations({
             userId,
             createMany: createMany as ResourceCreateInput[],
-            updateMany: updateMany as ResourceUpdateInput[],
+            updateMany: updateMany?.map(d => d.data) as ResourceUpdateInput[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         // Shape
@@ -172,7 +172,10 @@ export const resourceMutater = (prisma: PrismaType) => ({
             formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any, true));
         }
         if (Array.isArray(formattedInput.update)) {
-            formattedInput.update = formattedInput.update.map(async (data) => await this.toDBShape(userId, data as any, false));
+            formattedInput.update = formattedInput.update.map(async (data) => ({
+                where: data.where,
+                data: await this.toDBShape(userId, data.data as any, false)
+            }))
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },

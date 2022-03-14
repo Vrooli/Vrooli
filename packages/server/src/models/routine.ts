@@ -250,6 +250,7 @@ export const routineMutater = (prisma: PrismaType) => ({
      * @returns [simplicity, complexity] Numbers representing the shorted and longest weighted paths
      */
     async calculateComplexity(data: RoutineCreateInput | RoutineUpdateInput): Promise<[number, number]> {
+        console.log('calculate complexity start', JSON.stringify(data))
         // If the routine is being updated, Find the complexity of existing subroutines
         let existingRoutine;
         if ((data as RoutineUpdateInput).id) {
@@ -274,6 +275,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 }
             })
         }
+        console.log('Existing routine', JSON.stringify(existingRoutine))
         // Calculate the list of links after mutations are applied
         let nodeLinks: any[] = existingRoutine?.nodeLinks || [];
         if (data.nodeLinksCreate) nodeLinks = nodeLinks.concat(data.nodeLinksCreate);
@@ -302,8 +304,10 @@ export const routineMutater = (prisma: PrismaType) => ({
         const nodeDictionary: { [id: string]: string[] } = {};
         // Find the ID of every subroutine
         const subroutineIds: string[] = nodes.map((node: any | NodeCreateInput | NodeUpdateInput) => {
+            console.log('in subroutineIds loop node', JSON.stringify(node));
             // Calculate the list of subroutines after mutations are applied
-            let ids: string[] = node.nodeRoutineList?.map((list: any) => list.routines.routine.id) ?? [];
+            let ids: string[] = node.nodeRoutineList?.routines?.map((item: any) => item.routine.id) ?? [];
+            console.log('got idsss', ids);
             if ((data as NodeCreateInput).nodeRoutineListCreate) {
                 const listCreate = (data as NodeCreateInput).nodeRoutineListCreate as NodeRoutineListCreateInput;
                 // Handle creates
@@ -352,17 +356,20 @@ export const routineMutater = (prisma: PrismaType) => ({
      * Validates node positions
      */
     validateNodePositions(input: RoutineCreateInput | RoutineUpdateInput): void {
-        // Check that node columnIndexes and rowIndexes are valid
-        let combinedNodes = [];
-        if (input.nodesCreate) combinedNodes.push(...input.nodesCreate);
-        if ((input as RoutineUpdateInput).nodesUpdate) combinedNodes.push(...(input as any).nodesUpdate);
-        if ((input as RoutineUpdateInput).nodesDelete) combinedNodes = combinedNodes.filter(node => !(input as any).nodesDelete.includes(node.id));
-        // Remove nodes that have duplicate rowIndexes and columnIndexes
-        const uniqueNodes = _.uniqBy(combinedNodes, (n) => `${n.rowIndex}-${n.columnIndex}`);
-        if (uniqueNodes.length < combinedNodes.length) throw new CustomError(CODE.NodeDuplicatePosition);
+        // // Check that node columnIndexes and rowIndexes are valid TODO query existing data to do this
+        // let combinedNodes = [];
+        // if (input.nodesCreate) combinedNodes.push(...input.nodesCreate);
+        // if ((input as RoutineUpdateInput).nodesUpdate) combinedNodes.push(...(input as any).nodesUpdate);
+        // if ((input as RoutineUpdateInput).nodesDelete) combinedNodes = combinedNodes.filter(node => !(input as any).nodesDelete.includes(node.id));
+        // // Remove nodes that have duplicate rowIndexes and columnIndexes
+        // console.log('unique nodes check', JSON.stringify(combinedNodes));
+        // const uniqueNodes = _.uniqBy(combinedNodes, (n) => `${n.rowIndex}-${n.columnIndex}`);
+        // if (uniqueNodes.length < combinedNodes.length) throw new CustomError(CODE.NodeDuplicatePosition);
+        return;
     },
     async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput): Promise<any> {
         const [simplicity, complexity] = await this.calculateComplexity(data);
+        console.log('complexity calculated', complexity, simplicity);
         return {
             id: (data as RoutineUpdateInput)?.id ?? undefined,
             isAutomatable: data.isAutomatable,
@@ -482,7 +489,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         await this.validateMutations({
             userId,
             createMany: createMany as RoutineCreateInput[],
-            updateMany: updateMany as RoutineUpdateInput[],
+            updateMany: updateMany?.map(d => d.data) as RoutineUpdateInput[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         // Shape
@@ -490,7 +497,10 @@ export const routineMutater = (prisma: PrismaType) => ({
             formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any));
         }
         if (Array.isArray(formattedInput.update)) {
-            formattedInput.update = formattedInput.update.map(async (data) => await this.toDBShape(userId, data as any));
+            formattedInput.update = formattedInput.update.map(async (data) => ({
+                where: data.where,
+                data: await this.toDBShape(userId, data.data as any)
+            }))
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -604,12 +614,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                         organization: { disconnect: true },
                     };
                 }
-                // Find in database
-                let test = await prisma.routine.findFirst({
-                    where: { id: input.id },
-                    select: { id: true, userId: true, organizationId: true }
-                });
-                console.log('ROUTIEN TEST', test);
                 let object = await prisma.routine.findFirst({
                     where: {
                         AND: [

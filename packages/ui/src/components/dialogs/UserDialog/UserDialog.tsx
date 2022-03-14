@@ -1,7 +1,7 @@
 import { UserView } from 'components';
 import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
-import { UserDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
+import { UserDialogProps, ObjectDialogAction } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { useMutation } from '@apollo/client';
 import { user } from 'graphql/generated/user';
@@ -70,8 +70,6 @@ export const UserDialog = ({
             open={Boolean(params?.params)}
             hasPrevious={hasPrevious}
             hasNext={hasNext}
-            canEdit={canEdit}
-            state={Object.values(ObjectDialogState).includes(state as ObjectDialogState) ? state as any : ObjectDialogState.View}
             onAction={onAction}
         >
             <UserView session={session} partialData={partialData} />

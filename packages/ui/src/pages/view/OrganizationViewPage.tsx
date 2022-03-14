@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { Box } from "@mui/material"
 import { BaseObjectDialog, OrganizationView } from "components";
 import { OrganizationViewPageProps } from "./types";
-import { ObjectDialogAction, ObjectDialogState } from "components/dialogs/types";
+import { ObjectDialogAction } from "components/dialogs/types";
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
 import { OrganizationCreate } from "components/views/OrganizationCreate/OrganizationCreate";
@@ -53,8 +53,6 @@ export const OrganizationViewPage = ({
                 open={isAddDialogOpen}
                 hasPrevious={false}
                 hasNext={false}
-                canEdit={true}
-                state={ObjectDialogState.Add}
                 onAction={onAction}
             >
                 <OrganizationCreate
@@ -69,8 +67,6 @@ export const OrganizationViewPage = ({
                 open={isEditDialogOpen}
                 hasPrevious={false}
                 hasNext={false}
-                canEdit={true}
-                state={ObjectDialogState.Edit}
                 onAction={onAction}
             >
                 <OrganizationUpdate

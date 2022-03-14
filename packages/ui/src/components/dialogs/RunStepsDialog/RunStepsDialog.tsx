@@ -9,10 +9,12 @@ import {
 import {
     alpha,
     Box,
+    Checkbox,
     IconButton,
     styled,
     SvgIcon,
     SwipeableDrawer,
+    Typography,
 } from '@mui/material';
 import { RunStepsDialogProps } from '../types';
 import { routine, routineVariables } from "graphql/generated/routine";
@@ -54,9 +56,31 @@ function CloseSquare(props) {
     );
 }
 
-const StyledTreeItem = styled((props: any) => (
-    <TreeItem {...props} />
-))(({ theme }) => ({
+const StyledTreeItem = styled((props: any) => {
+    const {
+        label,
+        isComplete,
+        isSelected,
+        ...other
+    } = props;
+    return (
+        <TreeItem
+            label={
+                <Box sx={{ display: 'flex', alignItems: 'center', p: 0.5, pr: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'inherit', flexGrow: 1 }}>
+                        {label}
+                    </Typography>
+                    <Checkbox
+                        size="small"
+                        color='secondary'
+                        checked={true}
+                    />
+                </Box>
+            }
+            {...other}
+        />
+    )
+})(({ theme }) => ({
     [`& .${treeItemClasses.iconContainer}`]: {
         '& .close': {
             opacity: 0.3,
@@ -66,6 +90,9 @@ const StyledTreeItem = styled((props: any) => (
         marginLeft: 15,
         paddingLeft: 18,
         borderLeft: `1px dashed ${alpha(theme.palette.text.primary, 0.4)}`,
+    },
+    [`& .${treeItemClasses.label}`]: {
+        fontSize: '1.2rem',
     },
 }));
 
@@ -114,6 +141,13 @@ export const RunStepsDialog = ({
                     color: (t) => t.palette.primary.contrastText,
                     padding: 1,
                 }}>
+                    {/* Title */}
+                    <Typography variant="h6" sx={{
+                        flexGrow: 1,
+                        color: (t) => t.palette.primary.contrastText,
+                    }}>
+                        Steps (69% Complete)
+                    </Typography>
                     <IconButton onClick={closeDialog} sx={{
                         color: (t) => t.palette.primary.contrastText,
                         borderRadius: 0,
@@ -142,7 +176,9 @@ export const RunStepsDialog = ({
                             // Routine list has substeps
                             // If list is ordered, sort substeps by index
                             const list = ((step as any).node.data as NodeDataRoutineList);
-                            let listItems = list.routines;
+                            console.log('run steps dialog step map list', list);
+                            let listItems = [...list.routines];
+                            console.log('list items', listItems);
                             if (list.isOrdered) {
                                 listItems = listItems.sort((a, b) => a.index - b.index);
                             }

@@ -1,7 +1,7 @@
 import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
-import { useLazyQuery, useQuery } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
 import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -15,7 +15,7 @@ import {
 import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, BaseObjectActionDialog, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
-import { User, Project, Routine, Standard } from "types";
+import { User, Project, Routine, Standard, Organization } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { getTranslation, Pubs } from "utils";
@@ -41,12 +41,13 @@ export const OrganizationView = ({
     const id: string = useMemo(() => params?.id ?? params2?.id ?? '', [params, params2]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
+    const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id)) {
-            getData({ variables: { input: { id } } })
-        }
+        if (uuidValidate(id)) getData({ variables: { input: { id } } })
     }, [getData, id]);
-    const organization = useMemo(() => data?.organization, [data]);
+    useEffect(() => {
+        setOrganization(data?.organization);
+    }, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(organization?.role ?? ''), [organization]);
 
     const { bio, name, resourceList } = useMemo(() => {
@@ -55,16 +56,24 @@ export const OrganizationView = ({
         return {
             bio: getTranslation(organization, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
             name: getTranslation(organization, 'name', languages) ?? getTranslation(partialData, 'name', languages),
-            resourceList: resourceLists.length > 0 ? resourceLists[0] : null,
+            resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
         };
     }, [organization, partialData, session]);
 
-    const resources = useMemo(() => resourceList ? (
+    const resources = useMemo(() => (resourceList || canEdit) ? (
         <ResourceListVertical
-            list={resourceList}
+            list={resourceList as any}
             session={session}
+            canEdit={canEdit}
+            handleUpdate={(updatedList) => {
+                if (!organization) return;
+                setOrganization({
+                    ...organization,
+                    resourceLists: [updatedList]
+                })
+            }}
         />
-    ) : null, [resourceList, session]);
+    ) : null, [canEdit, organization, resourceList, session]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -345,6 +354,25 @@ export const OrganizationView = ({
         </Box >
     ), [bio, session, name, organization, partialData, canEdit, onEdit]);
 
+    /**
+     * Opens add new page
+     */
+     const toAddNew = useCallback(() => {
+        switch (currTabType) {
+            case TabOptions.Members:
+                //TODO
+                break;
+            case TabOptions.Projects:
+                setLocation(`${APP_LINKS.Project}/add`);
+                break;
+            case TabOptions.Routines:
+                // setLocation(`${APP_LINKS.Routine}/add`);TODO
+                break;
+            case TabOptions.Standards:
+                setLocation(`${APP_LINKS.Standard}/add`);
+                break;
+        }
+    }, [currTabType]);
 
     return (
         <>
@@ -401,6 +429,7 @@ export const OrganizationView = ({
                                 timeFrame={timeFrame}
                                 where={where}
                                 noResultsText={noResultsText}
+                                handleAdd={toAddNew}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}
                                 setTimeFrame={setTimeFrame}

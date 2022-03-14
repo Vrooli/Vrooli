@@ -73,7 +73,7 @@ export const OrganizationCreate = ({
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd
                 }) as any,
-                onSuccess: (response) => { onCreated(response.data.organizationCreate) },
+                onSuccess: (response) => { console.log('on create success'); onCreated(response.data.organizationCreate) },
             })
         },
     });

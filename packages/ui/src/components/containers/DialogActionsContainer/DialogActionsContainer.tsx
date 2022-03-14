@@ -36,7 +36,7 @@ export const DialogActionsContainer = ({
                     startIcon={<Icon />}
                     disabled={disabled}
                     type={isSubmit ? "submit" : "button"}
-                    onClick={() => onClick ? onClick() : undefined}
+                    onClick={onClick}
                 >{label}</Button>
             </Grid>
         ))
