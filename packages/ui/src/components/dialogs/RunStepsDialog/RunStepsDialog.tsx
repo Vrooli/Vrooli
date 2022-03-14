@@ -79,11 +79,11 @@ const StyledTreeItem = styled((props: any) => {
                         <OpenStepIcon />
                     </IconButton>}
                     {/* Indicator for completeness */}
-                    <Checkbox
+                    {isComplete && <Checkbox
                         size="small"
                         color='secondary'
                         checked={true}
-                    />
+                    /> }
                 </Box>
             }
             {...other}
@@ -102,6 +102,10 @@ const StyledTreeItem = styled((props: any) => {
     },
     [`& .${treeItemClasses.label}`]: {
         fontSize: '1.2rem',
+        '& p': {
+            paddingTop: '12px',
+            paddingBottom: '12px',
+        }
     },
 }));
 
@@ -114,6 +118,7 @@ export const RunStepsDialog = ({
     stepList,
     sxs,
 }: RunStepsDialogProps) => {
+    console.log('run steps dialog history', history);
     const [, setLocation] = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
@@ -126,23 +131,23 @@ export const RunStepsDialog = ({
      * Generate a tree of the subroutine's steps
      */
     const getTreeItem = useCallback((step: RoutineStep, location: number[] = [1]) => {
-        const visited = history.includes(location);
+        // Ignore first number in location array, as it only exists to group the tree items
+        const realLocation = location.slice(1);
+        const isComplete = history.find(h => h.length === realLocation.length && h.every((val, index) => val === realLocation[index]))
         const locationLabel = location.join('.');
         const toLocation = () => { 
-            // Ignore first number in location array, as it only exists to group the tree items
-            const realLocation = location.slice(1)
             setLocation(`?step=${realLocation.join('.')}`, { replace: true });
             handleStepParamsUpdate(realLocation);
         }
         switch (step.type) {
             // A decision step never has children
             case RoutineStepType.Decision:
-                return <StyledTreeItem nodeId={locationLabel} label={"Decision"} onToStep={toLocation} />
+                return <StyledTreeItem nodeId={locationLabel} label={"Decision"} onToStep={toLocation} isComplete={isComplete} />
             // A subroutine may have children, but they may not be loaded
             case RoutineStepType.Subroutine:
                 // If complexity = 1, there are no further steps
                 if (step.routine.complexity === 1) {
-                    return <StyledTreeItem nodeId={locationLabel} label={step.title} onToStep={toLocation} />
+                    return <StyledTreeItem nodeId={locationLabel} label={step.title} onToStep={toLocation} isComplete={isComplete} />
                 }
                 // Otherwise, Add a "Loading" node that will be replaced with queried data if opened
                 return (
@@ -153,20 +158,6 @@ export const RunStepsDialog = ({
             // A routine list always has children
             default:
                 let stepItems = step.steps;
-                if (step.isOrdered) {
-                    // If the step is a routine step, sort by its index. 
-                    // Otherwise, step is a decision. This goes at the end of the list.
-                    stepItems = stepItems.sort((a: RoutineStep, b: RoutineStep) => {
-                        if (a.type === RoutineStepType.Subroutine && b.type === RoutineStepType.Subroutine) {
-                            return (a as SubroutineStep).index - (b as SubroutineStep).index;
-                        }
-                        return 1;
-                    })
-                }
-                // Otherwise, sort by name
-                else {
-                    stepItems = stepItems.sort((a: RoutineStep, b: RoutineStep) => (a.title.localeCompare(b.title)));
-                }
                 // Don't wrap in a tree item if location is one element long (i.e. the root)
                 if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i+1]))
                 return (
@@ -175,7 +166,7 @@ export const RunStepsDialog = ({
                     </StyledTreeItem>
                 )
         }
-    }, []);
+    }, [history]);
 
     return (
         <>
@@ -215,7 +206,7 @@ export const RunStepsDialog = ({
                         flexGrow: 1,
                         color: (t) => t.palette.primary.contrastText,
                     }}>
-                        {`Steps (${percentComplete}% Complete)`}
+                        {`Steps (${Math.floor(percentComplete)}% Complete)`}
                     </Typography>
                     <IconButton onClick={closeDialog} sx={{
                         color: (t) => t.palette.primary.contrastText,

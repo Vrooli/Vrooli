@@ -91,13 +91,24 @@ export const RunRoutineView = ({
         for (const node of routineListNodes) {
             console.log('in step useeffect node loop', node)
             // Find all subroutine steps
-            const subroutineSteps: SubroutineStep[] = (node.data as NodeDataRoutineList).routines.map((item: NodeDataRoutineListItem) => ({
+            let subroutineSteps: SubroutineStep[] = (node.data as NodeDataRoutineList).routines.map((item: NodeDataRoutineListItem) => ({
                 type: RoutineStepType.Subroutine,
                 index: item.index,
                 routine: item.routine as any,
                 title: getTranslation(item.routine, 'title', ['en'], true) ?? 'Untitled',
                 description: getTranslation(item.routine, 'description', ['en'], true),
             }));
+            // Sort subroutine steps
+            // If list is ordered, sort by index
+            if ((node.data as NodeDataRoutineList).isOrdered) {
+                // If the step is a routine step, sort by its index. 
+                // Otherwise, step is a decision. This goes at the end of the list.
+                subroutineSteps = subroutineSteps.sort((a: SubroutineStep, b: SubroutineStep) => a.index - b.index);
+            }
+            // Otherwise, sort by name
+            else {
+                subroutineSteps = subroutineSteps.sort((a: SubroutineStep, b: SubroutineStep) => (a.title.localeCompare(b.title)));
+            }
             // Find decision step
             const links = routine.nodeLinks.filter((link: NodeLink) => link.fromId === node.id);
             const decisionSteps: DecisionStep[] = links.length > 1 ? [{
@@ -314,21 +325,41 @@ export const RunRoutineView = ({
         };
     }, [routine, session]);
 
-    const hasPreviousStep = useMemo(() => {
-        if (stepParams.length === 0) return false;
-        return stepParams.length > 1 || stepParams[0] > 1;
+    /**
+     * Calculates previous step params, or null
+     * Examples: [2] => [1], [1] => null, [2, 2] => [2, 1], [2, 1] => [2, num in previous step]
+     */
+    const previousStep = useMemo<number[] | null>(() => {
+        if (stepParams.length === 0) return null;
+        // Loop backwards. If curr > 1, then return curr - 1 and remove elements after
+        for (let i = stepParams.length - 1; i >= 0; i--) {
+            const currStepNumber = stepParams[i];
+            if (currStepNumber > 1) return [...stepParams.slice(0, stepParams.length - 1), currStepNumber - 1]
+        }
+        return null
     }, [stepParams]);
 
-    const hasNextStep = useMemo(() => {
-        if (stepParams.length === 0) return false;
-        // If array has only one element, check if it is longer than length of steps 
-        if (stepParams.length === 1) return stepParams[0] < stepsInCurrentNode;
-        // Start from the second to last id in stepParams array, and check if it is an array. 
-        // If so, return true if array is longer than the step after it. 
-        for (let i = stepParams.length - 2; i >= 0; i--) {
-            const curr = findStep(stepParams.slice(0, i + 1));
-            if (curr && curr.type === RoutineStepType.RoutineList) return curr.steps.length > stepParams[i + 1];
+    /**
+     * Calculates next step params, or null
+     * Examples: [2] => [3] OR [2, 1] if at end of list
+     */
+    const nextStep = useMemo<number[] | null>(() => {
+        console.log('calculating next step', stepParams)
+        if (stepParams.length === 0) return [1];
+        let result = [...stepParams];
+        // Loop backwards until a number in stepParams can be incremented. Remove elements after that
+        for (let i = result.length - 1; i >= 0; i--) {
+            const currStep = findStep(result.slice(0, i));
+            console.log('loop backwards', result.slice(0, i), result[i], currStep)
+            if (!currStep) return null;
+            if (currStep.type === RoutineStepType.RoutineList) {
+                if ((currStep as RoutineListStep).steps.length > result[i]) {
+                    result[i]++;
+                    return result.slice(0, i + 1)
+                }
+            }
         }
+        return null;
     }, [stepParams]);
 
     //TODO
@@ -336,39 +367,35 @@ export const RunRoutineView = ({
     const subroutineComplete = true;
 
     /**
-     * Navigate to the previous subroutine
-     */
+      * Navigate to the previous subroutine
+      */
     const toPrevious = useCallback(() => {
-        if (stepParams.length === 0) return;
-        // Starting from end of stepParams, check if we can decrement the element
-        for (let i = stepParams.length - 1; i >= 0; i--) {
-            const curr = stepParams[i];
-            if (curr > 1) {
-                // Update stepParams. Make sure to delete any elements after the current index
-                const updatedParams = updateArray(stepParams.slice(0, i + 1), i, curr - 1);
-                return;
-            }
-        }
-    }, [stepParams]);
+        if (!previousStep) return;
+        // Update progress
+        let newProgress = Array.isArray(progress) ? [...progress] : []
+        const alreadyComplete = newProgress.find(p => p.length === stepParams.length && p.every((val, index) => val === stepParams[index]))
+        if (!alreadyComplete) newProgress.push(stepParams);
+        setProgress(newProgress);
+        // Update current step
+        setLocation(`?step=${previousStep.join('.')}`, { replace: true });
+        setStepParams(previousStep);
+    }, [previousStep, progress, stepParams]);
 
     /**
      * Navigate to the next subroutine
      */
-    const toNext = () => {
-        // If there are still steps in current node, increment the last index in stepParams
-        if (currentStepNumber < stepsInCurrentNode) {
-            const updatedSteps = updateArray(stepParams, stepParams.length - 1, currentStepNumber + 1);
-            setLocation(`?step=${updatedSteps.join('.')}`, { replace: true });
-            setStepParams(updatedSteps);
-            return;
-        }
-        // Otherwise, loop backwards through stepParams until we find a step that can be incremented. 
-        // All steps after that will be deleted.
-        for (let i = stepParams.length - 2; i >= 0; i--) {
-            const curr = findStep(stepParams.slice(0, i + 1));
-            if (curr && curr.type === RoutineStepType.RoutineList) return curr.steps.length > stepParams[i + 1];
-        }
-    }
+    const toNext = useCallback(() => {
+        console.log('to next', progress)
+        if (!nextStep) return;
+        // Update progress
+        let newProgress = Array.isArray(progress) ? [...progress] : []
+        const alreadyComplete = newProgress.find(p => p.length === stepParams.length && p.every((val, index) => val === stepParams[index]))
+        if (!alreadyComplete) newProgress.push(stepParams);
+        setProgress(newProgress);
+        // Update current step
+        setLocation(`?step=${nextStep.join('.')}`, { replace: true });
+        setStepParams(nextStep);
+    }, [nextStep, progress, stepParams]);
 
     /**
      * Mark routine as complete and navigate
@@ -478,14 +505,14 @@ export const RunRoutineView = ({
                     paddingBottom: { md: '16px' },
                 }}>
                     <Stack direction="row" spacing={1}>
-                        {hasPreviousStep ? <Button
+                        {previousStep && <Button
                             fullWidth
                             startIcon={<PreviousIcon />}
                             onClick={toPrevious}
                             disabled={unsavedChanges}
                             sx={{ width: 'min(48vw, 250px)' }}
-                        >Previous</Button> : null}
-                        {hasNextStep ? (<Button
+                        >Previous</Button>}
+                        {nextStep ? (<Button
                             fullWidth
                             startIcon={<NextIcon />}
                             onClick={toNext} // NOTE: changes are saved on next click
