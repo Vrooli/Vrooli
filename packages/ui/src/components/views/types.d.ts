@@ -57,7 +57,8 @@ export interface SettingsProfileProps extends SettingsBaseProps {}
 export interface SubroutineViewProps {
     hasNext: boolean;
     hasPrevious: boolean;
-    partialData?: Partial<Routine>;
+    loading: boolean;
+    data: Routine | null;
     session: Session;
 }
 

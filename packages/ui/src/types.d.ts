@@ -45,9 +45,25 @@ export type User = user_user;
 export type Wallet = profile_profile_wallets;
 
 // Routine-related props
-export type DecisionStep = { type: RoutineStepType, links: NodeLink[] }
-export type RoutineListStep = { type: RoutineStepType, node: Node }
-export type RoutineStep = RoutineListStep | DecisionStep;
+export interface BaseStep {
+    title: string, // Title from node
+    description: string | null, // Description from node
+}
+export interface DecisionStep extends BaseStep { 
+    type: RoutineStepType.Decision, 
+    links: NodeLink[] 
+}
+export interface SubroutineStep extends BaseStep { 
+    type: RoutineStepType.Subroutine, 
+    index: number,
+    routine: Routine 
+}
+export interface RoutineListStep extends BaseStep { 
+    isOrdered: boolean,
+    type: RoutineStepType.RoutineList, 
+    steps: RoutineStep[], 
+}
+export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
 // Enable Nami integration
 declare global {

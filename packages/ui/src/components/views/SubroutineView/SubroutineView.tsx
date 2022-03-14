@@ -1,4 +1,3 @@
-import { useQuery } from "@apollo/client";
 import { APP_LINKS } from "@local/shared";
 import { Box, CircularProgress, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material";
 import {
@@ -6,49 +5,40 @@ import {
 } from "@mui/icons-material";
 import { ResourceListHorizontal } from "components";
 import { BaseForm } from "forms";
-import { routine } from "graphql/generated/routine";
-import { routineQuery } from "graphql/query";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { containerShadow } from "styles";
-import { ResourceList, User } from "types";
+import { ResourceList, Routine, User } from "types";
 import { getTranslation, Pubs } from "utils";
-import { useLocation, useRoute } from "wouter";
+import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 
 export const SubroutineView = ({
     hasNext,
     hasPrevious,
-    partialData,
+    loading,
+    data,
     session,
 }: SubroutineViewProps) => {
+    console.log('rendering subroutine', data);
     const [, setLocation] = useLocation();
-    // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Run}/:routineId/:subroutineId`);
-    const { routineId, subroutineId } = useMemo(() => ({
-        routineId: params?.routineId ?? "",
-        subroutineId: params?.subroutineId ?? "",
-    }), [params]);
-    // Fetch data
-    const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id: routineId } } });
-    console.log('subroutine', data)
 
     const { description, instructions, title } = useMemo(() => {
         const languages = navigator.languages;
         return {
-            description: getTranslation(data?.routine, 'description', languages, true) ?? getTranslation(partialData, 'description', languages, true),
-            instructions: getTranslation(data?.routine, 'instructions', languages, true) ?? getTranslation(partialData, 'instructions', languages, true),
-            title: getTranslation(data?.routine, 'title', languages, true) ?? getTranslation(partialData, 'title', languages, true),
+            description: getTranslation(data, 'description', languages, true),
+            instructions: getTranslation(data, 'instructions', languages, true),
+            title: getTranslation(data, 'title', languages, true),
         }
-    }, [data, partialData]);
+    }, [data]);
 
     /**
      * Name of user or organization that owns this routine
      */
      const ownedBy = useMemo<string | null>(() => {
-        if (!data?.routine?.owner) return null;
-        return getTranslation(data.routine.owner, 'username', ['en']) ?? getTranslation(data.routine.owner, 'name', ['en']);
-    }, [data?.routine?.owner]);
+        if (!data?.owner) return null;
+        return getTranslation(data.owner, 'username', ['en']) ?? getTranslation(data.owner, 'name', ['en']);
+    }, [data?.owner]);
 
     // The schema for the form
     const [schema, setSchema] = useState<any>();
@@ -57,17 +47,17 @@ export const SubroutineView = ({
      * Navigate to owner's profile
      */
      const toOwner = useCallback(() => {
-        if (!data?.routine?.owner) {
+        if (!data?.owner) {
             PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });
             return;
         }
         // Check if user or organization
-        if (data?.routine.owner.hasOwnProperty('username')) {
-            setLocation(`${APP_LINKS.User}/${(data?.routine.owner as User).username}`);
+        if (data?.owner.hasOwnProperty('username')) {
+            setLocation(`${APP_LINKS.User}/${(data?.owner as User).username}`);
         } else {
-            setLocation(`${APP_LINKS.Organization}/${data?.routine.owner.id}`);
+            setLocation(`${APP_LINKS.Organization}/${data?.owner.id}`);
         }
-    }, [data?.routine?.owner, setLocation]);
+    }, [data?.owner, setLocation]);
 
     if (loading) return (
         <Box sx={{
@@ -122,15 +112,15 @@ export const SubroutineView = ({
                             <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
                         </Link>
                     ) : null}
-                    <Typography variant="body1">{data?.routine?.version}</Typography>
+                    <Typography variant="body1">{data?.version}</Typography>
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
             <Stack direction="column" spacing={2} padding={1}>
                 {/* Resources */}
-                {Array.isArray(data?.routine?.resourceLists) && (data?.routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
+                {Array.isArray(data?.resourceLists) && (data?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
                     title={'Resources'}
-                    list={(data?.routine as any).resourceLists[0]}
+                    list={(data as Routine).resourceLists[0]}
                     canEdit={false}
                     handleUpdate={() => { }}
                     session={session}

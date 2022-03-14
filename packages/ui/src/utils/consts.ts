@@ -59,4 +59,5 @@ export enum BuildRunState {
 export enum RoutineStepType {
     RoutineList = 'RoutineList',
     Decision = 'Decision',
+    Subroutine = 'Subroutine',
 }

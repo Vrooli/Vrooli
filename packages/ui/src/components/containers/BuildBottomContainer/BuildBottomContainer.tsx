@@ -46,8 +46,14 @@ export const BuildBottomContainer = ({
     };
 
     const [isRunOpen, setIsRunOpen] = useState(false)
-    const runRoutine = () => { setIsRunOpen(true) };
-    const stopRoutine = () => { setIsRunOpen(false) };
+    const runRoutine = () => { 
+        setLocation(`?step=1`, { replace: true });
+        setIsRunOpen(true)
+    };
+    const stopRoutine = () => { 
+        setLocation(window.location.pathname, { replace: true });
+        setIsRunOpen(false) 
+    };
 
     /**
      * Slider for scaling the graph

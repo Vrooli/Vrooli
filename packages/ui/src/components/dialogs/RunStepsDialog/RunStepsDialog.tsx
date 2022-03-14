@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import {
     AccountTree as TreeIcon,
     Close as CloseIcon,
+    Launch as OpenStepIcon,
 } from '@mui/icons-material';
 import {
     alpha,
@@ -21,8 +22,9 @@ import { routine, routineVariables } from "graphql/generated/routine";
 import { useLazyQuery } from '@apollo/client';
 import { routineQuery } from 'graphql/query';
 import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
-import { Node, NodeDataRoutineList, RoutineListStep, RoutineStep } from 'types';
-import { getTranslation, RoutineStepType } from 'utils';
+import { RoutineStep, SubroutineStep } from 'types';
+import { RoutineStepType } from 'utils';
+import { useLocation } from 'wouter';
 
 function MinusSquare(props) {
     return (
@@ -61,15 +63,22 @@ const StyledTreeItem = styled((props: any) => {
         label,
         isComplete,
         isSelected,
+        onOpen,
+        onToStep,
         ...other
     } = props;
     return (
         <TreeItem
             label={
-                <Box sx={{ display: 'flex', alignItems: 'center', p: 0.5, pr: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', p: 0.5, pr: 0 }} onClick={onOpen}>
                     <Typography variant="body2" sx={{ fontWeight: 'inherit', flexGrow: 1 }}>
                         {label}
                     </Typography>
+                    {/* Redirects to step */}
+                    {onToStep && <IconButton size="small" onClick={onToStep}>
+                        <OpenStepIcon />
+                    </IconButton>}
+                    {/* Indicator for completeness */}
                     <Checkbox
                         size="small"
                         color='secondary'
@@ -97,16 +106,76 @@ const StyledTreeItem = styled((props: any) => {
 }));
 
 export const RunStepsDialog = ({
+    handleLoadSubroutine,
+    handleStepParamsUpdate,
+    history,
+    percentComplete,
     routineId,
-    steps,
+    stepList,
     sxs,
 }: RunStepsDialogProps) => {
+    const [, setLocation] = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
     const closeDialog = () => { setIsOpen(false) };
 
     // Query for loading a subroutine's graph
     const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
+
+    /**
+     * Generate a tree of the subroutine's steps
+     */
+    const getTreeItem = useCallback((step: RoutineStep, location: number[] = [1]) => {
+        const visited = history.includes(location);
+        const locationLabel = location.join('.');
+        const toLocation = () => { 
+            // Ignore first number in location array, as it only exists to group the tree items
+            const realLocation = location.slice(1)
+            setLocation(`?step=${realLocation.join('.')}`, { replace: true });
+            handleStepParamsUpdate(realLocation);
+        }
+        switch (step.type) {
+            // A decision step never has children
+            case RoutineStepType.Decision:
+                return <StyledTreeItem nodeId={locationLabel} label={"Decision"} onToStep={toLocation} />
+            // A subroutine may have children, but they may not be loaded
+            case RoutineStepType.Subroutine:
+                // If complexity = 1, there are no further steps
+                if (step.routine.complexity === 1) {
+                    return <StyledTreeItem nodeId={locationLabel} label={step.title} onToStep={toLocation} />
+                }
+                // Otherwise, Add a "Loading" node that will be replaced with queried data if opened
+                return (
+                    <StyledTreeItem nodeId={locationLabel} label={step.title} onToStep={toLocation}>
+                        <StyledTreeItem nodeId={`${locationLabel}-loading`} label="Loading..." onOpen={() => { handleLoadSubroutine(step.routine.id) }} />
+                    </StyledTreeItem>
+                )
+            // A routine list always has children
+            default:
+                let stepItems = step.steps;
+                if (step.isOrdered) {
+                    // If the step is a routine step, sort by its index. 
+                    // Otherwise, step is a decision. This goes at the end of the list.
+                    stepItems = stepItems.sort((a: RoutineStep, b: RoutineStep) => {
+                        if (a.type === RoutineStepType.Subroutine && b.type === RoutineStepType.Subroutine) {
+                            return (a as SubroutineStep).index - (b as SubroutineStep).index;
+                        }
+                        return 1;
+                    })
+                }
+                // Otherwise, sort by name
+                else {
+                    stepItems = stepItems.sort((a: RoutineStep, b: RoutineStep) => (a.title.localeCompare(b.title)));
+                }
+                // Don't wrap in a tree item if location is one element long (i.e. the root)
+                if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i+1]))
+                return (
+                    <StyledTreeItem nodeId={locationLabel} label={step.title}>
+                        {stepItems.map((substep, i) => getTreeItem(substep, [...location, i+1]))}
+                    </StyledTreeItem>
+                )
+        }
+    }, []);
 
     return (
         <>
@@ -146,7 +215,7 @@ export const RunStepsDialog = ({
                         flexGrow: 1,
                         color: (t) => t.palette.primary.contrastText,
                     }}>
-                        Steps (69% Complete)
+                        {`Steps (${percentComplete}% Complete)`}
                     </Typography>
                     <IconButton onClick={closeDialog} sx={{
                         color: (t) => t.palette.primary.contrastText,
@@ -167,45 +236,7 @@ export const RunStepsDialog = ({
                     defaultEndIcon={<CloseSquare />}
                     sx={{ height: 240, flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
                 >
-                    {
-                        steps.map((step: RoutineStep, i) => {
-                            // Decision has no substeps
-                            if (step.type === RoutineStepType.Decision) {
-                                return <StyledTreeItem nodeId={`${i}`} label={"Decision"} />
-                            }
-                            // Routine list has substeps
-                            // If list is ordered, sort substeps by index
-                            const list = ((step as any).node.data as NodeDataRoutineList);
-                            console.log('run steps dialog step map list', list);
-                            let listItems = [...list.routines];
-                            console.log('list items', listItems);
-                            if (list.isOrdered) {
-                                listItems = listItems.sort((a, b) => a.index - b.index);
-                            }
-                            // Otherwise, sort by name
-                            else {
-                                listItems = listItems.sort((a, b) => (getTranslation(a.routine, 'title', ['en']) ?? 'Untitled').localeCompare(getTranslation(b.routine, 'title', ['en']) ?? 'Untitled'));
-                            }
-                            return (
-                                <StyledTreeItem nodeId={`${i}`} label={getTranslation((step as RoutineListStep).node, 'title', ['en']) ?? 'Untitled'}>
-                                    {
-                                        listItems.map((subroutine, j) => {
-                                            // If complexity = 1, there are no further steps
-                                            if (subroutine.routine.complexity === 1) {
-                                                return <StyledTreeItem nodeId={`${i}-${j}`} label={getTranslation(subroutine.routine, 'title', ['en']) ?? 'Untitled'} />
-                                            }
-                                            // Otherwise, Add a "Loading" node that will be replaced with queried data if opened
-                                            return (
-                                                <StyledTreeItem nodeId={`${i}-${j}`} label={getTranslation(subroutine.routine, 'title', ['en']) ?? 'Untitled'}>
-                                                    <StyledTreeItem nodeId={`${i}-${j}-loading`} label="Loading..." />
-                                                </StyledTreeItem>
-                                            )
-                                        })
-                                    }
-                                </StyledTreeItem>
-                            )
-                        })
-                    }
+                    {stepList && getTreeItem(stepList)}
                 </TreeView>
             </SwipeableDrawer>
         </>

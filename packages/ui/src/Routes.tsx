@@ -149,13 +149,6 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Run}/:routineId/:subroutineId`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Run')} {...props}>
-                            <RunRoutinePage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
                 {/* ========= #endregion Routine Routes ========= */}
 
                 {/* ========= #region Views Routes ========= */}

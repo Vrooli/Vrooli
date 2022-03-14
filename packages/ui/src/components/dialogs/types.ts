@@ -188,7 +188,11 @@ export interface CreateNewDialogProps {
 }
 
 export interface RunStepsDialogProps {
+    handleLoadSubroutine: (id: string) => any;
+    handleStepParamsUpdate: (step: number[]) => any;
+    history: Array<number>[];
+    percentComplete: number; // Out of 100
     routineId: string | null | undefined;
-    steps: RoutineStep[];
+    stepList: RoutineStep | null;
     sxs?: { icon: any };
 }
