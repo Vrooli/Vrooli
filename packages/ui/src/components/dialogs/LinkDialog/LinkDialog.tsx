@@ -4,8 +4,10 @@
 import {
     Autocomplete,
     Box,
+    Button,
     Dialog,
     DialogContent,
+    Grid,
     IconButton,
     Stack,
     TextField,
@@ -16,10 +18,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { Node } from 'types';
-import { getTranslation } from 'utils';
+import { getTranslation, Pubs } from 'utils';
+import { NodeType } from 'graphql/generated/globalTypes';
 
-const helpText = 
-`
+const helpText =
+    `
 TODO
 `
 
@@ -41,6 +44,19 @@ export const LinkDialog = ({
     const handleToSelect = useCallback((node: Node) => {
         setToNode(node);
     }, [setToNode]);
+
+    const addLink = useCallback(() => {
+        if (!fromNode || !toNode) {
+            PubSub.publish(Pubs.Snack, { message: 'Please select both from and to nodes', severity: 'error' });
+            return;
+        }
+        handleClose({
+            fromId: fromNode.id,
+            toId: toNode.id,
+        } as any)
+    }, [handleClose, fromNode, toNode]);
+
+    const closeDialog = useCallback(() => { handleClose(undefined); }, [handleClose]);
 
     /**
      * Title bar with help button and close icon
@@ -69,6 +85,32 @@ export const LinkDialog = ({
     ), [])
 
     /**
+     * Calculate the "From" and "To" options
+     */
+    const { fromOptions, toOptions } = useMemo(() => {
+        if (!routine) return { fromOptions: [], toOptions: [] };
+        // Initialize options
+        let fromNodes: Node[] = routine.nodes;
+        let toNodes: Node[] = routine.nodes.filter((node: Node) => node.type !== NodeType.Start); // Can't link to start node
+        const existingLinks = routine.nodeLinks;
+        // If from node is already selected
+        if (fromNode) {
+            // Remove it from the "to" options
+            toNodes = toNodes.filter(node => node.id !== fromNode.id);
+            // Remove all links that already exist
+            toNodes = toNodes.filter(node => !existingLinks.some(link => link.fromId === fromNode.id && link.toId === node.id));
+        }
+        // If to node is already selected
+        if (toNode) {
+            // Remove it from the "from" options
+            fromNodes = fromNodes.filter(node => node.id !== toNode.id);
+            // Remove all links that already exist
+            fromNodes = fromNodes.filter(node => !existingLinks.some(link => link.fromId === node.id && link.toId === toNode.id));
+        }
+        return { fromOptions: fromNodes, toOptions: toNodes };
+    }, [fromNode, toNode, routine]);
+
+    /**
      * Container that displays "From" and "To" node selections, with right arrow inbetween
      */
     const nodeSelections = useMemo(() => (
@@ -77,9 +119,13 @@ export const LinkDialog = ({
             <Autocomplete
                 disablePortal
                 id="link-connect-from"
-                options={routine?.nodes ?? []}
+                options={fromOptions}
                 getOptionLabel={(option: Node) => getTranslation(option, 'title', [language])}
-                sx={{ maxWidth: 300 }}
+                onChange={(_, value) => handleFromSelect(value as Node)}
+                sx={{
+                    minWidth: 200,
+                    maxWidth: 350,
+                }}
                 renderInput={(params) => <TextField {...params} label="From" />}
             />
             {/* Right arrow */}
@@ -99,13 +145,17 @@ export const LinkDialog = ({
             <Autocomplete
                 disablePortal
                 id="link-connect-to"
-                options={routine?.nodes ?? []}
+                options={toOptions}
                 getOptionLabel={(option: Node) => getTranslation(option, 'title', [language])}
-                sx={{ maxWidth: 300 }}
+                onChange={(_, value) => handleToSelect(value as Node)}
+                sx={{
+                    minWidth: 200,
+                    maxWidth: 350
+                }}
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
         </Stack>
-    ), [fromNode, handleFromSelect, handleToSelect, language, routine, toNode]);
+    ), [fromOptions, toOptions, language]);
 
     /**
      * Container for creating link conditions.
@@ -124,12 +174,25 @@ export const LinkDialog = ({
         <Dialog
             open={isOpen}
             onClose={() => { handleClose() }}
+            sx={{
+                '& .MuiDialogContent-root': { overflow: 'visible' },
+                '& .MuiDialog-paper': { overflow: 'visible' }
+            }}
         >
             {titleBar}
             <DialogContent>
                 {nodeSelections}
                 {conditions}
                 {deleteOption}
+                {/* Action buttons */}
+                <Grid container sx={{ padding: 0, paddingTop: '24px' }}>
+                    <Grid item xs={12} sm={6} sx={{ paddingRight: 1 }}>
+                        <Button fullWidth type="submit" onClick={addLink}>Add</Button>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Button fullWidth onClick={closeDialog} sx={{ paddingLeft: 1 }}>Cancel</Button>
+                    </Grid>
+                </Grid>
             </DialogContent>
         </Dialog>
     )

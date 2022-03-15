@@ -74,16 +74,16 @@ const StyledTreeItem = styled((props: any) => {
                     <Typography variant="body2" sx={{ fontWeight: 'inherit', flexGrow: 1 }}>
                         {label}
                     </Typography>
-                    {/* Redirects to step */}
-                    {onToStep && <IconButton size="small" onClick={onToStep}>
-                        <OpenStepIcon />
-                    </IconButton>}
                     {/* Indicator for completeness */}
                     {isComplete && <Checkbox
                         size="small"
                         color='secondary'
                         checked={true}
-                    /> }
+                    />}
+                    {/* Redirects to step */}
+                    {onToStep && <IconButton size="small" onClick={onToStep}>
+                        <OpenStepIcon />
+                    </IconButton>}
                 </Box>
             }
             {...other}
@@ -135,23 +135,24 @@ export const RunStepsDialog = ({
         const realLocation = location.slice(1);
         const isComplete = history.find(h => h.length === realLocation.length && h.every((val, index) => val === realLocation[index]))
         const locationLabel = location.join('.');
-        const toLocation = () => { 
+        const realLocationLabel = realLocation.join('.');
+        const toLocation = () => {
             setLocation(`?step=${realLocation.join('.')}`, { replace: true });
             handleStepParamsUpdate(realLocation);
         }
         switch (step.type) {
             // A decision step never has children
             case RoutineStepType.Decision:
-                return <StyledTreeItem nodeId={locationLabel} label={"Decision"} onToStep={toLocation} isComplete={isComplete} />
+                return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. Decision`} onToStep={toLocation} isComplete={isComplete} />
             // A subroutine may have children, but they may not be loaded
             case RoutineStepType.Subroutine:
                 // If complexity = 1, there are no further steps
                 if (step.routine.complexity === 1) {
-                    return <StyledTreeItem nodeId={locationLabel} label={step.title} onToStep={toLocation} isComplete={isComplete} />
+                    return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation} isComplete={isComplete} />
                 }
                 // Otherwise, Add a "Loading" node that will be replaced with queried data if opened
                 return (
-                    <StyledTreeItem nodeId={locationLabel} label={step.title} onToStep={toLocation}>
+                    <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation}>
                         <StyledTreeItem nodeId={`${locationLabel}-loading`} label="Loading..." onOpen={() => { handleLoadSubroutine(step.routine.id) }} />
                     </StyledTreeItem>
                 )
@@ -159,10 +160,10 @@ export const RunStepsDialog = ({
             default:
                 let stepItems = step.steps;
                 // Don't wrap in a tree item if location is one element long (i.e. the root)
-                if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i+1]))
+                if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))
                 return (
-                    <StyledTreeItem nodeId={locationLabel} label={step.title}>
-                        {stepItems.map((substep, i) => getTreeItem(substep, [...location, i+1]))}
+                    <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`}>
+                        {stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))}
                     </StyledTreeItem>
                 )
         }
