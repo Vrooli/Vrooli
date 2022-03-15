@@ -12,11 +12,13 @@ export const nodeFields = gql`
     }
     fragment nodeRoutineFields on Routine {
         id
+        complexity
         version
         created_at
         isAutomatable
         isInternal
         role
+        simplicity
         tags {
             ...nodeTagFields
         }
@@ -45,6 +47,7 @@ export const nodeFields = gql`
                 isOrdered
                 routines {
                     id
+                    index
                     isOptional
                     routine {
                         ...nodeRoutineFields

@@ -5,11 +5,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { containerShadow } from "styles";
 import {
     AccessTime as TimeIcon,
+    Add as AddIcon,
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
 
 export function SearchList<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
+    handleAdd,
     searchPlaceholder = 'Search...',
     sortOptions,
     defaultSortOption,
@@ -151,14 +153,17 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return (
             <Box sx={{
                 marginTop: 2,
-                ...(hasItems || loading ? {
+                maxWidth: '1000px',
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                ...(hasItems ? {
                     ...containerShadow,
                     background: (t) => t.palette.background.paper,
                     borderRadius: '8px',
                     overflow: 'overlay',
                 } : {}),
                 ...(loading ? {
-                    minHeight: 'min(300px, 25vh)',
+                    minHeight: '50px',
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
@@ -169,7 +174,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 {
                     loading ? (<CircularProgress color="secondary" />) : (
                         hasItems ? (
-                            <List sx={{padding: 0}}>
+                            <List sx={{ padding: 0 }}>
                                 {listItems}
                             </List>
                         ) : (<Typography variant="h6" textAlign="center">{noResultsText}</Typography>)
@@ -232,6 +237,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 </Grid>
             </Grid>
             {searchResultContainer}
+            {/* Add new button */}
+            {Boolean(handleAdd) && <Box sx={{
+                maxWidth: '400px',
+                margin: 'auto',
+                paddingTop: 5,
+            }}>
+                <Button fullWidth onClick={handleAdd} startIcon={<AddIcon />}>Add New</Button>
+            </Box>}
         </>
     )
 }

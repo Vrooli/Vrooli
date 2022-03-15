@@ -19,6 +19,7 @@ export interface profileFields_emails {
 
 export interface profileFields_wallets {
   __typename: "Wallet";
+  name: string | null;
   publicAddress: string;
   verified: boolean;
 }

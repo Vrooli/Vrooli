@@ -1,9 +1,8 @@
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
-import { ReportFor } from '@local/shared';
-import { Node, NodeDataRoutineListItem, NodeLink, Organization, Project, Routine, Session, Standard, User } from 'types';
-import { BuildDialogOption } from 'utils';
+import { ReportFor, ResourceFor } from '@local/shared';
+import { Node, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Session, Standard, User } from 'types';
 
 export interface AlertDialogProps extends DialogProps { };
 
@@ -31,27 +30,25 @@ export interface ListMenuProps<T> {
 }
 
 export enum ObjectDialogState {
-    Add,
-    Edit,
-    View,
+    Add = 'Add',
+    Edit = 'Edit',
+    View = 'View',
 }
 export enum ObjectDialogAction {
-    Add,
-    Cancel,
-    Close,
-    Edit,
-    Next,
-    Previous,
-    Save,
+    Add = 'Add',
+    Cancel = 'Cancel',
+    Close = 'Close',
+    Edit = 'Edit',
+    Next = 'Next',
+    Previous = 'Previous',
+    Save = 'Save',
 }
 
 export interface BaseObjectDialogProps extends DialogProps {
     title: string;
     open: boolean;
-    canEdit?: boolean; // Can only edit if you own the object
     hasPrevious?: boolean;
     hasNext?: boolean;
-    state: ObjectDialogState; // Determines what options to show
     onAction: (state: ObjectDialogAction) => any; // Callback when option button or close button is pressed
     children: JSX.Element | JSX.Element[];
 };
@@ -74,6 +71,15 @@ export interface ReportDialogProps extends DialogProps {
     title?: string;
     reportFor: ReportFor;
     forId: string;
+}
+
+export interface AddResourceDialogProps extends DialogProps {
+    mutate?: boolean; // Determines if add resource should be called by this dialog, or is handled later
+    open: boolean;
+    onClose: () => any;
+    onCreated: (resource: Resource) => any;
+    title?: string;
+    listId: string;
 }
 
 export interface OrganizationDialogProps {
@@ -143,7 +149,7 @@ export interface BaseObjectActionDialogProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (data: any) => void;
+    handleClose: (newLink?: NodeLink) => void;
     handleDelete: (link: NodeLink) => void;
     isAdd: boolean;
     isOpen: boolean;
@@ -154,6 +160,7 @@ export interface LinkDialogProps {
 
 export interface BuildInfoDialogProps {
     handleUpdate: (routine: Routine) => any;
+    handleDelete: () => any;
     isEditing: boolean;
     language: string; // Language to display/edit
     routine: Routine | null;
@@ -171,9 +178,31 @@ export interface SubroutineInfoDialogProps {
 export interface UnlinkedNodesDialogProps {
     open: boolean;
     nodes: Node[];
-    handleToggleOpen: () => any; // Expand/shrink dialog
     handleNodeDelete: (nodeId: string) => any;
-    handleNodeUnlink: (nodeId: string) => any;
-    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
-    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
+    handleToggleOpen: () => any; // Expand/shrink dialog
+}
+
+export interface CreateNewDialogProps {
+    handleClose: () => any;
+    isOpen: boolean;
+}
+
+export interface RunStepsDialogProps {
+    handleLoadSubroutine: (id: string) => any;
+    handleStepParamsUpdate: (step: number[]) => any;
+    history: Array<number>[];
+    percentComplete: number; // Out of 100
+    routineId: string | null | undefined;
+    stepList: RoutineStep | null;
+    sxs?: { icon: any };
+}
+
+export interface AddSubroutineDialogProps {
+    handleAdd: (nodeId: string, subroutine: Routine) => any;
+    handleClose: () => any;
+    isOpen: boolean;
+    language: string;
+    nodeId: string;
+    routineId: string;
+    session: Session;
 }

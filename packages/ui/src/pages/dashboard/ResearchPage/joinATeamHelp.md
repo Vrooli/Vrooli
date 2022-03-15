@@ -1,1 +1,0 @@
-Organizations listed here have indicated that they are open to new members. Check them out and contact them if you have anything to contribute!

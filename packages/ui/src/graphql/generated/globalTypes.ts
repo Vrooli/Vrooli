@@ -342,6 +342,7 @@ export interface LoopWhileUpdateInput {
 }
 
 export interface NodeCreateInput {
+  id: string;
   columnIndex?: number | null;
   rowIndex?: number | null;
   type?: NodeType | null;
@@ -409,11 +410,11 @@ export interface NodeLinkWhenUpdateInput {
 export interface NodeRoutineListCreateInput {
   isOrdered?: boolean | null;
   isOptional?: boolean | null;
-  routinesConnect?: string[] | null;
   routinesCreate?: NodeRoutineListItemCreateInput[] | null;
 }
 
 export interface NodeRoutineListItemCreateInput {
+  index?: number | null;
   isOptional?: boolean | null;
   routineConnect: string;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
@@ -434,8 +435,8 @@ export interface NodeRoutineListItemTranslationUpdateInput {
 
 export interface NodeRoutineListItemUpdateInput {
   id: string;
+  index?: number | null;
   isOptional?: boolean | null;
-  routineConnect?: string | null;
   translationsDelete?: string[] | null;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
   translationsUpdate?: NodeRoutineListItemTranslationUpdateInput[] | null;
@@ -445,8 +446,6 @@ export interface NodeRoutineListUpdateInput {
   id: string;
   isOrdered?: boolean | null;
   isOptional?: boolean | null;
-  routinesConnect?: string[] | null;
-  routinesDisconnect?: string[] | null;
   routinesDelete?: string[] | null;
   routinesCreate?: NodeRoutineListItemCreateInput[] | null;
   routinesUpdate?: NodeRoutineListItemUpdateInput[] | null;
@@ -683,8 +682,7 @@ export interface ResourceCountInput {
 }
 
 export interface ResourceCreateInput {
-  createdFor: ResourceFor;
-  createdForId: string;
+  listId: string;
   index?: number | null;
   link: string;
   translationsCreate?: ResourceTranslationCreateInput[] | null;
@@ -692,6 +690,7 @@ export interface ResourceCreateInput {
 }
 
 export interface ResourceListCreateInput {
+  id?: string | null;
   index?: number | null;
   usedFor: ResourceListUsedFor;
   organizationId?: string | null;
@@ -759,8 +758,7 @@ export interface ResourceTranslationUpdateInput {
 
 export interface ResourceUpdateInput {
   id: string;
-  createdFor?: ResourceFor | null;
-  createdForId?: string | null;
+  listId?: string | null;
   index?: number | null;
   link?: string | null;
   translationsDelete?: string[] | null;
@@ -796,9 +794,14 @@ export interface RoutineCreateInput {
 export interface RoutineSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
+  excludeIds?: string[] | null;
   ids?: string[] | null;
   isComplete?: boolean | null;
   languages?: string[] | null;
+  minComplexity?: number | null;
+  maxComplexity?: number | null;
+  minSimplicity?: number | null;
+  maxSimplicity?: number | null;
   minScore?: number | null;
   minStars?: number | null;
   organizationId?: string | null;

@@ -1,17 +1,21 @@
+import { ResourceList } from "types";
+
 export interface ResourceListHorizontalProps {
     title?: string;
     canEdit?: boolean;
-    handleUpdate?: (updatedList: Resource[]) => void;
+    handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null;
     session: Session;
+    mutate?: boolean;
 }
 
 export interface ResourceListVerticalProps {
     title?: string;
     canEdit?: boolean;
-    handleUpdate?: (updatedList: Resource[]) => void;
+    handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null;
     session: session
+    mutate?: boolean;
 }
 
 export interface ResourceListItemProps {

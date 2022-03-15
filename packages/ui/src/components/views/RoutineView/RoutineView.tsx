@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Grid, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material"
+import { Box, Button, CircularProgress, Dialog, Grid, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
@@ -6,15 +6,12 @@ import { routine } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import {
-    Close as CloseIcon,
     MoreHoriz as EllipsisIcon,
-    Share as ShareIcon,
-    StarOutline as StarOutlineIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ResourceListHorizontal, StarButton } from "components";
+import { BaseObjectActionDialog, ResourceListHorizontal, RunRoutineView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getTranslation, Pubs } from "utils";
-import { Resource, ResourceList, User } from "types";
+import { ResourceList, User } from "types";
 import Markdown from "markdown-to-jsx";
 import { starMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/wrappers";
@@ -94,18 +91,33 @@ export const RoutineView = ({
         }
     }, [id, routine, session]);
 
-    /**
-     * Start a routine now (i.e. navigate to start page)
-     */
-    const startNow = useCallback(() => {
+    const [isRunOpen, setIsRunOpen] = useState(false)
+    const runRoutine = () => {
+        setIsRunOpen(true)
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {
             PubSub.publish(Pubs.Snack, { message: 'Routine invalid.', severity: 'Error' });
             return;
         }
-        setLocation(`${APP_LINKS.Run}/${id}/${firstNode.id}`);
-    }, [id, routine?.nodes, setLocation]);
+        // Find edges leaving start node. If more than one, page will be a decision
+        const edges = routine?.nodeLinks?.filter(link => link.fromId === firstNode?.id) ?? [];
+        if (edges.length > 1) {
+            // Navigate to decision page
+            //TODO
+        }
+        // Otherwise, first page will be a subroutine
+        else if (edges.length === 1) {
+            // Navigate to subroutine
+            const toNode = edges[0].toId;
+            setLocation(`${APP_LINKS.Run}/${id}/${toNode}`);
+        }
+        // If no edges, routine is invalid
+        else {
+            PubSub.publish(Pubs.Snack, { message: 'Routine invalid.', severity: 'Error' });
+        }
+    };
+    const stopRoutine = () => { setIsRunOpen(false) };
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -145,11 +157,11 @@ export const RoutineView = ({
                     <Button fullWidth onClick={startLater} color="secondary">Start Later</Button>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                    <Button fullWidth onClick={startNow} color="secondary">Start Now</Button>
+                    <Button fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                 </Grid>
             </Grid>
         )
-    }, [routine, startLater, startNow]);
+    }, [routine, startLater, runRoutine]);
 
     /**
      * Display body or loading indicator
@@ -185,7 +197,7 @@ export const RoutineView = ({
                         color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
                     }}>
                         <Typography variant="h6">Description</Typography>
-                        <Markdown>{description ?? 'No description'}</Markdown>
+                        <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
                     </Box>
                     {/* Instructions */}
                     <Box sx={{
@@ -213,6 +225,19 @@ export const RoutineView = ({
             overflowY: 'scroll',
             minHeight: '88vh',
         }}>
+            {/* Dialog for running routine */}
+            <Dialog
+                id="run-routine-view-dialog"
+                fullScreen
+                open={isRunOpen}
+                onClose={stopRoutine}
+                TransitionComponent={UpTransition}
+            >
+                <RunRoutineView
+                    handleClose={stopRoutine}
+                    session={session}
+                />
+            </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
                 objectId={id}

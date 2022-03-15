@@ -48,10 +48,12 @@ export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_tra
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   isInternal: boolean | null;
   nodesCount: number | null;
   role: MemberRole | null;
   owner: deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner | null;
+  simplicity: number;
   translations: deepRoutineNodeFields_data_NodeRoutineList_routines_routine_translations[];
   version: string | null;
 }
@@ -67,6 +69,7 @@ export interface deepRoutineNodeFields_data_NodeRoutineList_routines_translation
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
+  index: number;
   isOptional: boolean;
   routine: deepRoutineNodeFields_data_NodeRoutineList_routines_routine;
   translations: deepRoutineNodeFields_data_NodeRoutineList_routines_translations[];

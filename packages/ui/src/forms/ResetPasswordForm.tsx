@@ -14,11 +14,11 @@ import { useLocation } from 'wouter';
 import { emailResetPassword } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
+import { Pubs } from 'utils';
 
 export const ResetPasswordForm = ({
     userId,
     code,
-    onSessionUpdate
 }: ResetPasswordFormProps) => {
     const [, setLocation] = useLocation();
     const [emailResetPassword, { loading }] = useMutation<emailResetPassword>(emailResetPasswordMutation);
@@ -33,7 +33,7 @@ export const ResetPasswordForm = ({
             mutationWrapper({
                 mutation: emailResetPassword,
                 input: { id: userId, code, newPassword: values.newPassword },
-                onSuccess: (response) => { onSessionUpdate(response.data.emailResetPassword); setLocation(APP_LINKS.Home) },
+                onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailResetPassword); setLocation(APP_LINKS.Home) },
                 successMessage: () => 'Password reset.',
             })
         },

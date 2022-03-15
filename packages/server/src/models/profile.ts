@@ -206,7 +206,7 @@ export const profileValidater = () => ({
      */
     async validateVerificationCode(emailAddress: string, userId: string, code: string, prisma: PrismaType): Promise<boolean> {
         // Find email data
-        const email: any = prisma.email.findUnique({
+        const email: any = await prisma.email.findUnique({
             where: { emailAddress },
             select: {
                 id: true,

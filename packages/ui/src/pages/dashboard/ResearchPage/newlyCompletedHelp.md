@@ -1,1 +1,0 @@
-Projects listed here have been recently completed, which means their main routine(s) are ready to run.

@@ -149,19 +149,26 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Run}/:routineId/:subroutineId`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Run')} {...props}>
-                            <RunRoutinePage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
                 {/* ========= #endregion Routine Routes ========= */}
 
                 {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (organizations, actors, projects, routines, resources, data) */}
                 {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
                 <Route path={`${LINKS.Organization}/:id?`}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Organization')} {...props}>
+                            <OrganizationViewPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Organization}/add`}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Organization')} {...props}>
+                            <OrganizationViewPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Organization}/update/:id?`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Organization')} {...props}>
                             <OrganizationViewPage session={props.session} />
@@ -195,7 +202,7 @@ export const AllRoutes = (props: CommonProps) => {
                 <Route path={LINKS.Start}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Start')} {...props}>
-                            <StartPage {...props} />
+                            <StartPage />
                         </Page>
                     </Suspense>
                 </Route>
@@ -213,7 +220,7 @@ export const AllRoutes = (props: CommonProps) => {
                         <Suspense fallback={Fallback}>
                             <Page title={title('Reset Password')} {...props}>
                                 <FormPage title="Reset Password" maxWidth="700px">
-                                    <ResetPasswordForm userId={params.userId} code={params.code} onSessionUpdate={props.onSessionUpdate} />
+                                    <ResetPasswordForm userId={params.userId} code={params.code} />
                                 </FormPage>
                             </Page>
                         </Suspense>

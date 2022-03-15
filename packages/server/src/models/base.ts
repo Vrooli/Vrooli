@@ -649,6 +649,10 @@ export const relationshipToPrisma = ({
         const shapedData = shapeRelationshipData(value, fieldExcludes);
         converted[currOp] = Array.isArray(converted[currOp]) ? [...converted[currOp], ...shapedData] : shapedData;
     };
+    // Updates must be shaped in the form of { where: { id: '123' }, data: {...}}
+    if (converted.update) {
+        converted.update = converted.update.map((e: any) => ({ where: { id: e.id }, data: e }));
+    }
     return converted;
 }
 

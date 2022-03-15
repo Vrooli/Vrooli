@@ -7,7 +7,7 @@
 import { Box, Stack } from '@mui/material';
 import { NodeColumn, NodeEdge } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getTranslation, Pubs } from 'utils';
+import { Pubs } from 'utils';
 import { NodeGraphProps } from '../types';
 import { Node } from 'types';
 import { NodeType } from 'graphql/generated/globalTypes';
@@ -27,15 +27,15 @@ type PinchRefs = {
 
 export const NodeGraph = ({
     columns,
+    handleContextItemSelect,
     handleDialogOpen,
-    handleNodeUnlink,
     handleNodeDelete,
+    handleNodeDrop,
     handleNodeUpdate,
     handleNodeInsert,
     handleLinkCreate,
     handleLinkUpdate,
     handleLinkDelete,
-    handleRoutineListItemAdd,
     handleSubroutineOpen,
     isEditing = true,
     labelVisible = true,
@@ -194,30 +194,13 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            console.error(`Dropped node ${nodeId} not found`);
+            PubSub.publish(Pubs.Snack, { message: `Dropped node ${nodeId} not found` });
             return;
         }
-        // Next, check if the node was dropped into the "Delete" button or "Unlinked" container. 
-        // If the drop position is within the delete button, delete the node
-        if (isInsideRectangle({ x, y }, 'delete-node-button')) {
-            console.log('deleting node....')
-            // If this is a routine list node, prompt for confirmation
-            if (node.type === NodeType.RoutineList) {
-                PubSub.publish(Pubs.AlertDialog, {
-                    message: `Are you sure you want to delete the routine list "${getTranslation(node, 'title', [language])}"?`,
-                    buttons: [
-                        { text: 'Yes', onClick: () => { handleNodeDelete(nodeId); } },
-                        { text: 'Cancel' },
-                    ]
-                });
-            }
-            // Otherwise, just delete the node
-            else handleNodeDelete(nodeId);
-            return;
-        }
+        // Next, check if the node was dropped into "Unlinked" container. 
         // If the drop position is within the unlinked container, unlink the node
         if (isInsideRectangle({ x, y }, 'unlinked-nodes-dialog')) {
-            handleNodeUnlink(nodeId);
+            handleNodeDrop(nodeId, null, null);
             return;
         }
 
@@ -254,14 +237,13 @@ export const NodeGraph = ({
         // If not above any nodes, must be below   
         if (rowIndex === -1) rowIndex = centerYs.length;
         console.log('DROPPED ROW, COL', columnIndex, rowIndex);
-        // Determine if node can be dropped without conflicts
-        //TODO
-        // Otherwise, determine if node can be dropped with conflicts
-        //TODO
-        // If the node was dropped, center it in the column
-        //TODO
-        // If the node was not dropped, but it back to its original position
-        //TODO
+        // If dropped into its same position, return
+        if (node.columnIndex === columnIndex && node.rowIndex === rowIndex) return;
+        // If dropped into its own column and no other nodes in that column, return
+        const nodesInColumn = Object.values(nodesById).filter(node => node.columnIndex === columnIndex);
+        if (nodesInColumn.length === 1 && nodesInColumn[0].id === nodeId) return;
+        // Complete drop
+        handleNodeDrop(nodeId, columnIndex, rowIndex);
     }, [scale, nodesById]);
 
     // Set listeners for:
@@ -432,10 +414,10 @@ export const NodeGraph = ({
             id={`node-column-${index}`}
             columnIndex={index}
             dragId={dragId}
+            handleContextItemSelect={handleContextItemSelect}
             handleDialogOpen={handleDialogOpen}
             handleNodeDelete={handleNodeDelete}
-            handleNodeUnlink={handleNodeUnlink}
-            handleRoutineListItemAdd={handleRoutineListItemAdd}
+            handleNodeDrop={handleNodeDrop}
             handleSubroutineOpen={handleSubroutineOpen}
             isEditing={isEditing}
             labelVisible={labelVisible}
@@ -448,7 +430,7 @@ export const NodeGraph = ({
         <Box id="graph-root" position="relative" sx={{
             cursor: isShiftKeyPressed ? 'nesw-resize' : 'move',
             minWidth: '100%',
-            height: { xs: '70vh', md: '80vh' },
+            height: { xs: '72vh', md: '80vh' },
             overflowX: 'auto',
             overflowY: 'auto',
             margin: 0,
@@ -469,7 +451,7 @@ export const NodeGraph = ({
             {edges}
             <Stack id="graph-grid" direction="row" spacing={0} zIndex={5} sx={{
                 width: 'fit-content',
-                height: '-webkit-fill-available',
+                minHeight: '-webkit-fill-available',
                 // Create grid background pattern
                 backgroundColor: `#a8b6c3`,
                 '--line-color': `rgba(0 0 0 / .05)`,

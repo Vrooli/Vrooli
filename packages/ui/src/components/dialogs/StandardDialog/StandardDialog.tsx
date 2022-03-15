@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
 import { StandardUpdate } from 'components/views/StandardUpdate/StandardUpdate';
-import { StandardDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
+import { StandardDialogProps, ObjectDialogAction } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { Standard } from 'types';
@@ -71,8 +71,6 @@ export const StandardDialog = ({
             open={Boolean(params?.params)}
             hasPrevious={hasPrevious}
             hasNext={hasNext}
-            canEdit={canEdit}
-            state={Object.values(ObjectDialogState).includes(state ?? '') ? state as any : ObjectDialogState.View}
             onAction={onAction}
         >
             {child}

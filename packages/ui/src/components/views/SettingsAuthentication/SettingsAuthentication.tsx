@@ -8,6 +8,7 @@ import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";
 import {
+    Add as AddIcon,
     Restore as RevertIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
@@ -17,6 +18,21 @@ import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from "wouter";
 import { containerShadow } from "styles";
 import { logOutMutation } from 'graphql/mutation';
+import { HelpButton } from "components/buttons";
+
+const helpText =
+    `TODO`
+
+const TERTIARY_COLOR = '#95f3cd';
+
+/**
+ * Card styles
+ */
+const cardStyles = [
+    { background: 'linear-gradient(38deg, rgba(65,96,233,1) 0%, rgba(235,54,106,1) 100%)', color: 'white' },
+    { background: 'linear-gradient(38deg, rgba(65,233,177,1) 0%, rgba(54,131,235,1) 100%)', color: 'white' },
+    { background: 'linear-gradient(38deg, rgba(233,186,65,1) 0%, rgba(172,54,235,1) 100%)', color: 'white' },
+]
 
 export const SettingsAuthentication = ({
     profile,
@@ -27,7 +43,7 @@ export const SettingsAuthentication = ({
     const [logOut] = useMutation<any>(logOutMutation);
     const onLogOut = useCallback(() => {
         mutationWrapper({ mutation: logOut })
-        PubSub.publish(Pubs.LogOut);
+        PubSub.publish(Pubs.Session, undefined);
         setLocation(APP_LINKS.Home);
     }, []);
 
@@ -50,6 +66,37 @@ export const SettingsAuthentication = ({
             })
         },
     });
+
+    const walletsGrid = useMemo(() => {
+        if (!profile?.wallets || !profile.wallets.length) return null;
+        const walletCards = profile.wallets.map((wallet, index) => (
+            <Box key={index} sx={{
+                ...containerShadow,
+                borderRadius: 2,
+                margin: 2,
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                padding: 1,
+                maxWidth: 'min(350px, 100%)',
+                lineBreak: 'anywhere',
+                ...cardStyles[Math.floor(Math.random() * cardStyles.length)],
+            }}>
+                {/* Display nickname and public address */}
+                <Typography variant="h6">{wallet.name}</Typography>
+                <Typography variant="body1">{wallet.publicAddress}</Typography>
+                <Typography variant="body1">{wallet.verified ? 'Verified' : 'Not verified'}</Typography>
+            </Box>
+        ));
+        return (
+            <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+            }}>
+                {walletCards}
+            </Box>
+        )
+    }, [profile]);
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, !formik.touched || formik.isSubmitting, true, () => { }],
@@ -75,13 +122,22 @@ export const SettingsAuthentication = ({
                             padding: 0.5,
                             marginBottom: 2,
                         }}>
-                            <Typography component="h1" variant="h3" textAlign="center">Authentication Settings</Typography>
+                            <Typography component="h1" variant="h3" textAlign="center">Authentication</Typography>
+                            <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
                         </Box>
-                        <Typography component="h2" variant="h4" textAlign="center">Connected Wallets</Typography>
-                        <Container sx={{ paddingBottom: 2 }}>
-                            {/* TODO Wallets */}
-                        </Container>
-                        <Typography component="h2" variant="h4" textAlign="center">Connected Emails</Typography>
+                        <Typography component="h2" variant="h5" textAlign="center">Connected Wallets</Typography>
+                        <Stack direction="column" spacing={2} sx={{ paddingBottom: 2 }}>
+                            {walletsGrid}
+                            {/* Add wallet button, centered horizontally */}
+                            <Box sx={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                            }}>
+                                <Button color="secondary" startIcon={<AddIcon />}>Add Wallet</Button>
+                            </Box>
+                        </Stack>
+                        <Typography component="h2" variant="h5" textAlign="center">Connected Emails</Typography>
                         <Container sx={{ paddingBottom: 2 }}>
                             {/* TODO Emails */}
                             <Grid container spacing={2}>
@@ -135,7 +191,7 @@ export const SettingsAuthentication = ({
                         <DialogActionsContainer fixed={false} actions={actions} />
                     </form>
                 </Box>
-                <Button color="secondary" onClick={onLogOut} sx={{ 
+                <Button color="secondary" onClick={onLogOut} sx={{
                     width: 'min(100%, 400px)',
                     margin: 'auto',
                     marginTop: 5,

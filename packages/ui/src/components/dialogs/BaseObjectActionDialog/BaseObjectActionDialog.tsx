@@ -4,7 +4,7 @@ import { vote } from 'graphql/generated/vote';
 import { starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { StarFor, VoteFor } from "@local/shared";
-import { ListMenu } from "..";
+import { ListMenu, ReportDialog } from "..";
 import { BaseObjectActionDialogProps, BaseObjectAction, ListMenuItemData } from "../types";
 import {
     FileCopy as CopyIcon,
@@ -136,13 +136,23 @@ export const BaseObjectActionDialog = ({
     }, []);
 
     return (
-        <ListMenu
-            id={`${objectType}-options-menu-${objectId}`}
-            anchorEl={anchorEl}
-            title={title}
-            data={data}
-            onSelect={onSelect}
-            onClose={onClose}
-        />
+        <>
+            {/* Report dialog */}
+            <ReportDialog
+                reportFor={objectType}
+                forId={objectId}
+                open={reportOpen}
+                onClose={closeReport}
+            />
+            {/* Actual action dialog */}
+            <ListMenu
+                id={`${objectType}-options-menu-${objectId}`}
+                anchorEl={anchorEl}
+                title={title}
+                data={data}
+                onSelect={onSelect}
+                onClose={onClose}
+            />
+        </>
     )
 }

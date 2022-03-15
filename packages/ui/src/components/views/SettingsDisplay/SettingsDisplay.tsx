@@ -20,6 +20,18 @@ import { HelpButton, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
 import { containerShadow } from "styles";
 
+const helpText = 
+`Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.  
+
+Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.
+
+You can also specify tags which should be hidden from your feeds.
+
+**None** of this information is available to the public, and **none** of it is sold to advertisers.
+`
+
+const TERTIARY_COLOR = '#95f3cd';
+
 export const SettingsDisplay = ({
     session,
     profile,
@@ -70,12 +82,6 @@ export const SettingsDisplay = ({
         },
     });
 
-    // Parse help button markdown
-    const [helpText, setHelpText] = useState('');
-    useEffect(() => {
-        fetch(helpMarkdown).then((r) => r.text()).then((text) => { setHelpText(text) });
-    }, []);
-
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, !formik.touched || formik.isSubmitting, false, () => { 
             console.log('submit');
@@ -107,11 +113,11 @@ export const SettingsDisplay = ({
                         marginBottom: 2,
                     }}>
                         <Typography component="h1" variant="h3">Display Preferences</Typography>
-                        <HelpButton markdown={helpText} sx={{ width: '40px', height: '40px', color: (t) => t.palette.primary.contrastText }} />
+                        <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
                     </Stack>
                     <Container sx={{ paddingBottom: 2 }}>
                         <Grid container spacing={2}>
-                            <Grid item xs={12}>
+                            <Grid item xs={12} sx={{marginBottom: 2}}>
                                 <TagSelector
                                     session={session}
                                     tags={starredTags}

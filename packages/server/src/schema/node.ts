@@ -18,6 +18,7 @@ export const typeDef = gql`
     union NodeData = NodeEnd | NodeRoutineList
 
     input NodeCreateInput {
+        id: ID!
         columnIndex: Int
         rowIndex: Int
         type: NodeType
@@ -150,15 +151,12 @@ export const typeDef = gql`
     input NodeRoutineListCreateInput {
         isOrdered: Boolean
         isOptional: Boolean
-        routinesConnect: [ID!]
         routinesCreate: [NodeRoutineListItemCreateInput!]
     }
     input NodeRoutineListUpdateInput {
         id: ID!
         isOrdered: Boolean
         isOptional: Boolean
-        routinesConnect: [ID!]
-        routinesDisconnect: [ID!]
         routinesDelete: [ID!]
         routinesCreate: [NodeRoutineListItemCreateInput!]
         routinesUpdate: [NodeRoutineListItemUpdateInput!]
@@ -171,20 +169,22 @@ export const typeDef = gql`
     }
 
     input NodeRoutineListItemCreateInput {
+        index: Int
         isOptional: Boolean
         routineConnect: ID!
         translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
     }
     input NodeRoutineListItemUpdateInput {
         id: ID!
+        index: Int
         isOptional: Boolean
-        routineConnect: ID
         translationsDelete: [ID!]
         translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
         translationsUpdate: [NodeRoutineListItemTranslationUpdateInput!]
     }
     type NodeRoutineListItem {
         id: ID!
+        index: Int!
         isOptional: Boolean!
         routine: Routine!
         translations: [NodeRoutineListItemTranslation!]!

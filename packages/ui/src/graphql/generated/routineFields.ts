@@ -35,6 +35,7 @@ export interface routineFields {
   __typename: "Routine";
   id: string;
   completedAt: any | null;
+  complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
@@ -43,6 +44,7 @@ export interface routineFields {
   isUpvoted: boolean | null;
   role: MemberRole | null;
   score: number;
+  simplicity: number;
   stars: number;
   tags: routineFields_tags[];
   translations: routineFields_translations[];

@@ -1,5 +1,5 @@
-import { Box, Button, Grid, IconButton, Slider, Stack, Tooltip } from '@mui/material';
-import { useMemo } from 'react';
+import { Box, Button, Dialog, Grid, IconButton, Slider, Stack, Tooltip } from '@mui/material';
+import { useMemo, useState } from 'react';
 import {
     Cancel as CancelIcon,
     Pause as PauseIcon,
@@ -11,6 +11,10 @@ import {
 import { withStyles } from '@mui/styles';
 import { BuildRunState } from 'utils';
 import { BuildBottomContainerProps } from '../types';
+import { useLocation } from 'wouter';
+import { APP_LINKS } from '@local/shared';
+import { UpTransition } from 'components/dialogs';
+import { RunRoutineView } from 'components/views';
 
 const CustomSlider = withStyles({
     root: {
@@ -29,13 +33,26 @@ export const BuildBottomContainer = ({
     hasNext,
     isEditing,
     loading,
+    routineId,
     scale,
+    session,
     sliderColor,
     runState,
 }: BuildBottomContainerProps) => {
+    const [, setLocation] = useLocation();
 
     const onScaleChange = (_event: any, newScale: number | number[]) => {
         handleScaleChange(newScale as number);
+    };
+
+    const [isRunOpen, setIsRunOpen] = useState(false)
+    const runRoutine = () => { 
+        setLocation(`?step=1`, { replace: true });
+        setIsRunOpen(true)
+    };
+    const stopRoutine = () => { 
+        setLocation(window.location.pathname, { replace: true });
+        setIsRunOpen(false) 
     };
 
     /**
@@ -94,7 +111,7 @@ export const BuildBottomContainer = ({
                         </Tooltip>
                     ) : (
                         <Tooltip title="Run Routine" placement="top">
-                            <IconButton aria-label="run-routine" size='large'>
+                            <IconButton aria-label="run-routine" size='large' onClick={runRoutine}>
                                 <RunIcon sx={{ fill: '#e4efee', transform: 'scale(2)' }} />
                             </IconButton>
                         </Tooltip>
@@ -116,6 +133,18 @@ export const BuildBottomContainer = ({
             alignItems: 'center',
             paddingBottom: { xs: '72px', md: '16px' },
         }}>
+            <Dialog
+                id="run-routine-view-dialog"
+                fullScreen
+                open={isRunOpen}
+                onClose={stopRoutine}
+                TransitionComponent={UpTransition}
+            >
+                <RunRoutineView
+                    handleClose={stopRoutine}
+                    session={session}
+                />
+            </Dialog>
             {slider}
             {buttons}
         </Box>

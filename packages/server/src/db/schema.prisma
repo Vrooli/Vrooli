@@ -228,6 +228,7 @@ model node_routine_list {
 // Many-to-many relationship between routine lists and routines
 model node_routine_list_item {
     id           String                               @id @default(uuid()) @db.Uuid
+    index        Int?                                 @default(0) // Index, if list is ordered
     isOptional   Boolean                              @default(false)
     listId       String                               @db.Uuid
     routineId    String                               @db.Uuid
@@ -458,10 +459,10 @@ model resource_list {
     updated_at     DateTime                    @default(now()) @db.Timestamptz(6)
     index          Int?                        @default(0) // Index in list of lists, if any
     usedFor        ResourceListUsedFor         @default(Display) // Allows ui to determine which lists aren't deletable (e.g. list displayed on learn dashboard)
-    organizationId String?                      @db.Uuid
-    projectId      String?                      @db.Uuid
-    routineId      String?                      @db.Uuid
-    userId         String?                      @db.Uuid
+    organizationId String?                     @db.Uuid
+    projectId      String?                     @db.Uuid
+    routineId      String?                     @db.Uuid
+    userId         String?                     @db.Uuid
     organization   organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     project        project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
     routine        routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -518,10 +519,12 @@ model routine {
     created_at              DateTime                 @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
     completedAt             DateTime?                @db.Timestamptz(6) // If the routine is complete, this is the time it was completed
+    complexity              Int                      @default(1) // complexity = 1 + (complexity of each subroutine) along the longest path
     isAutomatable           Boolean                  @default(false) // Indicates if the routine can be run automatically, if all conditions are met
     isComplete              Boolean                  @default(true) // If the routine is complete, or in a working state. Determined by the user
     isInternal              Boolean                  @default(false) // Indicates if the routine should appear in searches, or if it is only meant to be a subnode of another routine
     score                   Int                      @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
+    simplicity              Int                      @default(1) // Opposite of completixy - 1 + (complexity of each subroutine) along the shortest path
     stars                   Int                      @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
     createdByUserId         String?                  @db.Uuid // User who created this routine
     createdByOrganizationId String?                  @db.Uuid // Organization who created this routine

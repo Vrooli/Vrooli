@@ -116,8 +116,8 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
-                { name: {...insensitive} },
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                { name: { ...insensitive } },
                 { tags: { some: { tag: { tag: { ...insensitive } } } } },
             ]
         })
@@ -128,7 +128,7 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
         const userIdQuery = input.userId ? { createdByUserId: input.userId } : {};
         const organizationIdQuery = input.organizationId ? { createdByOrganizationId: input.organizationId } : {};
-        const projectIdQuery = input.projectId ? { 
+        const projectIdQuery = input.projectId ? {
             OR: [
                 { createdByUser: { some: { projects: { some: { id: input.projectId } } } } },
                 { createdByOrganization: { some: { projects: { some: { id: input.projectId } } } } },
@@ -184,7 +184,7 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
         await this.validateMutations({
             userId,
             createMany: createMany as StandardCreateInput[],
-            updateMany: updateMany as StandardUpdateInput[],
+            updateMany: updateMany?.map(d => d.data) as StandardUpdateInput[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         // Shape
@@ -192,7 +192,10 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
             formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShapeAdd(userId, data as any));
         }
         if (Array.isArray(formattedInput.update)) {
-            formattedInput.update = formattedInput.update.map(async (data) => await this.toDBShapeUpdate(userId, data as any));
+            formattedInput.update = formattedInput.update.map(async (data) => ({
+                where: data.where,
+                data: await this.toDBShapeUpdate(userId, data.data as any)
+            }))
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },

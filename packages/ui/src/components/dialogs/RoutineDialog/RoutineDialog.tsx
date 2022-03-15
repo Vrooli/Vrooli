@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
 import { RoutineUpdate } from 'components/views/RoutineUpdate/RoutineUpdate';
-import { RoutineDialogProps, ObjectDialogAction, ObjectDialogState } from 'components/dialogs/types';
+import { RoutineDialogProps, ObjectDialogAction } from 'components/dialogs/types';
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { Routine } from 'types';
@@ -71,8 +71,6 @@ export const RoutineDialog = ({
             open={Boolean(params?.params)}
             hasPrevious={hasPrevious}
             hasNext={hasNext}
-            canEdit={canEdit}
-            state={Object.values(ObjectDialogState).includes(state ?? '') ? state as any : ObjectDialogState.View}
             onAction={onAction}
         >
             {child}

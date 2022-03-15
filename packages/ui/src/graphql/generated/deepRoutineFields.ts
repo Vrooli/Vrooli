@@ -109,10 +109,12 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_t
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine {
   __typename: "Routine";
   id: string;
+  complexity: number;
   isInternal: boolean | null;
   nodesCount: number | null;
   role: MemberRole | null;
   owner: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_owner | null;
+  simplicity: number;
   translations: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_translations[];
   version: string | null;
 }
@@ -128,6 +130,7 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_translati
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines {
   __typename: "NodeRoutineListItem";
   id: string;
+  index: number;
   isOptional: boolean;
   routine: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine;
   translations: deepRoutineFields_nodes_data_NodeRoutineList_routines_translations[];
@@ -324,6 +327,7 @@ export interface deepRoutineFields {
   __typename: "Routine";
   id: string;
   completedAt: any | null;
+  complexity: number;
   created_at: any;
   inputs: deepRoutineFields_inputs[];
   isAutomatable: boolean | null;
@@ -338,6 +342,7 @@ export interface deepRoutineFields {
   parent: deepRoutineFields_parent | null;
   resourceLists: deepRoutineFields_resourceLists[];
   score: number;
+  simplicity: number;
   stars: number;
   role: MemberRole | null;
   tags: deepRoutineFields_tags[];

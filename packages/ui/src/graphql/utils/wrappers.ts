@@ -48,7 +48,6 @@ export const mutationWrapper = ({
     spinnerDelay = 1000,
 }: Props) => {
     if (spinnerDelay) PubSub.publish(Pubs.Loading, spinnerDelay);
-    console.log('mutationwrapper calling mutation', mutation);
     mutation(input ? { variables: { input } } : undefined).then((response) => {
         if (successCondition(response)) {
             if (successMessage || successData) PubSub.publish(Pubs.Snack, { message: successMessage && successMessage(response), ...successData });
@@ -65,7 +64,6 @@ export const mutationWrapper = ({
             if (isFunction(onError)) onError(response);
         }
     }).catch((response) => {
-        console.log('wrapper error', response.name)
         if (spinnerDelay) PubSub.publish(Pubs.Loading, false);
         if (errorMessage || errorData) {
             PubSub.publish(Pubs.Snack, { message: errorMessage && errorMessage(response), ...errorData, severity: errorData?.severity ?? 'error', data: errorData?.data ?? response });

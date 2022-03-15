@@ -24,6 +24,7 @@ export const typeDef = gql`
     }
 
     input ResourceListCreateInput {
+        id: ID
         index: Int
         usedFor: ResourceListUsedFor!
         organizationId: ID

@@ -19,6 +19,7 @@ export interface profileUpdate_profileUpdate_emails {
 
 export interface profileUpdate_profileUpdate_wallets {
   __typename: "Wallet";
+  name: string | null;
   publicAddress: string;
   verified: boolean;
 }

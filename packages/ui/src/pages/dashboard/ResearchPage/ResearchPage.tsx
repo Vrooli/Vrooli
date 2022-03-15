@@ -14,18 +14,40 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Organization, Project, Resource, ResourceList, Routine } from 'types';
 import { formatForUpdate, Pubs } from 'utils';
 import { ResearchPageProps } from '../types';
-import donateOrInvestMarkdown from './donateOrInvestHelp.md';
-import joinATeamMarkdown from './joinATeamHelp.md';
-import newlyCompletedMarkdown from './newlyCompletedHelp.md';
-import processesMarkdown from './processesHelp.md';
-import researchPageMarkdown from './researchPageHelp.md';
-import voteMarkdown from './voteHelp.md';
+
+const donateOrInvestText = 
+``
+
+const joinATeamText = 
+`Organizations listed here have indicated that they are open to new members. Check them out and contact them if you have anything to contribute!`
+
+const newlyCompletedText =
+`Projects listed here have been recently completed, which means their main routine(s) are ready to run.`
+
+const processesText = 
+``
+
+const researchPageText = 
+`The **Research Dashboard** is designed to help you validate ideas and discover new projects and routines.
+
+Currently, the page is bare-bones. It contains sections for:  
+- Projects looking for funding/investments
+- Organizations looking for new members
+- Projects recently completed
+- Routines to help you validate ideas or perform general research
+- Projects looking for votes
+
+The top of this page also contains a list of resources, which you can update with your favorite research-related links. 
+If you are not logged in, default resources will be displayed.`
+
+const voteText = 
+`Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
 
 /**
  * Default research resources
  */
  const defaultResourceList: ResourceList = {    
-    usedFor: ResourceListUsedFor.Develop,
+    usedFor: ResourceListUsedFor.Research,
     resources: [
         {
             link: 'https://cardano.stackexchange.com/',
@@ -83,10 +105,10 @@ export const ResearchPage = ({
 
     const resourceList = useMemo(() => {
         if (!profileData?.profile?.resourceLists) return defaultResourceList;
-        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Develop) ?? null;
+        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Research) ?? null;
     }, [profileData]);
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
-    const handleResourcesUpdate = useCallback((updatedList: Resource[]) => {
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         mutationWrapper({
             mutation: updateResources,
             input: formatForUpdate(profileData?.profile, {
@@ -188,22 +210,6 @@ export const ResearchPage = ({
             onClick={() => {}}
         />
     )) ?? [], []);
-
-    // Parse help button markdown
-    const [donateOrInvestText, setDonateOrInvestText] = useState('');
-    const [joinATeamText, setJoinATeamText] = useState('');
-    const [newlyCompletedText, setNewlyCompletedText] = useState('');
-    const [processesText, setProcessesText] = useState('');
-    const [researchPageText, setResearchPageText] = useState('');
-    const [voteText, setVoteText] = useState('');
-    useEffect(() => {
-        fetch(donateOrInvestMarkdown).then((r) => r.text()).then((text) => { setDonateOrInvestText(text) });
-        fetch(joinATeamMarkdown).then((r) => r.text()).then((text) => { setJoinATeamText(text) });
-        fetch(newlyCompletedMarkdown).then((r) => r.text()).then((text) => { setNewlyCompletedText(text) });
-        fetch(processesMarkdown).then((r) => r.text()).then((text) => { setProcessesText(text) });
-        fetch(researchPageMarkdown).then((r) => r.text()).then((text) => { setResearchPageText(text) });
-        fetch(voteMarkdown).then((r) => r.text()).then((text) => { setVoteText(text) });
-    }, []);
 
     return (
         <Box id="page">

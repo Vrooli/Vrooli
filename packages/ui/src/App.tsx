@@ -137,10 +137,6 @@ export function App() {
 
     useEffect(() => {
         checkSession();
-        // Handle log out
-        let logOutSub = PubSub.subscribe(Pubs.LogOut, () => {
-            setSession(undefined);
-        });
         // Handle loading spinner, which can have a delay
         let loadingSub = PubSub.subscribe(Pubs.Loading, (_, data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -150,13 +146,17 @@ export function App() {
                 setLoading(Boolean(data));
             }
         });
+        let sessionSub = PubSub.subscribe(Pubs.Session, (_, session) => {
+            console.log('in session pub', session)
+            setSession(s => (session === undefined ? undefined : { ...s, session }));
+        });
         let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
         return (() => {
-            PubSub.unsubscribe(logOutSub);
             PubSub.unsubscribe(loadingSub);
+            PubSub.unsubscribe(sessionSub);
             PubSub.unsubscribe(themeSub);
         })
-    }, [checkSession])
+    }, [checkSession]);
 
     return (
         <StyledEngineProvider injectFirst>
@@ -191,7 +191,6 @@ export function App() {
                             <AllRoutes
                                 session={session ?? {}}
                                 sessionChecked={session !== undefined}
-                                onSessionUpdate={checkSession}
                             />
                         </Box>
                         <BottomNav session={session ?? {}} />

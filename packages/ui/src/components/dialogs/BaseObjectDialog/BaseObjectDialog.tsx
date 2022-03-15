@@ -13,16 +13,12 @@ import {
     useScrollTrigger,
 } from '@mui/material';
 import {
-    Add as AddIcon,
     ChevronLeft as PreviousIcon,
     ChevronRight as NextIcon,
     Close as CloseIcon,
-    Edit as EditIcon,
-    Restore as CancelIcon,
-    Update as SaveIcon,
 } from '@mui/icons-material';
 import { UpTransition } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction, ObjectDialogState } from '../types';
 
 /**
@@ -34,72 +30,15 @@ export const BaseObjectDialog = ({
     open = true,
     hasPrevious,
     hasNext,
-    canEdit = false,
-    state,
     onAction,
     children,
 }: BaseObjectDialogProps) => {
     const [scrollTarget, setScrollTarget] = useState<HTMLElement | undefined>(undefined);
     const scrollTrigger = useScrollTrigger({ target: scrollTarget });
 
-    const onAdd = useCallback(() => onAction(ObjectDialogAction.Add), [onAction]);
-    const onCancel = useCallback(() => onAction(ObjectDialogAction.Cancel), [onAction]);
     const onClose = useCallback(() => onAction(ObjectDialogAction.Close), [onAction]);
-    const onEdit = useCallback(() => onAction(ObjectDialogAction.Edit), [onAction]);
     const onPrevious = useCallback(() => onAction(ObjectDialogAction.Previous), [onAction]);
     const onNext = useCallback(() => onAction(ObjectDialogAction.Next), [onAction]);
-    const onSave = useCallback(() => onAction(ObjectDialogAction.Save), [onAction]);
-
-    /**
-     * Determine option buttons to display (besides close, since that's always available). 
-     * - If viewing an object (i.e. not adding or updating):
-     *      - If canEdit, show edit button
-     *      - Else, show no button
-     * - If editing, show "Save" and "Cancel" buttons.
-     * - If adding, show "Add" button
-     */
-    const options: JSX.Element = useMemo(() => {
-        // Determine edit options to show
-        let availableOptions: Array<[string, any, any]> = [];
-        switch (state) {
-            case ObjectDialogState.View:
-                availableOptions = canEdit ? [['Edit', EditIcon, onEdit]] : [];
-                break;
-            case ObjectDialogState.Edit:
-                availableOptions = [['Save', SaveIcon, onSave], ['Cancel', CancelIcon, onCancel]];
-                break;
-            case ObjectDialogState.Add:
-                availableOptions = [['Add', AddIcon, onAdd]];
-                break;
-        }
-
-        // Determine sizing based on number of options
-        const maxGridWidth = `min(100vw, ${200 * availableOptions.length}px)`;
-        let gridItemSizes;
-        if (availableOptions.length === 1) {
-            gridItemSizes = { xs: 12 }
-        }
-        else if (availableOptions.length === 2) {
-            gridItemSizes = { xs: 12, sm: 6 }
-        }
-        else {
-            gridItemSizes = { xs: 12, sm: 6, md: 4 }
-        }
-
-        return (
-            <Grid container spacing={2} maxWidth={maxGridWidth}>
-                {availableOptions.map(([label, Icon, onClick]) => (
-                    <Grid key={label} {...gridItemSizes}>
-                        <Button
-                            fullWidth
-                            startIcon={<Icon />}
-                            onClick={onClick ? onClick() : undefined}
-                        >{label}</Button>
-                    </Grid>
-                ))}
-            </Grid>
-        )
-    }, [state, canEdit, onAction]);
 
     return (
         <Dialog
@@ -140,7 +79,6 @@ export const BaseObjectDialog = ({
                                 )}
                             </Stack>
                         </Box>
-                        {options}
                     </Toolbar>
                 </AppBar>
             </Slide>

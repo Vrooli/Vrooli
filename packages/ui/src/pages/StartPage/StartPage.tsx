@@ -31,16 +31,22 @@ import {
 import { guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import helpMarkdown from './startHelp.md';
 import { parseSearchParams } from 'utils/urlTools';
+
+const helpText = 
+`Logging in allows you to vote, save favorites, and contribute to the community.
+
+Choose **WALLET** if you are on a browser with a supported extension (currently [CCVault](https://ccvault.io/app/mainnet/faq), [Nami](https://namiwallet.io/), and [Yoroi](https://yoroi-wallet.com/#/)). This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.
+
+Choose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.
+
+Choose **ENTER AS GUEST** if you only want to view the site or execute existing routines.`
 
 const buttonProps: SxProps = {
     height: '4em',
 }
 
-export const StartPage = ({
-    onSessionUpdate
-}: Pick<CommonProps, 'onSessionUpdate'>) => {
+export const StartPage = () => {
     const [, setLocation] = useLocation();
     const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
 
@@ -63,11 +69,6 @@ export const StartPage = ({
                 return [LogInForm, 'Log In'];
         }
     }, [popupForm])
-
-    const [helpText, setHelpText] = useState<string>('');
-    useEffect(() => {
-        fetch(helpMarkdown).then((r) => r.text()).then((text) => { setHelpText(text) });
-    }, []);
 
     // Wallet connect popup
     const [walletOptionPopupOpen, setWalletOptionPopupOpen] = useState(false);
@@ -123,21 +124,21 @@ export const StartPage = ({
         if (walletCompleteResult) {
             PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
             // Set actor role
-            onSessionUpdate(walletCompleteResult?.session)
+            PubSub.publish(Pubs.Session, walletCompleteResult?.session)
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
         }
-    }, [downloadExtension, setLocation, onSessionUpdate, redirect, toEmailLogIn])
+    }, [downloadExtension, setLocation, redirect, toEmailLogIn])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({
             mutation: guestLogIn,
             onSuccess: () => {
-                onSessionUpdate({ roles: [{ role: { title: ROLES.Guest } }] });
+                PubSub.publish(Pubs.Session, { roles: [{ role: { title: ROLES.Guest } }] })
                 setLocation(redirect ?? APP_LINKS.Welcome);
             },
         })
-    }, [guestLogIn, setLocation, onSessionUpdate, redirect]);
+    }, [guestLogIn, setLocation, redirect]);
 
     const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
         console.log('handleWalletDialogSelect', selected);
@@ -228,10 +229,7 @@ export const StartPage = ({
                     <Typography variant="h6" textAlign="center">{formTitle}</Typography>
                 </Box>
                 <Box sx={{ padding: 1 }}>
-                    <Form
-                        onSessionUpdate={onSessionUpdate}
-                        onFormChange={handleFormChange}
-                    />
+                    <Form onFormChange={handleFormChange} />
                 </Box>
             </Dialog>
         </Box>

@@ -2,17 +2,13 @@ import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeLink } from 'types';
 import { BuildDialogOption, BuildStatus } from 'utils';
+import { NodeContextMenuOptions } from './NodeContextMenu/NodeContextMenu';
 
 export interface NodeContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
-    node: Node;
-    onClose: () => void;
-    onAddBefore: (node: Node) => void;
-    onAddAfter: (node: Node) => void;
-    onEdit: (node: Node) => void;
-    onDelete: (node: Node) => void;
-    onMove: (node: Node) => void;
+    handleClose: () => void;
+    handleContextItemSelect: (option: NodeContextMenuOptions) => void;
 }
 
 export type BuildStatusObject = {
@@ -29,14 +25,12 @@ export interface NodeGraphProps {
     labelVisible?: boolean;
     language: string; // Language to display/edit
     links: NodeLink[];
+    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
     /**
       * Prompts parent to open a specific dialog
       */
     handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
-    /**
-     * Moves a node to the unlinked container
-     */
-    handleNodeUnlink: (nodeId: string) => void;
+    handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
     /**
      * Deletes a node permanently
      */
@@ -62,10 +56,6 @@ export interface NodeGraphProps {
      */
     handleLinkDelete: (link: NodeLink) => void;
     /**
-     * Adds a routine item to a routine list
-     */
-    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
-    /**
      * Opens a subroutine info dialog
      */
     handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
@@ -86,13 +76,13 @@ export interface NodeColumnProps {
     labelVisible: boolean;
     columnIndex: number;
     nodes: Node[];
+    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
     /**
       * Prompts parent to open a specific dialog
       */
     handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
     handleNodeDelete: (nodeId: string) => void;
-    handleNodeUnlink: (nodeId: string) => void;
-    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
+    handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
     handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
 }
 

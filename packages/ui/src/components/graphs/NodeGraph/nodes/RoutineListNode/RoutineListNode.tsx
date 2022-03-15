@@ -29,10 +29,10 @@ import { getTranslation, BuildDialogOption, Pubs } from 'utils';
 export const RoutineListNode = ({
     canDrag,
     canExpand,
+    handleContextItemSelect,
     handleDialogOpen,
     handleNodeUnlink,
     handleNodeDelete,
-    handleRoutineListItemAdd,
     handleSubroutineOpen,
     isLinked,
     labelVisible,
@@ -197,9 +197,11 @@ export const RoutineListNode = ({
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((ev: MouseEvent<HTMLDivElement>) => {
+        // Ignore if not linked or editing
+        if (!canDrag || !isLinked) return;
         setContextAnchor(ev.currentTarget)
         ev.preventDefault();
-    }, []);
+    }, [canDrag, isLinked]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
@@ -220,13 +222,8 @@ export const RoutineListNode = ({
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                node={node}
-                onClose={closeContext}
-                onAddBefore={() => { }}
-                onAddAfter={() => { }}
-                onDelete={() => { }}
-                onEdit={() => { }}
-                onMove={() => { }}
+                handleClose={closeContext}
+                handleContextItemSelect={(option) => { handleContextItemSelect(node.id, option) }}
             />
             <Tooltip placement={'top'} title={label ?? 'Routine List'}>
                 <Container

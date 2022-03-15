@@ -60,6 +60,7 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         }
         // Query for role
         if (partial.role) {
+            console.log('organization role query', userId, ids)
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, ids)
                 : Array(ids.length).fill(null);
@@ -100,7 +101,7 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
         const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
         const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};
         const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
-        const userIdQuery = input.userId ? { members: { some: { id: input.userId } } } : {};
+        const userIdQuery = input.userId ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
@@ -113,9 +114,10 @@ export const organizationVerifier = (prisma: PrismaType) => ({
         console.log('getroles start', userId, ids);
         // Query member data for each ID
         const roleArray = await prisma.organization_users.findMany({
-            where: { organization: { id: { in: ids } }, userId },
+            where: { organization: { id: { in: ids } }, user: { id: userId } },
             select: { organizationId: true, role: true }
         });
+        console.log('getroles middle', roleArray);
         return ids.map(id => {
             const role = roleArray.find(({ organizationId }) => organizationId === id);
             return role?.role as MemberRole | undefined;
@@ -138,7 +140,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
         return {
             id: (data as OrganizationUpdateInput)?.id ?? undefined,
             isOpenToNewMembers: data.isOpenToNewMembers,
-            resourceLists: ResourceListModel(prisma).relationshipBuilder(userId, data, false),
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }

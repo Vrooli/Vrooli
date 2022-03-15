@@ -93,6 +93,7 @@ export interface SearchListGenerator {
 }
 
 export interface SearchListProps<DataType, SortBy> {
+    handleAdd?: () => void; // Not shown if not passed
     searchPlaceholder?: string;
     sortOptions: SearchSortBy<SortBy>[];
     defaultSortOption: SearchSortBy<SortBy>;

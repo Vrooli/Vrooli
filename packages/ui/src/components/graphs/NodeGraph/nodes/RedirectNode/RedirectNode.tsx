@@ -2,7 +2,7 @@ import { IconButton, Tooltip, Typography } from '@mui/material';
 import { CSSProperties, MouseEvent, useCallback, useMemo, useState } from 'react';
 import { RedirectNodeProps } from '../types';
 import { UTurnLeft as RedirectIcon } from '@mui/icons-material';
-import { NodeContextMenu, NodeWidth } from '../..';
+import { NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { DraggableNode } from '../';
@@ -43,25 +43,16 @@ export const RedirectNode = ({
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
     const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
+        // Ignore if not linked or editing
+        if (!canDrag || !isLinked) return;
         setContextAnchor(ev.currentTarget)
         ev.preventDefault();
-    }, []);
+    }, [canDrag, isLinked]);
     const closeContext = useCallback(() => setContextAnchor(null), []);
 
     return (
         <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}>
             {dialog}
-            <NodeContextMenu
-                id={contextId}
-                anchorEl={contextAnchor}
-                node={node}
-                onClose={closeContext}
-                onAddBefore={() => { }}
-                onAddAfter={() => { }}
-                onDelete={() => { }}
-                onEdit={() => { }}
-                onMove={() => { }}
-            />
             <Tooltip placement={'top'} title='Redirect'>
                 <IconButton
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}

@@ -6,6 +6,7 @@ export const Pubs = {
     Loading: "loading",
     LogOut: "logout",
     AlertDialog: "alertDialog",
+    Session: "session",
     Snack: "snack",
     BurgerMenuOpen: "burgerMenuOpen",
     ArrowMenuOpen: "arrowMenuOpen",
@@ -53,4 +54,10 @@ export enum BuildRunState {
     Paused,
     Running,
     Stopped,
+}
+
+export enum RoutineStepType {
+    RoutineList = 'RoutineList',
+    Decision = 'Decision',
+    Subroutine = 'Subroutine',
 }

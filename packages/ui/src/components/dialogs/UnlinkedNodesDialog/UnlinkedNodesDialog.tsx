@@ -24,11 +24,8 @@ import { getTranslation } from 'utils';
 export const UnlinkedNodesDialog = ({
     open,
     nodes,
-    handleToggleOpen,
     handleNodeDelete,
-    handleNodeUnlink,
-    handleRoutineListItemAdd,
-    handleDialogOpen,
+    handleToggleOpen,
 }: UnlinkedNodesDialogProps) => {
 
     /**
@@ -39,6 +36,7 @@ export const UnlinkedNodesDialog = ({
         // Common node props
         const nodeProps = {
             canDrag: true,
+            handleContextItemSelect: () => {},
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
@@ -59,10 +57,9 @@ export const UnlinkedNodesDialog = ({
                     {...nodeProps} 
                     canExpand={false} 
                     labelVisible={true} 
-                    handleNodeUnlink={handleNodeUnlink}
+                    handleNodeUnlink={() => {}}
                     handleNodeDelete={handleNodeDelete}
-                    handleRoutineListItemAdd={handleRoutineListItemAdd}
-                    handleDialogOpen={handleDialogOpen} 
+                    handleDialogOpen={() => {}} 
                     handleSubroutineOpen={() => {}}
                 />)
             default:

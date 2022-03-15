@@ -24,6 +24,7 @@ import {
     ListItemText,
     Stack,
     SwipeableDrawer,
+    TextField,
     Tooltip,
     Typography,
 } from '@mui/material';
@@ -52,6 +53,7 @@ enum ActionOption {
 
 export const BuildInfoDialog = ({
     handleUpdate,
+    handleDelete,
     isEditing,
     language,
     routine,
@@ -61,10 +63,12 @@ export const BuildInfoDialog = ({
     const [, setLocation] = useLocation();
     // Open boolean for drawer
     const [open, setOpen] = useState(false);
-    // Open boolean for delete routine confirmation
-    const [deleteOpen, setDeleteOpen] = useState(false);
     const toggleOpen = () => setOpen(o => !o);
     const closeMenu = () => setOpen(false);
+    // Open boolean for delete routine confirmation
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const openDelete = () => setDeleteOpen(true);
+    const closeDelete = () => setDeleteOpen(false);
 
     /**
      * Name of user or organization that owns this routine
@@ -120,6 +124,7 @@ export const BuildInfoDialog = ({
         initialValues: {
             description: getTranslation(routine, 'description', [language]) ?? '',
             instructions: getTranslation(routine, 'instructions', [language]) ?? '',
+            isInternal: routine?.isInternal ?? false,
             title: getTranslation(routine, 'title', [language]) ?? '',
             version: routine?.version ?? '',
         },
@@ -145,8 +150,24 @@ export const BuildInfoDialog = ({
         },
     });
 
-    const handleAction = useCallback((option: ActionOption) => {
-        //TODO
+    const handleAction = useCallback((action: ActionOption) => {
+        switch (action) {
+            case ActionOption.Cancel:
+                //TODO
+                break;
+            case ActionOption.Delete:
+                openDelete();
+                break;
+            case ActionOption.Fork:
+                //TODO
+                break;
+            case ActionOption.Stats:
+                //TODO
+                break;
+            case ActionOption.Update:
+                //TODO
+                break;
+        }
     }, []);
 
     return (
@@ -218,14 +239,17 @@ export const BuildInfoDialog = ({
                         <Typography variant="h6">Description</Typography>
                         {
                             isEditing ? (
-                                <MarkdownInput
+                                <TextField
+                                    fullWidth
                                     id="description"
-                                    placeholder="Description"
+                                    name="description"
+                                    label="description"
                                     value={formik.values.description}
-                                    minRows={2}
-                                    onChange={(newText: string) => formik.setFieldValue('description', newText)}
+                                    rows={3}
+                                    onBlur={formik.handleBlur}
+                                    onChange={formik.handleChange}
                                     error={formik.touched.description && Boolean(formik.errors.description)}
-                                    helperText={formik.touched.description ? formik.errors.description as string : null}
+                                    helperText={formik.touched.description && formik.errors.description}
                                 />
                             ) : (
                                 <Markdown>{getTranslation(routine, 'description', [language]) ?? ''}</Markdown>
@@ -245,7 +269,7 @@ export const BuildInfoDialog = ({
                                     id="instructions"
                                     placeholder="Instructions"
                                     value={formik.values.instructions}
-                                    minRows={2}
+                                    minRows={3}
                                     onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
                                     error={formik.touched.instructions && Boolean(formik.errors.instructions)}
                                     helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
@@ -268,8 +292,8 @@ export const BuildInfoDialog = ({
                                     name='isInternalCheckbox'
                                     value='isInternalCheckbox'
                                     color='secondary'
-                                    checked={routine?.isInternal ?? false}
-                                    onChange={() => { }}
+                                    checked={formik.values.isInternal}
+                                    onChange={formik.handleChange}
                                 />
                             }
                         />
@@ -295,7 +319,7 @@ export const BuildInfoDialog = ({
             <DeleteRoutineDialog
                 isOpen={deleteOpen}
                 routineName={getTranslation(routine, 'title', [language]) ?? ''}
-                handleClose={() => setDeleteOpen(false)}
+                handleClose={closeDelete}
                 handleDelete={() => { }}
             />
         </>

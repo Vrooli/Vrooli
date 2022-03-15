@@ -24,7 +24,6 @@ import { parseSearchParams } from 'utils/urlTools';
 
 export const LogInForm = ({
     code,
-    onSessionUpdate,
     onFormChange = () => { }
 }: LogInFormProps) => {
     const [, setLocation] = useLocation();
@@ -43,7 +42,7 @@ export const LogInForm = ({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode: code },
                 successCondition: (response) => response.data.emailLogIn !== null,
-                onSuccess: (response) => { onSessionUpdate(response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) },
+                onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(Pubs.AlertDialog, {

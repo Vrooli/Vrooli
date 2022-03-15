@@ -212,7 +212,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             completedAt: input.isComplete ? new Date().toISOString() : null,
             name: input.name,
             parentId: input.parentId,
-            resourceLists: ResourceListModel(prisma).relationshipBuilder(userId, input, true),
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, true),
             tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
         })

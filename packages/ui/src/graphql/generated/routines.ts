@@ -41,6 +41,7 @@ export interface routines_routines_edges_node {
   __typename: "Routine";
   id: string;
   completedAt: any | null;
+  complexity: number;
   created_at: any;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
@@ -49,6 +50,7 @@ export interface routines_routines_edges_node {
   isUpvoted: boolean | null;
   role: MemberRole | null;
   score: number;
+  simplicity: number;
   stars: number;
   tags: routines_routines_edges_node_tags[];
   translations: routines_routines_edges_node_translations[];

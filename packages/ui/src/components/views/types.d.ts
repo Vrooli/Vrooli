@@ -57,6 +57,11 @@ export interface SettingsProfileProps extends SettingsBaseProps {}
 export interface SubroutineViewProps {
     hasNext: boolean;
     hasPrevious: boolean;
-    partialData?: Partial<Routine>;
+    loading: boolean;
+    data: Routine | null;
     session: Session;
+}
+
+export interface RunRoutineViewProps extends ViewProps<Routine> {
+    handleClose: () => void; // View is always in a dialog
 }

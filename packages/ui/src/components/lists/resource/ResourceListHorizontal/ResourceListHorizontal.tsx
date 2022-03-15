@@ -10,14 +10,27 @@ import {
     Add as AddIcon,
 } from '@mui/icons-material';
 import { cardRoot } from 'components/cards/styles';
+import { AddResourceDialog } from 'components/dialogs';
+import { updateArray } from 'utils';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
     canEdit = true,
     handleUpdate,
+    mutate = true,
     list,
     session,
 }: ResourceListHorizontalProps) => {
+
+    const handleAdd = useCallback((newResource: Resource) => {
+        if (!list) return;
+        if (handleUpdate) {
+            handleUpdate({
+                ...list,
+                resources: [...(list?.resources as any) ?? [], newResource],
+            });
+        }
+    }, [handleUpdate, list]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -34,8 +47,26 @@ export const ResourceListHorizontal = ({
         setSelected(null);
     }, []);
 
+    // Add resource dialog
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const openAddDialog = useCallback(() => { setIsAddDialogOpen(true) }, []);
+    const closeAddDialog = useCallback(() => { setIsAddDialogOpen(false) }, []);
+
+    const addDialog = useMemo(() => (
+        list ? <AddResourceDialog
+            listId={list.id}
+            open={isAddDialogOpen}
+            onClose={closeAddDialog}
+            onCreated={handleAdd}
+            mutate={mutate}
+        /> : null
+    ), [handleAdd, isAddDialogOpen, list]);
+
     return (
         <Box>
+            {/* Add resource dialog */}
+            {addDialog}
+            {/* Right-click context menu */}
             <ResourceListItemContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
@@ -56,8 +87,8 @@ export const ResourceListHorizontal = ({
                     border: (t) => `1px ${t.palette.text.primary}`,
                 }}
             >
-                <Stack direction="row" spacing={2} p={2} sx={{ 
-                    overflowX: 'scroll',
+                <Stack direction="row" spacing={2} p={2} sx={{
+                    overflowX: 'auto',
                     "&::-webkit-scrollbar": {
                         width: 5,
                     },
@@ -80,9 +111,9 @@ export const ResourceListHorizontal = ({
                         />
                     ))}
                     {/* Add resource button */}
-                    { canEdit ? <Tooltip placement="top" title="Add resource">
+                    {canEdit ? <Tooltip placement="top" title="Add resource">
                         <Box
-                            onClick={() => { }}
+                            onClick={openAddDialog}
                             aria-label="Add resource"
                             sx={{
                                 ...cardRoot,
@@ -96,7 +127,7 @@ export const ResourceListHorizontal = ({
                         >
                             <AddIcon color="primary" sx={{ width: '50px', height: '50px' }} />
                         </Box>
-                    </Tooltip> : null }
+                    </Tooltip> : null}
                 </Stack>
             </Box>
         </Box>

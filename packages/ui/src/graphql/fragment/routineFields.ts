@@ -13,6 +13,7 @@ export const routineFields = gql`
     fragment routineFields on Routine {
         id
         completedAt
+        complexity
         created_at
         isAutomatable
         isInternal
@@ -21,6 +22,7 @@ export const routineFields = gql`
         isUpvoted
         role
         score
+        simplicity
         stars
         tags {
             ...routineTagFields

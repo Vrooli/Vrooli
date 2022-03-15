@@ -32,12 +32,11 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
     },
     deconstructUnions: (partial) => {
         console.log('in node deconstructunions')
-        let modified = deconstructUnion(partial, 'data', 
-        [
-            [GraphQLModelType.NodeEnd, 'nodeEnd'],
-            [GraphQLModelType.NodeRoutineList, 'nodeRoutineList'],
-            // TODO modified.nodeRedirect
-        ]);
+        let modified = deconstructUnion(partial, 'data',
+            [
+                [GraphQLModelType.NodeEnd, 'nodeEnd'],
+                [GraphQLModelType.NodeRoutineList, 'nodeRoutineList'],
+            ]);
         return modified;
     },
 })
@@ -117,14 +116,14 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by nodes (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        console.log('node relationshipbuilder formattedinput', JSON.stringify(formattedInput));
         // Validate input, with routine ID added to each update node
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        if (updateMany) updateMany = updateMany.map(node => ({ ...node, routineId }));
-        await this.validateMutations({ 
-            userId, 
-            createMany: createMany as NodeCreateInput[], 
-            updateMany: updateMany as NodeUpdateInput[], 
-            deleteMany: deleteMany?.map(d => d.id) 
+        await this.validateMutations({
+            userId,
+            createMany: createMany as NodeCreateInput[],
+            updateMany: updateMany?.map(d => ({ ...d.data, routineId })) as NodeUpdateInput[],
+            deleteMany: deleteMany?.map(d => d.id)
         });
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -142,19 +141,17 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'whens', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
+            // Check for valid arguments
+            whensCreate.validateSync(formattedInput.create, { abortEarly: false });
             for (const data of formattedInput.create) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                whensCreate.validateSync(data, { abortEarly: false });
-                // Check for banned words
                 TranslationModel().profanityCheck(data);
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
+            // Check for valid arguments
+            whensUpdate.validateSync(formattedInput.update, { abortEarly: false });
             for (const data of formattedInput.update) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                whensUpdate.validateSync(data, { abortEarly: false });
-                // Check for banned words
                 TranslationModel().profanityCheck(data);
             }
         }
@@ -174,11 +171,9 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeLinks', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
+            // Check for valid arguments
+            nodeLinksCreate.validateSync(formattedInput.create, { abortEarly: false });
             for (let data of formattedInput.create) {
-                // Check for valid arguments
-                console.log('going to validate node link create', data)
-                nodeLinksCreate.validateSync(data, { abortEarly: false });
-                console.log('past validation')
                 // Convert nested relationships
                 data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
                 let { fromId, toId, ...rest } = data;
@@ -191,9 +186,9 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
+            // Check for valid arguments
+            nodeLinksUpdate.validateSync(formattedInput.update, { abortEarly: false });
             for (let data of formattedInput.update) {
-                // Check for valid arguments
-                nodeLinksUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
                 let { fromId, toId, ...rest } = data;
@@ -248,17 +243,13 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'whiles', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
-            for (const data of formattedInput.create) {
-                // Check for valid arguments (censored words must be checked in earlier function)
-                whilesCreate.validateSync(data, { abortEarly: false });
-            }
+            // Check for valid arguments (censored words must be checked in earlier function)
+            whilesCreate.validateSync(formattedInput.create, { abortEarly: false });
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
-                // Check for valid arguments
-                whilesUpdate.validateSync(data, { abortEarly: false });
-            }
+            // Check for valid arguments (censored words must be checked in earlier function)
+            whilesUpdate.validateSync(formattedInput.update, { abortEarly: false });
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -309,18 +300,18 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         const routineModel = RoutineModel(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
+            // Check for valid arguments
+            nodeRoutineListItemsCreate.validateSync(formattedInput.create, { abortEarly: false });
             for (const data of formattedInput.create) {
-                // Check for valid arguments
-                nodeRoutineListItemsCreate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.routines = routineModel.relationshipBuilder(userId, data, isAdd);
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
+            // Check for valid arguments
+            nodeRoutineListItemsUpdate.validateSync(formattedInput.update, { abortEarly: false });
             for (const data of formattedInput.update) {
-                // Check for valid arguments
-                nodeRoutineListItemsUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.routines = routineModel.relationshipBuilder(userId, data, isAdd);
             }
@@ -365,6 +356,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<NodeCreateInput, NodeUpdateInput>): Promise<void> {
+        console.log('node validate mutations', { userId, createMany, updateMany, deleteMany });
         if (!userId) throw new CustomError(CODE.Unauthorized);
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
         // Make sure every node applies to the same routine
@@ -404,6 +396,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
          */
         const createData = async (input: NodeCreateInput | NodeUpdateInput): Promise<{ [x: string]: any }> => {
             let nodeData: { [x: string]: any } = {
+                id: input.id,
                 columnIndex: input.columnIndex,
                 routineId: input.routineId,
                 rowIndex: input.rowIndex,

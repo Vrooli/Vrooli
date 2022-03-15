@@ -38,7 +38,7 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
         await this.validateMutations({
             userId,
             createMany: createMany as EmailCreateInput[],
-            updateMany: updateMany as EmailUpdateInput[],
+            updateMany: updateMany?.map(d => d.data) as EmailUpdateInput[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
