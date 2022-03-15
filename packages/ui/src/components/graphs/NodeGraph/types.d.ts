@@ -56,10 +56,6 @@ export interface NodeGraphProps {
      */
     handleLinkDelete: (link: NodeLink) => void;
     /**
-     * Adds a routine item to a routine list
-     */
-    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
-    /**
      * Opens a subroutine info dialog
      */
     handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
@@ -87,7 +83,6 @@ export interface NodeColumnProps {
     handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
     handleNodeDelete: (nodeId: string) => void;
     handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
-    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
     handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
 }
 

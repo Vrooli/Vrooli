@@ -156,6 +156,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         })
     },
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
+        const excludeIdsQuery = input.excludeIds ? { NOT: { id: { in: input.excludeIds } } } : {};
         const isCompleteQuery = input.isComplete ? { isComplete: true } : {};
         const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
         const minComplexity = input.minComplexity ? { complexity: { gte: input.minComplexity } } : {};
@@ -171,7 +172,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
         const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { isInternal: false, ...isCompleteQuery, ...languagesQuery, ...minComplexity, ...maxComplexity, ...minSimplicity, ...maxSimplicity, ...minScoreQuery, ...minStarsQuery, ...resourceListsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
+        return { isInternal: false, ...excludeIdsQuery, ...isCompleteQuery, ...languagesQuery, ...minComplexity, ...maxComplexity, ...minSimplicity, ...maxSimplicity, ...minScoreQuery, ...minStarsQuery, ...resourceListsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
     },
 })
 

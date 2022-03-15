@@ -10,7 +10,6 @@ import { NodeType } from 'graphql/generated/globalTypes';
 export const NodeColumn = ({
     handleContextItemSelect,
     handleDialogOpen,
-    handleRoutineListItemAdd,
     handleNodeDelete,
     handleNodeDrop,
     handleSubroutineOpen,
@@ -81,7 +80,6 @@ export const NodeColumn = ({
                         handleDialogOpen={handleDialogOpen}
                         handleNodeDelete={handleNodeDelete}
                         handleNodeUnlink={(nodeId) => { handleNodeDrop(nodeId, null, null) }}
-                        handleRoutineListItemAdd={handleRoutineListItemAdd}
                         handleSubroutineOpen={handleSubroutineOpen}
                     />)
                 case NodeType.Start:

@@ -196,3 +196,13 @@ export interface RunStepsDialogProps {
     stepList: RoutineStep | null;
     sxs?: { icon: any };
 }
+
+export interface AddSubroutineDialogProps {
+    handleAdd: (nodeId: string, subroutine: Routine) => any;
+    handleClose: () => any;
+    isOpen: boolean;
+    language: string;
+    nodeId: string;
+    routineId: string;
+    session: Session;
+}

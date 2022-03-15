@@ -794,6 +794,7 @@ export interface RoutineCreateInput {
 export interface RoutineSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
+  excludeIds?: string[] | null;
   ids?: string[] | null;
   isComplete?: boolean | null;
   languages?: string[] | null;

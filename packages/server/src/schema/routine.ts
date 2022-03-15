@@ -212,6 +212,7 @@ export const typeDef = gql`
     input RoutineSearchInput {
         after: String
         createdTimeFrame: TimeFrame
+        excludeIds: [ID!]
         ids: [ID!]
         isComplete: Boolean
         languages: [String!]

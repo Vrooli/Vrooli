@@ -33,7 +33,6 @@ export const RoutineListNode = ({
     handleDialogOpen,
     handleNodeUnlink,
     handleNodeDelete,
-    handleRoutineListItemAdd,
     handleSubroutineOpen,
     isLinked,
     labelVisible,

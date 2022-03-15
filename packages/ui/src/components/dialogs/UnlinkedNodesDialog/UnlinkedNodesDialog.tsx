@@ -59,7 +59,6 @@ export const UnlinkedNodesDialog = ({
                     labelVisible={true} 
                     handleNodeUnlink={() => {}}
                     handleNodeDelete={handleNodeDelete}
-                    handleRoutineListItemAdd={() =>{}}
                     handleDialogOpen={() => {}} 
                     handleSubroutineOpen={() => {}}
                 />)

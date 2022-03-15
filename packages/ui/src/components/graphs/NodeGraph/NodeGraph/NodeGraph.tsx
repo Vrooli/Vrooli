@@ -36,7 +36,6 @@ export const NodeGraph = ({
     handleLinkCreate,
     handleLinkUpdate,
     handleLinkDelete,
-    handleRoutineListItemAdd,
     handleSubroutineOpen,
     isEditing = true,
     labelVisible = true,
@@ -419,7 +418,6 @@ export const NodeGraph = ({
             handleDialogOpen={handleDialogOpen}
             handleNodeDelete={handleNodeDelete}
             handleNodeDrop={handleNodeDrop}
-            handleRoutineListItemAdd={handleRoutineListItemAdd}
             handleSubroutineOpen={handleSubroutineOpen}
             isEditing={isEditing}
             labelVisible={labelVisible}

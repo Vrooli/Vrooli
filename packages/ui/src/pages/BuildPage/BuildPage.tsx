@@ -1,5 +1,5 @@
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, DeleteRoutineDialog, NodeContextMenu, NodeContextMenuOptions } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, DeleteRoutineDialog, NodeContextMenu, NodeContextMenuOptions, AddSubroutineDialog } from 'components';
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
@@ -216,15 +216,6 @@ export const BuildPage = ({
         console.log('COLUMNSSS', columns)
         return { columns, nodesOffGraph, nodesById };
     }, [changedRoutine]);
-
-    const handleDialogOpen = useCallback((nodeId: string, dialog: BuildDialogOption) => {
-        const node = nodesById[nodeId];
-        switch (dialog) {
-            case BuildDialogOption.AddRoutineItem:
-                break;
-        }
-    }, [nodesById]);
-
 
     // Subroutine info drawer
     const [selectedSubroutine, setSelectedSubroutine] = useState<Routine | null>(null);
@@ -536,21 +527,45 @@ export const BuildPage = ({
         setChangedRoutine(newRoutine);
     }, [changedRoutine]);
 
+    // Add subroutine dialog
+    const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
+    const openAddSubroutineDialog = useCallback((nodeId: string) => { setAddSubroutineNode(nodeId); }, []);
+    const closeAddSubroutineDialog = useCallback(() => { setAddSubroutineNode(null); }, []);
+
+    const handleDialogOpen = useCallback((nodeId: string, dialog: BuildDialogOption) => {
+        const node = nodesById[nodeId];
+        switch (dialog) {
+            case BuildDialogOption.AddRoutineItem:
+                openAddSubroutineDialog(nodeId);
+                break;
+        }
+    }, [nodesById]);
+
     /**
      * Adds a routine list item to a routine list
      */
-    const handleRoutineListItemAdd = useCallback((nodeId: string, data: NodeDataRoutineListItem) => {
+    const handleRoutineListItemAdd = useCallback((nodeId: string, routine: Routine) => {
+        console.log('HANDLE ROUTINE LIST ITEM ADD', nodeId, routine, changedRoutine);
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
+        console.log('nooooode index', nodeIndex);
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
+        console.log('handle routine list item add a', routineList);
+        let routineItem: NodeDataRoutineListItem = {
+            id: uuidv4(),
+            isOptional: true,
+            routine,
+        } as any
+        if (routineList.isOrdered) routineItem.index = routineList.routines.length
+        console.log('handle routine list item add b', routineItem);
         setChangedRoutine({
             ...changedRoutine,
             nodes: updateArray(changedRoutine.nodes, nodeIndex, {
                 ...changedRoutine.nodes[nodeIndex],
                 data: {
                     ...routineList,
-                    routines: [...routineList.routines, data],
+                    routines: [...routineList.routines, routineItem],
                 }
             }),
         });
@@ -604,6 +619,16 @@ export const BuildPage = ({
             height: '100%',
             width: '100%',
         }}>
+            {/* Popup for adding new subroutines */}
+            {addSubroutineNode && <AddSubroutineDialog
+                handleAdd={handleRoutineListItemAdd}
+                handleClose={closeAddSubroutineDialog}
+                isOpen={Boolean(addSubroutineNode)}
+                language={language}
+                nodeId={addSubroutineNode}
+                routineId={routine?.id ?? ''}
+                session={session}
+            />}
             {/* Popup for creating new links */}
             {changedRoutine ? <LinkDialog
                 handleClose={handleLinkDialogClose}
@@ -686,26 +711,6 @@ export const BuildPage = ({
                         <AddLinkIcon id="add-link-button-icon" sx={{ fill: 'white' }} />
                     </IconButton>
                 </Tooltip>
-                {/* Add new nodes to the routine */}
-                <Tooltip title='Add new node'>
-                    <IconButton
-                        id="add-node-button"
-                        edge="end"
-                        onClick={() => { }}
-                        aria-label='Add node'
-                        sx={{
-                            background: (t) => t.palette.secondary.main,
-                            marginRight: 1,
-                            transition: 'brightness 0.2s ease-in-out',
-                            '&:hover': {
-                                filter: `brightness(105%)`,
-                                background: (t) => t.palette.secondary.main,
-                            },
-                        }}
-                    >
-                        <AddIcon id="add-node-button-icon" sx={{ fill: 'white' }} />
-                    </IconButton>
-                </Tooltip>
                 {/* Displays unlinked nodes */}
                 <UnlinkedNodesDialog
                     open={isUnlinkedNodesOpen}
@@ -731,7 +736,6 @@ export const BuildPage = ({
                     handleNodeInsert={handleNodeInsert}
                     handleNodeUpdate={handleNodeUpdate}
                     handleNodeDrop={handleNodeDrop}
-                    handleRoutineListItemAdd={handleRoutineListItemAdd}
                     handleSubroutineOpen={handleSubroutineOpen}
                     isEditing={isEditing}
                     labelVisible={true}

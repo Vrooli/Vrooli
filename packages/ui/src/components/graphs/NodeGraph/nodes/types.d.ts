@@ -81,7 +81,6 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
     handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
     handleNodeUnlink: (nodeId: string) => void;
     handleNodeDelete: (nodeId: string) => void;
-    handleRoutineListItemAdd: (nodeId: string, data: NodeDataRoutineListItem) => void;
     handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
     /**
      * Prompts parent to open a specific dialog
