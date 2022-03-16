@@ -22,12 +22,13 @@ import { getTranslation } from 'utils';
 import { MemberRole } from 'graphql/generated/globalTypes';
 
 export const RoutineSubnode = ({
-    nodeId,
     data,
     scale = 1,
     labelVisible = true,
     isEditing = true,
-    handleSubroutineOpen,
+    handleOpen,
+    handleEdit,
+    handleDelete,
 }: RoutineSubnodeProps) => {
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
@@ -37,9 +38,13 @@ export const RoutineSubnode = ({
     const { title } = useMemo(() => {
         const languages = navigator.languages;
         return {
-            title: getTranslation(data, 'title', languages, true),
+            title: getTranslation(data, 'title', languages, true) ?? getTranslation(data.routine, 'title', languages, true)
         }
     }, [data]);
+
+    const openSubnode = useMemo(() => () => handleOpen(data.id), [data.id, handleOpen]);
+    const editSubnode = useMemo(() => () => handleEdit(data.id), [data.id, handleEdit]);
+    const deleteSubnode = useMemo(() => () => handleDelete(data.id), [data.id, handleDelete]);
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography
@@ -74,7 +79,7 @@ export const RoutineSubnode = ({
             }}
         >
             <Container
-                onClick={() => handleSubroutineOpen(nodeId, data.id)}
+                onClick={openSubnode}
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -90,8 +95,8 @@ export const RoutineSubnode = ({
                 }}
             >
                 {labelObject}
-                {isEditing && canEdit ? <EditIcon /> : null}
-                {isEditing ? <DeleteIcon /> : null}
+                {isEditing && canEdit ? <EditIcon onClick={editSubnode} /> : null}
+                {isEditing ? <DeleteIcon onClick={deleteSubnode}/> : null}
             </Container>
             <Stack direction="row" justifyContent="space-between" borderRadius={0}>
                 <Tooltip placement={'top'} title='Routine can be skipped'>

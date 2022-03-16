@@ -2,13 +2,31 @@ import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeLink } from 'types';
 import { BuildDialogOption, BuildStatus } from 'utils';
-import { NodeContextMenuOptions } from './NodeContextMenu/NodeContextMenu';
+import { NodeContextMenuAction } from './NodeContextMenu/NodeContextMenu';
 
 export interface NodeContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
     handleClose: () => void;
-    handleContextItemSelect: (option: NodeContextMenuOptions) => void;
+    handleSelect: (option: NodeContextMenuAction) => void;
+}
+
+export interface AddAfterLinkDialogProps {
+    isOpen: boolean;
+    handleClose: () => void;
+    handleSelect: (selected: NodeLink) => void;
+    nodeId: string;
+    nodes: Node[];
+    links: NodeLink[];
+}
+
+export interface AddBeforeLinkDialogProps {
+    isOpen: boolean;
+    handleClose: () => void;
+    handleSelect: (selected: NodeLink) => void;
+    nodeId: string;
+    nodes: Node[];
+    links: NodeLink[];
 }
 
 export type BuildStatusObject = {
@@ -25,16 +43,8 @@ export interface NodeGraphProps {
     labelVisible?: boolean;
     language: string; // Language to display/edit
     links: NodeLink[];
-    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
-    /**
-      * Prompts parent to open a specific dialog
-      */
-    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
+    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
-    /**
-     * Deletes a node permanently
-     */
-    handleNodeDelete: (nodeId: string) => void;
     /**
      * Inserts a new routine list node along an edge
      */
@@ -56,10 +66,6 @@ export interface NodeGraphProps {
      */
     handleLinkDelete: (link: NodeLink) => void;
     /**
-     * Opens a subroutine info dialog
-     */
-    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
-    /**
      * Dictionary of row and column pairs for every node ID on graph
      */
     nodesById: { [x: string]: Node };
@@ -76,14 +82,8 @@ export interface NodeColumnProps {
     labelVisible: boolean;
     columnIndex: number;
     nodes: Node[];
-    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
-    /**
-      * Prompts parent to open a specific dialog
-      */
-    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
-    handleNodeDelete: (nodeId: string) => void;
+    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
-    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
 }
 
 export interface NodeEdgeProps {

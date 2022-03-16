@@ -1,14 +1,13 @@
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, DeleteRoutineDialog, NodeContextMenu, NodeContextMenuOptions, AddSubroutineDialog } from 'components';
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, AddSubroutineDialog, AddAfterLinkDialog, AddBeforeLinkDialog } from 'components';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
 import { routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
-import { deleteArrayIndex, formatForUpdate, BuildDialogOption, BuildRunState, BuildStatus, Pubs, updateArray } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray } from 'utils';
 import {
-    Add as AddIcon,
     AddLink as AddLinkIcon,
     Compress as CleanUpIcon,
 } from '@mui/icons-material';
@@ -42,7 +41,7 @@ export const BuildPage = ({
     const { data: routineData, loading: loadingRead } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const [routine, setRoutine] = useState<Routine | null>(null);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
-    useEffect(() => { setRoutine(routineData?.routine ?? null) }, [routineData]);
+    useEffect(() => { console.log('got routine data. setting routine', routineData); setRoutine(routineData?.routine ?? null) }, [routineData]);
     // Routine mutators
     const [routineUpdate, { loading: loadingUpdate }] = useMutation<any>(routineUpdateMutation);
     const [routineDelete, { loading: loadingDelete }] = useMutation<any>(routineDeleteOneMutation);
@@ -63,6 +62,8 @@ export const BuildPage = ({
         console.log('SETTING CHANGED ROUTINEEEEEEEEEE', routine);
         setChangedRoutine(routine);
     }, [routine]);
+
+    console.log('changed routineeeeeeeeeee on renderrrrrrr', changedRoutine);
 
     /**
      * Hacky way to display dragging nodes over over elements. Disables z-index when dragging
@@ -319,31 +320,6 @@ export const BuildPage = ({
     }, [routine, routineDelete])
 
     /**
-     * Creates a link between two nodes which already exist in the linked routine. 
-     * This assumes that the link is valid.
-     */
-    const handleLinkCreate = useCallback((link: NodeLink) => {
-        if (!changedRoutine) return;
-        setChangedRoutine({
-            ...changedRoutine,
-            nodeLinks: [...changedRoutine.nodeLinks, link]
-        });
-    }, [changedRoutine]);
-
-    /**
-     * Updates an existing link between two nodes
-     */
-    const handleLinkUpdate = useCallback((link: NodeLink) => {
-        if (!changedRoutine) return;
-        const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.id === link.id);
-        if (linkIndex === -1) return;
-        setChangedRoutine({
-            ...changedRoutine,
-            nodeLinks: updateArray(changedRoutine.nodeLinks, linkIndex, link),
-        });
-    }, [changedRoutine]);
-
-    /**
      * Calculates the new set of links for an routine when a node is 
      * either deleted or unlinked. In certain cases, the new links can be 
      * calculated automatically.
@@ -378,6 +354,49 @@ export const BuildPage = ({
     }, [changedRoutine?.nodeLinks]);
 
     /**
+     * Generates a new node object, but doens't add it to the routine
+     */
+    const generateNewNode = useCallback((columnIndex: number | null, rowIndex: number | null) => {
+        const newNode: Partial<Node> = {
+            id: uuidv4(),
+            type: NodeType.RoutineList,
+            rowIndex,
+            columnIndex,
+            data: {
+                isOrdered: false,
+                isOptional: false,
+                routines: [],
+            } as any,
+        }
+        return newNode;
+    }, []);
+
+    /**
+     * Creates a link between two nodes which already exist in the linked routine. 
+     * This assumes that the link is valid.
+     */
+    const handleLinkCreate = useCallback((link: NodeLink) => {
+        if (!changedRoutine) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            nodeLinks: [...changedRoutine.nodeLinks, link]
+        });
+    }, [changedRoutine]);
+
+    /**
+     * Updates an existing link between two nodes
+     */
+    const handleLinkUpdate = useCallback((link: NodeLink) => {
+        if (!changedRoutine) return;
+        const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.id === link.id);
+        if (linkIndex === -1) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            nodeLinks: updateArray(changedRoutine.nodeLinks, linkIndex, link),
+        });
+    }, [changedRoutine]);
+
+    /**
      * Deletes a node, and all links connected to it. 
      * Also attemps to create new links to replace the deleted links.
      */
@@ -390,6 +409,29 @@ export const BuildPage = ({
             ...changedRoutine,
             nodes: deleteArrayIndex(changedRoutine.nodes, nodeIndex),
             nodeLinks: linksList,
+        });
+    }, [changedRoutine]);
+
+    /**
+     * Deletes a subroutine from a node
+     */
+    const handleSubroutineDelete = useCallback((nodeId: string, subroutineId: string) => {
+        if (!changedRoutine) return;
+        const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
+        if (nodeIndex === -1) return;
+        const node = changedRoutine.nodes[nodeIndex];
+        const subroutineIndex = (node.data as NodeDataRoutineList).routines.findIndex((item: NodeDataRoutineListItem) => item.routine.id === subroutineId);
+        if (subroutineIndex === -1) return;
+        const newRoutineList = deleteArrayIndex((node.data as NodeDataRoutineList).routines, subroutineIndex);
+        setChangedRoutine({
+            ...changedRoutine,
+            nodes: updateArray(changedRoutine.nodes, nodeIndex, {
+                ...node,
+                data: {
+                    ...node.data,
+                    routines: newRoutineList,
+                }
+            }),
         });
     }, [changedRoutine]);
 
@@ -430,7 +472,7 @@ export const BuildPage = ({
                 updatedNodes = updatedNodes.map(n => {
                     if (n.columnIndex === columnIndex && n.rowIndex !== null && n.rowIndex >= rowIndex) {
                         console.log('shifting a row', n)
-                        return { ...n, rowIndex: n.rowIndex + 1}
+                        return { ...n, rowIndex: n.rowIndex + 1 }
                     }
                     return n;
                 });
@@ -455,7 +497,7 @@ export const BuildPage = ({
                 rowIndex,
             })
             console.log('updated nodes b', updated);
-            console.log('testttttt', { ...changedRoutine,  nodes: updated});
+            console.log('testttttt', { ...changedRoutine, nodes: updated });
             // Update the routine
             setChangedRoutine({
                 ...changedRoutine,
@@ -481,6 +523,7 @@ export const BuildPage = ({
      * Inserts a new routine list node along an edge
      */
     const handleNodeInsert = useCallback((link: NodeLink) => {
+        console.log('HANDLE NODE INSERT', link);
         if (!changedRoutine) return;
         // Find link index
         const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.id === link.id);
@@ -501,17 +544,7 @@ export const BuildPage = ({
             return n;
         });
         // Create new routine list node
-        const newNode: Partial<Node> = {
-            id: uuidv4(),
-            type: NodeType.RoutineList,
-            rowIndex,
-            columnIndex,
-            data: {
-                isOrdered: false,
-                isOptional: false,
-                routines: [],
-            } as any,
-        }
+        const newNode: Partial<Node> = generateNewNode(columnIndex, rowIndex);
         // Find every node 
         // Create two new links
         const newLinks: Partial<NodeLink>[] = [
@@ -526,20 +559,6 @@ export const BuildPage = ({
         };
         setChangedRoutine(newRoutine);
     }, [changedRoutine]);
-
-    // Add subroutine dialog
-    const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
-    const openAddSubroutineDialog = useCallback((nodeId: string) => { setAddSubroutineNode(nodeId); }, []);
-    const closeAddSubroutineDialog = useCallback(() => { setAddSubroutineNode(null); }, []);
-
-    const handleDialogOpen = useCallback((nodeId: string, dialog: BuildDialogOption) => {
-        const node = nodesById[nodeId];
-        switch (dialog) {
-            case BuildDialogOption.AddRoutineItem:
-                openAddSubroutineDialog(nodeId);
-                break;
-        }
-    }, [nodesById]);
 
     /**
      * Adds a routine list item to a routine list
@@ -571,45 +590,124 @@ export const BuildPage = ({
         });
     }, [changedRoutine]);
 
-    const handleContextItemSelect = useCallback((nodeId: string, option: NodeContextMenuOptions) => {
+    /**
+     * Add a new routine list AFTER a node
+     */
+    const handleAddAfter = useCallback((nodeId: string) => {
+        console.log('handle add after', nodeId)
         if (!changedRoutine) return;
-        const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
-        if (nodeIndex === -1) return;
-        switch (option) {
-            case NodeContextMenuOptions.AddAfter:
-                // Find links where this node is the "from" node
-                const links = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId);
-                // If multiple links, open a dialog to select which one to add after
-                if (links.length > 1) {
-                    //TODO
-                }
-                // If only one link, add after that link
-                else if (links.length === 1) {
-                    const link = links[0];
-                    handleNodeInsert(link);
-                }
-                // If no links, create link and node
-                else {
-                    //TODO
-                }
-                break;
-            case NodeContextMenuOptions.AddBefore:
-                // TODO like add after, but before
-                break;
-            case NodeContextMenuOptions.Delete:
-                handleNodeDelete(nodeId);
-                break;
-            case NodeContextMenuOptions.Edit:
-                // TODO
-                break;
-            case NodeContextMenuOptions.Move:
-                // handleNodeDrop(nodeId, columnIndex, rowIndex);
-                break;
-            case NodeContextMenuOptions.Unlink:
-                handleNodeDrop(nodeId, null, null);
-                break;
+        // Find links where this node is the "from" node
+        const links = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId);
+        // If multiple links, open a dialog to select which one to add after
+        if (links.length > 1) {
+            console.log('opening after dialog')
+            setAddAfterLinkNode(nodeId);
+            return;
+        }
+        // If only one link, add after that link
+        else if (links.length === 1) {
+            const link = links[0];
+            console.log('inserting node on link', link)
+            handleNodeInsert(link);
+        }
+        // If no links, create link and node
+        else {
+            console.log('creating new link for node');
+            const newNode = generateNewNode(null, null);
+            const newLink = { fromId: nodeId, toId: newNode.id };
+            setChangedRoutine({
+                ...changedRoutine,
+                nodes: [...changedRoutine.nodes, newNode as any],
+                nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
+            });
         }
     }, [changedRoutine]);
+
+    /**
+     * Add a new routine list BEFORE a node
+     */
+    const handleAddBefore = useCallback((nodeId: string) => {
+        console.log('handle add before', nodeId, changedRoutine)
+        if (!changedRoutine) return;
+        // Find links where this node is the "to" node
+        const links = changedRoutine.nodeLinks.filter(l => l.toId === nodeId);
+        // If multiple links, open a dialog to select which one to add before
+        if (links.length > 1) {
+            console.log('opening before dialog')
+            setAddBeforeLinkNode(nodeId);
+            return;
+        }
+        // If only one link, add before that link
+        else if (links.length === 1) {
+            const link = links[0];
+            console.log('inserting node on link', link)
+            handleNodeInsert(link);
+        }
+        // If no links, create link and node
+        else {
+            console.log('creating new link for node');
+            const newNode = generateNewNode(null, null);
+            const newLink = { fromId: newNode.id, toId: nodeId };
+            setChangedRoutine({
+                ...changedRoutine,
+                nodes: [...changedRoutine.nodes, newNode as any],
+                nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
+            });
+        }
+    }, [changedRoutine]);
+
+    // Add subroutine dialog
+    const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
+    const closeAddSubroutineDialog = useCallback(() => { setAddSubroutineNode(null); }, []);
+
+    // Edit subroutine dialog
+    const [editSubroutineNode, setEditSubroutineNode] = useState<string | null>(null);
+    const closeEditSubroutineDialog = useCallback(() => { setEditSubroutineNode(null); }, []);
+
+    // "Add after" link dialog when there is more than one link (i.e. can't be done automatically)
+    const [addAfterLinkNode, setAddAfterLinkNode] = useState<string | null>(null);
+    const closeAddAfterLinkDialog = useCallback(() => { setAddAfterLinkNode(null); }, []);
+
+    // "Add before" link dialog when there is more than one link (i.e. can't be done automatically)
+    const [addBeforeLinkNode, setAddBeforeLinkNode] = useState<string | null>(null);
+    const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
+
+    // Move node dialog for context menu (mainly for accessibility)
+    const [moveNode, setMoveNode] = useState<string | null>(null);
+    const closeMoveNodeDialog = useCallback(() => { setMoveNode(null); }, []);
+
+    const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
+        console.log('in handleaction', action, nodeId, subroutineId);
+        switch (action) {
+            case BuildAction.AddSubroutine:
+                setAddSubroutineNode(nodeId);
+                break;
+            case BuildAction.DeleteNode:
+                handleNodeDelete(nodeId);
+                break;
+            case BuildAction.DeleteSubroutine:
+                handleSubroutineDelete(nodeId, subroutineId ?? '');
+                break;
+            case BuildAction.EditSubroutine:
+                setEditSubroutineNode(nodeId);
+                break;
+            case BuildAction.OpenSubroutine:
+                handleSubroutineOpen(nodeId, subroutineId ?? '');
+                break;
+            case BuildAction.UnlinkNode:
+                handleNodeDrop(nodeId, null, null);
+                break;
+            case BuildAction.AddAfterNode:
+                handleAddAfter(nodeId);
+                break;
+            case BuildAction.AddBeforeNode:
+                handleAddBefore(nodeId);
+                break;
+            case BuildAction.MoveNode:
+                setMoveNode(nodeId);
+                break;
+        }
+    }, [setAddSubroutineNode, setEditSubroutineNode, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddAfter, handleAddBefore, setMoveNode]);
 
     return (
         <Box sx={{
@@ -628,6 +726,26 @@ export const BuildPage = ({
                 nodeId={addSubroutineNode}
                 routineId={routine?.id ?? ''}
                 session={session}
+            />}
+            {/* Popup for editing existing subroutines */}
+            {/* TODO */}
+            {/* Popup for "Add after" dialog */}
+            {addAfterLinkNode && <AddAfterLinkDialog
+                handleSelect={handleNodeInsert}
+                handleClose={closeAddAfterLinkDialog}
+                isOpen={Boolean(addAfterLinkNode)}
+                nodes={changedRoutine?.nodes ?? []}
+                links={changedRoutine?.nodeLinks ?? []}
+                nodeId={addAfterLinkNode}
+            />}
+            {/* Popup for "Add before" dialog */}
+            {addBeforeLinkNode && <AddBeforeLinkDialog
+                handleSelect={handleNodeInsert}
+                handleClose={closeAddBeforeLinkDialog}
+                isOpen={Boolean(addBeforeLinkNode)}
+                nodes={changedRoutine?.nodes ?? []}
+                links={changedRoutine?.nodeLinks ?? []}
+                nodeId={addBeforeLinkNode}
             />}
             {/* Popup for creating new links */}
             {changedRoutine ? <LinkDialog
@@ -727,16 +845,13 @@ export const BuildPage = ({
                 bottom: '0',
             }}>
                 <NodeGraph
-                    handleContextItemSelect={handleContextItemSelect}
-                    handleDialogOpen={handleDialogOpen}
+                    handleAction={handleAction}
                     handleLinkCreate={handleLinkCreate}
                     handleLinkUpdate={handleLinkUpdate}
                     handleLinkDelete={handleLinkDelete}
-                    handleNodeDelete={handleNodeDelete}
                     handleNodeInsert={handleNodeInsert}
                     handleNodeUpdate={handleNodeUpdate}
                     handleNodeDrop={handleNodeDrop}
-                    handleSubroutineOpen={handleSubroutineOpen}
                     isEditing={isEditing}
                     labelVisible={true}
                     language={language}

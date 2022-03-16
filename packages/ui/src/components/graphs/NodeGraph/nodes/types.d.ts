@@ -1,7 +1,7 @@
 import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeDataRoutineListItem } from "types";
-import { BuildDialogOption } from 'utils';
+import { BuildAction } from 'utils';
 import { MouseEvent } from 'react';
 
 /**
@@ -56,7 +56,7 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
  * Props for the End node
  */
 export interface EndNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
+    handleAction: (action: NodeContextMenuAction, nodeId: string) => void;
 }
 
 /**
@@ -70,7 +70,7 @@ export interface LoopNodeProps extends NodeDataProps, ScaleProps, LabelledProps,
  * Props for the Redirect node
  */
 export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
+    handleAction: (action: NodeContextMenuAction, nodeId: string) => void;
 }
 
 /**
@@ -78,23 +78,17 @@ export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledPr
  */
 export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
     canExpand: boolean;
-    handleContextItemSelect: (nodeId: string, option: NodeContextMenuOptions) => void;
-    handleNodeUnlink: (nodeId: string) => void;
-    handleNodeDelete: (nodeId: string) => void;
-    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
-    /**
-     * Prompts parent to open a specific dialog
-     */
-    handleDialogOpen: (nodeId: string, dialog: BuildDialogOption) => void;
+    handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
 }
 
 /**
  * Props for a Routine List's subroutine
  */
 export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, EditableProps {
-    nodeId: string; //ID of parent node
     data: NodeDataRoutineListItem;
-    handleSubroutineOpen: (nodeId: string, subroutineId: string) => void;
+    handleOpen: (subroutineId: string) => void;
+    handleEdit: (subroutineId: string) => void;
+    handleDelete: (subroutineId: string) => void;
 }
 
 /**

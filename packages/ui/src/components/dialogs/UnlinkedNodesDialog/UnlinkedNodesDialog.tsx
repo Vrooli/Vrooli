@@ -36,7 +36,7 @@ export const UnlinkedNodesDialog = ({
         // Common node props
         const nodeProps = {
             canDrag: true,
-            handleContextItemSelect: () => {},
+            handleAction: () => {},
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
@@ -57,10 +57,6 @@ export const UnlinkedNodesDialog = ({
                     {...nodeProps} 
                     canExpand={false} 
                     labelVisible={true} 
-                    handleNodeUnlink={() => {}}
-                    handleNodeDelete={handleNodeDelete}
-                    handleDialogOpen={() => {}} 
-                    handleSubroutineOpen={() => {}}
                 />)
             default:
                 return null;

@@ -8,8 +8,7 @@ ENV shared=packages/shared
 ENV scripts=${PROJECT_DIR}/scripts
 
 # Create directories with correct permissions
-RUN mkdir -p ${PROJECT_DIR}/${ui}/node_modules/.cache ${PROJECT_DIR}/${server}/node_modules/.cache ${PROJECT_DIR}/${shared}/node_modules/.cache &&\
-    mkdir -p ${PROJECT_DIR}/${ui}/build &&\
+RUN mkdir -p ${PROJECT_DIR}/${server}/node_modules/.cache ${PROJECT_DIR}/${shared}/node_modules/.cache &&\
     chown -R node:node ${PROJECT_DIR}
 
 # Install global packages (must be done as the root user)

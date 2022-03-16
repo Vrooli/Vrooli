@@ -9,28 +9,19 @@ import {
     SvgIconComponent,
 } from '@mui/icons-material';
 import { ListMenu } from 'components';
+import { BuildAction } from 'utils';
 
-export enum NodeContextMenuOptions {
-    AddBefore = 'add-before',
-    AddAfter = 'add-after',
-    Delete = 'delete',
-    Edit = 'edit',
-    Move = 'move',
-    Unlink = 'unlink',
+const listOptionsMap: {[index in Exclude<BuildAction, BuildAction.AddSubroutine | BuildAction.DeleteSubroutine | BuildAction.EditSubroutine | BuildAction.OpenSubroutine>]: [string, SvgIconComponent]}  = {
+    [BuildAction.AddBeforeNode]: ['Add node before', MoveDownIcon],
+    [BuildAction.AddAfterNode]: ['Add node after', MoveUpIcon],
+    [BuildAction.DeleteNode]: ['Delete node', DeleteIcon],
+    [BuildAction.MoveNode]: ['Move node', EditLocationIcon],
+    [BuildAction.UnlinkNode]: ['Unlink node', EditIcon],
 }
 
-const listOptionsMap: {[index in NodeContextMenuOptions]: [string, SvgIconComponent]}  = {
-    [NodeContextMenuOptions.AddBefore]: ['Add node before', MoveDownIcon],
-    [NodeContextMenuOptions.AddAfter]: ['Add node after', MoveUpIcon],
-    [NodeContextMenuOptions.Delete]: ['Delete node', DeleteIcon],
-    [NodeContextMenuOptions.Edit]: ['Edit node', EditIcon],
-    [NodeContextMenuOptions.Move]: ['Move node', EditLocationIcon],
-    [NodeContextMenuOptions.Unlink]: ['Unlink node', EditIcon],
-}
-
-const listOptions: ListMenuItemData<NodeContextMenuOptions>[] = Object.keys(listOptionsMap).map(o => ({ 
+const listOptions: ListMenuItemData<BuildAction>[] = Object.keys(listOptionsMap).map(o => ({ 
     label: listOptionsMap[o][0],
-    value: o as NodeContextMenuOptions,
+    value: o as BuildAction,
     Icon: listOptionsMap[o][1]
 }));
 
@@ -39,7 +30,7 @@ export const NodeContextMenu = ({
     id,
     anchorEl,
     handleClose,
-    handleContextItemSelect,
+    handleSelect,
 }: NodeContextMenuProps) => {
     return (
         <ListMenu
@@ -47,7 +38,7 @@ export const NodeContextMenu = ({
             anchorEl={anchorEl}
             title='Node Options'
             data={listOptions}
-            onSelect={handleContextItemSelect}
+            onSelect={handleSelect}
             onClose={handleClose}
         />
     )

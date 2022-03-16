@@ -55,13 +55,15 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 export const Navbar = ({
-    session
+    session,
+    sessionChecked,
 }: NavbarProps) => {
     const classes = useStyles();
     const [, setLocation] = useLocation();
     const [show_hamburger, setShowHamburger] = useState(false);
+    console.log('navbarrrrrrrr', session);
 
-    let child_props = { session };
+    let child_props = { session, sessionChecked };
 
     useEffect(() => {
         updateWindowDimensions();

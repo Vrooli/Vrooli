@@ -6,7 +6,7 @@ import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 
 export const EndNode = ({
-    handleContextItemSelect,
+    handleAction,
     isLinked = true,
     node,
     scale = 1,
@@ -50,7 +50,7 @@ export const EndNode = ({
                 id={contextId}
                 anchorEl={contextAnchor}
                 handleClose={closeContext}
-                handleContextItemSelect={(option) => { handleContextItemSelect(node.id, option) }}
+                handleSelect={(option) => { handleAction(option, node.id) }}
             />
             <Tooltip placement={'top'} title={'End'}>
                 <Box

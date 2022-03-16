@@ -24,16 +24,12 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList } from 'types';
-import { getTranslation, BuildDialogOption, Pubs } from 'utils';
+import { getTranslation, BuildAction, Pubs } from 'utils';
 
 export const RoutineListNode = ({
     canDrag,
     canExpand,
-    handleContextItemSelect,
-    handleDialogOpen,
-    handleNodeUnlink,
-    handleNodeDelete,
-    handleSubroutineOpen,
+    handleAction,
     isLinked,
     labelVisible,
     isEditing,
@@ -45,6 +41,23 @@ export const RoutineListNode = ({
     // Stores if touch event was a drag
     const touchIsDrag = useRef(false);
     const [collapseOpen, setCollapseOpen] = useState<boolean>(false);
+
+    const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
+    const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);
+
+    const handleSubroutineOpen = useCallback((subroutineId: string) => {
+        handleAction(BuildAction.OpenSubroutine, node.id, subroutineId);
+    }, [handleAction, node.id]);
+    // Opens dialog to add a new subroutine, so no suroutineId is passed
+    const handleSubroutineAdd = useCallback(() => {
+        handleAction(BuildAction.AddSubroutine, node.id);
+    }, [node.id]);
+    const handleSubroutineEdit = useCallback((subroutineId: string) => {
+        handleAction(BuildAction.EditSubroutine, node.id, subroutineId);
+    }, [handleAction, node.id]);
+    const handleSubroutineDelete = useCallback((subroutineId: string) => {
+        handleAction(BuildAction.DeleteSubroutine, node.id, subroutineId);
+    }, [handleAction, node.id]);
 
     const { label } = useMemo(() => {
         return {
@@ -86,8 +99,8 @@ export const RoutineListNode = ({
         PubSub.publish(Pubs.AlertDialog, {
             message: 'What would you like to do?',
             buttons: [
-                { text: 'Unlink', onClick: () => { handleNodeUnlink(node.id) } },
-                { text: 'Remove', onClick: () => { handleNodeDelete(node.id) } },
+                { text: 'Unlink', onClick: handleNodeUnlink },
+                { text: 'Remove', onClick: handleNodeDelete },
                 { text: 'Cancel' }
             ]
         });
@@ -158,17 +171,18 @@ export const RoutineListNode = ({
         <RoutineSubnode
             key={`${routine.id}`}
             data={routine}
-            handleSubroutineOpen={handleSubroutineOpen}
+            handleOpen={handleSubroutineOpen}
+            handleEdit={handleSubroutineEdit}
+            handleDelete={handleSubroutineDelete}
             isEditing={isEditing}
             labelVisible={labelVisible}
-            nodeId={node.id}
             scale={scale}
         />
     )), [node?.data, isEditing, labelVisible, scale]);
 
     const addButton = useMemo(() => isEditing ? (
         <IconButton
-            onClick={() => handleDialogOpen(node.id, BuildDialogOption.AddRoutineItem)}
+            onClick={handleSubroutineAdd}
             sx={{
                 ...containerShadow,
                 width: addSize,
@@ -223,7 +237,7 @@ export const RoutineListNode = ({
                 id={contextId}
                 anchorEl={contextAnchor}
                 handleClose={closeContext}
-                handleContextItemSelect={(option) => { handleContextItemSelect(node.id, option) }}
+                handleSelect={(option) => { handleAction(option, node.id) }}
             />
             <Tooltip placement={'top'} title={label ?? 'Routine List'}>
                 <Container

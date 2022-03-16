@@ -27,16 +27,13 @@ type PinchRefs = {
 
 export const NodeGraph = ({
     columns,
-    handleContextItemSelect,
-    handleDialogOpen,
-    handleNodeDelete,
+    handleAction,
     handleNodeDrop,
     handleNodeUpdate,
     handleNodeInsert,
     handleLinkCreate,
     handleLinkUpdate,
     handleLinkDelete,
-    handleSubroutineOpen,
     isEditing = true,
     labelVisible = true,
     language,
@@ -414,11 +411,8 @@ export const NodeGraph = ({
             id={`node-column-${index}`}
             columnIndex={index}
             dragId={dragId}
-            handleContextItemSelect={handleContextItemSelect}
-            handleDialogOpen={handleDialogOpen}
-            handleNodeDelete={handleNodeDelete}
+            handleAction={handleAction}
             handleNodeDrop={handleNodeDrop}
-            handleSubroutineOpen={handleSubroutineOpen}
             isEditing={isEditing}
             labelVisible={labelVisible}
             nodes={col}

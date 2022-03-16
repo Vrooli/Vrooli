@@ -43,8 +43,16 @@ export type DragTypes = ValueOf<typeof DragTypes>;
 /**
  * Prompts Build page to open a specific dialog
  */
-export enum BuildDialogOption {
-    AddRoutineItem,
+export enum BuildAction {
+    AddSubroutine = 'AddSubroutine',
+    EditSubroutine = 'EditSubroutine',
+    DeleteSubroutine = 'DeleteSubroutine',
+    OpenSubroutine = 'OpenSubroutine',
+    DeleteNode = 'DeleteNode',
+    UnlinkNode = 'UnlinkNode',
+    AddAfterNode = 'AddAfterNode',
+    AddBeforeNode = 'AddBeforeNode',
+    MoveNode = 'MoveNode',
 }
 
 /**
