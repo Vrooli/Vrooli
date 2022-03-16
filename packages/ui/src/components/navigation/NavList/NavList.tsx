@@ -44,15 +44,18 @@ const useStyles = makeStyles((theme: Theme) => ({
 }));
 
 export const NavList = ({
-    session
+    session,
+    sessionChecked,
 }: NavListProps) => {
     const classes = useStyles();
     const [, setLocation] = useLocation();
+    console.log('navlisttttttttt', sessionChecked);
 
     const nav_actions = useMemo<Action[]>(() => getUserActions({ roles: session.roles ?? [], exclude: [ACTION_TAGS.Home] }), [session.roles]);
     // Display button for entering main application
     const enter_action: Action | undefined = nav_actions.find((action: Action) => action.value === ACTION_TAGS.LogIn)
-    const enter_button = useMemo(() => enter_action ? (
+    // Dont show the Log In button until session has been checked
+    const enter_button = useMemo(() => (enter_action && sessionChecked) ? (
         <Button 
             className={classes.button} 
             onClick={() => openLink(setLocation, enter_action.link)}
@@ -60,7 +63,7 @@ export const NavList = ({
             >
                 {enter_action.label}
         </Button>
-    ) : null, [enter_action, classes.button, setLocation])
+    ) : null, [enter_action, classes.button, sessionChecked, setLocation])
 
     return (
         <Container className={classes.root}>

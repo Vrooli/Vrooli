@@ -148,7 +148,7 @@ export function App() {
         });
         let sessionSub = PubSub.subscribe(Pubs.Session, (_, session) => {
             console.log('in session pub', session)
-            setSession(s => (session === undefined ? undefined : { ...s, session }));
+            setSession(s => (session === undefined ? undefined : { ...s, ...session }));
         });
         let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
         return (() => {
@@ -174,7 +174,7 @@ export function App() {
                             background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)',
                             minHeight: '100vh',
                         }}>
-                            <Navbar session={session ?? {}} />
+                            <Navbar session={session ?? {}} sessionChecked={session !== undefined} />
                             {
                                 loading && <Box sx={{
                                     position: 'absolute',

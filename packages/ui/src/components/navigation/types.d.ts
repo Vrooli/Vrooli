@@ -6,11 +6,11 @@ export interface ContactInfoProps {
     className?: string;
 }
 
-export type HamburgerProps = Pick<CommonProps, 'session'>
+export type HamburgerProps = Pick<CommonProps, 'session' | 'sessionChecked'>
 
-export type NavbarProps = Pick<CommonProps, 'session'>
+export type NavbarProps = Pick<CommonProps, 'session' | 'sessionChecked'>
 
-export type NavListProps = Pick<CommonProps, 'session'>
+export type NavListProps = Pick<CommonProps, 'session' | 'sessionChecked'>
 
 export interface TabPanelProps {
     children?: React.ReactNode[] | React.ReactNode;

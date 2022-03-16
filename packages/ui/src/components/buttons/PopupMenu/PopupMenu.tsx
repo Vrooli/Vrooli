@@ -6,6 +6,7 @@ import { PopupMenuProps } from '../types';
 const useStyles = makeStyles((theme: Theme) => ({
     paper: {
         background: theme.palette.primary.light,
+        borderRadius: '24px',
     },
 }));
 

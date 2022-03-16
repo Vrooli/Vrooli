@@ -40,6 +40,7 @@ const menuItem: SxProps<Theme> = {
 
 export const Hamburger = ({
     session,
+    sessionChecked,
 }: HamburgerProps) => {
     const [, setLocation] = useLocation();
     const [contactOpen, setContactOpen] = useState(true);
