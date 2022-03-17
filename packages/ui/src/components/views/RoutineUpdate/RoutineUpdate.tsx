@@ -11,7 +11,7 @@ import PubSub from 'pubsub-js';
 import { routineUpdate as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, Pubs } from "utils";
+import { formatForUpdate, getTranslation, Pubs } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -34,6 +34,15 @@ export const RoutineUpdate = ({
     const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const routine = useMemo(() => data?.routine, [data]);
 
+    const { title, description, instructions } = useMemo(() => {
+        const languages = session?.languages ?? navigator.languages;
+        return {
+            title: getTranslation(routine, 'title', languages) ?? '',
+            description: getTranslation(routine, 'description', languages) ?? '',
+            instructions: getTranslation(routine, 'instructions', languages) ?? '',
+        };
+    }, [routine, session]);
+
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
     const addTag = useCallback((tag: TagSelectorTag) => {
@@ -53,10 +62,10 @@ export const RoutineUpdate = ({
     const [mutation] = useMutation<routine>(routineUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            description: '',
-            instructions: '',
-            title: '',
-            version: ''
+            description,
+            instructions,
+            title,
+            version: routine?.version ?? 0,
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -82,21 +91,6 @@ export const RoutineUpdate = ({
     }, [setFormBottom]);
 
     const formInput = useMemo(() => (
-        <Grid container spacing={2} sx={{ padding: 2 }}>
-            {/* TODO */}
-            <Grid item xs={12} marginBottom={4}>
-                <TagSelector
-                    session={session}
-                    tags={tags}
-                    onTagAdd={addTag}
-                    onTagRemove={removeTag}
-                    onTagsClear={clearTags}
-                />
-            </Grid>
-        </Grid>
-    ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
-
-    return (
         <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
             <Grid container spacing={2} sx={{ padding: 2 }}>
                 <Grid item xs={12}>
@@ -134,7 +128,7 @@ export const RoutineUpdate = ({
                         minRows={4}
                         onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
                         error={formik.touched.instructions && Boolean(formik.errors.instructions)}
-                        helperText={formik.touched.instructions ? formik.errors.instructions : null}
+                        helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
                     />
                 </Grid>
                 <Grid item xs={12} marginBottom={4}>
@@ -147,6 +141,25 @@ export const RoutineUpdate = ({
                     />
                 </Grid>
             </Grid>
+            <DialogActionsContainer actions={actions} onResize={handleResize} />
+        </form>
+    ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
+
+    return (
+        <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
+            {loading ? (
+                <Box sx={{
+                    position: 'absolute',
+                    top: '-5vh', // Half of toolbar height
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}>
+                    <CircularProgress size={100} color="secondary" />
+                </Box>
+            ) : formInput}
             <DialogActionsContainer actions={actions} onResize={handleResize} />
         </form>
     )

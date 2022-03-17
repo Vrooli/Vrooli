@@ -378,6 +378,9 @@ export const OrganizationView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
+                handleActionComplete={() => {}} //TODO
+                handleDelete={() => {}} //TODO
+                handleEdit={onEdit}
                 objectId={id}
                 objectType={'Organization'}
                 anchorEl={moreMenuAnchor}

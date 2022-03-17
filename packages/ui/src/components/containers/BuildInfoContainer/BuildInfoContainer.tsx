@@ -46,8 +46,8 @@ const TERTIARY_COLOR = '#95f3cd';
 
 export const BuildInfoContainer = ({
     canEdit,
+    handleRoutineAction,
     handleRoutineUpdate,
-    handleRoutineDelete,
     handleStartEdit,
     handleTitleUpdate,
     isEditing,
@@ -235,8 +235,8 @@ export const BuildInfoContainer = ({
                 <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
                 {/* Display routine description, insturctionss, etc. */}
                 <BuildInfoDialog
+                    handleAction={handleRoutineAction}
                     handleUpdate={handleRoutineUpdate}
-                    handleDelete={handleRoutineDelete}
                     isEditing={isEditing}
                     language={language}
                     routine={routine}

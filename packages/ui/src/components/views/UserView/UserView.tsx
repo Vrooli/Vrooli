@@ -383,6 +383,9 @@ export const UserView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
+                handleActionComplete={() => { }} //TODO
+                handleDelete={() => { }} //TODO
+                handleEdit={onEdit}
                 objectId={id}
                 objectType={'User'}
                 anchorEl={moreMenuAnchor}

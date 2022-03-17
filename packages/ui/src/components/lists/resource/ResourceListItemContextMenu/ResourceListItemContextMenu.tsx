@@ -28,7 +28,7 @@ const listOptions: ListMenuItemData<string>[] = Object.keys(listOptionsMap).map(
 export const ResourceListItemContextMenu = ({
     id,
     anchorEl,
-    resource,
+    index,
     onClose,
     onAddBefore,
     onAddAfter,
@@ -36,24 +36,24 @@ export const ResourceListItemContextMenu = ({
     onDelete,
     onMove,
 }: ResourceListItemContextMenuProps) => {
-    console.log('in resource list item context menu', { id, anchorEl, resource, onClose, onAddBefore, onAddAfter, onEdit, onDelete, onMove })
+    console.log('in resource list item context menu', { id, anchorEl, index, onClose, onAddBefore, onAddAfter, onEdit, onDelete, onMove })
     const onMenuItemSelect = (value: string) => {
-        if (!resource) return;
+        if (!index) return;
         switch (value) {
             case 'addBefore':
-                onAddBefore(resource);
+                onAddBefore(index);
                 break;
             case 'addAfter':
-                onAddAfter(resource);
+                onAddAfter(index);
                 break;
             case 'edit':
-                onEdit(resource);
+                onEdit(index);
                 break;
             case 'delete':
-                onDelete(resource);
+                onDelete(index);
                 break;
             case 'move':
-                onMove(resource);
+                onMove(index);
                 break;
         }
         onClose();

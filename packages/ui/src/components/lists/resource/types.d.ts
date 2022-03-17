@@ -28,11 +28,11 @@ export interface ResourceListItemProps {
 export interface ResourceListItemContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
-    resource: Resource | null;
+    index: number | null;
     onClose: () => void;
-    onAddBefore: (resource: Resource) => void;
-    onAddAfter: (resource: Resource) => void;
-    onEdit: (resource: Resource) => void;
-    onDelete: (resource: Resource) => void;
-    onMove: (resource: Resource) => void;
+    onAddBefore: (index: number) => void;
+    onAddAfter: (index: number) => void;
+    onEdit: (index: number) => void;
+    onDelete: (index: number) => void;
+    onMove: (index: number) => void;
 }

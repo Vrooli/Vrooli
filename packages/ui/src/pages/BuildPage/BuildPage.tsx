@@ -1,12 +1,12 @@
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, AddSubroutineDialog, AddAfterLinkDialog, AddBeforeLinkDialog } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, AddSubroutineDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
 import { routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation } from 'utils';
 import {
     AddLink as AddLinkIcon,
     Compress as CleanUpIcon,
@@ -20,6 +20,7 @@ import { MemberRole, NodeType } from 'graphql/generated/globalTypes';
 import { BuildPageProps } from 'pages/types';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import { BaseObjectAction } from 'components/dialogs/types';
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -64,6 +65,31 @@ export const BuildPage = ({
     }, [routine]);
 
     console.log('changed routineeeeeeeeeee on renderrrrrrr', changedRoutine);
+
+    // Add subroutine dialog
+    const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
+    const closeAddSubroutineDialog = useCallback(() => { setAddSubroutineNode(null); }, []);
+
+    // Edit subroutine dialog
+    const [editSubroutineNode, setEditSubroutineNode] = useState<string | null>(null);
+    const closeEditSubroutineDialog = useCallback(() => { setEditSubroutineNode(null); }, []);
+
+    // "Add after" link dialog when there is more than one link (i.e. can't be done automatically)
+    const [addAfterLinkNode, setAddAfterLinkNode] = useState<string | null>(null);
+    const closeAddAfterLinkDialog = useCallback(() => { setAddAfterLinkNode(null); }, []);
+
+    // "Add before" link dialog when there is more than one link (i.e. can't be done automatically)
+    const [addBeforeLinkNode, setAddBeforeLinkNode] = useState<string | null>(null);
+    const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
+
+    // Move node dialog for context menu (mainly for accessibility)
+    const [moveNode, setMoveNode] = useState<string | null>(null);
+    const closeMoveNodeDialog = useCallback(() => { setMoveNode(null); }, []);
+
+    // Open boolean for delete routine confirmation
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const openDelete = () => setDeleteOpen(true);
+    const closeDelete = () => setDeleteOpen(false);
 
     /**
      * Hacky way to display dragging nodes over over elements. Disables z-index when dragging
@@ -687,26 +713,6 @@ export const BuildPage = ({
         }
     }, [changedRoutine]);
 
-    // Add subroutine dialog
-    const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
-    const closeAddSubroutineDialog = useCallback(() => { setAddSubroutineNode(null); }, []);
-
-    // Edit subroutine dialog
-    const [editSubroutineNode, setEditSubroutineNode] = useState<string | null>(null);
-    const closeEditSubroutineDialog = useCallback(() => { setEditSubroutineNode(null); }, []);
-
-    // "Add after" link dialog when there is more than one link (i.e. can't be done automatically)
-    const [addAfterLinkNode, setAddAfterLinkNode] = useState<string | null>(null);
-    const closeAddAfterLinkDialog = useCallback(() => { setAddAfterLinkNode(null); }, []);
-
-    // "Add before" link dialog when there is more than one link (i.e. can't be done automatically)
-    const [addBeforeLinkNode, setAddBeforeLinkNode] = useState<string | null>(null);
-    const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
-
-    // Move node dialog for context menu (mainly for accessibility)
-    const [moveNode, setMoveNode] = useState<string | null>(null);
-    const closeMoveNodeDialog = useCallback(() => { setMoveNode(null); }, []);
-
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
         console.log('in handleaction', action, nodeId, subroutineId);
         switch (action) {
@@ -740,6 +746,50 @@ export const BuildPage = ({
         }
     }, [setAddSubroutineNode, setEditSubroutineNode, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddAfter, handleAddBefore, setMoveNode]);
 
+    const handleRoutineAction = useCallback((action: BaseObjectAction) => {
+        switch (action) {
+            case BaseObjectAction.Copy:
+                //TODO
+                break;
+            case BaseObjectAction.Delete:
+                //TODO
+                break;
+            case BaseObjectAction.Downvote:
+                //TODO
+                break;
+            case BaseObjectAction.Edit:
+                //TODO
+                break;
+            case BaseObjectAction.Fork:
+                //TODO
+                break;
+            case BaseObjectAction.Report:
+                //TODO
+                break;
+            case BaseObjectAction.Share:
+                //TODO
+                break;
+            case BaseObjectAction.Star:
+                //TODO
+                break;
+            case BaseObjectAction.Stats:
+                //TODO
+                break;
+            case BaseObjectAction.Unstar:
+                //TODO
+                break;
+            case BaseObjectAction.Update:
+                //TODO
+                break;
+            case BaseObjectAction.UpdateCancel:
+                //TODO
+                break;
+            case BaseObjectAction.Upvote:
+                //TODO
+                break;
+        }
+    }, [])
+
     return (
         <Box sx={{
             display: 'flex',
@@ -748,6 +798,13 @@ export const BuildPage = ({
             height: '100%',
             width: '100%',
         }}>
+            {/* Delete routine confirmation dialog */}
+            <DeleteRoutineDialog
+                isOpen={deleteOpen}
+                routineName={getTranslation(changedRoutine, 'title', [language]) ?? ''}
+                handleClose={closeDelete}
+                handleDelete={deleteRoutine}
+            />
             {/* Popup for adding new subroutines */}
             {addSubroutineNode && <AddSubroutineDialog
                 handleAdd={handleRoutineListItemAdd}
@@ -799,8 +856,8 @@ export const BuildPage = ({
             {/* Displays main routine's information and some buttons */}
             <BuildInfoContainer
                 canEdit={canEdit}
+                handleRoutineAction={handleRoutineAction}
                 handleRoutineUpdate={updateRoutine}
-                handleRoutineDelete={deleteRoutine}
                 handleStartEdit={startEditing}
                 handleTitleUpdate={updateRoutineTitle}
                 isEditing={isEditing}

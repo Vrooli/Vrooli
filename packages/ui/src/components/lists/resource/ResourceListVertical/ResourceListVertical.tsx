@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { AddResourceDialog, ResourceListItem } from 'components';
+import { ResourceDialog, ResourceListItem } from 'components';
 import { ResourceListVerticalProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
@@ -10,6 +10,11 @@ import { cardRoot } from 'components/cards/styles';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
+import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
+import { useMutation } from '@apollo/client';
+import { resourceDeleteManyMutation } from 'graphql/mutation';
+import { mutationWrapper } from 'graphql/utils/wrappers';
+import { updateArray } from 'utils';
 
 export const ResourceListVertical = ({
     title = '📌 Resources',
@@ -22,7 +27,7 @@ export const ResourceListVertical = ({
 
     console.log('list data', list)
 
-    const handleAdd = useCallback((newResource: Resource) => {
+    const onAdd = useCallback((newResource: Resource) => {
         console.log('HANDE ADD', newResource, list)
         if (!list) return;
         if (handleUpdate) {
@@ -32,6 +37,41 @@ export const ResourceListVertical = ({
             });
         }
     }, [handleUpdate, list]);
+
+    const onUpdate = useCallback((index: number, updatedResource: Resource) => {
+        if (!list) return;
+        if (handleUpdate) {
+            handleUpdate({
+                ...list,
+                resources: updateArray(list.resources, updatedResource.index, updatedResource),
+            });
+        }
+    }, [handleUpdate, list]);
+
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(resourceDeleteManyMutation);
+    const onDelete = useCallback((resource: Resource) => {
+        if (!list) return;
+        if (mutate) {
+            mutationWrapper({
+                mutation: deleteMutation,
+                input: { ids: [resource.id] },
+                onSuccess: (response) => {
+                    if (handleUpdate) {
+                        handleUpdate({
+                            ...list,
+                            resources: list.resources.filter(r => r.id !== resource.id) as any,
+                        });
+                    }
+                },
+            })
+        }
+        else if (handleUpdate) {
+            handleUpdate({
+                ...list,
+                resources: list.resources.filter(r => r.id !== resource.id) as any,
+            });
+        }
+    }, [handleUpdate, list, mutate]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -48,25 +88,37 @@ export const ResourceListVertical = ({
         setSelected(null);
     }, []);
 
-    // Add resource dialog
-    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-    const openAddDialog = useCallback(() => { setIsAddDialogOpen(true) }, []);
-    const closeAddDialog = useCallback(() => { setIsAddDialogOpen(false) }, []);
+    // Add/update resource dialog
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false) }, []);
+    const [editingIndex, setEditingIndex] = useState<number | undefined>(undefined);
+    const openUpdateDialog = useCallback((index: number) => { 
+        setEditingIndex(index);
+        setIsDialogOpen(true) 
+    }, []);
+    const closeUpdateDialog = useCallback(() => { 
+        setEditingIndex(undefined);
+        setIsDialogOpen(false) 
+    }, []);
 
-    const addDialog = useMemo(() => (
-        list ? <AddResourceDialog
+    const dialog = useMemo(() => (
+        list ? <ResourceDialog
+            isAdd={editingIndex !== undefined}
+            partialData={list.resources[editingIndex as number] as any}
             listId={list.id}
-            open={isAddDialogOpen}
-            onClose={closeAddDialog}
-            onCreated={handleAdd}
+            open={isDialogOpen}
+            onClose={closeDialog}
+            onCreated={onAdd}
+            onUpdated={onUpdate}
             mutate={mutate}
         /> : null
-    ), [handleAdd, isAddDialogOpen, list]);
+    ), [onAdd, onUpdate, isDialogOpen, list, editingIndex, mutate]);
 
     return (
         <>
             <Box sx={{
-                ...containerShadow, 
+                ...containerShadow,
                 overflow: 'overlay',
                 borderRadius: '8px',
                 maxWidth: '1000px',
@@ -74,7 +126,7 @@ export const ResourceListVertical = ({
                 marginRight: 'auto',
             }}>
                 {/* Add resource dialog */}
-                {addDialog}
+                {dialog}
                 {/* Resource list */}
                 {list?.resources?.map((c: Resource, index) => (
                     <ResourceListItem
@@ -91,7 +143,7 @@ export const ResourceListVertical = ({
                 margin: 'auto',
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={openAddDialog} startIcon={<AddIcon />}>Add Resource</Button>
+                <Button fullWidth onClick={openDialog} startIcon={<AddIcon />}>Add Resource</Button>
             </Box>}
         </>
     )

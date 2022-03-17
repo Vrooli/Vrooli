@@ -130,8 +130,8 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         const organizationIdQuery = input.organizationId ? { createdByOrganizationId: input.organizationId } : {};
         const projectIdQuery = input.projectId ? {
             OR: [
-                { createdByUser: { some: { projects: { some: { id: input.projectId } } } } },
-                { createdByOrganization: { some: { projects: { some: { id: input.projectId } } } } },
+                { createdByUser: { projects: { some: { id: input.projectId } } } },
+                { createdByOrganization: { projects: { some: { id: input.projectId } } } },
             ]
         } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};

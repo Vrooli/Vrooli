@@ -18,6 +18,7 @@ import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { parseSearchParams } from "utils/urlTools";
+import { NodeType } from "graphql/generated/globalTypes";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -65,7 +66,7 @@ export const RunRoutineView = ({
         // Find all nodes that are routine lists
         let routineListNodes = routine.nodes.filter((node: Node) => Boolean((node.data as NodeDataRoutineList)?.routines));
         // Also find the start node
-        const startNode = routine.nodes.find((node: Node) => node.columnIndex === 0 && node.rowIndex === 0);
+        const startNode = routine.nodes.find((node: Node) => node.type === NodeType.Start);
         // Sort by column, then row
         routineListNodes = routineListNodes.sort((a, b) => {
             const aCol = a.columnIndex ?? 0;
@@ -149,7 +150,7 @@ export const RunRoutineView = ({
         if (locationArray.length > 20) return null;
         for (let i = 0; i < locationArray.length; i++) {
             if (currNestedSteps !== null && currNestedSteps.type === RoutineStepType.RoutineList) {
-                currNestedSteps = currNestedSteps.steps.length > locationArray[i] ? currNestedSteps.steps[locationArray[i]] : null;
+                currNestedSteps = currNestedSteps.steps.length > Math.max(locationArray[i] - 1, 0) ? currNestedSteps.steps[Math.max(locationArray[i] - 1, 0)] : null;
             }
         }
         console.log('in find step end', currNestedSteps)

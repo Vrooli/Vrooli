@@ -45,14 +45,19 @@ export const StandardView = ({
         const languages = session?.languages ?? navigator.languages;
         return {
             contributedBy: standard?.creator ?
-                standard.creator.__typename === 'User' ? 
-                (standard?.creator as standard_standard_creator_User).username :
-                getTranslation((standard?.creator as standard_standard_creator_Organization), 'name', session?.languages ?? navigator.languages):
+                standard.creator.__typename === 'User' ?
+                    (standard?.creator as standard_standard_creator_User).username :
+                    getTranslation((standard?.creator as standard_standard_creator_Organization), 'name', session?.languages ?? navigator.languages) :
                 null,
             description: getTranslation(standard, 'description', languages) ?? getTranslation(partialData, 'description', languages),
             name: standard?.name ?? partialData?.name,
         };
     }, [standard, partialData, session]);
+
+    const onEdit = useCallback(() => {
+        // Depends on if we're in a search popup or a normal organization page
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Standard}/${id}/edit` : `${APP_LINKS.SearchStandards}/edit/${id}`);
+    }, [setLocation, id]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -150,6 +155,9 @@ export const StandardView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
+                handleActionComplete={() => { }} //TODO
+                handleDelete={() => { }} //TODO
+                handleEdit={onEdit}
                 objectId={id}
                 objectType={'Standard'}
                 anchorEl={moreMenuAnchor}

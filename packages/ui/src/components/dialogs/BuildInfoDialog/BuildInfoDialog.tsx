@@ -28,10 +28,9 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
-import { BuildInfoDialogProps } from '../types';
+import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { MarkdownInput, ResourceListHorizontal } from 'components';
-import { DeleteRoutineDialog } from '..';
 import { formatForUpdate, getTranslation, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import { Resource, ResourceList, User } from 'types';
@@ -43,17 +42,9 @@ import { routineUpdate as validationSchema } from '@local/shared';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routineUpdateMutation } from 'graphql/mutation';
 
-enum ActionOption {
-    Cancel = 'cancel',
-    Delete = 'delete',
-    Fork = 'fork',
-    Stats = 'stats',
-    Update = 'update',
-}
-
 export const BuildInfoDialog = ({
+    handleAction,
     handleUpdate,
-    handleDelete,
     isEditing,
     language,
     routine,
@@ -65,10 +56,6 @@ export const BuildInfoDialog = ({
     const [open, setOpen] = useState(false);
     const toggleOpen = () => setOpen(o => !o);
     const closeMenu = () => setOpen(false);
-    // Open boolean for delete routine confirmation
-    const [deleteOpen, setDeleteOpen] = useState(false);
-    const openDelete = () => setDeleteOpen(true);
-    const closeDelete = () => setDeleteOpen(false);
 
     /**
      * Name of user or organization that owns this routine
@@ -99,20 +86,20 @@ export const BuildInfoDialog = ({
      */
     const actions = useMemo(() => {
         // [value, label, icon]
-        const results: [ActionOption, string, any][] = [];
+        const results: [BaseObjectAction, string, any][] = [];
         // If editing, show "Update", "Cancel", and "Delete" buttons
         if (isEditing) {
             results.push(
-                [ActionOption.Update, 'Update', UpdateIcon],
-                [ActionOption.Cancel, 'Cancel', CancelIcon],
-                [ActionOption.Delete, 'Delete', DeleteIcon],
+                [BaseObjectAction.Update, 'Update', UpdateIcon],
+                [BaseObjectAction.UpdateCancel, 'Cancel', CancelIcon],
+                [BaseObjectAction.Delete, 'Delete', DeleteIcon],
             )
         }
         // If not editing, show "Stats" and "Fork" buttons
         else {
             results.push(
-                [ActionOption.Stats, 'Stats', StatsIcon],
-                [ActionOption.Fork, 'Fork', ForkIcon],
+                [BaseObjectAction.Stats, 'Stats', StatsIcon],
+                [BaseObjectAction.Fork, 'Fork', ForkIcon],
             )
         }
         return results;
@@ -150,26 +137,6 @@ export const BuildInfoDialog = ({
         },
     });
 
-    const handleAction = useCallback((action: ActionOption) => {
-        switch (action) {
-            case ActionOption.Cancel:
-                //TODO
-                break;
-            case ActionOption.Delete:
-                openDelete();
-                break;
-            case ActionOption.Fork:
-                //TODO
-                break;
-            case ActionOption.Stats:
-                //TODO
-                break;
-            case ActionOption.Update:
-                //TODO
-                break;
-        }
-    }, []);
-
     return (
         <>
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
@@ -178,7 +145,7 @@ export const BuildInfoDialog = ({
             <SwipeableDrawer
                 anchor="right"
                 open={open}
-                onOpen={() => { }}
+                onOpen={() => { }} // Intentionally empty
                 onClose={closeMenu}
                 sx={{
                     '& .MuiDrawer-paper': {
@@ -315,13 +282,6 @@ export const BuildInfoDialog = ({
                     ))}
                 </List>
             </SwipeableDrawer>
-            {/* Delete routine confirmation dialog */}
-            <DeleteRoutineDialog
-                isOpen={deleteOpen}
-                routineName={getTranslation(routine, 'title', [language]) ?? ''}
-                handleClose={closeDelete}
-                handleDelete={() => { }}
-            />
         </>
     );
 }
