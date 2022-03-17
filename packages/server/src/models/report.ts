@@ -117,8 +117,8 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
             }
         }
         if (updateMany) {
-            updateMany.forEach(input => reportUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input));
+            updateMany.forEach(input => reportUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => verifier.profanityCheck(input.data));
         }
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {
@@ -141,20 +141,15 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                // Call createData helper function
-                const data = await this.toDBShapeUpdate(userId, input);
                 // Find in database
                 let object = await prisma.report.findFirst({
-                    where: {
-                        id: input.id,
-                        userId,
-                    }
+                    where: { ...input.where, userId }
                 })
                 if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.report.update({
-                    where: { id: object.id },
-                    data,
+                    where: input.where,
+                    data: await this.toDBShapeUpdate(userId, input.data),
                     ...selectHelper(partial)
                 });
                 // Convert to GraphQL

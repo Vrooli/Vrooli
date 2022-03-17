@@ -38,7 +38,7 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
         await this.validateMutations({
             userId,
             createMany: createMany as EmailCreateInput[],
-            updateMany: updateMany?.map(d => d.data) as EmailUpdateInput[],
+            updateMany: updateMany as { where: { id: string }, data: EmailUpdateInput }[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -66,7 +66,7 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
             const emails = await prisma.email.findMany({
                 where: {
                     AND: [
-                        { id: { in: updateMany.map(email => email.id) } },
+                        { id: { in: updateMany.map(email => email.where.id) } },
                         { userId },
                     ],
                 },
@@ -74,7 +74,7 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
             if (emails.length !== updateMany.length) throw new CustomError(CODE.EmailInUse, 'At least one of these emails is not yours');
             for (const email of updateMany) {
                 // Check for valid arguments
-                emailUpdate.validateSync(email, { abortEarly: false });
+                emailUpdate.validateSync(email.data, { abortEarly: false });
             }
         }
     },
@@ -111,7 +111,7 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
                 let object = await prisma.email.findFirst({
                     where: {
                         AND: [
-                            { id: input.id },
+                            input.where,
                             { userId },
                         ]
                     }
@@ -119,8 +119,8 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
                 if (!object) throw new CustomError(CODE.NotFound, "Email not found");
                 // Update
                 object = await prisma.email.update({
-                    where: { id: object.id },
-                    data: input,
+                    where: input.where,
+                    data: input.data,
                     ...selectHelper(partial)
                 });
                 // Convert to GraphQL

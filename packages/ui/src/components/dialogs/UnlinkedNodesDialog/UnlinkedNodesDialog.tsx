@@ -36,7 +36,7 @@ export const UnlinkedNodesDialog = ({
         // Common node props
         const nodeProps = {
             canDrag: true,
-            handleAction: () => {},
+            handleAction: () => { },
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
@@ -52,12 +52,11 @@ export const UnlinkedNodesDialog = ({
             case NodeType.Redirect:
                 return <RedirectNode {...nodeProps} />
             case NodeType.RoutineList:
-                return (
-                <RoutineListNode 
-                    {...nodeProps} 
-                    canExpand={false} 
-                    labelVisible={true} 
-                />)
+                return <RoutineListNode
+                    {...nodeProps}
+                    canExpand={false}
+                    labelVisible={true}
+                />
             default:
                 return null;
         }
@@ -69,7 +68,7 @@ export const UnlinkedNodesDialog = ({
             background: '#c7dee2',
             color: 'black',
             padding: 1,
-            maxHeight: { xs: '62vh', sm:'65vh', md: '72vh' },
+            maxHeight: { xs: '62vh', sm: '65vh', md: '72vh' },
             overflowY: 'auto',
             width: open ? '250px' : 'fit-content',
             transition: 'height 1s ease-in-out',
@@ -109,7 +108,7 @@ export const UnlinkedNodesDialog = ({
                                 {createNode(node)}
                             </Box>
                             {/* Node title */}
-                            {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{marginLeft: 1}}>{getTranslation(node, 'title', ['en'], true)}</Typography>)}
+                            {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', ['en'], true)}</Typography>)}
                             {/* Delete node icon */}
                             <Tooltip title={`Delete ${getTranslation(node, 'title', ['en'], true)} node`} placement="left">
                                 <Box sx={{ marginLeft: 'auto' }}>
@@ -118,7 +117,7 @@ export const UnlinkedNodesDialog = ({
                                         onClick={() => handleNodeDelete(node.id)}
                                         aria-label={'Delete unlinked node'}
                                     >
-                                        <DeleteIcon sx={{ 
+                                        <DeleteIcon sx={{
                                             fill: 'black',
                                             '&:hover': {
                                                 fill: '#ff6a6a'

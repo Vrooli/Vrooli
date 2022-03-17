@@ -146,8 +146,8 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
             // Check for max tags on object TODO
         }
         if (updateMany) {
-            updateMany.forEach(input => tagUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input));
+            updateMany.forEach(input => tagUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => verifier.profanityCheck(input.data));
         }
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
@@ -170,17 +170,15 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                // Call createData helper function
-                const data = await this.toDBShape(input.anonymous ? null : userId, input);
                 // Find in database
                 let object = await prisma.tag.findFirst({
-                    where: { id: input.id, createdByUserId: userId },
+                    where: { ...input.where, createdByUserId: userId },
                 })
                 if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.tag.update({
-                    where: { createdByUserId: userId },
-                    data,
+                    where: input.where,
+                    data: await this.toDBShape(input.data.anonymous ? null : userId, input.data),
                     ...selectHelper(partial)
                 });
                 // Convert to GraphQL

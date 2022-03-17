@@ -181,7 +181,7 @@ export const nodeCreate = yup.object().shape({
     nodeEndCreate: nodeEndCreate.notRequired().default(undefined),
     loopCreate: loopCreate.notRequired().default(undefined),
     nodeRoutineListCreate: nodeRoutineListCreate.notRequired().default(undefined),
-    routineId: id.required(),
+    routineId: id.notRequired().default(undefined), // Not required because it can be derived from the parent routine
     translationsCreate: nodeTranslationsCreate.notRequired().default(undefined),
 })
 export const nodeUpdate = yup.object().shape({

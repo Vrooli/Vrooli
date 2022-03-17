@@ -95,7 +95,7 @@ export const translationMutater = () => ({
             createMany.forEach(input => validators.create.validateSync(input, { abortEarly: false }));
         }
         if (updateMany) {
-            updateMany.forEach(input => validators.update.validateSync(input, { abortEarly: false }));
+            updateMany.forEach(input => validators.update.validateSync(input.data, { abortEarly: false }));
         }
         this.profanityCheck({ translationsCreate: createMany, translationsUpdate: updateMany });
     },

@@ -182,17 +182,17 @@ export type CountInputBase = {
     updatedTimeFrame?: Partial<TimeFrame> | null;
 }
 
-export interface ValidateMutationsInput<C, U> {
+export interface ValidateMutationsInput<Create, Update> {
     userId: string | null,
-    createMany?: C[] | null | undefined,
-    updateMany?: U[] | null | undefined,
+    createMany?: Create[] | null | undefined,
+    updateMany?: { where: { id: string }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,
 }
 
 export interface CUDInput<Create, Update> {
     userId: string | null,
     createMany?: Create[] | null | undefined,
-    updateMany?: Update[] | null | undefined,
+    updateMany?: { where: { id: string }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,
     partial: PartialInfo,
 }
@@ -1293,7 +1293,9 @@ export async function updateHelper<GraphQLModel>(
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = toPartialSelect(info, model.relationshipMap);
     if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
-    const { updated } = await model.cud({ partial, userId, updateMany: [input] });
+    // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
+    const shapedInput = { where: { id: input.id }, data: input };
+    const { updated } = await model.cud({ partial, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
         return (await addSupplementalFields(model.prisma, userId, updated, partial))[0] as any;
     }

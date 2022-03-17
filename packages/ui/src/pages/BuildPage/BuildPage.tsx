@@ -279,11 +279,39 @@ export const BuildPage = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot update: Invalid routine data', severity: 'error' });
             return;
         }
-        const input: any = formatForUpdate(routine, changedRoutine, ['tags'], ['nodes', 'nodeLinks'])
+        const input: any = formatForUpdate(routine, changedRoutine, ['tags', 'nodes.data.routines.routine'], ['nodes', 'nodeLinks', 'node.data.routines'])
         // If routine belongs to an organization, add organizationId to input
         if (routine?.owner?.__typename === 'Organization') {
             input.organizationId = routine.owner.id;
         };
+        // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
+        const relationFields = ['Create', 'Update'];
+        for (const iField of relationFields) {
+            if (!input.hasOwnProperty(`nodes${iField}`)) continue;
+            input[`nodes${iField}`] = input[`nodes${iField}`].map(node => {
+                // Find full node data
+                const fullNode = changedRoutine.nodes.find(n => n.id === node.id);
+                if (!fullNode) return node;
+                // If end node, convert `data${jField}` to `nodeEnd${jField}`
+                if (fullNode.type === NodeType.End) {
+                    for (const jField of relationFields) {
+                        if (!node.hasOwnProperty(`data${jField}`)) continue;
+                        node[`nodeEnd${jField}`] = node[`data${jField}`];
+                        delete node[`data${jField}`];
+                    }
+                }
+                // If routine list node, convert `data${jField}` to `nodeRoutineList${jField}`
+                if (fullNode.type === NodeType.RoutineList) {
+                    for (const jField of relationFields) {
+                        if (!node.hasOwnProperty(`data${jField}`)) continue;
+                        node[`nodeRoutineList${jField}`] = node[`data${jField}`];
+                        delete node[`data${jField}`];
+                    }
+                }
+                return node;
+            });
+        }
+        console.log('going to update routine', input)
         mutationWrapper({
             mutation: routineUpdate,
             input,
@@ -416,11 +444,14 @@ export const BuildPage = ({
      * Deletes a subroutine from a node
      */
     const handleSubroutineDelete = useCallback((nodeId: string, subroutineId: string) => {
+        console.log('in handlesubroutine delete', nodeId, subroutineId, changedRoutine)
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
+        console.log('in handlesubroutine nodeIndex', nodeIndex)
         if (nodeIndex === -1) return;
         const node = changedRoutine.nodes[nodeIndex];
-        const subroutineIndex = (node.data as NodeDataRoutineList).routines.findIndex((item: NodeDataRoutineListItem) => item.routine.id === subroutineId);
+        const subroutineIndex = (node.data as NodeDataRoutineList).routines.findIndex((item: NodeDataRoutineListItem) => item.id === subroutineId);
+        console.log('subroutineindex', subroutineIndex, node)
         if (subroutineIndex === -1) return;
         const newRoutineList = deleteArrayIndex((node.data as NodeDataRoutineList).routines, subroutineIndex);
         setChangedRoutine({
@@ -572,7 +603,7 @@ export const BuildPage = ({
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         console.log('handle routine list item add a', routineList);
         let routineItem: NodeDataRoutineListItem = {
-            id: uuidv4(),
+            // id: uuidv4(),
             isOptional: true,
             routine,
         } as any

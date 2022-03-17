@@ -43,8 +43,8 @@ export const RoutineSubnode = ({
     }, [data]);
 
     const openSubnode = useMemo(() => () => handleOpen(data.id), [data.id, handleOpen]);
-    const editSubnode = useMemo(() => () => handleEdit(data.id), [data.id, handleEdit]);
-    const deleteSubnode = useMemo(() => () => handleDelete(data.id), [data.id, handleDelete]);
+    const editSubnode = useMemo(() => (e) => { e.stopPropagation(); handleEdit(data.id) }, [data.id, handleEdit]);
+    const deleteSubnode = useMemo(() => (e) => { e.stopPropagation(); handleDelete(data.id) }, [data.id, handleDelete]);
 
     const labelObject = useMemo(() => labelVisible ? (
         <Typography

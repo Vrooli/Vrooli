@@ -163,7 +163,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
         await this.validateMutations({
             userId,
             createMany: createMany as ResourceCreateInput[],
-            updateMany: updateMany?.map(d => d.data) as ResourceUpdateInput[],
+            updateMany: updateMany as { where: { id: string }, data: ResourceUpdateInput }[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         // Shape
@@ -193,9 +193,9 @@ export const resourceMutater = (prisma: PrismaType) => ({
         }
         if (updateMany) {
             console.log('node validate updateMany', updateMany);
-            updateMany.forEach(input => resourceUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input));
-            await this.authorizedUpdateOrDelete(userId as string, updateMany.map(u => u.id), prisma);
+            updateMany.forEach(input => resourceUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
+            await this.authorizedUpdateOrDelete(userId as string, updateMany.map(u => u.where.id), prisma);
         }
         console.log('finishedd resource validateMutations :)')
     },
@@ -220,20 +220,15 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                // Call createData helper function
-                const data = await this.toDBShape(userId, input, false);
                 // Find in database
                 let object = await prisma.report.findFirst({
-                    where: {
-                        id: input.id,
-                        userId,
-                    }
+                    where: { ...input.where, userId }
                 })
                 if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.resource.update({
-                    where: { id: object.id },
-                    data,
+                    where: input.where,
+                    data: await this.toDBShape(userId, input.data, false),
                     ...selectHelper(partial)
                 });
                 // Convert to GraphQL

@@ -307,7 +307,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         const subroutineIds: string[] = nodes.map((node: any | NodeCreateInput | NodeUpdateInput) => {
             console.log('in subroutineIds loop node', JSON.stringify(node));
             // Calculate the list of subroutines after mutations are applied
-            let ids: string[] = node.nodeRoutineList?.routines?.map((item: any) => item.routine.id) ?? [];
+            let ids: string[] = node.nodeRoutineList?.routines?.map((item: NodeRoutineListItem) => item.routine.id) ?? [];
             console.log('got idsss', ids);
             if ((data as NodeCreateInput).nodeRoutineListCreate) {
                 const listCreate = (data as NodeCreateInput).nodeRoutineListCreate as NodeRoutineListCreateInput;
@@ -326,6 +326,8 @@ export const routineMutater = (prisma: PrismaType) => ({
             nodeDictionary[node.id] = ids;
             return ids
         }).flat();
+        console.log('LINKS HEREEEEE', JSON.stringify(nodeLinks));
+        console.log('NODES HEREEEEE', JSON.stringify(nodeDictionary));
         // Query every subroutine's complexity/simplicity in one go
         const complicities = await prisma.routine.findMany({
             where: { id: { in: subroutineIds } },
@@ -348,6 +350,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 simplicity: nodeDictionary[node.id]?.reduce((acc, cur) => acc + routineComplicityDict[cur].simplicity, 0) || 0,
             }
         }
+        console.log('NODE COMPLICITY DICT', JSON.stringify(nodeComplicityDict));
         // Using the node links, determine the most complex path through the routine
         const [shortest, longest] = calculateShortestLongestWeightedPath(nodeComplicityDict, nodeLinks);
         // return with +1 
@@ -483,6 +486,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         isAdd: boolean = true,
         relationshipName: string = 'routines',
     ): Promise<{ [x: string]: any } | undefined> {
+        console.log('routine relatinoship builer start', JSON.stringify(input))
         const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes })
         // Validate
@@ -490,7 +494,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         await this.validateMutations({
             userId,
             createMany: createMany as RoutineCreateInput[],
-            updateMany: updateMany?.map(d => d.data) as RoutineUpdateInput[],
+            updateMany: updateMany as { where: { id: string }, data: RoutineUpdateInput }[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         // Shape
@@ -503,6 +507,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 data: await this.toDBShape(userId, data.data as any)
             }))
         }
+        console.log('routine relationhsip END', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
@@ -531,9 +536,9 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         if (updateMany) {
             console.log('ROUTINE VALIDATE MUTATIONS UPDATEMANY', JSON.stringify(updateMany));
-            updateMany.forEach(input => routineUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input));
-            updateMany.forEach(input => this.validateNodePositions(input));
+            updateMany.forEach(input => routineUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
+            updateMany.forEach(input => this.validateNodePositions(input.data));
         }
         if (deleteMany) {
             // Check if user is authorized to delete
@@ -594,17 +599,17 @@ export const routineMutater = (prisma: PrismaType) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Call createData helper function
-                let data = await this.toDBShape(userId, input);
+                let data = await this.toDBShape(userId, input.data);
                 console.log('ROUTINE UPDATEMANY TODBSHAPE AFTER', JSON.stringify(data));
                 // Associate with either organization or user. This will remove the association with the other.
-                if (input.organizationId) {
+                if (input.data.organizationId) {
                     // Make sure the user is an admin of the organization
                     console.log('checking isauthorized org', userId, input);
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.organizationId);
+                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.data.organizationId);
                     if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
                     data = {
                         ...data,
-                        organization: { connect: { id: input.organizationId } },
+                        organization: { connect: { id: input.data.organizationId } },
                         user: { disconnect: true },
                     };
                 } else {
@@ -618,21 +623,21 @@ export const routineMutater = (prisma: PrismaType) => ({
                 let object = await prisma.routine.findFirst({
                     where: {
                         AND: [
-                            { id: input.id },
+                            input.where,
                             {
                                 OR: [
-                                    { organizationId: input.organizationId },
+                                    { organizationId: input.data.organizationId },
                                     { userId },
                                 ]
                             }
                         ]
                     }
                 })
-                console.log('routine found: ', input.id, userId, input.organizationId, JSON.stringify(object));
+                console.log('routine found: ', input.where.id, userId, input.data.organizationId, JSON.stringify(object));
                 if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.routine.update({
-                    where: { id: object.id },
+                    where: input.where,
                     data,
                     ...selectHelper(partial)
                 });

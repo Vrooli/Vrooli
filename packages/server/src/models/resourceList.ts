@@ -74,7 +74,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         await this.validateMutations({
             userId,
             createMany: createMany as ResourceListCreateInput[],
-            updateMany: updateMany?.map(d => d.data) as ResourceListUpdateInput[],
+            updateMany: updateMany as { where: { id: string }, data: ResourceListUpdateInput }[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         // Shape
@@ -104,8 +104,8 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         }
         if (updateMany) {
             console.log('node validate updateMany', updateMany);
-            updateMany.forEach(input => resourceListUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input));
+            updateMany.forEach(input => resourceListUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
         }
         console.log('finishedd resource LIST validateMutations :)')
     },
@@ -130,20 +130,15 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                // Call createData helper function
-                const data = await this.toDBShape(userId, input, false);
                 // Find in database
                 let object = await prisma.report.findFirst({
-                    where: {
-                        id: input.id,
-                        userId,
-                    }
+                    where: { ...input.where, userId }
                 })
                 if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.resource_list.update({
-                    where: { id: object.id },
-                    data,
+                    where: input.where,
+                    data: await this.toDBShape(userId, input.data, false),
                     ...selectHelper(partial)
                 });
                 // Convert to GraphQL

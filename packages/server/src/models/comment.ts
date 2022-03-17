@@ -108,8 +108,8 @@ export const commentMutater = (prisma: PrismaType) => ({
             // TODO check limits on comments to prevent spam
         }
         if (updateMany) {
-            updateMany.forEach(input => commentUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input));
+            updateMany.forEach(input => commentUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
         }
         if (deleteMany) {
             // Check that user created each comment
@@ -162,13 +162,13 @@ export const commentMutater = (prisma: PrismaType) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Find comment
-                let comment = await prisma.comment.findUnique({ where: { id: input.id } });
+                let comment = await prisma.comment.findUnique({ where: input.where });
                 if (!comment) throw new CustomError(CODE.NotFound, "Comment not found");
                 // Update comment
                 const currUpdated = await prisma.comment.update({
-                    where: { id: comment.id },
+                    where: input.where,
                     data: {
-                        translations: TranslationModel().relationshipBuilder(userId, input, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
+                        translations: TranslationModel().relationshipBuilder(userId, input.data, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
                     },
                     ...selectHelper(partial)
                 });

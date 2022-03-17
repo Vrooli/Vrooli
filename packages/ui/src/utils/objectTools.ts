@@ -123,21 +123,22 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
  * haven't actually been updated
  * @param updated - The updated object, or partial update changes (which is a superset of the original)
  * @param treatLikeConnects - Array of field names (supports dot notation) that should be treated as connections (i.e. if object has id, ignore extra fields)
- * @param treatLikeDeletes - Array of field names (supports dot notation) that should be treated as deletes (i.e. if object has id, ignore extra fields)
+ * @param treatLikeDeletes - Array of field names (supports dot notation) that should be treated as deletes if not present in the update object
  */
 export const formatForUpdate = <S, T>(
     original: Partial<S> | null | undefined, 
     updated: Partial<T>, 
     treatLikeConnects: string[] = [],
     treatLikeDeletes: string[] = [],
+    treatLikeCreates: string[] = []
 ): Partial<T> => {
     // Create return object
     let changed = {};
-    // Create child treatLikeConnects and treatLikeDeletes arrays
+    // Create child treatLike arrays
     const childTreatLikeConnects = treatLikeConnects.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
     const childTreatLikeDeletes = treatLikeDeletes.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
     // Helper method to add to arrays which might not exist
-    const addToChangedArray = (key, value) => {
+    const addToChangedArray = (key: string, value) => {
         if (Array.isArray(changed[key])) {
             if (Array.isArray(value)) changed[key] = [...changed[key], ...value];
             else changed[key] = [...changed[key], value];
@@ -178,11 +179,23 @@ export const formatForUpdate = <S, T>(
                 (treatLikeConnects.includes(key) && Boolean(curr?.id))) {
                     addToChangedArray(`${key}Connect`, curr.id);
                 }
-                // Check if update
+                // Check if update. This can only be true if the object has an ID
                 else if (Boolean(curr?.id)) {
-                    console.log('adding to update array', changed[`${key}Update`], curr)
-                    addToChangedArray(`${key}Update`, changedValue);
-                    console.log('added to update array', changed[`${key}Update`], curr)
+                    // Loop through original values and find the one with the same ID
+                    let originalValue;
+                    if (original && Array.isArray(original[key])) {
+                        originalValue = original[key].find(o => o.id === curr.id);
+                    }
+                    // If the original value is not found, treat it as a create
+                    if (!originalValue) {
+                        console.log('original value not found', key, changedValue, original && original[key])
+                        addToChangedArray(`${key}Create`, changedValue);
+                    }
+                    // Otherwise, treat it as an update
+                    else {
+                        console.log('treated as update', key, changedValue, original && original[key])
+                        addToChangedArray(`${key}Update`, changedValue);
+                    }
                 }
                 // Shouldn't hit this point under normal circumstances. But if you do,
                 // add the value to the changed array
@@ -226,7 +239,12 @@ export const formatForUpdate = <S, T>(
             }
             // Check if update
             else if (curr.id !== undefined) {
-                changed[`${key}Update`] = changedValue;
+                console.log('chedking is updateeeeeeeeee', key, changedValue, originalValue)
+                // Only an update if the original value is found
+                if (originalValue) changed[`${key}Update`] = changedValue;
+                // Only a create if key not in treatLikeConnects
+                else if (treatLikeConnects.includes(key) && changedValue.hasOwnProperty('id')) changed[`${key}Connect`] = (changedValue as any).id;
+                else changed[`${key}Create`] = changedValue;
             }
             // Shouldn't hit this point under normal circumstances. But if you do,
             // add the value to the changed array

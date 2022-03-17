@@ -184,7 +184,7 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
         await this.validateMutations({
             userId,
             createMany: createMany as StandardCreateInput[],
-            updateMany: updateMany?.map(d => d.data) as StandardUpdateInput[],
+            updateMany: updateMany as { where: { id: string }, data: StandardUpdateInput }[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         // Shape
@@ -209,8 +209,8 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
             // Check for max standards created by user TODO
         }
         if (updateMany) {
-            updateMany.forEach(input => standardUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input));
+            updateMany.forEach(input => standardUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => verifier.profanityCheck(input.data));
         }
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
@@ -248,11 +248,9 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                // Call createData helper function
-                const data = await this.toDBShapeUpdate(userId, input);
                 // Find in database
                 let object = await prisma.standard.findUnique({
-                    where: { id: input.id },
+                    where: input.where,
                     select: {
                         id: true,
                         createdByUserId: true,
@@ -268,15 +266,9 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
                     if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
                 }
                 // Update standard
-                object = await prisma.standard.update({
-                    where: { id: object.id },
-                    data,
-                    ...selectHelper(partial)
-                });
-                // Update object
-                const currUpdated = await prisma.resource.update({
-                    where: { id: object.id },
-                    data,
+                const currUpdated = await prisma.standard.update({
+                    where: input.where,
+                    data: await this.toDBShapeUpdate(userId, input.data),
                     ...selectHelper(partial)
                 });
                 // Convert to GraphQL

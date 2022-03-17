@@ -163,12 +163,12 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             }
         }
         if (updateMany) {
-            updateMany.forEach(input => organizationUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input));
-            updateMany.forEach(input => TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
+            updateMany.forEach(input => organizationUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
+            updateMany.forEach(input => TranslationModel().validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio));
             // Check that user is owner OR admin of each organization
             const roles = userId
-                ? await verifier.getRoles(userId, updateMany.map(input => input.id))
+                ? await verifier.getRoles(userId, updateMany.map(input => input.where.id))
                 : Array(updateMany.length).fill(null);
             if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin)) throw new CustomError(CODE.Unauthorized);
         }
@@ -207,14 +207,12 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                // Call createData helper function
-                const data = await this.toDBShape(userId, input);
                 // Handle members TODO
                 // Find in database
                 let object = await prisma.organization.findFirst({
                     where: {
                         AND: [
-                            { id: input.id },
+                            input.where,
                             { members: { some: { id: userId ?? '' } } },
                         ]
                     }
@@ -222,8 +220,8 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
                 if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.organization.update({
-                    where: { id: object.id },
-                    data,
+                    where: input.where,
+                    data: await this.toDBShape(userId, input.data),
                     ...selectHelper(partial)
                 });
                 // Convert to GraphQL

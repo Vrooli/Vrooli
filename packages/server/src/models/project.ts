@@ -1,4 +1,4 @@
-import { CODE, MemberRole, projectCreate, projectTranslationCreate, projectTranslationUpdate, projectUpdate } from "@local/shared";
+import { CODE, inputUpdate, MemberRole, projectCreate, projectTranslationCreate, projectTranslationUpdate, projectUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../schema/types";
@@ -177,9 +177,9 @@ export const projectMutater = (prisma: PrismaType) => ({
             }
         }
         if (updateMany) {
-            updateMany.forEach(input => projectUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input));
-            updateMany.forEach(input => TranslationModel().validateLineBreaks(input, ['description'], CODE.LineBreaksDescription));
+            updateMany.forEach(input => projectUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
+            updateMany.forEach(input => TranslationModel().validateLineBreaks(input.data, ['description'], CODE.LineBreaksDescription));
         }
         if (deleteMany) {
             // Check if user is authorized to delete
@@ -255,15 +255,15 @@ export const projectMutater = (prisma: PrismaType) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Call createData helper function
-                let data = await createData(input);
+                let data = await createData(input.data);
                 // Associate with either organization or user. This will remove the association with the other.
-                if (input.organizationId) {
+                if (input.data.organizationId) {
                     // Make sure the user is an admin of the organization
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.organizationId);
+                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.data.organizationId);
                     if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
                     data = {
                         ...data,
-                        organization: { connect: { id: input.organizationId } },
+                        organization: { connect: { id: input.data.organizationId } },
                         user: { disconnect: true },
                     };
                 } else {
@@ -277,10 +277,10 @@ export const projectMutater = (prisma: PrismaType) => ({
                 let object = await prisma.project.findFirst({
                     where: {
                         AND: [
-                            { id: input.id },
+                            input.where,
                             {
                                 OR: [
-                                    { organizationId: input.organizationId },
+                                    { organizationId: input.data.organizationId },
                                     { userId },
                                 ]
                             }
@@ -290,7 +290,7 @@ export const projectMutater = (prisma: PrismaType) => ({
                 if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.project.update({
-                    where: { id: object.id },
+                    where: input.where,
                     data,
                     ...selectHelper(partial)
                 });

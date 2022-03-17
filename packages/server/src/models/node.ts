@@ -1,7 +1,7 @@
 import { Count, Node, NodeCreateInput, NodeType, NodeUpdateInput } from "../schema/types";
 import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
 import { CustomError } from "../error";
-import { CODE, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, loopCreate, loopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, nodeUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate } from "@local/shared";
+import { CODE, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, loopCreate, loopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, nodeUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@local/shared";
 import { PrismaType } from "types";
 import { hasProfanityRecursive } from "../utils/censor";
 import { RoutineModel } from "./routine";
@@ -55,22 +55,26 @@ export const nodeRoutineListFormatter = (): FormatConverter<Node> => ({
  */
 export const nodeVerifier = () => ({
     /**
-     * Verify that the user can modify the routine of the node(s)
+     * Verify that the user can modify these nodes. 
+     * Also doubles as a way to verify that all nodes are in the same routine.
+     * @returns Promise with routineId, so we can use it later
      */
-    async authorizedCheck(userId: string, routineId: string, prisma: PrismaType): Promise<void> {
-        let routine = await prisma.routine.findFirst({
+    async authorizedCheck(userId: string, nodeIds: string[], prisma: PrismaType): Promise<string> {
+        let nodes = await prisma.node.findMany({
             where: {
                 AND: [
-                    { id: routineId },
+                    { id: { in: nodeIds } },
                     {
                         OR: [
-                            { userId },
+                            { routine: { userId } },
                             {
-                                organization: {
-                                    members: {
-                                        some: {
-                                            userId,
-                                            role: { in: [MemberRole.Owner, MemberRole.Admin] }
+                                routine: {
+                                    organization: {
+                                        members: {
+                                            some: {
+                                                userId,
+                                                role: { in: [MemberRole.Owner, MemberRole.Admin] }
+                                            }
                                         }
                                     }
                                 }
@@ -78,9 +82,14 @@ export const nodeVerifier = () => ({
                         ]
                     }
                 ]
-            }
-        })
-        if (!routine) throw new CustomError(CODE.Unauthorized, 'User does not own the routine, or is not an admin of its organization');
+            },
+            select: { routineId: true }
+        });
+        // Check that all nodes are in the same routine
+        const uniqueRoutineIds = new Set(nodes.map(node => node.routineId))
+        if (uniqueRoutineIds.size === 0) throw new CustomError(CODE.Unauthorized, 'You do not own all nodes');
+        if (uniqueRoutineIds.size > 1) throw new CustomError(CODE.InvalidArgs, 'All nodes must be in the same routine!');
+        return uniqueRoutineIds.values().next().value;
     },
     /**
      * Verify that the maximum number of nodes on a routine will not be exceeded
@@ -102,12 +111,36 @@ export const nodeVerifier = () => ({
 })
 
 export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
+    async toDBShape(userId: string | null, data: NodeCreateInput | NodeUpdateInput): Promise<any> {
+        let nodeData: { [x: string]: any } = {
+            id: data.id,
+            columnIndex: data.columnIndex,
+            routineId: data.routineId,
+            rowIndex: data.rowIndex,
+            type: data.type,
+            translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeTranslationCreate, update: nodeTranslationUpdate }, false),
+        };
+        console.log('in node todbshape', JSON.stringify(data))
+        // Create type-specific data, and make sure other types are null
+        nodeData.nodeEnd = undefined;
+        nodeData.nodeRoutineList = undefined;
+        if ((data as NodeCreateInput)?.nodeEndCreate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, data, true);
+        else if ((data as NodeUpdateInput)?.nodeEndUpdate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, data, false);
+        if ((data as NodeCreateInput).nodeRoutineListCreate) nodeData.nodeRoutineList = await this.relationshipBuilderRoutineListNode(userId, data, true);
+        else if ((data as NodeUpdateInput)?.nodeRoutineListUpdate) nodeData.nodeRoutineList = await this.relationshipBuilderRoutineListNode(userId, data, false);
+        if (nodeData.loop) {
+            if (data.loopCreate) nodeData.loop = this.relationshipBuilderLoop(userId, data, true);
+            else if ((data as NodeUpdateInput)?.loopUpdate) nodeData.loop = this.relationshipBuilderLoop(userId, data, false);
+        }
+        console.log('node todbshape end', JSON.stringify(nodeData))
+        return nodeData;
+    },
     /**
-     * Add, update, or remove a node relationship from a routine
+     * Add, update, or delete a node relationship on a routine
      */
     async relationshipBuilder(
         userId: string | null,
-        routineId: string | null,
+        routineId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'nodes',
@@ -117,15 +150,38 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // are not supported by nodes (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         console.log('node relationshipbuilder formattedinput', JSON.stringify(formattedInput));
-        // Validate input, with routine ID added to each update node
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
+        // Further shape the input
+        if (createMany) {
+            let result = [];
+            for (const data of createMany) {
+                result.push(await this.toDBShape(userId, data as any));
+            }
+            createMany = result;
+        }
+        if (updateMany) {
+            let result = [];
+            for (const data of updateMany) {
+                result.push({
+                    where: data.where,
+                    data: await this.toDBShape(userId, data.data as any),
+                })
+            }
+            updateMany = result;
+        }
+        console.log('node relationshipbuilder updateMany bug shouldnt be here but maybe it is idk', JSON.stringify(updateMany));
+        // Validate input, with routine ID added to each update node
         await this.validateMutations({
             userId,
             createMany: createMany as NodeCreateInput[],
-            updateMany: updateMany?.map(d => ({ ...d.data, routineId })) as NodeUpdateInput[],
+            updateMany: updateMany as { where: { id: string }, data: NodeUpdateInput }[],
             deleteMany: deleteMany?.map(d => d.id)
         });
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return Object.keys(formattedInput).length > 0 ? {
+            create: createMany,
+            update: updateMany,
+            delete: deleteMany
+        } : undefined;
     },
     /**
      * Add, update, or remove node link whens from a routine
@@ -202,7 +258,8 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
-     * Add, update, or remove combine node data from a node
+     * Add, update, or remove combine node data from a node.
+     * Since this is a one-to-one relationship, we cannot return arrays
      */
     relationshipBuilderEndNode(
         userId: string | null,
@@ -212,20 +269,18 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeEnd', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'nodeEnd', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            for (const data of formattedInput.create) {
-                // Check for valid arguments
-                nodeEndCreate.validateSync(data, { abortEarly: false });
-            }
+        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
+            formattedInput.create = formattedInput.create[0];
+            // Check for valid arguments
+            nodeEndCreate.validateSync(formattedInput.create, { abortEarly: false });
         }
         // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
-                // Check for valid arguments
-                nodeEndUpdate.validateSync(data, { abortEarly: false });
-            }
+        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
+            formattedInput.update = formattedInput.update[0].data;
+            // Check for valid arguments
+            nodeEndUpdate.validateSync(formattedInput.update, { abortEarly: false });
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -288,11 +343,11 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
     /**
      * Add, update, or remove routine list node item data from a node
      */
-    relationshipBuilderRoutineListNodeItem(
+    async relationshipBuilderRoutineListNodeItem(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
+    ): Promise<{ [x: string]: any } | undefined> {
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
@@ -300,54 +355,82 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         const routineModel = RoutineModel(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
+            console.log('the bad validate b?', JSON.stringify(formattedInput.create))
             // Check for valid arguments
             nodeRoutineListItemsCreate.validateSync(formattedInput.create, { abortEarly: false });
+            let result = [];
             for (const data of formattedInput.create) {
-                // Convert nested relationships
-                data.routines = routineModel.relationshipBuilder(userId, data, isAdd);
+                // Routines are a one-to-one relationship, so we have to get rid of the array
+                let routineRel = await routineModel.relationshipBuilder(userId, data, isAdd, 'routine')
+                if (routineRel?.connect) routineRel.connect = routineRel.connect[0];
+                result.push({
+                    index: data.index,
+                    isOptional: data.isOptional,
+                    routine: routineRel,
+                    translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
+                })
             }
+            formattedInput.create = result;
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
+            console.log('the bad validate d?', JSON.stringify(formattedInput.update))
             // Check for valid arguments
             nodeRoutineListItemsUpdate.validateSync(formattedInput.update, { abortEarly: false });
+            let result = [];
             for (const data of formattedInput.update) {
-                // Convert nested relationships
-                data.routines = routineModel.relationshipBuilder(userId, data, isAdd);
+                // Cannot switch routines, so no need to worry about it in the update
+                result.push({
+                    index: data.index,
+                    isOptional: data.isOptional,
+                    translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
+                })
             }
+            formattedInput.update = result;
         }
+        console.log('node routine list ITEM endddd', JSON.stringify(formattedInput))
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
-     * Add, update, or remove routine list node data from a node
+     * Add, update, or remove routine list node data from a node.
+     * Since this is a one-to-one relationship, we cannot return arrays
      */
-    relationshipBuilderRoutineListNode(
+    async relationshipBuilderRoutineListNode(
         userId: string | null,
         input: { [x: string]: any },
         isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
+    ): Promise<{ [x: string]: any } | undefined> {
+        console.log('relationshipbuiilderroutinelistnode start');
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeRoutineList', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'nodeRoutineList', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        console.log('relationshipbuii a', JSON.stringify(formattedInput));
         // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            for (const data of formattedInput.create) {
-                // Check for valid arguments
-                nodeRoutineListCreate.validateSync(data, { abortEarly: false });
-                // Convert nested relationships
-                data.routines = this.relationshipBuilderRoutineListNodeItem(userId, data, isAdd);
+        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
+            const create = formattedInput.create[0];
+            // Check for valid arguments
+            nodeRoutineListCreate.validateSync(create, { abortEarly: false });
+            // Convert nested relationships
+            formattedInput.create = {
+                isOrdered: create.isOrdered,
+                isOptional: create.isOptional,
+                routines: await this.relationshipBuilderRoutineListNodeItem(userId, create, isAdd)
             }
         }
         // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
-                // Check for valid arguments
-                nodeRoutineListUpdate.validateSync(data, { abortEarly: false });
-                // Convert nested relationships
-                data.routines = this.relationshipBuilderRoutineListNodeItem(userId, data, isAdd);
+        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
+            const update = formattedInput.update[0].data;
+            // Check for valid arguments
+            nodeRoutineListUpdate.validateSync(update, { abortEarly: false });
+            // Convert nested relationships
+            formattedInput.update = {
+                isOrdered: update.isOrdered,
+                isOptional: update.isOptional,
+                routines: await this.relationshipBuilderRoutineListNodeItem(userId, update, isAdd)
             }
         }
+        console.log('relationshipbuiilderroutinelistnode end', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
@@ -359,31 +442,24 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         console.log('node validate mutations', { userId, createMany, updateMany, deleteMany });
         if (!userId) throw new CustomError(CODE.Unauthorized);
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
-        // Make sure every node applies to the same routine
-        const routineId = Array.isArray(createMany) && createMany.length > 0
-            ? createMany[0].routineId
-            : Array.isArray(updateMany) && updateMany.length > 0
-                ? updateMany[0].routineId
-                : Array.isArray(deleteMany) && deleteMany.length > 0
-                    ? deleteMany[0] : null;
-        console.log('NODE VALIDATE MUTATIONS ROUTINE ID', routineId, updateMany);
-        if (!routineId ||
-            createMany?.some(n => n.routineId !== routineId) ||
-            updateMany?.some(n => n.routineId !== routineId ||
-                deleteMany?.some(n => n !== routineId))) throw new CustomError(CODE.InvalidArgs, 'All nodes must be in the same routine!');
-        // Make sure the user has access to the routine
-        await verifier.authorizedCheck(userId, routineId, prisma);
+        // Make sure the user has access to these nodes
+        const createNodeIds = createMany?.map(node => node.id) ?? []; // Nodes can have an ID on create, unlike most other objects
+        const updateNodeIds = updateMany?.map(node => node.where.id) ?? [];
+        const deleteNodeIds = deleteMany ?? [];
+        const allNodeIds = [...createNodeIds, ...updateNodeIds, ...deleteNodeIds];
+        console.log('going to node authorized check', allNodeIds)
+        const routineId = await verifier.authorizedCheck(userId, allNodeIds, prisma);
         if (createMany) {
             console.log('checking node createMany', createMany);
             createMany.forEach(input => nodeCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => verifier.profanityCheck(input));
             // Check if will pass max nodes (on routine) limit
-            await verifier.maxNodesCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
+            await verifier.maximumCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
         }
         if (updateMany) {
             console.log('checking node updateMany', updateMany);
-            updateMany.forEach(input => nodeUpdate.validateSync(input, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input));
+            updateMany.forEach(input => nodeUpdate.validateSync(input.data, { abortEarly: false }));
+            updateMany.forEach(input => verifier.profanityCheck(input.data));
         }
     },
     /**
@@ -391,46 +467,16 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
      */
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<NodeCreateInput, NodeUpdateInput>): Promise<CUDResult<Node>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        /**
-         * Helper function for creating create/update Prisma value
-         */
-        const createData = async (input: NodeCreateInput | NodeUpdateInput): Promise<{ [x: string]: any }> => {
-            let nodeData: { [x: string]: any } = {
-                id: input.id,
-                columnIndex: input.columnIndex,
-                routineId: input.routineId,
-                rowIndex: input.rowIndex,
-                type: input.type,
-                translations: TranslationModel().relationshipBuilder(userId, input, { create: nodeTranslationCreate, update: nodeTranslationUpdate }, false),
-            };
-            // Create type-specific data, and make sure other types are null
-            nodeData.nodeEnd = null;
-            nodeData.nodeRoutineList = null;
-            switch (input.type) {
-                case NodeType.End:
-                    if ((input as NodeCreateInput)?.nodeEndCreate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, true);
-                    else if ((input as NodeUpdateInput)?.nodeEndUpdate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, input, false);
-                    break;
-                case NodeType.RoutineList:
-                    if ((input as NodeCreateInput).nodeRoutineListCreate) nodeData.nodeRoutineList = this.relationshipBuilderRoutineListNode(userId, input, true);
-                    else if ((input as NodeUpdateInput)?.nodeRoutineListUpdate) nodeData.nodeRoutineList = this.relationshipBuilderRoutineListNode(userId, input, false);
-                    break;
-            }
-            if (nodeData.loop) {
-                if (input.loopCreate) nodeData.loop = this.relationshipBuilderLoop(userId, input, true);
-                else if ((input as NodeUpdateInput)?.loopUpdate) nodeData.loop = this.relationshipBuilderLoop(userId, input, false);
-            }
-            return nodeData;
-        }
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
         if (createMany) {
             // Loop through each create input
             for (const input of createMany) {
-                // Call createData helper function
-                const data = await createData(input);
                 // Create object
-                const currCreated = await prisma.node.create({ data, ...selectHelper(partial) });
+                const currCreated = await prisma.node.create({
+                    data: await this.toDBShape(userId, input),
+                    ...selectHelper(partial)
+                });
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currCreated, partial);
                 // Add to created array
@@ -440,12 +486,10 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
-                // Call createData helper function
-                const data = await createData(input);
                 // Update object
                 const currUpdated = await prisma.node.update({
-                    where: { id: input.id },
-                    data,
+                    where: input.where,
+                    data: await this.toDBShape(userId, input.data),
                     ...selectHelper(partial)
                 });
                 // Convert to GraphQL
