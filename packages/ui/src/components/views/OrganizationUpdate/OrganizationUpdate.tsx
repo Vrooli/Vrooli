@@ -7,10 +7,10 @@ import { organizationQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
 import { OrganizationUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { organizationUpdate as validationSchema } from '@local/shared';
+import { organizationUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getTranslation } from "utils";
+import { formatForUpdate, getTranslation, updateTranslation } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -68,7 +68,11 @@ export const OrganizationUpdate = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(organization, { id, ...values, tags }, ['tags']),
+                input: formatForUpdate(organization, { 
+                    id, 
+                    tags, //TODO tags probably broke
+                    translations: updateTranslation(organization as any, { language: 'en', name: values.name, bio: values.bio })
+                }, ['tags']),
                 onSuccess: (response) => { onUpdated(response.data.organizationUpdate) },
             })
         },

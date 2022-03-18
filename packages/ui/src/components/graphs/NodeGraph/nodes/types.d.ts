@@ -79,6 +79,7 @@ export interface RedirectNodeProps extends NodeDataProps, ScaleProps, LabelledPr
 export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, LabelledProps, EditableProps, DraggableProps {
     canExpand: boolean;
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
+    handleUpdate: (nodeId: string, updatedNode: Node) => void; 
 }
 
 /**
@@ -89,6 +90,7 @@ export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, Editable
     handleOpen: (subroutineId: string) => void;
     handleEdit: (subroutineId: string) => void;
     handleDelete: (subroutineId: string) => void;
+    handleUpdate: (subroutineId: string, updatedSubroutine: NodeDataRoutineListItem) => void; 
 }
 
 /**

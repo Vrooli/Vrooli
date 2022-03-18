@@ -447,6 +447,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         const updateNodeIds = updateMany?.map(node => node.where.id) ?? [];
         const deleteNodeIds = deleteMany ?? [];
         const allNodeIds = [...createNodeIds, ...updateNodeIds, ...deleteNodeIds];
+        if (allNodeIds.length === 0) return;
         console.log('going to node authorized check', allNodeIds)
         const routineId = await verifier.authorizedCheck(userId, allNodeIds, prisma);
         if (createMany) {

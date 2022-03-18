@@ -1,5 +1,5 @@
 import { profile_profile } from "graphql/generated/profile";
-import { Organization, Project, Routine, Session, Standard, User } from "types";
+import { DecisionStep, Node, Organization, Project, Routine, Session, Standard, User } from "types";
 
 export interface CreateProps<T> {
     session: Session;
@@ -55,11 +55,15 @@ export interface SettingsNotificationsProps extends SettingsBaseProps {
 export interface SettingsProfileProps extends SettingsBaseProps {}
 
 export interface SubroutineViewProps {
-    hasNext: boolean;
-    hasPrevious: boolean;
     loading: boolean;
     data: Routine | null;
     session: Session;
+}
+
+export interface DecisionViewProps {
+    data: DecisionStep
+    handleDecisionSelect: (node: Node) => void;
+    nodes: Node[];
 }
 
 export interface RunRoutineViewProps extends ViewProps<Routine> {

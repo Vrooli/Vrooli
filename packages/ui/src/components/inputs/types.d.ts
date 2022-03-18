@@ -1,5 +1,5 @@
 import { InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
-import { ChangeEvent } from 'react';
+import { ChangeEvent, MouseEvent } from 'react';
 import { Organization, Session, Tag } from 'types';
 
 export interface DropzoneProps {
@@ -82,4 +82,12 @@ export interface UserOrganizationSwitchProps extends UseSwitchProps {
     selected: Organization | null;
     onChange: (value: Organization | null) => any;
     disabled?: boolean;
+}
+
+export interface EditableLabelProps {
+    canEdit: boolean;
+    handleUpdate: (newTitle: string) => void;
+    renderLabel: (label: string) => JSX.Element;
+    sxs?: { stack?: { [x: string]: any } };
+    text: string;
 }

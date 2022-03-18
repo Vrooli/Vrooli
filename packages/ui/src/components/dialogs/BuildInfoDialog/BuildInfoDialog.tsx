@@ -31,16 +31,12 @@ import {
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { MarkdownInput, ResourceListHorizontal } from 'components';
-import { formatForUpdate, getTranslation, Pubs } from 'utils';
+import { getTranslation, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
-import { Resource, ResourceList, User } from 'types';
+import { ResourceList, User } from 'types';
 import { useLocation } from 'wouter';
-import { routine } from "graphql/generated/routine";
-import { useMutation } from '@apollo/client';
 import { useFormik } from 'formik';
-import { routineUpdate as validationSchema } from '@local/shared';
-import { mutationWrapper } from 'graphql/utils/wrappers';
-import { routineUpdateMutation } from 'graphql/mutation';
+import { routineUpdateForm as validationSchema } from '@local/shared';
 
 export const BuildInfoDialog = ({
     handleAction,
@@ -52,10 +48,6 @@ export const BuildInfoDialog = ({
     sxs,
 }: BuildInfoDialogProps) => {
     const [, setLocation] = useLocation();
-    // Open boolean for drawer
-    const [open, setOpen] = useState(false);
-    const toggleOpen = () => setOpen(o => !o);
-    const closeMenu = () => setOpen(false);
 
     /**
      * Name of user or organization that owns this routine
@@ -106,7 +98,6 @@ export const BuildInfoDialog = ({
     }, [isEditing, routine]);
 
     // Handle update
-    const [mutation] = useMutation<routine>(routineUpdateMutation);
     const formik = useFormik({
         initialValues: {
             description: getTranslation(routine, 'description', [language]) ?? '',
@@ -118,24 +109,37 @@ export const BuildInfoDialog = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
-                mutation,
-                input: formatForUpdate(routine, {
-                    translations: [{
-                        language: 'en',
-                        title: values.title,
-                        description: values.description,
-                        instructions: values.instructions,
-                    }],
-                    ...values,
-                }),
-                onSuccess: (response) => { handleUpdate(response.data.routineUpdate) },
-                onError: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                }
-            })
+            handleUpdate({
+                ...routine,
+                isInternal: values.isInternal,
+                version: values.version,
+                translations: [{
+                    language: 'en',
+                    title: values.title,
+                    description: values.description,
+                    instructions: values.instructions,
+                }],
+            } as any);
         },
     });
+
+    // Open boolean for drawer
+    const [open, setOpen] = useState(false);
+    const toggleOpen = () => setOpen(o => !o);
+    const closeMenu = () => {
+        // If not editing, just close 
+        if (!isEditing) {
+            setOpen(false);
+            return;
+        }
+        // If editing, try to save changes
+        if (formik.isValid) {
+            formik.handleSubmit();
+            setOpen(false);
+        } else {
+            PubSub.publish(Pubs.Snack, { message: 'Please fix errors before closing.', severity: 'Error' });
+        }
+    };
 
     return (
         <>
@@ -256,8 +260,8 @@ export const BuildInfoDialog = ({
                                 <Checkbox
                                     id='routine-info-dialog-is-internal'
                                     size="small"
-                                    name='isInternalCheckbox'
-                                    value='isInternalCheckbox'
+                                    name='isInternal'
+                                    value='isInternal'
                                     color='secondary'
                                     checked={formik.values.isInternal}
                                     onChange={formik.handleChange}

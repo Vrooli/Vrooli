@@ -8,10 +8,10 @@ import { useCallback, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import PubSub from 'pubsub-js';
-import { standardUpdate as validationSchema } from '@local/shared';
+import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, Pubs } from "utils";
+import { formatForUpdate, Pubs, updateTranslation } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -60,7 +60,11 @@ export const StandardUpdate = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(standard, { id, ...values }),
+                input: formatForUpdate(standard, { 
+                    id, 
+                    //TODO tags
+                    translations: updateTranslation(standard as any, { language: 'en', description: values.description })
+                }),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },
                 onError: (response) => {
                     PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });

@@ -13,13 +13,9 @@ import {
 import { Pubs } from 'utils';
 
 const helpText =
-    `
-# Header1 test
-## Header2 test
-**bold test**
-fkdjslakfd;
+`Reports help us moderate content. For now, reports will be handled by moderators. 
 
-fdsjlakfjdl;k
+In the future, we would like to implement a community governance system.
 `
 
 enum ReportOptions {
@@ -51,7 +47,8 @@ export const ReportDialog = ({
         initialValues: {
             reason: '',
             otherReason: '',
-            details: ''
+            details: '',
+            language: 'en',
         },
         validationSchema,
         onSubmit: (values) => {

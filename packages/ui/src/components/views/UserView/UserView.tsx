@@ -74,6 +74,7 @@ export const UserView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            mutate={true}
         />
     ) : null, [isOwn, resourceList, session, user]);
 

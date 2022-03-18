@@ -8,10 +8,10 @@ import { useCallback, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import PubSub from 'pubsub-js';
-import { routineUpdate as validationSchema } from '@local/shared';
+import { routineUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getTranslation, Pubs } from "utils";
+import { formatForUpdate, getTranslation, Pubs, updateTranslation } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -72,7 +72,12 @@ export const RoutineUpdate = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(routine, { id, ...values }),
+                input: formatForUpdate(routine, { 
+                    id, 
+                    version: values.version,
+                    //TODO tags
+                    translations: updateTranslation(routine as any, { language: 'en', description: values.description, instructions: values.instructions, title: values.title }),
+                }),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: (response) => {
                     PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
@@ -91,58 +96,55 @@ export const RoutineUpdate = ({
     }, [setFormBottom]);
 
     const formInput = useMemo(() => (
-        <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
-            <Grid container spacing={2} sx={{ padding: 2 }}>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="title"
-                        name="title"
-                        label="title"
-                        value={formik.values.title}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.title && Boolean(formik.errors.title)}
-                        helperText={formik.touched.title && formik.errors.title}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <TextField
-                        fullWidth
-                        id="description"
-                        name="description"
-                        label="description"
-                        value={formik.values.description}
-                        rows={3}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.description && Boolean(formik.errors.description)}
-                        helperText={formik.touched.description && formik.errors.description}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <MarkdownInput
-                        id="instructions"
-                        placeholder="Instructions"
-                        value={formik.values.instructions}
-                        minRows={4}
-                        onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
-                        error={formik.touched.instructions && Boolean(formik.errors.instructions)}
-                        helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
-                    />
-                </Grid>
-                <Grid item xs={12} marginBottom={4}>
-                    <TagSelector
-                        session={session}
-                        tags={tags}
-                        onTagAdd={addTag}
-                        onTagRemove={removeTag}
-                        onTagsClear={clearTags}
-                    />
-                </Grid>
+        <Grid container spacing={2} sx={{ padding: 2 }}>
+            <Grid item xs={12}>
+                <TextField
+                    fullWidth
+                    id="title"
+                    name="title"
+                    label="title"
+                    value={formik.values.title}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    error={formik.touched.title && Boolean(formik.errors.title)}
+                    helperText={formik.touched.title && formik.errors.title}
+                />
             </Grid>
-            <DialogActionsContainer actions={actions} onResize={handleResize} />
-        </form>
+            <Grid item xs={12}>
+                <TextField
+                    fullWidth
+                    id="description"
+                    name="description"
+                    label="description"
+                    value={formik.values.description}
+                    rows={3}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    error={formik.touched.description && Boolean(formik.errors.description)}
+                    helperText={formik.touched.description && formik.errors.description}
+                />
+            </Grid>
+            <Grid item xs={12}>
+                <MarkdownInput
+                    id="instructions"
+                    placeholder="Instructions"
+                    value={formik.values.instructions}
+                    minRows={4}
+                    onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
+                    error={formik.touched.instructions && Boolean(formik.errors.instructions)}
+                    helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
+                />
+            </Grid>
+            <Grid item xs={12} marginBottom={4}>
+                <TagSelector
+                    session={session}
+                    tags={tags}
+                    onTagAdd={addTag}
+                    onTagRemove={removeTag}
+                    onTagsClear={clearTags}
+                />
+            </Grid>
+        </Grid>
     ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
 
     return (

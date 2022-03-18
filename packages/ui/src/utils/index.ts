@@ -5,5 +5,6 @@ export * from './objectTools';
 export * from './openLink';
 export * from './sorting';
 export * from './theme';
+export * from './translationTools';
 export * from './useHistoryState';
 export * from './userActions';

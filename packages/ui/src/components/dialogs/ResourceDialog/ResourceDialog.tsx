@@ -49,8 +49,8 @@ const UsedForDisplay = {
 }
 
 export const ResourceDialog = ({
-    isAdd = true,
-    mutate = true,
+    isAdd,
+    mutate,
     open,
     onClose,
     onCreated,
@@ -60,6 +60,7 @@ export const ResourceDialog = ({
     title = 'Add Resource',
     listId,
 }: ResourceDialogProps) => {
+    console.log('is resource dialog add?', isAdd)
 
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);

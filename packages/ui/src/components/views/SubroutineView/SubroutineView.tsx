@@ -14,8 +14,6 @@ import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 
 export const SubroutineView = ({
-    hasNext,
-    hasPrevious,
     loading,
     data,
     session,

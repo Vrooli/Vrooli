@@ -7,10 +7,10 @@ import { projectQuery } from "graphql/query";
 import { useCallback, useMemo, useState } from "react";
 import { ProjectUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { projectUpdate as validationSchema } from '@local/shared';
+import { projectUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getTranslation } from "utils";
+import { formatForUpdate, getTranslation, updateTranslation } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -73,7 +73,11 @@ export const ProjectUpdate = ({
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(project, { id, ...values, tags }), //TODO handle translations
+                input: formatForUpdate(project, { 
+                    id, 
+                    tags, //TODO tags probably broke
+                    translations: updateTranslation(project as any, { language: 'en', name: values.name, description: values.description })
+                }), //TODO handle translations
                 onSuccess: (response) => { onUpdated(response.data.projectUpdate) },
             })
         },

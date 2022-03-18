@@ -1,6 +1,6 @@
 import { APP_LINKS } from "@local/shared";
 import { Box, Button, IconButton, LinearProgress, Stack, Typography } from "@mui/material"
-import { HelpButton, RunStepsDialog } from "components";
+import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
 import { useLocation, useRoute } from "wouter";
 import { RunRoutineViewProps } from "../types";
@@ -331,11 +331,13 @@ export const RunRoutineView = ({
      * Examples: [2] => [1], [1] => null, [2, 2] => [2, 1], [2, 1] => [2, num in previous step]
      */
     const previousStep = useMemo<number[] | null>(() => {
+        console.log('calculating previous step', stepParams)
         if (stepParams.length === 0) return null;
         // Loop backwards. If curr > 1, then return curr - 1 and remove elements after
         for (let i = stepParams.length - 1; i >= 0; i--) {
             const currStepNumber = stepParams[i];
-            if (currStepNumber > 1) return [...stepParams.slice(0, stepParams.length - 1), currStepNumber - 1]
+            if (currStepNumber > 1) console.log('yeeeeeee', [...stepParams.slice(0, i), currStepNumber - 1])
+            if (currStepNumber > 1) return [...stepParams.slice(0, i), currStepNumber - 1]
         }
         return null
     }, [stepParams]);
@@ -345,7 +347,9 @@ export const RunRoutineView = ({
      * Examples: [2] => [3] OR [2, 1] if at end of list
      */
     const nextStep = useMemo<number[] | null>(() => {
-        console.log('calculating next step', stepParams)
+        // If current step is a decision, return null
+        if (currentStep?.type === RoutineStepType.Decision) return null;
+        console.log('calculating next step', stepParams, currentStep)
         if (stepParams.length === 0) return [1];
         let result = [...stepParams];
         // Loop backwards until a number in stepParams can be incremented. Remove elements after that
@@ -361,7 +365,7 @@ export const RunRoutineView = ({
             }
         }
         return null;
-    }, [stepParams]);
+    }, [stepParams, currentStep]);
 
     //TODO
     const unsavedChanges = false;
@@ -371,12 +375,8 @@ export const RunRoutineView = ({
       * Navigate to the previous subroutine
       */
     const toPrevious = useCallback(() => {
+        console.log('toprevious', previousStep)
         if (!previousStep) return;
-        // Update progress
-        let newProgress = Array.isArray(progress) ? [...progress] : []
-        const alreadyComplete = newProgress.find(p => p.length === stepParams.length && p.every((val, index) => val === stepParams[index]))
-        if (!alreadyComplete) newProgress.push(stepParams);
-        setProgress(newProgress);
         // Update current step
         setLocation(`?step=${previousStep.join('.')}`, { replace: true });
         setStepParams(previousStep);
@@ -406,6 +406,16 @@ export const RunRoutineView = ({
     }
 
     /**
+     * Navigate to selected decision
+     */
+    const toDecision = useCallback((node: Node) => {
+        // Find step number of node
+        //TODO
+        // Navigate to step
+        //TODO
+    }, []);
+
+    /**
      * Displays either a subroutine view or decision view
      */
     const childView = useMemo(() => {
@@ -414,15 +424,16 @@ export const RunRoutineView = ({
         switch (currentStep.type) {
             case RoutineStepType.Subroutine:
                 return <SubroutineView
-                    hasPrevious={false}
-                    hasNext={false}
                     session={session}
                     data={(currentStep as SubroutineStep).routine}
                     loading={subroutineLoading}
                 />
-            //TODO decision type needs view
             default:
-                return null;
+                return <DecisionView
+                    data={currentStep as DecisionStep}
+                    handleDecisionSelect={toDecision}
+                    nodes={routine?.nodes ?? []}
+                />
         }
     }, [currentStep, subroutineLoading]);
 
@@ -513,13 +524,14 @@ export const RunRoutineView = ({
                             disabled={unsavedChanges}
                             sx={{ width: 'min(48vw, 250px)' }}
                         >Previous</Button>}
-                        {nextStep ? (<Button
+                        {nextStep && (<Button
                             fullWidth
                             startIcon={<NextIcon />}
                             onClick={toNext} // NOTE: changes are saved on next click
                             disabled={!subroutineComplete}
                             sx={{ width: 'min(48vw, 250px)' }}
-                        >Next</Button>) : (<Button
+                        >Next</Button>)}
+                        {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
                             fullWidth
                             startIcon={<CompleteIcon />}
                             onClick={toComplete}

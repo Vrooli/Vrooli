@@ -69,6 +69,7 @@ export const ProjectView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            mutate={true}
         />
     ) : null, [canEdit, project, resourceList, session]);
 

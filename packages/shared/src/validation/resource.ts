@@ -26,6 +26,8 @@ export const resourceCreateForm = yup.object().shape({
     title: title.notRequired().default(undefined),
     usedFor: usedFor.notRequired().default(undefined),
 })
+export const resourceUpdateForm = resourceCreateForm;
+
 export const resourceCreate = yup.object().shape({
     listId: id.required(),
     index: index.notRequired().default(undefined),

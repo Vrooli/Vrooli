@@ -6,11 +6,12 @@ import { routine } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
+    AccountTree as GraphIcon,
     Delete as DeleteIcon,
     Edit as EditIcon,
     ForkRight as ForkIcon,
     MoreHoriz as EllipsisIcon,
-    PlayCircle as StartNowIcon,
+    PlayCircle as StartIcon,
     StarOutline as StartLaterIcon,
     QueryStats as StatsIcon,
 } from "@mui/icons-material";
@@ -99,28 +100,9 @@ export const RoutineView = ({
         }
     }, [routine?.owner, setLocation]);
 
-    const [star] = useMutation<star>(starMutation);
-    /**
-     * Start a routine later (i.e. star the routine)
-     */
-    const startLater = useCallback(() => {
-        // Must be logged in
-        if (!session?.id) {
-            PubSub.publish(Pubs.Snack, { message: 'Must be logged in to perform this action.', severity: 'Error' });
-            setLocation(`${APP_LINKS.Start}?redirect=${encodeURIComponent(window.location.pathname)}`);
-            return;
-        }
-        if (routine?.isStarred) {
-            PubSub.publish(Pubs.Snack, { message: 'Routine is already starred.', severity: 'Warning' });
-        }
-        else {
-            mutationWrapper({
-                mutation: star,
-                input: { isStar: true, starFor: StarFor.Routine, forId: id },
-                onSuccess: () => { PubSub.publish(Pubs.Snack, { message: 'Routine starred.' }); },
-            })
-        }
-    }, [id, routine, session]);
+    const viewGraph = () => {
+        setLocation(`${APP_LINKS.Build}/${routine?.id}`);
+    }
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const runRoutine = () => {
@@ -172,21 +154,21 @@ export const RoutineView = ({
     }, [routine, canEdit, session]);
 
     /**
-     * If routine has nodes (i.e. is not just this page), display "Start Later" and "Start Now" buttons
+     * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" buttons
      */
     const actions = useMemo(() => {
         if (!routine?.nodes?.length) return null;
         return (
             <Grid container spacing={1}>
                 <Grid item xs={12} sm={6}>
-                    <Button fullWidth onClick={startLater} color="secondary">Start Later</Button>
+                    <Button startIcon={<GraphIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                    <Button fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
+                    <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                 </Grid>
             </Grid>
         )
-    }, [routine, startLater, runRoutine]);
+    }, [routine, viewGraph, runRoutine]);
 
     /**
      * Display body or loading indicator

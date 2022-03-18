@@ -7,7 +7,7 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { CSSProperties, MouseEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, CSSProperties, MouseEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
 import { DraggableNode, RoutineSubnode } from '..';
 import {
@@ -23,13 +23,15 @@ import {
     routineNodeListOptions,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { NodeDataRoutineList } from 'types';
-import { getTranslation, BuildAction, Pubs } from 'utils';
+import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
+import { getTranslation, BuildAction, Pubs, updateTranslationField } from 'utils';
+import { EditableLabel } from 'components/inputs';
 
 export const RoutineListNode = ({
     canDrag,
     canExpand,
     handleAction,
+    handleUpdate,
     isLinked,
     labelVisible,
     isEditing,
@@ -45,6 +47,27 @@ export const RoutineListNode = ({
     const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);
 
+    const handleLabelUpdate = useCallback((newLabel: string) => {
+        handleUpdate(node.id, {
+            ...node,
+            translations: updateTranslationField(node, 'title', newLabel, 'en') as any[],
+        });
+    }, [handleUpdate, node]);
+
+    const onOrderedChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+        handleUpdate(node.id, {
+            ...node,
+            data: { ...node.data, isOrdered: checked } as any,
+        });
+    }, [handleUpdate, node]);
+
+    const onOptionalChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+        handleUpdate(node.id, {
+            ...node,
+            data: { ...node.data, isOptional: checked } as any,
+        });
+    }, [handleUpdate, node]);
+
     const handleSubroutineOpen = useCallback((subroutineId: string) => {
         handleAction(BuildAction.OpenSubroutine, node.id, subroutineId);
     }, [handleAction, node.id]);
@@ -58,6 +81,20 @@ export const RoutineListNode = ({
     const handleSubroutineDelete = useCallback((subroutineId: string) => {
         handleAction(BuildAction.DeleteSubroutine, node.id, subroutineId);
     }, [handleAction, node.id]);
+    const handleSubroutineUpdate = useCallback((subroutineId: string, newData: NodeDataRoutineListItem) => {
+        handleUpdate(node.id, {
+            ...node,
+            data: {
+                ...node.data,
+                routines: (node.data as NodeDataRoutineList)?.routines?.map((subroutine) => {
+                    if (subroutine.id === subroutineId) {
+                        return { ...subroutine, ...newData };
+                    }
+                    return subroutine;
+                }) ?? [],
+            },
+        } as any);
+    }, [handleUpdate, node]);
 
     const { label } = useMemo(() => {
         return {
@@ -106,23 +143,37 @@ export const RoutineListNode = ({
         });
     }, [])
 
-    const labelObject = useMemo(() => labelVisible ? (
-        <Typography
-            id={`${isLinked ? '' : 'unlinked-'}node-routinelist-title-${node.id}`}
-            variant="h6"
-            sx={{
-                ...noSelect,
-                ...textShadow,
-                ...multiLineEllipsis(1),
-                textAlign: 'center',
-                width: '100%',
-                lineBreak: 'anywhere' as any,
-                whiteSpace: 'pre' as any,
-            } as CSSProperties}
-        >
-            {label}
-        </Typography>
-    ) : null, [labelVisible, label, node.id]);
+    const labelObject = useMemo(() => {
+        if (!labelVisible) return null;
+        return (
+            <EditableLabel
+                canEdit={isEditing}
+                handleUpdate={handleLabelUpdate}
+                renderLabel={(t) => (
+                    <Typography
+                        id={`${isLinked ? '' : 'unlinked-'}node-routinelist-title-${node.id}`}
+                        variant="h6"
+                        sx={{
+                            ...noSelect,
+                            ...textShadow,
+                            ...multiLineEllipsis(1),
+                            textAlign: 'center',
+                            width: '100%',
+                            lineBreak: 'anywhere' as any,
+                            whiteSpace: 'pre' as any,
+                        } as CSSProperties}
+                    >{t ?? 'Untitled'}</Typography>
+                )}
+                sxs={{
+                    stack: {
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }
+                }}
+                text={label}
+            />
+        )
+    }, [label, labelVisible, isEditing, node.id, handleLabelUpdate, isLinked]);
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{ ...routineNodeListOptions }}>
@@ -138,7 +189,7 @@ export const RoutineListNode = ({
                             value='isOrderedCheckbox'
                             color='secondary'
                             checked={(node?.data as NodeDataRoutineList)?.isOrdered}
-                            onChange={() => { }}
+                            onChange={onOrderedChange}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
                     }
@@ -157,7 +208,7 @@ export const RoutineListNode = ({
                             value='isOptionalCheckbox'
                             color='secondary'
                             checked={(node?.data as NodeDataRoutineList)?.isOptional}
-                            onChange={() => { }}
+                            onChange={onOptionalChange}
                             sx={{ ...routineNodeCheckboxOption }}
                         />
                     }
@@ -174,6 +225,7 @@ export const RoutineListNode = ({
             handleOpen={handleSubroutineOpen}
             handleEdit={handleSubroutineEdit}
             handleDelete={handleSubroutineDelete}
+            handleUpdate={handleSubroutineUpdate}
             isEditing={isEditing}
             labelVisible={labelVisible}
             scale={scale}
@@ -227,7 +279,7 @@ export const RoutineListNode = ({
                 position: 'relative',
                 display: 'block',
                 borderRadius: '12px',
-                overflow: 'overlay',
+                overflow: 'hidden',
                 backgroundColor: (t) => t.palette.background.paper,
                 color: (t) => t.palette.background.textPrimary,
                 boxShadow: '0px 0px 12px gray',

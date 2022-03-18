@@ -72,6 +72,7 @@ export const OrganizationView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            mutate={true}
         />
     ) : null, [canEdit, organization, resourceList, session]);
 

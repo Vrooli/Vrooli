@@ -224,6 +224,7 @@ export const resolvers = {
                 RoutineModel(prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
+            console.log('IN AUTOCOMPLETE GOT ROUTINES', JSON.stringify(routines));
             // Query standards
             const standards = (await readManyHelper(
                 req.userId, 

@@ -56,6 +56,7 @@ export const UnlinkedNodesDialog = ({
                     {...nodeProps}
                     canExpand={false}
                     labelVisible={true}
+                    handleUpdate={() => { }} // Intentionally blank
                 />
             default:
                 return null;

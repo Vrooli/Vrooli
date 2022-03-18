@@ -219,6 +219,7 @@ export const HomePage = ({
                     ))
                     break;
                 case ObjectType.Routine:
+                    console.log('routine list feed', routines);
                     listFeedItems = routines.map((o, index) => (
                         <RoutineListItem
                             key={`feed-list-item-${o.id}`}

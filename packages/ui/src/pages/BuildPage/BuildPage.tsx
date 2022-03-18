@@ -251,7 +251,7 @@ export const BuildPage = ({
         if (node) {
             const subroutine = (node.data as NodeDataRoutineList).routines.find(r => r.id === subroutineId);
             if (subroutine) {
-                setSelectedSubroutine(subroutine as any);
+                setSelectedSubroutine(subroutine.routine as any);
             }
         }
     }, [nodesById]);
@@ -713,6 +713,47 @@ export const BuildPage = ({
         }
     }, [changedRoutine]);
 
+    /**
+     * Updates the current selected subroutine
+     */
+    const handleSubroutineUpdate = useCallback((updatedSubroutine: Routine) => {
+        console.log('HANDLE SUBROUTINE UPDATE', updatedSubroutine);
+        if (!changedRoutine) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            nodes: changedRoutine.nodes.map((n: Node) => {
+                if (n.type === NodeType.RoutineList && (n.data as NodeDataRoutineList).routines.some(r => r.routine.id === updatedSubroutine.id)) {
+                    return {
+                        ...n,
+                        data: {
+                            ...n.data,
+                            routines: (n.data as NodeDataRoutineList).routines.map(r => {
+                                if (r.routine.id === updatedSubroutine.id) {
+                                    return { ...r, routine: updatedSubroutine };
+                                }
+                                return r;
+                            }),
+                        },
+                    };
+                }
+                return n;
+            }),
+        } as any);
+    }, [changedRoutine]);
+
+    /**
+     * Navigates to a subroutine's build page. Fist checks if there are unsaved changes
+     */
+    const handleSubroutineViewFull = useCallback(() => {
+        console.log('HANDLE SUBROUTINE FULL VIEW', selectedSubroutine);
+        if (!selectedSubroutine) return;
+        if (!isEqual(routine, changedRoutine)) {
+            PubSub.publish(Pubs.Snack, { message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
+            return;
+        }
+        setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
+    }, [selectedSubroutine, changedRoutine, routine]);
+
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
         console.log('in handleaction', action, nodeId, subroutineId);
         switch (action) {
@@ -755,7 +796,7 @@ export const BuildPage = ({
                 //TODO
                 break;
             case BaseObjectAction.Downvote:
-                //TODO
+                openDelete();
                 break;
             case BaseObjectAction.Edit:
                 //TODO
@@ -779,16 +820,16 @@ export const BuildPage = ({
                 //TODO
                 break;
             case BaseObjectAction.Update:
-                //TODO
+                updateRoutine();
                 break;
             case BaseObjectAction.UpdateCancel:
-                //TODO
+                setChangedRoutine(routine);
                 break;
             case BaseObjectAction.Upvote:
                 //TODO
                 break;
         }
-    }, [])
+    }, [routine, updateRoutine, openDelete]);
 
     return (
         <Box sx={{
@@ -848,6 +889,9 @@ export const BuildPage = ({
             /> : null}
             {/* Displays routine information when you click on a routine list item*/}
             <SubroutineInfoDialog
+                isEditing={isEditing}
+                handleUpdate={handleSubroutineUpdate}
+                handleViewFull={handleSubroutineViewFull}
                 language={language}
                 open={Boolean(selectedSubroutine)}
                 subroutine={selectedSubroutine}

@@ -76,7 +76,7 @@ export interface ReportDialogProps extends DialogProps {
 
 export interface ResourceDialogProps extends DialogProps {
     isAdd: boolean; // Determines if mutation is an add or edit
-    mutate?: boolean; // Determines if add resource should be called by this dialog, or is handled later
+    mutate: boolean; // Determines if add resource should be called by this dialog, or is handled later
     open: boolean;
     onClose: () => any;
     onCreated: (resource: Resource) => any;
@@ -180,6 +180,9 @@ export interface BuildInfoDialogProps {
 }
 
 export interface SubroutineInfoDialogProps {
+    handleUpdate: (updatedSubroutine: Routine) => any;
+    handleViewFull: () => any;
+    isEditing: boolean;
     open: boolean;
     language: string; // Language to display/edit
     subroutine: Routine | null;
