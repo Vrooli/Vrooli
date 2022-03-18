@@ -37,7 +37,7 @@ export const OrganizationViewPage = ({
                 setLocation(`${APP_LINKS.Organization}/update/${id}`, { replace: true });
                 break;
             case ObjectDialogAction.Save:
-                if (data?.id) setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });
                 break;
         }
     }, [id, setLocation]);

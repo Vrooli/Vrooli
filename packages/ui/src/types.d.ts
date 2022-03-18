@@ -59,6 +59,7 @@ export interface SubroutineStep extends BaseStep {
     routine: Routine 
 }
 export interface RoutineListStep extends BaseStep { 
+    nodeId: string | null,
     isOrdered: boolean,
     type: RoutineStepType.RoutineList, 
     steps: RoutineStep[], 

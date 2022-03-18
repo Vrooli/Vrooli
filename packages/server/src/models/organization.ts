@@ -193,16 +193,17 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Handle members TODO
+                console.log('organization update', input, userId)
                 // Find in database
                 let object = await prisma.organization.findFirst({
                     where: {
                         AND: [
                             input.where,
-                            { members: { some: { id: userId ?? '' } } },
+                            { members: { some: { userId: userId ?? '' } } },
                         ]
                     }
                 })
-                if (!object) throw new CustomError(CODE.ErrorUnknown);
+                if (!object) throw new CustomError(CODE.Unauthorized);
                 // Update object
                 const currUpdated = await prisma.organization.update({
                     where: input.where,

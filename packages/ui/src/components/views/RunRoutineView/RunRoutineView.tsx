@@ -11,7 +11,7 @@ import {
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getTranslation, RoutineStepType, updateArray, useHistoryState } from "utils";
+import { getTranslation, Pubs, RoutineStepType, updateArray, useHistoryState } from "utils";
 import { useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -114,6 +114,7 @@ export const RunRoutineView = ({
             }] : [];
             resultSteps.push({
                 type: RoutineStepType.RoutineList,
+                nodeId: node.id,
                 isOrdered: (node.data as NodeDataRoutineList).isOrdered ?? false,
                 title: getTranslation(node, 'title', ['en'], true) ?? 'Untitled',
                 description: getTranslation(node, 'description', ['en'], true),
@@ -123,6 +124,7 @@ export const RunRoutineView = ({
         // Main routine acts like routine list
         setStepList({
             type: RoutineStepType.RoutineList,
+            nodeId: null,
             isOrdered: true,
             title: getTranslation(routine, 'title', ['en'], true) ?? 'Untitled',
             description: getTranslation(routine, 'description', ['en'], true),
@@ -291,6 +293,7 @@ export const RunRoutineView = ({
                 // Add step to updated step list
                 updatedStepList = {
                     type: RoutineStepType.RoutineList,
+                    nodeId: (currStep as RoutineListStep).nodeId,
                     steps: updateArray(currStep.steps, indexArray[i + 1], updatedStepList),
                     isOrdered: (currStep as RoutineListStep).isOrdered,
                     title: (currStep as RoutineListStep).title,
@@ -302,12 +305,15 @@ export const RunRoutineView = ({
         setStepList(updatedStepList);
     }, [subroutineData, stepList]);
 
-    const { instructions } = useMemo(() => {
+    const { instructions, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
+        // Find step above current step
+        const currStepParent = findStep(stepParams.slice(0, -1));
         return {
             instructions: getTranslation(routine, 'instructions', languages, true),
+            title: currStepParent?.title ?? 'Untitled',
         };
-    }, [routine, session]);
+    }, [routine, session, stepParams]);
 
     /**
      * Calculates previous step params, or null
@@ -380,17 +386,45 @@ export const RunRoutineView = ({
      */
     const toComplete = () => {
         //TODO
+        PubSub.publish(Pubs.Snack, { message: 'Routine completed!🎉' });
+        handleClose();
+    }
+
+    /**
+     * Find the step array of a given nodeId
+     * @param nodeId The nodeId to search for
+     * @param step The current step object, since this is recursive
+     * @param location The current location array, since this is recursive
+     * @return The step array of the given step
+     */
+    const findLocationArray = (nodeId: string, step: RoutineStep, location: number[] = []): number[] | null => {
+        if (step.type === RoutineStepType.RoutineList) {
+            if ((step as RoutineListStep)?.nodeId === nodeId) return location;
+            const stepList = step as RoutineListStep;
+            for (let i = 1; i <= stepList.steps.length; i++) {
+                const currStep = stepList.steps[i - 1];
+                if (currStep.type === RoutineStepType.RoutineList) {
+                    const currLocation = findLocationArray(nodeId, currStep, [...location, i]);
+                    if (currLocation) return currLocation;
+                }
+            }
+        }
+        return null;
     }
 
     /**
      * Navigate to selected decision
      */
-    const toDecision = useCallback((node: Node) => {
+    const toDecision = useCallback((selectedNode: Node) => {
         // Find step number of node
-        //TODO
-        // Navigate to step
-        //TODO
-    }, []);
+        if (!stepList) return;
+        const locationArray = findLocationArray(selectedNode.id, stepList);
+        console.log('got location array', locationArray);
+        if (!locationArray) return;
+        // Navigate to current step
+        setLocation(`?step=${locationArray.join('.')}`, { replace: true });
+        setStepParams(locationArray);
+    }, [stepList]);
 
     /**
      * Displays either a subroutine view or decision view
@@ -448,7 +482,7 @@ export const RunRoutineView = ({
                             alignItems: 'center',
                             justifyContent: 'center',
                         }}>
-                            <Typography variant="h5" component="h2">{currentStep?.title}</Typography>
+                            <Typography variant="h5" component="h2">{title}</Typography>
                             {(currentStepNumber >= 0 && stepsInCurrentNode >= 0) ?
                                 <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
                                 : null}

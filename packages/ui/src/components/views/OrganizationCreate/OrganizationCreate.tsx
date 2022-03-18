@@ -38,7 +38,6 @@ export const OrganizationCreate = ({
         setTags(t => [...t, tag]);
     }, [setTags]);
     const removeTag = useCallback((tag: TagSelectorTag) => {
-        const temp = tags.filter(t => t.tag !== tag.tag);
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {

@@ -91,7 +91,6 @@ export const NodeGraph = ({
             const maxSpeed = 25;
             const minSpeed = 5;
             const percent = 1 - (distToEdge) / (sideLength * 0.15);
-            const temp = (maxSpeed - minSpeed) * percent + minSpeed;
             dragRefs.current.speed = (maxSpeed - minSpeed) * percent + minSpeed;
         }
         const scrollLeft = () => { gridElement.scrollBy(-dragRefs.current.speed, 0) }

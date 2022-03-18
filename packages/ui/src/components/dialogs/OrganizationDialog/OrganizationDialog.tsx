@@ -38,7 +38,7 @@ export const OrganizationDialog = ({
             case ObjectDialogAction.Previous:
                 break;
             case ObjectDialogAction.Save:
-                if (data?.id) setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.SearchOrganizations}/view/${id}`, { replace: true });
                 break;
         }
     }, [id, setLocation]);
