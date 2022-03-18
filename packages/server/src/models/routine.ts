@@ -48,7 +48,6 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         return rest;
     },
     constructUnions: (data) => {
-        // console.log('CONSTRUCT UNIONS routine', data);
         let modified = addCreatorField(data);
         modified = addOwnerField(modified);
         return modified;
@@ -59,14 +58,12 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         return modified;
     },
     addJoinTables: (partial) => {
-        // console.log('fhdkasfdas routine add join tables', partial);
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {
         return removeJoinTablesHelper(data, joinMapper);
     },
     addCountFields: (partial) => {
-        // console.log('fhdkasfdas routine add count fields', partial);
         return addCountFieldsHelper(partial, countMapper);
     },
     removeCountFields: (data) => {
@@ -78,7 +75,6 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Routine>[]> {
-        console.log('ROUTINE ADD SUPPL FILEDS', objects.length);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -97,23 +93,17 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for role
         if (partial.role) {
-            console.log('ROUTINE QUERYING FOR ROLE');
-            // console.log('routine supplemental fields', objects)
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
             const organizationIds = objects
                 .filter(x => Array.isArray(x.owner?.translations) && x.owner.translations.length > 0 && x.owner.translations[0].name)
                 .map(x => x.owner.id)
                 .filter(x => Boolean(x)) as string[];
-            console.log('routine query organizationIds', organizationIds);
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, organizationIds)
                 : [];
-            console.log('routine query got roles', roles);
             objects = objects.map((x) => {
-                console.log('routien role objects map x.id', x.id, organizationIds)
                 const orgRoleIndex = organizationIds.findIndex(id => id === x.owner?.id);
-                console.log('bbop', orgRoleIndex);
                 if (orgRoleIndex >= 0) {
                     return { ...x, role: roles[orgRoleIndex] };
                 }
@@ -403,13 +393,11 @@ export const routineMutater = (prisma: PrismaType) => ({
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        console.log('in relationshipBuilderInput');
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported in this case (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'inputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         const standardModel = StandardModel(prisma);
-        console.log('relationshipBuilderInput formattedInput', formattedInput);
         // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs 
         //TODO
         // Validate create
@@ -486,7 +474,6 @@ export const routineMutater = (prisma: PrismaType) => ({
         isAdd: boolean = true,
         relationshipName: string = 'routines',
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('routine relatinoship builer start', JSON.stringify(input))
         const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes })
         // Validate
@@ -507,7 +494,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                 data: await this.toDBShape(userId, data.data as any)
             }))
         }
-        console.log('routine relationhsip END', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
@@ -535,7 +521,6 @@ export const routineMutater = (prisma: PrismaType) => ({
             }
         }
         if (updateMany) {
-            console.log('ROUTINE VALIDATE MUTATIONS UPDATEMANY', JSON.stringify(updateMany));
             updateMany.forEach(input => routineUpdate.validateSync(input.data, { abortEarly: false }));
             updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
             updateMany.forEach(input => this.validateNodePositions(input.data));
@@ -600,11 +585,9 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input.data);
-                console.log('ROUTINE UPDATEMANY TODBSHAPE AFTER', JSON.stringify(data));
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.data.organizationId) {
                     // Make sure the user is an admin of the organization
-                    console.log('checking isauthorized org', userId, input);
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.data.organizationId);
                     if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
                     data = {
@@ -613,7 +596,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                         user: { disconnect: true },
                     };
                 } else {
-                    console.log('checking isauthorized user', userId, input);
                     data = {
                         ...data,
                         user: { connect: { id: userId } },
@@ -633,7 +615,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                         ]
                     }
                 })
-                console.log('routine found: ', input.where.id, userId, input.data.organizationId, JSON.stringify(object));
                 if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.routine.update({

@@ -1,4 +1,4 @@
-import { Box, Button, Dialog, Grid, IconButton, Slider, Stack, Tooltip } from '@mui/material';
+import { Box, Button, Dialog, IconButton, Slider, Stack, Tooltip } from '@mui/material';
 import { useMemo, useState } from 'react';
 import {
     Cancel as CancelIcon,
@@ -12,7 +12,6 @@ import { withStyles } from '@mui/styles';
 import { BuildRunState } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from 'wouter';
-import { APP_LINKS } from '@local/shared';
 import { UpTransition } from 'components/dialogs';
 import { RunRoutineView } from 'components/views';
 
@@ -33,7 +32,6 @@ export const BuildBottomContainer = ({
     hasNext,
     isEditing,
     loading,
-    routineId,
     scale,
     session,
     sliderColor,

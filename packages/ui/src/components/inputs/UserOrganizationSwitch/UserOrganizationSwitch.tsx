@@ -50,9 +50,7 @@ export function UserOrganizationSwitch({
         if (session?.id) {
             getOrganizationsData()
         }
-        else console.log('no session id!!!');
     }, [getOrganizationsData, session])
-    console.log('organizations', organizations);
 
     const [menuAnchorEl, setMenuAnchorEl] = useState<any>(null);
     const handleClick = useCallback((ev: MouseEvent<any>) => {
@@ -197,14 +195,14 @@ export function UserOrganizationSwitch({
                             height: '30px',
                             position: 'absolute',
                             top: 0,
+                            transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+                            transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
                         }}>
                             <Icon sx={{
                                 position: 'absolute',
                                 display: 'block',
                                 fill: 'white',
                                 borderRadius: '8px',
-                                transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-                                transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
                             }} />
                         </IconButton>
                     </Box>

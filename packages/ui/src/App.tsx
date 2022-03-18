@@ -67,7 +67,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 export function App() {
-    const classes = useStyles();
+    useStyles();
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
@@ -121,7 +121,6 @@ export function App() {
 
     const checkSession = useCallback((session?: any) => {
         if (session) {
-            console.log('setting session a', session)
             setSession(session);
             return;
         }
@@ -147,7 +146,6 @@ export function App() {
             }
         });
         let sessionSub = PubSub.subscribe(Pubs.Session, (_, session) => {
-            console.log('in session pub', session)
             setSession(s => (session === undefined ? undefined : { ...s, ...session }));
         });
         let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));

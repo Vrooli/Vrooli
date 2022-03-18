@@ -35,13 +35,9 @@ export const OrganizationCreate = ({
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
     const addTag = useCallback((tag: TagSelectorTag) => {
-        console.log('ADD TAG', tag);
         setTags(t => [...t, tag]);
     }, [setTags]);
     const removeTag = useCallback((tag: TagSelectorTag) => {
-        console.log('removeTag', tag);
-        const temp = tags.filter(t => t.tag !== tag.tag);
-        console.log('temp', tags.length, temp.length);
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -60,7 +56,7 @@ export const OrganizationCreate = ({
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
             const tagsAdd = tags.length > 0 ? {
                 tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id).map(t => ({ id: t.id })),
+                tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
             } : {};
             mutationWrapper({
                 mutation,
@@ -73,13 +69,12 @@ export const OrganizationCreate = ({
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd
                 }) as any,
-                onSuccess: (response) => { console.log('on create success'); onCreated(response.data.organizationCreate) },
+                onSuccess: (response) => { onCreated(response.data.organizationCreate) },
             })
         },
     });
 
     const actions: DialogActionItem[] = useMemo(() => {
-        console.log('creating actions', session, formik.isSubmitting, formik.isValid)
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
         return [
             ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting), true, () => { }],

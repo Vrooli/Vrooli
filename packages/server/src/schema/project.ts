@@ -27,7 +27,6 @@ export const typeDef = gql`
         createdByOrganizationId: ID
         createdByUserId: ID
         isComplete: Boolean
-        name: String!
         parentId: ID
         resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [ID!]
@@ -37,7 +36,6 @@ export const typeDef = gql`
     input ProjectUpdateInput {
         id: ID!
         isComplete: Boolean
-        name: String
         organizationId: ID
         parentId: ID
         userId: ID

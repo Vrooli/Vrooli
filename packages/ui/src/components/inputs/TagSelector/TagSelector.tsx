@@ -23,7 +23,6 @@ export const TagSelector = ({
         setInputValue(change.target.value.replace(/[,;]/g, ''))
     }, []);
     const onKeyDown = useCallback((event: any) => {
-        console.log('onKeyDown', event);
         let tagLabel;
         // Check if the user pressed ',' or ';'
         if (event.code === 'Comma' || event.code === 'Semicolon') {
@@ -34,7 +33,6 @@ export const TagSelector = ({
             tagLabel = inputValue + event.key
         }
         else return;
-        console.log('tagLabel', tagLabel);
         // Remove invalid characters (i.e. ',' or ';')
         tagLabel = tagLabel.replace(/[,;]/g, '');
         // Check if tag is valid length

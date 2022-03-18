@@ -43,7 +43,6 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         return modified;
     },
     addJoinTables: (partial) => {
-        console.log('in standard addJoinTables', partial);
         return addJoinTablesHelper(partial, joinMapper)
     },
     removeJoinTables: (data) => {
@@ -73,7 +72,6 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         }
         // Query for role
         if (partial.role) {
-            console.log('standard supplemental fields', objects)
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
             const organizationIds = objects
@@ -130,8 +128,8 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         const organizationIdQuery = input.organizationId ? { createdByOrganizationId: input.organizationId } : {};
         const projectIdQuery = input.projectId ? {
             OR: [
-                { createdByUser: { some: { projects: { some: { id: input.projectId } } } } },
-                { createdByOrganization: { some: { projects: { some: { id: input.projectId } } } } },
+                { createdByUser: { projects: { some: { id: input.projectId } } } },
+                { createdByOrganization: { projects: { some: { id: input.projectId } } } },
             ]
         } : {};
         const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};

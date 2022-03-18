@@ -50,7 +50,7 @@ export function AutocompleteSearchBar<T>({
             options={options}
             inputValue={internalValue}
             getOptionLabel={getOptionLabel}
-            renderOption={(_, option) => {console.log('autocomplete render option!', option); return (
+            renderOption={(_, option) => { return (
                 <MenuItem
                     key={getOptionKey(option)}
                     onClick={() => {

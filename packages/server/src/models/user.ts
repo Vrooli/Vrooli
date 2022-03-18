@@ -34,7 +34,6 @@ export const userFormatter = (): FormatConverter<User> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<User>[]> {
-        console.log('user addSupplementalFields', partial, objects);
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred

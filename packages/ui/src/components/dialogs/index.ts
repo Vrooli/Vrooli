@@ -1,5 +1,5 @@
 export * from './transitions';
-export * from './AddResourceDialog/AddResourceDialog';
+export * from './ResourceDialog/ResourceDialog';
 export * from './AddSubroutineDialog/AddSubroutineDialog';
 export * from './AlertDialog/AlertDialog';
 export * from './BaseObjectActionDialog/BaseObjectActionDialog';

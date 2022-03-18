@@ -20,7 +20,6 @@ export const Selector = ({
     style,
     ...props
 }: SelectorProps) => {
-    console.log('slelector', options, selected);
     const getOptionStyle = useCallback((theme: Theme, option: any) => {
         const label = getOptionLabel ? getOptionLabel(option) : option;
         return {

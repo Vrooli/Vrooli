@@ -35,12 +35,9 @@ export function convertToDot(obj, parent = [], keyValue = {}) {
  */
 export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
     let changed = {};
-    console.log('formatForCreate start', obj);
     // Helper method to add to arrays which might not exist
     const addToChangedArray = (key, value) => {
-        console.log('add to changed array', key, value);
         if (Array.isArray(changed[key])) {
-            console.log('is array');
             if (Array.isArray(value)) changed[key] = [...changed[key], ...value];
             else changed[key] = [...changed[key], value];
         }
@@ -48,21 +45,17 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
     }
     // Iterate through each field in the object
     for (const [key, value] of Object.entries(obj)) {
-        console.log('keeeyeyeyeyeye', key, value);
         // If the key is already one of the relationship mutation types, don't parse it
         if (['Connect', 'Create'].some(s => key.endsWith(s))) {
             addToChangedArray(key, value);
         }
         // If the value is an array
         else if (Array.isArray(value)) {
-            console.log('formatforCreate is array', value)
             // Loop through changed values and determine which are connections and adds
             for (let i = 0; i < value.length; i++) {
                 const curr = value[i];
                 // Find the changed value at this index
-                console.log('array loop', i, curr)
                 const changedValue = _.isObject(curr) ? formatForCreate(curr) : curr;
-                console.log('array loop after changedvalie', changedValue)
                 // Check if create (i.e does not contain an id)
                 if (changedValue && curr.id === undefined) {
                     addToChangedArray(`${key}Create`, changedValue);
@@ -82,20 +75,16 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
         }
         // If the value is an object
         else if (_.isObject(value)) {
-            console.log('formatforCreate in isobject', value)
             const curr: any = value;
             // Find the changed value
             const changedValue = formatForCreate(curr);
-            console.log('changed value', changedValue)
             // Check if create (i.e does not contain an id)
             if (changedValue && curr.id === undefined) {
-                console.log('create')
                 changed[`${key}Create`] = changedValue;
             }
             // Check if connection (i.e. is an object with only an id)
             // NOTE: Does not support passing an id directly, like in the case of an array
             else if (curr.id) {
-                console.log('connect')
                 changed[`${key}Connect`] = curr.id;
             }
             // Shouldn't hit this point under normal circumstances. But if you do,
@@ -105,7 +94,6 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
         // If the value is a primitive, add it to the changed object
         else changed[key] = value;
     }
-    console.log('formatForCreate complete', changed);
     return changed;
 }
 
@@ -188,12 +176,10 @@ export const formatForUpdate = <S, T>(
                     }
                     // If the original value is not found, treat it as a create
                     if (!originalValue) {
-                        console.log('original value not found', key, changedValue, original && original[key])
                         addToChangedArray(`${key}Create`, changedValue);
                     }
                     // Otherwise, treat it as an update
                     else {
-                        console.log('treated as update', key, changedValue, original && original[key])
                         addToChangedArray(`${key}Update`, changedValue);
                     }
                 }
@@ -203,12 +189,10 @@ export const formatForUpdate = <S, T>(
             }
             // Loop through original values and determine which are disconnections
             if (original && Array.isArray(original[key])) {
-                console.log('in original array check', key, original);
                 for (let i = 0; i < original[key].length; i++) {
                     const curr = original[key][i];
                     // If the current value is an object, try to find the changed value
                     let changedValue = value.find(o => o.id === curr.id);
-                    console.log('checking original', curr, changedValue)
                     // If the changed value is not found, it must have been deleted/disconnected
                     if (!changedValue) {
                         if (treatLikeDeletes && treatLikeDeletes.includes(key)) addToChangedArray(`${key}Delete`, curr.id);
@@ -216,7 +200,6 @@ export const formatForUpdate = <S, T>(
                     }
                 }
             }
-            else console.log('no original array', key, original);
         }
         // If the value is an object
         else if (_.isObject(value)) {
@@ -239,7 +222,6 @@ export const formatForUpdate = <S, T>(
             }
             // Check if update
             else if (curr.id !== undefined) {
-                console.log('chedking is updateeeeeeeeee', key, changedValue, originalValue)
                 // Only an update if the original value is found
                 if (originalValue) changed[`${key}Update`] = changedValue;
                 // Only a create if key not in treatLikeConnects
@@ -253,28 +235,5 @@ export const formatForUpdate = <S, T>(
         // If the value is a primitive, add it to the changed object
         else changed[key] = value;
     }
-    console.log('formatForUpdate complete', changed);
     return changed;
-}
-
-/**
- * Retrieves a value from an object's translations
- * @param obj The object to retrieve the value from
- * @param field The field to retrieve the value from
- * @param languages The languages the user is requesting
- * @param showAny If true, will default to returning the first language if no value is found
- * @returns The value of the field in the object's translations
- */
-export const getTranslation = (obj: any, field: string, languages: readonly string[], showAny: boolean = true): any => {
-    if (!obj || !obj.translations) return undefined;
-    // Loop through translations
-    for (const translation of obj.translations) {
-        // If this translation is one of the languages we're looking for, check for the field
-        if (languages.includes(translation.language)) {
-            if (translation[field]) return translation[field];
-        }
-    }
-    if (showAny && obj.translations.length > 0) return obj.translations[0][field];
-    // If we didn't find a translation, return undefined
-    return undefined;
 }

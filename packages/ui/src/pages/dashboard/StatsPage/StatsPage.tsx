@@ -14,7 +14,6 @@ export const StatsPage = () => {
     // Handle tabs
     const [tabIndex, setTabIndex] = useState(0);
     const handleTabChange = (event, newValue) => {
-        console.log('setting tab index', newValue);
         setTabIndex(newValue);
     };
 

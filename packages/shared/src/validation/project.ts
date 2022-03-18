@@ -23,6 +23,7 @@ export const projectCreateForm = yup.object().shape({
     description: description.notRequired().default(undefined),
     name: name.required(),
 })
+export const projectUpdateForm = projectCreateForm;
 /**
  * Information required when creating a project. 
  */

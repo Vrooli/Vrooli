@@ -24,8 +24,13 @@ export function ListMenu<T>({
 }: ListMenuProps<T>) {
     const open = Boolean(anchorEl);
 
-    const items = useMemo(() => data?.map(({ label, value, Icon, iconColor, helpData }, index) => {
-        const itemText = <ListItemText primary={label} />;
+    const items = useMemo(() => data?.map(({ label, value, Icon, iconColor, preview, helpData }, index) => {
+        const itemText = <ListItemText primary={label} secondary={preview ? 'Coming Soon' : null} sx={{
+            // Style secondary
+            '& .MuiListItemText-secondary': {
+                color: 'red',
+            },
+        }}/>;
         const itemIcon = Icon ? (
             <ListItemIcon>
                 <Icon sx={{ fill: iconColor || 'default' }} />
@@ -37,7 +42,7 @@ export function ListMenu<T>({
             </IconButton>
         ) : null;
         return (
-            <ListItem button onClick={() => { console.log('on select', value); onSelect(value); onClose(); }} key={index}>
+            <ListItem disabled={preview} button onClick={() => { onSelect(value); onClose(); }} key={index}>
                 {itemIcon}
                 {itemText}
                 {helpIcon}
@@ -60,7 +65,7 @@ export function ListMenu<T>({
                 vertical: 'top',
                 horizontal: 'center',
             }}
-            onClose={(e) => { console.log('on close', e); onClose() }}
+            onClose={(e) => { onClose() }}
             sx={{
                 '& .MuiMenu-paper': {
                     background: (t) => t.palette.background.paper
@@ -91,7 +96,7 @@ export function ListMenu<T>({
                 </Typography>
                 <IconButton
                     edge="end"
-                    onClick={(e) => { console.log('on close', e); onClose() }}
+                    onClick={(e) => { onClose() }}
                 >
                     <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                 </IconButton>

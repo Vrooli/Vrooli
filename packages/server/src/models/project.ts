@@ -47,7 +47,6 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         return modified;
     },
     deconstructUnions: (partial) => {
-        // console.log('IN DECONSTRUCT UNIONS PROJECT', partial);
         let modified = removeCreatorField(partial);
         modified = removeOwnerField(modified);
         return modified;
@@ -56,7 +55,6 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {
-        console.log('in project removeJoinTables', data);
         return removeJoinTablesHelper(data, joinMapper);
     },
     async addSupplementalFields(
@@ -83,7 +81,6 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         }
         // Query for role
         if (partial.role) {
-            console.log('project supplemental fields', objects[0].owner)
             // If owned by user, set role to owner if userId matches
             // If owned by organization, set role user's role in organization
             const organizationIds = objects

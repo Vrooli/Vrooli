@@ -2,16 +2,18 @@
  * Drawer to display a routine list item's info on the build page. 
  * Swipes up from bottom of screen
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
+    AccountTree as GraphIcon,
     Close as CloseIcon,
-    Info as InfoIcon,
 } from '@mui/icons-material';
 import {
     Box,
+    Button,
     Grid,
     IconButton,
     Link,
+    Stack,
     SwipeableDrawer,
     Typography,
 } from '@mui/material';
@@ -21,15 +23,20 @@ import { SubroutineInfoDialogProps } from '../types';
 import { getTranslation, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import Markdown from 'markdown-to-jsx';
+import { routineUpdateForm as validationSchema } from '@local/shared';
+import { MarkdownInput } from 'components/inputs';
+import { useFormik } from 'formik';
 
 export const SubroutineInfoDialog = ({
+    handleUpdate,
+    handleViewFull,
+    isEditing,
     open,
     language,
     subroutine,
     onClose,
 }: SubroutineInfoDialogProps) => {
     const [, setLocation] = useLocation();
-
     /**
      * Name of user or organization that owns this routine
      */
@@ -53,6 +60,39 @@ export const SubroutineInfoDialog = ({
             setLocation(`${APP_LINKS.Organization}/${subroutine?.owner.id}`);
         }
     }, [subroutine?.owner, setLocation]);
+
+    // Handle update
+    const formik = useFormik({
+        initialValues: {
+            description: getTranslation(subroutine, 'description', [language]) ?? '',
+            instructions: getTranslation(subroutine, 'instructions', [language]) ?? '',
+            isInternal: subroutine?.isInternal ?? false,
+            title: getTranslation(subroutine, 'title', [language]) ?? '',
+            version: subroutine?.version ?? '',
+        },
+        enableReinitialize: true, // Needed because existing data is obtained from async fetch
+        validationSchema,
+        onSubmit: (values) => {
+            handleUpdate({
+                ...subroutine,
+                isInternal: values.isInternal,
+                version: values.version,
+                translations: [{
+                    language: 'en',
+                    title: values.title,
+                    description: values.description,
+                    instructions: values.instructions,
+                }],
+            } as any);
+        },
+    });
+
+    /**
+     * Navigate to the subroutine's build page
+     */
+    const toGraph = useCallback(() => {
+        handleViewFull();
+    }, [handleViewFull]);
 
     return (
         <SwipeableDrawer
@@ -90,14 +130,14 @@ export const SubroutineInfoDialog = ({
                 {/* Subroutine title */}
                 <Typography variant="h5">{getTranslation(subroutine, 'title', [language])}</Typography>
                 {/* Owned by and version */}
-                <Box>
+                <Stack direction="row" sx={{ marginLeft: 'auto' }}>
                     {ownedBy ? (
                         <Link onClick={toOwner}>
                             <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
                         </Link>
                     ) : null}
                     <Typography variant="body1">{subroutine?.version}</Typography>
-                </Box>
+                </Stack>
             </Box>
             {/* Main content */}
             <Box sx={{
@@ -114,7 +154,7 @@ export const SubroutineInfoDialog = ({
                             borderRadius: 1,
                         }}>
                             <Typography variant="h6">Description</Typography>
-                            {/* {
+                            {
                                 isEditing ? (
                                     <MarkdownInput
                                         id="description"
@@ -126,10 +166,9 @@ export const SubroutineInfoDialog = ({
                                         helperText={formik.touched.description ? formik.errors.description as string : null}
                                     />
                                 ) : (
-                                    <Markdown>{getTranslation(routine, 'description', [language]) ?? ''}</Markdown>
+                                    <Markdown>{getTranslation(subroutine, 'description', [language]) ?? ''}</Markdown>
                                 )
-                            } */}
-                            <Markdown>{getTranslation(subroutine, 'description', [language]) ?? ''}</Markdown>
+                            }
                         </Box>
                     </Grid>
                     {/* Instructions */}
@@ -140,7 +179,7 @@ export const SubroutineInfoDialog = ({
                             borderRadius: 1,
                         }}>
                             <Typography variant="h6">Instructions</Typography>
-                            {/* {
+                            {
                                 isEditing ? (
                                     <MarkdownInput
                                         id="instructions"
@@ -152,14 +191,35 @@ export const SubroutineInfoDialog = ({
                                         helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
                                     />
                                 ) : (
-                                    <Markdown>{getTranslation(routine, 'instructions', [language]) ?? ''}</Markdown>
+                                    <Markdown>{getTranslation(subroutine, 'instructions', [language]) ?? ''}</Markdown>
                                 )
-                            } */}
-                            <Markdown>{getTranslation(subroutine, 'instructions', [language]) ?? ''}</Markdown>
+                            }
                         </Box>
                     </Grid>
                 </Grid>
             </Box>
+            {/* Bottom nav container */}
+
+            {/* If subroutine has its own subroutines, display button to switch to that graph */}
+            {(subroutine as any)?.nodesCount > 0 && (
+                <Box sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: 1,
+                    background: (t) => t.palette.primary.dark,
+                }}>
+                    <Button
+                        color="secondary"
+                        startIcon={<GraphIcon />}
+                        onClick={toGraph}
+                        sx={{
+                            marginLeft: 'auto'
+                        }}
+                    >View Graph</Button>
+                </Box>
+            )}
         </SwipeableDrawer>
     );
 }

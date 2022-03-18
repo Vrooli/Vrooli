@@ -3,15 +3,16 @@ import { resourceCreateForm as validationSchema } from '@local/shared';
 import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
-import { resourceCreateMutation } from 'graphql/mutation';
+import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { AddResourceDialogProps } from '../types';
+import { ResourceDialogProps } from '../types';
 import {
     Close as CloseIcon
 } from '@mui/icons-material';
-import { formatForCreate, Pubs } from 'utils';
+import { formatForCreate, getTranslation, Pubs } from 'utils';
 import { resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
+import { resourceUpdate } from 'graphql/generated/resourceUpdate';
 
 const helpText =
 `## What are resources?
@@ -47,26 +48,32 @@ const UsedForDisplay = {
     [ResourceUsedFor.Tutorial]: 'Tutorial',
 }
 
-export const AddResourceDialog = ({
-    mutate = true,
+export const ResourceDialog = ({
+    isAdd,
+    mutate,
     open,
     onClose,
     onCreated,
+    onUpdated,
+    index,
+    partialData,
     title = 'Add Resource',
     listId,
-}: AddResourceDialogProps) => {
+}: ResourceDialogProps) => {
+    console.log('resource dialog', isAdd)
 
-    const [mutation, { loading }] = useMutation<resourceCreate>(resourceCreateMutation);
+    const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
+    const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
+
     const formik = useFormik({
         initialValues: {
-            link: '',
-            usedFor: ResourceUsedFor.Context,
-            title: '',
-            description: '',
+            link: partialData?.link ?? '',
+            usedFor: partialData?.usedFor ?? ResourceUsedFor.Context,
+            title: getTranslation(partialData, 'title', ['en'], false) ?? '',
+            description: getTranslation(partialData, 'description', ['en'], false) ?? '',
         },
         validationSchema,
         onSubmit: (values) => {
-            console.log('in onsubmit', values);
             const input = formatForCreate({
                 listId,
                 link: values.link,
@@ -77,15 +84,14 @@ export const AddResourceDialog = ({
                     description: values.description,
                 }],
             })
-            console.log('add resource input', input);
             if (mutate) {
                 mutationWrapper({
-                    mutation,
+                    mutation: isAdd ? addMutation : updateMutation,
                     input,
                     successCondition: (response) => response.data.resourceCreate !== null,
                     onSuccess: (response) => {
                         PubSub.publish(Pubs.Snack, { message: 'Resource created.' });
-                        onCreated(response.data.resourceCreate);
+                        isAdd ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
                         onClose();
                     },
                 })
@@ -95,8 +101,6 @@ export const AddResourceDialog = ({
             }
         },
     });
-
-    console.log('FORMIK ERROR', listId, formik.errors, formik.values)
 
     return (
         <Dialog

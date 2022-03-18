@@ -6,7 +6,6 @@ import { walletComplete_walletComplete as WalletCompleteResult } from 'graphql/g
 import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
 import { errorToSnack } from 'graphql/utils/errorToSnack';
 import { initializeApollo } from 'graphql/utils/initialize';
-import { Session } from 'types';
 import { Pubs } from 'utils';
 
 export enum WalletProvider {
@@ -117,20 +116,17 @@ export const validateWallet = async (provider: WalletProvider): Promise<WalletCo
         // Connect to wallet extension
         const walletActions = await connectWallet(provider);
         if (!walletActions) return null;
-        console.log('walletActions', walletActions);
         // Check if wallet is mainnet or testnet
         const network = await walletActions.getNetworkId();
         if (network !== Network.Mainnet) throw new Error('Wallet is not on mainnet');
         // Find wallet address
         const rewardAddresses = await walletActions.getRewardAddresses();
         if (!rewardAddresses || rewardAddresses.length === 0) throw new Error('Could not find reward address');
-        console.log('rewardAddress', rewardAddresses[0]);
         // Request payload from backend
         const payload = await walletInit(rewardAddresses[0]);
         if (!payload) return null;
         // Sign payload with wallet
         const signedPayload = await signPayload(provider, walletActions, rewardAddresses[0], payload);
-        console.log('signed payload', signedPayload);
         if (!signedPayload) return null;
         // Send signed payload to backend for verification
         result = (await walletComplete(rewardAddresses[0], signedPayload));

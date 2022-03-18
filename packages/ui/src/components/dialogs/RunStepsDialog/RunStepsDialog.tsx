@@ -22,7 +22,7 @@ import { routine, routineVariables } from "graphql/generated/routine";
 import { useLazyQuery } from '@apollo/client';
 import { routineQuery } from 'graphql/query';
 import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
-import { RoutineStep, SubroutineStep } from 'types';
+import { RoutineStep } from 'types';
 import { RoutineStepType } from 'utils';
 import { useLocation } from 'wouter';
 
@@ -118,7 +118,6 @@ export const RunStepsDialog = ({
     stepList,
     sxs,
 }: RunStepsDialogProps) => {
-    console.log('run steps dialog history', history);
     const [, setLocation] = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);

@@ -4,21 +4,25 @@ import { APP_LINKS, MemberRole } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
 import { routine } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
-import { MouseEvent, useCallback, useMemo, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
+    AccountTree as GraphIcon,
+    Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
+    PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ResourceListHorizontal, RunRoutineView, StarButton, UpTransition } from "components";
+import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunRoutineView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getTranslation, Pubs } from "utils";
-import { ResourceList, User } from "types";
+import { ResourceList, Routine, User } from "types";
 import Markdown from "markdown-to-jsx";
-import { starMutation } from "graphql/mutation";
+import { routineDeleteOneMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/wrappers";
-import { star } from "graphql/generated/star";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
+
+const TERTIARY_COLOR = '#95f3cd';
 
 export const RoutineView = ({
     session,
@@ -32,8 +36,31 @@ export const RoutineView = ({
     // Fetch data
     const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const routine = useMemo(() => data?.routine, [data]);
+    const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null); // Routine may change if it is starred/upvoted/etc.
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role ?? ''), [routine]);
     const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+    // Open boolean for delete routine confirmation
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const openDelete = () => setDeleteOpen(true);
+    const closeDelete = () => setDeleteOpen(false);
+
+    useEffect(() => {
+        if (routine) { setChangedRoutine(routine) }
+    }, [routine]);
+
+    const [routineDelete, { loading: loadingDelete }] = useMutation<any>(routineDeleteOneMutation);
+    /**
+     * Deletes the entire routine. Assumes confirmation was already given.
+     */
+    const deleteRoutine = useCallback(() => {
+        if (!routine) return;
+        mutationWrapper({
+            mutation: routineDelete,
+            input: { id: routine.id },
+            successMessage: () => 'Routine deleted.',
+            onSuccess: () => { setLocation(APP_LINKS.Home) },
+        })
+    }, [routine, routineDelete])
 
     const { title, description, instructions } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -68,28 +95,9 @@ export const RoutineView = ({
         }
     }, [routine?.owner, setLocation]);
 
-    const [star] = useMutation<star>(starMutation);
-    /**
-     * Start a routine later (i.e. star the routine)
-     */
-    const startLater = useCallback(() => {
-        // Must be logged in
-        if (!session?.id) {
-            PubSub.publish(Pubs.Snack, { message: 'Must be logged in to perform this action.', severity: 'Error' });
-            setLocation(`${APP_LINKS.Start}?redirect=${encodeURIComponent(window.location.pathname)}`);
-            return;
-        }
-        if (routine?.isStarred) {
-            PubSub.publish(Pubs.Snack, { message: 'Routine is already starred.', severity: 'Warning' });
-        }
-        else {
-            mutationWrapper({
-                mutation: star,
-                input: { isStar: true, starFor: StarFor.Routine, forId: id },
-                onSuccess: () => { PubSub.publish(Pubs.Snack, { message: 'Routine starred.' }); },
-            })
-        }
-    }, [id, routine, session]);
+    const viewGraph = () => {
+        setLocation(`${APP_LINKS.Build}/${routine?.id}`);
+    }
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const runRoutine = () => {
@@ -97,27 +105,17 @@ export const RoutineView = ({
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {
-            PubSub.publish(Pubs.Snack, { message: 'Routine invalid.', severity: 'Error' });
+            PubSub.publish(Pubs.Snack, { message: 'Routine invalid - cannot run.', severity: 'Error' });
             return;
         }
-        // Find edges leaving start node. If more than one, page will be a decision
-        const edges = routine?.nodeLinks?.filter(link => link.fromId === firstNode?.id) ?? [];
-        if (edges.length > 1) {
-            // Navigate to decision page
-            //TODO
-        }
-        // Otherwise, first page will be a subroutine
-        else if (edges.length === 1) {
-            // Navigate to subroutine
-            const toNode = edges[0].toId;
-            setLocation(`${APP_LINKS.Run}/${id}/${toNode}`);
-        }
-        // If no edges, routine is invalid
-        else {
-            PubSub.publish(Pubs.Snack, { message: 'Routine invalid.', severity: 'Error' });
-        }
+        setLocation(`${APP_LINKS.Run}/${id}?step=1.1`);
     };
     const stopRoutine = () => { setIsRunOpen(false) };
+
+    const onEdit = useCallback(() => {
+        // Depends on if we're in a search popup or a normal organization page
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Run}/${id}/edit` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
+    }, [setLocation, id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -131,6 +129,10 @@ export const RoutineView = ({
     const moreOptions: BaseObjectAction[] = useMemo(() => {
         // Initialize
         let options: BaseObjectAction[] = [];
+        if (canEdit) {
+            options.push(BaseObjectAction.Edit);
+        }
+        options.push(BaseObjectAction.Stats);
         if (session && !canEdit) {
             options.push(routine?.isUpvoted ? BaseObjectAction.Downvote : BaseObjectAction.Upvote);
             options.push(routine?.isStarred ? BaseObjectAction.Unstar : BaseObjectAction.Star);
@@ -147,21 +149,21 @@ export const RoutineView = ({
     }, [routine, canEdit, session]);
 
     /**
-     * If routine has nodes (i.e. is not just this page), display "Start Later" and "Start Now" buttons
+     * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" buttons
      */
     const actions = useMemo(() => {
         if (!routine?.nodes?.length) return null;
         return (
             <Grid container spacing={1}>
                 <Grid item xs={12} sm={6}>
-                    <Button fullWidth onClick={startLater} color="secondary">Start Later</Button>
+                    <Button startIcon={<GraphIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                    <Button fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
+                    <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                 </Grid>
             </Grid>
         )
-    }, [routine, startLater, runRoutine]);
+    }, [routine, viewGraph, runRoutine]);
 
     /**
      * Display body or loading indicator
@@ -181,18 +183,28 @@ export const RoutineView = ({
             <>
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
+                    {/* Metadata */}
+                    {Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 && <Box sx={{
+                        padding: 1,
+                        borderRadius: 1,
+                    }}>
+                        {/* TODO click to view */}
+                        <Typography variant="h6">Metadata</Typography>
+                        <Typography variant="body1">Status: TODO</Typography>
+                        <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
+
+                    </Box>}
                     {/* Resources */}
                     {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
                         title={'Resources'}
                         list={(routine as any).resourceLists[0]}
                         canEdit={false}
-                        handleUpdate={() => { }}
+                        handleUpdate={() => { }} // Intentionally blank
                         session={session}
                     /> : null}
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
-                        border: `1px solid ${(t) => t.palette.primary.dark}`,
                         borderRadius: 1,
                         color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
                     }}>
@@ -202,7 +214,6 @@ export const RoutineView = ({
                     {/* Instructions */}
                     <Box sx={{
                         padding: 1,
-                        border: `1px solid ${(t) => t.palette.background.paper}`,
                         borderRadius: 1,
                         color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
                     }}>
@@ -210,7 +221,7 @@ export const RoutineView = ({
                         <Markdown>{instructions ?? 'No instructions'}</Markdown>
                     </Box>
                 </Stack>
-                {/* Action buttons */}
+                {/* Actions */}
                 {actions}
             </>
         )
@@ -222,9 +233,15 @@ export const RoutineView = ({
             alignItems: 'center',
             justifyContent: 'center',
             margin: 'auto',
-            overflowY: 'scroll',
             minHeight: '88vh',
         }}>
+            {/* Delete routine confirmation dialog */}
+            <DeleteRoutineDialog
+                isOpen={deleteOpen}
+                routineName={getTranslation(routine, 'title', ['en']) ?? ''}
+                handleClose={closeDelete}
+                handleDelete={deleteRoutine}
+            />
             {/* Dialog for running routine */}
             <Dialog
                 id="run-routine-view-dialog"
@@ -240,6 +257,9 @@ export const RoutineView = ({
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
+                handleActionComplete={() => { }} //TODO
+                handleDelete={() => { }} //TODO
+                handleEdit={onEdit}
                 objectId={id}
                 objectType={'Routine'}
                 anchorEl={moreMenuAnchor}
@@ -273,12 +293,21 @@ export const RoutineView = ({
                             objectId={routine?.id ?? ''}
                             showStars={false}
                             starFor={StarFor.Routine}
-                            isStar={routine?.isStarred ?? false}
-                            stars={routine?.stars ?? 0}
-                            onChange={(isStar: boolean) => { }}
+                            isStar={changedRoutine?.isStarred ?? false}
+                            stars={changedRoutine?.stars ?? 0}
+                            onChange={(isStar: boolean) => { changedRoutine && setChangedRoutine({ ...changedRoutine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
                         <Typography variant="h5">{title}</Typography>
+                        {canEdit && <Tooltip title="Edit routine">
+                            <IconButton
+                                aria-label="Edit routine"
+                                size="small"
+                                onClick={onEdit}
+                            >
+                                <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                            </IconButton>
+                        </Tooltip>}
                         <Tooltip title="More options">
                             <IconButton
                                 aria-label="More"
@@ -295,11 +324,11 @@ export const RoutineView = ({
                         </Tooltip>
                     </Stack>
                     <Stack direction="row" spacing={1}>
-                        {ownedBy ? (
+                        {ownedBy && (
                             <Link onClick={toOwner}>
                                 <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
                             </Link>
-                        ) : null}
+                        )}
                         <Typography variant="body1">{routine?.version}</Typography>
                     </Stack>
                 </Stack>

@@ -32,7 +32,6 @@ export const starFormatter = (): FormatConverter<Star> => ({
         else if (standard) modified.to = standard;
         else if (tag) modified.to = tag;
         else if (user) modified.to = user;
-        console.log('starFormatter.toGraphQL finished', modified);
         return modified;
     },
     deconstructUnions: (partial) => {
@@ -66,10 +65,8 @@ const forMapper = {
  */
 const starrer = (prisma: PrismaType) => ({
     async star(userId: string, input: StarInput): Promise<boolean> {
-        console.log('going to star', input)
         // Define prisma type for object being starred
         const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as any);
-        console.log('prismaFor', prismaFor)
         // Check if object being starred exists
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
         if (!starringFor) throw new CustomError(CODE.ErrorUnknown);
@@ -80,7 +77,6 @@ const starrer = (prisma: PrismaType) => ({
                 [`${forMapper[input.starFor]}Id`]: input.forId
             }
         })
-        console.log('existing star', star)
         // If star already existed and we want to star, 
         // or if star did not exist and we don't want to star, skip
         if ((star && input.isStar) || (!star && !input.isStar)) return true;
@@ -117,14 +113,11 @@ const starrer = (prisma: PrismaType) => ({
         starFor: StarFor
     ): Promise<boolean[]> {
         // Create result array that is the same length as ids
-        console.log('in getisstarreds', userId, ids, starFor)
         const result = new Array(ids.length).fill(false); //TODO something wrong with this method. not getting isstarred on tags again
         // Filter out nulls and undefineds from ids
         const idsFiltered = ids.filter(id => id !== null && id !== undefined);
-        console.log('ids filtered', idsFiltered)
         const fieldName = `${starFor.toLowerCase()}Id`;
         const isStarredArray = await prisma.star.findMany({ where: { byId: userId, [fieldName]: { in: idsFiltered } } });
-        console.log('isStarredArray', isStarredArray)
         // Replace the nulls in the result array with true or false
         for (let i = 0; i < ids.length; i++) {
             // check if this id is in isStarredArray

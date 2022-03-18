@@ -69,6 +69,7 @@ export const ProjectView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            mutate={true}
         />
     ) : null, [canEdit, project, resourceList, session]);
 
@@ -331,6 +332,9 @@ export const ProjectView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
+                handleActionComplete={() => { }} //TODO
+                handleDelete={() => { }} //TODO
+                handleEdit={onEdit}
                 objectId={id}
                 objectType={'Project'}
                 anchorEl={moreMenuAnchor}

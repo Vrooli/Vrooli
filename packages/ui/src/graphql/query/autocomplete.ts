@@ -31,6 +31,7 @@ export const autocompleteQuery = gql`
             }
             projects {
                 id
+                score
                 stars
                 isUpvoted
                 isStarred
@@ -46,6 +47,7 @@ export const autocompleteQuery = gql`
             }
             routines {
                 id
+                score
                 stars
                 isUpvoted
                 isStarred
@@ -62,6 +64,7 @@ export const autocompleteQuery = gql`
             }
             standards {
                 id
+                score
                 stars
                 isUpvoted
                 isStarred

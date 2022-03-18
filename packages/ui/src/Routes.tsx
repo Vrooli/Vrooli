@@ -37,7 +37,6 @@ const { StandardViewPage } = lazily(() => import('./pages/view/StandardViewPage'
 const { RoutineViewPage } = lazily(() => import('./pages/view/RoutineViewPage'));
 const { UserViewPage } = lazily(() => import('./pages/view/UserViewPage'));
 const { FormPage } = lazily(() => import('./pages/wrapper/FormPage'));
-const { RunRoutinePage } = lazily(() => import('./pages/wrapper/RunRoutinePage'));
 const { NotFoundPage } = lazily(() => import('./pages/NotFoundPage'));
 const { BuildPage } = lazily(() => import('./pages/BuildPage/BuildPage'));
 

@@ -2,11 +2,10 @@ import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { standard } from "graphql/generated/standard";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import PubSub from 'pubsub-js';
 import { ROLES, standardCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
-import { formatForCreate, Pubs } from "utils";
+import { formatForCreate } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -39,9 +38,6 @@ export const StandardCreate = ({
         setTags(t => [...t, tag]);
     }, [setTags]);
     const removeTag = useCallback((tag: TagSelectorTag) => {
-        console.log('removeTag', tag);
-        const temp = tags.filter(t => t.tag !== tag.tag);
-        console.log('temp', tags.length, temp.length);
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -64,7 +60,7 @@ export const StandardCreate = ({
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
             const tagsAdd = tags.length > 0 ? {
                 tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
-                tagsConnect: tags.filter(t => t.id).map(t => ({ id: t.id })),
+                tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
             } : {};
             mutationWrapper({
                 mutation,

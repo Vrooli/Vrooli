@@ -32,7 +32,6 @@ export const UnlinkedNodesDialog = ({
      * Generates a simple node from a node type
      */
     const createNode = useCallback((node: Node) => {
-        console.log('in unlinkedlist createnode', node);
         // Common node props
         const nodeProps = {
             canDrag: true,
@@ -56,6 +55,7 @@ export const UnlinkedNodesDialog = ({
                     {...nodeProps}
                     canExpand={false}
                     labelVisible={true}
+                    handleUpdate={() => { }} // Intentionally blank
                 />
             default:
                 return null;

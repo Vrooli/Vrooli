@@ -4,14 +4,14 @@ import { APP_LINKS } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
 import { standard } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import PubSub from 'pubsub-js';
-import { standardUpdate as validationSchema } from '@local/shared';
+import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, Pubs } from "utils";
+import { formatForUpdate, Pubs, updateTranslation } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -36,13 +36,13 @@ export const StandardUpdate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
+    useEffect(() => {
+        setTags(standard?.tags ?? []);
+    }, [standard]);
     const addTag = useCallback((tag: TagSelectorTag) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
     const removeTag = useCallback((tag: TagSelectorTag) => {
-        console.log('removeTag', tag);
-        const temp = tags.filter(t => t.tag !== tag.tag);
-        console.log('temp', tags.length, temp.length);
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -58,9 +58,18 @@ export const StandardUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
+            const tagsAdd = tags.length > 0 ? {
+                // Create/connect new tags
+                tagsCreate: tags.filter(t => !t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
+                tagsConnect: tags.filter(t => t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
+            } : {};
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(standard, { id, ...values }),
+                input: formatForUpdate(standard, { 
+                    id, 
+                    ...tagsAdd,
+                    translations: updateTranslation(standard as any, { language: 'en', description: values.description })
+                }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },
                 onError: (response) => {
                     PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });

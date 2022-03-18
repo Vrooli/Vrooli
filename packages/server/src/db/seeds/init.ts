@@ -323,17 +323,12 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Routines */
     //==============================================================
+    const mintTokenId = '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'; // <- DO NOT CHANGE. This is used as a reference routine
     let mintToken: any = await prisma.routine.findFirst({
-        where: {
-            AND: [
-                { organizationId: vrooli.id },
-                { translations: { some: { language: EN, title: 'Mint Native Token' } } },
-            ]
-        }
+        where: { id: mintTokenId }
     })
     if (!mintToken) {
         console.info('📚 Creating Native Token Minting routine');
-        const mintTokenId = '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'; // <- DO NOT CHANGE. This is used as a reference routine
         mintToken = await prisma.routine.create({
             data: {
                 id: mintTokenId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
@@ -385,17 +380,12 @@ export async function init(prisma: PrismaType) {
         })
     }
 
+    const mintNftId = '4e038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'; // <- DO NOT CHANGE. This is used as a reference routine
     let mintNft: any = await prisma.routine.findFirst({
-        where: {
-            AND: [
-                { organizationId: vrooli.id },
-                { translations: { some: { language: EN, title: 'Mint NFT' } } },
-            ]
-        }
+        where: { id: mintNftId }
     })
     if (!mintNft) {
         console.info('📚 Creating NFT Minting routine');
-        const mintNftId = '4e038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'; // <- DO NOT CHANGE. This is used as a reference routine
         mintNft = await prisma.routine.create({
             data: {
                 id: mintNftId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
@@ -454,17 +444,12 @@ export async function init(prisma: PrismaType) {
         })
     }
 
+    const frameworkBusinessIdeaId = '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'; // <- DO NOT CHANGE. This is used as a reference routine, which is linked in ui
     let frameworkBusinessIdea: any = await prisma.routine.findFirst({
-        where: {
-            AND: [
-                { organizationId: vrooli.id },
-                { translations: { some: { language: EN, title: 'Starting New Business Frameworks' } } },
-            ]
-        }
+        where: { id: frameworkBusinessIdeaId }
     })
     if (!frameworkBusinessIdea) {
         console.info('📚 Creating Starting New Business Frameworks');
-        const frameworkBusinessIdeaId = '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'; // <- DO NOT CHANGE. This is used as a reference routine, which is linked in ui
         const startId = '01234569-7890-1234-5678-901234567890';
         const explainId = '01234569-7890-1234-5678-901234567891';
         const describeId = '01234569-7890-1234-5678-901234567892';

@@ -14,13 +14,10 @@ import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 
 export const SubroutineView = ({
-    hasNext,
-    hasPrevious,
     loading,
     data,
     session,
 }: SubroutineViewProps) => {
-    console.log('rendering subroutine', data);
     const [, setLocation] = useLocation();
 
     const { description, instructions, title } = useMemo(() => {

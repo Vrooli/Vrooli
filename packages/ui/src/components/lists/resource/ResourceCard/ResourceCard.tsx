@@ -32,21 +32,23 @@ const buttonProps = {
 }
 
 export const ResourceCard = ({
+    canEdit,
     data,
+    handleEdit,
+    handleDelete,
+    index,
     onRightClick,
     session,
 }: ResourceCardProps) => {
     const [, setLocation] = useLocation();
 
     const { description, title } = useMemo(() => {
-        console.log('getting resource translations', data)
         const languages = session?.languages ?? navigator.languages;
         return {
             description: getTranslation(data, 'description', languages, true),
-            title:  getTranslation(data, 'title', languages, true),
+            title: getTranslation(data, 'title', languages, true),
         };
     }, [data]);
-    console.log('resource ', title)
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
@@ -56,23 +58,18 @@ export const ResourceCard = ({
         if (data.link) openLink(setLocation, data.link);
     }, [data]);
     const handleRightClick = useCallback((event: any) => {
-        if (onRightClick) onRightClick(event, data);
-    }, [onRightClick, data]);
+        if (onRightClick) onRightClick(event, index);
+    }, [onRightClick, index]);
 
-    // const display = useMemo(() => {
-    //     if (!data || !data.displayUrl) {
-    //         return <NoImageWithTextIcon style={{ aspectRatio: '1' }} />
-    //     }
-    //     return (
-    //         <CardMedia
-    //             component="img"
-    //             src={data.displayUrl}
-    //             sx={{ aspectRatio: '1' }}
-    //             alt={`Image from ${data.link ?? data.title}`}
-    //             title={data.title ?? data.link}
-    //         />
-    //     )
-    // }, [data])
+    const onEdit = useCallback((e) => {
+        e.stopPropagation();
+        handleEdit(index);
+    }, [handleEdit, index]);
+
+    const onDelete = useCallback((e) => {
+        e.stopPropagation();
+        handleDelete(index);
+    }, [handleDelete, index]);
 
     return (
         <Tooltip placement="top" title={description ?? data.link}>
@@ -98,24 +95,44 @@ export const ResourceCard = ({
                     opacity: '0',
                     transition: 'opacity 0.2s ease-in-out',
                     '&:hover': {
-                        opacity: '1',
+                        opacity: canEdit ? '1' : '0',
                     },
                 }}>
-                    <IconButton size="small" onClick={() => { }} aria-label="close" sx={{ ...buttonProps, left: '-15px' } as any}>
-                        <DeleteIcon />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => { }} aria-label="close" sx={{ ...buttonProps, right: '-15px' } as any}>
+                    <IconButton size="small" onClick={onEdit} aria-label="close" sx={{
+                        ...buttonProps,
+                        left: '-15px',
+                        background: '#c5ab17',
+                        color: 'white',
+                        transition: 'brightness 0.2s ease-in-out',
+                        '&:hover': {
+                            filter: `brightness(105%)`,
+                            background: '#c5ab17',
+                        },
+                    } as any}>
                         <EditIcon />
+                    </IconButton>
+                    <IconButton size="small" onClick={onDelete} aria-label="close" sx={{
+                        ...buttonProps,
+                        right: '-15px',
+                        background: (t) => t.palette.error.main,
+                        color: 'white',
+                        transition: 'brightness 0.2s ease-in-out',
+                        '&:hover': {
+                            filter: `brightness(105%)`,
+                            background: (t) => t.palette.error.main,
+                        },
+                    } as any}>
+                        <DeleteIcon />
                     </IconButton>
                 </Box>
                 {/* Content */}
-                <Stack direction="column" justifyContent="center" alignItems="center" sx={{overflow: 'overlay'}}>
+                <Stack direction="column" justifyContent="center" alignItems="center" sx={{ overflow: 'overlay' }}>
                     <Icon sx={{ fill: 'white' }} />
                     <Typography
                         gutterBottom
                         variant="body2"
                         component="h3"
-                        sx={{ 
+                        sx={{
                             ...multiLineEllipsis(3),
                             lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
                         }}

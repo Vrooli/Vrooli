@@ -174,7 +174,6 @@ export const resolvers = {
             if (!user) throw new CustomError(CODE.ErrorUnknown);
             // Create session from user object
             const session = profileValidater().toSession(user);
-            console.log('session', session);
             // Set up session token
             await generateSessionToken(res, session);
             // Send verification email
@@ -184,11 +183,9 @@ export const resolvers = {
         },
         emailRequestPasswordChange: async (_parent: undefined, { input }: IWrap<EmailRequestPasswordChangeInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // Validate input format
-            console.log('emailRequestPasswordChange', input);
             emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
             // Validate email address
             const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
-            console.log('emai', email);
             if (!email) throw new CustomError(CODE.EmailNotFound);
             // Find user
             let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
@@ -253,7 +250,6 @@ export const resolvers = {
                 res.clearCookie(COOKIE.Session);
                 throw new CustomError(CODE.SessionExpired);
             }
-            console.log('VALIDATE SESSIon', req.roles)
             // If guest, return default session
             if (req.roles.includes(ROLES.Guest)) {
                 return {
@@ -261,7 +257,6 @@ export const resolvers = {
                     theme: 'light',
                 }
             }
-            console.log('verifying by id', req.userId);
             // Otherwise, check if session can be verified from userId
             const userData = await prisma.user.findUnique({
                 where: { id: req.userId },
@@ -272,7 +267,6 @@ export const resolvers = {
                     roles: { select: { role: { select: { title: true } } } }
                 }
             });
-            console.log('userData', userData);
             if (userData) return profileValidater().toSession(userData);
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Session);
@@ -296,7 +290,6 @@ export const resolvers = {
             });
             // If wallet exists, update with new nonce
             if (walletData) {
-                console.log('walletData exists', walletData);
                 await prisma.wallet.update({
                     where: { id: walletData.id },
                     data: {
@@ -307,7 +300,6 @@ export const resolvers = {
             }
             // If wallet data doesn't exist, create
             if (!walletData) {
-                console.log('creating wallet', input.publicAddress);
                 walletData = await prisma.wallet.create({
                     data: {
                         publicAddress: input.publicAddress,

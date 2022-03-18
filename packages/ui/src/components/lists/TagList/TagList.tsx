@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useMutation } from '@apollo/client';
-import { StarFor } from '@local/shared';
+import { useMemo, useState } from 'react';
 import { TagListProps } from '../types';
-import { Autocomplete, Chip, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import { Pubs } from 'utils';
-import { Tag } from 'types';
+import { Chip, Stack, Tooltip, Typography } from '@mui/material';
 
 export const TagList = ({
     session,

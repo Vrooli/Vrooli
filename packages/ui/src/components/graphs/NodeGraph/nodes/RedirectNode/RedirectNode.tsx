@@ -15,13 +15,6 @@ export const RedirectNode = ({
     label = 'Redirect',
     labelVisible = true,
 }: RedirectNodeProps) => {
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const openDialog = () => setDialogOpen(true);
-    const closeDialog = () => setDialogOpen(false);
-    const dialog = useMemo(() => dialogOpen ? (
-        <div>TODO</div>
-    ) : null, [dialogOpen])
-
     const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
             variant="h6"
@@ -52,12 +45,10 @@ export const RedirectNode = ({
 
     return (
         <DraggableNode className="handle" canDrag={canDrag} nodeId={node.id}>
-            {dialog}
             <Tooltip placement={'top'} title='Redirect'>
                 <IconButton
                     id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
                     className="handle"
-                    onClick={openDialog}
                     aria-owns={contextOpen ? contextId : undefined}
                     onContextMenu={openContext}
                     sx={{

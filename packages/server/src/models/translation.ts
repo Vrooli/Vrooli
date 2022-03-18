@@ -19,15 +19,11 @@ export const translationMutater = () => ({
         translationsCreate,
         translationsUpdate,
     }: { [x: string]: any }): void {
-        console.log('translationMutater.profanityCheck()', translationsCreate, translationsUpdate);
         let fields: string[] = [];
         if (translationsCreate) {
-            console.log('in translationsCreate');
             for (let i = 0; i < translationsCreate.length; i++) {
                 const currTranslation = translationsCreate[i];
-                console.log("currTranslation", currTranslation);
                 for (const [key, value] of Object.entries(currTranslation)) {
-                    console.log('key', key, 'value', value);
                     if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
                         fields.push(value);
                     }
@@ -44,7 +40,6 @@ export const translationMutater = () => ({
                 }
             }
         }
-        console.log('in profanityCheck', fields);
         if (hasProfanity(...fields)) throw new CustomError(CODE.BannedWord)
     },
     /**

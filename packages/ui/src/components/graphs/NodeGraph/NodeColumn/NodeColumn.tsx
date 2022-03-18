@@ -10,6 +10,7 @@ import { NodeType } from 'graphql/generated/globalTypes';
 export const NodeColumn = ({
     handleAction,
     handleNodeDrop,
+    handleNodeUpdate,
     id,
     isEditing,
     columnIndex,
@@ -28,7 +29,6 @@ export const NodeColumn = ({
      * Each node is wrapped in a cell that accepts drag and drop. 
      */
     const nodeList = useMemo(() => {
-        console.log('in column nodelist', nodes);
         // Sort nodes by their row index
         if (nodes.length === 0) return null;
         // There may be gaps between the nodes. For each missing rowIndex,
@@ -74,6 +74,7 @@ export const NodeColumn = ({
                     return (<RoutineListNode
                         {...nodeProps}
                         canExpand={true}
+                        handleUpdate={handleNodeUpdate}
                     />)
                 case NodeType.Start:
                     return <StartNode {...nodeProps} />

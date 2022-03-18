@@ -1,12 +1,12 @@
 import { Box, IconButton, Tooltip } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, AddSubroutineDialog, AddAfterLinkDialog, AddBeforeLinkDialog } from 'components';
+import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, AddSubroutineDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
 import { useMutation, useQuery } from '@apollo/client';
 import { routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine } from 'graphql/generated/routine';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation } from 'utils';
 import {
     AddLink as AddLinkIcon,
     Compress as CleanUpIcon,
@@ -20,6 +20,7 @@ import { MemberRole, NodeType } from 'graphql/generated/globalTypes';
 import { BuildPageProps } from 'pages/types';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import { BaseObjectAction } from 'components/dialogs/types';
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -41,7 +42,7 @@ export const BuildPage = ({
     const { data: routineData, loading: loadingRead } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
     const [routine, setRoutine] = useState<Routine | null>(null);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
-    useEffect(() => { console.log('got routine data. setting routine', routineData); setRoutine(routineData?.routine ?? null) }, [routineData]);
+    useEffect(() => { setRoutine(routineData?.routine ?? null) }, [routineData]);
     // Routine mutators
     const [routineUpdate, { loading: loadingUpdate }] = useMutation<any>(routineUpdateMutation);
     const [routineDelete, { loading: loadingDelete }] = useMutation<any>(routineDeleteOneMutation);
@@ -59,11 +60,33 @@ export const BuildPage = ({
     const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
 
     useEffect(() => {
-        console.log('SETTING CHANGED ROUTINEEEEEEEEEE', routine);
         setChangedRoutine(routine);
     }, [routine]);
 
-    console.log('changed routineeeeeeeeeee on renderrrrrrr', changedRoutine);
+    // Add subroutine dialog
+    const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
+    const closeAddSubroutineDialog = useCallback(() => { setAddSubroutineNode(null); }, []);
+
+    // Edit subroutine dialog
+    const [editSubroutineNode, setEditSubroutineNode] = useState<string | null>(null);
+    const closeEditSubroutineDialog = useCallback(() => { setEditSubroutineNode(null); }, []);
+
+    // "Add after" link dialog when there is more than one link (i.e. can't be done automatically)
+    const [addAfterLinkNode, setAddAfterLinkNode] = useState<string | null>(null);
+    const closeAddAfterLinkDialog = useCallback(() => { setAddAfterLinkNode(null); }, []);
+
+    // "Add before" link dialog when there is more than one link (i.e. can't be done automatically)
+    const [addBeforeLinkNode, setAddBeforeLinkNode] = useState<string | null>(null);
+    const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
+
+    // Move node dialog for context menu (mainly for accessibility)
+    const [moveNode, setMoveNode] = useState<string | null>(null);
+    const closeMoveNodeDialog = useCallback(() => { setMoveNode(null); }, []);
+
+    // Open boolean for delete routine confirmation
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const openDelete = () => setDeleteOpen(true);
+    const closeDelete = () => setDeleteOpen(false);
 
     /**
      * Hacky way to display dragging nodes over over elements. Disables z-index when dragging
@@ -75,7 +98,6 @@ export const BuildPage = ({
             setIsDragging(true);
         });
         let dragDropSub = PubSub.subscribe(Pubs.NodeDrop, (_, data) => {
-            console.log('IN DA DROPPPPPPPPPP')
             setIsDragging(false);
         });
         return () => {
@@ -101,7 +123,6 @@ export const BuildPage = ({
      * Also sets the status of the routine (valid/invalid/incomplete)
      */
     const { columns, nodesOffGraph, nodesById } = useMemo(() => {
-        console.log('CALCULATING COLUMNS NODESOFFGRAPH NODESBYID', changedRoutine)
         if (!changedRoutine) return { columns: [], nodesOffGraph: [], nodesById: {} };
         const nodesOnGraph: Node[] = [];
         const nodesOffGraph: Node[] = [];
@@ -109,7 +130,6 @@ export const BuildPage = ({
         const statuses: [BuildStatus, string][] = []; // Holds all status messages, so multiple can be displayed
         // Loop through nodes and add to appropriate array (and also populate nodesById dictionary)
         for (const node of changedRoutine.nodes) {
-            console.log('changed routine loop', node)
             if (!_.isNil(node.columnIndex) && !_.isNil(node.rowIndex)) {
                 nodesOnGraph.push(node);
             } else {
@@ -117,7 +137,6 @@ export const BuildPage = ({
             }
             nodesById[node.id] = node;
         }
-        console.log('NODES OFF GRAPH', nodesOffGraph)
         // Now, perform a few checks to make sure that the columnIndexes and rowIndexes are valid
         // 1. Check that (columnIndex, rowIndex) pairs are all unique
         // First check
@@ -152,7 +171,6 @@ export const BuildPage = ({
         // Second check
         const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => changedRoutine.nodeLinks.every(link => link.toId !== node.id));
         if (nodesWithoutIncomingEdges.length === 0) {
-            console.log('uh oh spaghetti o', nodesWithoutIncomingEdges, nodesOnGraph)
             //TODO this would be fine with a redirect link
             statuses.push([BuildStatus.Invalid, 'Error determining start node']);
         }
@@ -175,7 +193,6 @@ export const BuildPage = ({
         }
         // Before returning, send the statuses to the status object
         if (statuses.length > 0) {
-            console.log('statuses', statuses)
             // Status sent is the worst status
             let code = BuildStatus.Incomplete;
             if (statuses.some(status => status[0] === BuildStatus.Invalid)) code = BuildStatus.Invalid;
@@ -214,7 +231,6 @@ export const BuildPage = ({
             column.sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
         }
         // Return
-        console.log('COLUMNSSS', columns)
         return { columns, nodesOffGraph, nodesById };
     }, [changedRoutine]);
 
@@ -225,7 +241,7 @@ export const BuildPage = ({
         if (node) {
             const subroutine = (node.data as NodeDataRoutineList).routines.find(r => r.id === subroutineId);
             if (subroutine) {
-                setSelectedSubroutine(subroutine as any);
+                setSelectedSubroutine(subroutine.routine as any);
             }
         }
     }, [nodesById]);
@@ -311,7 +327,6 @@ export const BuildPage = ({
                 return node;
             });
         }
-        console.log('going to update routine', input)
         mutationWrapper({
             mutation: routineUpdate,
             input,
@@ -362,8 +377,6 @@ export const BuildPage = ({
         // Find all "from" and "to" nodes in the deleting links
         const fromNodeIds = deletingLinks.map(l => l.fromId).filter(id => id !== nodeId);
         const toNodeIds = deletingLinks.map(l => l.toId).filter(id => id !== nodeId);
-        console.log('deleting links', deletingLinks);
-        console.log('from and to ids', fromNodeIds, toNodeIds);
         // If there is only one "from" node, create a link between it and every "to" node
         if (fromNodeIds.length === 1) {
             toNodeIds.forEach(toId => { newLinks.push({ fromId: fromNodeIds[0], toId }) });
@@ -375,8 +388,6 @@ export const BuildPage = ({
         // NOTE: Every other case is ambiguous, so we can't auto-create create links
         // Delete old links
         let keptLinks = changedRoutine.nodeLinks.filter(l => !deletingLinks.includes(l));
-        console.log('kept links', keptLinks);
-        console.log('new links', newLinks);
         // Return new links combined with kept links
         return [...keptLinks, ...newLinks as any[]];
     }, [changedRoutine?.nodeLinks]);
@@ -444,14 +455,11 @@ export const BuildPage = ({
      * Deletes a subroutine from a node
      */
     const handleSubroutineDelete = useCallback((nodeId: string, subroutineId: string) => {
-        console.log('in handlesubroutine delete', nodeId, subroutineId, changedRoutine)
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
-        console.log('in handlesubroutine nodeIndex', nodeIndex)
         if (nodeIndex === -1) return;
         const node = changedRoutine.nodes[nodeIndex];
         const subroutineIndex = (node.data as NodeDataRoutineList).routines.findIndex((item: NodeDataRoutineListItem) => item.id === subroutineId);
-        console.log('subroutineindex', subroutineIndex, node)
         if (subroutineIndex === -1) return;
         const newRoutineList = deleteArrayIndex((node.data as NodeDataRoutineList).routines, subroutineIndex);
         setChangedRoutine({
@@ -470,15 +478,12 @@ export const BuildPage = ({
      * Drops or unlinks a node
      */
     const handleNodeDrop = useCallback((nodeId: string, columnIndex: number | null, rowIndex: number | null) => {
-        console.log('HANDLE NODE DROP', nodeId, columnIndex, rowIndex);
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
         // If columnIndex and rowIndex null, then it is being unlinked
         if (columnIndex === null && rowIndex === null) {
             const linksList = calculateNewLinksList(nodeId);
-            console.log('node index', nodeIndex);
-            console.log('links list', linksList);
             setChangedRoutine({
                 ...changedRoutine,
                 nodes: updateArray(changedRoutine.nodes, nodeIndex, {
@@ -495,14 +500,11 @@ export const BuildPage = ({
         }
         // Otherwise, is a drop
         else {
-            console.log('ITS A DROP', nodeIndex)
             let updatedNodes = [...changedRoutine.nodes];
             // If dropped into an existing column, shift rows in dropped column that are below the dropped node
             if (changedRoutine.nodes.some(n => n.columnIndex === columnIndex)) {
-                console.log('shift rows below');
                 updatedNodes = updatedNodes.map(n => {
                     if (n.columnIndex === columnIndex && n.rowIndex !== null && n.rowIndex >= rowIndex) {
-                        console.log('shifting a row', n)
                         return { ...n, rowIndex: n.rowIndex + 1 }
                     }
                     return n;
@@ -511,9 +513,7 @@ export const BuildPage = ({
             // If the column the node was from is now empty, then shift all columns after it
             const originalColumnIndex = changedRoutine.nodes[nodeIndex].columnIndex;
             const isRemovingColumn = originalColumnIndex !== null && changedRoutine.nodes.filter(n => n.columnIndex === originalColumnIndex).length === 1;
-            console.log('original column index', originalColumnIndex);
             if (isRemovingColumn) {
-                console.log('shift columns');
                 updatedNodes = updatedNodes.map(n => {
                     if (n.columnIndex !== null && n.columnIndex > originalColumnIndex) {
                         return { ...n, columnIndex: n.columnIndex - 1 }
@@ -521,14 +521,11 @@ export const BuildPage = ({
                     return n;
                 });
             }
-            console.log('updated nodes a', updatedNodes);
             const updated = updateArray(updatedNodes, nodeIndex, {
                 ...changedRoutine.nodes[nodeIndex],
                 columnIndex: (isRemovingColumn && originalColumnIndex < columnIndex) ? columnIndex - 1 : columnIndex,
                 rowIndex,
             })
-            console.log('updated nodes b', updated);
-            console.log('testttttt', { ...changedRoutine, nodes: updated });
             // Update the routine
             setChangedRoutine({
                 ...changedRoutine,
@@ -554,7 +551,6 @@ export const BuildPage = ({
      * Inserts a new routine list node along an edge
      */
     const handleNodeInsert = useCallback((link: NodeLink) => {
-        console.log('HANDLE NODE INSERT', link);
         if (!changedRoutine) return;
         // Find link index
         const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.id === link.id);
@@ -595,20 +591,16 @@ export const BuildPage = ({
      * Adds a routine list item to a routine list
      */
     const handleRoutineListItemAdd = useCallback((nodeId: string, routine: Routine) => {
-        console.log('HANDLE ROUTINE LIST ITEM ADD', nodeId, routine, changedRoutine);
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
-        console.log('nooooode index', nodeIndex);
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
-        console.log('handle routine list item add a', routineList);
         let routineItem: NodeDataRoutineListItem = {
             // id: uuidv4(),
             isOptional: true,
             routine,
         } as any
         if (routineList.isOrdered) routineItem.index = routineList.routines.length
-        console.log('handle routine list item add b', routineItem);
         setChangedRoutine({
             ...changedRoutine,
             nodes: updateArray(changedRoutine.nodes, nodeIndex, {
@@ -625,25 +617,21 @@ export const BuildPage = ({
      * Add a new routine list AFTER a node
      */
     const handleAddAfter = useCallback((nodeId: string) => {
-        console.log('handle add after', nodeId)
         if (!changedRoutine) return;
         // Find links where this node is the "from" node
         const links = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId);
         // If multiple links, open a dialog to select which one to add after
         if (links.length > 1) {
-            console.log('opening after dialog')
             setAddAfterLinkNode(nodeId);
             return;
         }
         // If only one link, add after that link
         else if (links.length === 1) {
             const link = links[0];
-            console.log('inserting node on link', link)
             handleNodeInsert(link);
         }
         // If no links, create link and node
         else {
-            console.log('creating new link for node');
             const newNode = generateNewNode(null, null);
             const newLink = { fromId: nodeId, toId: newNode.id };
             setChangedRoutine({
@@ -658,25 +646,21 @@ export const BuildPage = ({
      * Add a new routine list BEFORE a node
      */
     const handleAddBefore = useCallback((nodeId: string) => {
-        console.log('handle add before', nodeId, changedRoutine)
         if (!changedRoutine) return;
         // Find links where this node is the "to" node
         const links = changedRoutine.nodeLinks.filter(l => l.toId === nodeId);
         // If multiple links, open a dialog to select which one to add before
         if (links.length > 1) {
-            console.log('opening before dialog')
             setAddBeforeLinkNode(nodeId);
             return;
         }
         // If only one link, add before that link
         else if (links.length === 1) {
             const link = links[0];
-            console.log('inserting node on link', link)
             handleNodeInsert(link);
         }
         // If no links, create link and node
         else {
-            console.log('creating new link for node');
             const newNode = generateNewNode(null, null);
             const newLink = { fromId: newNode.id, toId: nodeId };
             setChangedRoutine({
@@ -687,28 +671,46 @@ export const BuildPage = ({
         }
     }, [changedRoutine]);
 
-    // Add subroutine dialog
-    const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
-    const closeAddSubroutineDialog = useCallback(() => { setAddSubroutineNode(null); }, []);
+    /**
+     * Updates the current selected subroutine
+     */
+    const handleSubroutineUpdate = useCallback((updatedSubroutine: Routine) => {
+        if (!changedRoutine) return;
+        setChangedRoutine({
+            ...changedRoutine,
+            nodes: changedRoutine.nodes.map((n: Node) => {
+                if (n.type === NodeType.RoutineList && (n.data as NodeDataRoutineList).routines.some(r => r.routine.id === updatedSubroutine.id)) {
+                    return {
+                        ...n,
+                        data: {
+                            ...n.data,
+                            routines: (n.data as NodeDataRoutineList).routines.map(r => {
+                                if (r.routine.id === updatedSubroutine.id) {
+                                    return { ...r, routine: updatedSubroutine };
+                                }
+                                return r;
+                            }),
+                        },
+                    };
+                }
+                return n;
+            }),
+        } as any);
+    }, [changedRoutine]);
 
-    // Edit subroutine dialog
-    const [editSubroutineNode, setEditSubroutineNode] = useState<string | null>(null);
-    const closeEditSubroutineDialog = useCallback(() => { setEditSubroutineNode(null); }, []);
-
-    // "Add after" link dialog when there is more than one link (i.e. can't be done automatically)
-    const [addAfterLinkNode, setAddAfterLinkNode] = useState<string | null>(null);
-    const closeAddAfterLinkDialog = useCallback(() => { setAddAfterLinkNode(null); }, []);
-
-    // "Add before" link dialog when there is more than one link (i.e. can't be done automatically)
-    const [addBeforeLinkNode, setAddBeforeLinkNode] = useState<string | null>(null);
-    const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
-
-    // Move node dialog for context menu (mainly for accessibility)
-    const [moveNode, setMoveNode] = useState<string | null>(null);
-    const closeMoveNodeDialog = useCallback(() => { setMoveNode(null); }, []);
+    /**
+     * Navigates to a subroutine's build page. Fist checks if there are unsaved changes
+     */
+    const handleSubroutineViewFull = useCallback(() => {
+        if (!selectedSubroutine) return;
+        if (!isEqual(routine, changedRoutine)) {
+            PubSub.publish(Pubs.Snack, { message: 'You have unsaved changes. Please save or discard them before navigating to another routine.' });
+            return;
+        }
+        setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
+    }, [selectedSubroutine, changedRoutine, routine]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
-        console.log('in handleaction', action, nodeId, subroutineId);
         switch (action) {
             case BuildAction.AddSubroutine:
                 setAddSubroutineNode(nodeId);
@@ -740,6 +742,50 @@ export const BuildPage = ({
         }
     }, [setAddSubroutineNode, setEditSubroutineNode, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddAfter, handleAddBefore, setMoveNode]);
 
+    const handleRoutineAction = useCallback((action: BaseObjectAction) => {
+        switch (action) {
+            case BaseObjectAction.Copy:
+                //TODO
+                break;
+            case BaseObjectAction.Delete:
+                //TODO
+                break;
+            case BaseObjectAction.Downvote:
+                openDelete();
+                break;
+            case BaseObjectAction.Edit:
+                //TODO
+                break;
+            case BaseObjectAction.Fork:
+                //TODO
+                break;
+            case BaseObjectAction.Report:
+                //TODO
+                break;
+            case BaseObjectAction.Share:
+                //TODO
+                break;
+            case BaseObjectAction.Star:
+                //TODO
+                break;
+            case BaseObjectAction.Stats:
+                //TODO
+                break;
+            case BaseObjectAction.Unstar:
+                //TODO
+                break;
+            case BaseObjectAction.Update:
+                updateRoutine();
+                break;
+            case BaseObjectAction.UpdateCancel:
+                setChangedRoutine(routine);
+                break;
+            case BaseObjectAction.Upvote:
+                //TODO
+                break;
+        }
+    }, [routine, updateRoutine, openDelete]);
+
     return (
         <Box sx={{
             display: 'flex',
@@ -748,6 +794,13 @@ export const BuildPage = ({
             height: '100%',
             width: '100%',
         }}>
+            {/* Delete routine confirmation dialog */}
+            <DeleteRoutineDialog
+                isOpen={deleteOpen}
+                routineName={getTranslation(changedRoutine, 'title', [language]) ?? ''}
+                handleClose={closeDelete}
+                handleDelete={deleteRoutine}
+            />
             {/* Popup for adding new subroutines */}
             {addSubroutineNode && <AddSubroutineDialog
                 handleAdd={handleRoutineListItemAdd}
@@ -791,6 +844,9 @@ export const BuildPage = ({
             /> : null}
             {/* Displays routine information when you click on a routine list item*/}
             <SubroutineInfoDialog
+                isEditing={isEditing}
+                handleUpdate={handleSubroutineUpdate}
+                handleViewFull={handleSubroutineViewFull}
                 language={language}
                 open={Boolean(selectedSubroutine)}
                 subroutine={selectedSubroutine}
@@ -799,8 +855,8 @@ export const BuildPage = ({
             {/* Displays main routine's information and some buttons */}
             <BuildInfoContainer
                 canEdit={canEdit}
+                handleRoutineAction={handleRoutineAction}
                 handleRoutineUpdate={updateRoutine}
-                handleRoutineDelete={deleteRoutine}
                 handleStartEdit={startEditing}
                 handleTitleUpdate={updateRoutineTitle}
                 isEditing={isEditing}
@@ -901,7 +957,6 @@ export const BuildPage = ({
                     hasNext={false}
                     isEditing={isEditing}
                     loading={loading}
-                    routineId={id}
                     scale={scale}
                     session={session}
                     sliderColor={STATUS_COLOR[status.code]}

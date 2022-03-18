@@ -27,6 +27,10 @@ export const standardCreateForm = yup.object().shape({
     type: type.required(),
     version: version.notRequired().default(undefined),
 })
+export const standardUpdateForm = yup.object().shape({
+    description: description.notRequired().default(undefined),
+})
+
 /**
  * Information required when creating a standard. 
  */

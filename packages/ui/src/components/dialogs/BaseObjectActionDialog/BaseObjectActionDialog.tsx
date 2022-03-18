@@ -7,6 +7,7 @@ import { StarFor, VoteFor } from "@local/shared";
 import { ListMenu, ReportDialog } from "..";
 import { BaseObjectActionDialogProps, BaseObjectAction, ListMenuItemData } from "../types";
 import {
+    Cancel as CancelIcon,
     FileCopy as CopyIcon,
     DeleteForever as DeleteIcon,
     CardGiftcard as DonateIcon,
@@ -18,28 +19,36 @@ import {
     StarOutline as StarIcon,
     Star as UnstarIcon,
     ThumbUp as UpvoteIcon,
+    Update as UpdateIcon,
+    QueryStats as StatsIcon,
     SvgIconComponent,
 } from "@mui/icons-material";
 import { mutationWrapper } from "graphql/utils/wrappers";
 
 /**
- * [label, Icon, iconColor]
+ * [label, Icon, iconColor, preview]
  */
-const allOptionsMap: { [x: string]: [string, SvgIconComponent, string] } = ({
-    [BaseObjectAction.Copy]: ['Copy', CopyIcon, 'default'],
-    [BaseObjectAction.Delete]: ['Delete', DeleteIcon, "default"],
-    [BaseObjectAction.Donate]: ['Donate', DonateIcon, "default"],
-    [BaseObjectAction.Downvote]: ['Downvote', DownvoteIcon, "default"],
-    [BaseObjectAction.Edit]: ['Edit', EditIcon, "default"],
-    [BaseObjectAction.Fork]: ['Fork', ForkIcon, "default"],
-    [BaseObjectAction.Report]: ['Report', ReportIcon, "default"],
-    [BaseObjectAction.Share]: ['Share', ShareIcon, "default"],
-    [BaseObjectAction.Star]: ['Star', StarIcon, "#cbae30"],
-    [BaseObjectAction.Unstar]: ['Unstar', UnstarIcon, "#cbae30"],
-    [BaseObjectAction.Upvote]: ['Upvote', UpvoteIcon, "default"],
+const allOptionsMap: { [key in BaseObjectAction]: [string, SvgIconComponent, string, boolean] } = ({
+    [BaseObjectAction.Copy]: ['Copy', CopyIcon, 'default', true],
+    [BaseObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
+    [BaseObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
+    [BaseObjectAction.Downvote]: ['Downvote', DownvoteIcon, "default", false],
+    [BaseObjectAction.Edit]: ['Edit', EditIcon, "default", false],
+    [BaseObjectAction.Fork]: ['Fork', ForkIcon, "default", true],
+    [BaseObjectAction.Report]: ['Report', ReportIcon, "default", false],
+    [BaseObjectAction.Share]: ['Share', ShareIcon, "default", false],
+    [BaseObjectAction.Star]: ['Star', StarIcon, "#cbae30", false],
+    [BaseObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
+    [BaseObjectAction.Unstar]: ['Unstar', UnstarIcon, "#cbae30", false],
+    [BaseObjectAction.Update]: ['Update', UpdateIcon, "default", false],
+    [BaseObjectAction.UpdateCancel]: ['Cancel Update', CancelIcon, "default", false],
+    [BaseObjectAction.Upvote]: ['Upvote', UpvoteIcon, "default", false],
 })
 
 export const BaseObjectActionDialog = ({
+    handleActionComplete,
+    handleDelete,
+    handleEdit,
     objectId,
     objectType,
     title,
@@ -125,12 +134,13 @@ export const BaseObjectActionDialog = ({
         // Convert options to ListMenuItemData
         return availableOptions
             .map(option => {
-                const [label, Icon, iconColor] = allOptionsMap[option];
+                const [label, Icon, iconColor, preview] = allOptionsMap[option];
                 return {
                     label,
                     value: option,
                     Icon,
                     iconColor,
+                    preview,
                 }
             })
     }, []);

@@ -94,6 +94,8 @@ export const routineCreateForm = yup.object().shape({
     title: title.required(),
     version: version.notRequired().default(undefined),
 })
+export const routineUpdateForm = routineCreateForm;
+
 /**
  * Information required when creating a routine. 
  */

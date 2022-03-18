@@ -74,6 +74,7 @@ export const UserView = ({
                     resourceLists: [updatedList]
                 })
             }}
+            mutate={true}
         />
     ) : null, [isOwn, resourceList, session, user]);
 
@@ -102,8 +103,6 @@ export const UserView = ({
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.User}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
     }
-
-    console.log('isProfile', isProfile, id);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
@@ -383,6 +382,9 @@ export const UserView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
+                handleActionComplete={() => { }} //TODO
+                handleDelete={() => { }} //TODO
+                handleEdit={onEdit}
                 objectId={id}
                 objectType={'User'}
                 anchorEl={moreMenuAnchor}

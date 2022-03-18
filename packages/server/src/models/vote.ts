@@ -27,7 +27,6 @@ export const voteFormatter = (): FormatConverter<Vote> => ({
         else if (project) modified.to = project;
         else if (routine) modified.to = routine;
         else if (standard) modified.to = standard;
-        console.log('voteFormatter.toGraphQL finished', modified);
         return modified;
     },
     deconstructUnions: (partial) => {
@@ -68,7 +67,6 @@ const voter = (prisma: PrismaType) => ({
                 [`${forMapper[input.voteFor]}Id`]: input.forId
             }
         })
-        console.log('existing vote', vote)
         // If vote already existed
         if (vote) {
             // If vote is the same as the one we're trying to cast, skip
@@ -89,7 +87,6 @@ const voter = (prisma: PrismaType) => ({
             const oldVoteCount = vote.isUpvote ? 1 : vote.isUpvote === null ? 0 : -1;
             const newVoteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
             const deltaVoteCount = newVoteCount - oldVoteCount;
-            console.log('deltaVoteCount', deltaVoteCount)
             await prismaFor.update({
                 where: { id: input.forId },
                 data: { score: votingFor.score + deltaVoteCount }

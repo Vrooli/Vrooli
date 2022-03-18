@@ -63,7 +63,7 @@ export const ProjectDialog = ({
             default:
                 return <ProjectView session={session} partialData={partialData} />
         }
-    }, [state]);
+    }, [state, partialData, onAction, session]);
 
     return (
         <BaseObjectDialog

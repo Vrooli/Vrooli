@@ -114,9 +114,9 @@ export const MarkdownInput = ({
         onChange(textarea.value);
     }, [id, onChange]);
 
-    const strikethrough = useCallback(() => { padSelection('~~', '~~') }, []);
-    const bold = useCallback(() => { padSelection('**', '**') }, []);
-    const italic = useCallback(() => { padSelection('*', '*') }, []);
+    const strikethrough = useCallback(() => { padSelection('~~', '~~') }, [padSelection]);
+    const bold = useCallback(() => { padSelection('**', '**') }, [padSelection]);
+    const italic = useCallback(() => { padSelection('*', '*') }, [padSelection]);
 
     const insertLink = useCallback(() => {
         // Find the textarea element
@@ -133,7 +133,7 @@ export const MarkdownInput = ({
         }
         // Otherwise, call padSelection
         padSelection('[', '](url)');
-    }, [id, onChange]);
+    }, [id, onChange, padSelection]);
 
     const insertBulletList = useCallback(() => {
         // Find the textarea element
@@ -150,7 +150,7 @@ export const MarkdownInput = ({
         for (let i = startLine; i <= endPosition; i++) {
             const currChar = textarea.value.charAt(i);
             if (currChar === '\n') {
-                newText += '\n' + '* ';
+                newText += '\n* ';
             } else {
                 newText += currChar;
             }

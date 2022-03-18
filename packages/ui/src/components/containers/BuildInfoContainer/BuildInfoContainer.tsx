@@ -6,11 +6,10 @@
  * To the right is a button to switch to the metadata view/edit component. You can view/edit the 
  * title, descriptions, instructions, inputs, outputs, tags, etc.
  */
-import { Box, IconButton, Menu, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Box, IconButton, Menu, Stack, Tooltip, Typography } from '@mui/material';
+import { useCallback, useMemo, useState } from 'react';
 import {
     Close as CloseIcon,
-    Done as DoneIcon,
     Edit as EditIcon,
 } from '@mui/icons-material';
 import { getTranslation, BuildStatus } from 'utils';
@@ -18,9 +17,10 @@ import { BuildInfoContainerProps } from '../types';
 import { HelpButton, BuildInfoDialog } from 'components';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
+import { EditableLabel } from 'components/inputs';
 
-const helpText = 
-`## What am I looking at?
+const helpText =
+    `## What am I looking at?
 Lorem ipsum dolor sit amet consectetur adipisicing elit. 
 
 
@@ -46,8 +46,8 @@ const TERTIARY_COLOR = '#95f3cd';
 
 export const BuildInfoContainer = ({
     canEdit,
+    handleRoutineAction,
     handleRoutineUpdate,
-    handleRoutineDelete,
     handleStartEdit,
     handleTitleUpdate,
     isEditing,
@@ -56,79 +56,12 @@ export const BuildInfoContainer = ({
     session,
     status,
 }: BuildInfoContainerProps) => {
-    // Stores changed title before committing
-    const [changedTitle, setChangedTitle] = useState<string | null | undefined>(getTranslation(routine, 'title', [language], false));
-    useEffect(() => {
-        setChangedTitle(getTranslation(routine, 'title', [language], false));
-    }, [routine?.translations, language]);
-
-    // Used for editing the title of the routine
-    const [titleActive, setTitleActive] = useState<boolean>(false);
-    const toggleTitle = useCallback(() => setTitleActive(a => !a), []);
-    const saveTitle = useCallback(() => { handleTitleUpdate(changedTitle ?? '') }, [changedTitle]);
-    const cancelTitle = useCallback(() => {
-        setChangedTitle(getTranslation(routine, 'title', [language], false));
-        setTitleActive(false);
-    }, [routine?.translations]);
-
-    const titleObject = useMemo(() => {
-        return titleActive ?
-            (<Stack direction="row" spacing={1} alignItems="center">
-                {/* Component for editing title */}
-                <TextField
-                    autoFocus
-                    variant="filled"
-                    id="title"
-                    name="title"
-                    autoComplete="routine-title"
-                    label="Title"
-                    value={changedTitle}
-                    onChange={() => { }}
-                    sx={{
-                        marginTop: 1,
-                        marginBottom: 1,
-                        '& .MuiInputLabel-root': {
-                            display: 'none',
-                        },
-                        '& .MuiInputBase-root': {
-                            borderBottom: 'none',
-                            borderRadius: '32px',
-                            border: `2px solid green`,//TODO titleValid ? green : red
-                            overflow: 'overlay',
-                        },
-                        '& .MuiInputBase-input': {
-                            position: 'relative',
-                            backgroundColor: '#ffffff94',
-                            border: '1px solid #ced4da',
-                            fontSize: 16,
-                            width: 'auto',
-                            padding: '8px 8px',
-                        }
-                    }}
-                />
-                {/* Buttons for confirm/cancel */}
-                <IconButton aria-label="confirm-title-change" onClick={saveTitle}>
-                    <DoneIcon sx={{ fill: '#40dd43' }} />
-                </IconButton>
-                <IconButton aria-label="cancel-title-change" onClick={cancelTitle} color="secondary">
-                    <CloseIcon sx={{ fill: '#ff2a2a' }} />
-                </IconButton>
-            </Stack>) :
-            (<Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', paddingTop: 1, paddingBottom: 1 }} onClick={toggleTitle}>
-                <Typography
-                    component="h2"
-                    variant="h5"
-                    textAlign="center"
-                >{changedTitle ?? 'Loading...'}</Typography>
-            </Box>)
-    }, [titleActive, changedTitle]);
 
     /**
      * List of status messages converted to markdown. 
      * If one message, no bullet points. If multiple, bullet points.
      */
     const statusMarkdown = useMemo(() => {
-        console.log('in statustoMarkdown', status);
         if (status.messages.length === 0) return 'Routine is valid.';
         if (status.messages.length === 1) {
             return status.messages[0];
@@ -223,7 +156,18 @@ export const BuildInfoContainer = ({
                 {statusMenu}
             </Menu>
             {/* Title */}
-            {titleObject}
+            <EditableLabel
+                canEdit={isEditing}
+                handleUpdate={handleTitleUpdate}
+                renderLabel={(t) => (
+                    <Typography
+                        component="h2"
+                        variant="h5"
+                        textAlign="center"
+                    >{t}</Typography>
+                )}
+                text={getTranslation(routine, 'title', [language], false) ?? 'Loading...'}
+            />
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 {/* Edit button */}
                 {canEdit && !isEditing ? (
@@ -235,8 +179,8 @@ export const BuildInfoContainer = ({
                 <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
                 {/* Display routine description, insturctionss, etc. */}
                 <BuildInfoDialog
+                    handleAction={handleRoutineAction}
                     handleUpdate={handleRoutineUpdate}
-                    handleDelete={handleRoutineDelete}
                     isEditing={isEditing}
                     language={language}
                     routine={routine}

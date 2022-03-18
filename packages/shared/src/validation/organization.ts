@@ -23,6 +23,7 @@ export const organizationCreateForm = yup.object().shape({
     name: name.required(),
     isOpenToNewMembers: isOpenToNewMembers.notRequired().default(undefined),
 })
+export const organizationUpdateForm = organizationCreateForm;
 /**
  * Information required when creating an organization. 
  * You are automatically created as an admin

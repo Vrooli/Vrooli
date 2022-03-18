@@ -10,8 +10,12 @@ import {
     Add as AddIcon,
 } from '@mui/icons-material';
 import { cardRoot } from 'components/cards/styles';
-import { AddResourceDialog } from 'components/dialogs';
+import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
+import { resourceDeleteManyMutation } from 'graphql/mutation';
+import { useMutation } from '@apollo/client';
+import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
+import { mutationWrapper } from 'graphql/utils/wrappers';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
@@ -22,7 +26,7 @@ export const ResourceListHorizontal = ({
     session,
 }: ResourceListHorizontalProps) => {
 
-    const handleAdd = useCallback((newResource: Resource) => {
+    const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({
@@ -32,50 +36,97 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
+    const onUpdate = useCallback((index: number, updatedResource: Resource) => {
+        if (!list) return;
+        if (handleUpdate) {
+            handleUpdate({
+                ...list,
+                resources: updateArray(list.resources, index, updatedResource),
+            });
+        }
+    }, [handleUpdate, list]);
+
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(resourceDeleteManyMutation);
+    const onDelete = useCallback((index: number) => {
+        if (!list) return;
+        const resource = list.resources[index];
+        if (mutate && resource.id) {
+            mutationWrapper({
+                mutation: deleteMutation,
+                input: { ids: [resource.id] },
+                onSuccess: (response) => {
+                    if (handleUpdate) {
+                        handleUpdate({
+                            ...list,
+                            resources: list.resources.filter(r => r.id !== resource.id) as any,
+                        });
+                    }
+                },
+            })
+        }
+        else if (handleUpdate) {
+            handleUpdate({
+                ...list,
+                resources: list.resources.filter(r => r.id !== resource.id) as any,
+            });
+        }
+    }, [handleUpdate, list, mutate]);
+
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
-    const [selected, setSelected] = useState<any | null>(null);
-    const contextId = useMemo(() => `resource-context-menu-${selected?.link}`, [selected]);
-    const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>, data: any) => {
-        console.log('setting context anchor', ev.currentTarget, data);
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+    const contextId = useMemo(() => `resource-context-menu-${selectedIndex}`, [selectedIndex]);
+    const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>, index: number) => {
         setContextAnchor(ev.currentTarget);
-        setSelected(data);
+        setSelectedIndex(index);
         ev.preventDefault();
     }, []);
     const closeContext = useCallback(() => {
         setContextAnchor(null);
-        setSelected(null);
+        setSelectedIndex(null);
     }, []);
 
-    // Add resource dialog
-    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-    const openAddDialog = useCallback(() => { setIsAddDialogOpen(true) }, []);
-    const closeAddDialog = useCallback(() => { setIsAddDialogOpen(false) }, []);
+    // Add/update resource dialog
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false) }, []);
+    const [editingIndex, setEditingIndex] = useState<number | undefined>(undefined);
+    const openUpdateDialog = useCallback((index: number) => { 
+        setEditingIndex(index);
+        setIsDialogOpen(true) 
+    }, []);
+    const closeUpdateDialog = useCallback(() => { 
+        setEditingIndex(undefined);
+        setIsDialogOpen(false) 
+    }, []);
 
-    const addDialog = useMemo(() => (
-        list ? <AddResourceDialog
+    const dialog = useMemo(() => (
+        list ? <ResourceDialog
+            isAdd={editingIndex === undefined}
+            partialData={editingIndex ? list.resources[editingIndex as number] as any : undefined}
             listId={list.id}
-            open={isAddDialogOpen}
-            onClose={closeAddDialog}
-            onCreated={handleAdd}
+            open={isDialogOpen}
+            onClose={closeDialog}
+            onCreated={onAdd}
+            onUpdated={onUpdate}
             mutate={mutate}
         /> : null
-    ), [handleAdd, isAddDialogOpen, list]);
+    ), [onAdd, onUpdate, isDialogOpen, list, editingIndex, mutate]);
 
     return (
         <Box>
             {/* Add resource dialog */}
-            {addDialog}
+            {dialog}
             {/* Right-click context menu */}
             <ResourceListItemContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                resource={selected}
+                index={selectedIndex}
                 onClose={closeContext}
                 onAddBefore={() => { }}
                 onAddAfter={() => { }}
-                onDelete={() => { }}
-                onEdit={() => { }}
+                onDelete={onDelete}
+                onEdit={openUpdateDialog}
                 onMove={() => { }}
             />
             <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
@@ -103,17 +154,21 @@ export const ResourceListHorizontal = ({
                     {/* Resources */}
                     {list?.resources?.map((c: Resource, index) => (
                         <ResourceCard
+                            canEdit={canEdit}
+                            handleEdit={openUpdateDialog}
+                            handleDelete={onDelete}
                             key={`resource-card-${index}`}
+                            index={index}
                             session={session}
                             data={c}
                             onRightClick={openContext}
-                            aria-owns={Boolean(selected) ? contextId : undefined}
+                            aria-owns={Boolean(selectedIndex) ? contextId : undefined}
                         />
                     ))}
                     {/* Add resource button */}
                     {canEdit ? <Tooltip placement="top" title="Add resource">
                         <Box
-                            onClick={openAddDialog}
+                            onClick={openDialog}
                             aria-label="Add resource"
                             sx={{
                                 ...cardRoot,

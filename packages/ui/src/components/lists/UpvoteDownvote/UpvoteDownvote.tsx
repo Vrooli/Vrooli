@@ -20,7 +20,6 @@ export const UpvoteDownvote = ({
     useEffect(() => setInternalIsUpvoted(isUpvoted ?? null), [isUpvoted]);
 
     const internalScore = useMemo(() => {
-        console.log('internalScore start', score);
         const scoreNum = score ?? 0;
         // If the score and internal score match, return the score
         if (internalIsUpvoted === isUpvoted) return scoreNum;
@@ -42,7 +41,7 @@ export const UpvoteDownvote = ({
             input: { isUpvote, voteFor, forId: objectId },
             onSuccess: (response) => { onChange(response.data.vote) },
         })
-    }, [objectId, voteFor]);
+    }, [objectId, voteFor, onChange, mutation]);
 
     const handleUpvoteClick = useCallback((event: any) => {
         if (!session.id) return;

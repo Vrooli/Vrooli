@@ -33,7 +33,6 @@ export const SearchOrganizationsPage = ({
     // Handles dialog when adding a new organization
     const handleAddDialogOpen = useCallback(() => {
         const canAdd = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
-        console.log('handleAddDialogOpen', canAdd, session);
         if (canAdd) {
             setLocation(`${APP_LINKS.SearchOrganizations}/add`)
         }

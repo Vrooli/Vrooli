@@ -180,7 +180,6 @@ export const resolvers = {
                 OrganizationModel(prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
-            console.log('autocomplete GOT ORGANIZATIONS', organizations, organizations.map(o => Array.isArray(o.tags) && o.tags.length > 0 ? o.tags[0] : null));
             // Query projects
             const projects = (await readManyHelper(
                 req.userId, 

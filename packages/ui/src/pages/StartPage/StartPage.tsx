@@ -17,9 +17,8 @@ import {
 } from '@mui/material';
 import { Forms, Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/walletIntegration';
-import { CommonProps } from 'types';
 import { ROLES } from '@local/shared';
 import { HelpButton } from 'components';
 import {
@@ -120,7 +119,6 @@ export const StartPage = () => {
         }
         // Validate wallet
         const walletCompleteResult = await validateWallet(provider);
-        console.log('wallet validation', walletCompleteResult);
         if (walletCompleteResult) {
             PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
             // Set actor role
@@ -141,7 +139,6 @@ export const StartPage = () => {
     }, [guestLogIn, setLocation, redirect]);
 
     const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
-        console.log('handleWalletDialogSelect', selected);
         if (walletDialogFor === 'connect') {
             walletLogin(selected);
         } else if (walletDialogFor === 'download') {

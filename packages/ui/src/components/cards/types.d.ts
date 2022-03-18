@@ -23,8 +23,12 @@ export interface ProjectCardProps {
 }
 
 export interface ResourceCardProps {
+    canEdit: boolean;
     data: Resource;
-    onRightClick: (ev: any, data: Resource) => void;
+    handleEdit: (index: number) => void;
+    handleDelete: (index: number) => void;
+    index: number;
+    onRightClick: (ev: any, index: number) => void;
     session: Session;
 }
 

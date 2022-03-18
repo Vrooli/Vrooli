@@ -1,7 +1,7 @@
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
-import { ReportFor, ResourceFor } from '@local/shared';
+import { ReportFor } from '@local/shared';
 import { Node, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Session, Standard, User } from 'types';
 
 export interface AlertDialogProps extends DialogProps { };
@@ -18,6 +18,7 @@ export interface ListMenuItemData<T> {
     value: T; // Value to pass back
     Icon?: SvgIconComponent; // Icon to display
     iconColor?: string; // Color of icon, if different than text
+    preview?: boolean; // Determines if the item is a preview (i.e. not selectable, coming soon)
     helpData?: HelpButtonProps; // If set, displays help button with data
 }
 export interface ListMenuProps<T> {
@@ -73,11 +74,15 @@ export interface ReportDialogProps extends DialogProps {
     forId: string;
 }
 
-export interface AddResourceDialogProps extends DialogProps {
-    mutate?: boolean; // Determines if add resource should be called by this dialog, or is handled later
+export interface ResourceDialogProps extends DialogProps {
+    isAdd: boolean; // Determines if mutation is an add or edit
+    mutate: boolean; // Determines if add resource should be called by this dialog, or is handled later
     open: boolean;
     onClose: () => any;
     onCreated: (resource: Resource) => any;
+    onUpdated: (index: number, resource: Resource) => any;
+    index?: number;
+    partialData?: Partial<Resource>;
     title?: string;
     listId: string;
 }
@@ -135,11 +140,17 @@ export enum BaseObjectAction {
     Report = "Report",
     Share = "Share",
     Star = "Star",
+    Stats = "Stats",
     Unstar = "Unstar",
+    Update = "Update", // Not a synonym for edit. Used when COMPLETING an edit
+    UpdateCancel = "UpdateCancel",
     Upvote = "Upvote",
 }
 
 export interface BaseObjectActionDialogProps {
+    handleActionComplete: (action: BaseObjectAction, data: any) => any;
+    handleDelete: () => any;
+    handleEdit: () => any;
     objectId: string;
     objectType: string;
     title: string;
@@ -159,8 +170,8 @@ export interface LinkDialogProps {
 }
 
 export interface BuildInfoDialogProps {
+    handleAction: (action: BaseObjectAction) => any;
     handleUpdate: (routine: Routine) => any;
-    handleDelete: () => any;
     isEditing: boolean;
     language: string; // Language to display/edit
     routine: Routine | null;
@@ -169,6 +180,9 @@ export interface BuildInfoDialogProps {
 }
 
 export interface SubroutineInfoDialogProps {
+    handleUpdate: (updatedSubroutine: Routine) => any;
+    handleViewFull: () => any;
+    isEditing: boolean;
     open: boolean;
     language: string; // Language to display/edit
     subroutine: Routine | null;
