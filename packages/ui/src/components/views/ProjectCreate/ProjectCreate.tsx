@@ -62,9 +62,11 @@ export const ProjectCreate = ({
                 tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
             } : {};
+            const createdFor = organizationFor ? { createdByOrganizationId: organizationFor.id } : {};
             mutationWrapper({
                 mutation,
                 input: formatForCreate({
+                    ...createdFor,
                     translations: [{
                         language: 'en',
                         name: values.name,

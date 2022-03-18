@@ -391,6 +391,14 @@ export const RunRoutineView = ({
     }
 
     /**
+     * End routine early
+     */
+    const toFinishNotComplete = () => {
+        //TODO
+        handleClose();
+    }
+
+    /**
      * Find the step array of a given nodeId
      * @param nodeId The nodeId to search for
      * @param step The current step object, since this is recursive
@@ -416,6 +424,11 @@ export const RunRoutineView = ({
      * Navigate to selected decision
      */
     const toDecision = useCallback((selectedNode: Node) => {
+        // If end node, finish
+        if (selectedNode.type === NodeType.End) {
+            toFinishNotComplete();
+            return;
+        }
         // Find step number of node
         if (!stepList) return;
         const locationArray = findLocationArray(selectedNode.id, stepList);

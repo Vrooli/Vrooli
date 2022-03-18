@@ -15,7 +15,7 @@ export const OrganizationViewPage = ({
     const [, setLocation] = useLocation();
     // Get URL params
     const [matchView, paramsView] = useRoute(`${APP_LINKS.Organization}/:id`); // View a specific organization
-    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.SearchOrganizations}/update/:id`);
+    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.SearchOrganizations}/edit/:id`);
     const id = useMemo(() => paramsView?.id ?? paramsUpdate?.id ?? '', [paramsView, paramsUpdate]);
 
     const isAddDialogOpen = useMemo(() => Boolean(matchView) && paramsView?.id === 'add', [matchView, paramsView]);
@@ -34,7 +34,7 @@ export const OrganizationViewPage = ({
                 setLocation(APP_LINKS.Organization, { replace: true });
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.Organization}/update/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.Organization}/edit/${id}`, { replace: true });
                 break;
             case ObjectDialogAction.Save:
                 setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });

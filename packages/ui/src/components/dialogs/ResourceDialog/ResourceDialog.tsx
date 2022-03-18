@@ -60,6 +60,7 @@ export const ResourceDialog = ({
     title = 'Add Resource',
     listId,
 }: ResourceDialogProps) => {
+    console.log('resource dialog', isAdd)
 
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);

@@ -45,6 +45,16 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
     },
 })
 
+// /**
+//  * Maps object type to Id field
+//  */
+//  const resourceListMapper = {
+//     [GraphQLModelType.Organization]: 'organizationId',
+//     [GraphQLModelType.Project]: 'projectId',
+//     [GraphQLModelType.Routine]: 'routineId',
+//     [GraphQLModelType.User]: 'userId',
+// }
+
 export const resourceListMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean): Promise<any> {
         return {
@@ -53,7 +63,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             projectId: data.projectId ?? undefined,
             routineId: data.routineId ?? undefined,
             userId: data.userId ?? undefined,
-            resources: ResourceModel(prisma).relationshipBuilder(userId, data, isAdd),
+            resources: await ResourceModel(prisma).relationshipBuilder(userId, data, isAdd),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: resourceListTranslationsCreate, update: resourceListTranslationsUpdate }, isAdd),
         };
     },
@@ -86,6 +96,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
                 data: await this.toDBShape(userId, data.data as any, false)
             }))
         }
+        console.log('resourcelistbuilder complete', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({

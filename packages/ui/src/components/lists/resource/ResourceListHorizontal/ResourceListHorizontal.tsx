@@ -47,9 +47,10 @@ export const ResourceListHorizontal = ({
     }, [handleUpdate, list]);
 
     const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(resourceDeleteManyMutation);
-    const onDelete = useCallback((resource: Resource) => {
+    const onDelete = useCallback((index: number) => {
         if (!list) return;
-        if (mutate) {
+        const resource = list.resources[index];
+        if (mutate && resource.id) {
             mutationWrapper({
                 mutation: deleteMutation,
                 input: { ids: [resource.id] },
@@ -101,7 +102,7 @@ export const ResourceListHorizontal = ({
 
     const dialog = useMemo(() => (
         list ? <ResourceDialog
-            isAdd={editingIndex !== undefined}
+            isAdd={editingIndex === undefined}
             partialData={editingIndex ? list.resources[editingIndex as number] as any : undefined}
             listId={list.id}
             open={isDialogOpen}
@@ -124,7 +125,7 @@ export const ResourceListHorizontal = ({
                 onClose={closeContext}
                 onAddBefore={() => { }}
                 onAddAfter={() => { }}
-                onDelete={() => { }}
+                onDelete={onDelete}
                 onEdit={openUpdateDialog}
                 onMove={() => { }}
             />
@@ -155,7 +156,7 @@ export const ResourceListHorizontal = ({
                         <ResourceCard
                             canEdit={canEdit}
                             handleEdit={openUpdateDialog}
-                            handleDelete={() => { }}
+                            handleDelete={onDelete}
                             key={`resource-card-${index}`}
                             index={index}
                             session={session}

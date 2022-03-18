@@ -195,14 +195,14 @@ export function UserOrganizationSwitch({
                             height: '30px',
                             position: 'absolute',
                             top: 0,
+                            transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+                            transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
                         }}>
                             <Icon sx={{
                                 position: 'absolute',
                                 display: 'block',
                                 fill: 'white',
                                 borderRadius: '8px',
-                                transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-                                transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
                             }} />
                         </IconButton>
                     </Box>
