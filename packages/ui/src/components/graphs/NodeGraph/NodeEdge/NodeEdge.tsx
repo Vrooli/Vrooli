@@ -159,7 +159,6 @@ export const NodeEdge = ({
         // Updates are needed when not dragging to handle adding/removing nodes
         let delta = 1000; // Milliseconds
         if (dragId && dragId === link.fromId || dragId === link.toId) {
-            console.log('in drag ref boopies', dragId)
             delta = 15;
         }
         dragRef.current = setInterval(() => { calculateDims(); }, delta);

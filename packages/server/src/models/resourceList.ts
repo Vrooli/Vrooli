@@ -63,14 +63,12 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         isAdd: boolean = true,
         relationshipName: string = 'resourceLists',
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('in resource LIST relationshipbuilder start')
         const fieldExcludes = ['createdFor', 'createdForId'];
         // Convert input to Prisma shape. Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by resource lists (since they can only be applied to one object)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        console.log('in resource LIST relationshipbuilder formattedInput. going to validate...', formattedInput)
         await this.validateMutations({
             userId,
             createMany: createMany as ResourceListCreateInput[],
@@ -94,20 +92,16 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<void> {
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
-        console.log('in resource LIST validateMutations...')
         // TODO check that user can add resource to this forId, like in node validateMutations
         if (createMany) {
-            console.log('node validate createMany', createMany);
             createMany.forEach(input => resourceListCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
             // Check for max resources on object TODO
         }
         if (updateMany) {
-            console.log('node validate updateMany', updateMany);
             updateMany.forEach(input => resourceListUpdate.validateSync(input.data, { abortEarly: false }));
             updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
         }
-        console.log('finishedd resource LIST validateMutations :)')
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<CUDResult<ResourceList>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });

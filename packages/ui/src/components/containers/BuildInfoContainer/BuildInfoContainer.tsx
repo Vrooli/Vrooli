@@ -62,7 +62,6 @@ export const BuildInfoContainer = ({
      * If one message, no bullet points. If multiple, bullet points.
      */
     const statusMarkdown = useMemo(() => {
-        console.log('in statustoMarkdown', status);
         if (status.messages.length === 0) return 'Routine is valid.';
         if (status.messages.length === 1) {
             return status.messages[0];

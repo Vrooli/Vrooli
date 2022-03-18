@@ -120,7 +120,6 @@ export const StartPage = () => {
         }
         // Validate wallet
         const walletCompleteResult = await validateWallet(provider);
-        console.log('wallet validation', walletCompleteResult);
         if (walletCompleteResult) {
             PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
             // Set actor role
@@ -141,7 +140,6 @@ export const StartPage = () => {
     }, [guestLogIn, setLocation, redirect]);
 
     const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
-        console.log('handleWalletDialogSelect', selected);
         if (walletDialogFor === 'connect') {
             walletLogin(selected);
         } else if (walletDialogFor === 'download') {

@@ -72,7 +72,6 @@ export const SettingsDisplay = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            console.log('onSubmit', formik.isValid);
             if (!formik.isValid) return;
             mutationWrapper({
                 mutation,
@@ -84,7 +83,6 @@ export const SettingsDisplay = ({
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, !formik.touched || formik.isSubmitting, false, () => { 
-            console.log('submit');
             formik.submitForm();
         }],
         ['Revert', RevertIcon, !formik.touched || formik.isSubmitting, false, () => { 

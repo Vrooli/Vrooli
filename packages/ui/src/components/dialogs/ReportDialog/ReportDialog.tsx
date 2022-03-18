@@ -67,7 +67,6 @@ export const ReportDialog = ({
             })
         },
     });
-    console.log('fdksafldafd reason', formik.values.reason)
 
     return (
         <Dialog

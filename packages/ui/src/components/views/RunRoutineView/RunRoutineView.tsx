@@ -30,7 +30,6 @@ export const RunRoutineView = ({
     // Get URL params
     const [stepParams, setStepParams] = useState<number[]>(() => {
         const stepUrl = (parseSearchParams(window.location.search).step ?? '').split('.');
-        console.log('finding step params...', stepUrl)
         if (Array.isArray(stepUrl)) return stepUrl.map(Number)
         return []
     });
@@ -42,14 +41,11 @@ export const RunRoutineView = ({
     const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
         const routineId = params1?.routineId ?? params2?.routineId ?? ''
-        console.log('found routine id', routineId)
         if (uuidValidate(routineId)) {
-            console.log('getting routine', routineId);
             getRoutine({ variables: { input: { id: routineId } } })
         }
     }, [getRoutine, params1?.routineId, params2?.routineId]);
     useEffect(() => {
-        console.log('in routine data useeffect', routineData)
         if (routineData?.routine) setRoutine(routineData.routine);
     }, [routineData]);
 
@@ -58,7 +54,6 @@ export const RunRoutineView = ({
      * Calculate the known subroutines. If a subroutine has a complexity > 1, then there are more subroutines to run.
      */
     useEffect(() => {
-        console.log('in steplist start', routine)
         if (!routine || !routine.nodes || !routine.nodeLinks) {
             setStepList(null)
             return;
@@ -90,7 +85,6 @@ export const RunRoutineView = ({
         }
         // Loop through all nodes
         for (const node of routineListNodes) {
-            console.log('in step useeffect node loop', node)
             // Find all subroutine steps
             let subroutineSteps: SubroutineStep[] = (node.data as NodeDataRoutineList).routines.map((item: NodeDataRoutineListItem) => ({
                 type: RoutineStepType.Subroutine,
@@ -118,7 +112,6 @@ export const RunRoutineView = ({
                 title: 'Decision',
                 description: 'Select a subroutine to run next',
             }] : [];
-            console.log('going to push', [...subroutineSteps, ...decisionSteps] as any)
             resultSteps.push({
                 type: RoutineStepType.RoutineList,
                 isOrdered: (node.data as NodeDataRoutineList).isOrdered ?? false,
@@ -127,7 +120,6 @@ export const RunRoutineView = ({
                 steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
             });
         }
-        console.log('setting steplist result', resultSteps)
         // Main routine acts like routine list
         setStepList({
             type: RoutineStepType.RoutineList,
@@ -143,7 +135,6 @@ export const RunRoutineView = ({
      * @param locationArray Array of step numbers that describes nesting of requested step
      */
     const findStep = useCallback((locationArray: number[]): RoutineStep | null => {
-        console.log('in find step start', stepList, locationArray)
         if (!stepList) return null;
         let currNestedSteps: RoutineStep | null = stepList;
         // If array too large, probably an error
@@ -153,7 +144,6 @@ export const RunRoutineView = ({
                 currNestedSteps = currNestedSteps.steps.length > Math.max(locationArray[i] - 1, 0) ? currNestedSteps.steps[Math.max(locationArray[i] - 1, 0)] : null;
             }
         }
-        console.log('in find step end', currNestedSteps)
         return currNestedSteps;
     }, [stepList]);
 
@@ -200,7 +190,6 @@ export const RunRoutineView = ({
      * Calculates progress percentage, as complexity of all completed steps / complexity of all steps
      */
     const progressPercentage = useMemo(() => {
-        console.log('calculating progress percentage', progress, stepList)
         if (!stepList || !(stepList as RoutineListStep).steps.length || !progress || !progress.length || !routine) return 0;
         // Add the complexity of all steps in progress
         let completedComplexity = 0;
@@ -217,7 +206,6 @@ export const RunRoutineView = ({
     const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
     useEffect(() => {
-        console.log('finding currentStep strart', stepParams)
         // If no steps, redirect to first step
         if (stepParams.length === 0) {
             setLocation(`?step=1`, { replace: true });
@@ -226,9 +214,7 @@ export const RunRoutineView = ({
         }
         // Current step is the last step in steps list
         const currStep = findStep(stepParams);
-        console.log('got currStep', currStep)
         if (!currStep) {
-            console.log('didnt really get it though')
             // TODO might need to fetch subroutines multiple times to get to current step, so this shouldn't be an error
             return;
         }
@@ -243,14 +229,11 @@ export const RunRoutineView = ({
         if (currStep.type === RoutineStepType.Subroutine) {
             const currSubroutine = (currStep as SubroutineStep).routine;
             if (currSubroutine.complexity > 1 && (!currSubroutine.nodes || currSubroutine.nodes.length === 0)) {
-                console.log('querying because complexity > 1')
                 getSubroutine({ variables: { input: { id: currSubroutine.id } } });
             } else {
-                console.log('setting subroutine setp')
                 setCurrentStep(currStep);
             }
         } else {
-            console.log('setting decision step')
             setCurrentStep(currStep);
         }
     }, [stepParams, getSubroutine, stepList]);
@@ -331,12 +314,10 @@ export const RunRoutineView = ({
      * Examples: [2] => [1], [1] => null, [2, 2] => [2, 1], [2, 1] => [2, num in previous step]
      */
     const previousStep = useMemo<number[] | null>(() => {
-        console.log('calculating previous step', stepParams)
         if (stepParams.length === 0) return null;
         // Loop backwards. If curr > 1, then return curr - 1 and remove elements after
         for (let i = stepParams.length - 1; i >= 0; i--) {
             const currStepNumber = stepParams[i];
-            if (currStepNumber > 1) console.log('yeeeeeee', [...stepParams.slice(0, i), currStepNumber - 1])
             if (currStepNumber > 1) return [...stepParams.slice(0, i), currStepNumber - 1]
         }
         return null
@@ -349,13 +330,11 @@ export const RunRoutineView = ({
     const nextStep = useMemo<number[] | null>(() => {
         // If current step is a decision, return null
         if (currentStep?.type === RoutineStepType.Decision) return null;
-        console.log('calculating next step', stepParams, currentStep)
         if (stepParams.length === 0) return [1];
         let result = [...stepParams];
         // Loop backwards until a number in stepParams can be incremented. Remove elements after that
         for (let i = result.length - 1; i >= 0; i--) {
             const currStep = findStep(result.slice(0, i));
-            console.log('loop backwards', result.slice(0, i), result[i], currStep)
             if (!currStep) return null;
             if (currStep.type === RoutineStepType.RoutineList) {
                 if ((currStep as RoutineListStep).steps.length > result[i]) {
@@ -375,7 +354,6 @@ export const RunRoutineView = ({
       * Navigate to the previous subroutine
       */
     const toPrevious = useCallback(() => {
-        console.log('toprevious', previousStep)
         if (!previousStep) return;
         // Update current step
         setLocation(`?step=${previousStep.join('.')}`, { replace: true });
@@ -386,7 +364,6 @@ export const RunRoutineView = ({
      * Navigate to the next subroutine
      */
     const toNext = useCallback(() => {
-        console.log('to next', progress)
         if (!nextStep) return;
         // Update progress
         let newProgress = Array.isArray(progress) ? [...progress] : []
@@ -419,7 +396,6 @@ export const RunRoutineView = ({
      * Displays either a subroutine view or decision view
      */
     const childView = useMemo(() => {
-        console.log('rendering child view', currentStep)
         if (!currentStep) return null;
         switch (currentStep.type) {
             case RoutineStepType.Subroutine:

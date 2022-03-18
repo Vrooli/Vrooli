@@ -17,7 +17,6 @@ export function ProjectListItem({
 }: ProjectListItemProps) {
     const [, setLocation] = useLocation();
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
-    console.log('projectlistitem', data);
 
     const { description, name } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;

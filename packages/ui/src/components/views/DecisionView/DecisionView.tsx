@@ -18,8 +18,6 @@ export const DecisionView = ({
     handleDecisionSelect,
     nodes,
 }: DecisionViewProps) => {
-    console.log('rendering decision view', data);
-
     /**
      * Pair each link with its "to" node
      */

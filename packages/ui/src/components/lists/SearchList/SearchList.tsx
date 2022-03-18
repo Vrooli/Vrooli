@@ -51,14 +51,12 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // On search filters/sort change, reset the page
     useEffect(() => {
-        console.log('Resetting page', after.current);
         after.current = undefined;
         fetchPage();
     }, [searchString, sortBy, createdTimeFrame]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
-        console.log('load more!');
         if (!pageData) return;
         const queryData: any = Object.values(pageData)[0];
         if (!queryData || !queryData.pageInfo) return [];
@@ -75,14 +73,12 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const parseData = useCallback((data: any) => {
         if (!data) return [];
         const queryData: any = Object.values(data)[0];
-        console.log('query dta', queryData)
         if (!queryData || !queryData.edges) return [];
         return queryData.edges.map((edge, index) => edge.node);
     }, []);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
-        console.log('parse newly fetched data', pageData);
         const parsedData = parseData(pageData);
         if (!parsedData) {
             setAllData([]);
@@ -120,7 +116,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
     const handleSortClose = (label?: string, selected?: string) => {
-        console.log('handle sort close', label, selected);
         setSortAnchorEl(null);
         if (selected) setSortBy(selected);
         if (label) setSortByLabel(label);
@@ -128,7 +123,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
     const handleTimeClose = (label?: string, after?: Date | null, before?: Date | null) => {
-        console.log('handle time close', label, after, before);
         setTimeAnchorEl(null);
         if (!after && !before) setTimeFrame(undefined);
         else setTimeFrame(`${after?.getTime()},${before?.getTime()}`);
@@ -139,12 +133,10 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
      * When an autocomplete item is selected, navigate to object
      */
     const onInputSelect = useCallback((newValue: any) => {
-        console.log('search list oninputselect', newValue)
         if (!newValue) return;
         // Determine object from selected label
         const selectedItem = allData.find(o => (o as any)?.id === newValue?.id);
         if (!selectedItem) return;
-        console.log('selectedItem', selectedItem);
         onObjectSelect(selectedItem);
     }, [allData, onObjectSelect]);
 

@@ -25,10 +25,7 @@ export const ResourceListVertical = ({
     session,
 }: ResourceListVerticalProps) => {
 
-    console.log('list data', list)
-
     const onAdd = useCallback((newResource: Resource) => {
-        console.log('HANDE ADD', newResource, list)
         if (!list) return;
         if (handleUpdate) {
             handleUpdate({
@@ -78,7 +75,6 @@ export const ResourceListVertical = ({
     const [selected, setSelected] = useState<any | null>(null);
     const contextId = useMemo(() => `resource-context-menu-${selected?.link}`, [selected]);
     const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>, data: any) => {
-        console.log('setting context anchor', ev.currentTarget, data);
         setContextAnchor(ev.currentTarget);
         setSelected(data);
         ev.preventDefault();

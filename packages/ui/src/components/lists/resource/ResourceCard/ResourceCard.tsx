@@ -43,14 +43,12 @@ export const ResourceCard = ({
     const [, setLocation] = useLocation();
 
     const { description, title } = useMemo(() => {
-        console.log('getting resource translations', data)
         const languages = session?.languages ?? navigator.languages;
         return {
             description: getTranslation(data, 'description', languages, true),
             title: getTranslation(data, 'title', languages, true),
         };
     }, [data]);
-    console.log('resource ', title)
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
@@ -64,7 +62,6 @@ export const ResourceCard = ({
     }, [onRightClick, index]);
 
     const onEdit = useCallback((e) => {
-        console.log('on edittttttt')
         e.stopPropagation();
         handleEdit(index);
     }, [handleEdit, index]);

@@ -20,7 +20,6 @@ export const UpvoteDownvote = ({
     useEffect(() => setInternalIsUpvoted(isUpvoted ?? null), [isUpvoted]);
 
     const internalScore = useMemo(() => {
-        console.log('internalScore start', score);
         const scoreNum = score ?? 0;
         // If the score and internal score match, return the score
         if (internalIsUpvoted === isUpvoted) return scoreNum;

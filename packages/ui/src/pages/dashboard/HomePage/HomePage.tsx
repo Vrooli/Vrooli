@@ -105,14 +105,13 @@ export const HomePage = ({
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>(() => {
         const { search } = parseSearchParams(window.location.search);
-        console.log('in calculate search string', search);
         return search ?? '';
     });
-    const updateSearch = useCallback((newValue: any) => { console.log('update search'); setSearchString(newValue) }, []);
+    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     // Search query removes words that start with a '!'. These are used for sorting results. TODO doesn't work
     const { data, refetch, loading } = useQuery<autocomplete, autocompleteVariables>(autocompleteQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
-    useEffect(() => { console.log('refetching...', session); refetch() }, [refetch, searchString]);
+    useEffect(() => { refetch() }, [refetch, searchString]);
 
     const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
 
@@ -191,7 +190,6 @@ export const HomePage = ({
     }, [searchString]);
 
     const feeds = useMemo(() => {
-        console.log('updating feeds');
         let listFeeds: JSX.Element[] = [];
         for (const objectType of feedOrder) {
             let listFeedItems: JSX.Element[] = [];
@@ -219,7 +217,6 @@ export const HomePage = ({
                     ))
                     break;
                 case ObjectType.Routine:
-                    console.log('routine list feed', routines);
                     listFeedItems = routines.map((o, index) => (
                         <RoutineListItem
                             key={`feed-list-item-${o.id}`}

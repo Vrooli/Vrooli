@@ -55,7 +55,6 @@ export const AddSubroutineDialog = ({
     // If routine selected from search, query for full data
     const [getRoutine, { data: routineData, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const handleRoutineSelect = useCallback((routine: Routine) => {
-        console.log('handle select', routine);
         getRoutine({ variables: { input: { id: routine.id } } });
     }, [getRoutine]);
     useEffect(() => {

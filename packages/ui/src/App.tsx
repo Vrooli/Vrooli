@@ -121,7 +121,6 @@ export function App() {
 
     const checkSession = useCallback((session?: any) => {
         if (session) {
-            console.log('setting session a', session)
             setSession(session);
             return;
         }
@@ -147,7 +146,6 @@ export function App() {
             }
         });
         let sessionSub = PubSub.subscribe(Pubs.Session, (_, session) => {
-            console.log('in session pub', session)
             setSession(s => (session === undefined ? undefined : { ...s, ...session }));
         });
         let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));

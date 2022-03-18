@@ -118,7 +118,6 @@ export const RunStepsDialog = ({
     stepList,
     sxs,
 }: RunStepsDialogProps) => {
-    console.log('run steps dialog history', history);
     const [, setLocation] = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);

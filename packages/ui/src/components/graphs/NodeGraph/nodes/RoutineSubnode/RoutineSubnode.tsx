@@ -26,6 +26,7 @@ export const RoutineSubnode = ({
     data,
     scale = 1,
     labelVisible = true,
+    isOpen,
     isEditing = true,
     handleOpen,
     handleEdit,
@@ -66,7 +67,7 @@ export const RoutineSubnode = ({
         if (!labelVisible) return null;
         return (
             <EditableLabel
-                canEdit={isEditing}
+                canEdit={isEditing && isOpen}
                 handleUpdate={handleLabelUpdate}
                 renderLabel={(t) => (
                     <Typography
@@ -91,7 +92,7 @@ export const RoutineSubnode = ({
                 text={title}
             />
         )
-    }, [handleLabelUpdate, isEditing, labelVisible, title]);
+    }, [handleLabelUpdate, isEditing, isOpen, labelVisible, title]);
 
     return (
         <Box

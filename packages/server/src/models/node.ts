@@ -31,7 +31,6 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
         return modified;
     },
     deconstructUnions: (partial) => {
-        console.log('in node deconstructunions')
         let modified = deconstructUnion(partial, 'data',
             [
                 [GraphQLModelType.NodeEnd, 'nodeEnd'],
@@ -120,7 +119,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             type: data.type,
             translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeTranslationCreate, update: nodeTranslationUpdate }, false),
         };
-        console.log('in node todbshape', JSON.stringify(data))
         // Create type-specific data, and make sure other types are null
         nodeData.nodeEnd = undefined;
         nodeData.nodeRoutineList = undefined;
@@ -132,7 +130,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             if (data.loopCreate) nodeData.loop = this.relationshipBuilderLoop(userId, data, true);
             else if ((data as NodeUpdateInput)?.loopUpdate) nodeData.loop = this.relationshipBuilderLoop(userId, data, false);
         }
-        console.log('node todbshape end', JSON.stringify(nodeData))
         return nodeData;
     },
     /**
@@ -149,7 +146,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by nodes (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        console.log('node relationshipbuilder formattedinput', JSON.stringify(formattedInput));
         let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         // Further shape the input
         if (createMany) {
@@ -169,7 +165,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             }
             updateMany = result;
         }
-        console.log('node relationshipbuilder updateMany bug shouldnt be here but maybe it is idk', JSON.stringify(updateMany));
         // Validate input, with routine ID added to each update node
         await this.validateMutations({
             userId,
@@ -355,7 +350,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         const routineModel = RoutineModel(prisma);
         // Validate create
         if (Array.isArray(formattedInput.create)) {
-            console.log('the bad validate b?', JSON.stringify(formattedInput.create))
             // Check for valid arguments
             nodeRoutineListItemsCreate.validateSync(formattedInput.create, { abortEarly: false });
             let result = [];
@@ -374,7 +368,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
-            console.log('the bad validate d?', JSON.stringify(formattedInput.update))
             // Check for valid arguments
             nodeRoutineListItemsUpdate.validateSync(formattedInput.update, { abortEarly: false });
             let result = [];
@@ -388,7 +381,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             }
             formattedInput.update = result;
         }
-        console.log('node routine list ITEM endddd', JSON.stringify(formattedInput))
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
@@ -400,12 +392,10 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('relationshipbuiilderroutinelistnode start');
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by node data (since they can only be applied to one node)
         let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'nodeRoutineList', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        console.log('relationshipbuii a', JSON.stringify(formattedInput));
         // Validate create
         if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
             const create = formattedInput.create[0];
@@ -430,7 +420,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
                 routines: await this.relationshipBuilderRoutineListNodeItem(userId, update, isAdd)
             }
         }
-        console.log('relationshipbuiilderroutinelistnode end', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
@@ -439,7 +428,6 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<NodeCreateInput, NodeUpdateInput>): Promise<void> {
-        console.log('node validate mutations', { userId, createMany, updateMany, deleteMany });
         if (!userId) throw new CustomError(CODE.Unauthorized);
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
         // Make sure the user has access to these nodes
@@ -448,17 +436,14 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         const deleteNodeIds = deleteMany ?? [];
         const allNodeIds = [...createNodeIds, ...updateNodeIds, ...deleteNodeIds];
         if (allNodeIds.length === 0) return;
-        console.log('going to node authorized check', allNodeIds)
         const routineId = await verifier.authorizedCheck(userId, allNodeIds, prisma);
         if (createMany) {
-            console.log('checking node createMany', createMany);
             createMany.forEach(input => nodeCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => verifier.profanityCheck(input));
             // Check if will pass max nodes (on routine) limit
             await verifier.maximumCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
         }
         if (updateMany) {
-            console.log('checking node updateMany', updateMany);
             updateMany.forEach(input => nodeUpdate.validateSync(input.data, { abortEarly: false }));
             updateMany.forEach(input => verifier.profanityCheck(input.data));
         }

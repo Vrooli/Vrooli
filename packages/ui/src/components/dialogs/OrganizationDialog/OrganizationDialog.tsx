@@ -18,7 +18,6 @@ export const OrganizationDialog = ({
     const [, setLocation] = useLocation();
     const [, params] = useRoute(`${APP_LINKS.SearchOrganizations}/:params*`);
     const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
-    console.log("OrganizationDialog", { params, state, id });
 
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {

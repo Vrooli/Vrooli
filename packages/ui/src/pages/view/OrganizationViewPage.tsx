@@ -18,13 +18,10 @@ export const OrganizationViewPage = ({
     const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.SearchOrganizations}/update/:id`);
     const id = useMemo(() => paramsView?.id ?? paramsUpdate?.id ?? '', [paramsView, paramsUpdate]);
 
-    console.log('matches', { matchView, paramsView, matchUpdate, paramsUpdate });
-
     const isAddDialogOpen = useMemo(() => Boolean(matchView) && paramsView?.id === 'add', [matchView, paramsView]);
     const isEditDialogOpen = useMemo(() => Boolean(matchUpdate), [matchUpdate]);
 
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
-        console.log('in onAction', { action, data });
         switch (action) {
             case ObjectDialogAction.Add:
                 if (data?.id) setLocation(`${APP_LINKS.Organization}/${data?.id}`, { replace: true });

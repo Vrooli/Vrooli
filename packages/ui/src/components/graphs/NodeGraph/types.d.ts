@@ -84,6 +84,7 @@ export interface NodeColumnProps {
     nodes: Node[];
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
+    handleNodeUpdate: (updatedNode: Node) => void;
 }
 
 export interface NodeEdgeProps {

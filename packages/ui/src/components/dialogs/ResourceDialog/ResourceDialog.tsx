@@ -60,7 +60,6 @@ export const ResourceDialog = ({
     title = 'Add Resource',
     listId,
 }: ResourceDialogProps) => {
-    console.log('is resource dialog add?', isAdd)
 
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
@@ -74,7 +73,6 @@ export const ResourceDialog = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            console.log('in onsubmit', values);
             const input = formatForCreate({
                 listId,
                 link: values.link,
@@ -85,7 +83,6 @@ export const ResourceDialog = ({
                     description: values.description,
                 }],
             })
-            console.log('add resource input', input);
             if (mutate) {
                 mutationWrapper({
                     mutation: isAdd ? addMutation : updateMutation,
@@ -103,8 +100,6 @@ export const ResourceDialog = ({
             }
         },
     });
-
-    console.log('FORMIK ERROR', listId, formik.errors, formik.values)
 
     return (
         <Dialog

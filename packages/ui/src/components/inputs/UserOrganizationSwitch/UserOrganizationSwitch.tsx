@@ -50,9 +50,7 @@ export function UserOrganizationSwitch({
         if (session?.id) {
             getOrganizationsData()
         }
-        else console.log('no session id!!!');
     }, [getOrganizationsData, session])
-    console.log('organizations', organizations);
 
     const [menuAnchorEl, setMenuAnchorEl] = useState<any>(null);
     const handleClick = useCallback((ev: MouseEvent<any>) => {

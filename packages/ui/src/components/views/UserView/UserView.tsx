@@ -104,8 +104,6 @@ export const UserView = ({
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
     }
 
-    console.log('isProfile', isProfile, id);
-
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
         setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile&editing=true` : `${APP_LINKS.SearchUsers}/edit/${id}`);

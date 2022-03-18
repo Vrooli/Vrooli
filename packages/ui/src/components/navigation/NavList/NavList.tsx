@@ -49,7 +49,6 @@ export const NavList = ({
 }: NavListProps) => {
     const classes = useStyles();
     const [, setLocation] = useLocation();
-    console.log('navlisttttttttt', sessionChecked);
 
     const nav_actions = useMemo<Action[]>(() => getUserActions({ roles: session.roles ?? [], exclude: [ACTION_TAGS.Home] }), [session.roles]);
     // Display button for entering main application

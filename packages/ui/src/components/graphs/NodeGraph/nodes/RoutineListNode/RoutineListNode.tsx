@@ -48,21 +48,21 @@ export const RoutineListNode = ({
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);
 
     const handleLabelUpdate = useCallback((newLabel: string) => {
-        handleUpdate(node.id, {
+        handleUpdate({
             ...node,
             translations: updateTranslationField(node, 'title', newLabel, 'en') as any[],
         });
     }, [handleUpdate, node]);
 
     const onOrderedChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
-        handleUpdate(node.id, {
+        handleUpdate({
             ...node,
             data: { ...node.data, isOrdered: checked } as any,
         });
     }, [handleUpdate, node]);
 
     const onOptionalChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
-        handleUpdate(node.id, {
+        handleUpdate({
             ...node,
             data: { ...node.data, isOptional: checked } as any,
         });
@@ -82,7 +82,7 @@ export const RoutineListNode = ({
         handleAction(BuildAction.DeleteSubroutine, node.id, subroutineId);
     }, [handleAction, node.id]);
     const handleSubroutineUpdate = useCallback((subroutineId: string, newData: NodeDataRoutineListItem) => {
-        handleUpdate(node.id, {
+        handleUpdate({
             ...node,
             data: {
                 ...node.data,
@@ -131,7 +131,6 @@ export const RoutineListNode = ({
     const addSize = useMemo(() => `${NodeWidth.RoutineList * scale / 8}px`, [scale]);
 
     const confirmDelete = useCallback((event: any) => {
-        console.log('in confirm delete', event);
         event.preventDefault();
         PubSub.publish(Pubs.AlertDialog, {
             message: 'What would you like to do?',
@@ -147,7 +146,7 @@ export const RoutineListNode = ({
         if (!labelVisible) return null;
         return (
             <EditableLabel
-                canEdit={isEditing}
+                canEdit={isEditing && collapseOpen}
                 handleUpdate={handleLabelUpdate}
                 renderLabel={(t) => (
                     <Typography
@@ -173,7 +172,7 @@ export const RoutineListNode = ({
                 text={label}
             />
         )
-    }, [label, labelVisible, isEditing, node.id, handleLabelUpdate, isLinked]);
+    }, [collapseOpen, label, labelVisible, isEditing, node.id, handleLabelUpdate, isLinked]);
 
     const optionsCollapse = useMemo(() => (
         <Collapse in={collapseOpen} sx={{ ...routineNodeListOptions }}>
@@ -227,10 +226,11 @@ export const RoutineListNode = ({
             handleDelete={handleSubroutineDelete}
             handleUpdate={handleSubroutineUpdate}
             isEditing={isEditing}
+            isOpen={collapseOpen}
             labelVisible={labelVisible}
             scale={scale}
         />
-    )), [node?.data, isEditing, labelVisible, scale]);
+    )), [collapseOpen, node?.data, isEditing, labelVisible, scale]);
 
     const addButton = useMemo(() => isEditing ? (
         <IconButton

@@ -41,7 +41,6 @@ export const NodeGraph = ({
     nodesById,
     scale = 1,
 }: NodeGraphProps) => {
-    console.log(' IN NODE GRAPH', nodesById, links);
     // Stores edges
     const [edges, setEdges] = useState<JSX.Element[]>([])
     // Dragging a node
@@ -93,7 +92,6 @@ export const NodeGraph = ({
             const minSpeed = 5;
             const percent = 1 - (distToEdge) / (sideLength * 0.15);
             const temp = (maxSpeed - minSpeed) * percent + minSpeed;
-            console.log('i am speed', temp, percent, distToEdge, sideLength);
             dragRefs.current.speed = (maxSpeed - minSpeed) * percent + minSpeed;
         }
         const scrollLeft = () => { gridElement.scrollBy(-dragRefs.current.speed, 0) }
@@ -135,7 +133,6 @@ export const NodeGraph = ({
         const distX = x - lastX;
         const distY = y - lastY;
         const dist = Math.sqrt(distX * distX + distY * distY);
-        console.log('PINCH DIST', dist, x, y, lastX, lastY)
         PubSub.publish(Pubs.Snack, { message: dist })
         // Determine if the pinch is expanding or contracting
         //TODO
@@ -166,13 +163,6 @@ export const NodeGraph = ({
             xEnd: rectangle.x + rectangle.width + padding * 2,
             yEnd: rectangle.y + rectangle.height + padding * 2,
         }
-        console.log('isinsiderectangle ZONE', id, point, zone, Boolean(
-            point.x >= zone.xStart &&
-            point.x <= zone.xEnd &&
-            point.y >= zone.yStart &&
-            point.y <= zone.yEnd
-        ));
-        console.log('checks', point.x >= zone.xStart, point.x <= zone.xEnd, point.y >= zone.yStart, point.y <= zone.yEnd);
         return Boolean(
             point.x >= zone.xStart &&
             point.x <= zone.xEnd &&
@@ -207,12 +197,10 @@ export const NodeGraph = ({
         // Check if node dropped into each column
         for (let i = 0; i < columns.length; i++) {
             if (isInsideRectangle({ x, y }, `node-column-${i}`, 0)) {
-                console.log('WAS INSIDE REXTANGLE!', i);
                 columnIndex = i;
                 break;
             }
         }
-        console.log('DROPPED COLUMN INDEX AAAAA', columnIndex);
         // If columnIndex is start node or earlier, return
         if (columnIndex < 1 || columnIndex >= columns.length) {
             PubSub.publish(Pubs.Snack, { message: 'Cannot drop node here', severity: 'error' })
@@ -223,7 +211,6 @@ export const NodeGraph = ({
         if (rowRects.some(rect => !rect)) return -1;
         // Calculate the absolute center Y of each node
         const centerYs = rowRects.map((rect: any) => rect.y);
-        console.log('CENTER YS', centerYs, y);
         // Check if the drop is above each node
         for (let i = 0; i < centerYs.length; i++) {
             if (y < centerYs[i]) {
@@ -233,7 +220,6 @@ export const NodeGraph = ({
         }
         // If not above any nodes, must be below   
         if (rowIndex === -1) rowIndex = centerYs.length;
-        console.log('DROPPED ROW, COL', columnIndex, rowIndex);
         // If dropped into its same position, return
         if (node.columnIndex === columnIndex && node.rowIndex === rowIndex) return;
         // If dropped into its own column and no other nodes in that column, return
@@ -291,7 +277,6 @@ export const NodeGraph = ({
             // Find the target
             const targetId = ev.target.id;
             if (!targetId) return;
-            console.log('TOUCH LENGTH', ev.touches.length);
             // If pinching
             if (ev.touches.length > 1) {
                 pinchRefs.current.currPosition = { x, y };
@@ -373,11 +358,9 @@ export const NodeGraph = ({
      * Edges (links) displayed between nodes
      */
     const calculateEdges = useCallback(() => {
-        console.log('in edges start before cancel check', scale)
         // If data required to render edges is not yet available
         // (i.e. no links, or column dimensions not complete)
         if (!links) return [];
-        console.log('calculating edges');
         return links?.map(link => {
             if (!link.fromId || !link.toId) return null;
             const fromNode = nodesById[link.fromId];
@@ -413,6 +396,7 @@ export const NodeGraph = ({
             dragId={dragId}
             handleAction={handleAction}
             handleNodeDrop={handleNodeDrop}
+            handleNodeUpdate={handleNodeUpdate}
             isEditing={isEditing}
             labelVisible={labelVisible}
             nodes={col}

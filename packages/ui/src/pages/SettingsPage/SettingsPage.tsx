@@ -35,7 +35,7 @@ export function SettingsPage({
     session,
 }: SettingsPageProps) {
     const [location, setLocation] = useLocation();
-    const selectedPage = useMemo<string>(() => { console.log('PARAMS', parseSearchParams(window.location.search)); return parseSearchParams(window.location.search).page ?? 'profile' }, [window.location.search]);
+    const selectedPage = useMemo<string>(() => { return parseSearchParams(window.location.search).page ?? 'profile' }, [window.location.search]);
     const editing = useMemo<boolean>(() => Boolean(parseSearchParams(window.location.search).editing), [window.location.search]);
 
     // Fetch profile data
@@ -45,24 +45,21 @@ export function SettingsPage({
         if (data?.profile) setProfile(data.profile);
     }, [data]);
     const onUpdated = useCallback((updatedProfile: profile_profile | undefined) => {
-        console.log('onUpdated', updatedProfile);
         if (updatedProfile) setProfile(updatedProfile);
         PubSub.publish(Pubs.Snack, { message: 'Update successful.' });
     }, []);
 
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const toggleDrawer = useCallback(() => { console.log('in toggle drawer'); setDrawerOpen(o => !o) }, [setDrawerOpen]);
+    const toggleDrawer = useCallback(() => { setDrawerOpen(o => !o) }, [setDrawerOpen]);
 
     const listItems = useMemo(() => {
-        console.log('in list items', selectedPage);
         return Object.values(settingPages).map(([link, label, Icon]: [string, string, SvgIconComponent], index) => {
             const selected = link === selectedPage;
-            console.log('selected', selectedPage);
             return (
                 <ListItem
                     key={index}
                     button
-                    onClick={() => { console.log('setting location', `${APP_LINKS.Settings}?page=${link}`); setLocation(`${APP_LINKS.Settings}?page=${link}`, { replace: true }) }}
+                    onClick={() => { setLocation(`${APP_LINKS.Settings}?page=${link}`, { replace: true }) }}
                     sx={{
                         transition: 'brightness 0.2s ease-in-out',
                         background: selected ? '#5bb6ce6e' : 'inherit',
@@ -90,8 +87,6 @@ export function SettingsPage({
                 return editing ? <SettingsProfile profile={profile} onUpdated={onUpdated} /> : <UserView partialData={profile as any} session={session} />
         }
     }, [selectedPage, editing, profile, onUpdated]);
-
-    console.log('drawer open', drawerOpen);
 
     return (
         <Box id="page">

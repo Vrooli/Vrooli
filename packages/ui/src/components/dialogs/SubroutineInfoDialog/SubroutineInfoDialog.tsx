@@ -37,7 +37,6 @@ export const SubroutineInfoDialog = ({
     onClose,
 }: SubroutineInfoDialogProps) => {
     const [, setLocation] = useLocation();
-    console.log('subroutine info dialog', subroutine);
     /**
      * Name of user or organization that owns this routine
      */

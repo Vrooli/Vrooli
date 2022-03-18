@@ -37,7 +37,6 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {
-        console.log('in organization removeJoinTables', data);
         return removeJoinTablesHelper(data, joinMapper);
     },
     async addSupplementalFields(
@@ -49,24 +48,19 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
-        console.log('in organization addSupplementalFields', ids, userId, partial);
         if (partial.isStarred) {
             const isStarredArray = userId
                 ? await StarModel(prisma).getIsStarreds(userId, ids, 'organization')
                 : Array(ids.length).fill(false);
-            console.log('filling in isStarred', isStarredArray, objects);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
-            console.log('objectssssss FILLED', objects);
         }
         // Query for role
         if (partial.role) {
-            console.log('organization role query', userId, ids)
             const roles = userId
                 ? await OrganizationModel(prisma).getRoles(userId, ids)
                 : Array(ids.length).fill(null);
             objects = objects.map((x, i) => ({ ...x, role: roles[i] })) as any;
         }
-        console.log('organization supplemental fields complete', objects);
         return objects as RecursivePartial<Organization>[];
     },
 })
@@ -111,13 +105,11 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
 
 export const organizationVerifier = (prisma: PrismaType) => ({
     async getRoles(userId: string, ids: string[]): Promise<Array<MemberRole | undefined>> {
-        console.log('getroles start', userId, ids);
         // Query member data for each ID
         const roleArray = await prisma.organization_users.findMany({
             where: { organization: { id: { in: ids } }, user: { id: userId } },
             select: { organizationId: true, role: true }
         });
-        console.log('getroles middle', roleArray);
         return ids.map(id => {
             const role = roleArray.find(({ organizationId }) => organizationId === id);
             return role?.role as MemberRole | undefined;
@@ -148,14 +140,11 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<void> {
-        console.log('in organization validatemutations')
         if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
         if (createMany) {
-            console.log('creating many validating', createMany);
             createMany.forEach(input => organizationCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
             createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
-            console.log('passed create many validations');
             // Check if user will pass max organizations limit
             const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } });
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
@@ -184,7 +173,6 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
      * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
      */
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<CUDResult<Organization>> {
-        console.log('in organization cud start', partial, userId, createMany);
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -193,13 +181,10 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             for (const input of createMany) {
                 // Call createData helper function
                 const data = await this.toDBShape(userId, input);
-                console.log('organization create input loop db shape', data);
                 // Create object
                 const currCreated = await prisma.organization.create({ data, ...selectHelper(partial) });
-                console.log('organization create input loop currCreated', currCreated);
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currCreated, partial);
-                console.log('organization create input loop tographql', converted)
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }

@@ -12,7 +12,6 @@ export const SearchBar = ({
     debounce = 200,
     ...props
 }: SearchBarProps) => {
-    console.log('SearchBar props', props);
     const [internalValue, setInternalValue] = useState<string>(value);
     const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
         onChange,

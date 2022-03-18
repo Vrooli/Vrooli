@@ -36,7 +36,6 @@ export const ResourceListItemContextMenu = ({
     onDelete,
     onMove,
 }: ResourceListItemContextMenuProps) => {
-    console.log('in resource list item context menu', { id, anchorEl, index, onClose, onAddBefore, onAddAfter, onEdit, onDelete, onMove })
     const onMenuItemSelect = (value: string) => {
         if (!index) return;
         switch (value) {

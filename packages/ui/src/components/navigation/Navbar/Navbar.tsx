@@ -61,7 +61,6 @@ export const Navbar = ({
     const classes = useStyles();
     const [, setLocation] = useLocation();
     const [show_hamburger, setShowHamburger] = useState(false);
-    console.log('navbarrrrrrrr', session);
 
     let child_props = { session, sessionChecked };
 

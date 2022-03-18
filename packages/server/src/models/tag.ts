@@ -24,11 +24,9 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         return { ...rest, createdByUserId: true }
     },
     addJoinTables: (partial) => {
-        console.log('in tag addJoinTables', partial)
         return addJoinTablesHelper(partial, joinMapper);
     },
     removeJoinTables: (data) => {
-        console.log('in tag removeJoinTables', data)
         return removeJoinTablesHelper(data, joinMapper);
     },
     async addSupplementalFields(
@@ -37,12 +35,10 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Tag>[]> {
-        console.log('in tag supplemental fields', partial, objects)
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
         if (partial.isStarred) {
-            console.log('tag isStarred start', ids)
             const isStarredArray = userId
                 ? await StarModel(prisma).getIsStarreds(userId, ids, 'tag')
                 : Array(ids.length).fill(false);
@@ -51,7 +47,6 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         // Query for isOwn
         if (partial.isOwn) objects = objects.map((x) => ({ ...x, isOwn: Boolean(userId) && x.createdByUserId === userId }));
         // Convert Prisma objects to GraphQL objects
-        console.log('tag supplemental fields COMPLETE', objects)
         return objects as RecursivePartial<Tag>[];
     },
 })
@@ -106,7 +101,6 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         isAdd: boolean = true,
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('tag relationshipBuilder', input, isAdd);
         // If any tag creates, check if they're supposed to be connects
         if (Array.isArray(input[`${relationshipName}Create`])) {
             // Query for all creating tags
@@ -114,7 +108,6 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
                 where: { tag: { in: input[`${relationshipName}Create`].map((c: any) => c.tag) } },
                 select: { id: true, tag: true }
             });
-            console.log('tag relationshipbuilder existingTags', existingTags);
             // All results should be connects
             const connectTags = existingTags.map(t => ({ id: t.id }));
             // All tags that didn't exist are creates

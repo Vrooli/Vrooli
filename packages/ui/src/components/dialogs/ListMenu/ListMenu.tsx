@@ -42,7 +42,7 @@ export function ListMenu<T>({
             </IconButton>
         ) : null;
         return (
-            <ListItem disabled={preview} button onClick={() => { console.log('on select', value); onSelect(value); onClose(); }} key={index}>
+            <ListItem disabled={preview} button onClick={() => { onSelect(value); onClose(); }} key={index}>
                 {itemIcon}
                 {itemText}
                 {helpIcon}
@@ -65,7 +65,7 @@ export function ListMenu<T>({
                 vertical: 'top',
                 horizontal: 'center',
             }}
-            onClose={(e) => { console.log('on close', e); onClose() }}
+            onClose={(e) => { onClose() }}
             sx={{
                 '& .MuiMenu-paper': {
                     background: (t) => t.palette.background.paper
@@ -96,7 +96,7 @@ export function ListMenu<T>({
                 </Typography>
                 <IconButton
                     edge="end"
-                    onClick={(e) => { console.log('on close', e); onClose() }}
+                    onClick={(e) => { onClose() }}
                 >
                     <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                 </IconButton>

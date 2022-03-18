@@ -4,7 +4,7 @@ import { APP_LINKS } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
 import { project } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProjectUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { projectUpdateForm as validationSchema } from '@local/shared';
@@ -48,13 +48,14 @@ export const ProjectUpdate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
+    useEffect(() => {
+        setTags(project?.tags ?? []);
+    }, [project]);
     const addTag = useCallback((tag: TagSelectorTag) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
     const removeTag = useCallback((tag: TagSelectorTag) => {
-        console.log('removeTag', tag);
         const temp = tags.filter(t => t.tag !== tag.tag);
-        console.log('temp', tags.length, temp.length);
         setTags(tags => tags.filter(t => t.tag !== tag.tag));
     }, [setTags]);
     const clearTags = useCallback(() => {
@@ -71,13 +72,18 @@ export const ProjectUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
+            const tagsAdd = tags.length > 0 ? {
+                // Create/connect new tags
+                tagsCreate: tags.filter(t => !t.id && !project?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
+                tagsConnect: tags.filter(t => t.id && !project?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
+            } : {};
             mutationWrapper({
                 mutation,
                 input: formatForUpdate(project, { 
                     id, 
-                    tags, //TODO tags probably broke
+                    ...tagsAdd,
                     translations: updateTranslation(project as any, { language: 'en', name: values.name, description: values.description })
-                }), //TODO handle translations
+                }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.projectUpdate) },
             })
         },

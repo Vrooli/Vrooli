@@ -44,7 +44,7 @@ export const StarButton = ({
         mutationWrapper({
             mutation,
             input: { isStar, starFor, forId: objectId },
-            onSuccess: (response) => { console.log('STAR SUCCESS', response.data.star); onChange(response.data.star) },
+            onSuccess: (response) => { onChange(response.data.star) },
         })
     }, [session.id, internalIsStar, objectId, starFor]);
 
