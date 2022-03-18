@@ -5,12 +5,10 @@ import { ResourceListVerticalProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
 import { containerShadow } from 'styles';
-import { Box, Button, Tooltip } from '@mui/material';
-import { cardRoot } from 'components/cards/styles';
+import { Box, Button } from '@mui/material';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
-import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
 import { useMutation } from '@apollo/client';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';

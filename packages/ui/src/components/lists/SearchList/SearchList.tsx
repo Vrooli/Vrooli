@@ -53,7 +53,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     useEffect(() => {
         after.current = undefined;
         fetchPage();
-    }, [searchString, sortBy, createdTimeFrame]);
+    }, [searchString, sortBy, createdTimeFrame, fetchPage]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
@@ -67,7 +67,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 fetchPage();
             }
         }
-    }, [pageData]);
+    }, [pageData, fetchPage]);
 
     // Helper method for converting fetched data to an array of object data
     const parseData = useCallback((data: any) => {

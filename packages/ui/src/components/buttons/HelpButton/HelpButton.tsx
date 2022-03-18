@@ -18,7 +18,7 @@ export const HelpButton = ({
     const openMenu = useCallback((event) => {
         if (onClick) onClick(event);
         if (!anchorEl) setAnchorEl(event.currentTarget);
-    }, [anchorEl])
+    }, [anchorEl, onClick]);
     const closeMenu = () => {
         setAnchorEl(null);
     };

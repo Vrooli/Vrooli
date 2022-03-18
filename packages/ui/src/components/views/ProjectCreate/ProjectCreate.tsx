@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
-import { formatForCreate, Pubs } from "utils";
+import { formatForCreate } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";

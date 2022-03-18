@@ -6,7 +6,6 @@ import { walletComplete_walletComplete as WalletCompleteResult } from 'graphql/g
 import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
 import { errorToSnack } from 'graphql/utils/errorToSnack';
 import { initializeApollo } from 'graphql/utils/initialize';
-import { Session } from 'types';
 import { Pubs } from 'utils';
 
 export enum WalletProvider {

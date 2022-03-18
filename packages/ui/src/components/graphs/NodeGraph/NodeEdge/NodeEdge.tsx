@@ -6,9 +6,6 @@ import {
     Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { Box, IconButton, Popover, Stack, Tooltip } from '@mui/material';
-import { NodeType } from 'graphql/generated/globalTypes';
-import { ListMenuItemData } from 'components/dialogs/types';
-import { ListMenu } from 'components';
 
 type Point = {
     x: number;

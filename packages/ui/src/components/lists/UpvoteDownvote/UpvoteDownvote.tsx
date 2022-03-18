@@ -41,7 +41,7 @@ export const UpvoteDownvote = ({
             input: { isUpvote, voteFor, forId: objectId },
             onSuccess: (response) => { onChange(response.data.vote) },
         })
-    }, [objectId, voteFor]);
+    }, [objectId, voteFor, onChange, mutation]);
 
     const handleUpvoteClick = useCallback((event: any) => {
         if (!session.id) return;

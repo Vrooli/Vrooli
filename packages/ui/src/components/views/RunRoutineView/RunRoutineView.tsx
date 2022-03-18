@@ -202,7 +202,7 @@ export const RunRoutineView = ({
         // Find the total complexity
         const totalComplexity = routine.complexity;
         return completedComplexity / totalComplexity * 100;
-    }, [progress, stepList, routine]);
+    }, [progress, stepList, routine, findStep, getStepComplexity]);
 
     // Query current subroutine, if needed. Main routine may have the data
     const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
@@ -238,7 +238,7 @@ export const RunRoutineView = ({
         } else {
             setCurrentStep(currStep);
         }
-    }, [stepParams, getSubroutine, stepList]);
+    }, [stepParams, getSubroutine, stepList, findStep, setLocation]);
     // Add subroutine data to stepList when new data is fetched
     useEffect(() => {
         const subroutine = subroutineData?.routine;
@@ -313,7 +313,7 @@ export const RunRoutineView = ({
             instructions: getTranslation(routine, 'instructions', languages, true),
             title: currStepParent?.title ?? 'Untitled',
         };
-    }, [routine, session, stepParams]);
+    }, [routine, session, stepParams, findStep]);
 
     /**
      * Calculates previous step params, or null
@@ -350,7 +350,7 @@ export const RunRoutineView = ({
             }
         }
         return null;
-    }, [stepParams, currentStep]);
+    }, [stepParams, currentStep, findStep]);
 
     //TODO
     const unsavedChanges = false;
@@ -364,7 +364,7 @@ export const RunRoutineView = ({
         // Update current step
         setLocation(`?step=${previousStep.join('.')}`, { replace: true });
         setStepParams(previousStep);
-    }, [previousStep, progress, stepParams]);
+    }, [previousStep, progress, stepParams, setLocation]);
 
     /**
      * Navigate to the next subroutine
@@ -379,7 +379,7 @@ export const RunRoutineView = ({
         // Update current step
         setLocation(`?step=${nextStep.join('.')}`, { replace: true });
         setStepParams(nextStep);
-    }, [nextStep, progress, stepParams]);
+    }, [nextStep, progress, stepParams, setLocation, setProgress]);
 
     /**
      * Mark routine as complete and navigate

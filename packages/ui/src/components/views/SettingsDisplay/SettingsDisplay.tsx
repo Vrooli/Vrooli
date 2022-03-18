@@ -1,9 +1,9 @@
 import { Box, Container, Grid, Stack, Typography } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
+import { profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { formatForUpdate } from "utils";
@@ -14,7 +14,6 @@ import {
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { SettingsDisplayProps } from "../types";
-import helpMarkdown from './SettingsDisplayHelp.md';
 import { useLocation } from "wouter";
 import { HelpButton, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";

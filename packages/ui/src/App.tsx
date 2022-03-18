@@ -67,7 +67,7 @@ const useStyles = makeStyles(() => ({
 }));
 
 export function App() {
-    const classes = useStyles();
+    useStyles();
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);

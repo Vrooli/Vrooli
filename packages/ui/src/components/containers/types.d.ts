@@ -33,7 +33,6 @@ export interface BuildBottomContainerProps {
     hasNext: boolean;
     isEditing: boolean;
     loading: boolean;
-    routineId: string;
     scale: number;
     session: Session;
     sliderColor: string;

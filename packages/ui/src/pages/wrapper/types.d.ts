@@ -8,7 +8,3 @@ export interface PageProps {
     restrictedToRoles?: string[];
     children: JSX.Element;
 }
-
-export interface RunRoutinePageProps {
-    session: Session;
-}

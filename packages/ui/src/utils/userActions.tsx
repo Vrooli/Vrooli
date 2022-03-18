@@ -20,7 +20,6 @@ import {
 import { ROLES, ValueOf } from '@local/shared';
 import { openLink } from 'utils';
 import { Path } from 'wouter';
-import { CSSProperties } from '@mui/styled-engine';
 
 export const ACTION_TAGS = {
     Home: 'home',

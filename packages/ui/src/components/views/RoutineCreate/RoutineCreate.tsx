@@ -7,7 +7,7 @@ import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
 import { formatForCreate } from "utils";
 import { RoutineCreateProps } from "../types";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
 import {
     Add as CreateIcon,

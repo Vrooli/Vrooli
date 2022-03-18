@@ -47,7 +47,7 @@ export const AddSubroutineDialog = ({
         setIsCreateOpen(false);
         handleAdd(nodeId, routine);
         handleClose();
-    }, [handleAdd, handleClose]);
+    }, [handleAdd, handleClose, nodeId]);
     const handleCreateClose = useCallback(() => {
         setIsCreateOpen(false);
     }, [setIsCreateOpen]);

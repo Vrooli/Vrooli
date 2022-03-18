@@ -7,22 +7,17 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     AccountTree as GraphIcon,
-    Delete as DeleteIcon,
     Edit as EditIcon,
-    ForkRight as ForkIcon,
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
-    StarOutline as StartLaterIcon,
-    QueryStats as StatsIcon,
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunRoutineView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getTranslation, Pubs } from "utils";
 import { ResourceList, Routine, User } from "types";
 import Markdown from "markdown-to-jsx";
-import { routineDeleteOneMutation, starMutation } from "graphql/mutation";
+import { routineDeleteOneMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/wrappers";
-import { star } from "graphql/generated/star";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
