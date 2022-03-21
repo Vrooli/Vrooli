@@ -241,12 +241,12 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             nodeLinksUpdate.validateSync(formattedInput.update, { abortEarly: false });
             for (let data of formattedInput.update) {
                 // Convert nested relationships
-                data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
-                let { fromId, toId, ...rest } = data;
-                data = {
+                data.data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
+                let { fromId, toId, ...rest } = data.data;
+                data.data = {
                     ...rest,
-                    from: fromId ? { connect: { id: data.fromId } } : undefined,
-                    to: toId ? { connect: { id: data.toId } } : undefined,
+                    from: fromId ? { connect: { id: data.data.fromId } } : undefined,
+                    to: toId ? { connect: { id: data.data.toId } } : undefined,
                 }
             }
         }
@@ -330,7 +330,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
                 // Check for valid arguments
                 loopUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
-                data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
+                data.data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -374,9 +374,12 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             for (const data of formattedInput.update) {
                 // Cannot switch routines, so no need to worry about it in the update
                 result.push({
-                    index: data.index,
-                    isOptional: data.isOptional,
-                    translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
+                    where: data.where,
+                    data: {
+                        index: data.data.index,
+                        isOptional: data.data.isOptional,
+                        translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
+                    }
                 })
             }
             formattedInput.update = result;

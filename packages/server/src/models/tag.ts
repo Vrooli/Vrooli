@@ -67,7 +67,7 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
         return ({
             OR: [
-                { translations: { some: { language: languages ? { in: languages } : undefined, description: {...insensitive} } } },
+                { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                 { tag: { ...insensitive } },
             ]
         })
@@ -98,7 +98,6 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
     async relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
-        isAdd: boolean = true,
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
         // If any tag creates, check if they're supposed to be connects
@@ -126,7 +125,19 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         }
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
-        let formattedInput = joinRelationshipToPrisma({ data: input, relationshipName, joinFieldName: 'tag', isAdd, relExcludes: [RelationshipTypes.update, RelationshipTypes.delete] })
+        console.log('tag relationshipbuilder before formattedinput', JSON.stringify(input))
+        let formattedInput = joinRelationshipToPrisma({
+            data: input,
+            joinFieldName: 'tag',
+            uniqueFieldName: 'organization_tags_taggedid_tagid_unique',
+            childIdFieldName: 'tagId',
+            parentIdFieldName: 'taggedId',
+            parentId: input.id ?? null,
+            relationshipName,
+            isAdd: !Boolean(input.id),
+            relExcludes: [RelationshipTypes.update, RelationshipTypes.delete],
+        })
+        console.log('tag relationshipbuilder end formattediinput', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({

@@ -133,7 +133,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             id: (data as OrganizationUpdateInput)?.id ?? undefined,
             isOpenToNewMembers: data.isOpenToNewMembers,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
+            tags: await TagModel(prisma).relationshipBuilder(userId, data),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }
     },

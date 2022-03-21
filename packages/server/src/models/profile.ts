@@ -389,16 +389,18 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
             theme: input.theme,
             // Handle tags TODO probably doesn't work
             hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
+                id: userId,
                 tagsCreate: input.hiddenTagsCreate,
                 tagsConnect: input.hiddenTagsConnect,
                 tagsDisconnect: input.hiddenTagsDisconnect,
-            }, true),
+            }),
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
             stars: await TagModel(prisma).relationshipBuilder(userId, {
+                id: userId,
                 tagsCreate: input.starredTagsCreate,
                 tagsConnect: input.starredTagsConnect,
                 tagsDisconnect: input.starredTagsDisconnect,
-            }, true),
+            }),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
         };
         // Update user

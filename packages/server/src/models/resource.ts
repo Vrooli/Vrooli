@@ -172,10 +172,14 @@ export const resourceMutater = (prisma: PrismaType) => ({
             formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any, true));
         }
         if (Array.isArray(formattedInput.update)) {
-            formattedInput.update = formattedInput.update.map(async (data) => ({
-                where: data.where,
-                data: await this.toDBShape(userId, data.data as any, false)
-            }))
+            const updates = [];
+            for (const update of formattedInput.update) {
+                updates.push({
+                    where: update.where,
+                    data: await this.toDBShape(userId, update.data as any, false),
+                })
+            }
+            formattedInput.update = updates;
         }
         console.log('resoruce format after', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;

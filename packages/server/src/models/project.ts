@@ -210,7 +210,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             name: input.name,
             parentId: input.parentId,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, true),
-            tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
+            tags: await TagModel(prisma).relationshipBuilder(userId, input),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
         })
         // Perform mutations
