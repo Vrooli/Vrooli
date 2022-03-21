@@ -14,8 +14,8 @@ export const StandardViewPage = ({
 }: StandardViewPageProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [matchView, paramsView] = useRoute(`${APP_LINKS.Standard}/:id`); // View a specific standard
-    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.SearchStandards}/edit/:id`);
+    const [matchView, paramsView] = useRoute(`${APP_LINKS.Standard}/:id`);
+    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.Standard}/edit/:id`);
     const id = useMemo(() => paramsView?.id ?? paramsUpdate?.id ?? '', [paramsView, paramsUpdate]);
 
     const isAddDialogOpen = useMemo(() => Boolean(matchView) && paramsView?.id === 'add', [matchView, paramsView]);
@@ -28,10 +28,10 @@ export const StandardViewPage = ({
                 else setLocation(APP_LINKS.Standard, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(APP_LINKS.Standard, { replace: true });
+                setLocation(`${APP_LINKS.Standard}/${id}`, { replace: true });
                 break;
             case ObjectDialogAction.Close:
-                setLocation(APP_LINKS.Standard, { replace: true });
+                setLocation(`${APP_LINKS.Standard}/${id}`, { replace: true });
                 break;
             case ObjectDialogAction.Edit:
                 setLocation(`${APP_LINKS.Standard}/edit/${id}`, { replace: true });

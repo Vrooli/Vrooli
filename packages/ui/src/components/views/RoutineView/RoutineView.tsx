@@ -114,7 +114,7 @@ export const RoutineView = ({
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Run}/${id}/edit` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Run}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
     }, [setLocation, id]);
 
     // More menu

@@ -148,6 +148,13 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
+                <Route path={`${LINKS.Run}/edit/:id`}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Routine')} {...props}>
+                            <RoutineViewPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
                 {/* ========= #endregion Routine Routes ========= */}
 
                 {/* ========= #region Views Routes ========= */}
@@ -160,14 +167,7 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.Organization}/add`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Organization')} {...props}>
-                            <OrganizationViewPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route path={`${LINKS.Organization}/update/:id?`}>
+                <Route path={`${LINKS.Organization}/edit/:id?`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Organization')} {...props}>
                             <OrganizationViewPage session={props.session} />
@@ -181,7 +181,21 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
+                <Route path={`${LINKS.Project}/edit/:id?`}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Project')} {...props}>
+                            <ProjectViewPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
                 <Route path={`${LINKS.Standard}/:id?`}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Standard')} {...props}>
+                            <StandardViewPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.Standard}/edit/:id?`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Standard')} {...props}>
                             <StandardViewPage session={props.session} />

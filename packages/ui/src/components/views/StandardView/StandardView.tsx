@@ -56,7 +56,7 @@ export const StandardView = ({
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Standard}/${id}/edit` : `${APP_LINKS.SearchStandards}/edit/${id}`);
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Standard}/edit/${id}` : `${APP_LINKS.SearchStandards}/edit/${id}`);
     }, [setLocation, id]);
 
     /**

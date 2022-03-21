@@ -64,7 +64,7 @@ export const WelcomePage = () => {
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Read the FAQ</Button>
                     <Button
-                        onClick={() => openLink("https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4/edit?usp=sharing")}
+                        onClick={() => openLink("https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4?usp=sharing")}
                         startIcon={<WhitePaperIcon />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Read the White Paper</Button>

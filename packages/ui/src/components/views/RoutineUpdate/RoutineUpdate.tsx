@@ -27,7 +27,7 @@ export const RoutineUpdate = ({
     onCancel,
 }: RoutineUpdateProps) => {
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Run}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Run}/edit/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/edit/:id`);
     const id: string = params?.id ?? params2?.id ?? '';
     // Fetch existing data
