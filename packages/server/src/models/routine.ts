@@ -365,7 +365,6 @@ export const routineMutater = (prisma: PrismaType) => ({
         const [simplicity, complexity] = await this.calculateComplexity(data);
         console.log('complexity calculated', complexity, simplicity);
         return {
-            id: (data as RoutineUpdateInput)?.id ?? undefined,
             isAutomatable: data.isAutomatable,
             isComplete: data.isComplete,
             completedAt: data.isComplete ? new Date().toISOString() : null,

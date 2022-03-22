@@ -1,6 +1,6 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS, id } from "@local/shared";
 import { useMutation, useQuery } from "@apollo/client";
 import { routine } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -18,8 +18,11 @@ import {
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
-import { MarkdownInput, TagSelector } from "components";
+import { MarkdownInput, ResourceListHorizontal, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { v4 as uuidv4 } from 'uuid';
+import { Organization, ResourceList, Routine } from "types";
+import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
 export const RoutineUpdate = ({
     session,
@@ -42,6 +45,15 @@ export const RoutineUpdate = ({
             instructions: getTranslation(routine, 'instructions', languages) ?? '',
         };
     }, [routine, session]);
+
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    useEffect(() => {
+        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    }, [routine]);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        setResourceList(updatedList);
+    }, [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
@@ -70,7 +82,9 @@ export const RoutineUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const tagsAdd = tags.length > 0 ? {
+            const existingResourceList = Array.isArray(routine?.resourceLists) ? (routine as Routine).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
+            const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
+            const tagsUpdate = tags.length > 0 ? {
                 // Create/connect new tags
                 tagsCreate: tags.filter(t => !t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
@@ -79,8 +93,10 @@ export const RoutineUpdate = ({
                 mutation,
                 input: formatForUpdate(routine, { 
                     id, 
+                    organizationId: (routine?.owner as Organization)?.id ?? undefined,
                     version: values.version,
-                    ...tagsAdd,
+                    ...resourceListUpdate,
+                    ...tagsUpdate,
                     translations: updateTranslation(routine as any, { language: 'en', description: values.description, instructions: values.instructions, title: values.title }),
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
@@ -138,6 +154,16 @@ export const RoutineUpdate = ({
                     onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
                     error={formik.touched.instructions && Boolean(formik.errors.instructions)}
                     helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
+                />
+            </Grid>
+            <Grid item xs={12}>
+                <ResourceListHorizontal
+                    title={'Resources'}
+                    list={resourceList}
+                    canEdit={true}
+                    handleUpdate={handleResourcesUpdate}
+                    session={session}
+                    mutate={false}
                 />
             </Grid>
             <Grid item xs={12} marginBottom={4}>

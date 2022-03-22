@@ -58,7 +58,6 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
 export const resourceListMutater = (prisma: PrismaType) => ({
     async toDBShape(userId: string | null, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean): Promise<any> {
         return {
-            id: (data as ResourceListUpdateInput)?.id ?? undefined,
             organizationId: data.organizationId ?? undefined,
             projectId: data.projectId ?? undefined,
             routineId: data.routineId ?? undefined,
@@ -73,10 +72,12 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         isAdd: boolean = true,
         relationshipName: string = 'resourceLists',
     ): Promise<{ [x: string]: any } | undefined> {
+        console.log('resourcelists relationshipbuilder starttttt', JSON.stringify(input))
         const fieldExcludes = ['createdFor', 'createdForId'];
         // Convert input to Prisma shape. Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by resource lists (since they can only be applied to one object)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        console.log('resourcelists relationshipbuilder formattedInput', JSON.stringify(formattedInput))
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({
@@ -88,7 +89,11 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         // Shape
         if (Array.isArray(formattedInput.create)) {
             // If title or description is not provided, try querying for the link's og tags TODO
-            formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any, true));
+            const creates = [];
+            for (const create of formattedInput.create) {
+                creates.push(await this.toDBShape(userId, create as any, true));
+            }
+            formattedInput.create = creates;
         }
         if (Array.isArray(formattedInput.update)) {
             const updates = [];

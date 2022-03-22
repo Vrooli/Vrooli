@@ -112,7 +112,6 @@ export const nodeVerifier = () => ({
 export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShape(userId: string | null, data: NodeCreateInput | NodeUpdateInput): Promise<any> {
         let nodeData: { [x: string]: any } = {
-            id: data.id,
             columnIndex: data.columnIndex,
             routineId: data.routineId,
             rowIndex: data.rowIndex,

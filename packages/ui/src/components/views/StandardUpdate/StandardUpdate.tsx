@@ -20,6 +20,7 @@ import { TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { Organization } from "types";
 
 export const StandardUpdate = ({
     session,
@@ -58,7 +59,7 @@ export const StandardUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const tagsAdd = tags.length > 0 ? {
+            const tagsUpdate = tags.length > 0 ? {
                 // Create/connect new tags
                 tagsCreate: tags.filter(t => !t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
@@ -67,7 +68,8 @@ export const StandardUpdate = ({
                 mutation,
                 input: formatForUpdate(standard, { 
                     id, 
-                    ...tagsAdd,
+                    organizationId: (standard?.creator as Organization)?.id ?? undefined,
+                    ...tagsUpdate,
                     translations: updateTranslation(standard as any, { language: 'en', description: values.description })
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },

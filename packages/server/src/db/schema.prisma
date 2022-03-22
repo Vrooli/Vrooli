@@ -48,7 +48,7 @@ model comment_translation {
     text      String  @db.VarChar(2048)
     language  String  @db.VarChar(2)
     commentId String  @db.Uuid
-    comment   comment @relation(fields: [commentId], references: [id])
+    comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
     @@unique([commentId, language])
 }
@@ -135,7 +135,7 @@ model node_translation {
     title       String  @default("Name Me") @db.VarChar(128)
     language    String  @db.VarChar(2)
     nodeId      String  @db.Uuid
-    node        node    @relation(fields: [nodeId], references: [id])
+    node        node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 
     @@unique([nodeId, language])
 }
@@ -178,7 +178,7 @@ model node_link_when_translation {
     title       String         @db.VarChar(128)
     language    String         @db.VarChar(2)
     whenId      String         @db.Uuid
-    when        node_link_when @relation(fields: [whenId], references: [id])
+    when        node_link_when @relation(fields: [whenId], references: [id], onDelete: Cascade)
 
     @@unique([whenId, language])
 }
@@ -210,7 +210,7 @@ model node_loop_while_translation {
     title       String          @db.VarChar(128)
     language    String          @db.VarChar(2)
     whileId     String          @db.Uuid
-    while       node_loop_while @relation(fields: [whileId], references: [id])
+    while       node_loop_while @relation(fields: [whileId], references: [id], onDelete: Cascade)
 }
 
 //
@@ -245,7 +245,7 @@ model node_routine_list_item_translation {
     title       String?                @db.VarChar(128) // Optional title to override routine title
     language    String                 @db.VarChar(2)
     itemId      String                 @db.Uuid
-    item        node_routine_list_item @relation(fields: [itemId], references: [id])
+    item        node_routine_list_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
     @@unique([itemId, language])
 }
@@ -290,7 +290,7 @@ model organization_translation {
     name           String       @db.VarChar(128)
     language       String       @db.VarChar(2)
     organizationId String       @db.Uuid
-    organization   organization @relation(fields: [organizationId], references: [id])
+    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
     @@unique([organizationId, language])
 }
@@ -364,7 +364,7 @@ model project_translation {
     name        String  @db.VarChar(128)
     language    String  @db.VarChar(2)
     projectId   String  @db.Uuid
-    project     project @relation(fields: [projectId], references: [id])
+    project     project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
     @@unique([projectId, language])
 }
@@ -447,7 +447,7 @@ model resource_translation {
     title       String?  @db.VarChar(128)
     language    String   @db.VarChar(2)
     resourceId  String   @db.Uuid
-    resource    resource @relation(fields: [resourceId], references: [id])
+    resource    resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
     @@unique([resourceId, language])
 }
@@ -561,7 +561,7 @@ model routine_translation {
     title        String  @db.VarChar(128)
     language     String  @db.VarChar(2)
     routineId    String  @db.Uuid
-    routine      routine @relation(fields: [routineId], references: [id])
+    routine      routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
 
     @@unique([routineId, language])
 }

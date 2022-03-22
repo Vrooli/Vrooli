@@ -89,7 +89,6 @@ export const tagVerifier = () => ({
 export const tagMutater = (prisma: PrismaType, verifier: any) => ({
     async toDBShape(userId: string | null, data: TagCreateInput | TagUpdateInput): Promise<any> {
         return {
-            id: (data as TagUpdateInput)?.id ?? undefined,
             name: data.tag,
             createdByUserId: userId,
             translations: TranslationModel().relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
@@ -125,7 +124,6 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         }
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
-        console.log('tag relationshipbuilder before formattedinput', JSON.stringify(input))
         let formattedInput = joinRelationshipToPrisma({
             data: input,
             joinFieldName: 'tag',
@@ -137,7 +135,6 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
             isAdd: !Boolean(input.id),
             relExcludes: [RelationshipTypes.update, RelationshipTypes.delete],
         })
-        console.log('tag relationshipbuilder end formattediinput', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({
