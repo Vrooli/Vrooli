@@ -1,8 +1,8 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
-import { standard } from "graphql/generated/standard";
+import { useMutation, useLazyQuery } from "@apollo/client";
+import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
@@ -30,9 +30,12 @@ export const StandardUpdate = ({
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Standard}/edit/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/edit/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id = params?.id ?? params2?.id;
     // Fetch existing data
-    const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
+    useEffect(() => {
+        if (id) getData({ variables: { input: { id } } });
+    }, [id])
     const standard = useMemo(() => data?.standard, [data]);
 
     // Handle tags

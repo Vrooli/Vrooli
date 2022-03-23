@@ -1,8 +1,8 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
-import { project } from "graphql/generated/project";
+import { useMutation, useLazyQuery } from "@apollo/client";
+import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProjectUpdateProps } from "../types";
@@ -31,9 +31,12 @@ export const ProjectUpdate = ({
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Project}/edit/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/edit/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id = params?.id ?? params2?.id;
     // Fetch existing data
-    const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
+    useEffect(() => {
+        if (id) getData({ variables: { input: { id } } });
+    }, [id])
     const project = useMemo(() => data?.project, [data]);
 
     const { description, name } = useMemo(() => {

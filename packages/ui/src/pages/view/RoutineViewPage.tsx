@@ -28,10 +28,12 @@ export const RoutineViewPage = ({
                 else setLocation(APP_LINKS.Run, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.Run}/${id}`, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Run}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Close:
-                setLocation(`${APP_LINKS.Run}/${id}`, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Run}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Edit:
                 setLocation(`${APP_LINKS.Run}/edit/${id}`, { replace: true });

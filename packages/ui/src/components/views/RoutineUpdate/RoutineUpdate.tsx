@@ -1,8 +1,8 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS, id } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
-import { routine } from "graphql/generated/routine";
+import { useMutation, useLazyQuery } from "@apollo/client";
+import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
@@ -32,9 +32,12 @@ export const RoutineUpdate = ({
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Run}/edit/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/edit/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id = params?.id ?? params2?.id;
     // Fetch existing data
-    const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    useEffect(() => {
+        if (id) getData({ variables: { input: { id } } });
+    }, [id])
     const routine = useMemo(() => data?.routine, [data]);
 
     const { title, description, instructions } = useMemo(() => {

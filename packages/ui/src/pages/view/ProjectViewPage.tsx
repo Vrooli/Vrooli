@@ -28,10 +28,12 @@ export const ProjectViewPage = ({
                 else setLocation(APP_LINKS.Project, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.Project}/${id}`, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Project}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Close:
-                setLocation(`${APP_LINKS.Project}/${id}`, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Project}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Edit:
                 setLocation(`${APP_LINKS.Project}/edit/${id}`, { replace: true });

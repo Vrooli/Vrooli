@@ -28,10 +28,12 @@ export const StandardViewPage = ({
                 else setLocation(APP_LINKS.Standard, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.Standard}/${id}`, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Standard}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Close:
-                setLocation(`${APP_LINKS.Standard}/${id}`, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Standard}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Edit:
                 setLocation(`${APP_LINKS.Standard}/edit/${id}`, { replace: true });

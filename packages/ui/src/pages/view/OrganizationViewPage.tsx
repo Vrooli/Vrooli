@@ -28,10 +28,12 @@ export const OrganizationViewPage = ({
                 else setLocation(APP_LINKS.Organization, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Close:
-                setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Edit:
                 setLocation(`${APP_LINKS.Organization}/edit/${id}`, { replace: true });

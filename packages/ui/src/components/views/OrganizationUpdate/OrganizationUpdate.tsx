@@ -1,8 +1,8 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
-import { organization } from "graphql/generated/organization";
+import { useLazyQuery, useMutation } from "@apollo/client";
+import { organization, organizationVariables } from "graphql/generated/organization";
 import { organizationQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { OrganizationUpdateProps } from "../types";
@@ -31,9 +31,12 @@ export const OrganizationUpdate = ({
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/edit/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/edit/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id = params?.id ?? params2?.id;
     // Fetch existing data
-    const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
+    useEffect(() => {
+        if (id) getData({ variables: { input: { id } } });
+    }, [id])
     const organization = useMemo(() => data?.organization, [data]);
 
     const { bio, name } = useMemo(() => {

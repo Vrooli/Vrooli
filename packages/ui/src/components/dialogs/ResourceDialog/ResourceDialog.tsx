@@ -92,19 +92,26 @@ export const ResourceDialog = ({
                     onSuccess: (response) => {
                         PubSub.publish(Pubs.Snack, { message: 'Resource created.' });
                         isAdd ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
+                        formik.resetForm();
                         onClose();
                     },
                 })
             } else {
                 onCreated(input as any);
+                formik.resetForm();
                 onClose();
             }
         },
     });
 
+    const handleClose = () => {
+        formik.resetForm();
+        onClose();
+    }
+
     return (
         <Dialog
-            onClose={onClose}
+            onClose={handleClose}
             open={open}
             sx={{
                 '& .MuiDialog-paper': {
@@ -130,7 +137,7 @@ export const ResourceDialog = ({
                     <Box sx={{ marginLeft: 'auto' }}>
                         <IconButton
                             edge="start"
-                            onClick={onClose}
+                            onClick={handleClose}
                         >
                             <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                         </IconButton>
@@ -191,7 +198,7 @@ export const ResourceDialog = ({
                             <Button fullWidth type="submit">Submit</Button>
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={onClose} sx={{ paddingLeft: 1 }}>Cancel</Button>
+                            <Button fullWidth onClick={handleClose} sx={{ paddingLeft: 1 }}>Cancel</Button>
                         </Grid>
                     </Grid>
                 </Stack>

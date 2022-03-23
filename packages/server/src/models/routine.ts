@@ -374,7 +374,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             parentId: data.parentId,
             version: data.version,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, (data as RoutineUpdateInput)?.id ?? null),
+            tags: await TagModel(prisma).relationshipBuilder(userId, data),
             inputs: this.relationshipBuilderInput(userId, data, false),
             outpus: this.relationshipBuilderOutput(userId, data, false),
             nodes: await NodeModel(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, false),
