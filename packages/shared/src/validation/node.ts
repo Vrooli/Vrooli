@@ -128,6 +128,7 @@ export const nodeRoutineListItemTranslationUpdate = yup.object().shape({
 export const nodeRoutineListItemTranslationsCreate = yup.array().of(nodeRoutineListItemTranslationCreate.required())
 export const nodeRoutineListItemTranslationsUpdate = yup.array().of(nodeRoutineListItemTranslationUpdate.required())
 export const nodeRoutineListItemCreate = yup.object().shape({
+    id: id.notRequired().default(undefined),
     index: index.notRequired().default(undefined),
     isOptional: isOptional.notRequired().default(undefined),
     routineConnect: id.notRequired().default(undefined), // Creating subroutines must be done in a separate request
@@ -175,6 +176,7 @@ export const nodeTranslationsCreate = yup.array().of(nodeTranslationCreate.requi
 export const nodeTranslationsUpdate = yup.array().of(nodeTranslationUpdate.required())
 
 export const nodeCreate = yup.object().shape({
+    id: id.notRequired().default(undefined),
     columnIndex: columnIndex.notRequired().default(undefined),
     rowIndex: rowIndex.notRequired().default(undefined),
     type: type.required(),

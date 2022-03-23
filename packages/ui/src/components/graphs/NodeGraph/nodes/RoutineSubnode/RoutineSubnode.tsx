@@ -33,6 +33,7 @@ export const RoutineSubnode = ({
     handleDelete,
     handleUpdate,
 }: RoutineSubnodeProps) => {
+    console.log('ROUTINE SUBNODE RENDER', data, data.id);
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit

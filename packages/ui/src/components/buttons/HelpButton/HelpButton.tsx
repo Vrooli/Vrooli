@@ -71,7 +71,7 @@ export const HelpButton = ({
                         sx={{
                             '& .MuiPopover-paper': {
                                 background: (t) => t.palette.background.paper,
-                                maxWidth: 'min(100vw, 400px)',
+                                maxWidth: 'min(90vw, 400px)',
                             },
                             '& .MuiMenu-list': {
                                 padding: 0,

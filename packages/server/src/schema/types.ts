@@ -727,7 +727,7 @@ export type NodeCreateInput = {
   loopCreate?: InputMaybe<LoopCreateInput>;
   nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
   nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
-  routineId: Scalars['ID'];
+  routineId?: InputMaybe<Scalars['ID']>;
   rowIndex?: InputMaybe<Scalars['Int']>;
   translationsCreate?: InputMaybe<Array<NodeTranslationCreateInput>>;
   type?: InputMaybe<NodeType>;
@@ -843,6 +843,7 @@ export type NodeRoutineListItem = {
 };
 
 export type NodeRoutineListItemCreateInput = {
+  id?: InputMaybe<Scalars['ID']>;
   index?: InputMaybe<Scalars['Int']>;
   isOptional?: InputMaybe<Scalars['Boolean']>;
   routineConnect: Scalars['ID'];
@@ -1184,7 +1185,6 @@ export type ProjectCreateInput = {
   createdByOrganizationId?: InputMaybe<Scalars['ID']>;
   createdByUserId?: InputMaybe<Scalars['ID']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  name: Scalars['String'];
   parentId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1266,7 +1266,6 @@ export type ProjectTranslationUpdateInput = {
 export type ProjectUpdateInput = {
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  name?: InputMaybe<Scalars['String']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;

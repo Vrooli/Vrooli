@@ -32,9 +32,12 @@ export function convertToDot(obj, parent = [], keyValue = {}) {
  * Formats an object to prepare for a create mutation. Each relationship field is converted into
  * either a connection or create, depending on the existence of an id.
  * @param obj - The object being created
+ * @param treatLikeCreates - Array of fields which should be treated as creates, even if they have an id. Supports dot notation.
  */
-export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
+export const formatForCreate = <T>(obj: Partial<T>, treatLikeCreates: string[] = []): Partial<T> => {
     let changed = {};
+    // Create child treatLike arrays
+    const childTreatLikeCreates = treatLikeCreates.map(s => s.split('.').slice(1).join('.')).filter(s => s.length > 0);
     // Helper method to add to arrays which might not exist
     const addToChangedArray = (key, value) => {
         if (Array.isArray(changed[key])) {
@@ -55,9 +58,9 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
             for (let i = 0; i < value.length; i++) {
                 const curr = value[i];
                 // Find the changed value at this index
-                const changedValue = _.isObject(curr) ? formatForCreate(curr) : curr;
-                // Check if create (i.e does not contain an id)
-                if (changedValue && curr.id === undefined) {
+                const changedValue = _.isObject(curr) ? formatForCreate(curr, childTreatLikeCreates) : curr;
+                // Check if create (i.e does not contain an id, or is in the treatLikeCreates array)
+                if (changedValue && (curr.id === undefined || treatLikeCreates.includes(key))) {
                     addToChangedArray(`${key}Create`, changedValue);
                 }
                 // Check if connection type 1 (i.e. is an object with an id)
@@ -77,7 +80,7 @@ export const formatForCreate = <T>(obj: Partial<T>): Partial<T> => {
         else if (_.isObject(value)) {
             const curr: any = value;
             // Find the changed value
-            const changedValue = formatForCreate(curr);
+            const changedValue = formatForCreate(curr, childTreatLikeCreates);
             // Check if create (i.e does not contain an id)
             if (changedValue && curr.id === undefined) {
                 changed[`${key}Create`] = changedValue;

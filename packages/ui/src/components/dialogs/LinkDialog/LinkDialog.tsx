@@ -71,9 +71,9 @@ export const LinkDialog = ({
         }}>
             <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
                 {isAdd ? 'Add Link' : 'Edit Link'}
+                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
             </Typography>
             <Box sx={{ marginLeft: 'auto' }}>
-                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
                 <IconButton
                     edge="start"
                     onClick={(e) => { handleClose() }}
@@ -111,6 +111,17 @@ export const LinkDialog = ({
     }, [fromNode, toNode, routine]);
 
     /**
+     * Find the text to display for a node
+     */
+    const getNodeTitle = useCallback((node: Node) => {
+        const title = getTranslation(node, 'title', [language]);
+        if (title) return title;
+        if (node.type === NodeType.Start) return 'Start';
+        if (node.type === NodeType.End) return 'End';
+        return 'Untitled';
+    }, []);
+
+    /**
      * Container that displays "From" and "To" node selections, with right arrow inbetween
      */
     const nodeSelections = useMemo(() => (
@@ -120,7 +131,7 @@ export const LinkDialog = ({
                 disablePortal
                 id="link-connect-from"
                 options={fromOptions}
-                getOptionLabel={(option: Node) => getTranslation(option, 'title', [language])}
+                getOptionLabel={(option: Node) => getNodeTitle(option)}
                 onChange={(_, value) => handleFromSelect(value as Node)}
                 sx={{
                     minWidth: 200,
@@ -146,7 +157,7 @@ export const LinkDialog = ({
                 disablePortal
                 id="link-connect-to"
                 options={toOptions}
-                getOptionLabel={(option: Node) => getTranslation(option, 'title', [language])}
+                getOptionLabel={(option: Node) => getNodeTitle(option)}
                 onChange={(_, value) => handleToSelect(value as Node)}
                 sx={{
                     minWidth: 200,

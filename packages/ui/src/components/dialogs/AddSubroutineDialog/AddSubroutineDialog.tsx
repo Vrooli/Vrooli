@@ -24,6 +24,7 @@ import { routineQuery, routinesQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
+import { validate as uuidValidate } from 'uuid';
 
 const helpText =
     `
@@ -80,9 +81,9 @@ export const AddSubroutineDialog = ({
         }}>
             <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
                 {'Add Subroutine'}
+                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
             </Typography>
             <Box sx={{ marginLeft: 'auto' }}>
-                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
                 <IconButton
                     edge="start"
                     onClick={(e) => { handleClose() }}
@@ -140,7 +141,7 @@ export const AddSubroutineDialog = ({
                         sortOptions={RoutineSortOptions}
                         defaultSortOption={routineDefaultSortOption}
                         query={routinesQuery}
-                        where={{ excludeIds: [routineId] }}
+                        where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
                         take={20}
                         searchString={searchString}
                         sortBy={sortBy}

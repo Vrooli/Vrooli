@@ -1,12 +1,13 @@
 import { APP_LINKS, ROLES } from "@local/shared";
-import { routineDefaultSortOption, routineOptionLabel, RoutineSortOptions, RoutineListItem, RoutineDialog } from "components";
+import { routineDefaultSortOption, routineOptionLabel, RoutineSortOptions, RoutineListItem, RoutineDialog, ListMenu } from "components";
 import { routinesQuery } from "graphql/query";
-import { useCallback, useEffect, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useState } from "react";
 import { Routine } from "types";
 import { Pubs } from "utils";
 import { BaseSearchPage } from "./BaseSearchPage";
 import { SearchRoutinesPageProps } from "./types";
 import { useLocation } from "wouter";
+import { ListMenuItemData } from "components/dialogs/types";
 
 export const SearchRoutinesPage = ({
     session
@@ -29,17 +30,28 @@ export const SearchRoutinesPage = ({
         }
     }, [location])
 
-    // Handles dialog when adding a new organization
-    const handleAddDialogOpen = useCallback(() => {
+    // Menu for picking which routine type to add
+    const [addAnchor, setAddAnchor] = useState<any>(null);
+    const openAdd = useCallback((ev: MouseEvent<HTMLDivElement>) => {
         const canAdd = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
         if (canAdd) {
-            setLocation(`${APP_LINKS.SearchRoutines}/add`)
+            setAddAnchor(ev.currentTarget)
         }
         else {
             PubSub.publish(Pubs.Snack, { message: 'Must be logged in.', severity: 'error' });
             setLocation(`${APP_LINKS.Start}?redirect=${encodeURIComponent(APP_LINKS.SearchRoutines)}`);
         }
     }, [session?.roles, setLocation]);
+    const closeAdd = useCallback(() => setAddAnchor(null), []);
+    const handleAddSelect = useCallback((option: any) => {
+        console.log('handleADdSelect', option);
+        if (option === 'basic') setLocation(`${APP_LINKS.SearchRoutines}/add`)
+        else setLocation(`${APP_LINKS.Build}/add`)
+    }, []);
+    const addOptions: ListMenuItemData<string>[] = [
+        { label: 'Basic (Single Step)', value: 'basic' },
+        { label: 'Advanced (Multi Step)', value: 'advanced' },
+    ]
 
     const listItemFactory = (node: Routine, index: number) => (
         <RoutineListItem
@@ -60,6 +72,15 @@ export const SearchRoutinesPage = ({
                 partialData={selectedItem}
                 session={session}
             />
+            {/* Select type to add */}
+            <ListMenu
+                id={`add-routine-select-type-menu`}
+                anchorEl={addAnchor}
+                title='Select Routine Type'
+                data={addOptions}
+                onSelect={handleAddSelect}
+                onClose={closeAdd}
+            />
             {/* Search component */}
             <BaseSearchPage
                 title="Routines"
@@ -70,10 +91,10 @@ export const SearchRoutinesPage = ({
                 listItemFactory={listItemFactory}
                 getOptionLabel={routineOptionLabel}
                 onObjectSelect={handleSelected}
-                onAddClick={handleAddDialogOpen}
+                onAddClick={openAdd}
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
-                onPopupButtonClick={handleAddDialogOpen}
+                onPopupButtonClick={openAdd}
             />
         </>
     )

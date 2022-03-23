@@ -193,7 +193,7 @@ export const RoutineView = ({
                     }}>
                         {/* TODO click to view */}
                         <Typography variant="h6">Metadata</Typography>
-                        <Typography variant="body1">Status: TODO</Typography>
+                        {/* <Typography variant="body1">Status: TODO</Typography> */}
                         <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
 
                     </Box>}
@@ -301,7 +301,7 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { changedRoutine && setChangedRoutine({ ...changedRoutine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
-                        <Typography variant="h5">{title}</Typography>
+                        <Typography variant="h5" sx={{textAlign: 'center'}}>{title}</Typography>
                         {canEdit && <Tooltip title="Edit routine">
                             <IconButton
                                 aria-label="Edit routine"
