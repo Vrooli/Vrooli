@@ -121,11 +121,11 @@ export const BuildBottomContainer = ({
             ) :
             (
                 <Stack direction="row" spacing={0}>
-                    <Tooltip title={hasPrevious ? "Previous" : ''} placement="top">
+                    {/* <Tooltip title={hasPrevious ? "Previous" : ''} placement="top">
                         <IconButton aria-label="show-previous-routine" size='large' disabled={!hasPrevious} >
                             <PreviousIcon sx={{ fill: hasPrevious ? '#e4efee' : '#a7a7a7' }} />
                         </IconButton>
-                    </Tooltip>
+                    </Tooltip> */}
                     {runState == BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
                             <IconButton aria-label="pause-routine" size='large'>
@@ -139,11 +139,11 @@ export const BuildBottomContainer = ({
                             </IconButton>
                         </Tooltip>
                     )}
-                    <Tooltip title={hasNext ? "Next" : ''} placement="top">
+                    {/* <Tooltip title={hasNext ? "Next" : ''} placement="top">
                         <IconButton aria-label="show-next-routine" size='large' disabled={!hasNext}>
                             <NextIcon sx={{ fill: hasPrevious ? '#e4efee' : '#a7a7a7' }} />
                         </IconButton>
-                    </Tooltip>
+                    </Tooltip> */}
                 </Stack>
             )
     }, [hasPrevious, hasNext, isEditing, isAdding, loading, canSubmitMutate, canCancelMutate, handleAdd, handleUpdate, handleCancelAdd, handleCancelUpdate, runState, runRoutine]);

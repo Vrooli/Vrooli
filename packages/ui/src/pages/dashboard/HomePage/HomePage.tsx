@@ -56,7 +56,7 @@ The simplest thing you can do right now is to participate! You can:
 - [Execute a routine](https://app.vrooli.com/search/routine)  
 - [Create a routine](https://app.vrooli.com/create/routine)  
 - [Familiarize yourself with our vision](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4)  
-- [Join us on Discord](https://discord.gg/WTGNukDQ)  
+- [Join us on Discord](https://discord.gg/VyrDFzbmmF)  
 - [Follow us on Twitter](https://twitter.com/VrooliOfficial)  
 
 If you would like to contribute to the development of Vrooli, please contact us!

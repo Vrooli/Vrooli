@@ -102,28 +102,62 @@ export const resolvers = {
         emailLogIn: async (_parent: undefined, { input }: IWrap<EmailLogInInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Session> => {
             // Validate arguments with schema
             emailLogInSchema.validateSync(input, { abortEarly: false });
-            // Validate email address
-            const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
-            if (!email) throw new CustomError(CODE.BadCredentials);
-            // Find user
-            let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
-            if (!user) throw new CustomError(CODE.InternalError, 'User not found');
-            // Check for password in database, if doesn't exist, send a password reset link
-            if (!Boolean(user.password)) {
-                await profileValidater().setupPasswordReset(user, prisma);
-                throw new CustomError(CODE.MustResetPassword);
+            let user;
+            // If email not supplied, check if session is valid
+            if (!input.email) {
+                if (!req.userId) throw new CustomError(CODE.BadCredentials, 'Must supply email if not logged in');
+                // Find user by id
+                user = await prisma.user.findUnique({
+                    where: { id: req.userId },
+                    select: {
+                        id: true,
+                        theme: true,
+                        roles: { select: { role: { select: { title: true } } } }
+                    }
+                });
+                if (!user) throw new CustomError(CODE.InternalError, 'User not found');
+                // Validate verification code
+                if (Boolean(input.verificationCode)) {
+                    // Find all emails for user
+                    const emails = await prisma.email.findMany({
+                        where: {
+                            AND: [
+                                { userId: user.id },
+                                { verified: false }
+                            ]
+                        }
+                    })
+                    for (const email of emails) {
+                        await profileValidater().validateVerificationCode(email.emailAddress, user.id, input?.verificationCode as string, prisma);
+                    }
+                }
+                return profileValidater().toSession(user);
             }
-            // Validate verification code, if supplied
-            if (Boolean(input?.verificationCode)) {
-                await profileValidater().validateVerificationCode(email.emailAddress, user.id, input?.verificationCode as string, prisma);
-            }
-            const session = await profileValidater().logIn(input?.password as string, user, prisma);
-            if (session) {
-                // Set session token
-                await generateSessionToken(res, session);
-                return session;
-            } else {
-                throw new CustomError(CODE.BadCredentials);
+            // If email supplied, validate
+            else {
+                const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
+                if (!email) throw new CustomError(CODE.BadCredentials);
+                // Find user
+                user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
+                if (!user) throw new CustomError(CODE.InternalError, 'User not found');
+                // Check for password in database, if doesn't exist, send a password reset link
+                if (!Boolean(user.password)) {
+                    await profileValidater().setupPasswordReset(user, prisma);
+                    throw new CustomError(CODE.MustResetPassword);
+                }
+                // Validate verification code, if supplied
+                if (Boolean(input?.verificationCode)) {
+                    await profileValidater().validateVerificationCode(email.emailAddress, user.id, input?.verificationCode as string, prisma);
+                }
+                // Create new session
+                const session = await profileValidater().logIn(input?.password as string, user, prisma);
+                if (session) {
+                    // Set session token
+                    await generateSessionToken(res, session);
+                    return session;
+                } else {
+                    throw new CustomError(CODE.BadCredentials);
+                }
             }
         },
         emailSignUp: async (_parent: undefined, { input }: IWrap<EmailSignUpInput>, { prisma, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {

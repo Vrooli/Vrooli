@@ -1,7 +1,7 @@
 import { useLocation } from 'wouter';
 import { emailLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { CODE, emailLogInSchema } from '@local/shared';
+import { CODE, emailLogInForm } from '@local/shared';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -23,11 +23,11 @@ import { useMemo } from 'react';
 import { parseSearchParams } from 'utils/urlTools';
 
 export const LogInForm = ({
-    code,
     onFormChange = () => { }
 }: LogInFormProps) => {
     const [, setLocation] = useLocation();
     const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
+    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, [window.location.search]);
 
     const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
 
@@ -36,11 +36,11 @@ export const LogInForm = ({
             email: '',
             password: ''
         },
-        validationSchema: emailLogInSchema,
+        validationSchema: emailLogInForm,
         onSubmit: (values) => {
             mutationWrapper({
                 mutation: emailLogIn,
-                input: { ...values, verificationCode: code },
+                input: { ...values, verificationCode },
                 successCondition: (response) => response.data.emailLogIn !== null,
                 onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) },
                 onError: (response) => {

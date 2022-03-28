@@ -16,8 +16,8 @@ import {
     Typography,
 } from '@mui/material';
 import { Forms, Pubs } from 'utils';
-import { APP_LINKS } from '@local/shared';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { APP_LINKS, CODE } from '@local/shared';
+import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/walletIntegration';
 import { ROLES } from '@local/shared';
 import { HelpButton } from 'components';
@@ -27,15 +27,17 @@ import {
     SignUpForm,
     ResetPasswordForm,
 } from 'forms';
-import { guestLogInMutation } from 'graphql/mutation';
+import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { parseSearchParams } from 'utils/urlTools';
+import { emailLogIn } from 'graphql/generated/emailLogIn';
+import { StartPageProps } from 'pages/types';
 
-const helpText = 
-`Logging in allows you to vote, save favorites, and contribute to the community.
+const helpText =
+    `Logging in allows you to vote, save favorites, and contribute to the community.
 
-Choose **WALLET** if you are on a browser with a supported extension (currently [CCVault](https://ccvault.io/app/mainnet/faq), [Nami](https://namiwallet.io/), and [Yoroi](https://yoroi-wallet.com/#/)). This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.
+Choose **WALLET** if you are on a browser with a supported extension (currently [Eternl (aka CCVault.io)](https://ccvault.io/app/mainnet/faq), [Nami](https://namiwallet.io/), and [Yoroi](https://yoroi-wallet.com/#/)). This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.
 
 Choose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.
 
@@ -45,10 +47,14 @@ const buttonProps: SxProps = {
     height: '4em',
 }
 
-export const StartPage = () => {
+export const StartPage = ({
+    session,
+}: StartPageProps) => {
     const [, setLocation] = useLocation();
     const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
+    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, [window.location.search]);
 
+    const [emailLogIn] = useMutation<emailLogIn>(emailLogInMutation);
     const [guestLogIn] = useMutation<any>(guestLogInMutation);
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
@@ -68,6 +74,37 @@ export const StartPage = () => {
                 return [LogInForm, 'Log In'];
         }
     }, [popupForm])
+
+    /**
+     * If verification code supplied
+     */
+    useEffect(() => {
+        if (verificationCode) {
+            // If session is already verified, call guest log in
+            if (session.id) {
+                mutationWrapper({
+                    mutation: emailLogIn,
+                    input: { verificationCode },
+                    onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) },
+                    onError: (response) => {
+                        if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
+                            PubSub.publish(Pubs.AlertDialog, {
+                                message: 'Before signing in, please follow the link sent to your email to change your password.',
+                                buttons: [
+                                    { text: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
+                                ]
+                            });
+                        }
+                    }
+                })
+            }
+            // Otherwise, open log in form
+            else {
+                setEmailPopupOpen(true);
+                setPopupForm(Forms.LogIn);
+            }
+        }
+    })
 
     // Wallet connect popup
     const [walletOptionPopupOpen, setWalletOptionPopupOpen] = useState(false);

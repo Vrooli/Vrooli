@@ -215,7 +215,7 @@ export const AllRoutes = (props: CommonProps) => {
                 <Route path={LINKS.Start}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Start')} {...props}>
-                            <StartPage />
+                            <StartPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>

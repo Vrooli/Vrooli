@@ -235,8 +235,8 @@ export const profileValidater = () => ({
                     data: { verified: true, verificationCode: null, lastVerificationCodeRequestAttempt: null }
                 })
             }
-            // If code is incorrect or expired, create new code and send email
-            else {
+            // If email is not verified, set up new verification code
+            else if (!email.verified) {
                 await this.setupVerificationCode(emailAddress, prisma);
             }
         }

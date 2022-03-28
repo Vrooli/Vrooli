@@ -22,9 +22,9 @@ import { getTranslation, Pubs } from 'utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 
 const helpText =
-    `
-TODO
-`
+    `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
+    
+    In the future, links will also be able to specify conditions, which must be true in order for the path to be available.`;
 
 export const LinkDialog = ({
     handleClose,

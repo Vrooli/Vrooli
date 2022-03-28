@@ -1,6 +1,3 @@
-/**
- * Used to create/update a link between two routine nodes
- */
 import {
     Box,
     Button,
@@ -27,9 +24,7 @@ import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
 import { validate as uuidValidate } from 'uuid';
 
 const helpText =
-    `
-TODO
-`
+    `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`
 
 export const AddSubroutineDialog = ({
     handleAdd,
@@ -62,8 +57,6 @@ export const AddSubroutineDialog = ({
         if (routineData?.routine) {
             handleAdd(nodeId, routineData.routine);
             handleClose();
-        } else {
-            PubSub.publish(Pubs.Snack, { message: 'Failed to fetch routine data.', severity: 'error' });
         }
     }, [routineData, handleCreateClose]);
 

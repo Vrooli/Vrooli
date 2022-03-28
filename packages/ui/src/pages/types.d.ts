@@ -7,3 +7,7 @@ export interface BuildPageProps {
 export interface SettingsPageProps {
     session: Session;
 }
+
+export interface StartPageProps {
+    session: Session;
+}

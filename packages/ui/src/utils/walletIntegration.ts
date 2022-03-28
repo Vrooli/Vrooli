@@ -18,7 +18,7 @@ export enum WalletProvider {
  * [Enum, window.cardano key, Label, Download extension URL]
  */
 const walletProviderInfoMap: { [x: string]: [WalletProvider, string, string, string] } = {
-    [WalletProvider.CCVault]: [WalletProvider.CCVault, 'ccvault', 'CCVault.io', 'https://chrome.google.com/webstore/detail/ccvaultio/kmhcihpebfmpgmihbkipmjlmmioameka'],
+    [WalletProvider.CCVault]: [WalletProvider.CCVault, 'ccvault', 'Eternl (CCVault.io)', 'https://chrome.google.com/webstore/detail/ccvaultio/kmhcihpebfmpgmihbkipmjlmmioameka'],
     [WalletProvider.Nami]: [WalletProvider.Nami, 'nami', 'Nami', 'https://chrome.google.com/webstore/detail/nami/lpfcbjknijpeeillifnkikgncikgfhdo'],
     // [WalletProvider.Yoroi]: [WalletProvider.Yoroi, 'yoroi', 'Yoroi', 'https://chrome.google.com/webstore/detail/yoroi/ffnbelfdoeiohenkjibnmadjiehjhajb'],
 }
