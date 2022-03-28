@@ -159,13 +159,13 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
             isFile: data.isFile,
             schema: data.schema,
             type: data.type,
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, true),
+            tags: await TagModel(prisma).relationshipBuilder(userId, data),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
         }
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
         return {
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
+            tags: await TagModel(prisma).relationshipBuilder(userId, data),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
         }
     },
@@ -190,10 +190,14 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
             formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShapeAdd(userId, data as any));
         }
         if (Array.isArray(formattedInput.update)) {
-            formattedInput.update = formattedInput.update.map(async (data) => ({
-                where: data.where,
-                data: await this.toDBShapeUpdate(userId, data.data as any)
-            }))
+            const updates = [];
+            for (const update of formattedInput.update) {
+                updates.push({
+                    where: update.where,
+                    data: await this.toDBShapeUpdate(userId, update.data as any),
+                })
+            }
+            formattedInput.update = updates;
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },

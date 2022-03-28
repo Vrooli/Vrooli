@@ -99,7 +99,7 @@ export const ProjectView = ({
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Project}/${id}/edit` : `${APP_LINKS.SearchProjects}/edit/${id}`);
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Project}/edit/${id}` : `${APP_LINKS.SearchProjects}/edit/${id}`);
     }, [setLocation, id]);
 
     // Determine options available to object, in order

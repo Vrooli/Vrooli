@@ -58,7 +58,7 @@ export const nodeVerifier = () => ({
      * Also doubles as a way to verify that all nodes are in the same routine.
      * @returns Promise with routineId, so we can use it later
      */
-    async authorizedCheck(userId: string, nodeIds: string[], prisma: PrismaType): Promise<string> {
+    async authorizedCheck(userId: string, nodeIds: string[], prisma: PrismaType): Promise<string | null> {
         let nodes = await prisma.node.findMany({
             where: {
                 AND: [
@@ -86,7 +86,18 @@ export const nodeVerifier = () => ({
         });
         // Check that all nodes are in the same routine
         const uniqueRoutineIds = new Set(nodes.map(node => node.routineId))
-        if (uniqueRoutineIds.size === 0) throw new CustomError(CODE.Unauthorized, 'You do not own all nodes');
+        // If not routine ids found, check if all nodes are new
+        if (uniqueRoutineIds.size === 0) {
+            const newNodes = await prisma.node.count({
+                where: {
+                    id: { in: nodeIds },
+                }
+            })
+            // If all nodes are new, return null for routineId
+            if (newNodes === 0) return null;
+            // If not all nodes are new, then there must be one that is not new and not owned by the user
+            else throw new CustomError(CODE.Unauthorized, 'You do not own all nodes');
+        }
         if (uniqueRoutineIds.size > 1) throw new CustomError(CODE.InvalidArgs, 'All nodes must be in the same routine!');
         return uniqueRoutineIds.values().next().value;
     },
@@ -241,12 +252,12 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             nodeLinksUpdate.validateSync(formattedInput.update, { abortEarly: false });
             for (let data of formattedInput.update) {
                 // Convert nested relationships
-                data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
-                let { fromId, toId, ...rest } = data;
-                data = {
+                data.data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
+                let { fromId, toId, ...rest } = data.data;
+                data.data = {
                     ...rest,
-                    from: fromId ? { connect: { id: data.fromId } } : undefined,
-                    to: toId ? { connect: { id: data.toId } } : undefined,
+                    from: fromId ? { connect: { id: data.data.fromId } } : undefined,
+                    to: toId ? { connect: { id: data.data.toId } } : undefined,
                 }
             }
         }
@@ -330,7 +341,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
                 // Check for valid arguments
                 loopUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
-                data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
+                data.data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -358,6 +369,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
                 let routineRel = await routineModel.relationshipBuilder(userId, data, isAdd, 'routine')
                 if (routineRel?.connect) routineRel.connect = routineRel.connect[0];
                 result.push({
+                    id: data.id ?? undefined,
                     index: data.index,
                     isOptional: data.isOptional,
                     routine: routineRel,
@@ -374,9 +386,12 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
             for (const data of formattedInput.update) {
                 // Cannot switch routines, so no need to worry about it in the update
                 result.push({
-                    index: data.index,
-                    isOptional: data.isOptional,
-                    translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
+                    where: data.where,
+                    data: {
+                        index: data.data.index,
+                        isOptional: data.data.isOptional,
+                        translations: TranslationModel().relationshipBuilder(userId, data, { create: nodeRoutineListItemTranslationCreate, update: nodeRoutineListItemTranslationUpdate }, false),
+                    }
                 })
             }
             formattedInput.update = result;
@@ -436,12 +451,12 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         const deleteNodeIds = deleteMany ?? [];
         const allNodeIds = [...createNodeIds, ...updateNodeIds, ...deleteNodeIds];
         if (allNodeIds.length === 0) return;
-        const routineId = await verifier.authorizedCheck(userId, allNodeIds, prisma);
+        const routineId: string | null = await verifier.authorizedCheck(userId, allNodeIds, prisma);
         if (createMany) {
             createMany.forEach(input => nodeCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => verifier.profanityCheck(input));
             // Check if will pass max nodes (on routine) limit
-            await verifier.maximumCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
+            if (routineId) await verifier.maximumCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
         }
         if (updateMany) {
             updateMany.forEach(input => nodeUpdate.validateSync(input.data, { abortEarly: false }));

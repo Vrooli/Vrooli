@@ -2,11 +2,11 @@ import { Box, IconButton, Tooltip } from '@mui/material';
 import { LinkDialog, NodeGraph, BuildBottomContainer, BuildInfoContainer, SubroutineInfoDialog, UnlinkedNodesDialog, AddSubroutineDialog, AddAfterLinkDialog, AddBeforeLinkDialog, DeleteRoutineDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { routineQuery } from 'graphql/query';
-import { useMutation, useQuery } from '@apollo/client';
-import { routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
+import { useMutation, useLazyQuery } from '@apollo/client';
+import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { routine } from 'graphql/generated/routine';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation } from 'utils';
+import { routine, routineVariables } from 'graphql/generated/routine';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate } from 'utils';
 import {
     AddLink as AddLinkIcon,
     Compress as CleanUpIcon,
@@ -38,20 +38,57 @@ export const BuildPage = ({
     // Get routine ID from URL
     const [, params] = useRoute(`${APP_LINKS.Build}/:id`);
     const id: string = useMemo(() => params?.id ?? '', [params]);
+    const [isEditing, setIsEditing] = useState<boolean>(false);
     // Queries routine data
-    const { data: routineData, loading: loadingRead } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
+    const [getData, { data: routineData, loading: loadingRead }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    useEffect(() => {
+        console.log('id here', id)
+        // If not add, fetch data
+        if (id && id !== 'add') getData({ variables: { input: { id } } });
+        // If add, set initial data
+        else {
+            const startNode: Node = {
+                id: uuidv4(),
+                type: NodeType.Start,
+                columnIndex: 0,
+                rowIndex: 0,
+            } as Node
+            const endNode: Node = {
+                id: uuidv4(),
+                type: NodeType.End,
+                columnIndex: 1,
+                rowIndex: 0,
+            } as Node
+            const link: NodeLink = {
+                id: uuidv4(),
+                fromId: startNode.id,
+                toId: endNode.id,
+            } as NodeLink
+            console.log('setting routine... ')
+            setRoutine({
+                nodes: [startNode, endNode],
+                nodeLinks: [link],
+                translations: [{
+                    language: 'en',
+                    title: 'New Routine',
+                    instructions: 'Enter instructions here',
+                }]
+            } as Routine)
+            setIsEditing(true);
+        }
+    }, [id, getData]);
     const [routine, setRoutine] = useState<Routine | null>(null);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
-    useEffect(() => { setRoutine(routineData?.routine ?? null) }, [routineData]);
+    useEffect(() => { if (routineData?.routine) setRoutine(routineData?.routine ?? null) }, [routineData]);
     // Routine mutators
+    const [routineCreate, { loading: loadingCreate }] = useMutation<any>(routineCreateMutation);
     const [routineUpdate, { loading: loadingUpdate }] = useMutation<any>(routineUpdateMutation);
     const [routineDelete, { loading: loadingDelete }] = useMutation<any>(routineDeleteOneMutation);
-    const loading = useMemo(() => loadingRead || loadingUpdate || loadingDelete, [loadingRead, loadingUpdate, loadingDelete]);
+    const loading = useMemo(() => loadingRead || loadingCreate || loadingUpdate || loadingDelete, [loadingRead, loadingCreate, loadingUpdate, loadingDelete]);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<BuildStatusObject>({ code: BuildStatus.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
-    const [isEditing, setIsEditing] = useState<boolean>(false);
     const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
     const language = 'en';
 
@@ -60,6 +97,7 @@ export const BuildPage = ({
     const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
 
     useEffect(() => {
+        console.log('setting changed routine', routine);
         setChangedRoutine(routine);
     }, [routine]);
 
@@ -284,6 +322,52 @@ export const BuildPage = ({
     const startEditing = useCallback(() => setIsEditing(true), []);
 
     /**
+     * Creates new routine
+     */
+    const createRoutine = useCallback(() => {
+        if (!changedRoutine) {
+            return;
+        }
+        const input: any = formatForCreate(changedRoutine, ['nodes', 'nodeLinks', 'node.data.routines'])
+        // If nodes have a data create/update, convert to nodeEnd or nodeRoutineList (i.e. deconstruct union)
+        const relationFields = ['Create', 'Update'];
+        for (const iField of relationFields) {
+            if (!input.hasOwnProperty(`nodes${iField}`)) continue;
+            input[`nodes${iField}`] = input[`nodes${iField}`].map(node => {
+                // Find full node data
+                const fullNode = changedRoutine.nodes.find(n => n.id === node.id);
+                if (!fullNode) return node;
+                // If end node, convert `data${jField}` to `nodeEnd${jField}`
+                if (fullNode.type === NodeType.End) {
+                    for (const jField of relationFields) {
+                        if (!node.hasOwnProperty(`data${jField}`)) continue;
+                        node[`nodeEnd${jField}`] = node[`data${jField}`];
+                        delete node[`data${jField}`];
+                    }
+                }
+                // If routine list node, convert `data${jField}` to `nodeRoutineList${jField}`
+                if (fullNode.type === NodeType.RoutineList) {
+                    for (const jField of relationFields) {
+                        if (!node.hasOwnProperty(`data${jField}`)) continue;
+                        node[`nodeRoutineList${jField}`] = node[`data${jField}`];
+                        delete node[`data${jField}`];
+                    }
+                }
+                return node;
+            });
+        }
+        mutationWrapper({
+            mutation: routineCreate,
+            input,
+            successMessage: () => 'Routine created.',
+            onSuccess: ({ data }) => { 
+                setRoutine(data.routineUpdate);
+                setLocation(`${APP_LINKS.Build}/${data.routineUpdate.id}`); 
+            },
+        })
+    }, [changedRoutine, mutationWrapper]);
+
+    /**
      * Mutates routine data
      */
     const updateRoutine = useCallback(() => {
@@ -345,8 +429,13 @@ export const BuildPage = ({
     }, [changedRoutine]);
 
     const revertChanges = useCallback(() => {
-        setChangedRoutine(routine);
-        setIsEditing(false);
+        // If updating routine, revert to original routine
+        if (id) {
+            setChangedRoutine(routine);
+            setIsEditing(false);
+        }
+        // If adding new routine, go back
+        else window.history.back();
     }, [routine])
 
     /**
@@ -455,6 +544,8 @@ export const BuildPage = ({
      * Deletes a subroutine from a node
      */
     const handleSubroutineDelete = useCallback((nodeId: string, subroutineId: string) => {
+        console.log('handle subroutine delete nodeId', nodeId, changedRoutine);
+        console.log('handle subroutine delete subroutineId', subroutineId, changedRoutine?.nodes?.findIndex(n => n.id === nodeId));
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
@@ -596,7 +687,7 @@ export const BuildPage = ({
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
         let routineItem: NodeDataRoutineListItem = {
-            // id: uuidv4(),
+            id: uuidv4(),
             isOptional: true,
             routine,
         } as any
@@ -948,13 +1039,16 @@ export const BuildPage = ({
                     scale={scale}
                 />
                 <BuildBottomContainer
-                    canCancelUpdate={!loading}
-                    canUpdate={!loading && !isEqual(routine, changedRoutine)}
-                    handleCancelRoutineUpdate={revertChanges}
-                    handleRoutineUpdate={updateRoutine}
+                    canCancelMutate={!loading}
+                    canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
+                    handleCancelAdd={() => { window.history.back(); }}
+                    handleCancelUpdate={revertChanges}
+                    handleAdd={createRoutine}
+                    handleUpdate={updateRoutine}
                     handleScaleChange={handleScaleChange}
                     hasPrevious={false}
                     hasNext={false}
+                    isAdding={id === 'add'}
                     isEditing={isEditing}
                     loading={loading}
                     scale={scale}

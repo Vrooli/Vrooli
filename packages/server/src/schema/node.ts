@@ -169,6 +169,7 @@ export const typeDef = gql`
     }
 
     input NodeRoutineListItemCreateInput {
+        id: ID
         index: Int
         isOptional: Boolean
         routineConnect: ID!

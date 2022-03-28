@@ -24,13 +24,16 @@ export interface DialogActionsContainerProps {
 }
 
 export interface BuildBottomContainerProps {
-    canUpdate: boolean;
-    canCancelUpdate: boolean;
-    handleCancelRoutineUpdate: () => void;
-    handleRoutineUpdate: () => void;
+    canSubmitMutate: boolean;
+    canCancelMutate: boolean;
+    handleCancelAdd: () => void;
+    handleCancelUpdate: () => void;
+    handleAdd: () => void;
+    handleUpdate: () => void;
     handleScaleChange: (scale: number) => void;
     hasPrevious: boolean;
     hasNext: boolean;
+    isAdding: boolean;
     isEditing: boolean;
     loading: boolean;
     scale: number;

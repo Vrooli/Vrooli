@@ -207,10 +207,9 @@ export const projectMutater = (prisma: PrismaType) => ({
         const createData = async (input: ProjectCreateInput | ProjectUpdateInput): Promise<{ [x: string]: any }> => ({
             isComplete: input.isComplete,
             completedAt: input.isComplete ? new Date().toISOString() : null,
-            name: input.name,
             parentId: input.parentId,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, true),
-            tags: await TagModel(prisma).relationshipBuilder(userId, input, true),
+            tags: await TagModel(prisma).relationshipBuilder(userId, input),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
         })
         // Perform mutations

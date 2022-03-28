@@ -104,7 +104,7 @@ export const OrganizationView = ({
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Organization}/${id}/edit` : `${APP_LINKS.SearchOrganizations}/edit/${id}`);
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Organization}/edit/${id}` : `${APP_LINKS.SearchOrganizations}/edit/${id}`);
     }, [setLocation, id]);
 
     // Create search data

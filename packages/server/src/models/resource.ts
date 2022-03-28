@@ -135,11 +135,10 @@ export const resourceMutater = (prisma: PrismaType) => ({
         }
         if (!existingResources.some(r => isOwner(userId, r))) throw new CustomError(CODE.Unauthorized, 'User does not own the resource, or is not an admin of its organization');
     },
-    async toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean): Promise<any> {
+    toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean, isRelationship: boolean): any {
         console.log('resource todb shape', JSON.stringify(data))
         return {
-            id: (data as ResourceUpdateInput)?.id ?? undefined,
-            listId: data.listId,
+            listId: !isRelationship ? data.listId : undefined,
             index: data.index,
             link: data.link,
             usedFor: data.usedFor,
@@ -152,6 +151,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
         isAdd: boolean = true,
         relationshipName: string = 'resources',
     ): Promise<{ [x: string]: any } | undefined> {
+        console.log('resource relationship builder start', JSON.stringify(input))
         const fieldExcludes = ['createdFor', 'createdForId'];
         // Convert input to Prisma shape, excluding "createdFor" and "createdForId" fields
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
@@ -169,13 +169,21 @@ export const resourceMutater = (prisma: PrismaType) => ({
         // Shape
         if (Array.isArray(formattedInput.create)) {
             // If title or description is not provided, try querying for the link's og tags TODO
-            formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any, true));
+            const creates = [];
+            for (const create of formattedInput.create) {
+                creates.push(this.toDBShape(userId, create as any, isAdd, true));
+            }
+            formattedInput.create = creates;
         }
         if (Array.isArray(formattedInput.update)) {
-            formattedInput.update = formattedInput.update.map(async (data) => ({
-                where: data.where,
-                data: await this.toDBShape(userId, data.data as any, false)
-            }))
+            const updates = [];
+            for (const update of formattedInput.update) {
+                updates.push({
+                    where: update.where,
+                    data: this.toDBShape(userId, update.data as any, false, true),
+                })
+            }
+            formattedInput.update = updates;
         }
         console.log('resoruce format after', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -205,7 +213,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             for (const input of createMany) {
                 // If title or description is not provided, try querying for the link's og tags TODO
                 // Call createData helper function
-                const data = await this.toDBShape(userId, input, true);
+                const data = await this.toDBShape(userId, input, true, false);
                 // Create object
                 const currCreated = await prisma.resource.create({ data, ...selectHelper(partial) });
                 // Convert to GraphQL
@@ -225,7 +233,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.resource.update({
                     where: input.where,
-                    data: await this.toDBShape(userId, input.data, false),
+                    data: await this.toDBShape(userId, input.data, false, false),
                     ...selectHelper(partial)
                 });
                 // Convert to GraphQL

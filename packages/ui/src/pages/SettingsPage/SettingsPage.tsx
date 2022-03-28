@@ -10,7 +10,7 @@ import {
     AccountCircle as ProfileIcon,
     SvgIconComponent
 } from '@mui/icons-material';
-import { useQuery } from '@apollo/client';
+import { useLazyQuery } from '@apollo/client';
 import PubSub from 'pubsub-js';
 import { Pubs } from 'utils';
 import { APP_LINKS } from '@local/shared';
@@ -39,7 +39,10 @@ export function SettingsPage({
     const editing = useMemo<boolean>(() => Boolean(parseSearchParams(window.location.search).editing), [window.location.search]);
 
     // Fetch profile data
-    const { data, loading } = useQuery<profile>(profileQuery, { variables: { input: { id: session?.id ?? '' } } });
+    const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery);
+    useEffect(() => {
+        if (session?.id) getData();
+    }, [session])
     const [profile, setProfile] = useState<profile_profile | undefined>(undefined);
     useEffect(() => {
         if (data?.profile) setProfile(data.profile);

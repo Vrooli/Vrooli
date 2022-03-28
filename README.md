@@ -16,7 +16,7 @@ A collaborative tool for visualizing and automating tasks
 - [White paper (plus long-term vision for Vrooli and the future of society)](https://docs.google.com/document/d/1BO3Q5ADavWKaK0RSdeDVXfYOHtBF-cMr7S-XxKiGJ8g/edit?usp=sharing)
 - [Explaining the problem and our solution](https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e)
 - [First project proposal](https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088)
-- [Join the discussion on Discord!](https://discord.gg/RzDCvUDK)
+- [Join the discussion on Discord!](https://discord.gg/VyrDFzbmmF)
 - [Follow us on Twitter!](https://twitter.com/VrooliOfficial)
 
 ## Roadmap

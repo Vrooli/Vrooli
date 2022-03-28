@@ -365,7 +365,6 @@ export const routineMutater = (prisma: PrismaType) => ({
         const [simplicity, complexity] = await this.calculateComplexity(data);
         console.log('complexity calculated', complexity, simplicity);
         return {
-            id: (data as RoutineUpdateInput)?.id ?? undefined,
             isAutomatable: data.isAutomatable,
             isComplete: data.isComplete,
             completedAt: data.isComplete ? new Date().toISOString() : null,
@@ -375,7 +374,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             parentId: data.parentId,
             version: data.version,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel(prisma).relationshipBuilder(userId, data, false),
+            tags: await TagModel(prisma).relationshipBuilder(userId, data),
             inputs: this.relationshipBuilderInput(userId, data, false),
             outpus: this.relationshipBuilderOutput(userId, data, false),
             nodes: await NodeModel(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, false),
@@ -413,13 +412,13 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
+            for (const update of formattedInput.update) {
                 // Check for valid arguments
-                inputUpdate.validateSync(data, { abortEarly: false });
+                inputUpdate.validateSync(update.data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
+                if (hasProfanity(update.data.name, update.data.description)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
-                data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
+                update.data.standard = standardModel.relationshipBuilder(userId, update.data, isAdd);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -454,13 +453,13 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
+            for (const update of formattedInput.update) {
                 // Check for valid arguments
-                inputUpdate.validateSync(data, { abortEarly: false });
+                inputUpdate.validateSync(update.data, { abortEarly: false });
                 // Check for censored words
-                TranslationModel().profanityCheck(data);
+                TranslationModel().profanityCheck(update.data);
                 // Convert nested relationships
-                data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
+                update.data.standard = standardModel.relationshipBuilder(userId, update.data, isAdd);
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -489,10 +488,14 @@ export const routineMutater = (prisma: PrismaType) => ({
             formattedInput.create = formattedInput.create.map(async (data) => await this.toDBShape(userId, data as any));
         }
         if (Array.isArray(formattedInput.update)) {
-            formattedInput.update = formattedInput.update.map(async (data) => ({
-                where: data.where,
-                data: await this.toDBShape(userId, data.data as any)
-            }))
+            const updates = [];
+            for (const update of formattedInput.update) {
+                updates.push({
+                    where: update.where,
+                    data: await this.toDBShape(userId, update.data as any),
+                })
+            }
+            formattedInput.update = updates;
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },

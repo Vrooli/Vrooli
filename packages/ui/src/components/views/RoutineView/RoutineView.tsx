@@ -1,8 +1,8 @@
 import { Box, Button, CircularProgress, Dialog, Grid, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
-import { routine } from "graphql/generated/routine";
+import { useMutation, useLazyQuery } from "@apollo/client";
+import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -32,9 +32,12 @@ export const RoutineView = ({
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Run}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/view/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id = params?.id ?? params2?.id;
     // Fetch data
-    const { data, loading } = useQuery<routine>(routineQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    useEffect(() => {
+        if (id) getData({ variables: { input: { id } } });
+    }, [id])
     const routine = useMemo(() => data?.routine, [data]);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null); // Routine may change if it is starred/upvoted/etc.
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role ?? ''), [routine]);
@@ -114,7 +117,7 @@ export const RoutineView = ({
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Run}/${id}/edit` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Run}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
     }, [setLocation, id]);
 
     // More menu
@@ -190,7 +193,7 @@ export const RoutineView = ({
                     }}>
                         {/* TODO click to view */}
                         <Typography variant="h6">Metadata</Typography>
-                        <Typography variant="body1">Status: TODO</Typography>
+                        {/* <Typography variant="body1">Status: TODO</Typography> */}
                         <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
 
                     </Box>}
@@ -260,7 +263,7 @@ export const RoutineView = ({
                 handleActionComplete={() => { }} //TODO
                 handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
-                objectId={id}
+                objectId={id ?? ''}
                 objectType={'Routine'}
                 anchorEl={moreMenuAnchor}
                 title='Routine Options'
@@ -298,7 +301,7 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { changedRoutine && setChangedRoutine({ ...changedRoutine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
-                        <Typography variant="h5">{title}</Typography>
+                        <Typography variant="h5" sx={{textAlign: 'center'}}>{title}</Typography>
                         {canEdit && <Tooltip title="Edit routine">
                             <IconButton
                                 aria-label="Edit routine"

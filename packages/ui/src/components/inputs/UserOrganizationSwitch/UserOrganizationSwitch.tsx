@@ -1,11 +1,10 @@
-import { useSwitch } from '@mui/base/SwitchUnstyled';
 import { Box, Button, IconButton, List, ListItem, ListItemText, Menu, Stack, TextField, Typography } from '@mui/material';
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { UserOrganizationSwitchProps } from '../types';
 import { organizationsQuery } from 'graphql/query';
 import { organizations, organizationsVariables } from 'graphql/generated/organizations';
 import { APP_LINKS, MemberRole, OrganizationSortBy } from '@local/shared';
-import { useLazyQuery, useQuery } from '@apollo/client';
+import { useLazyQuery } from '@apollo/client';
 import { Organization } from 'types';
 import { noSelect } from 'styles';
 import { Close as CloseIcon } from '@mui/icons-material';
@@ -62,7 +61,10 @@ export function UserOrganizationSwitch({
             ev.preventDefault();
         }
     }, [disabled, selected, onChange]);
-    const closeMenu = useCallback(() => setMenuAnchorEl(null), []);
+    const closeMenu = useCallback(() => {
+        setMenuAnchorEl(null);
+        setSearch('');
+    }, []);
 
     const [search, setSearch] = useState<string>('');
     const handleSearchChange = useCallback((ev: any) => {
@@ -145,29 +147,40 @@ export function UserOrganizationSwitch({
                         <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                     </IconButton>
                 </Box>
+                <TextField
+                    fullWidth
+                    id="filter-organizations"
+                    label="Filter"
+                    value={search}
+                    onChange={handleSearchChange}
+                    sx={{ marginLeft: 2, paddingRight: 4, marginTop: 2 }}
+                />
                 {organizationListItems.length > 0 ? (
-                    <>
-                        <TextField
-                            fullWidth
-                            id="filter-organizations"
-                            label="Filter"
-                            value={search}
-                            onChange={handleSearchChange}
-                            sx={{ marginLeft: 2, paddingRight: 4, marginTop: 2 }}
-                        />
-                        <List>
-                            {organizationListItems}
-                        </List>
-                    </>
+                    <List>
+                        {organizationListItems}
+                    </List>
                 ) : (
-                    <Stack direction="column" spacing={1} justifyContent="center" alignItems="center" padding={2}>
-                        <Typography variant="body1">Not in any organizations</Typography>
-                        <Button color="secondary" onClick={() => setLocation(`${APP_LINKS.Organization}/add`, { replace: true })}>
-                            Create New
-                        </Button>
-                    </Stack>
+                    <Box sx={{
+                        display: 'block',
+                        textAlign: 'center',
+                        paddingTop: 2,
+                        paddingBottom: 2
+                    }}>
+                        <Typography variant="body1" color="gray">Not matching organizations</Typography>
+                    </Box>
                 )
                 }
+                <Button
+                    color="secondary"
+                    onClick={() => setLocation(`${APP_LINKS.Organization}/add`, { replace: true })}
+                    sx={{
+                        display: 'flex',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }}
+                >
+                    Create New
+                </Button>
             </Menu>
             {/* Main component */}
             <Stack direction="row" spacing={1} justifyContent="center">

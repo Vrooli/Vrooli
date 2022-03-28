@@ -109,16 +109,7 @@ export const ResearchPage = ({
     }, [profileData]);
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        mutationWrapper({
-            mutation: updateResources,
-            input: formatForUpdate(profileData?.profile, {
-                ...profileData?.profile,
-                resourcesLearn: updatedList
-            }, [], []),
-            onError: (response) => {
-                PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-            }
-        })
+        getProfile();
     }, [updateResources]);
 
     const { data: processesData, loading: processesLoading } = useQuery<routines, routinesVariables>(routinesQuery, { 
@@ -220,7 +211,7 @@ export const ResearchPage = ({
                 alignItems="center" 
                 sx={{ marginTop: 2, marginBottom: 2}}
             >
-                <Typography component="h1" variant="h3">Research Dashboard</Typography>
+                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' }}}>Research Dashboard</Typography>
                 <HelpButton markdown={researchPageText} sx={{width: '40px', height: '40px'}} />
             </Stack>
             <Stack direction="column" spacing={10}>
@@ -230,6 +221,7 @@ export const ResearchPage = ({
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
+                    mutate={true}
                     session={session}
                 />
                 <TitleContainer

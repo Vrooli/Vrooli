@@ -1,6 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { reportCreate as validationSchema } from '@local/shared';
-import { Autocomplete, Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
 import { reportCreate } from 'graphql/generated/reportCreate';
@@ -62,15 +62,21 @@ export const ReportDialog = ({
                 successCondition: (response) => response.data.reportCreate !== null,
                 onSuccess: (response) => {
                     PubSub.publish(Pubs.Snack, { message: 'Report submitted.' });
+                    formik.resetForm();
                     onClose()
                 },
             })
         },
     });
 
+    const handleClose = () => {
+        formik.resetForm();
+        onClose();
+    }
+
     return (
         <Dialog
-            onClose={onClose}
+            onClose={handleClose}
             open={open}
             sx={{
                 '& .MuiDialog-paper': {
@@ -91,12 +97,12 @@ export const ReportDialog = ({
                 }}>
                     <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
                         {title}
+                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
                     </Typography>
                     <Box sx={{ marginLeft: 'auto' }}>
-                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
                         <IconButton
                             edge="start"
-                            onClick={onClose}
+                            onClick={handleClose}
                         >
                             <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
                         </IconButton>
@@ -146,7 +152,7 @@ export const ReportDialog = ({
                             <Button fullWidth type="submit">Submit</Button>
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={onClose} sx={{ paddingLeft: 1 }}>Cancel</Button>
+                            <Button fullWidth onClick={handleClose} sx={{ paddingLeft: 1 }}>Cancel</Button>
                         </Grid>
                     </Grid>
                 </Stack>

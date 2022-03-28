@@ -15,7 +15,6 @@ export interface FormProps extends Partial<CommonProps> {
 }
 
 export interface LogInFormProps extends FormProps {
-    code?: string;
 }
 
 export interface ResetPasswordFormProps extends FormProps {

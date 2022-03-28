@@ -1,8 +1,8 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
-import { organization } from "graphql/generated/organization";
+import { useLazyQuery, useMutation } from "@apollo/client";
+import { organization, organizationVariables } from "graphql/generated/organization";
 import { organizationQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { OrganizationUpdateProps } from "../types";
@@ -17,8 +17,11 @@ import {
 } from '@mui/icons-material';
 import { DialogActionItem } from "components/containers/types";
 import { TagSelectorTag } from "components/inputs/types";
-import { TagSelector } from "components";
+import { ResourceListHorizontal, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { Organization, ResourceList } from "types";
+import { v4 as uuidv4 } from 'uuid';
+import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
 export const OrganizationUpdate = ({
     session,
@@ -26,11 +29,14 @@ export const OrganizationUpdate = ({
     onCancel,
 }: OrganizationUpdateProps) => {
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Organization}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Organization}/edit/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/edit/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id = params?.id ?? params2?.id;
     // Fetch existing data
-    const { data, loading } = useQuery<organization>(organizationQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
+    useEffect(() => {
+        if (id) getData({ variables: { input: { id } } });
+    }, [id])
     const organization = useMemo(() => data?.organization, [data]);
 
     const { bio, name } = useMemo(() => {
@@ -40,6 +46,15 @@ export const OrganizationUpdate = ({
             name: getTranslation(organization, 'name', languages, false) ?? '',
         }
     }, [organization, session]);
+
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    useEffect(() => {
+        setResourceList(organization?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    }, [organization]);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        setResourceList(updatedList);
+    }, [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
@@ -66,16 +81,21 @@ export const OrganizationUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const tagsAdd = tags.length > 0 ? {
-                // Create/connect new tags
+            const existingResourceList = Array.isArray(organization?.resourceLists) ? (organization as Organization).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
+            const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
+            console.log('organization update', resourceListUpdate)
+            const tagsUpdate = tags.length > 0 ? {
+                // Create/connect/disconnect new tags
                 tagsCreate: tags.filter(t => !t.id && !organization?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !organization?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
+                tagsDisconnect: organization?.tags?.filter(t => !tags.some(tag => tag.tag === t.tag)).map(t => (t.id)),
             } : {};
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(organization, { 
-                    id, 
-                    ...tagsAdd,
+                input: formatForUpdate(organization, {
+                    id,
+                    ...resourceListUpdate,
+                    ...tagsUpdate,
                     translations: updateTranslation(organization as any, { language: 'en', name: values.name, bio: values.bio })
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.organizationUpdate) },
@@ -120,6 +140,16 @@ export const OrganizationUpdate = ({
                     onChange={formik.handleChange}
                     error={formik.touched.bio && Boolean(formik.errors.bio)}
                     helperText={formik.touched.bio && formik.errors.bio}
+                />
+            </Grid>
+            <Grid item xs={12}>
+                <ResourceListHorizontal
+                    title={'Resources'}
+                    list={resourceList}
+                    canEdit={true}
+                    handleUpdate={handleResourcesUpdate}
+                    session={session}
+                    mutate={false}
                 />
             </Grid>
             <Grid item xs={12} marginBottom={4}>

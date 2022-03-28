@@ -1,8 +1,8 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
-import { project } from "graphql/generated/project";
+import { useMutation, useLazyQuery } from "@apollo/client";
+import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProjectUpdateProps } from "../types";
@@ -17,9 +17,11 @@ import {
 } from '@mui/icons-material';
 import { DialogActionItem } from "components/containers/types";
 import { TagSelectorTag } from "components/inputs/types";
-import { TagSelector, UserOrganizationSwitch } from "components";
+import { ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { Organization } from "types";
+import { Organization, Project, ResourceList } from "types";
+import { v4 as uuidv4 } from 'uuid';
+import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
 export const ProjectUpdate = ({
     session,
@@ -27,11 +29,14 @@ export const ProjectUpdate = ({
     onCancel,
 }: ProjectUpdateProps) => {
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Project}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Project}/edit/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchProjects}/edit/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id = params?.id ?? params2?.id;
     // Fetch existing data
-    const { data, loading } = useQuery<project>(projectQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
+    useEffect(() => {
+        if (id) getData({ variables: { input: { id } } });
+    }, [id])
     const project = useMemo(() => data?.project, [data]);
 
     const { description, name } = useMemo(() => {
@@ -45,6 +50,15 @@ export const ProjectUpdate = ({
     // Handle user/organization switch
     const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    useEffect(() => {
+        setResourceList(project?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
+    }, [project]);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
+        setResourceList(updatedList);
+    }, [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
@@ -71,16 +85,20 @@ export const ProjectUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const tagsAdd = tags.length > 0 ? {
+            const existingResourceList = Array.isArray(project?.resourceLists) ? (project as Project).resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
+            const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
+            const tagsUpdate = tags.length > 0 ? {
                 // Create/connect new tags
                 tagsCreate: tags.filter(t => !t.id && !project?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !project?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
             } : {};
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(project, { 
-                    id, 
-                    ...tagsAdd,
+                input: formatForUpdate(project, {
+                    id,
+                    organizationId: (project?.owner as Organization)?.id ?? undefined,
+                    ...resourceListUpdate,
+                    ...tagsUpdate,
                     translations: updateTranslation(project as any, { language: 'en', name: values.name, description: values.description })
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.projectUpdate) },
@@ -99,47 +117,57 @@ export const ProjectUpdate = ({
 
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2 }}>
-        <Grid item xs={12}>
-            <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+            <Grid item xs={12}>
+                <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+            </Grid>
+            <Grid item xs={12}>
+                <TextField
+                    fullWidth
+                    id="name"
+                    name="name"
+                    label="Name"
+                    value={formik.values.name}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    error={formik.touched.name && Boolean(formik.errors.name)}
+                    helperText={formik.touched.name && formik.errors.name}
+                />
+            </Grid>
+            <Grid item xs={12}>
+                <TextField
+                    fullWidth
+                    id="description"
+                    name="description"
+                    label="description"
+                    multiline
+                    minRows={4}
+                    value={formik.values.description}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    error={formik.touched.description && Boolean(formik.errors.description)}
+                    helperText={formik.touched.description && formik.errors.description}
+                />
+            </Grid>
+            <Grid item xs={12}>
+                <ResourceListHorizontal
+                    title={'Resources'}
+                    list={resourceList}
+                    canEdit={true}
+                    handleUpdate={handleResourcesUpdate}
+                    session={session}
+                    mutate={false}
+                />
+            </Grid>
+            <Grid item xs={12} marginBottom={4}>
+                <TagSelector
+                    session={session}
+                    tags={tags}
+                    onTagAdd={addTag}
+                    onTagRemove={removeTag}
+                    onTagsClear={clearTags}
+                />
+            </Grid>
         </Grid>
-        <Grid item xs={12}>
-            <TextField
-                fullWidth
-                id="name"
-                name="name"
-                label="Name"
-                value={formik.values.name}
-                onBlur={formik.handleBlur}
-                onChange={formik.handleChange}
-                error={formik.touched.name && Boolean(formik.errors.name)}
-                helperText={formik.touched.name && formik.errors.name}
-            />
-        </Grid>
-        <Grid item xs={12}>
-            <TextField
-                fullWidth
-                id="description"
-                name="description"
-                label="description"
-                multiline
-                minRows={4}
-                value={formik.values.description}
-                onBlur={formik.handleBlur}
-                onChange={formik.handleChange}
-                error={formik.touched.description && Boolean(formik.errors.description)}
-                helperText={formik.touched.description && formik.errors.description}
-            />
-        </Grid>
-        <Grid item xs={12} marginBottom={4}>
-            <TagSelector
-                session={session}
-                tags={tags}
-                onTagAdd={addTag}
-                onTagRemove={removeTag}
-                onTagsClear={clearTags}
-            />
-        </Grid>
-    </Grid>
     ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
 
 

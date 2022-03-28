@@ -14,8 +14,8 @@ export const ProjectViewPage = ({
 }: ProjectViewPageProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [matchView, paramsView] = useRoute(`${APP_LINKS.Project}/:id`); // View a specific project
-    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.SearchProjects}/edit/:id`);
+    const [matchView, paramsView] = useRoute(`${APP_LINKS.Project}/:id`);
+    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.Project}/edit/:id`);
     const id = useMemo(() => paramsView?.id ?? paramsUpdate?.id ?? '', [paramsView, paramsUpdate]);
 
     const isAddDialogOpen = useMemo(() => Boolean(matchView) && paramsView?.id === 'add', [matchView, paramsView]);
@@ -28,10 +28,12 @@ export const ProjectViewPage = ({
                 else setLocation(APP_LINKS.Project, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(APP_LINKS.Project, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Project}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Close:
-                setLocation(APP_LINKS.Project, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Project}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Edit:
                 setLocation(`${APP_LINKS.Project}/edit/${id}`, { replace: true });

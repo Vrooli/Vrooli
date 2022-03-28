@@ -21,7 +21,7 @@ import { logOutMutation } from 'graphql/mutation';
 import { HelpButton } from "components/buttons";
 
 const helpText =
-    `TODO`
+    `This page allows you to manage your wallets, emails, and other authentication settings.`;
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -43,7 +43,7 @@ export const SettingsAuthentication = ({
     const [logOut] = useMutation<any>(logOutMutation);
     const onLogOut = useCallback(() => {
         mutationWrapper({ mutation: logOut })
-        PubSub.publish(Pubs.Session, undefined);
+        PubSub.publish(Pubs.Session, {});
         setLocation(APP_LINKS.Home);
     }, []);
 

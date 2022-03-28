@@ -64,13 +64,20 @@ export const profileUpdateSchema = yup.object().shape({
 });
 
 /**
- * Schema for traditional email/password log in.
- * NOTE: Does not include verification code, since it is optional and
- * the schema is reused for the log in form.
+ * Schema for traditional email/password log in FORM.
  */
-export const emailLogInSchema = yup.object().shape({
+export const emailLogInForm = yup.object().shape({
     email: yup.string().email().required(),
-    password: yup.string().max(128).required()
+    password: yup.string().max(128).required(),
+})
+
+/**
+ * Schema for traditional email/password log in.
+ */
+ export const emailLogInSchema = yup.object().shape({
+    email: yup.string().email().notRequired().default(undefined),
+    password: yup.string().max(128).notRequired().default(undefined),
+    verificationCode: yup.string().max(128).notRequired().default(undefined),
 })
 
 /**

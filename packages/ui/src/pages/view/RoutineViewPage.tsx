@@ -14,8 +14,8 @@ export const RoutineViewPage = ({
 }: RoutineViewPageProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [matchView, paramsView] = useRoute(`${APP_LINKS.Run}/:id`); // View a specific routine
-    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.SearchRoutines}/edit/:id`);
+    const [matchView, paramsView] = useRoute(`${APP_LINKS.Run}/:id`);
+    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.Run}/edit/:id`);
     const id = useMemo(() => paramsView?.id ?? paramsUpdate?.id ?? '', [paramsView, paramsUpdate]);
 
     const isAddDialogOpen = useMemo(() => Boolean(matchView) && paramsView?.id === 'add', [matchView, paramsView]);
@@ -28,10 +28,12 @@ export const RoutineViewPage = ({
                 else setLocation(APP_LINKS.Run, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(APP_LINKS.Run, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Run}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Close:
-                setLocation(APP_LINKS.Run, { replace: true });
+                if (id) setLocation(`${APP_LINKS.Run}/${id}`, { replace: true });
+                else window.history.back();
                 break;
             case ObjectDialogAction.Edit:
                 setLocation(`${APP_LINKS.Run}/edit/${id}`, { replace: true });

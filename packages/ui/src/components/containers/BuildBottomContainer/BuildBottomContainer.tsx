@@ -1,6 +1,7 @@
 import { Box, Button, Dialog, IconButton, Slider, Stack, Tooltip } from '@mui/material';
 import { useMemo, useState } from 'react';
 import {
+    Add as AddIcon,
     Cancel as CancelIcon,
     Pause as PauseIcon,
     PlayCircle as RunIcon,
@@ -23,13 +24,16 @@ const CustomSlider = withStyles({
 })(Slider);
 
 export const BuildBottomContainer = ({
-    canUpdate,
-    canCancelUpdate,
-    handleCancelRoutineUpdate,
-    handleRoutineUpdate,
+    canSubmitMutate,
+    canCancelMutate,
+    handleCancelAdd,
+    handleCancelUpdate,
+    handleAdd,
+    handleUpdate,
     handleScaleChange,
     hasPrevious,
     hasNext,
+    isAdding,
     isEditing,
     loading,
     scale,
@@ -44,13 +48,13 @@ export const BuildBottomContainer = ({
     };
 
     const [isRunOpen, setIsRunOpen] = useState(false)
-    const runRoutine = () => { 
+    const runRoutine = () => {
         setLocation(`?step=1`, { replace: true });
         setIsRunOpen(true)
     };
-    const stopRoutine = () => { 
+    const stopRoutine = () => {
         setLocation(window.location.pathname, { replace: true });
-        setIsRunOpen(false) 
+        setIsRunOpen(false)
     };
 
     /**
@@ -77,30 +81,51 @@ export const BuildBottomContainer = ({
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                <Stack direction="row" spacing={1}>
-                    <Button
-                        fullWidth
-                        startIcon={<UpdateIcon />}
-                        onClick={handleRoutineUpdate}
-                        disabled={loading || !canUpdate}
-                        sx={{ width: 'min(25vw, 150px)' }}
-                    >Update</Button>
-                    <Button
-                        fullWidth
-                        startIcon={<CancelIcon />}
-                        onClick={handleCancelRoutineUpdate}
-                        disabled={loading || !canCancelUpdate}
-                        sx={{ width: 'min(25vw, 150px)' }}
-                    >Cancel</Button>
-                </Stack>
+                isAdding ?
+                    (
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                fullWidth
+                                startIcon={<AddIcon />}
+                                onClick={handleAdd}
+                                disabled={loading || !canSubmitMutate}
+                                sx={{ width: 'min(25vw, 150px)' }}
+                            >Create</Button>
+                            <Button
+                                fullWidth
+                                startIcon={<CancelIcon />}
+                                onClick={handleCancelAdd}
+                                disabled={loading || !canCancelMutate}
+                                sx={{ width: 'min(25vw, 150px)' }}
+                            >Cancel</Button>
+                        </Stack>
+                    ) :
+                    (
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                fullWidth
+                                startIcon={<UpdateIcon />}
+                                onClick={handleUpdate}
+                                disabled={loading || !canSubmitMutate}
+                                sx={{ width: 'min(25vw, 150px)' }}
+                            >Update</Button>
+                            <Button
+                                fullWidth
+                                startIcon={<CancelIcon />}
+                                onClick={handleCancelUpdate}
+                                disabled={loading || !canCancelMutate}
+                                sx={{ width: 'min(25vw, 150px)' }}
+                            >Cancel</Button>
+                        </Stack>
+                    )
             ) :
             (
                 <Stack direction="row" spacing={0}>
-                    <Tooltip title={hasPrevious ? "Previous" : ''} placement="top">
+                    {/* <Tooltip title={hasPrevious ? "Previous" : ''} placement="top">
                         <IconButton aria-label="show-previous-routine" size='large' disabled={!hasPrevious} >
                             <PreviousIcon sx={{ fill: hasPrevious ? '#e4efee' : '#a7a7a7' }} />
                         </IconButton>
-                    </Tooltip>
+                    </Tooltip> */}
                     {runState == BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
                             <IconButton aria-label="pause-routine" size='large'>
@@ -114,14 +139,14 @@ export const BuildBottomContainer = ({
                             </IconButton>
                         </Tooltip>
                     )}
-                    <Tooltip title={hasNext ? "Next" : ''} placement="top">
+                    {/* <Tooltip title={hasNext ? "Next" : ''} placement="top">
                         <IconButton aria-label="show-next-routine" size='large' disabled={!hasNext}>
                             <NextIcon sx={{ fill: hasPrevious ? '#e4efee' : '#a7a7a7' }} />
                         </IconButton>
-                    </Tooltip>
+                    </Tooltip> */}
                 </Stack>
             )
-    }, [hasPrevious, hasNext, isEditing, canUpdate, canCancelUpdate, handleCancelRoutineUpdate, handleRoutineUpdate, loading, runState]);
+    }, [hasPrevious, hasNext, isEditing, isAdding, loading, canSubmitMutate, canCancelMutate, handleAdd, handleUpdate, handleCancelAdd, handleCancelUpdate, runState, runRoutine]);
 
     return (
         <Box p={2} sx={{

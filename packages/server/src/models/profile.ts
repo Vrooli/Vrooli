@@ -235,8 +235,8 @@ export const profileValidater = () => ({
                     data: { verified: true, verificationCode: null, lastVerificationCodeRequestAttempt: null }
                 })
             }
-            // If code is incorrect or expired, create new code and send email
-            else {
+            // If email is not verified, set up new verification code
+            else if (!email.verified) {
                 await this.setupVerificationCode(emailAddress, prisma);
             }
         }
@@ -389,16 +389,18 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
             theme: input.theme,
             // Handle tags TODO probably doesn't work
             hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
+                id: userId,
                 tagsCreate: input.hiddenTagsCreate,
                 tagsConnect: input.hiddenTagsConnect,
                 tagsDisconnect: input.hiddenTagsDisconnect,
-            }, true),
+            }),
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
             stars: await TagModel(prisma).relationshipBuilder(userId, {
+                id: userId,
                 tagsCreate: input.starredTagsCreate,
                 tagsConnect: input.starredTagsConnect,
                 tagsDisconnect: input.starredTagsDisconnect,
-            }, true),
+            }),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
         };
         // Update user

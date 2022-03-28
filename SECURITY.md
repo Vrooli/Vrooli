@@ -15,7 +15,7 @@ Below are the versions of Vrooli that are supported with security updates:
 
 To report security update, you may do one of the following:   
 - [create a new GitHub issue](https://github.com/MattHalloran/Vrooli/issues/new)
-- [Send a message to us on Discord](https://discord.gg/6wAKfc5X)  
+- [Send a message to us on Discord](https://discord.gg/VyrDFzbmmF)  
 - [Send an email to support@vrooli.com](mailto:support@vrooli.com)  
 - [DM us on Twitter](https://twitter.com/VrooliOfficial)  
 

@@ -164,6 +164,9 @@ export const BuildInfoContainer = ({
                         component="h2"
                         variant="h5"
                         textAlign="center"
+                        sx={{
+                            fontSize: { xs: '1em', sm: '1.25em', md: '1.5em' },
+                        }}
                     >{t}</Typography>
                 )}
                 text={getTranslation(routine, 'title', [language], false) ?? 'Loading...'}

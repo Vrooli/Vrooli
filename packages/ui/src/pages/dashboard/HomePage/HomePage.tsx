@@ -34,7 +34,7 @@ When a proposer is looking for a new project to tackle, they can search for exis
 Vrooli is a work in progress. This is the Minimum Viable product, which has been developed by a single person. While we have grand plans for Vrooli to become a robust and decentralized automation platform, this is not currently possible.
 
 As of now, all routines are text-based, which - not surprisingly - limits their ability to "automate". They can link to external resources, but it is up to the user to step through the routine, follow the instructions, and fill in the requested fields. 
-We have several important features in our [white paper](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4/edit) that address these issues, such as smart contract execution, self-sovereign data storage, and more. Luckily, since routines are built on top of each other, automating one low-level routine can simplify the process of many other routines. 
+We have several important features in our [white paper](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4) that address these issues, such as smart contract execution, self-sovereign data storage, and more. Luckily, since routines are built on top of each other, automating one low-level routine can simplify the process of many other routines. 
 
 
 ## Why is This Important?
@@ -55,8 +55,8 @@ Vrooli is being developed by Matt Halloran. He is a software developer and decen
 The simplest thing you can do right now is to participate! You can:  
 - [Execute a routine](https://app.vrooli.com/search/routine)  
 - [Create a routine](https://app.vrooli.com/create/routine)  
-- [Familiarize yourself with our vision](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4/edit)  
-- [Join us on Discord](https://discord.gg/WTGNukDQ)  
+- [Familiarize yourself with our vision](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4)  
+- [Join us on Discord](https://discord.gg/VyrDFzbmmF)  
 - [Follow us on Twitter](https://twitter.com/VrooliOfficial)  
 
 If you would like to contribute to the development of Vrooli, please contact us!

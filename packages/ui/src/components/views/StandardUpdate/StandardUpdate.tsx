@@ -1,8 +1,8 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
-import { useMutation, useQuery } from "@apollo/client";
-import { standard } from "graphql/generated/standard";
+import { useMutation, useLazyQuery } from "@apollo/client";
+import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
@@ -20,6 +20,7 @@ import { TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
+import { Organization } from "types";
 
 export const StandardUpdate = ({
     session,
@@ -27,11 +28,14 @@ export const StandardUpdate = ({
     onCancel,
 }: StandardUpdateProps) => {
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Standard}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Standard}/edit/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/edit/:id`);
-    const id: string = params?.id ?? params2?.id ?? '';
+    const id = params?.id ?? params2?.id;
     // Fetch existing data
-    const { data, loading } = useQuery<standard>(standardQuery, { variables: { input: { id } } });
+    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
+    useEffect(() => {
+        if (id) getData({ variables: { input: { id } } });
+    }, [id])
     const standard = useMemo(() => data?.standard, [data]);
 
     // Handle tags
@@ -58,7 +62,7 @@ export const StandardUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            const tagsAdd = tags.length > 0 ? {
+            const tagsUpdate = tags.length > 0 ? {
                 // Create/connect new tags
                 tagsCreate: tags.filter(t => !t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
@@ -67,7 +71,8 @@ export const StandardUpdate = ({
                 mutation,
                 input: formatForUpdate(standard, { 
                     id, 
-                    ...tagsAdd,
+                    organizationId: (standard?.creator as Organization)?.id ?? undefined,
+                    ...tagsUpdate,
                     translations: updateTranslation(standard as any, { language: 'en', description: values.description })
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },

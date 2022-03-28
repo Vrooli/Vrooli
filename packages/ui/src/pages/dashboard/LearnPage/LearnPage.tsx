@@ -131,16 +131,7 @@ export const LearnPage = ({
     }, [profileData]);
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        mutationWrapper({
-            mutation: updateResources,
-            input: formatForUpdate(profileData?.profile, {
-                ...profileData?.profile,
-                resourcesLearn: updatedList
-            }, [], []),
-            onError: (response) => {
-                PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-            }
-        })
+        getProfile();
     }, [updateResources]);
 
     const { data: coursesData, loading: coursesLoading } = useQuery<projects, projectsVariables>(projectsQuery, {
@@ -191,7 +182,7 @@ export const LearnPage = ({
                 alignItems="center"
                 sx={{ marginTop: 2, marginBottom: 2 }}
             >
-                <Typography component="h1" variant="h3">Learn Dashboard</Typography>
+                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' }}}>Learn Dashboard</Typography>
                 <HelpButton markdown={learnPageText} sx={{ width: '40px', height: '40px' }} />
             </Stack>
             <Stack direction="column" spacing={10}>
@@ -201,6 +192,7 @@ export const LearnPage = ({
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
+                    mutate={true}
                     session={session}
                 />
                 {/* Available courses */}
