@@ -53,6 +53,7 @@ export const DialogActionsContainer = ({
                     bottom: fixed ? '0' : 'auto',
                     background: (t) => t.palette.primary.main,
                     margin: 0,
+                    zIndex: 4,
                     width: fixed ? '-webkit-fill-available' : 'auto',
                 }}>
                     {gridItems}

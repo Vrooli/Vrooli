@@ -12,6 +12,12 @@ export const deepRoutineFields = gql`
     }
     fragment deepRoutineInputFields on InputItem {
         id
+        name
+        translations {
+            id
+            language
+            description
+        }
         standard {
             id
             default
@@ -30,6 +36,12 @@ export const deepRoutineFields = gql`
     }
     fragment deepRoutineOutputFields on OutputItem {
         id
+        name
+        translations {
+            id
+            language
+            description
+        }
         standard {
             id
             default

@@ -90,7 +90,9 @@ export const routineTranslationsUpdate = yup.array().of(routineTranslationUpdate
 
 export const routineCreateForm = yup.object().shape({
     description: description.notRequired().default(undefined),
+    inputs: inputsCreate.notRequired().default([]),
     instructions: instructions.required(),
+    outputs: outputsCreate.notRequired().default([]),
     title: title.required(),
     version: version.notRequired().default(undefined),
 })

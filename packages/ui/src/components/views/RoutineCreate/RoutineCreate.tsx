@@ -16,15 +16,28 @@ import {
 import { TagSelectorTag } from "components/inputs/types";
 import { MarkdownInput, ResourceListHorizontal, TagSelector } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { ResourceList } from "types";
+import { ResourceList, RoutineInputList, RoutineOutputList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
+import { InputOutputContainer } from "components/lists/inputOutput";
 
 export const RoutineCreate = ({
     session,
     onCreated,
     onCancel,
 }: RoutineCreateProps) => {
+
+    // Hanlde inputs
+    const [inputsList, setInputsList] = useState<RoutineInputList>([]);
+    const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+        setInputsList(updatedList);
+    }, [setInputsList]);
+
+    // Handle outputs
+    const [outputsList, setOutputsList] = useState<RoutineOutputList>([]);
+    const handleOutputsUpdate = useCallback((updatedList: RoutineOutputList) => {
+        setOutputsList(updatedList);
+    }, [setOutputsList]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -55,6 +68,8 @@ export const RoutineCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
+            const inputsAdd = inputsList ? formatForCreate(inputsList) : [];
+            const outputsAdd = outputsList ? formatForCreate(outputsList) : [];
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
             const tagsAdd = tags.length > 0 ? {
                 tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
@@ -69,6 +84,8 @@ export const RoutineCreate = ({
                         instructions: values.instructions,
                         title: values.title,
                     }],
+                    ...inputsAdd,
+                    ...outputsAdd,
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
                     version: values.version,
@@ -91,8 +108,14 @@ export const RoutineCreate = ({
     }, [setFormBottom]);
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
-            <Grid container spacing={2} sx={{ padding: 2 }}>
+        <form onSubmit={formik.handleSubmit} style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingBottom: `${formBottom}px`,
+        }}
+        >
+            <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
                     <TextField
                         fullWidth
@@ -129,6 +152,24 @@ export const RoutineCreate = ({
                         onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
                         error={formik.touched.instructions && Boolean(formik.errors.instructions)}
                         helperText={formik.touched.instructions ? formik.errors.instructions : null}
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <InputOutputContainer
+                        isEditing={true}
+                        handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                        isInput={true}
+                        list={inputsList}
+                        session={session}
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <InputOutputContainer
+                        isEditing={true}
+                        handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                        isInput={false}
+                        list={outputsList}
+                        session={session}
                     />
                 </Grid>
                 <Grid item xs={12}>

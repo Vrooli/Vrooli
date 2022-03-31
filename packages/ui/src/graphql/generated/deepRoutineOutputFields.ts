@@ -7,6 +7,13 @@
 // GraphQL fragment: deepRoutineOutputFields
 // ====================================================
 
+export interface deepRoutineOutputFields_translations {
+  __typename: "OutputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface deepRoutineOutputFields_standard_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -42,5 +49,7 @@ export interface deepRoutineOutputFields_standard {
 export interface deepRoutineOutputFields {
   __typename: "OutputItem";
   id: string;
+  name: string | null;
+  translations: deepRoutineOutputFields_translations[];
   standard: deepRoutineOutputFields_standard | null;
 }

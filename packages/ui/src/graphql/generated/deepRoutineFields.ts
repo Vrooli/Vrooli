@@ -9,6 +9,13 @@ import { NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./gl
 // GraphQL fragment: deepRoutineFields
 // ====================================================
 
+export interface deepRoutineFields_inputs_translations {
+  __typename: "InputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface deepRoutineFields_inputs_standard_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -44,6 +51,8 @@ export interface deepRoutineFields_inputs_standard {
 export interface deepRoutineFields_inputs {
   __typename: "InputItem";
   id: string;
+  name: string | null;
+  translations: deepRoutineFields_inputs_translations[];
   standard: deepRoutineFields_inputs_standard | null;
 }
 
@@ -191,6 +200,13 @@ export interface deepRoutineFields_nodes {
   translations: deepRoutineFields_nodes_translations[];
 }
 
+export interface deepRoutineFields_outputs_translations {
+  __typename: "OutputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface deepRoutineFields_outputs_standard_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -226,6 +242,8 @@ export interface deepRoutineFields_outputs_standard {
 export interface deepRoutineFields_outputs {
   __typename: "OutputItem";
   id: string;
+  name: string | null;
+  translations: deepRoutineFields_outputs_translations[];
   standard: deepRoutineFields_outputs_standard | null;
 }
 

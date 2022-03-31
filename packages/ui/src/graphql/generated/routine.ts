@@ -9,6 +9,13 @@ import { FindByIdInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedF
 // GraphQL query operation: routine
 // ====================================================
 
+export interface routine_routine_inputs_translations {
+  __typename: "InputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface routine_routine_inputs_standard_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -44,6 +51,8 @@ export interface routine_routine_inputs_standard {
 export interface routine_routine_inputs {
   __typename: "InputItem";
   id: string;
+  name: string | null;
+  translations: routine_routine_inputs_translations[];
   standard: routine_routine_inputs_standard | null;
 }
 
@@ -191,6 +200,13 @@ export interface routine_routine_nodes {
   translations: routine_routine_nodes_translations[];
 }
 
+export interface routine_routine_outputs_translations {
+  __typename: "OutputItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
 export interface routine_routine_outputs_standard_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -226,6 +242,8 @@ export interface routine_routine_outputs_standard {
 export interface routine_routine_outputs {
   __typename: "OutputItem";
   id: string;
+  name: string | null;
+  translations: routine_routine_outputs_translations[];
   standard: routine_routine_outputs_standard | null;
 }
 

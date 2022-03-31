@@ -4,7 +4,7 @@ import { profile_profile_emails, profile_profile_resourceLists, profile_profile_
 import { project_project } from 'graphql/generated/project';
 import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { resource_resource } from 'graphql/generated/resource';
-import { routine_routine, routine_routine_nodeLinks, routine_routine_nodes, routine_routine_nodes_data_NodeEnd, routine_routine_nodes_data_NodeLoop, routine_routine_nodes_data_NodeRoutineList, routine_routine_nodes_data_NodeRoutineList_routines } from 'graphql/generated/routine';
+import { routine_routine, routine_routine_inputs, routine_routine_nodeLinks, routine_routine_nodes, routine_routine_nodes_data_NodeEnd, routine_routine_nodes_data_NodeLoop, routine_routine_nodes_data_NodeRoutineList, routine_routine_nodes_data_NodeRoutineList_routines, routine_routine_outputs } from 'graphql/generated/routine';
 import { routines_routines_edges_node } from 'graphql/generated/routines';
 import { standard_standard } from 'graphql/generated/standard';
 import { tag_tag } from 'graphql/generated/tag';
@@ -39,6 +39,10 @@ export type Report = reportCreate_reportCreate;
 export type Resource = resource_resource;
 export type ResourceList = profile_profile_resourceLists
 export type Routine = routine_routine;
+export type RoutineInput = routine_routine_inputs;
+export type RoutineInputList = RoutineInput[];
+export type RoutineOutput = routine_routine_outputs;
+export type RoutineOutputList = RoutineOutput[];
 export type Standard = standard_standard;
 export type Tag = tag_tag;
 export type User = user_user;
@@ -49,20 +53,20 @@ export interface BaseStep {
     title: string, // Title from node
     description: string | null, // Description from node
 }
-export interface DecisionStep extends BaseStep { 
-    type: RoutineStepType.Decision, 
-    links: NodeLink[] 
+export interface DecisionStep extends BaseStep {
+    type: RoutineStepType.Decision,
+    links: NodeLink[]
 }
-export interface SubroutineStep extends BaseStep { 
-    type: RoutineStepType.Subroutine, 
+export interface SubroutineStep extends BaseStep {
+    type: RoutineStepType.Subroutine,
     index: number,
-    routine: Routine 
+    routine: Routine
 }
-export interface RoutineListStep extends BaseStep { 
+export interface RoutineListStep extends BaseStep {
     nodeId: string | null,
     isOrdered: boolean,
-    type: RoutineStepType.RoutineList, 
-    steps: RoutineStep[], 
+    type: RoutineStepType.RoutineList,
+    steps: RoutineStep[],
 }
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
