@@ -22,7 +22,7 @@ export const TagList = ({
                         label={tag.tag}
                         size="small"
                         sx={{
-                            backgroundColor: '#dc697d',
+                            backgroundColor: '#a068ce',
                             color: 'white',
                             width: 'fit-content',
                         }} />

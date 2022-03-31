@@ -122,7 +122,7 @@ export const UnlinkedNodesDialog = ({
                                             '&:hover': {
                                                 fill: '#ff6a6a'
                                             },
-                                            transition: 'fill 1s ease-in-out',
+                                            transition: 'fill 0.5s ease-in-out',
                                         }} />
                                     </IconButton>
                                 </Box>

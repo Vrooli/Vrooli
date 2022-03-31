@@ -105,7 +105,7 @@ export const TagSelector = ({
                         {...getTagProps({ index })}
                         onDelete={() => onChipDelete(option)}
                         sx={{
-                            backgroundColor: '#dc697d',
+                            backgroundColor: '#a068ce',
                             color: 'white',
                         }}
                     />

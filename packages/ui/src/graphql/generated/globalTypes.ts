@@ -349,7 +349,7 @@ export interface NodeCreateInput {
   loopCreate?: LoopCreateInput | null;
   nodeEndCreate?: NodeEndCreateInput | null;
   nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
-  routineId: string;
+  routineId?: string | null;
   translationsCreate?: NodeTranslationCreateInput[] | null;
 }
 
@@ -414,6 +414,7 @@ export interface NodeRoutineListCreateInput {
 }
 
 export interface NodeRoutineListItemCreateInput {
+  id?: string | null;
   index?: number | null;
   isOptional?: boolean | null;
   routineConnect: string;
@@ -597,7 +598,6 @@ export interface ProjectCreateInput {
   createdByOrganizationId?: string | null;
   createdByUserId?: string | null;
   isComplete?: boolean | null;
-  name: string;
   parentId?: string | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
   tagsConnect?: string[] | null;
@@ -642,7 +642,6 @@ export interface ProjectTranslationUpdateInput {
 export interface ProjectUpdateInput {
   id: string;
   isComplete?: boolean | null;
-  name?: string | null;
   organizationId?: string | null;
   parentId?: string | null;
   userId?: string | null;

@@ -87,8 +87,14 @@ export const OrganizationCreate = ({
     }, [setFormBottom]);
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
-            <Grid container spacing={2} sx={{ padding: 2 }}>
+        <form onSubmit={formik.handleSubmit} style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingBottom: `${formBottom}px`,
+        }}
+        >
+            <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
                     <TextField
                         fullWidth

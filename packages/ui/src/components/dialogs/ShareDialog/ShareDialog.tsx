@@ -10,7 +10,7 @@ import {
 import { useState } from 'react';
 
 // Invite link
-const inviteLink = `https://vrooli.com/${APP_LINKS.Start}`;
+const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;
 // Title for social media posts
 const postTitle = 'Vrooli - Visual Work Routines';
 // Invite message for social media posts

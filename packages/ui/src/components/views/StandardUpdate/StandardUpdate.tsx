@@ -93,7 +93,7 @@ export const StandardUpdate = ({
     }, [setFormBottom]);
 
     const formInput = useMemo(() => (
-        <Grid container spacing={2} sx={{ padding: 2 }}>
+        <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
             {/* TODO */}
             <Grid item xs={12} marginBottom={4}>
                 <TagSelector
@@ -109,7 +109,13 @@ export const StandardUpdate = ({
 
 
     return (
-        <form onSubmit={formik.handleSubmit} style={{ paddingBottom: `${formBottom}px` }}>
+        <form onSubmit={formik.handleSubmit} style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingBottom: `${formBottom}px`,
+        }}
+        >
             {loading ? (
                 <Box sx={{
                     position: 'absolute',

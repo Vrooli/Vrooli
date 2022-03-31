@@ -71,6 +71,7 @@ export interface autocomplete_autocomplete_projects_translations {
 export interface autocomplete_autocomplete_projects {
   __typename: "Project";
   id: string;
+  score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
@@ -107,6 +108,7 @@ export interface autocomplete_autocomplete_routines_translations {
 export interface autocomplete_autocomplete_routines {
   __typename: "Routine";
   id: string;
+  score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
@@ -141,6 +143,7 @@ export interface autocomplete_autocomplete_standards_translations {
 export interface autocomplete_autocomplete_standards {
   __typename: "Standard";
   id: string;
+  score: number;
   stars: number;
   isUpvoted: boolean | null;
   isStarred: boolean;
