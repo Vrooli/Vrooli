@@ -60,7 +60,7 @@ export const ResourceDialog = ({
     title = 'Add Resource',
     listId,
 }: ResourceDialogProps) => {
-    console.log('resource dialog', isAdd)
+    console.log('resource dialog', partialData)
 
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
@@ -72,6 +72,7 @@ export const ResourceDialog = ({
             title: getTranslation(partialData, 'title', ['en'], false) ?? '',
             description: getTranslation(partialData, 'description', ['en'], false) ?? '',
         },
+        enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
             const input = formatForCreate({

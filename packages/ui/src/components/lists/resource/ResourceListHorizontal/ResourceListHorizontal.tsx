@@ -14,7 +14,6 @@ import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 
 export const ResourceListHorizontal = ({
@@ -87,23 +86,19 @@ export const ResourceListHorizontal = ({
     }, []);
 
     // Add/update resource dialog
+    const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
-    const closeDialog = useCallback(() => { setIsDialogOpen(false) }, []);
-    const [editingIndex, setEditingIndex] = useState<number | undefined>(undefined);
+    const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
     const openUpdateDialog = useCallback((index: number) => { 
         setEditingIndex(index);
         setIsDialogOpen(true) 
     }, []);
-    const closeUpdateDialog = useCallback(() => { 
-        setEditingIndex(undefined);
-        setIsDialogOpen(false) 
-    }, []);
 
     const dialog = useMemo(() => (
         list ? <ResourceDialog
-            isAdd={editingIndex === undefined}
-            partialData={editingIndex ? list.resources[editingIndex as number] as any : undefined}
+            isAdd={editingIndex >= 0}
+            partialData={editingIndex >= 0 ? list.resources[editingIndex as number] as any : undefined}
             listId={list.id}
             open={isDialogOpen}
             onClose={closeDialog}
@@ -111,7 +106,7 @@ export const ResourceListHorizontal = ({
             onUpdated={onUpdate}
             mutate={mutate}
         /> : null
-    ), [onAdd, onUpdate, isDialogOpen, list, editingIndex, mutate]);
+    ), [editingIndex, onAdd, onUpdate, isDialogOpen, list, editingIndex, mutate]);
 
     return (
         <Box>
@@ -126,7 +121,7 @@ export const ResourceListHorizontal = ({
                 onAddBefore={() => { }}
                 onAddAfter={() => { }}
                 onDelete={onDelete}
-                onEdit={openUpdateDialog}
+                onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
                 onMove={() => { }}
             />
             <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
@@ -155,7 +150,7 @@ export const ResourceListHorizontal = ({
                     {list?.resources?.map((c: Resource, index) => (
                         <ResourceCard
                             canEdit={canEdit}
-                            handleEdit={openUpdateDialog}
+                            handleEdit={() => openUpdateDialog(index)}
                             handleDelete={onDelete}
                             key={`resource-card-${index}`}
                             index={index}

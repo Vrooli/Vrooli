@@ -7,7 +7,8 @@ import {
 } from '@mui/icons-material';
 import { updateArray } from 'utils';
 import { InputOutputListItem } from '../InputOutputListItem/InputOutputListItem';
-import { RoutineInput, RoutineInputList, RoutineOutput } from 'types';
+import { RoutineInput, RoutineInputList, RoutineOutput, Standard } from 'types';
+import { AddStandardDialog } from 'components/dialogs';
 
 const helpText =
     `TODO`
@@ -210,9 +211,37 @@ export const InputOutputContainer = ({
         )
     }, [lineDims])
 
+    // Add standard dialog
+    const [addStandardIndex, setAddStandardIndex] = useState<number | null>(null);
+    const handleOpenStandardSelect = useCallback((index: number) => { setAddStandardIndex(index); }, []);
+    const closeAddStandardDialog = useCallback(() => { setAddStandardIndex(null); }, []);
+    const handleAddStandard = useCallback((standard: Standard) => {
+        if (addStandardIndex === null) return;
+        // Add standard to item at index
+        handleUpdate(updateArray(list, addStandardIndex, {
+            ...list[addStandardIndex],
+            standard
+        }));
+        closeAddStandardDialog();
+    }, [addStandardIndex, closeAddStandardDialog, handleUpdate, list, addStandardIndex]);
+    const handleRemoveStandard = useCallback((index: number) => {
+        // Remove standard from item at index
+        handleUpdate(updateArray(list, index, {
+            ...list[index],
+            standard: null
+        }));
+    }, [handleUpdate, list]);
+
     return (
         <Box id={`${isInput ? 'input' : 'output'}-container`} sx={{ position: 'relative' }}>
-            <Stack direction="row" marginRight="auto" alignItems="center">
+            {/* Popup for adding/connecting a new standard */}
+            <AddStandardDialog 
+                isOpen={addStandardIndex !== null}
+                handleAdd={handleAddStandard}
+                handleClose={closeAddStandardDialog}
+                session={session}
+            />
+            <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 {/* Title */}
                 <Typography component="h2" variant="h5" textAlign="left">{isInput ? 'Inputs' : 'Outputs'}</Typography>
                 {/* Help button */}
@@ -233,6 +262,8 @@ export const InputOutputContainer = ({
                             handleClose={handleClose}
                             handleDelete={onDelete}
                             handleUpdate={onUpdate}
+                            handleOpenStandardSelect={handleOpenStandardSelect}
+                            handleRemoveStandard={handleRemoveStandard}
                         />
                         <AddButton
                             key={`add-input-item-${index}`}

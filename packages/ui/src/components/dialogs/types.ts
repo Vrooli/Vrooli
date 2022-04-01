@@ -211,6 +211,13 @@ export interface RunStepsDialogProps {
     sxs?: { icon: any };
 }
 
+export interface AddStandardDialogProps {
+    handleAdd: (standard: Standard) => any;
+    handleClose: () => any;
+    isOpen: boolean;
+    session: Session;
+}
+
 export interface AddSubroutineDialogProps {
     handleAdd: (nodeId: string, subroutine: Routine) => any;
     handleClose: () => any;
