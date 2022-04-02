@@ -46,7 +46,7 @@ model comment {
 model comment_translation {
     id        String  @id @default(uuid()) @db.Uuid
     text      String  @db.VarChar(2048)
-    language  String  @db.VarChar(2)
+    language  String  @db.VarChar(3) // ISO 639-2 language code
     commentId String  @db.Uuid
     comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
@@ -133,7 +133,7 @@ model node_translation {
     id          String  @id @default(uuid()) @db.Uuid
     description String? @db.VarChar(2048)
     title       String  @default("Name Me") @db.VarChar(128)
-    language    String  @db.VarChar(2)
+    language    String  @db.VarChar(3) // ISO 639-2 language code
     nodeId      String  @db.Uuid
     node        node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 
@@ -176,7 +176,7 @@ model node_link_when_translation {
     id          String         @id @default(uuid()) @db.Uuid
     description String?        @db.VarChar(2048)
     title       String         @db.VarChar(128)
-    language    String         @db.VarChar(2)
+    language    String         @db.VarChar(3) // ISO 639-2 language code
     whenId      String         @db.Uuid
     when        node_link_when @relation(fields: [whenId], references: [id], onDelete: Cascade)
 
@@ -208,7 +208,7 @@ model node_loop_while_translation {
     id          String          @id @default(uuid()) @db.Uuid
     description String          @db.VarChar(2048)
     title       String          @db.VarChar(128)
-    language    String          @db.VarChar(2)
+    language    String          @db.VarChar(3) // ISO 639-2 language code
     whileId     String          @db.Uuid
     while       node_loop_while @relation(fields: [whileId], references: [id], onDelete: Cascade)
 }
@@ -243,7 +243,7 @@ model node_routine_list_item_translation {
     id          String                 @id @default(uuid()) @db.Uuid
     description String?                @db.VarChar(2048) // Optional description to override routine description
     title       String?                @db.VarChar(128) // Optional title to override routine title
-    language    String                 @db.VarChar(2)
+    language    String                 @db.VarChar(3) // ISO 639-2 language code
     itemId      String                 @db.Uuid
     item        node_routine_list_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
@@ -288,7 +288,7 @@ model organization_translation {
     id             String       @id @default(uuid()) @db.Uuid
     bio            String?      @db.VarChar(2048)
     name           String       @db.VarChar(128)
-    language       String       @db.VarChar(2)
+    language       String       @db.VarChar(3) // ISO 639-2 language code
     organizationId String       @db.Uuid
     organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -362,7 +362,7 @@ model project_translation {
     id          String  @id @default(uuid()) @db.Uuid
     description String? @db.VarChar(2048)
     name        String  @db.VarChar(128)
-    language    String  @db.VarChar(2)
+    language    String  @db.VarChar(3) // ISO 639-2 language code
     projectId   String  @db.Uuid
     project     project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -392,7 +392,7 @@ model report {
     id             String        @id @default(uuid()) @db.Uuid
     reason         String        @db.VarChar(128)
     details        String?       @db.VarChar(1024)
-    language       String        @db.VarChar(2) // Language code of the report
+    language       String        @db.VarChar(3) // ISO 639-2 language code
     created_at     DateTime      @default(now()) @db.Timestamptz(6)
     fromId         String        @db.Uuid
     from           user          @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
@@ -445,7 +445,7 @@ model resource_translation {
     id          String   @id @default(uuid()) @db.Uuid
     description String?  @db.VarChar(2048)
     title       String?  @db.VarChar(128)
-    language    String   @db.VarChar(2)
+    language    String   @db.VarChar(3) // ISO 639-2 language code
     resourceId  String   @db.Uuid
     resource    resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
@@ -475,7 +475,7 @@ model resource_list_translation {
     id          String        @id @default(uuid()) @db.Uuid
     description String?       @db.VarChar(512)
     title       String?       @db.VarChar(128)
-    language    String        @db.VarChar(2)
+    language    String        @db.VarChar(3) // ISO 639-2 language code
     listId      String        @db.Uuid
     list        resource_list @relation(fields: [listId], references: [id], onDelete: Cascade)
 
@@ -559,7 +559,7 @@ model routine_translation {
     description  String? @db.VarChar(2048)
     instructions String  @db.VarChar(8192)
     title        String  @db.VarChar(128)
-    language     String  @db.VarChar(2)
+    language     String  @db.VarChar(3) // ISO 639-2 language code
     routineId    String  @db.Uuid
     routine      routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
 
@@ -583,7 +583,7 @@ model routine_input_translation {
     id             String        @id @default(uuid()) @db.Uuid
     description    String?       @db.VarChar(2048) // Optional description to override standard's description
     routineInputId String        @db.Uuid
-    language       String        @db.VarChar(2)
+    language       String        @db.VarChar(3) // ISO 639-2 language code
     routineInput   routine_input @relation(fields: [routineInputId], references: [id], onDelete: Cascade)
 
     @@unique([routineInputId, language])
@@ -605,7 +605,7 @@ model routine_output_translation {
     id              String         @id @default(uuid()) @db.Uuid
     description     String?        @db.VarChar(2048) // Optional description to override standard's description
     routineOutputId String         @db.Uuid
-    language        String         @db.VarChar(2)
+    language        String         @db.VarChar(3) // ISO 639-2 language code
     routineOutput   routine_output @relation(fields: [routineOutputId], references: [id], onDelete: Cascade)
 
     @@unique([routineOutputId, language])
@@ -667,7 +667,7 @@ model standard_translation {
     id          String   @id @default(uuid()) @db.Uuid
     description String?  @db.VarChar(2048)
     standardId  String   @db.Uuid
-    language    String   @db.VarChar(2)
+    language    String   @db.VarChar(3) // ISO 639-2 language code
     standard    standard @relation(fields: [standardId], references: [id], onDelete: Cascade)
 
     @@unique([standardId, language])
@@ -748,7 +748,7 @@ model tag_translation {
     id          String  @id @default(uuid()) @db.Uuid
     description String? @db.VarChar(2048)
     tagId       String  @db.Uuid
-    language    String  @db.VarChar(2)
+    language    String  @db.VarChar(3) // ISO 639-2 language code
     tag         tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
     @@unique([tagId, language])
@@ -808,7 +808,7 @@ model user_translation {
     id       String  @id @default(uuid()) @db.Uuid
     bio      String? @db.VarChar(2048)
     userId   String  @db.Uuid
-    language String  @db.VarChar(2)
+    language String  @db.VarChar(3) // ISO 639-2 language code
     user     user    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, language])
@@ -817,7 +817,7 @@ model user_translation {
 model user_language {
     id       String @id @default(uuid()) @db.Uuid
     userId   String @db.Uuid
-    language String @db.VarChar(2)
+    language String @db.VarChar(3) // ISO 639-2 language code
     user     user   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, language])

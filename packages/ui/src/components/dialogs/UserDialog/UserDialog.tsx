@@ -71,6 +71,7 @@ export const UserDialog = ({
             hasPrevious={hasPrevious}
             hasNext={hasNext}
             onAction={onAction}
+            session={session}
         >
             <UserView session={session} partialData={partialData} />
         </BaseObjectDialog>

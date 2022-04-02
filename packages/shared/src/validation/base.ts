@@ -9,7 +9,7 @@ import * as yup from 'yup';
 export const id = yup.string().max(256)
 export const bio = yup.string().max(2048)
 export const description = yup.string().max(2048)
-export const language = yup.string().min(2).max(2) // Language code
+export const language = yup.string().min(3).max(3) // Language code
 export const name = yup.string().min(3).max(128)
 export const title = yup.string().min(2).max(128)
 export const version = yup.string().max(16)

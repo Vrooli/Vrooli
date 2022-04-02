@@ -52,6 +52,7 @@ export interface BaseObjectDialogProps extends DialogProps {
     hasNext?: boolean;
     onAction: (state: ObjectDialogAction) => any; // Callback when option button or close button is pressed
     children: JSX.Element | JSX.Element[];
+    session: Session;
 };
 
 export interface DeleteRoutineDialogProps {
@@ -226,4 +227,11 @@ export interface AddSubroutineDialogProps {
     nodeId: string;
     routineId: string;
     session: Session;
+}
+
+export interface SelectLanguageDialogProps {
+    availableLanguages?: string[]; // Languages to restrict selection to
+    handleSelect: (language: string) => any; // Callback when language is selected
+    language: string; // Selected language
+    session: Session; // Contains user's languages
 }

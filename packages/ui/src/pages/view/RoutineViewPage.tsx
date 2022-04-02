@@ -53,6 +53,7 @@ export const RoutineViewPage = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={onAction}
+                session={session}
             >
                 <RoutineCreate
                     session={session}
@@ -67,6 +68,7 @@ export const RoutineViewPage = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={onAction}
+                session={session}
             >
                 <RoutineUpdate
                     session={session}

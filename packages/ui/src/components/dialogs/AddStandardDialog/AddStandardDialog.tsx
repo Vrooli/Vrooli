@@ -104,6 +104,7 @@ export const AddStandardDialog = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={handleCreateClose}
+                session={session}
             >
                 <StandardCreate
                     session={session}

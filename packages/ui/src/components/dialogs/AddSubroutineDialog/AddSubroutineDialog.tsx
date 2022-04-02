@@ -107,6 +107,7 @@ export const AddSubroutineDialog = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={handleCreateClose}
+                session={session}
             >
                 <RoutineCreate
                     session={session}

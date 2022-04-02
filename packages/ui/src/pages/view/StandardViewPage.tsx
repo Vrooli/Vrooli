@@ -53,6 +53,7 @@ export const StandardViewPage = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={onAction}
+                session={session}
             >
                 <StandardCreate
                     session={session}
@@ -67,6 +68,7 @@ export const StandardViewPage = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={onAction}
+                session={session}
             >
                 <StandardUpdate
                     session={session}

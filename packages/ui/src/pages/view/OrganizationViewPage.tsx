@@ -53,6 +53,7 @@ export const OrganizationViewPage = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={onAction}
+                session={session}
             >
                 <OrganizationCreate
                     session={session}
@@ -67,6 +68,7 @@ export const OrganizationViewPage = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={onAction}
+                session={session}
             >
                 <OrganizationUpdate
                     session={session}

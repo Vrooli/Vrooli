@@ -72,6 +72,7 @@ export const StandardDialog = ({
             hasPrevious={hasPrevious}
             hasNext={hasNext}
             onAction={onAction}
+            session={session}
         >
             {child}
         </BaseObjectDialog>

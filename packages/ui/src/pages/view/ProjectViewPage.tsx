@@ -53,6 +53,7 @@ export const ProjectViewPage = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={onAction}
+                session={session}
             >
                 <ProjectCreate
                     session={session}
@@ -67,6 +68,7 @@ export const ProjectViewPage = ({
                 hasPrevious={false}
                 hasNext={false}
                 onAction={onAction}
+                session={session}
             >
                 <ProjectUpdate
                     session={session}

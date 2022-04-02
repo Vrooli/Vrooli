@@ -14,10 +14,12 @@ import {
     ChevronLeft as PreviousIcon,
     ChevronRight as NextIcon,
     Close as CloseIcon,
+    Language as LanguageIcon,
 } from '@mui/icons-material';
 import { UpTransition } from 'components';
 import { useCallback, useState } from 'react';
 import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction, ObjectDialogState } from '../types';
+import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 
 /**
  * Dialog for displaying any "Add" form
@@ -30,6 +32,7 @@ export const BaseObjectDialog = ({
     hasNext,
     onAction,
     children,
+    session,
 }: BaseObjectDialogProps) => {
     const [scrollTarget, setScrollTarget] = useState<HTMLElement | undefined>(undefined);
     const scrollTrigger = useScrollTrigger({ target: scrollTarget });
@@ -37,6 +40,8 @@ export const BaseObjectDialog = ({
     const onClose = useCallback(() => onAction(ObjectDialogAction.Close), [onAction]);
     const onPrevious = useCallback(() => onAction(ObjectDialogAction.Previous), [onAction]);
     const onNext = useCallback(() => onAction(ObjectDialogAction.Next), [onAction]);
+
+    const [language, setLanguage] = useState<string>('en');
 
     return (
         <Dialog
@@ -58,6 +63,7 @@ export const BaseObjectDialog = ({
                         </IconButton>
                         <Box sx={{ width: '100%', alignItems: 'center' }}>
                             <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                                {/* Navigate to previous */}
                                 {hasPrevious && (
                                     <Tooltip title="Previous" placement="bottom">
                                         <IconButton size="large" onClick={onPrevious} aria-label="previous">
@@ -65,9 +71,17 @@ export const BaseObjectDialog = ({
                                         </IconButton>
                                     </Tooltip>
                                 )}
+                                {/* Title */}
                                 <Typography variant="h5">
                                     {title}
                                 </Typography>
+                                {/* Language display/select */}
+                                <SelectLanguageDialog
+                                    handleSelect={setLanguage}
+                                    language={language}
+                                    session={session}
+                                />
+                                {/* Navigate to next */}
                                 {hasNext && (
                                     <Tooltip title="Next" placement="bottom">
                                         <IconButton size="large" onClick={onNext} aria-label="next">
