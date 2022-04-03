@@ -105,4 +105,4 @@ export const ActorListItem = ({
 
 export const ActorSortOptions: LabelledSortOption<UserSortBy>[] = labelledSortOptions(UserSortBy);
 export const actorDefaultSortOption = ActorSortOptions[1];
-export const actorOptionLabel = (o: User) => o.username ?? '';
+export const actorOptionLabel = (o: User, languages: readonly string[]) => o.username ?? '';

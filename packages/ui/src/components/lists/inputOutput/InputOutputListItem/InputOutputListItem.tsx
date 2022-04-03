@@ -9,7 +9,7 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation } from 'utils';
+import { getTranslation, getUserLanguages } from 'utils';
 import { useFormik } from 'formik';
 
 export const InputOutputListItem = ({
@@ -24,11 +24,12 @@ export const InputOutputListItem = ({
     handleUpdate,
     handleOpenStandardSelect,
     handleRemoveStandard,
+    session,
 }: InputOutputListItemProps) => {
 
     const formik = useFormik({
         initialValues: {
-            description: getTranslation(item, 'description', ['en'], true) ?? '',
+            description: getTranslation(item, 'description', getUserLanguages(session), true) ?? '',
             isRequired: true,
             name: item.name ?? '',
         },

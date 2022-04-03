@@ -5,8 +5,6 @@ import {
     Cancel as CancelIcon,
     Pause as PauseIcon,
     PlayCircle as RunIcon,
-    SkipNext as NextIcon,
-    SkipPrevious as PreviousIcon,
     Update as UpdateIcon
 } from '@mui/icons-material';
 import { withStyles } from '@mui/styles';

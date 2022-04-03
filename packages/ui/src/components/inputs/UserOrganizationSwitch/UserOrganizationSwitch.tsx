@@ -13,7 +13,7 @@ import {
     Apartment as OrganizationIcon,
     Person as SelfIcon
 } from '@mui/icons-material';
-import { getTranslation } from 'utils';
+import { getTranslation, getUserLanguages } from 'utils';
 
 const blue = {
     700: '#0059B2',
@@ -32,7 +32,7 @@ export function UserOrganizationSwitch({
     ...props
 }: UserOrganizationSwitchProps) {
     const [location, setLocation] = useLocation();
-    const languages = ['en'];
+    const languages = useMemo(() => getUserLanguages(session), [session])
 
     // Query for organizations the user is a member of, including ones where 
     // the user doesn't have permissions to perform this action

@@ -40,6 +40,7 @@ export const NodeGraph = ({
     links,
     nodesById,
     scale = 1,
+    session,
 }: NodeGraphProps) => {
     // Stores edges
     const [edges, setEdges] = useState<JSX.Element[]>([])
@@ -400,6 +401,7 @@ export const NodeGraph = ({
             labelVisible={labelVisible}
             nodes={col}
             scale={scale}
+            session={session}
         />)
     }, [columns, isEditing, scale, labelVisible, dragId]);
 

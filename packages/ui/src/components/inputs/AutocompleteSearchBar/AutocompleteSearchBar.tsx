@@ -3,6 +3,7 @@ import { AutocompleteSearchBarProps } from '../types';
 import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { Search as SearchIcon } from '@mui/icons-material';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
+import { getUserLanguages } from 'utils';
 
 export function AutocompleteSearchBar<T>({
     id = 'search-bar',
@@ -16,6 +17,7 @@ export function AutocompleteSearchBar<T>({
     onInputChange,
     debounce = 200,
     loading = false,
+    session,
     sx,
     ...props
 }: AutocompleteSearchBarProps<T>) {
@@ -42,6 +44,8 @@ export function AutocompleteSearchBar<T>({
         onChangeDebounced(value);
     }, [onChangeDebounced]);
 
+    const languages = useMemo(() => getUserLanguages(session), [session]);
+
     return (
         <Autocomplete
             disablePortal
@@ -49,18 +53,18 @@ export function AutocompleteSearchBar<T>({
             sx={sx}
             options={options}
             inputValue={internalValue}
-            getOptionLabel={getOptionLabel}
+            getOptionLabel={(option: any) => getOptionLabel(option, languages)}
             renderOption={(_, option) => { return (
                 <MenuItem
-                    key={getOptionKey(option)}
+                    key={getOptionKey(option, languages)}
                     onClick={() => {
-                        setInternalValue(getOptionLabel(option));
-                        onChangeDebounced(getOptionLabel(option));
+                        setInternalValue(getOptionLabel(option, languages));
+                        onChangeDebounced(getOptionLabel(option, languages));
                         handleClose();
                         onInputChange(option);
                     }}
                 >
-                    <ListItemText>{getOptionLabel(option)}</ListItemText>
+                    <ListItemText>{getOptionLabel(option, languages)}</ListItemText>
                     {getOptionLabelSecondary ? <Typography color="text.secondary">{getOptionLabelSecondary(option)}</Typography> : null}
                 </MenuItem>
             )}}  

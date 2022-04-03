@@ -73,6 +73,7 @@ export interface ReportDialogProps extends DialogProps {
     title?: string;
     reportFor: ReportFor;
     forId: string;
+    session: Session;
 }
 
 export interface ResourceDialogProps extends DialogProps {
@@ -84,6 +85,7 @@ export interface ResourceDialogProps extends DialogProps {
     onUpdated: (index: number, resource: Resource) => any;
     index?: number;
     partialData?: Partial<Resource>;
+    session: Session;
     title?: string;
     listId: string;
 }
@@ -158,6 +160,7 @@ export interface BaseObjectActionDialogProps {
     anchorEl: HTMLElement | null;
     availableOptions: BaseObjectAction[];
     onClose: () => any;
+    session: Session;
 }
 
 export interface LinkDialogProps {
@@ -195,6 +198,7 @@ export interface UnlinkedNodesDialogProps {
     nodes: Node[];
     handleNodeDelete: (nodeId: string) => any;
     handleToggleOpen: () => any; // Expand/shrink dialog
+    session: Session;
 }
 
 export interface CreateNewDialogProps {

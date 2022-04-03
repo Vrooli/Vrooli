@@ -78,7 +78,7 @@ export const SubroutineInfoDialog = ({
                 isInternal: values.isInternal,
                 version: values.version,
                 translations: [{
-                    language: 'en',
+                    language,
                     title: values.title,
                     description: values.description,
                     instructions: values.instructions,

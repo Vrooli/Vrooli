@@ -75,4 +75,4 @@ export function ResourceListItem({
 
 export const ResourceSortOptions: LabelledSortOption<ResourceSortBy>[] = labelledSortOptions(ResourceSortBy);
 export const resourceDefaultSortOption = ResourceSortOptions[1];
-export const resourceOptionLabel = (o: Resource) => getTranslation(o, 'title', ['en'], true) ?? '';
+export const resourceOptionLabel = (o: Resource, languages: readonly string[]) => getTranslation(o, 'title', languages, true) ?? '';

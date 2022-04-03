@@ -55,6 +55,7 @@ export const BaseObjectActionDialog = ({
     anchorEl,
     availableOptions,
     onClose,
+    session,
 }: BaseObjectActionDialogProps) => {
     // States
     const [donateOpen, setDonateOpen] = useState(false);
@@ -153,6 +154,7 @@ export const BaseObjectActionDialog = ({
                 forId={objectId}
                 open={reportOpen}
                 onClose={closeReport}
+                session={session}
             />
             {/* Actual action dialog */}
             <ListMenu

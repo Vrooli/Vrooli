@@ -154,6 +154,7 @@ export const AddSubroutineDialog = ({
                             />)}
                         getOptionLabel={routineOptionLabel}
                         onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
+                        session={session}
                     />
                 </Stack>
             </DialogContent>

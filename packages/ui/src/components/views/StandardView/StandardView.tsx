@@ -164,6 +164,7 @@ export const StandardView = ({
                 title='Standard Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                session={session}
             />
             <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
                 {overviewComponent}

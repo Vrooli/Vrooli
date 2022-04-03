@@ -105,6 +105,7 @@ export const ResourceListHorizontal = ({
             onCreated={onAdd}
             onUpdated={onUpdate}
             mutate={mutate}
+            session={session}
         /> : null
     ), [editingIndex, onAdd, onUpdate, isDialogOpen, list, editingIndex, mutate]);
 

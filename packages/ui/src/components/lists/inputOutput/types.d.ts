@@ -1,4 +1,4 @@
-import { RoutineInput, RoutineInputList, RoutineOutput, RoutineOutputList } from "types";
+import { RoutineInput, RoutineInputList, RoutineOutput, RoutineOutputList, Session } from "types";
 
 export interface InputOutputContainerProps {
     handleUpdate: (updatedList: RoutineInputList | RoutineOutputList) => void;
@@ -20,4 +20,5 @@ export interface InputOutputListItemProps {
     handleUpdate: (index: number, updatedItem: RoutineInput | RoutineOutput) => void;
     handleOpenStandardSelect: (index: number) => void;
     handleRemoveStandard: (index: number) => void;
+    session: Session;
 }

@@ -13,7 +13,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunRoutineView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getTranslation, Pubs } from "utils";
+import { getTranslation, getUserLanguages, Pubs } from "utils";
 import { ResourceList, Routine, User } from "types";
 import Markdown from "markdown-to-jsx";
 import { routineDeleteOneMutation } from "graphql/mutation";
@@ -241,7 +241,7 @@ export const RoutineView = ({
             {/* Delete routine confirmation dialog */}
             <DeleteRoutineDialog
                 isOpen={deleteOpen}
-                routineName={getTranslation(routine, 'title', ['en']) ?? ''}
+                routineName={getTranslation(routine, 'title', getUserLanguages(session)) ?? ''}
                 handleClose={closeDelete}
                 handleDelete={deleteRoutine}
             />
@@ -269,6 +269,7 @@ export const RoutineView = ({
                 title='Routine Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                session={session}
             />
             {/* Main container */}
             <Box sx={{

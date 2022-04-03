@@ -9,13 +9,15 @@ import { ResourceDialogProps } from '../types';
 import {
     Close as CloseIcon
 } from '@mui/icons-material';
-import { formatForCreate, getTranslation, Pubs } from 'utils';
+import { formatForCreate, getTranslation, getUserLanguages, Pubs } from 'utils';
 import { resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate } from 'graphql/generated/resourceUpdate';
+import { useState } from 'react';
+import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 
 const helpText =
-`## What are resources?
+    `## What are resources?
 
 Resources provide context to the object they are attached to, such as a  user, organization, project, or routine.
 
@@ -57,6 +59,7 @@ export const ResourceDialog = ({
     onUpdated,
     index,
     partialData,
+    session,
     title = 'Add Resource',
     listId,
 }: ResourceDialogProps) => {
@@ -65,12 +68,14 @@ export const ResourceDialog = ({
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
 
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+
     const formik = useFormik({
         initialValues: {
             link: partialData?.link ?? '',
             usedFor: partialData?.usedFor ?? ResourceUsedFor.Context,
-            title: getTranslation(partialData, 'title', ['en'], false) ?? '',
-            description: getTranslation(partialData, 'description', ['en'], false) ?? '',
+            title: getTranslation(partialData, 'title', [language], false) ?? '',
+            description: getTranslation(partialData, 'description', [language], false) ?? '',
         },
         enableReinitialize: true,
         validationSchema,
@@ -80,7 +85,7 @@ export const ResourceDialog = ({
                 link: values.link,
                 usedFor: values.usedFor,
                 translations: [{
-                    language: 'en',
+                    language,
                     title: values.title,
                     description: values.description,
                 }],
@@ -131,11 +136,18 @@ export const ResourceDialog = ({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                 }}>
-                    <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                        {title}
-                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ marginLeft: 'auto' }}>
+                        <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
+                            {title}
+                        </Typography>
+                        <SelectLanguageDialog
+                            language={language}
+                            handleSelect={setLanguage}
+                            session={session}
+                        />
+                    </Stack>
                     <Box sx={{ marginLeft: 'auto' }}>
+                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
                         <IconButton
                             edge="start"
                             onClick={handleClose}

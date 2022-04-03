@@ -388,6 +388,7 @@ export const OrganizationView = ({
                 title='Organization Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                session={session}
             />
             <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
                 {overviewComponent}
@@ -440,6 +441,7 @@ export const OrganizationView = ({
                                 listItemFactory={searchItemFactory}
                                 getOptionLabel={sortOptionLabel}
                                 onObjectSelect={onSearchSelect}
+                                session={session}
                             />
                         )
                     }

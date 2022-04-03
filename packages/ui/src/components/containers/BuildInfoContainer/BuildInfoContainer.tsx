@@ -14,7 +14,7 @@ import {
 } from '@mui/icons-material';
 import { getTranslation, BuildStatus } from 'utils';
 import { BuildInfoContainerProps } from '../types';
-import { HelpButton, BuildInfoDialog } from 'components';
+import { HelpButton, BuildInfoDialog, SelectLanguageDialog } from 'components';
 import Markdown from 'markdown-to-jsx';
 import { noSelect } from 'styles';
 import { EditableLabel } from 'components/inputs';
@@ -46,6 +46,7 @@ const TERTIARY_COLOR = '#95f3cd';
 
 export const BuildInfoContainer = ({
     canEdit,
+    handleLanguageUpdate,
     handleRoutineAction,
     handleRoutineUpdate,
     handleStartEdit,
@@ -170,6 +171,11 @@ export const BuildInfoContainer = ({
                     >{t}</Typography>
                 )}
                 text={getTranslation(routine, 'title', [language], false) ?? 'Loading...'}
+            />
+            <SelectLanguageDialog
+                handleSelect={handleLanguageUpdate}
+                language={language}
+                session={session}
             />
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 {/* Edit button */}

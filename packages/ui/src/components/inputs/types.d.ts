@@ -27,12 +27,13 @@ export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
     value: string;
     loading?: boolean;
     options?: T[];
-    getOptionKey: (option: T) => string;
-    getOptionLabel: (option: T) => string;
+    getOptionKey: (option: T, languages: readonly string[]) => string;
+    getOptionLabel: (option: T, languages: readonly string[]) => string;
     getOptionLabelSecondary?: (option: T) => string;
     onChange: (updatedText: string) => any;
     onInputChange: (newValue: T) => any;
     debounce?: number;
+    session: Session;
 }
 
 export interface MarkdownInputProps extends TextFieldProps {

@@ -6,7 +6,7 @@ import { useMutation, useLazyQuery } from '@apollo/client';
 import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine, routineVariables } from 'graphql/generated/routine';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages } from 'utils';
 import {
     AddLink as AddLinkIcon,
     Compress as CleanUpIcon,
@@ -90,7 +90,9 @@ export const BuildPage = ({
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
-    const language = 'en';
+    
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    const handleLanguageUpdate = useCallback((language: string) => { setLanguage(language); }, []);
 
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
@@ -912,6 +914,7 @@ export const BuildPage = ({
                 nodes={changedRoutine?.nodes ?? []}
                 links={changedRoutine?.nodeLinks ?? []}
                 nodeId={addAfterLinkNode}
+                session={session}
             />}
             {/* Popup for "Add before" dialog */}
             {addBeforeLinkNode && <AddBeforeLinkDialog
@@ -921,6 +924,7 @@ export const BuildPage = ({
                 nodes={changedRoutine?.nodes ?? []}
                 links={changedRoutine?.nodeLinks ?? []}
                 nodeId={addBeforeLinkNode}
+                session={session}
             />}
             {/* Popup for creating new links */}
             {changedRoutine ? <LinkDialog
@@ -946,6 +950,7 @@ export const BuildPage = ({
             {/* Displays main routine's information and some buttons */}
             <BuildInfoContainer
                 canEdit={canEdit}
+                handleLanguageUpdate={handleLanguageUpdate}
                 handleRoutineAction={handleRoutineAction}
                 handleRoutineUpdate={updateRoutine}
                 handleStartEdit={startEditing}
@@ -1013,6 +1018,7 @@ export const BuildPage = ({
                     nodes={nodesOffGraph}
                     handleNodeDelete={handleNodeDelete}
                     handleToggleOpen={toggleUnlinkedNodes}
+                    session={session}
                 />
             </Box> : null}
             <Box sx={{
@@ -1037,6 +1043,7 @@ export const BuildPage = ({
                     columns={columns}
                     nodesById={nodesById}
                     scale={scale}
+                    session={session}
                 />
                 <BuildBottomContainer
                     canCancelMutate={!loading}

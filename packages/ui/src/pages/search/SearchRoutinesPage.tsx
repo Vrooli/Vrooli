@@ -95,6 +95,7 @@ export const SearchRoutinesPage = ({
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={openAdd}
+                session={session}
             />
         </>
     )

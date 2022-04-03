@@ -1,3 +1,5 @@
+import { Session } from "types";
+
 /**
  * Retrieves a value from an object's translations
  * @param obj The object to retrieve the value from
@@ -68,4 +70,35 @@ export const updateTranslation = (objectWithTranslation: { [x: string]: any }, t
         translations.push(translation);
     }
     return translations;
+}
+
+/**
+ * Strips a language IETF code down to the subtag (e.g. en-US becomes en)
+ * @param language IETF language code
+ * @returns Subtag of language code
+ */
+export const getLanguageSubtag = (language: string): string => {
+    if (!language) return "";
+    const parts = language.split("-");
+    return parts[0];
+}
+
+/**
+ * Returns a list of user-preferred languages.
+ * Priority order is the following: 
+ * 1. Languages in session data
+ * 2. Languages in browser (i.e. navigator.language)
+ * 3. English
+ * Strips languages so only the subtag is returned (e.g. en-US becomes en)
+ * @param session Session data
+ * @returns Array of user-preferred language subtags
+ */
+export const getUserLanguages = (session?: Session): string[] => {
+    if (session?.languages && session.languages.length > 0) {
+        return session.languages.map(getLanguageSubtag);
+    }
+    if (navigator.language) {
+        return [getLanguageSubtag(navigator.language)];
+    }
+    return ["en"];
 }

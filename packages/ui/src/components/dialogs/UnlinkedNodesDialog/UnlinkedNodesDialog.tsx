@@ -15,17 +15,18 @@ import {
 } from '@mui/material';
 import { UnlinkedNodesDialogProps } from '../types';
 import { containerShadow } from 'styles';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
-import { getTranslation } from 'utils';
+import { getTranslation, getUserLanguages } from 'utils';
 
 export const UnlinkedNodesDialog = ({
     open,
     nodes,
     handleNodeDelete,
     handleToggleOpen,
+    session,
 }: UnlinkedNodesDialogProps) => {
 
     /**
@@ -56,11 +57,14 @@ export const UnlinkedNodesDialog = ({
                     canExpand={false}
                     labelVisible={true}
                     handleUpdate={() => { }} // Intentionally blank
+                    session={session}
                 />
             default:
                 return null;
         }
     }, [])
+
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     return (
         <Box id="unlinked-nodes-dialog" sx={{
@@ -108,9 +112,9 @@ export const UnlinkedNodesDialog = ({
                                 {createNode(node)}
                             </Box>
                             {/* Node title */}
-                            {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', ['en'], true)}</Typography>)}
+                            {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', languages, true)}</Typography>)}
                             {/* Delete node icon */}
-                            <Tooltip title={`Delete ${getTranslation(node, 'title', ['en'], true)} node`} placement="left">
+                            <Tooltip title={`Delete ${getTranslation(node, 'title', languages, true)} node`} placement="left">
                                 <Box sx={{ marginLeft: 'auto' }}>
                                     <IconButton
                                         color="inherit"

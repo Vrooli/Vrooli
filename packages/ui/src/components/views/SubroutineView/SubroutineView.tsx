@@ -9,7 +9,7 @@ import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { containerShadow } from "styles";
 import { ResourceList, Routine, User } from "types";
-import { getTranslation, Pubs } from "utils";
+import { getTranslation, getUserLanguages, Pubs } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 
@@ -34,8 +34,9 @@ export const SubroutineView = ({
      */
      const ownedBy = useMemo<string | null>(() => {
         if (!data?.owner) return null;
-        return getTranslation(data.owner, 'username', ['en']) ?? getTranslation(data.owner, 'name', ['en']);
-    }, [data?.owner]);
+        const languages = getUserLanguages(session);
+        return getTranslation(data.owner, 'username', languages) ?? getTranslation(data.owner, 'name', languages);
+    }, [data?.owner, session]);
 
     // The schema for the form
     const [schema, setSchema] = useState<any>();

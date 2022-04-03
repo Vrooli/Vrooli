@@ -29,6 +29,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     onScrolledFar,
     where,
     noResultsText = 'No results',
+    session,
 }: SearchListProps<DataType, SortBy>) {
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
@@ -199,6 +200,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         value={searchString}
                         onChange={handleSearch}
                         onInputChange={onInputSelect}
+                        session={session}
                     />
                 </Grid>
                 <Grid item xs={6} sm={2}>

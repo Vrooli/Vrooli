@@ -20,6 +20,7 @@ import { UpTransition } from 'components';
 import { useCallback, useState } from 'react';
 import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction, ObjectDialogState } from '../types';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
+import { getUserLanguages } from 'utils';
 
 /**
  * Dialog for displaying any "Add" form
@@ -41,7 +42,7 @@ export const BaseObjectDialog = ({
     const onPrevious = useCallback(() => onAction(ObjectDialogAction.Previous), [onAction]);
     const onNext = useCallback(() => onAction(ObjectDialogAction.Next), [onAction]);
 
-    const [language, setLanguage] = useState<string>('en');
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     return (
         <Dialog

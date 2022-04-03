@@ -6,7 +6,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getTranslation } from "utils";
+import { formatForUpdate, getTranslation, getUserLanguages } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -20,6 +20,7 @@ import { containerShadow } from "styles";
 export const SettingsProfile = ({
     profile,
     onUpdated,
+    session,
 }: SettingsProfileProps) => {
     const [, setLocation] = useLocation();
 
@@ -27,7 +28,7 @@ export const SettingsProfile = ({
     const [mutation] = useMutation<user>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            bio: getTranslation(profile, 'bio', ['en'], false),
+            bio: getTranslation(profile, 'bio', getUserLanguages(session), false),
             username: profile?.username ?? "",
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch

@@ -87,7 +87,7 @@ export function SettingsPage({
             case 'authentication':
                 return <SettingsAuthentication session={session} profile={profile} onUpdated={onUpdated} />
             default:
-                return editing ? <SettingsProfile profile={profile} onUpdated={onUpdated} /> : <UserView partialData={profile as any} session={session} />
+                return editing ? <SettingsProfile profile={profile} onUpdated={onUpdated} session={session} /> : <UserView partialData={profile as any} session={session} />
         }
     }, [selectedPage, editing, profile, onUpdated]);
 

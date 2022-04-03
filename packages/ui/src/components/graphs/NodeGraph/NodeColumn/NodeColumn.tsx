@@ -18,6 +18,7 @@ export const NodeColumn = ({
     dragId,
     nodes,
     scale = 1,
+    session,
 }: NodeColumnProps) => {
     // Padding between cells
     const padding = useMemo(() => scale * 25, [scale]);
@@ -75,6 +76,7 @@ export const NodeColumn = ({
                         {...nodeProps}
                         canExpand={true}
                         handleUpdate={handleNodeUpdate}
+                        session={session}
                     />)
                 case NodeType.Start:
                     return <StartNode {...nodeProps} />

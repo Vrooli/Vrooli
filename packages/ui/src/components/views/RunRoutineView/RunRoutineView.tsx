@@ -11,7 +11,7 @@ import {
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getTranslation, Pubs, RoutineStepType, updateArray, useHistoryState } from "utils";
+import { getTranslation, getUserLanguages, Pubs, RoutineStepType, updateArray, useHistoryState } from "utils";
 import { useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -48,6 +48,8 @@ export const RunRoutineView = ({
     useEffect(() => {
         if (routineData?.routine) setRoutine(routineData.routine);
     }, [routineData]);
+
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [stepList, setStepList] = useState<RoutineStep | null>(null);
     /**
@@ -90,8 +92,8 @@ export const RunRoutineView = ({
                 type: RoutineStepType.Subroutine,
                 index: item.index,
                 routine: item.routine as any,
-                title: getTranslation(item.routine, 'title', ['en'], true) ?? 'Untitled',
-                description: getTranslation(item.routine, 'description', ['en'], true),
+                title: getTranslation(item.routine, 'title', languages, true) ?? 'Untitled',
+                description: getTranslation(item.routine, 'description', languages, true),
             }));
             // Sort subroutine steps
             // If list is ordered, sort by index
@@ -116,8 +118,8 @@ export const RunRoutineView = ({
                 type: RoutineStepType.RoutineList,
                 nodeId: node.id,
                 isOrdered: (node.data as NodeDataRoutineList).isOrdered ?? false,
-                title: getTranslation(node, 'title', ['en'], true) ?? 'Untitled',
-                description: getTranslation(node, 'description', ['en'], true),
+                title: getTranslation(node, 'title', languages, true) ?? 'Untitled',
+                description: getTranslation(node, 'description', languages, true),
                 steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
             });
         }
@@ -126,8 +128,8 @@ export const RunRoutineView = ({
             type: RoutineStepType.RoutineList,
             nodeId: null,
             isOrdered: true,
-            title: getTranslation(routine, 'title', ['en'], true) ?? 'Untitled',
-            description: getTranslation(routine, 'description', ['en'], true),
+            title: getTranslation(routine, 'title', languages, true) ?? 'Untitled',
+            description: getTranslation(routine, 'description', languages, true),
             steps: resultSteps,
         });
     }, [routine]);
@@ -278,8 +280,8 @@ export const RunRoutineView = ({
             type: RoutineStepType.Subroutine,
             routine: subroutine,
             index: (subroutineStep as SubroutineStep).index,
-            title: (subroutineStep as SubroutineStep).title ?? getTranslation(subroutine, 'title', ['en'], true) ?? 'Untitled',
-            description: (subroutineStep as SubroutineStep).description ?? getTranslation(subroutine, 'description', ['en'], true),
+            title: (subroutineStep as SubroutineStep).title ?? getTranslation(subroutine, 'title', languages, true) ?? 'Untitled',
+            description: (subroutineStep as SubroutineStep).description ?? getTranslation(subroutine, 'description', languages, true),
         };
         // If loop needed
         if (indexArray.length > 1) {
@@ -303,7 +305,7 @@ export const RunRoutineView = ({
         }
         // Update step list
         setStepList(updatedStepList);
-    }, [subroutineData, stepList]);
+    }, [languages, subroutineData, stepList]);
 
     const { instructions, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -456,6 +458,7 @@ export const RunRoutineView = ({
                     data={currentStep as DecisionStep}
                     handleDecisionSelect={toDecision}
                     nodes={routine?.nodes ?? []}
+                    session={session}
                 />
         }
     }, [currentStep, subroutineLoading]);

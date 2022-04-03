@@ -264,6 +264,7 @@ export const InputOutputContainer = ({
                             handleUpdate={onUpdate}
                             handleOpenStandardSelect={handleOpenStandardSelect}
                             handleRemoveStandard={handleRemoveStandard}
+                            session={session}
                         />
                         <AddButton
                             key={`add-input-item-${index}`}

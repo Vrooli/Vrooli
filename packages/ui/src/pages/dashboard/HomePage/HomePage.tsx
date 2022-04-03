@@ -289,6 +289,7 @@ export const HomePage = ({
                     value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
+                    session={session}
                     sx={{ width: 'min(100%, 600px)' }}
                 />
                 {/* =========  #endregion ========= */}

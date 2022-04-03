@@ -82,6 +82,7 @@ export const SearchOrganizationsPage = ({
                 popupButtonText="Invite"
                 popupButtonTooltip="Can't find who you're looking for? Invite them😊"
                 onPopupButtonClick={handleSurpriseDialogOpen}
+                session={session}
             />
         </>
     )

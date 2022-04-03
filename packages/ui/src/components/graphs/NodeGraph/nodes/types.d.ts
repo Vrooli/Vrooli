@@ -1,6 +1,6 @@
 import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { Node, NodeDataRoutineListItem } from "types";
+import { Node, NodeDataRoutineListItem, Session } from "types";
 import { BuildAction } from 'utils';
 import { MouseEvent } from 'react';
 
@@ -80,6 +80,7 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
     canExpand: boolean;
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleUpdate: (updatedNode: Node) => void; 
+    session: Session;
 }
 
 /**

@@ -150,6 +150,7 @@ export const AddStandardDialog = ({
                             />)}
                         getOptionLabel={standardOptionLabel}
                         onObjectSelect={(newValue) => handeStandardSelect(newValue)}
+                        session={session}
                     />
                 </Stack>
             </DialogContent>

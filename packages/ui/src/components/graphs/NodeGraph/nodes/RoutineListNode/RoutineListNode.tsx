@@ -24,7 +24,7 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, Pubs, updateTranslationField } from 'utils';
+import { getTranslation, BuildAction, Pubs, updateTranslationField, getUserLanguages } from 'utils';
 import { EditableLabel } from 'components/inputs';
 
 export const RoutineListNode = ({
@@ -37,6 +37,7 @@ export const RoutineListNode = ({
     isEditing,
     node,
     scale = 1,
+    session,
 }: RoutineListNodeProps) => {
     // Stores position of click/touch start, to cancel click event if drag occurs
     const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
@@ -98,7 +99,7 @@ export const RoutineListNode = ({
 
     const { label } = useMemo(() => {
         return {
-            label: getTranslation(node, 'title', ['en'], true),
+            label: getTranslation(node, 'title', getUserLanguages(session), true),
         }
     }, [node]);
 

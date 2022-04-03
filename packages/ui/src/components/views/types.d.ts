@@ -52,7 +52,9 @@ export interface SettingsDisplayProps extends SettingsBaseProps {
 export interface SettingsNotificationsProps extends SettingsBaseProps {
     session: Session
 }
-export interface SettingsProfileProps extends SettingsBaseProps {}
+export interface SettingsProfileProps extends SettingsBaseProps {
+    session: Session;
+}
 
 export interface SubroutineViewProps {
     loading: boolean;
@@ -64,6 +66,7 @@ export interface DecisionViewProps {
     data: DecisionStep
     handleDecisionSelect: (node: Node) => void;
     nodes: Node[];
+    session: Session;
 }
 
 export interface RunRoutineViewProps extends ViewProps<Routine> {
