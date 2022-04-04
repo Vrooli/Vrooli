@@ -12,13 +12,13 @@ import {
     Person as PersonIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
 import { Project, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { getTranslation, Pubs } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { validate as uuidValidate } from 'uuid';
 
 enum TabOptions {
@@ -28,8 +28,8 @@ enum TabOptions {
 }
 
 export const ProjectView = ({
-    session,
     partialData,
+    session,
 }: ProjectViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
@@ -47,12 +47,20 @@ export const ProjectView = ({
     }, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
 
+    const [language, setLanguage] = useState<string>('');
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        const availableLanguages = project?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+        const userLanguages = getUserLanguages(session);
+        setAvailableLanguages(availableLanguages);
+        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
+    }, [project]);
+
     const { name, description, resourceList } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
         const resourceLists = project?.resourceLists ?? partialData?.resourceLists ?? [];
         return {
-            name: getTranslation(project, 'name', languages) ?? getTranslation(partialData, 'name', languages),
-            description: getTranslation(project, 'description', languages) ?? getTranslation(partialData, 'description', languages),
+            name: getTranslation(project, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
+            description: getTranslation(project, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
         };
     }, [project, partialData, session]);
@@ -343,7 +351,27 @@ export const ProjectView = ({
                 onClose={closeMoreMenu}
                 session={session}
             />
-            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+            <Box sx={{ 
+                display: 'flex', 
+                paddingTop: 5, 
+                paddingBottom: 5, 
+                background: "#b2b3b3",
+                position: "relative",
+            }}>
+                {/* Language display/select */}
+                <Box sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                }}>
+                    <SelectLanguageDialog
+                        availableLanguages={availableLanguages}
+                        canDropdownOpen={availableLanguages.length > 1}
+                        handleSelect={setLanguage}
+                        language={language}
+                        session={session}
+                    />
+                </Box>
                 {overviewComponent}
             </Box>
             {/* View routines and standards associated with this project */}

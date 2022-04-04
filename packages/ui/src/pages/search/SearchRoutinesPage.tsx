@@ -47,7 +47,7 @@ export const SearchRoutinesPage = ({
         console.log('handleADdSelect', option);
         if (option === 'basic') setLocation(`${APP_LINKS.SearchRoutines}/add`)
         else setLocation(`${APP_LINKS.Build}/add`)
-    }, []);
+    }, [setLocation]);
     const addOptions: ListMenuItemData<string>[] = [
         { label: 'Basic (Single Step)', value: 'basic' },
         { label: 'Advanced (Multi Step)', value: 'advanced' },

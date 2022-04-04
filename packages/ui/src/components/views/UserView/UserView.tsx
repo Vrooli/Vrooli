@@ -12,10 +12,10 @@ import {
     Person as PersonIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { getTranslation, Pubs } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { Organization, Project, Routine, Standard, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
@@ -52,15 +52,23 @@ export const UserView = ({
         setUser(isProfile ? partialData as any : data?.user as any);
     }, [data, isProfile, partialData]);
 
+    const [language, setLanguage] = useState<string>('');
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        const availableLanguages = user?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+        const userLanguages = getUserLanguages(session);
+        setAvailableLanguages(availableLanguages);
+        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
+    }, [session, user]);
+
     const { bio, username, resourceList } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
         const resourceLists = (user as any)?.resourceLists ?? (partialData as any)?.resourceLists ?? [];
         return {
-            bio: getTranslation(user, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
+            bio: getTranslation(user, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language]),
             username: user?.username ?? partialData?.username,
             resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
         };
-    }, [user, partialData, session]);
+    }, [language, partialData, user]);
 
     const resources = useMemo(() => (resourceList || isOwn) ? (
         <ResourceListVertical
@@ -107,7 +115,7 @@ export const UserView = ({
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
         setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile&editing=true` : `${APP_LINKS.SearchUsers}/edit/${id}`);
-    }, [setLocation, id]);
+    }, [id, isProfile, setLocation]);
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {
@@ -356,7 +364,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [user, partialData, isOwn, session]);
+    ), [bio, isOwn, loading, onEdit, openMoreMenu, partialData, session, shareLink, user, username]);
 
     /**
      * Opens add new page
@@ -393,7 +401,27 @@ export const UserView = ({
                 onClose={closeMoreMenu}
                 session={session}
             />
-            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+            <Box sx={{
+                display: 'flex',
+                paddingTop: 5,
+                paddingBottom: 5,
+                background: "#b2b3b3",
+                position: "relative",
+            }}>
+                {/* Language display/select */}
+                <Box sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                }}>
+                    <SelectLanguageDialog
+                        availableLanguages={availableLanguages}
+                        canDropdownOpen={availableLanguages.length > 1}
+                        handleSelect={setLanguage}
+                        language={language}
+                        session={session}
+                    />
+                </Box>
                 {overviewComponent}
             </Box>
             {/* View routines, organizations, standards, and projects associated with this user */}

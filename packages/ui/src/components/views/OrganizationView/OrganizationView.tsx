@@ -12,13 +12,13 @@ import {
     Person as PersonIcon,
     Share as ShareIcon,
 } from "@mui/icons-material";
-import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, BaseObjectActionDialog, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, BaseObjectActionDialog, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
 import { User, Project, Routine, Standard, Organization } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { getTranslation, Pubs } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 
@@ -31,8 +31,8 @@ enum TabOptions {
 }
 
 export const OrganizationView = ({
-    session,
     partialData,
+    session,
 }: OrganizationViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
@@ -50,15 +50,23 @@ export const OrganizationView = ({
     }, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(organization?.role ?? ''), [organization]);
 
+    const [language, setLanguage] = useState<string>('');
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        const availableLanguages = organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+        const userLanguages = getUserLanguages(session);
+        setAvailableLanguages(availableLanguages);
+        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
+    }, [organization]);
+
     const { bio, name, resourceList } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
         const resourceLists = organization?.resourceLists ?? partialData?.resourceLists ?? [];
         return {
-            bio: getTranslation(organization, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
-            name: getTranslation(organization, 'name', languages) ?? getTranslation(partialData, 'name', languages),
+            bio: getTranslation(organization, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language]),
+            name: getTranslation(organization, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
             resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
         };
-    }, [organization, partialData, session]);
+    }, [language, organization, partialData, session]);
 
     const resources = useMemo(() => (resourceList || canEdit) ? (
         <ResourceListVertical
@@ -358,7 +366,7 @@ export const OrganizationView = ({
     /**
      * Opens add new page
      */
-     const toAddNew = useCallback(() => {
+    const toAddNew = useCallback(() => {
         switch (currTabType) {
             case TabOptions.Members:
                 //TODO
@@ -379,8 +387,8 @@ export const OrganizationView = ({
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog
-                handleActionComplete={() => {}} //TODO
-                handleDelete={() => {}} //TODO
+                handleActionComplete={() => { }} //TODO
+                handleDelete={() => { }} //TODO
                 handleEdit={onEdit}
                 objectId={id}
                 objectType={'Organization'}
@@ -390,7 +398,27 @@ export const OrganizationView = ({
                 onClose={closeMoreMenu}
                 session={session}
             />
-            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+            <Box sx={{
+                background: "#b2b3b3",
+                display: 'flex',
+                paddingTop: 5,
+                paddingBottom: 5,
+                position: "relative",
+            }}>
+                {/* Language display/select */}
+                <Box sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                }}>
+                    <SelectLanguageDialog
+                        availableLanguages={availableLanguages}
+                        canDropdownOpen={availableLanguages.length > 1}
+                        handleSelect={setLanguage}
+                        language={language}
+                        session={session}
+                    />
+                </Box>
                 {overviewComponent}
             </Box>
             {/* View routines, members, standards, and projects associated with this organization */}

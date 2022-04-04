@@ -18,7 +18,7 @@ export const SearchOrganizationsPage = ({
     const [selectedItem, setSelectedItem] = useState<Organization | undefined>(undefined);
     const handleSelected = useCallback((selected: Organization) => {
         setSelectedItem(selected);
-    }, [setLocation]);
+    }, []);
     useEffect(() => {
         if (selectedItem) {
             setLocation(`${APP_LINKS.SearchOrganizations}/view/${selectedItem.id}`);

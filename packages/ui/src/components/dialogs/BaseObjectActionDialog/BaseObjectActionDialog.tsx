@@ -46,16 +46,16 @@ const allOptionsMap: { [key in BaseObjectAction]: [string, SvgIconComponent, str
 })
 
 export const BaseObjectActionDialog = ({
+    anchorEl,
+    availableOptions,
     handleActionComplete,
     handleDelete,
     handleEdit,
     objectId,
     objectType,
-    title,
-    anchorEl,
-    availableOptions,
     onClose,
     session,
+    title,
 }: BaseObjectActionDialogProps) => {
     // States
     const [donateOpen, setDonateOpen] = useState(false);
@@ -150,20 +150,20 @@ export const BaseObjectActionDialog = ({
         <>
             {/* Report dialog */}
             <ReportDialog
-                reportFor={objectType}
                 forId={objectId}
-                open={reportOpen}
                 onClose={closeReport}
+                open={reportOpen}
+                reportFor={objectType}
                 session={session}
             />
             {/* Actual action dialog */}
             <ListMenu
-                id={`${objectType}-options-menu-${objectId}`}
                 anchorEl={anchorEl}
-                title={title}
                 data={data}
-                onSelect={onSelect}
+                id={`${objectType}-options-menu-${objectId}`}
                 onClose={onClose}
+                onSelect={onSelect}
+                title={title}
             />
         </>
     )

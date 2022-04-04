@@ -14,15 +14,15 @@ import {
 } from "@mui/icons-material";
 import { containerShadow } from "styles";
 import { StandardViewProps } from "../types";
-import { BaseObjectActionDialog } from "components";
+import { BaseObjectActionDialog, SelectLanguageDialog } from "components";
 import { BaseObjectAction } from "components/dialogs/types";
-import { getTranslation } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils";
 import { validate as uuidValidate } from 'uuid';
 import { Standard } from "types";
 
 export const StandardView = ({
-    session,
     partialData,
+    session,
 }: StandardViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
@@ -41,23 +41,39 @@ export const StandardView = ({
     }, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(standard?.role ?? ''), [standard]);
 
+    const [language, setLanguage] = useState<string>('');
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        const availableLanguages = standard?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+        const userLanguages = getUserLanguages(session);
+        setAvailableLanguages(availableLanguages);
+        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
+    }, [session, standard]);
+
     const { contributedBy, description, name } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
         return {
             contributedBy: standard?.creator ?
                 standard.creator.__typename === 'User' ?
                     (standard?.creator as standard_standard_creator_User).username :
-                    getTranslation((standard?.creator as standard_standard_creator_Organization), 'name', session?.languages ?? navigator.languages) :
+                    getTranslation((standard?.creator as standard_standard_creator_Organization), 'name', getUserLanguages(session), true) :
                 null,
-            description: getTranslation(standard, 'description', languages) ?? getTranslation(partialData, 'description', languages),
+            description: getTranslation(standard, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             name: standard?.name ?? partialData?.name,
         };
-    }, [standard, partialData, session]);
+    }, [language, partialData, session, standard]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
         setLocation(Boolean(params?.id) ? `${APP_LINKS.Standard}/edit/${id}` : `${APP_LINKS.SearchStandards}/edit/${id}`);
-    }, [setLocation, id]);
+    }, [id, params?.id, setLocation]);
+
+    // More menu
+    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
+    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
+        setMoreMenuAnchor(ev.currentTarget);
+        ev.preventDefault();
+    }, []);
+    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -122,7 +138,7 @@ export const StandardView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [standard])
+    ), [contributedBy, description, name, openMoreMenu])
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {
@@ -143,14 +159,6 @@ export const StandardView = ({
         return options;
     }, [standard, session, canEdit]);
 
-    // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
-        setMoreMenuAnchor(ev.currentTarget);
-        ev.preventDefault();
-    }, []);
-    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-
     return (
         <>
             {/* Popup menu displayed when "More" ellipsis pressed */}
@@ -166,7 +174,27 @@ export const StandardView = ({
                 onClose={closeMoreMenu}
                 session={session}
             />
-            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+            <Box sx={{
+                display: 'flex',
+                paddingTop: 5,
+                paddingBottom: 5,
+                background: "#b2b3b3",
+                position: "relative",
+            }}>
+                {/* Language display/select */}
+                <Box sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                }}>
+                    <SelectLanguageDialog
+                        availableLanguages={availableLanguages}
+                        canDropdownOpen={availableLanguages.length > 1}
+                        handleSelect={setLanguage}
+                        language={language}
+                        session={session}
+                    />
+                </Box>
                 {overviewComponent}
             </Box>
         </>

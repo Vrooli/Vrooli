@@ -15,10 +15,10 @@ export const NodeColumn = ({
     isEditing,
     columnIndex,
     labelVisible,
+    language,
     dragId,
     nodes,
     scale = 1,
-    session,
 }: NodeColumnProps) => {
     // Padding between cells
     const padding = useMemo(() => scale * 25, [scale]);
@@ -76,7 +76,7 @@ export const NodeColumn = ({
                         {...nodeProps}
                         canExpand={true}
                         handleUpdate={handleNodeUpdate}
-                        session={session}
+                        language={language}
                     />)
                 case NodeType.Start:
                     return <StartNode {...nodeProps} />
@@ -84,7 +84,7 @@ export const NodeColumn = ({
                     return null;
             }
         })
-    }, [dragId, nodes, scale, labelVisible, isEditing]);
+    }, [dragId, isEditing, labelVisible, nodes, scale]);
 
     return (
         <Stack

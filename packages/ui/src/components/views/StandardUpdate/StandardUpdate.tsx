@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField } from "@mui/material"
+import { Box, CircularProgress, Grid } from "@mui/material"
 import { useRoute } from "wouter";
 import { APP_LINKS } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
@@ -11,21 +11,21 @@ import PubSub from 'pubsub-js';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, Pubs, updateTranslation } from "utils";
+import { formatForUpdate, getLanguageSubtag, getUserLanguages, Pubs, updateTranslation } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
-import { TagSelector } from "components";
+import { LanguageInput, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { Organization } from "types";
 
 export const StandardUpdate = ({
-    session,
-    onUpdated,
     onCancel,
+    onUpdated,
+    session,
 }: StandardUpdateProps) => {
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Standard}/edit/:id`);
@@ -35,14 +35,11 @@ export const StandardUpdate = ({
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
     useEffect(() => {
         if (id) getData({ variables: { input: { id } } });
-    }, [id])
+    }, [getData, id])
     const standard = useMemo(() => data?.standard, [data]);
 
     // Handle tags
     const [tags, setTags] = useState<TagSelectorTag[]>([]);
-    useEffect(() => {
-        setTags(standard?.tags ?? []);
-    }, [standard]);
     const addTag = useCallback((tag: TagSelectorTag) => {
         setTags(t => [...t, tag]);
     }, [setTags]);
@@ -52,6 +49,42 @@ export const StandardUpdate = ({
     const clearTags = useCallback(() => {
         setTags([]);
     }, [setTags]);
+
+    // Handle translations
+    type Translation = {
+        language: string;
+        description: string;
+    };
+    const [translations, setTranslations] = useState<Translation[]>([]);
+    const deleteTranslation = useCallback((language: string) => {
+        setTranslations([...translations.filter(t => t.language !== language)]);
+    }, [translations, setTranslations]);
+    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
+        // Find translation
+        const index = translations.findIndex(t => language === t.language);
+        // If language exists, update
+        if (index >= 0) {
+            const newTranslations = [...translations];
+            newTranslations[index] = { ...translation };
+            return newTranslations;
+        }
+        // Otherwise, add new
+        else {
+            return [...translations, translation];
+        }
+    }, [translations]);
+    const updateTranslation = useCallback((language: string, translation: Translation) => {
+        setTranslations(getTranslationsUpdate(language, translation));
+    }, [translations, setTranslations]);
+
+    useEffect(() => {
+        setTags(standard?.tags ?? []);
+        setTranslations(standard?.translations?.map(t => ({
+            id: t.id,
+            language: t.language,
+            description: t.description ?? '',
+        })) ?? []);
+    }, [standard]);
 
     // Handle update
     const [mutation] = useMutation<standard>(standardUpdateMutation);
@@ -67,13 +100,17 @@ export const StandardUpdate = ({
                 tagsCreate: tags.filter(t => !t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
             } : {};
+            const allTranslations = getTranslationsUpdate(language, {
+                language,
+                description: values.description,
+            })
             mutationWrapper({
                 mutation,
-                input: formatForUpdate(standard, { 
-                    id, 
+                input: formatForUpdate(standard, {
+                    id,
                     organizationId: (standard?.creator as Organization)?.id ?? undefined,
                     ...tagsUpdate,
-                    translations: updateTranslation(standard as any, { language: 'en', description: values.description })
+                    translations: allTranslations,
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.standardUpdate) },
                 onError: (response) => {
@@ -82,6 +119,66 @@ export const StandardUpdate = ({
             })
         },
     });
+
+    // Handle languages
+    const [language, setLanguage] = useState<string>('');
+    const [languages, setLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        if (languages.length === 0 && translations.length > 0) {
+            setLanguage(translations[0].language);
+            setLanguages(translations.map(t => t.language));
+            formik.setValues({
+                ...formik.values,
+                description: translations[0].description,
+            })
+        }
+    }, [languages, setLanguage, setLanguages, translations])
+    const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
+        // Update translation
+        updateTranslation(oldLanguage, {
+            language: newLanguage,
+            description: formik.values.description,
+        });
+        // Change selection
+        setLanguage(newLanguage);
+        // Update languages
+        const newLanguages = [...languages];
+        const index = newLanguages.findIndex(l => l === oldLanguage);
+        if (index >= 0) {
+            newLanguages[index] = newLanguage;
+            setLanguages(newLanguages);
+        }
+    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    const updateFormikTranslation = useCallback((language: string) => {
+        const existingTranslation = translations.find(t => t.language === language);
+        formik.setValues({
+            ...formik.values,
+            description: existingTranslation?.description ?? '',
+        });
+    }, [formik.setValues, translations]);
+    const handleLanguageSelect = useCallback((newLanguage: string) => {
+        // Update old select
+        updateTranslation(language, {
+            language,
+            description: formik.values.description,
+        })
+        // Update formik
+        updateFormikTranslation(newLanguage);
+        // Change language
+        setLanguage(newLanguage);
+    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    const handleAddLanguage = useCallback((newLanguage: string) => {
+        setLanguages([...languages, newLanguage]);
+        handleLanguageSelect(newLanguage);
+    }, [handleLanguageSelect, languages, setLanguages]);
+    const handleLanguageDelete = useCallback((language: string) => {
+        const newLanguages = [...languages.filter(l => l !== language)]
+        if (newLanguages.length === 0) return;
+        deleteTranslation(language);
+        updateFormikTranslation(newLanguages[0]);
+        setLanguage(newLanguages[0]);
+        setLanguages(newLanguages);
+    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, Boolean(formik.isSubmitting || !formik.isValid), true, () => { }],
@@ -94,6 +191,17 @@ export const StandardUpdate = ({
 
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
+            <Grid item xs={12}>
+                <LanguageInput
+                    currentLanguage={language}
+                    handleAdd={handleAddLanguage}
+                    handleChange={handleLanguageChange}
+                    handleDelete={handleLanguageDelete}
+                    handleSelect={handleLanguageSelect}
+                    languages={languages}
+                    session={session}
+                />
+            </Grid>
             {/* TODO */}
             <Grid item xs={12} marginBottom={4}>
                 <TagSelector

@@ -20,6 +20,7 @@ import { standardQuery, standardsQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { standard, standardVariables } from 'graphql/generated/standard';
 import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
+import { getUserLanguages } from 'utils';
 
 const helpText =
     `This dialog allows you to connect a new or existing standard to a routine input/output.
@@ -55,17 +56,17 @@ export const AddStandardDialog = ({
             handleAdd(standardData.standard);
             handleClose();
         }
-    }, [standardData, handleCreateClose]);
+    }, [handleCreateClose, standardData]);
 
     /**
      * Title bar with help button and close icon
      */
     const titleBar = useMemo(() => (
         <Box sx={{
+            alignItems: 'center',
             background: (t) => t.palette.primary.dark,
             color: (t) => t.palette.primary.contrastText,
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'space-between',
             padding: 2,
         }}>
@@ -99,17 +100,16 @@ export const AddStandardDialog = ({
         >
             {/* Popup for creating a new standard */}
             <BaseObjectDialog
-                title={"Create Standard"}
-                open={isCreateOpen}
                 hasPrevious={false}
                 hasNext={false}
                 onAction={handleCreateClose}
-                session={session}
+                open={isCreateOpen}
+                title={"Create Standard"}
             >
                 <StandardCreate
-                    session={session}
                     onCreated={handleCreated}
                     onCancel={handleCreateClose}
+                    session={session}
                 />
             </BaseObjectDialog>
             {titleBar}
@@ -117,29 +117,19 @@ export const AddStandardDialog = ({
                 <Stack direction="column" spacing={4}>
                     <Button
                         fullWidth
-                        startIcon={<CreateIcon />}
                         onClick={handleCreateOpen}
+                        startIcon={<CreateIcon />}
                     >Create</Button>
                     <Box sx={{
-                        display: 'flex',
                         alignItems: 'center',
+                        display: 'flex',
                         justifyContent: 'space-between',
                     }}>
                         <Typography variant="h6" sx={{ marginLeft: 'auto', marginRight: 'auto' }}>Or</Typography>
                     </Box>
                     <SearchList
-                        searchPlaceholder={'Select existing standard...'}
-                        sortOptions={StandardSortOptions}
                         defaultSortOption={standardDefaultSortOption}
-                        query={standardsQuery}
-                        take={20}
-                        searchString={searchString}
-                        sortBy={sortBy}
-                        timeFrame={timeFrame}
-                        noResultsText={"None found. Maybe you should create one?"}
-                        setSearchString={setSearchString}
-                        setSortBy={setSortBy}
-                        setTimeFrame={setTimeFrame}
+                        getOptionLabel={standardOptionLabel}
                         listItemFactory={(node: Standard, index: number) => (
                             <StandardListItem
                                 key={`standard-list-item-${index}`}
@@ -148,9 +138,19 @@ export const AddStandardDialog = ({
                                 data={node}
                                 onClick={(_e, selected: Standard) => handeStandardSelect(selected)}
                             />)}
-                        getOptionLabel={standardOptionLabel}
+                        noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handeStandardSelect(newValue)}
+                        query={standardsQuery}
+                        searchPlaceholder={'Select existing standard...'}
+                        searchString={searchString}
+                        setSearchString={setSearchString}
                         session={session}
+                        setSortBy={setSortBy}
+                        setTimeFrame={setTimeFrame}
+                        sortBy={sortBy}
+                        sortOptions={StandardSortOptions}
+                        take={20}
+                        timeFrame={timeFrame}
                     />
                 </Stack>
             </DialogContent>

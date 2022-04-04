@@ -32,6 +32,7 @@ export const RoutineSubnode = ({
     handleEdit,
     handleDelete,
     handleUpdate,
+    language,
 }: RoutineSubnodeProps) => {
     console.log('ROUTINE SUBNODE RENDER', data, data.id);
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
@@ -53,7 +54,7 @@ export const RoutineSubnode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {
             ...data,
-            translations: updateTranslationField(data, 'title', newLabel, 'en') as any[],
+            translations: updateTranslationField(data, 'title', newLabel, language) as any[],
         });
     }, [handleUpdate, data]);
 

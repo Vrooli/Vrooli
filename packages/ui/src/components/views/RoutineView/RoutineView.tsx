@@ -13,7 +13,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunRoutineView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getTranslation, getUserLanguages, Pubs } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { ResourceList, Routine, User } from "types";
 import Markdown from "markdown-to-jsx";
 import { routineDeleteOneMutation } from "graphql/mutation";
@@ -25,8 +25,8 @@ import { containerShadow } from "styles";
 const TERTIARY_COLOR = '#95f3cd';
 
 export const RoutineView = ({
-    session,
     partialData,
+    session,
 }: RoutineViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
@@ -41,7 +41,6 @@ export const RoutineView = ({
     const routine = useMemo(() => data?.routine, [data]);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null); // Routine may change if it is starred/upvoted/etc.
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role ?? ''), [routine]);
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = () => setDeleteOpen(true);
@@ -65,12 +64,19 @@ export const RoutineView = ({
         })
     }, [routine, routineDelete])
 
+    const [language, setLanguage] = useState<string>('');
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        const availableLanguages = routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+        const userLanguages = getUserLanguages(session);
+        setAvailableLanguages(availableLanguages);
+        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
+    }, [routine]);
     const { title, description, instructions } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
         return {
-            title: getTranslation(routine, 'title', languages) ?? getTranslation(partialData, 'title', languages),
-            description: getTranslation(routine, 'description', languages) ?? getTranslation(partialData, 'description', languages),
-            instructions: getTranslation(routine, 'instructions', languages) ?? getTranslation(partialData, 'instructions', languages),
+            title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),
+            description: getTranslation(routine, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
+            instructions: getTranslation(routine, 'instructions', [language]) ?? getTranslation(partialData, 'instructions', [language]),
         };
     }, [routine, partialData, session]);
 
@@ -79,8 +85,8 @@ export const RoutineView = ({
      */
     const ownedBy = useMemo<string | null>(() => {
         if (!routine?.owner) return null;
-        return getTranslation(routine.owner, 'username', languages) ?? getTranslation(routine.owner, 'name', languages);
-    }, [routine?.owner, languages]);
+        return getTranslation(routine.owner, 'username', [language], true) ?? getTranslation(routine.owner, 'name', [language], true);
+    }, [routine?.owner, language]);
 
     /**
      * Navigate to owner's profile

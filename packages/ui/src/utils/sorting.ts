@@ -5,16 +5,18 @@ import { ValueOf } from '@local/shared';
  * Converts GraphQL sort values to User-Friendly labels
  */
  export const SortValueToLabelMap = {
-    'CommentsAsc': 'Least Comments',
-    'CommentsDesc': 'Comments',
-    'StarsAsc': 'Least Stars',
-    'StarsDesc': 'Stars',
-    'ForksAsc': 'Least Forks',
-    'ForksDesc': 'Forks',
-    'DateCreatedAsc': 'Oldest',
-    'DateCreatedDesc': 'Newest',
-    'DateUpdatedAsc': 'Least Recent',
-    'DateUpdatedDesc': 'Most Recent',
+    'CommentsAsc': 'Comments ↑',
+    'CommentsDesc': 'Comments ↓',
+    'StarsAsc': 'Stars ↑',
+    'StarsDesc': 'Stars ↓',
+    'VotesAsc': 'Votes ↑',
+    'VotesDesc': 'Votes ↓',
+    'ForksAsc': 'Forks ↑',
+    'ForksDesc': 'Forks ↓',
+    'DateCreatedAsc': 'Old',
+    'DateCreatedDesc': 'New',
+    'DateUpdatedAsc': 'Recent ↑',
+    'DateUpdatedDesc': 'Recent ↓',
 }
 export type SortValueToLabelMap = ValueOf<typeof SortValueToLabelMap>;
 

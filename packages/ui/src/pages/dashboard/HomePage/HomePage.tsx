@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Grid, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
@@ -132,7 +132,7 @@ export const HomePage = ({
             return b.stars - a.stars;
         });
         return options;
-    }, [data]);
+    }, [data, languages]);
 
     const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
     const openCreateDialog = useCallback(() => { setCreateDialogOpen(true) }, [setCreateDialogOpen]);
@@ -265,7 +265,7 @@ export const HomePage = ({
             }
         }
         return listFeeds;
-    }, [feedOrder, loading, organizations, projects, routines, standards, users, openSearch]);
+    }, [feedOrder, getFeedTitle, loading, organizations, projects, routines, session, standards, users, openSearch]);
 
     return (
         <Box id="page">

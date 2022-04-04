@@ -9,9 +9,9 @@ import { APP_LINKS } from '@local/shared';
 import { Organization } from 'types';
 
 export const OrganizationDialog = ({
-    hasPrevious,
-    hasNext,
     canEdit = false,
+    hasNext,
+    hasPrevious,
     partialData,
     session
 }: OrganizationDialogProps) => {
@@ -57,22 +57,33 @@ export const OrganizationDialog = ({
     const child = useMemo(() => {
         switch (state) {
             case 'add':
-                return <OrganizationCreate session={session} onCreated={(data: Organization) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <OrganizationCreate
+                    onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onCreated={(data: Organization) => onAction(ObjectDialogAction.Add, data)}
+                    session={session}
+                />
             case 'edit':
-                return <OrganizationUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <OrganizationUpdate
+                    onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onUpdated={() => onAction(ObjectDialogAction.Save)}
+                    session={session}
+
+                />
             default:
-                return <OrganizationView session={session} partialData={partialData} />
+                return <OrganizationView
+                    partialData={partialData}
+                    session={session}
+                />
         }
-    }, [state, onAction, session, partialData]);
+    }, [onAction, partialData, session, state]);
 
     return (
         <BaseObjectDialog
-            title={title}
-            open={Boolean(params?.params)}
-            hasPrevious={hasPrevious}
             hasNext={hasNext}
+            hasPrevious={hasPrevious}
             onAction={onAction}
-            session={session}
+            open={Boolean(params?.params)}
+            title={title}
         >
             {child}
         </BaseObjectDialog>

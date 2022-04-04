@@ -16,7 +16,7 @@ export const SearchActorsPage = ({
     const [selectedItem, setSelectedItem] = useState<User | undefined>(undefined);
     const handleSelected = useCallback((selected: User) => {
         setSelectedItem(selected);
-    }, [setLocation]);
+    }, []);
     useEffect(() => {
         if (selectedItem) {
             setLocation(`${APP_LINKS.SearchUsers}/view/${selectedItem.id}`);

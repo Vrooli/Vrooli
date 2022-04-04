@@ -1,7 +1,7 @@
 export * from './transitions';
-export * from './ResourceDialog/ResourceDialog';
 export * from './AddStandardDialog/AddStandardDialog';
 export * from './AddSubroutineDialog/AddSubroutineDialog';
+export * from './AdvancedSearchDialog/AdvancedSearchDialog'
 export * from './AlertDialog/AlertDialog';
 export * from './BaseObjectActionDialog/BaseObjectActionDialog';
 export * from './BaseObjectDialog/BaseObjectDialog';
@@ -13,6 +13,7 @@ export * from './BuildInfoDialog/BuildInfoDialog';
 export * from './OrganizationDialog/OrganizationDialog';
 export * from './ProjectDialog/ProjectDialog';
 export * from './ReportDialog/ReportDialog';
+export * from './ResourceDialog/ResourceDialog';
 export * from './RoutineDialog/RoutineDialog';
 export * from './RunStepsDialog/RunStepsDialog';
 export * from './SelectLanguageDialog/SelectLanguageDialog';

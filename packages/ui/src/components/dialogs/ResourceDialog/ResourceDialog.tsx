@@ -13,7 +13,7 @@ import { formatForCreate, getTranslation, getUserLanguages, Pubs } from 'utils';
 import { resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate } from 'graphql/generated/resourceUpdate';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 
 const helpText =
@@ -63,12 +63,11 @@ export const ResourceDialog = ({
     title = 'Add Resource',
     listId,
 }: ResourceDialogProps) => {
-    console.log('resource dialog', partialData)
-
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
 
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
 
     const formik = useFormik({
         initialValues: {

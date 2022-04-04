@@ -3,23 +3,26 @@ import { Routine, Session } from "types";
 import { BuildStatusObject } from "components/graphs/NodeGraph/types";
 
 export interface TitleContainerProps {
-    id?: string;
-    title?: string;
-    onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
-    loading?: boolean;
-    tooltip?: string;
+    children: JSX.Element | JSX.Element[];
     helpText?: string;
+    id?: string;
+    loading?: boolean;
+    onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
     options?: [string, (e?: any) => void][];
     sx?: object;
-    children: JSX.Element | JSX.Element[];
+    title?: string;
+    tooltip?: string;
 }
 
 // label, Icon, disabled, isSubmit, onClick
 export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 
 export interface DialogActionsContainerProps {
-    fixed?: boolean; // if true, the actions will be fixed to the bottom of the window
     actions: DialogActionItem[];
+    /**
+     * If true, the actions will be fixed to the bottom of the window
+     */
+    fixed?: boolean;
     onResize?: ({ height: number, width: number }) => any;
 }
 
@@ -31,8 +34,8 @@ export interface BuildBottomContainerProps {
     handleAdd: () => void;
     handleUpdate: () => void;
     handleScaleChange: (scale: number) => void;
-    hasPrevious: boolean;
     hasNext: boolean;
+    hasPrevious: boolean;
     isAdding: boolean;
     isEditing: boolean;
     loading: boolean;
@@ -50,7 +53,7 @@ export interface BuildInfoContainerProps {
     handleStartEdit: () => void;
     handleTitleUpdate: (newTitle: string) => void;
     isEditing: boolean;
-    language: string; // Language to display/edit
+    language: string;
     routine: Routine | null;
     session: Session;
     status: BuildStatusObject;

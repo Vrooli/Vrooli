@@ -55,7 +55,7 @@ export const BuildInfoDialog = ({
     const ownedBy = useMemo<string | null>(() => {
         if (!routine?.owner) return null;
         return getTranslation(routine.owner, 'username', [language]) ?? getTranslation(routine.owner, 'name', [language]);
-    }, [routine?.owner, language]);
+    }, [language, routine?.owner]);
 
     /**
      * Navigate to owner's profile
@@ -95,7 +95,7 @@ export const BuildInfoDialog = ({
             )
         }
         return results;
-    }, [isEditing, routine]);
+    }, [isEditing]);
 
     // Handle update
     const formik = useFormik({

@@ -2,22 +2,22 @@ import { profile_profile } from "graphql/generated/profile";
 import { DecisionStep, Node, Organization, Project, Routine, Session, Standard, User } from "types";
 
 export interface CreateProps<T> {
-    session: Session;
-    onCreated: (item: T) => void;
     onCancel: () => void;
+    onCreated: (item: T) => void;
+    session: Session;
 }
 export interface UpdateProps<T> {
-    session: Session;
-    onUpdated: (item: T) => void;
     onCancel: () => void;
+    onUpdated: (item: T) => void;
+    session: Session;
 }
 export interface ViewProps<T> {
-    session: Session;
     /**
      * Any data about the object which is already known, 
      * such as its name. Can be displayed while fetching the full object
      */
     partialData?: Partial<T>;
+    session: Session;
 }
 
 export interface OrganizationCreateProps extends CreateProps<Organization> {}
@@ -32,7 +32,9 @@ export interface RoutineCreateProps extends CreateProps<Routine> {}
 export interface RoutineUpdateProps extends UpdateProps<Routine> {}
 export interface RoutineViewProps extends ViewProps<Routine> {}
 
-export interface StandardCreateProps extends CreateProps<Standard> {}
+export interface StandardCreateProps extends CreateProps<Standard> {
+    session: Session;
+}
 export interface StandardUpdateProps extends UpdateProps<Standard> {}
 export interface StandardViewProps extends ViewProps<Standard> {}
 

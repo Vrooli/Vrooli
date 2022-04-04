@@ -43,7 +43,7 @@ export const SubroutineInfoDialog = ({
     const ownedBy = useMemo<string | null>(() => {
         if (!subroutine?.owner) return null;
         return getTranslation(subroutine.owner, 'username', [language]) ?? getTranslation(subroutine.owner, 'name', [language]);
-    }, [subroutine?.owner, language]);
+    }, [language, subroutine?.owner]);
 
     /**
      * Navigate to owner's profile
@@ -59,7 +59,7 @@ export const SubroutineInfoDialog = ({
         } else {
             setLocation(`${APP_LINKS.Organization}/${subroutine?.owner.id}`);
         }
-    }, [subroutine?.owner, setLocation]);
+    }, [setLocation, subroutine?.owner]);
 
     // Handle update
     const formik = useFormik({

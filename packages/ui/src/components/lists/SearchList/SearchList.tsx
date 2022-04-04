@@ -1,14 +1,29 @@
 import { useQuery } from "@apollo/client";
-import { Box, Button, CircularProgress, Grid, List, Typography } from "@mui/material";
-import { AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
+import { Box, Button, CircularProgress, List, SxProps, Theme, Tooltip, Typography } from "@mui/material";
+import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { containerShadow } from "styles";
+import { clickSize, containerShadow } from "styles";
 import {
     AccessTime as TimeIcon,
     Add as AddIcon,
+    Build as AdvancedIcon,
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
+
+const searchButtonStyle = {
+    ...clickSize,
+    display: 'flex',
+    borderRadius: '50px',
+    border: `1px solid ${(t) => t.palette.secondary.main}`,
+    margin: 1,
+    padding: 1,
+    cursor: 'pointer',
+    '&:hover': {
+        transform: 'scale(1.1)',
+    },
+    transition: 'transform 0.2s ease-in-out',
+};
 
 export function SearchList<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
     handleAdd,
@@ -31,6 +46,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     noResultsText = 'No results',
     session,
 }: SearchListProps<DataType, SortBy>) {
+    console.log('default sort option', defaultSortOption);
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
     const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption.label ?? sortOptions.length > 0 ? sortOptions[0].label : 'Sort');
@@ -177,19 +193,32 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         )
     }, [listItems, loading]);
 
+    // Handle advanced search dialog
+    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
+    const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
+    const handleAdvancedSearchDialogClose = useCallback(() => { setAdvancedSearchDialogOpen(false) }, []);
+
     return (
         <>
+            {/* Dialog for setting advanced search items */}
+            <AdvancedSearchDialog
+                handleClose={handleAdvancedSearchDialogClose}
+                isOpen={advancedSearchDialogOpen}
+                session={session}
+            />
+            {/* Menu for selecting "sort by" type */}
             <SortMenu
                 sortOptions={sortOptions}
                 anchorEl={sortAnchorEl}
                 onClose={handleSortClose}
             />
+            {/* Menu for selecting time created */}
             <TimeMenu
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
             />
-            <Grid container spacing={2} margin="auto" width="min(100%, 600px)">
-                <Grid item xs={12} sm={8}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <Box sx={{ width: 'min(100%, 400px)' }}>
                     <AutocompleteSearchBar
                         id={`search-bar`}
                         placeholder={searchPlaceholder}
@@ -202,34 +231,37 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onInputChange={onInputSelect}
                         session={session}
                     />
-                </Grid>
-                <Grid item xs={6} sm={2}>
-                    <Button
-                        color="secondary"
-                        fullWidth
-                        startIcon={<SortListIcon />}
+                </Box>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
+                <Tooltip title="Sort by" placement="top">
+                    <Box
                         onClick={handleSortOpen}
-                        sx={{
-                            height: '100%',
-                        }}
+                        sx={{ ...searchButtonStyle }}
                     >
+                        <SortListIcon sx={{ fill: (t) => t.palette.secondary.main }} />
                         {sortByLabel}
-                    </Button>
-                </Grid>
-                <Grid item xs={6} sm={2}>
-                    <Button
-                        color="secondary"
-                        fullWidth
-                        startIcon={<TimeIcon />}
+                    </Box>
+                </Tooltip>
+                <Tooltip title="Time created" placement="top">
+                    <Box
                         onClick={handleTimeOpen}
-                        sx={{
-                            height: '100%',
-                        }}
+                        sx={{ ...searchButtonStyle }}
                     >
+                        <TimeIcon sx={{ fill: (t) => t.palette.secondary.main }} />
                         {timeFrameLabel}
-                    </Button>
-                </Grid>
-            </Grid>
+                    </Box>
+                </Tooltip>
+                <Tooltip title="See all search settings" placement="top">
+                    <Box
+                        onClick={handleAdvancedSearchDialogOpen}
+                        sx={{ ...searchButtonStyle }}
+                    >
+                        <AdvancedIcon sx={{ fill: (t) => t.palette.secondary.main }} />
+                        Advanced
+                    </Box>
+                </Tooltip>
+            </Box>
             {searchResultContainer}
             {/* Add new button */}
             {Boolean(handleAdd) && <Box sx={{

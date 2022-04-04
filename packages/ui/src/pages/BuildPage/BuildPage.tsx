@@ -39,6 +39,11 @@ export const BuildPage = ({
     const [, params] = useRoute(`${APP_LINKS.Build}/:id`);
     const id: string = useMemo(() => params?.id ?? '', [params]);
     const [isEditing, setIsEditing] = useState<boolean>(false);
+
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
+    const handleLanguageUpdate = useCallback((language: string) => { setLanguage(language); }, []);
+
     // Queries routine data
     const [getData, { data: routineData, loading: loadingRead }] = useLazyQuery<routine, routineVariables>(routineQuery);
     useEffect(() => {
@@ -69,14 +74,14 @@ export const BuildPage = ({
                 nodes: [startNode, endNode],
                 nodeLinks: [link],
                 translations: [{
-                    language: 'en',
+                    language,
                     title: 'New Routine',
                     instructions: 'Enter instructions here',
                 }]
             } as Routine)
             setIsEditing(true);
         }
-    }, [id, getData]);
+    }, [id, getData, language]);
     const [routine, setRoutine] = useState<Routine | null>(null);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     useEffect(() => { if (routineData?.routine) setRoutine(routineData?.routine ?? null) }, [routineData]);
@@ -91,9 +96,6 @@ export const BuildPage = ({
     const [scale, setScale] = useState<number>(1);
     const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
     
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const handleLanguageUpdate = useCallback((language: string) => { setLanguage(language); }, []);
-
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
     const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
@@ -425,7 +427,7 @@ export const BuildPage = ({
         if (!changedRoutine) return;
         setChangedRoutine({
             ...changedRoutine, translations: [
-                { language: 'en', title },
+                { language, title },
             ]
         } as any);
     }, [changedRoutine]);
@@ -1014,21 +1016,22 @@ export const BuildPage = ({
                 </Tooltip>
                 {/* Displays unlinked nodes */}
                 <UnlinkedNodesDialog
-                    open={isUnlinkedNodesOpen}
-                    nodes={nodesOffGraph}
                     handleNodeDelete={handleNodeDelete}
                     handleToggleOpen={toggleUnlinkedNodes}
-                    session={session}
+                    language={language}
+                    nodes={nodesOffGraph}
+                    open={isUnlinkedNodesOpen}
                 />
             </Box> : null}
             <Box sx={{
-                width: '100%',
+                bottom: '0',
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'fixed',
-                bottom: '0',
+                width: '100%',
             }}>
                 <NodeGraph
+                    columns={columns}
                     handleAction={handleAction}
                     handleLinkCreate={handleLinkCreate}
                     handleLinkUpdate={handleLinkUpdate}
@@ -1040,10 +1043,8 @@ export const BuildPage = ({
                     labelVisible={true}
                     language={language}
                     links={changedRoutine?.nodeLinks ?? []}
-                    columns={columns}
                     nodesById={nodesById}
                     scale={scale}
-                    session={session}
                 />
                 <BuildBottomContainer
                     canCancelMutate={!loading}
@@ -1053,8 +1054,8 @@ export const BuildPage = ({
                     handleAdd={createRoutine}
                     handleUpdate={updateRoutine}
                     handleScaleChange={handleScaleChange}
-                    hasPrevious={false}
                     hasNext={false}
+                    hasPrevious={false}
                     isAdding={id === 'add'}
                     isEditing={isEditing}
                     loading={loading}

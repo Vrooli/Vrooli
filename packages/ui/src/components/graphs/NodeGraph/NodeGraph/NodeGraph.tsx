@@ -40,7 +40,6 @@ export const NodeGraph = ({
     links,
     nodesById,
     scale = 1,
-    session,
 }: NodeGraphProps) => {
     // Stores edges
     const [edges, setEdges] = useState<JSX.Element[]>([])
@@ -227,7 +226,7 @@ export const NodeGraph = ({
         if (nodesInColumn.length === 1 && nodesInColumn[0].id === nodeId) return;
         // Complete drop
         handleNodeDrop(nodeId, columnIndex, rowIndex);
-    }, [scale, nodesById]);
+    }, [nodesById, scale]);
 
     // Set listeners for:
     // - click-and-drag background
@@ -379,11 +378,11 @@ export const NodeGraph = ({
                 handleEdit={() => { }}
             />
         }).filter(edge => edge) as JSX.Element[];
-    }, [dragId, nodesById, isEditing, links, scale]);
+    }, [dragId, isEditing, links, nodesById, scale]);
 
     useEffect(() => {
         setEdges(calculateEdges());
-    }, [dragId, nodesById, isEditing, links, scale]);
+    }, [dragId, isEditing, links, nodesById, scale]);
 
     /**
      * Node column objects
@@ -399,11 +398,11 @@ export const NodeGraph = ({
             handleNodeUpdate={handleNodeUpdate}
             isEditing={isEditing}
             labelVisible={labelVisible}
+            language={language}
             nodes={col}
             scale={scale}
-            session={session}
         />)
-    }, [columns, isEditing, scale, labelVisible, dragId]);
+    }, [columns, dragId, isEditing, labelVisible, scale]);
 
     return (
         <Box id="graph-root" position="relative" sx={{

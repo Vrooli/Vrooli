@@ -67,11 +67,11 @@ export interface NodeGraphProps {
      * Delete a link between two nodes
      */
     handleLinkDelete: (link: NodeLink) => void;
+    language: string;
     /**
      * Dictionary of row and column pairs for every node ID on graph
      */
     nodesById: { [x: string]: Node };
-    session: Session;
 }
 
 /**
@@ -88,7 +88,7 @@ export interface NodeColumnProps {
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
     handleNodeUpdate: (updatedNode: Node) => void;
-    session: Session;
+    language: string;
 }
 
 export interface NodeEdgeProps {

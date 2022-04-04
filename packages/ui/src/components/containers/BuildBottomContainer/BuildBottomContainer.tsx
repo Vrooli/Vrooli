@@ -61,13 +61,13 @@ export const BuildBottomContainer = ({
     const slider = useMemo(() => (
         <CustomSlider
             aria-label="graph-scale"
-            min={0.25}
-            max={1}
             defaultValue={1}
+            max={1}
+            min={0.25}
+            onChange={onScaleChange}
             step={0.01}
             value={scale}
             valueLabelDisplay="auto"
-            onChange={onScaleChange}
             sx={{ color: sliderColor, maxWidth: '500px', marginRight: 4 }}
         />
     ), [scale, sliderColor, onScaleChange]);
@@ -83,17 +83,17 @@ export const BuildBottomContainer = ({
                     (
                         <Stack direction="row" spacing={1}>
                             <Button
-                                fullWidth
-                                startIcon={<AddIcon />}
-                                onClick={handleAdd}
                                 disabled={loading || !canSubmitMutate}
+                                fullWidth
+                                onClick={handleAdd}
+                                startIcon={<AddIcon />}
                                 sx={{ width: 'min(25vw, 150px)' }}
                             >Create</Button>
                             <Button
-                                fullWidth
-                                startIcon={<CancelIcon />}
-                                onClick={handleCancelAdd}
                                 disabled={loading || !canCancelMutate}
+                                fullWidth
+                                onClick={handleCancelAdd}
+                                startIcon={<CancelIcon />}
                                 sx={{ width: 'min(25vw, 150px)' }}
                             >Cancel</Button>
                         </Stack>
@@ -101,17 +101,17 @@ export const BuildBottomContainer = ({
                     (
                         <Stack direction="row" spacing={1}>
                             <Button
-                                fullWidth
-                                startIcon={<UpdateIcon />}
-                                onClick={handleUpdate}
                                 disabled={loading || !canSubmitMutate}
+                                fullWidth
+                                onClick={handleUpdate}
+                                startIcon={<UpdateIcon />}
                                 sx={{ width: 'min(25vw, 150px)' }}
                             >Update</Button>
                             <Button
-                                fullWidth
-                                startIcon={<CancelIcon />}
-                                onClick={handleCancelUpdate}
                                 disabled={loading || !canCancelMutate}
+                                fullWidth
+                                onClick={handleCancelUpdate}
+                                startIcon={<CancelIcon />}
                                 sx={{ width: 'min(25vw, 150px)' }}
                             >Cancel</Button>
                         </Stack>
@@ -144,21 +144,21 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                 </Stack>
             )
-    }, [hasPrevious, hasNext, isEditing, isAdding, loading, canSubmitMutate, canCancelMutate, handleAdd, handleUpdate, handleCancelAdd, handleCancelUpdate, runState, runRoutine]);
+    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleCancelUpdate, handleUpdate, hasNext, hasPrevious, isAdding, isEditing, loading, runRoutine, runState]);
 
     return (
         <Box p={2} sx={{
+            alignItems: 'center',
             background: (t) => t.palette.primary.light,
             display: 'flex',
             justifyContent: 'center',
-            alignItems: 'center',
             paddingBottom: { xs: '72px', md: '16px' },
         }}>
             <Dialog
-                id="run-routine-view-dialog"
                 fullScreen
-                open={isRunOpen}
+                id="run-routine-view-dialog"
                 onClose={stopRoutine}
+                open={isRunOpen}
                 TransitionComponent={UpTransition}
             >
                 <RunRoutineView

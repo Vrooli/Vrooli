@@ -11,7 +11,7 @@ import {
     Close as CloseIcon
 } from '@mui/icons-material';
 import { getUserLanguages, Pubs } from 'utils';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 
 const helpText =
@@ -37,15 +37,16 @@ const ReportReasons = {
 }
 
 export const ReportDialog = ({
-    open,
-    onClose,
-    title = 'Report',
-    reportFor,
     forId,
+    onClose,
+    open,
+    reportFor,
     session,
+    title = 'Report',
 }: ReportDialogProps) => {
 
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
 
     const [mutation, { loading }] = useMutation<reportCreate>(reportCreateMutation);
     const formik = useFormik({

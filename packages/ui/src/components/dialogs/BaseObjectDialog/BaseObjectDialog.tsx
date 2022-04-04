@@ -14,26 +14,22 @@ import {
     ChevronLeft as PreviousIcon,
     ChevronRight as NextIcon,
     Close as CloseIcon,
-    Language as LanguageIcon,
 } from '@mui/icons-material';
 import { UpTransition } from 'components';
 import { useCallback, useState } from 'react';
-import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction, ObjectDialogState } from '../types';
-import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
-import { getUserLanguages } from 'utils';
+import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction } from '../types';
 
 /**
  * Dialog for displaying any "Add" form
  * @returns 
  */
 export const BaseObjectDialog = ({
-    title,
-    open = true,
-    hasPrevious,
-    hasNext,
-    onAction,
     children,
-    session,
+    hasNext,
+    hasPrevious,
+    onAction,
+    open = true,
+    title,
 }: BaseObjectDialogProps) => {
     const [scrollTarget, setScrollTarget] = useState<HTMLElement | undefined>(undefined);
     const scrollTrigger = useScrollTrigger({ target: scrollTarget });
@@ -41,8 +37,6 @@ export const BaseObjectDialog = ({
     const onClose = useCallback(() => onAction(ObjectDialogAction.Close), [onAction]);
     const onPrevious = useCallback(() => onAction(ObjectDialogAction.Previous), [onAction]);
     const onNext = useCallback(() => onAction(ObjectDialogAction.Next), [onAction]);
-
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     return (
         <Dialog
@@ -76,12 +70,6 @@ export const BaseObjectDialog = ({
                                 <Typography variant="h5">
                                     {title}
                                 </Typography>
-                                {/* Language display/select */}
-                                <SelectLanguageDialog
-                                    handleSelect={setLanguage}
-                                    language={language}
-                                    session={session}
-                                />
                                 {/* Navigate to next */}
                                 {hasNext && (
                                     <Tooltip title="Next" placement="bottom">

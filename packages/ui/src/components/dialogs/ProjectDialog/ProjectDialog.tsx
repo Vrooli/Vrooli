@@ -1,5 +1,5 @@
 import { ProjectView } from 'components';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BaseObjectDialog } from '..';
 import { ProjectUpdate } from 'components/views/ProjectUpdate/ProjectUpdate';
 import { ProjectDialogProps, ObjectDialogAction } from 'components/dialogs/types';
@@ -7,11 +7,12 @@ import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ProjectCreate } from 'components/views/ProjectCreate/ProjectCreate';
 import { Project } from 'types';
+import { getUserLanguages } from 'utils';
 
 export const ProjectDialog = ({
-    hasPrevious,
-    hasNext,
     canEdit = false,
+    hasNext,
+    hasPrevious,
     partialData,
     session
 }: ProjectDialogProps) => {
@@ -44,7 +45,7 @@ export const ProjectDialog = ({
     }, [id, setLocation]);
 
     const title = useMemo(() => {
-        switch(state) {
+        switch (state) {
             case 'add':
                 return 'Add Project';
             case 'edit':
@@ -55,24 +56,34 @@ export const ProjectDialog = ({
     }, [state]);
 
     const child = useMemo(() => {
-        switch(state) {
+        switch (state) {
             case 'add':
-                return <ProjectCreate session={session} onCreated={(data: Project) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <ProjectCreate
+                    onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onCreated={(data: Project) => onAction(ObjectDialogAction.Add, data)}
+                    session={session}
+                />
             case 'edit':
-                return <ProjectUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <ProjectUpdate
+                    onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onUpdated={() => onAction(ObjectDialogAction.Save)}
+                    session={session}
+                />
             default:
-                return <ProjectView session={session} partialData={partialData} />
+                return <ProjectView
+                    partialData={partialData}
+                    session={session}
+                />
         }
-    }, [state, partialData, onAction, session]);
+    }, [onAction, partialData, session, state]);
 
     return (
         <BaseObjectDialog
-            title={title}
-            open={Boolean(params?.params)}
-            hasPrevious={hasPrevious}
             hasNext={hasNext}
+            hasPrevious={hasPrevious}
             onAction={onAction}
-            session={session}
+            open={Boolean(params?.params)}
+            title={title}
         >
             {child}
         </BaseObjectDialog>

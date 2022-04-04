@@ -35,8 +35,8 @@ export function SettingsPage({
     session,
 }: SettingsPageProps) {
     const [location, setLocation] = useLocation();
-    const selectedPage = useMemo<string>(() => { return parseSearchParams(window.location.search).page ?? 'profile' }, [window.location.search]);
-    const editing = useMemo<boolean>(() => Boolean(parseSearchParams(window.location.search).editing), [window.location.search]);
+    const selectedPage = useMemo<string>(() => { return parseSearchParams(window.location.search).page ?? 'profile' }, []);
+    const editing = useMemo<boolean>(() => Boolean(parseSearchParams(window.location.search).editing), []);
 
     // Fetch profile data
     const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery);

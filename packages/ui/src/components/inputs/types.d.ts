@@ -36,6 +36,16 @@ export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
     session: Session;
 }
 
+export interface LanguageInputProps {
+    currentLanguage: string;
+    handleAdd: (language: string) => any;
+    handleChange: (oldLanguage: string, newLanguage: string) => any;
+    handleDelete: (language: string) => any;
+    handleSelect: (language: string) => any;
+    languages: string[];
+    session: Session;
+}
+
 export interface MarkdownInputProps extends TextFieldProps {
     id: string;
     disabled?: boolean;

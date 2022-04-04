@@ -5,10 +5,8 @@ import { HelpButton, ProjectListItem, ResourceListHorizontal, TitleContainer } f
 import { profile } from 'graphql/generated/profile';
 import { profileUpdateMutation } from 'graphql/mutation';
 import { profileQuery } from 'graphql/query';
-import { mutationWrapper } from 'graphql/utils/wrappers';
 import { useCallback, useEffect, useMemo } from 'react';
 import { ResourceList } from 'types';
-import { formatForUpdate, Pubs } from 'utils';
 import { DevelopPageProps } from '../types';
 
 const completedText =

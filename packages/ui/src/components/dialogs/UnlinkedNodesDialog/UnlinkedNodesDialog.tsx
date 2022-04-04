@@ -15,18 +15,18 @@ import {
 } from '@mui/material';
 import { UnlinkedNodesDialogProps } from '../types';
 import { containerShadow } from 'styles';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
-import { getTranslation, getUserLanguages } from 'utils';
+import { getTranslation } from 'utils';
 
 export const UnlinkedNodesDialog = ({
-    open,
-    nodes,
     handleNodeDelete,
     handleToggleOpen,
-    session,
+    language,
+    nodes,
+    open,
 }: UnlinkedNodesDialogProps) => {
 
     /**
@@ -56,15 +56,13 @@ export const UnlinkedNodesDialog = ({
                     {...nodeProps}
                     canExpand={false}
                     labelVisible={true}
+                    language={language}
                     handleUpdate={() => { }} // Intentionally blank
-                    session={session}
                 />
             default:
                 return null;
         }
     }, [])
-
-    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     return (
         <Box id="unlinked-nodes-dialog" sx={{
@@ -112,9 +110,9 @@ export const UnlinkedNodesDialog = ({
                                 {createNode(node)}
                             </Box>
                             {/* Node title */}
-                            {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', languages, true)}</Typography>)}
+                            {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', [language], true)}</Typography>)}
                             {/* Delete node icon */}
-                            <Tooltip title={`Delete ${getTranslation(node, 'title', languages, true)} node`} placement="left">
+                            <Tooltip title={`Delete ${getTranslation(node, 'title', [language], true)} node`} placement="left">
                                 <Box sx={{ marginLeft: 'auto' }}>
                                     <IconButton
                                         color="inherit"

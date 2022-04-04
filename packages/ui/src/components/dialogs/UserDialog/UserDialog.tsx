@@ -11,9 +11,9 @@ import { APP_LINKS } from '@local/shared';
 import { Pubs } from 'utils';
 
 export const UserDialog = ({
-    hasPrevious,
-    hasNext,
     canEdit = false,
+    hasNext,
+    hasPrevious,
     partialData,
     session
 }: UserDialogProps) => {
@@ -42,8 +42,8 @@ export const UserDialog = ({
             case ObjectDialogAction.Save:
                 mutationWrapper({
                     mutation: update,
-                    input: { },
-                    onSuccess: ({ data }) => { 
+                    input: {},
+                    onSuccess: ({ data }) => {
                         const id = data?.id;
                         if (id) setLocation(`${APP_LINKS.SearchUsers}/view/${id}`, { replace: true });
                     },
@@ -53,10 +53,10 @@ export const UserDialog = ({
                 })
                 break;
         }
-    },  [update, del, setLocation, state]);
+    }, [del, setLocation, state, update]);
 
     const title = useMemo(() => {
-        switch(state) {
+        switch (state) {
             case 'edit':
                 return 'Edit Profile';
             default:
@@ -66,12 +66,11 @@ export const UserDialog = ({
 
     return (
         <BaseObjectDialog
-            title={title}
-            open={Boolean(params?.params)}
-            hasPrevious={hasPrevious}
             hasNext={hasNext}
+            hasPrevious={hasPrevious}
             onAction={onAction}
-            session={session}
+            open={Boolean(params?.params)}
+            title={title}
         >
             <UserView session={session} partialData={partialData} />
         </BaseObjectDialog>

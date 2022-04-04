@@ -26,8 +26,8 @@ export const LogInForm = ({
     onFormChange = () => { }
 }: LogInFormProps) => {
     const [, setLocation] = useLocation();
-    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
-    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, [window.location.search]);
+    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), []);
+    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, []);
 
     const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
 

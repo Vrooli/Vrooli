@@ -17,7 +17,7 @@ export const SearchProjectsPage = ({
     const [selectedItem, setSelectedItem] = useState<Project | undefined>(undefined);
     const handleSelected = useCallback((selected: Project) => {
         setSelectedItem(selected);
-    }, [setLocation]);
+    }, []);
     useEffect(() => {
         if (selectedItem) {
             setLocation(`${APP_LINKS.SearchProjects}/view/${selectedItem.id}`);

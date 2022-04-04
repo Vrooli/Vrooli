@@ -4,7 +4,6 @@ import {
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
 import { ResourceListHorizontal } from "components";
-import { BaseForm } from "forms";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { containerShadow } from "styles";

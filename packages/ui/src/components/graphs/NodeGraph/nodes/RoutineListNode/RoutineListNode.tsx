@@ -34,10 +34,10 @@ export const RoutineListNode = ({
     handleUpdate,
     isLinked,
     labelVisible,
+    language,
     isEditing,
     node,
     scale = 1,
-    session,
 }: RoutineListNodeProps) => {
     // Stores position of click/touch start, to cancel click event if drag occurs
     const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
@@ -51,7 +51,7 @@ export const RoutineListNode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate({
             ...node,
-            translations: updateTranslationField(node, 'title', newLabel, 'en') as any[],
+            translations: updateTranslationField(node, 'title', newLabel, language) as any[],
         });
     }, [handleUpdate, node]);
 
@@ -99,7 +99,7 @@ export const RoutineListNode = ({
 
     const { label } = useMemo(() => {
         return {
-            label: getTranslation(node, 'title', getUserLanguages(session), true),
+            label: getTranslation(node, 'title', [language], true),
         }
     }, [node]);
 
@@ -229,6 +229,7 @@ export const RoutineListNode = ({
             isEditing={isEditing}
             isOpen={collapseOpen}
             labelVisible={labelVisible}
+            language={language}
             scale={scale}
         />
     )), [collapseOpen, node?.data, isEditing, labelVisible, scale]);

@@ -1,3 +1,4 @@
+import { MouseEvent } from 'react';
 import { DialogProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { SvgIconComponent } from '@mui/icons-material';
@@ -6,28 +7,65 @@ import { Node, NodeLink, Organization, Project, Resource, Routine, RoutineStep, 
 
 export interface AlertDialogProps extends DialogProps { };
 
-export interface FormDialogProps {
+export interface BaseObjectDialogProps extends DialogProps {
+    children: JSX.Element | JSX.Element[];
+    hasNext?: boolean;
+    hasPrevious?: boolean;
+    /**
+     * Callback when option button or close button is pressed
+     */
+    onAction: (state: ObjectDialogAction) => any;
+    open: boolean;
     title: string;
+};
+
+export interface DeleteRoutineDialogProps {
+    handleClose: () => any;
+    handleDelete: () => any;
+    isOpen: boolean;
+    routineName: string;
+}
+
+export interface FormDialogProps {
     children: JSX.Element;
     maxWidth?: string | number;
     onClose: () => void;
+    title: string;
 }
 
 export interface ListMenuItemData<T> {
-    label: string; // Text to display
-    value: T; // Value to pass back
-    Icon?: SvgIconComponent; // Icon to display
-    iconColor?: string; // Color of icon, if different than text
+    /**
+     * Displays help button with data
+     */
+    helpData?: HelpButtonProps;
+    /**
+     * Icon to display
+     */
+    Icon?: SvgIconComponent;
+    /**
+     * Color of Icon, if different than text
+     */
+    iconColor?: string;
+    /**
+     * Text to display
+     */
+    label: string;
+    /**
+     * Determines if the item is a preview (i.e. not selectable, coming soon)
+     */
     preview?: boolean; // Determines if the item is a preview (i.e. not selectable, coming soon)
-    helpData?: HelpButtonProps; // If set, displays help button with data
+    /**
+     * Value to pass back when selected
+     */
+    value: T;
 }
 export interface ListMenuProps<T> {
-    id: string;
     anchorEl: HTMLElement | null;
+    data?: ListMenuItemData<T>[];
+    id: string;
     onSelect: (value: T) => void;
     onClose: () => void;
     title?: string;
-    data?: ListMenuItemData<T>[];
 }
 
 export enum ObjectDialogState {
@@ -45,53 +83,11 @@ export enum ObjectDialogAction {
     Save = 'Save',
 }
 
-export interface BaseObjectDialogProps extends DialogProps {
-    title: string;
-    open: boolean;
-    hasPrevious?: boolean;
-    hasNext?: boolean;
-    onAction: (state: ObjectDialogAction) => any; // Callback when option button or close button is pressed
-    children: JSX.Element | JSX.Element[];
-    session: Session;
-};
-
-export interface DeleteRoutineDialogProps {
-    handleClose: () => any;
-    handleDelete: () => any;
-    isOpen: boolean;
-    routineName: string;
-}
-
-export interface ShareDialogProps extends DialogProps {
-    open: boolean;
-    onClose: () => any;
-}
-
-export interface ReportDialogProps extends DialogProps {
-    open: boolean;
-    onClose: () => any;
-    title?: string;
-    reportFor: ReportFor;
-    forId: string;
-    session: Session;
-}
-
-export interface ResourceDialogProps extends DialogProps {
-    isAdd: boolean; // Determines if mutation is an add or edit
-    mutate: boolean; // Determines if add resource should be called by this dialog, or is handled later
-    open: boolean;
-    onClose: () => any;
-    onCreated: (resource: Resource) => any;
-    onUpdated: (index: number, resource: Resource) => any;
-    index?: number;
-    partialData?: Partial<Resource>;
-    session: Session;
-    title?: string;
-    listId: string;
-}
-
 export interface OrganizationDialogProps {
-    canEdit?: boolean; // Can only edit if you own the object
+    /**
+     * Can only edit if you own the object
+     */
+    canEdit?: boolean;
     hasPrevious?: boolean;
     hasNext?: boolean;
     partialData?: Partial<Organization>;
@@ -99,23 +95,66 @@ export interface OrganizationDialogProps {
 };
 
 export interface ProjectDialogProps {
-    canEdit?: boolean; // Can only edit if you own the object
+    /**
+     * Can only edit if you own the object
+     */
+    canEdit?: boolean;
     hasPrevious?: boolean;
     hasNext?: boolean;
     partialData?: Partial<Project>;
     session: Session;
 };
 
+export interface ReportDialogProps extends DialogProps {
+    forId: string;
+    onClose: () => any;
+    open: boolean;
+    reportFor: ReportFor;
+    session: Session;
+    title?: string;
+}
+
+export interface ResourceDialogProps extends DialogProps {
+    /**
+     * Determines if mutation is an add or edit
+     */
+    isAdd: boolean;
+    index?: number;
+    listId: string;
+    /**
+     * Determines if add resource should be called by this dialog, or is handled later
+     */
+    mutate: boolean;
+    onClose: () => any;
+    onCreated: (resource: Resource) => any;
+    open: boolean;
+    onUpdated: (index: number, resource: Resource) => any;
+    partialData?: Partial<Resource>;
+    session: Session;
+    title?: string;
+}
+
 export interface RoutineDialogProps {
-    canEdit?: boolean; // Can only edit if you own the object
+    /**
+     * Can only edit if you own the object
+     */
+    canEdit?: boolean;
     hasPrevious?: boolean;
     hasNext?: boolean;
     partialData?: Partial<Routine>;
     session: Session;
 };
 
+export interface ShareDialogProps extends DialogProps {
+    open: boolean;
+    onClose: () => any;
+}
+
 export interface StandardDialogProps {
-    canEdit?: boolean; // Can only edit if you own the object
+    /**
+     * Can only edit if you own the object
+     */
+    canEdit?: boolean;
     hasPrevious?: boolean;
     hasNext?: boolean;
     partialData?: Partial<Standard>;
@@ -123,7 +162,10 @@ export interface StandardDialogProps {
 };
 
 export interface UserDialogProps {
-    canEdit?: boolean; // Can only edit if you own the object
+    /**
+     * Can only edit if you own the object
+     */
+    canEdit?: boolean;
     hasPrevious?: boolean;
     hasNext?: boolean;
     partialData?: Partial<User>;
@@ -151,16 +193,16 @@ export enum BaseObjectAction {
 }
 
 export interface BaseObjectActionDialogProps {
+    anchorEl: HTMLElement | null;
+    availableOptions: BaseObjectAction[];
     handleActionComplete: (action: BaseObjectAction, data: any) => any;
     handleDelete: () => any;
     handleEdit: () => any;
     objectId: string;
     objectType: string;
-    title: string;
-    anchorEl: HTMLElement | null;
-    availableOptions: BaseObjectAction[];
     onClose: () => any;
     session: Session;
+    title: string;
 }
 
 export interface LinkDialogProps {
@@ -177,7 +219,7 @@ export interface BuildInfoDialogProps {
     handleAction: (action: BaseObjectAction) => any;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
-    language: string; // Language to display/edit
+    language: string;
     routine: Routine | null;
     session: Session;
     sxs?: { icon: any };
@@ -187,18 +229,21 @@ export interface SubroutineInfoDialogProps {
     handleUpdate: (updatedSubroutine: Routine) => any;
     handleViewFull: () => any;
     isEditing: boolean;
+    language: string;
     open: boolean;
-    language: string; // Language to display/edit
     subroutine: Routine | null;
     onClose: () => any;
 }
 
 export interface UnlinkedNodesDialogProps {
-    open: boolean;
-    nodes: Node[];
     handleNodeDelete: (nodeId: string) => any;
-    handleToggleOpen: () => any; // Expand/shrink dialog
-    session: Session;
+    /**
+     * Expand/shrink dialog
+     */
+    handleToggleOpen: () => any;
+    language: string;
+    nodes: Node[];
+    open: boolean;
 }
 
 export interface CreateNewDialogProps {
@@ -210,7 +255,10 @@ export interface RunStepsDialogProps {
     handleLoadSubroutine: (id: string) => any;
     handleStepParamsUpdate: (step: number[]) => any;
     history: Array<number>[];
-    percentComplete: number; // Out of 100
+    /**
+     * Out of 100
+     */
+    percentComplete: number;
     routineId: string | null | undefined;
     stepList: RoutineStep | null;
     sxs?: { icon: any };
@@ -234,8 +282,32 @@ export interface AddSubroutineDialogProps {
 }
 
 export interface SelectLanguageDialogProps {
-    availableLanguages?: string[]; // Languages to restrict selection to
-    handleSelect: (language: string) => any; // Callback when language is selected
-    language: string; // Selected language
-    session: Session; // Contains user's languages
+    /**
+     * Languages to restrict selection to
+     */
+    availableLanguages?: string[];
+    canDelete?: boolean;
+    canDropdownOpen?: boolean;
+    color?: string;
+    handleDelete?: () => any;
+    /**
+     * Callback when language is selected
+     */
+    handleSelect: (language: string) => any;
+    /**
+     * Selected language
+     */
+    language: string;
+    onClick?: (event: MouseEvent<HTMLDivElement>) => any;
+    /**
+     * Contains user's languages. These are displayed at the top of the language selection list
+     */
+    session: Session;
+    sxs?: { root: any };
+}
+
+export interface AdvancedSearchDialogProps {
+    handleClose: () => any;
+    isOpen: boolean;
+    session: Session;
 }

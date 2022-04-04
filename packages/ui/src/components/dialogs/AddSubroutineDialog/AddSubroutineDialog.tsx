@@ -15,7 +15,6 @@ import {
     Close as CloseIcon
 } from '@mui/icons-material';
 import { Routine } from 'types';
-import { Pubs } from 'utils';
 import { routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList } from 'components/lists';
 import { routineQuery, routinesQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
@@ -58,7 +57,7 @@ export const AddSubroutineDialog = ({
             handleAdd(nodeId, routineData.routine);
             handleClose();
         }
-    }, [routineData, handleCreateClose]);
+    }, [handleCreateClose, routineData]);
 
     /**
      * Title bar with help button and close icon
@@ -102,17 +101,16 @@ export const AddSubroutineDialog = ({
         >
             {/* Popup for creating a new routine */}
             <BaseObjectDialog
-                title={"Create Routine"}
-                open={isCreateOpen}
-                hasPrevious={false}
                 hasNext={false}
+                hasPrevious={false}
                 onAction={handleCreateClose}
-                session={session}
+                open={isCreateOpen}
+                title={"Create Routine"}
             >
                 <RoutineCreate
-                    session={session}
-                    onCreated={handleCreated}
                     onCancel={handleCreateClose}
+                    onCreated={handleCreated}
+                    session={session}
                 />
             </BaseObjectDialog>
             {titleBar}
@@ -120,30 +118,19 @@ export const AddSubroutineDialog = ({
                 <Stack direction="column" spacing={4}>
                     <Button
                         fullWidth
-                        startIcon={<CreateIcon />}
                         onClick={handleCreateOpen}
+                        startIcon={<CreateIcon />}
                     >Create</Button>
                     <Box sx={{
-                        display: 'flex',
                         alignItems: 'center',
+                        display: 'flex',
                         justifyContent: 'space-between',
                     }}>
                         <Typography variant="h6" sx={{ marginLeft: 'auto', marginRight: 'auto' }}>Or</Typography>
                     </Box>
                     <SearchList
-                        searchPlaceholder={'Select existing subroutine...'}
-                        sortOptions={RoutineSortOptions}
                         defaultSortOption={routineDefaultSortOption}
-                        query={routinesQuery}
-                        where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
-                        take={20}
-                        searchString={searchString}
-                        sortBy={sortBy}
-                        timeFrame={timeFrame}
-                        noResultsText={"None found. Maybe you should create one?"}
-                        setSearchString={setSearchString}
-                        setSortBy={setSortBy}
-                        setTimeFrame={setTimeFrame}
+                        getOptionLabel={routineOptionLabel}
                         listItemFactory={(node: Routine, index: number) => (
                             <RoutineListItem
                                 key={`routine-list-item-${index}`}
@@ -152,9 +139,20 @@ export const AddSubroutineDialog = ({
                                 data={node}
                                 onClick={(_e, selected: Routine) => handleRoutineSelect(selected)}
                             />)}
-                        getOptionLabel={routineOptionLabel}
+                        noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
+                        query={routinesQuery}
+                        searchPlaceholder={'Select existing subroutine...'}
+                        searchString={searchString}
                         session={session}
+                        setSearchString={setSearchString}
+                        setSortBy={setSortBy}
+                        setTimeFrame={setTimeFrame}
+                        sortOptions={RoutineSortOptions}
+                        sortBy={sortBy}
+                        take={20}
+                        timeFrame={timeFrame}
+                        where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
                     />
                 </Stack>
             </DialogContent>

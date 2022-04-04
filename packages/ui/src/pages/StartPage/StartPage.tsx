@@ -51,8 +51,8 @@ export const StartPage = ({
     session,
 }: StartPageProps) => {
     const [, setLocation] = useLocation();
-    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
-    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, [window.location.search]);
+    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), []);
+    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, []);
 
     const [emailLogIn] = useMutation<emailLogIn>(emailLogInMutation);
     const [guestLogIn] = useMutation<any>(guestLogInMutation);
@@ -104,7 +104,7 @@ export const StartPage = ({
                 setPopupForm(Forms.LogIn);
             }
         }
-    })
+    }, [emailLogIn, verificationCode, redirect, session.id])
 
     // Wallet connect popup
     const [walletOptionPopupOpen, setWalletOptionPopupOpen] = useState(false);
@@ -163,7 +163,7 @@ export const StartPage = ({
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
         }
-    }, [downloadExtension, setLocation, redirect, toEmailLogIn])
+    }, [downloadExtension, openWalletDownloadDialog, setLocation, redirect, toEmailLogIn])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({
@@ -175,6 +175,9 @@ export const StartPage = ({
         })
     }, [guestLogIn, setLocation, redirect]);
 
+    const handleWalletDialogClose = useCallback(() => {
+        setWalletOptionPopupOpen(false);
+    }, [])
     const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
         if (walletDialogFor === 'connect') {
             walletLogin(selected);
@@ -182,10 +185,7 @@ export const StartPage = ({
             downloadExtension(selected);
         }
         handleWalletDialogClose();
-    }, []);
-    const handleWalletDialogClose = useCallback(() => {
-        setWalletOptionPopupOpen(false);
-    }, []);
+    }, [walletDialogFor, walletLogin, downloadExtension, handleWalletDialogClose])
 
     return (
         <Box

@@ -80,7 +80,7 @@ export interface RoutineListNodeProps extends NodeDataProps, ScaleProps, Labelle
     canExpand: boolean;
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleUpdate: (updatedNode: Node) => void; 
-    session: Session;
+    language: string;
 }
 
 /**
@@ -93,6 +93,7 @@ export interface RoutineSubnodeProps extends ScaleProps, LabelledProps, Editable
     handleEdit: (subroutineId: string) => void;
     handleDelete: (subroutineId: string) => void;
     handleUpdate: (subroutineId: string, updatedSubroutine: NodeDataRoutineListItem) => void; 
+    language: string;
 }
 
 /**

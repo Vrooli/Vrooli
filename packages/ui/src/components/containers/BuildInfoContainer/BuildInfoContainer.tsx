@@ -172,12 +172,13 @@ export const BuildInfoContainer = ({
                 )}
                 text={getTranslation(routine, 'title', [language], false) ?? 'Loading...'}
             />
-            <SelectLanguageDialog
-                handleSelect={handleLanguageUpdate}
-                language={language}
-                session={session}
-            />
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                {/* Language select */}
+                <SelectLanguageDialog
+                    handleSelect={handleLanguageUpdate}
+                    language={language}
+                    session={session}
+                />
                 {/* Edit button */}
                 {canEdit && !isEditing ? (
                     <IconButton aria-label="confirm-title-change" onClick={handleStartEdit} >

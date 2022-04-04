@@ -5,16 +5,16 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
-import { formatForCreate } from "utils";
+import { formatForCreate, getUserLanguages } from "utils";
 import { ProjectCreateProps } from "../types";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
 import {
     Add as CreateIcon,
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
-import { ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
+import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { Organization } from "types";
 import { ResourceList } from "types";
@@ -22,10 +22,11 @@ import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
 
 export const ProjectCreate = ({
-    session,
     onCreated,
     onCancel,
+    session,
 }: ProjectCreateProps) => {
+
     // Handle user/organization switch
     const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
     const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
@@ -48,6 +49,34 @@ export const ProjectCreate = ({
         setTags([]);
     }, [setTags]);
 
+    // Handle translations
+    type Translation = {
+        language: string;
+        description: string;
+        name: string;
+    };
+    const [translations, setTranslations] = useState<Translation[]>([]);
+    const deleteTranslation = useCallback((language: string) => {
+        setTranslations([...translations.filter(t => t.language !== language)]);
+    }, [translations, setTranslations]);
+    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
+        // Find translation
+        const index = translations.findIndex(t => language === t.language);
+        // If language exists, update
+        if (index >= 0) {
+            const newTranslations = [...translations];
+            newTranslations[index] = { ...translation };
+            return newTranslations;
+        }
+        // Otherwise, add new
+        else {
+            return [...translations, translation];
+        }
+    }, [translations]);
+    const updateTranslation = useCallback((language: string, translation: Translation) => {
+        setTranslations(getTranslationsUpdate(language, translation));
+    }, [translations, setTranslations]);
+
     // Handle create
     const [mutation] = useMutation<project>(projectCreateMutation);
     const formik = useFormik({
@@ -63,15 +92,16 @@ export const ProjectCreate = ({
                 tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
             } : {};
             const createdFor = organizationFor ? { createdByOrganizationId: organizationFor.id } : {};
+            const allTranslations = getTranslationsUpdate(language, {
+                language,
+                description: values.description,
+                name: values.name,
+            })
             mutationWrapper({
                 mutation,
                 input: formatForCreate({
                     ...createdFor,
-                    translations: [{
-                        language: 'en',
-                        name: values.name,
-                        description: values.description,
-                    }],
+                    translations: allTranslations,
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd
                 }) as any,
@@ -79,6 +109,66 @@ export const ProjectCreate = ({
             })
         },
     });
+
+    // Handle languages
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    const [languages, setLanguages] = useState<string[]>([getUserLanguages(session)[0]]);
+    useEffect(() => {
+        if (languages.length === 0) {
+            const userLanguage = getUserLanguages(session)[0]
+            setLanguage(userLanguage)
+            setLanguages([userLanguage])
+        }
+    }, [languages, session, setLanguage, setLanguages])
+    const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
+        // Update translation
+        updateTranslation(oldLanguage, {
+            language: newLanguage,
+            description: formik.values.description,
+            name: formik.values.name,
+        });
+        // Change selection
+        setLanguage(newLanguage);
+        // Update languages
+        const newLanguages = [...languages];
+        const index = newLanguages.findIndex(l => l === oldLanguage);
+        if (index >= 0) {
+            newLanguages[index] = newLanguage;
+            setLanguages(newLanguages);
+        }
+    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    const updateFormikTranslation = useCallback((language: string) => {
+        const existingTranslation = translations.find(t => t.language === language);
+        formik.setValues({
+            ...formik.values,
+            description: existingTranslation?.description ?? '',
+            name: existingTranslation?.name ?? '',
+        });
+    }, [formik.setValues, translations]);
+    const handleLanguageSelect = useCallback((newLanguage: string) => {
+        // Update old select
+        updateTranslation(language, {
+            language,
+            description: formik.values.description,
+            name: formik.values.name,
+        })
+        // Update formik
+        updateFormikTranslation(newLanguage);
+        // Change language
+        setLanguage(newLanguage);
+    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    const handleAddLanguage = useCallback((newLanguage: string) => {
+        setLanguages([...languages, newLanguage]);
+        handleLanguageSelect(newLanguage);
+    }, [handleLanguageSelect, languages, setLanguages]);
+    const handleLanguageDelete = useCallback((language: string) => {
+        const newLanguages = [...languages.filter(l => l !== language)]
+        if (newLanguages.length === 0) return;
+        deleteTranslation(language);
+        updateFormikTranslation(newLanguages[0]);
+        setLanguage(newLanguages[0]);
+        setLanguages(newLanguages);
+    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
 
     const actions: DialogActionItem[] = useMemo(() => {
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
@@ -103,6 +193,17 @@ export const ProjectCreate = ({
             <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
                     <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+                </Grid>
+                <Grid item xs={12}>
+                    <LanguageInput
+                        currentLanguage={language}
+                        handleAdd={handleAddLanguage}
+                        handleChange={handleLanguageChange}
+                        handleDelete={handleLanguageDelete}
+                        handleSelect={handleLanguageSelect}
+                        languages={languages}
+                        session={session}
+                    />
                 </Grid>
                 <Grid item xs={12}>
                     <TextField

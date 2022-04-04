@@ -48,32 +48,30 @@ export const ProjectViewPage = ({
         <Box pt="10vh" sx={{ minHeight: '88vh' }}>
             {/* Add dialog */}
             <BaseObjectDialog
-                title={"Add Project"}
-                open={isAddDialogOpen}
-                hasPrevious={false}
                 hasNext={false}
+                hasPrevious={false}
                 onAction={onAction}
-                session={session}
+                open={isAddDialogOpen}
+                title={"Add Project"}
             >
                 <ProjectCreate
-                    session={session}
-                    onCreated={(data: Project) => onAction(ObjectDialogAction.Add, data)}
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onCreated={(data: Project) => onAction(ObjectDialogAction.Add, data)}
+                    session={session}
                 />
             </BaseObjectDialog>
             {/* Update dialog */}
             <BaseObjectDialog
-                title={"Update Project"}
-                open={isEditDialogOpen}
-                hasPrevious={false}
                 hasNext={false}
+                hasPrevious={false}
                 onAction={onAction}
-                session={session}
+                open={isEditDialogOpen}
+                title={"Update Project"}
             >
                 <ProjectUpdate
-                    session={session}
-                    onUpdated={() => onAction(ObjectDialogAction.Save)}
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onUpdated={() => onAction(ObjectDialogAction.Save)}
+                    session={session}
                 />
             </BaseObjectDialog>
             {/* Main view */}
