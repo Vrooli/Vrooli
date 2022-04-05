@@ -51,8 +51,8 @@ export const StartPage = ({
     session,
 }: StartPageProps) => {
     const [, setLocation] = useLocation();
-    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), []);
-    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, []);
+    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
+    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, [window.location.search]);
 
     const [emailLogIn] = useMutation<emailLogIn>(emailLogInMutation);
     const [guestLogIn] = useMutation<any>(guestLogInMutation);
@@ -106,17 +106,17 @@ export const StartPage = ({
         }
     }, [emailLogIn, verificationCode, redirect, session.id])
 
-    // Wallet connect popup
-    const [walletOptionPopupOpen, setWalletOptionPopupOpen] = useState(false);
+    // Wallet provider select popup
+    const [providerOpen, setProviderPopupOpen] = useState(false);
     const [walletDialogFor, setWalletDialogFor] = useState<'connect' | 'download'>('connect');
     const openWalletConnectDialog = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
         setWalletDialogFor('connect');
-        setWalletOptionPopupOpen(true);
+        setProviderPopupOpen(true);
         ev.preventDefault();
     }, []);
     const openWalletDownloadDialog = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
         setWalletDialogFor('download');
-        setWalletOptionPopupOpen(true);
+        setProviderPopupOpen(true);
         ev.preventDefault();
     }, []);
 
@@ -145,7 +145,7 @@ export const StartPage = ({
         // Check if wallet extension installed
         if (!hasWalletExtension(provider)) {
             PubSub.publish(Pubs.AlertDialog, {
-                message: 'Wallet not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
+                message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
                     { text: 'Try Again', onClick: walletLogin },
                     { text: 'Install Wallet', onClick: openWalletDownloadDialog },
@@ -175,8 +175,8 @@ export const StartPage = ({
         })
     }, [guestLogIn, setLocation, redirect]);
 
-    const handleWalletDialogClose = useCallback(() => {
-        setWalletOptionPopupOpen(false);
+    const handleProviderClose = useCallback(() => {
+        setProviderPopupOpen(false);
     }, [])
     const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
         if (walletDialogFor === 'connect') {
@@ -184,8 +184,8 @@ export const StartPage = ({
         } else if (walletDialogFor === 'download') {
             downloadExtension(selected);
         }
-        handleWalletDialogClose();
-    }, [walletDialogFor, walletLogin, downloadExtension, handleWalletDialogClose])
+        handleProviderClose();
+    }, [walletDialogFor, walletLogin, downloadExtension, handleProviderClose])
 
     return (
         <Box
@@ -196,9 +196,9 @@ export const StartPage = ({
             }}
         >
             <Dialog
-                open={walletOptionPopupOpen}
+                open={providerOpen}
                 disableScrollLock={true}
-                onClose={handleWalletDialogClose}
+                onClose={handleProviderClose}
             >
                 <Box
                     sx={{

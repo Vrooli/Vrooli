@@ -15,10 +15,12 @@ export interface profileUpdate_profileUpdate_emails {
   emailAddress: string;
   receivesAccountUpdates: boolean;
   receivesBusinessUpdates: boolean;
+  verified: boolean;
 }
 
 export interface profileUpdate_profileUpdate_wallets {
   __typename: "Wallet";
+  id: string;
   name: string | null;
   publicAddress: string;
   verified: boolean;

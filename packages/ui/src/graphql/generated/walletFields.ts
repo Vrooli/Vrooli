@@ -4,14 +4,13 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL fragment: emailFields
+// GraphQL fragment: walletFields
 // ====================================================
 
-export interface emailFields {
-  __typename: "Email";
+export interface walletFields {
+  __typename: "Wallet";
   id: string;
-  emailAddress: string;
-  receivesAccountUpdates: boolean;
-  receivesBusinessUpdates: boolean;
+  name: string | null;
+  publicAddress: string;
   verified: boolean;
 }

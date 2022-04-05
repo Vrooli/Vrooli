@@ -147,14 +147,14 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
             // Check if user has at least one verified authentication method, besides the one being deleted
             const numberOfVerifiedEmailDeletes = emails.filter(email => email.verified).length;
             const verifiedEmailsCount = await prisma.email.count({
-                where: { userId, verified: true }
+                where: { userId, verified: true }//TODO or organizationId
             })
             const verifiedWalletsCount = await prisma.wallet.count({
-                where: { userId, verified: true }
+                where: { userId, verified: true }//TODO or organizationId
             })
             const wontHaveVerifiedEmail = numberOfVerifiedEmailDeletes >= verifiedEmailsCount;
             const wontHaveVerifiedWallet = verifiedWalletsCount <= 0;
-            if (wontHaveVerifiedEmail || wontHaveVerifiedWallet) throw new CustomError(CODE.InternalError, "Must leave at least one verified authentication method");
+            if (wontHaveVerifiedEmail || wontHaveVerifiedWallet) throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods");
             // Delete
             deleted = await prisma.email.deleteMany({
                 where: { id: { in: deleteMany } },

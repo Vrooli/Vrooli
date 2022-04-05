@@ -62,8 +62,9 @@ export const typeDef = gql`
     }
 
     type WalletComplete {
-        session: Session
         firstLogIn: Boolean!
+        session: Session
+        wallet: Wallet
     }
 
     type Session {
@@ -71,15 +72,6 @@ export const typeDef = gql`
         roles: [String!]!
         theme: String!
         languages: [String!]
-    }
-
-    type Wallet {
-        id: ID!
-        name: String
-        publicAddress: String!
-        verified: Boolean!
-        user: User
-        organization: Organization
     }
 
     extend type Mutation {
@@ -364,9 +356,9 @@ export const resolvers = {
                     }
                 }
             });
-            // If wallet doesn't exist, return error
+            // If wallet doesn't exist, throw error
             if (!walletData) throw new CustomError(CODE.InvalidArgs);
-            // If nonce expired, return error
+            // If nonce expired, throw error
             if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
             // Verify that message was signed by wallet address
             const walletVerified = verifySignedMessage(input.publicAddress, walletData.nonce, input.signedPayload);
@@ -405,13 +397,19 @@ export const resolvers = {
                 });
             }
             // Update wallet and remove nonce data
-            await prisma.wallet.update({
+            const wallet = await prisma.wallet.update({
                 where: { id: walletData.id },
                 data: {
                     verified: true,
                     lastVerifiedTime: new Date().toISOString(),
                     nonce: null,
                     nonceCreationTime: null,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    publicAddress: true,
+                    verified: true,
                 }
             })
             // Create session token
@@ -423,7 +421,11 @@ export const resolvers = {
             }
             // Add session token to return payload
             await generateSessionToken(res, session);
-            return { session, firstLogIn } as WalletComplete;
+            return {
+                firstLogIn,
+                session,
+                wallet,
+            } as WalletComplete;
         },
         walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
             // TODO Must deleting your own

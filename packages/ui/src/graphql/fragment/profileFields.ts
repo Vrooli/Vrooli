@@ -35,8 +35,10 @@ export const profileFields = gql`
             emailAddress
             receivesAccountUpdates
             receivesBusinessUpdates
+            verified
         }
         wallets {
+            id
             name
             publicAddress
             verified

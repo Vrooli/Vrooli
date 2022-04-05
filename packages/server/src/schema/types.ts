@@ -461,8 +461,10 @@ export type Mutation = {
   validateSession: Session;
   vote: Success;
   walletComplete: WalletComplete;
+  walletDeleteOne: Success;
   walletInit: Scalars['String'];
   walletRemove: Success;
+  walletUpdate: Wallet;
   writeAssets?: Maybe<Scalars['Boolean']>;
 };
 
@@ -692,6 +694,11 @@ export type MutationWalletCompleteArgs = {
 };
 
 
+export type MutationWalletDeleteOneArgs = {
+  input: DeleteOneInput;
+};
+
+
 export type MutationWalletInitArgs = {
   input: WalletInitInput;
 };
@@ -699,6 +706,11 @@ export type MutationWalletInitArgs = {
 
 export type MutationWalletRemoveArgs = {
   input: DeleteOneInput;
+};
+
+
+export type MutationWalletUpdateArgs = {
+  input: WalletUpdateInput;
 };
 
 
@@ -2392,6 +2404,7 @@ export type WalletComplete = {
   __typename?: 'WalletComplete';
   firstLogIn: Scalars['Boolean'];
   session?: Maybe<Session>;
+  wallet?: Maybe<Wallet>;
 };
 
 export type WalletCompleteInput = {
@@ -2402,6 +2415,11 @@ export type WalletCompleteInput = {
 export type WalletInitInput = {
   nonceDescription?: InputMaybe<Scalars['String']>;
   publicAddress: Scalars['String'];
+};
+
+export type WalletUpdateInput = {
+  id: Scalars['ID'];
+  name?: InputMaybe<Scalars['String']>;
 };
 
 export type WriteAssetsInput = {

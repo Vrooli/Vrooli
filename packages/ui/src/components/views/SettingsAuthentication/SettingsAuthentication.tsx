@@ -19,6 +19,8 @@ import { useLocation } from "wouter";
 import { containerShadow } from "styles";
 import { logOutMutation } from 'graphql/mutation';
 import { HelpButton } from "components/buttons";
+import { EmailList, WalletList } from "components/lists";
+import { Email, Wallet } from "types";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
@@ -47,6 +49,22 @@ export const SettingsAuthentication = ({
         setLocation(APP_LINKS.Home);
     }, []);
 
+    const updateWallets = useCallback((updatedList: Wallet[]) => {
+        onUpdated({
+            ...profile,
+            wallets: updatedList,
+        });
+    }, [onUpdated, profile]);
+    const numVerifiedEmails = profile?.emails?.filter((email) => email.verified)?.length ?? 0;
+
+    const updateEmails = useCallback((updatedList: Email[]) => {
+        onUpdated({
+            ...profile,
+            emails: updatedList,
+        });
+    }, [onUpdated, profile]);
+    const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
+
     // Handle update
     const [mutation] = useMutation<user>(profileUpdateMutation);
     const formik = useFormik({
@@ -66,37 +84,6 @@ export const SettingsAuthentication = ({
             })
         },
     });
-
-    const walletsGrid = useMemo(() => {
-        if (!profile?.wallets || !profile.wallets.length) return null;
-        const walletCards = profile.wallets.map((wallet, index) => (
-            <Box key={index} sx={{
-                ...containerShadow,
-                borderRadius: 2,
-                margin: 2,
-                marginLeft: 'auto',
-                marginRight: 'auto',
-                padding: 1,
-                maxWidth: 'min(350px, 100%)',
-                lineBreak: 'anywhere',
-                ...cardStyles[Math.floor(Math.random() * cardStyles.length)],
-            }}>
-                {/* Display nickname and public address */}
-                <Typography variant="h6">{wallet.name}</Typography>
-                <Typography variant="body1">{wallet.publicAddress}</Typography>
-                <Typography variant="body1">{wallet.verified ? 'Verified' : 'Not verified'}</Typography>
-            </Box>
-        ));
-        return (
-            <Box sx={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-            }}>
-                {walletCards}
-            </Box>
-        )
-    }, [profile]);
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, !formik.touched || formik.isSubmitting, true, () => { }],
@@ -126,20 +113,18 @@ export const SettingsAuthentication = ({
                             <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
                         </Box>
                         <Typography component="h2" variant="h5" textAlign="center">Connected Wallets</Typography>
-                        <Stack direction="column" spacing={2} sx={{ paddingBottom: 2 }}>
-                            {walletsGrid}
-                            {/* Add wallet button, centered horizontally */}
-                            <Box sx={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                            }}>
-                                <Button color="secondary" startIcon={<AddIcon />}>Add Wallet</Button>
-                            </Box>
-                        </Stack>
+                        <WalletList
+                            handleUpdate={updateWallets}
+                            list={profile?.wallets ?? []}
+                            numVerifiedEmails={numVerifiedEmails}
+                        />
                         <Typography component="h2" variant="h5" textAlign="center">Connected Emails</Typography>
+                        <EmailList
+                            handleUpdate={updateEmails}
+                            list={profile?.emails ?? []}
+                            numVerifiedWallets={numVerifiedWallets}
+                        />
                         <Container sx={{ paddingBottom: 2 }}>
-                            {/* TODO Emails */}
                             <Grid container spacing={2}>
                                 <Grid item xs={12}>
                                     <TextField

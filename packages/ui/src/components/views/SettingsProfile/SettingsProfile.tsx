@@ -6,7 +6,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate } from "utils";
+import { formatForUpdate, getUserLanguages } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -57,8 +57,8 @@ export const SettingsProfile = ({
             id: t.id,
             language: t.language,
             bio: t.bio ?? '',
-        })) ?? []);
-    }, [profile]);
+        })) ?? [{ language: getUserLanguages(session)[0], bio: '' }]);
+    }, [profile, session]);
 
     // Handle update
     const [mutation] = useMutation<user>(profileUpdateMutation);
@@ -90,13 +90,18 @@ export const SettingsProfile = ({
     const [language, setLanguage] = useState<string>('');
     const [languages, setLanguages] = useState<string[]>([]);
     useEffect(() => {
-        if (languages.length === 0 && translations.length > 0) {
-            setLanguage(translations[0].language);
-            setLanguages(translations.map(t => t.language));
-            formik.setValues({
-                ...formik.values,
-                bio: translations[0].bio,
-            })
+        if (languages.length === 0) {
+            if (translations.length > 0) {
+                setLanguage(translations[0].language);
+                setLanguages(translations.map(t => t.language));
+                formik.setValues({
+                    ...formik.values,
+                    bio: translations[0].bio,
+                })
+            } else {
+                setLanguage(getUserLanguages(session)[0]);
+                setLanguages([getUserLanguages(session)[0]]);
+            }
         }
     }, [languages, setLanguage, setLanguages, translations])
     const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {

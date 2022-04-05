@@ -1035,6 +1035,11 @@ export interface WalletInitInput {
   nonceDescription?: string | null;
 }
 
+export interface WalletUpdateInput {
+  id: string;
+  name?: string | null;
+}
+
 export interface WriteAssetsInput {
   files: any[];
 }

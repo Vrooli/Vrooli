@@ -6,5 +6,6 @@ export const emailFields = gql`
         emailAddress
         receivesAccountUpdates
         receivesBusinessUpdates
+        verified
     }
 `

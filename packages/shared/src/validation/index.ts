@@ -34,3 +34,4 @@ export * from './routine';
 export * from './standard';
 export * from './tag';
 export * from './user';
+export * from './wallet';

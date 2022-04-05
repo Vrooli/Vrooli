@@ -45,4 +45,5 @@ export * from './vote';
 export * from './walletComplete';
 export * from './walletInit';
 export * from './walletRemove';
+export * from './walletUpdate';
 export * from './writeAssets';
