@@ -132,6 +132,7 @@ export const ProjectUpdate = ({
                     translations: allTranslations,
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.projectUpdate) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

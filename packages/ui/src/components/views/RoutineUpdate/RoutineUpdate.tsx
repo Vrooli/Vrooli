@@ -135,9 +135,7 @@ export const RoutineUpdate = ({
                     translations: allTranslations,
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
-                onError: (response) => {
-                    PubSub.publish(Pubs.Snack, { message: 'Error occurred.', severity: 'error', data: { error: response } });
-                }
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

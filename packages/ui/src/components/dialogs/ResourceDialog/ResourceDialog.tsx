@@ -100,6 +100,7 @@ export const ResourceDialog = ({
                         formik.resetForm();
                         onClose();
                     },
+                    onError: () => { formik.setSubmitting(false) },
                 })
             } else {
                 onCreated(input as any);

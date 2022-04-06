@@ -61,6 +61,7 @@ export const SignUpForm = ({
                             buttons: [{ text: 'OK', onClick: () => onFormChange(Forms.ForgotPassword) }]
                         });
                     }
+                    formik.setSubmitting(false);
                 }
             })
         },

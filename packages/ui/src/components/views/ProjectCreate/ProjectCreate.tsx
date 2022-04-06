@@ -106,6 +106,7 @@ export const ProjectCreate = ({
                     ...tagsAdd
                 }) as any,
                 onSuccess: (response) => { onCreated(response.data.projectCreate) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

@@ -99,6 +99,7 @@ export const OrganizationCreate = ({
                     ...tagsAdd
                 }) as any,
                 onSuccess: (response) => { onCreated(response.data.organizationCreate) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

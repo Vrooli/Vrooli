@@ -72,6 +72,7 @@ export const ReportDialog = ({
                     formik.resetForm();
                     onClose()
                 },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

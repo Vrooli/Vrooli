@@ -82,6 +82,7 @@ export const SettingsProfile = ({
                     translations: allTranslations,
                 }),
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

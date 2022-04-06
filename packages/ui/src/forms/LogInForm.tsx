@@ -52,6 +52,7 @@ export const LogInForm = ({
                             ]
                         });
                     }
+                    formik.setSubmitting(false);
                 }
             })
         },

@@ -35,6 +35,7 @@ export const ResetPasswordForm = ({
                 input: { id: userId, code, newPassword: values.newPassword },
                 onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailResetPassword); setLocation(APP_LINKS.Home) },
                 successMessage: () => 'Password reset.',
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

@@ -130,6 +130,7 @@ export const OrganizationUpdate = ({
                     translations: allTranslations,
                 }, ['tags'], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.organizationUpdate) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

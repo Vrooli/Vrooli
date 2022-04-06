@@ -107,6 +107,7 @@ export const StandardCreate = ({
                     version: values.version,
                 }) as any,
                 onSuccess: (response) => { onCreated(response.data.standardCreate) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });

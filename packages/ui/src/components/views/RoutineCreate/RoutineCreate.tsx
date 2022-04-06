@@ -110,6 +110,8 @@ export const RoutineCreate = ({
                 instructions: values.instructions,
                 title: values.title,
             })
+            console.log('ON SUBMIT INPUT', inputsAdd)
+            console.log('ON SUBMIT OUTPUT', outputsAdd)
             mutationWrapper({
                 mutation,
                 input: formatForCreate({
@@ -121,6 +123,7 @@ export const RoutineCreate = ({
                     version: values.version,
                 }) as any,
                 onSuccess: (response) => { onCreated(response.data.routineCreate) },
+                onError: () => { formik.setSubmitting(false) }
             })
         },
     });

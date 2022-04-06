@@ -76,6 +76,7 @@ export const SettingsDisplay = ({
                 mutation,
                 input: formatForUpdate(profile, { ...values, starredTags, hiddenTags }),
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });
