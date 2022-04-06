@@ -139,7 +139,7 @@ export const InputOutputListItem = ({
                             fullWidth
                             id="name"
                             name="name"
-                            label="name"
+                            label="identifier"
                             value={formik.values.name}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
