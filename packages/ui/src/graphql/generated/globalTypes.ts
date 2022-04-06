@@ -1026,12 +1026,12 @@ export interface VoteInput {
 }
 
 export interface WalletCompleteInput {
-  publicAddress: string;
+  stakingAddress: string;
   signedPayload: string;
 }
 
 export interface WalletInitInput {
-  publicAddress: string;
+  stakingAddress: string;
   nonceDescription?: string | null;
 }
 

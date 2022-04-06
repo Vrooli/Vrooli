@@ -4,7 +4,6 @@
 import { WalletListProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { Wallet } from 'types';
-import { containerShadow } from 'styles';
 import { Box, Button, Dialog, ListItem, ListItemText, Typography } from '@mui/material';
 import {
     Add as AddIcon,
@@ -81,7 +80,7 @@ export const WalletList = ({
     /**
      * Add new wallet
      */
-     const addWallet = useCallback(async (provider: WalletProvider) => {
+    const addWallet = useCallback(async (provider: WalletProvider) => {
         // Check if wallet extension installed
         if (!hasWalletExtension(provider)) {
             PubSub.publish(Pubs.AlertDialog, {
@@ -96,17 +95,24 @@ export const WalletList = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(provider);
         if (walletCompleteResult?.wallet) {
-            PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' })
-            // Update list
-            handleUpdate([...list, walletCompleteResult.wallet]);
+            // Check if wallet is already in list (i.e. user has already added this wallet)
+            const existingWallet = list.find(w => w.stakingAddress === walletCompleteResult.wallet?.stakingAddress);
+            if (existingWallet) {
+                PubSub.publish(Pubs.Snack, { message: 'Wallet already connected.', severity: 'warning' })
+            }
+            else {
+                PubSub.publish(Pubs.Snack, { message: 'Wallet verified.' });
+                // Update list
+                handleUpdate([...list, walletCompleteResult.wallet]);
+            }
         }
-    }, []);
+    }, [handleUpdate, list, openProviderDownloadDialog]);
 
     /**
      * Verify existing wallet
      */
     const verifyWallet = useCallback(async (provider: WalletProvider) => {
-        if (!selectedIndex) return;
+        if (selectedIndex === null) return;
         // Check if wallet extension installed
         if (!hasWalletExtension(provider)) {
             PubSub.publish(Pubs.AlertDialog, {
@@ -172,12 +178,12 @@ export const WalletList = ({
                 ))}
             </Dialog>
             <Box sx={{
-                ...containerShadow,
                 overflow: 'overlay',
+                border: `1px solid #e0e0e0`,
                 borderRadius: '8px',
                 maxWidth: '1000px',
-                marginLeft: 'auto',
-                marginRight: 'auto',
+                marginLeft: 1,
+                marginRight: 1,
             }}>
                 {/* Wallet list */}
                 {list.map((w: Wallet, index) => (
@@ -193,14 +199,20 @@ export const WalletList = ({
             </Box>
             {/* Add new button */}
             <Box sx={{
-                maxWidth: '400px',
-                margin: 'auto',
-                paddingTop: 5,
+                alignItems: 'center',
+                display: 'flex',
+                justifyContent: 'center',
+                paddingTop: 2,
+                paddingBottom: 6,
             }}>
                 <Button
                     fullWidth
                     onClick={openProviderAddDialog}
                     startIcon={<AddIcon />}
+                    sx={{
+                        maxWidth: '400px',
+                        width: 'auto',
+                    }}
                 >Add Wallet</Button>
             </Box>
         </>

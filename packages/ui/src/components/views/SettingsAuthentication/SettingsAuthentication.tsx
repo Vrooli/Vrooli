@@ -25,6 +25,17 @@ import { Email, Wallet } from "types";
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
 
+const walletHelpText =
+    `This list contains all of your connected wallets. If a custom name has not been set, 
+the wallet's reward address will be displayed.
+
+You may add or remove as many wallets as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
+
+const emailHelpText =
+    `This list contains all of your connected email addresses.
+
+You may add or remove as many email addresses as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
+
 const TERTIARY_COLOR = '#95f3cd';
 
 /**
@@ -81,6 +92,7 @@ export const SettingsAuthentication = ({
                 mutation,
                 input: formatForUpdate(profile, { ...values }),
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });
@@ -108,17 +120,26 @@ export const SettingsAuthentication = ({
                             color: (t) => t.palette.primary.contrastText,
                             padding: 0.5,
                             marginBottom: 2,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
                         }}>
                             <Typography component="h1" variant="h3" textAlign="center">Authentication</Typography>
                             <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
                         </Box>
-                        <Typography component="h2" variant="h5" textAlign="center">Connected Wallets</Typography>
+                        <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
+                            <Typography component="h2" variant="h5" textAlign="center">Connected Wallets</Typography>
+                            <HelpButton markdown={walletHelpText} />
+                        </Stack>
                         <WalletList
                             handleUpdate={updateWallets}
                             list={profile?.wallets ?? []}
                             numVerifiedEmails={numVerifiedEmails}
                         />
-                        <Typography component="h2" variant="h5" textAlign="center">Connected Emails</Typography>
+                        <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
+                            <Typography component="h2" variant="h5" textAlign="center">Connected Emails</Typography>
+                            <HelpButton markdown={emailHelpText} />
+                        </Stack>
                         <EmailList
                             handleUpdate={updateEmails}
                             list={profile?.emails ?? []}

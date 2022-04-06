@@ -54,14 +54,14 @@ const connectWallet = async (provider: WalletProvider): Promise<any> => {
 
 // Initiate handshake to verify wallet with backend
 // Returns hex string of payload, to be signed by wallet
-const walletInit = async (publicAddress: string): Promise<any> => {
+const walletInit = async (stakingAddress: string): Promise<any> => {
     let result: any = null;
     try {
         PubSub.publish(Pubs.Loading, 500);
         const client = initializeApollo();
         const data = await client.mutate({
             mutation: walletInitMutation,
-            variables: { input: { publicAddress } }
+            variables: { input: { stakingAddress } }
         });
         result = data.data.walletInit;
     } catch (exception) {
@@ -74,18 +74,18 @@ const walletInit = async (publicAddress: string): Promise<any> => {
 
 /**
  * Completes handshake to verify wallet with backend
- * @param publicAddress Wallet's public address
+ * @param stakingAddress Wallet's staking address
  * @param signedPayload Message signed by wallet
  * @returns Session object if successful, null if not
  */
-const walletComplete = async (publicAddress: string, signedPayload: string): Promise<WalletCompleteResult | null> => {
+const walletComplete = async (stakingAddress: string, signedPayload: string): Promise<WalletCompleteResult | null> => {
     let result: any = null;
     try {
         PubSub.publish(Pubs.Loading, 500);
         const client = initializeApollo();
         const data = await client.mutate({
             mutation: walletCompleteMutation,
-            variables: { input: { publicAddress, signedPayload } }
+            variables: { input: { stakingAddress, signedPayload } }
         });
         result = data.data.walletComplete;
     } catch (exception) {
@@ -97,13 +97,13 @@ const walletComplete = async (publicAddress: string, signedPayload: string): Pro
 }
 
 // Signs payload received from walletInit
-const signPayload = async (provider: WalletProvider, walletActions: any, publicAddress: string, payload: string): Promise<any> => {
+const signPayload = async (provider: WalletProvider, walletActions: any, stakingAddress: string, payload: string): Promise<any> => {
     if (!hasWalletExtension(provider)) return null;
     // As of 2022-02-05, new Nami endpoint is not fully working. So the old method is used for now
     if (provider === WalletProvider.Nami)
-        return await window.cardano.signData(publicAddress, payload);
+        return await window.cardano.signData(stakingAddress, payload);
     // For all other providers, we use the new method
-    return await walletActions.signData(publicAddress, payload);
+    return await walletActions.signData(stakingAddress, payload);
 }
 
 /**
@@ -120,16 +120,16 @@ export const validateWallet = async (provider: WalletProvider): Promise<WalletCo
         const network = await walletActions.getNetworkId();
         if (network !== Network.Mainnet) throw new Error('Wallet is not on mainnet');
         // Find wallet address
-        const rewardAddresses = await walletActions.getRewardAddresses();
-        if (!rewardAddresses || rewardAddresses.length === 0) throw new Error('Could not find reward address');
+        const stakingAddresses = await walletActions.getRewardAddresses();
+        if (!stakingAddresses || stakingAddresses.length === 0) throw new Error('Could not find staking address');
         // Request payload from backend
-        const payload = await walletInit(rewardAddresses[0]);
+        const payload = await walletInit(stakingAddresses[0]);
         if (!payload) return null;
         // Sign payload with wallet
-        const signedPayload = await signPayload(provider, walletActions, rewardAddresses[0], payload);
+        const signedPayload = await signPayload(provider, walletActions, stakingAddresses[0], payload);
         if (!signedPayload) return null;
         // Send signed payload to backend for verification
-        result = (await walletComplete(rewardAddresses[0], signedPayload));
+        result = (await walletComplete(stakingAddresses[0], signedPayload));
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
         PubSub.publish(Pubs.AlertDialog, {

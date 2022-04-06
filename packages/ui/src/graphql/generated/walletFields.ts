@@ -11,6 +11,8 @@ export interface walletFields {
   __typename: "Wallet";
   id: string;
   name: string | null;
-  publicAddress: string;
+  publicAddress: string | null;
+  stakingAddress: string;
+  handle: string | null;
   verified: boolean;
 }

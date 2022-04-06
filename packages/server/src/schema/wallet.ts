@@ -15,7 +15,9 @@ export const typeDef = gql`
     type Wallet {
         id: ID!
         name: String
-        publicAddress: String!
+        handle: String
+        publicAddress: String
+        stakingAddress: String!
         verified: Boolean!
         user: User
         organization: Organization

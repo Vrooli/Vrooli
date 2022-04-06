@@ -4,7 +4,6 @@
 import { EmailListProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { Email } from 'types';
-import { containerShadow } from 'styles';
 import { Box, Button, Stack, TextField } from '@mui/material';
 import {
     Add as AddIcon,
@@ -15,6 +14,7 @@ import { Pubs, updateArray } from 'utils';
 import { emailCreateMutation, emailDeleteOneMutation, emailUpdateMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
+import { emailCreateButton as validationSchema } from '@local/shared';
 
 export const EmailList = ({
     handleUpdate,
@@ -22,27 +22,28 @@ export const EmailList = ({
     list,
 }: EmailListProps) => {
 
-    // // Handle add
-    // const [addMutation, { loading: loadingAdd }] = useMutation<any>(emailCreateMutation);
-    // const formik = useFormik({
-    //     initialValues: {
-    //         email: '',
-    //     },
-    //     enableReinitialize: true,
-    //     validationSchema,
-    //     onSubmit: (values) => {
-    //         if (!formik.isValid) return;
-    //         mutationWrapper({
-    //             mutation: addMutation,
-    //             input: {
-    //                 emailAddress: values.email,
-    //                 receivesAccountUpdates: true,
-    //                 receivesBusinessUpdates: true,
-    //             },
-    //             onSuccess: (response) => { handleUpdate([...list, response.data.addEmail]); },
-    //         })
-    //     },
-    // });
+    // Handle add
+    const [addMutation, { loading: loadingAdd }] = useMutation<any>(emailCreateMutation);
+    const formik = useFormik({
+        initialValues: {
+            email: '',
+        },
+        enableReinitialize: true,
+        validationSchema,
+        onSubmit: (values) => {
+            if (!formik.isValid) return;
+            mutationWrapper({
+                mutation: addMutation,
+                input: {
+                    emailAddress: values.email,
+                    receivesAccountUpdates: true,
+                    receivesBusinessUpdates: true,
+                },
+                onSuccess: (response) => { handleUpdate([...list, response.data.addEmail]); },
+                onError: () => { formik.setSubmitting(false); },
+            })
+        },
+    });
 
     const onAdd = useCallback((newEmail: Email) => {
         handleUpdate([...list, newEmail]);
@@ -83,12 +84,12 @@ export const EmailList = ({
     return (
         <>
             <Box sx={{
-                ...containerShadow,
                 overflow: 'overlay',
+                border: '1px solid #e0e0e0',
                 borderRadius: '8px',
                 maxWidth: '1000px',
-                marginLeft: 'auto',
-                marginRight: 'auto',
+                marginLeft: 1,
+                marginRight: 1,
             }}>
                 {/* Email list */}
                 {list.map((email: Email, index) => (
@@ -98,32 +99,43 @@ export const EmailList = ({
                         index={index}
                         handleUpdate={onUpdate}
                         handleDelete={onDelete}
-                        handleVerify={() => {}}
+                        handleVerify={() => { }}
                     />
                 ))}
             </Box>
             {/* Add new email */}
             <Stack direction="row" sx={{
-                maxWidth: '400px',
-                margin: 'auto',
-                paddingTop: 5,
+                alignItems: 'center',
+                display: 'flex',
+                justifyContent: 'center',
+                paddingTop: 2,
+                paddingBottom: 6,
             }}>
-                {/* <TextField
+                <TextField
                     fullWidth
                     id="email"
                     name="email"
-                    label="email"
+                    label="New Email Address"
                     value={formik.values.email}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
                     error={formik.touched.email && Boolean(formik.errors.email)}
                     helperText={formik.touched.email && formik.errors.email}
-                /> */}
+                    sx={{
+                        height: '56px',
+                        maxWidth: '400px',
+                    }}
+                />
                 <Button
                     fullWidth
-                    startIcon={<AddIcon />}
+                    startIcon={<AddIcon sx={{ width: '25px', height: '25px' }} />}
                     type="submit"
-                >Add Email</Button>
+                    sx={{
+                        height: '56px',
+                        paddingRight: 0.5,
+                        width: 'auto',
+                    }}
+                ></Button>
             </Stack>
         </>
     )

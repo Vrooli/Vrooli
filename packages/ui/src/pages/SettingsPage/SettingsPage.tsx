@@ -49,7 +49,6 @@ export function SettingsPage({
     }, [data]);
     const onUpdated = useCallback((updatedProfile: profile_profile | undefined) => {
         if (updatedProfile) setProfile(updatedProfile);
-        PubSub.publish(Pubs.Snack, { message: 'Update successful.' });
     }, []);
 
     const [drawerOpen, setDrawerOpen] = useState(false);

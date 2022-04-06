@@ -52,12 +52,12 @@ export const typeDef = gql`
     }
 
     input WalletInitInput {
-        publicAddress: String!
+        stakingAddress: String!
         nonceDescription: String
     }
 
     input WalletCompleteInput {
-        publicAddress: String!
+        stakingAddress: String!
         signedPayload: String!
     }
 
@@ -303,11 +303,16 @@ export const resolvers = {
          * @returns Nonce that wallet must sign and send to walletComplete endpoint
          */
         walletInit: async (_parent: undefined, { input }: IWrap<WalletInitInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<string> => {
+            // // Make sure that wallet is on mainnet (i.e. starts with 'addr1') TODO
+            console.log('wallet INIT', input.stakingAddress)
+            // if (!input.publicAddress.startsWith('addr1')) throw new CustomError(CODE.InvalidArgs, 'Must use wallet on mainnet');
             // Generate nonce for handshake
             const nonce = await generateNonce(input.nonceDescription as string | undefined);
             // Find existing wallet data in database
             let walletData = await prisma.wallet.findUnique({
-                where: { publicAddress: input.publicAddress },
+                where: { 
+                    stakingAddress: input.stakingAddress,
+                },
                 select: {
                     id: true,
                     verified: true,
@@ -328,7 +333,7 @@ export const resolvers = {
             if (!walletData) {
                 walletData = await prisma.wallet.create({
                     data: {
-                        publicAddress: input.publicAddress,
+                        stakingAddress: input.stakingAddress,
                         nonce: nonce,
                         nonceCreationTime: new Date().toISOString(),
                     },
@@ -345,7 +350,7 @@ export const resolvers = {
         walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, res }: Context, _info: GraphQLResolveInfo): Promise<WalletComplete> => {
             // Find wallet with public address
             const walletData = await prisma.wallet.findUnique({
-                where: { publicAddress: input.publicAddress },
+                where: { stakingAddress: input.stakingAddress },
                 select: {
                     id: true,
                     nonce: true,
@@ -361,7 +366,7 @@ export const resolvers = {
             // If nonce expired, throw error
             if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
             // Verify that message was signed by wallet address
-            const walletVerified = verifySignedMessage(input.publicAddress, walletData.nonce, input.signedPayload);
+            const walletVerified = verifySignedMessage(input.stakingAddress, walletData.nonce, input.signedPayload);
             if (!walletVerified) throw new CustomError(CODE.Unauthorized);
             let userData = walletData.user;
             // If user doesn't exist, create new user
@@ -408,7 +413,9 @@ export const resolvers = {
                 select: {
                     id: true,
                     name: true,
+                    handle: true,
                     publicAddress: true,
+                    stakingAddress: true,
                     verified: true,
                 }
             })

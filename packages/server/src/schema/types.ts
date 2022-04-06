@@ -2392,10 +2392,12 @@ export type VoteTo = Comment | Project | Routine | Standard | Tag;
 
 export type Wallet = {
   __typename?: 'Wallet';
+  handle?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
   organization?: Maybe<Organization>;
-  publicAddress: Scalars['String'];
+  publicAddress?: Maybe<Scalars['String']>;
+  stakingAddress: Scalars['String'];
   user?: Maybe<User>;
   verified: Scalars['Boolean'];
 };
@@ -2408,13 +2410,13 @@ export type WalletComplete = {
 };
 
 export type WalletCompleteInput = {
-  publicAddress: Scalars['String'];
   signedPayload: Scalars['String'];
+  stakingAddress: Scalars['String'];
 };
 
 export type WalletInitInput = {
   nonceDescription?: InputMaybe<Scalars['String']>;
-  publicAddress: Scalars['String'];
+  stakingAddress: Scalars['String'];
 };
 
 export type WalletUpdateInput = {

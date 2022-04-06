@@ -41,6 +41,8 @@ export const profileFields = gql`
             id
             name
             publicAddress
+            stakingAddress
+            handle
             verified
         }
         theme

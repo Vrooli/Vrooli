@@ -14,6 +14,10 @@ export const emailCreate = yup.object().shape({
     receivesBusinessUpdates: receivesBusinessUpdates.notRequired().default(undefined),
 })
 
+export const emailCreateButton = yup.object().shape({
+    emailAddress: emailAddress.required(),
+})
+
 /**
  * Information required when updating an organization
  */

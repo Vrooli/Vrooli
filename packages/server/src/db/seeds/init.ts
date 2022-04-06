@@ -103,7 +103,7 @@ export async function init(prisma: PrismaType) {
             },
             wallets: {
                 create: [
-                    { publicAddress: process.env.ADMIN_WALLET ?? '', verified: true },
+                    { stakingAddress: process.env.ADMIN_WALLET ?? '', verified: true } as any,
                 ]
             },
             roles: {

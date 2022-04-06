@@ -884,7 +884,9 @@ model vote {
 // Wallet data
 model wallet {
     id                String        @id @default(uuid()) @db.Uuid
-    publicAddress     String        @unique @db.VarChar(128)
+    stakingAddress    String        @unique @db.VarChar(128) // Synonymous with reward address
+    publicAddress     String?       @unique @db.VarChar(128) // Public address of wallet. Not required because there can be many public addresses for a single wallet
+    handle            String?       @unique @db.VarChar(16) // ADA handle
     name              String?       @db.VarChar(128) // User-defined name for wallet
     nonce             String?       @db.VarChar(8092)
     nonceCreationTime DateTime?     @db.Timestamptz(6)

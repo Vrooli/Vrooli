@@ -22,7 +22,9 @@ export interface profile_profile_wallets {
   __typename: "Wallet";
   id: string;
   name: string | null;
-  publicAddress: string;
+  publicAddress: string | null;
+  stakingAddress: string;
+  handle: string | null;
   verified: boolean;
 }
 
