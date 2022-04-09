@@ -37,6 +37,7 @@ export interface autocomplete_autocomplete_organizations_translations {
 export interface autocomplete_autocomplete_organizations {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   stars: number;
   isStarred: boolean;
   tags: autocomplete_autocomplete_organizations_tags[];
@@ -71,6 +72,7 @@ export interface autocomplete_autocomplete_projects_translations {
 export interface autocomplete_autocomplete_projects {
   __typename: "Project";
   id: string;
+  handle: string | null;
   score: number;
   stars: number;
   isUpvoted: boolean | null;
@@ -155,7 +157,8 @@ export interface autocomplete_autocomplete_standards {
 export interface autocomplete_autocomplete_users {
   __typename: "User";
   id: string;
-  username: string | null;
+  handle: string | null;
+  name: string;
   stars: number;
   isStarred: boolean;
 }

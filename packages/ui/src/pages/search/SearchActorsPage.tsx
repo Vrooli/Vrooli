@@ -57,7 +57,7 @@ export const SearchActorsPage = ({
             {/* Search component */}
             <BaseSearchPage
                 title="Users"
-                searchPlaceholder="Search by username..."
+                searchPlaceholder="Search by name/handle..."
                 sortOptions={ActorSortOptions}
                 defaultSortOption={actorDefaultSortOption}
                 query={usersQuery}

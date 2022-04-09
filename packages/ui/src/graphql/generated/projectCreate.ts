@@ -78,13 +78,15 @@ export interface projectCreate_projectCreate_owner_Organization_translations {
 export interface projectCreate_projectCreate_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: projectCreate_projectCreate_owner_Organization_translations[];
 }
 
 export interface projectCreate_projectCreate_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type projectCreate_projectCreate_owner = projectCreate_projectCreate_owner_Organization | projectCreate_projectCreate_owner_User;
@@ -94,6 +96,7 @@ export interface projectCreate_projectCreate {
   id: string;
   completedAt: any | null;
   created_at: any;
+  handle: string | null;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;

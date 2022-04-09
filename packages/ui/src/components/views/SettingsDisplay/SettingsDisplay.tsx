@@ -1,4 +1,4 @@
-import { Box, Container, Grid, Stack, Typography } from "@mui/material"
+import { Container, Grid, Stack, Typography } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { useCallback, useMemo, useState } from "react";
@@ -17,10 +17,9 @@ import { SettingsDisplayProps } from "../types";
 import { useLocation } from "wouter";
 import { HelpButton, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
-import { containerShadow } from "styles";
 
-const helpText = 
-`Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.  
+const helpText =
+    `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.  
 
 Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.
 
@@ -82,10 +81,10 @@ export const SettingsDisplay = ({
     });
 
     const actions: DialogActionItem[] = useMemo(() => [
-        ['Save', SaveIcon, !formik.touched || formik.isSubmitting, false, () => { 
+        ['Save', SaveIcon, !formik.touched || formik.isSubmitting, false, () => {
             formik.submitForm();
         }],
-        ['Revert', RevertIcon, !formik.touched || formik.isSubmitting, false, () => { 
+        ['Revert', RevertIcon, !formik.touched || formik.isSubmitting, false, () => {
             formik.resetForm();
             setStarredTags([]);
             setHiddenTags([]);
@@ -93,53 +92,42 @@ export const SettingsDisplay = ({
     ], [formik, setLocation]);
 
     return (
-        <Box sx={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <Box sx={{
-                ...containerShadow,
-                borderRadius: 2,
-                overflow: 'overlay',
-                marginTop: '-5vh',
-                background: (t) => t.palette.background.default,
-                width: 'min(100%, 700px)',
+        <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
+            {/* Title */}
+            <Stack direction="row" justifyContent="center" alignItems="center" sx={{
+                background: (t) => t.palette.primary.dark,
+                color: (t) => t.palette.primary.contrastText,
+                padding: 0.5,
+                marginBottom: 2,
             }}>
-                <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-                    {/* Title */}
-                    <Stack direction="row" justifyContent="center" alignItems="center" sx={{
-                        background: (t) => t.palette.primary.dark,
-                        color: (t) => t.palette.primary.contrastText,
-                        padding: 0.5,
-                        marginBottom: 2,
-                    }}>
-                        <Typography component="h1" variant="h3">Display Preferences</Typography>
-                        <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
-                    </Stack>
-                    <Container sx={{ paddingBottom: 2 }}>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12} sx={{marginBottom: 2}}>
-                                <TagSelector
-                                    session={session}
-                                    tags={starredTags}
-                                    placeholder={"Enter interests, followed by commas..."}
-                                    onTagAdd={addStarredTag}
-                                    onTagRemove={removeStarredTag}
-                                    onTagsClear={clearStarredTags}
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <TagSelector
-                                    session={session}
-                                    tags={hiddenTags}
-                                    placeholder={"Enter topics you'd like to hide from view, followed by commas..."}
-                                    onTagAdd={addHiddenTag}
-                                    onTagRemove={removeHiddenTag}
-                                    onTagsClear={clearHiddenTags}
-                                />
-                            </Grid>
-                        </Grid>
-                    </Container>
-                    <DialogActionsContainer fixed={false} actions={actions} />
-                </form>
-            </Box>
-        </Box>
+                <Typography component="h1" variant="h3">Display Preferences</Typography>
+                <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
+            </Stack>
+            <Container sx={{ paddingBottom: 2 }}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sx={{ marginBottom: 2 }}>
+                        <TagSelector
+                            session={session}
+                            tags={starredTags}
+                            placeholder={"Enter interests, followed by commas..."}
+                            onTagAdd={addStarredTag}
+                            onTagRemove={removeStarredTag}
+                            onTagsClear={clearStarredTags}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TagSelector
+                            session={session}
+                            tags={hiddenTags}
+                            placeholder={"Enter topics you'd like to hide from view, followed by commas..."}
+                            onTagAdd={addHiddenTag}
+                            onTagRemove={removeHiddenTag}
+                            onTagsClear={clearHiddenTags}
+                        />
+                    </Grid>
+                </Grid>
+            </Container>
+            <DialogActionsContainer fixed={false} actions={actions} />
+        </form>
     )
 }

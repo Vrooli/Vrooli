@@ -40,6 +40,7 @@ export const projectFields = gql`
         id
         completedAt
         created_at
+        handle
         isComplete
         isStarred
         isUpvoted
@@ -61,6 +62,7 @@ export const projectFields = gql`
         owner {
             ... on Organization {
                 id
+                handle
                 translations {
                     id
                     language
@@ -69,7 +71,8 @@ export const projectFields = gql`
             }
             ... on User {
                 id
-                username
+                name
+                handle
             }
         }
     }

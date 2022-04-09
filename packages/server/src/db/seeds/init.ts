@@ -87,13 +87,15 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Admin */
     //==============================================================
+    const adminId = '3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2'
     const admin = await prisma.user.upsert({
         where: {
-            username: 'matthalloran',
+            id: adminId,
         },
         update: {},
         create: {
-            username: 'matthalloran',
+            id: adminId,
+            name: 'Matt Halloran',
             password: profileModel.hashPassword(process.env.ADMIN_PASSWORD ?? ''),
             status: AccountStatus.Unlocked,
             emails: {

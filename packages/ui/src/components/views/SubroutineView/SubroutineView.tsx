@@ -8,7 +8,7 @@ import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { containerShadow } from "styles";
 import { ResourceList, Routine, User } from "types";
-import { getTranslation, getUserLanguages, Pubs } from "utils";
+import { getOwnedByString, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 
@@ -28,33 +28,11 @@ export const SubroutineView = ({
         }
     }, [data]);
 
-    /**
-     * Name of user or organization that owns this routine
-     */
-     const ownedBy = useMemo<string | null>(() => {
-        if (!data?.owner) return null;
-        const languages = getUserLanguages(session);
-        return getTranslation(data.owner, 'username', languages) ?? getTranslation(data.owner, 'name', languages);
-    }, [data?.owner, session]);
+    const ownedBy = useMemo<string | null>(() => getOwnedByString(data, getUserLanguages(session)), [data, session]);
+    const toOwner = useCallback(() => { toOwnedBy(data, setLocation) }, [data, setLocation]);
 
     // The schema for the form
     const [schema, setSchema] = useState<any>();
-
-    /**
-     * Navigate to owner's profile
-     */
-     const toOwner = useCallback(() => {
-        if (!data?.owner) {
-            PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });
-            return;
-        }
-        // Check if user or organization
-        if (data?.owner.hasOwnProperty('username')) {
-            setLocation(`${APP_LINKS.User}/${(data?.owner as User).username}`);
-        } else {
-            setLocation(`${APP_LINKS.Organization}/${data?.owner.id}`);
-        }
-    }, [data?.owner, setLocation]);
 
     if (loading) return (
         <Box sx={{

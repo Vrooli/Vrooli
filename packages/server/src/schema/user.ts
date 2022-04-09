@@ -22,7 +22,8 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        username: String
+        handle: String
+        name: String!
         theme: String!
         status: AccountStatus!
         history: [Log!]!
@@ -49,7 +50,8 @@ export const typeDef = gql`
     type User {
         id: ID!
         created_at: Date!
-        username: String
+        handle: String
+        name: String!
         stars: Int!
         isStarred: Boolean!
         comments: [Comment!]!
@@ -79,7 +81,8 @@ export const typeDef = gql`
     }
 
     input ProfileUpdateInput {
-        username: String
+        handle: String
+        name: String
         theme: String
         hiddenTagsConnect: [ID!]
         hiddenTagsDisconnect: [ID!]

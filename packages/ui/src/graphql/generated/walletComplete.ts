@@ -23,7 +23,7 @@ export interface walletComplete_walletComplete_wallet {
   name: string | null;
   publicAddress: string | null;
   stakingAddress: string;
-  handle: string | null;
+  handles: string[];
   verified: boolean;
 }
 

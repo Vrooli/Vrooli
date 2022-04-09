@@ -127,7 +127,7 @@ export const HomePage = ({
         const projects = data.autocomplete.projects.map(p => ({ title: getTranslation(p, 'name', languages, true), id: p.id, stars: p.stars, objectType: ObjectType.Project }));
         const organizations = data.autocomplete.organizations.map(o => ({ title: getTranslation(o, 'name', languages, true), id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
         const standards = data.autocomplete.standards.map(s => ({ title: s.name, id: s.id, stars: s.stars, objectType: ObjectType.Standard }));
-        const users = data.autocomplete.users.map(u => ({ title: u.username, id: u.id, stars: u.stars, objectType: ObjectType.User }));
+        const users = data.autocomplete.users.map(u => ({ title: u.name, id: u.id, stars: u.stars, objectType: ObjectType.User }));
         const options = [...routines, ...projects, ...organizations, ...standards, ...users].sort((a: any, b: any) => {
             return b.stars - a.stars;
         });

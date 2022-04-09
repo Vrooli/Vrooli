@@ -5,7 +5,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, COOKIE, emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema, ROLES } from '@local/shared';
 import { CustomError } from '../error';
-import { generateNonce, randomString, verifySignedMessage } from '../auth/walletAuth';
+import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/walletAuth';
 import { generateSessionToken } from '../auth/auth.js';
 import { IWrap, RecursivePartial } from '../types';
 import { WalletCompleteInput, DeleteOneInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete } from './types';
@@ -33,7 +33,7 @@ export const typeDef = gql`
     }
 
     input EmailSignUpInput {
-        username: String!
+        name: String!
         email: String!
         theme: String!
         marketingEmails: Boolean!
@@ -160,17 +160,14 @@ export const resolvers = {
             const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
             if (!actorRoleId) throw new CustomError(CODE.ErrorUnknown);
             // Check for censored words
-            if (hasProfanity(input.username)) throw new CustomError(CODE.BannedWord);
+            if (hasProfanity(input.name)) throw new CustomError(CODE.BannedWord);
             // Check if email exists
             const existingEmail = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
             if (existingEmail) throw new CustomError(CODE.EmailInUse);
-            // Check if username exists
-            let existingUser = await prisma.user.findUnique({ where: { username: input.username } });
-            if (existingUser) throw new CustomError(CODE.UsernameInUse);
             // Create user object
             const user = await prisma.user.create({
                 data: {
-                    username: input.username,
+                    name: input.name,
                     password: profileValidater().hashPassword(input.password),
                     theme: input.theme,
                     status: AccountStatus.Unlocked,
@@ -303,9 +300,10 @@ export const resolvers = {
          * @returns Nonce that wallet must sign and send to walletComplete endpoint
          */
         walletInit: async (_parent: undefined, { input }: IWrap<WalletInitInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<string> => {
-            // // Make sure that wallet is on mainnet (i.e. starts with 'addr1') TODO
-            console.log('wallet INIT', input.stakingAddress)
-            // if (!input.publicAddress.startsWith('addr1')) throw new CustomError(CODE.InvalidArgs, 'Must use wallet on mainnet');
+            // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
+            const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
+            console.log('wallet INIT', deserializedStakingAddress)
+            if (!deserializedStakingAddress.startsWith('stake1')) throw new CustomError(CODE.InvalidArgs, 'Must use wallet on mainnet');
             // Generate nonce for handshake
             const nonce = await generateNonce(input.nonceDescription as string | undefined);
             // Find existing wallet data in database
@@ -377,7 +375,7 @@ export const resolvers = {
                 const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
                 userData = await prisma.user.create({
                     data: {
-                        username: `user${randomString(8)}`,
+                        name: `user${randomString(8)}`,
                         roles: {
                             create: [{ role: { connect: { id: actorRoleId } } }]
                         },
@@ -413,7 +411,12 @@ export const resolvers = {
                 select: {
                     id: true,
                     name: true,
-                    handle: true,
+                    handles: {
+                        select: {
+                            id: true,
+                            handle: true,
+                        }
+                    },
                     publicAddress: true,
                     stakingAddress: true,
                     verified: true,
@@ -431,7 +434,10 @@ export const resolvers = {
             return {
                 firstLogIn,
                 session,
-                wallet,
+                wallet: {
+                    ...wallet,
+                    handles: wallet.handles.map((h: any) => h.handle),
+                }
             } as WalletComplete;
         },
         walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {

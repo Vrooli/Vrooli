@@ -45,7 +45,7 @@ export const ActorListItem = ({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the actor's profile
-        else setLocation(`${APP_LINKS.User}/${data.id}`)
+        else setLocation(`${APP_LINKS.Profile}/${data.id}`)
     }, [onClick, data, setLocation]);
 
     return (
@@ -79,7 +79,7 @@ export const ActorListItem = ({
                     </Box>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         <ListItemText
-                            primary={data.username}
+                            primary={data.name}
                             sx={{ ...multiLineEllipsis(1) }}
                         />
                         <ListItemText
@@ -105,4 +105,4 @@ export const ActorListItem = ({
 
 export const ActorSortOptions: LabelledSortOption<UserSortBy>[] = labelledSortOptions(UserSortBy);
 export const actorDefaultSortOption = ActorSortOptions[1];
-export const actorOptionLabel = (o: User, languages: readonly string[]) => o.username ?? '';
+export const actorOptionLabel = (o: User, languages: readonly string[]) => o.name ?? o.handle ?? '';

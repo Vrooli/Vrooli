@@ -78,6 +78,7 @@ export interface organizations_organizations_edges_node {
   __typename: "Organization";
   id: string;
   created_at: any;
+  handle: string | null;
   isOpenToNewMembers: boolean;
   isStarred: boolean;
   role: MemberRole | null;

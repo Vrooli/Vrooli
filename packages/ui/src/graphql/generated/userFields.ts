@@ -56,7 +56,8 @@ export interface userFields_translations {
 export interface userFields {
   __typename: "User";
   id: string;
-  username: string | null;
+  handle: string | null;
+  name: string;
   created_at: any;
   stars: number;
   isStarred: boolean;

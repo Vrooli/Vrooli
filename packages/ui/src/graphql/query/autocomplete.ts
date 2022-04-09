@@ -17,6 +17,7 @@ export const autocompleteQuery = gql`
         autocomplete(input: $input) {
             organizations {
                 id
+                handle
                 stars
                 isStarred
                 tags {
@@ -31,6 +32,7 @@ export const autocompleteQuery = gql`
             }
             projects {
                 id
+                handle
                 score
                 stars
                 isUpvoted
@@ -80,7 +82,8 @@ export const autocompleteQuery = gql`
             }
             users {
                 id
-                username
+                handle
+                name
                 stars
                 isStarred
             }

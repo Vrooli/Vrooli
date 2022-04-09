@@ -8,6 +8,7 @@ import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
+import { WalletModel } from "./wallet";
 
 //==============================================================
 /* #region Custom Components */
@@ -136,6 +137,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
         }
         return {
             ...members,
+            handle: (data as OrganizationUpdateInput).handle ?? null,
             isOpenToNewMembers: data.isOpenToNewMembers,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data),
@@ -157,9 +159,12 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             }
         }
         if (updateMany) {
-            updateMany.forEach(input => organizationUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
-            updateMany.forEach(input => TranslationModel().validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio));
+            for (const input of updateMany) {
+                await WalletModel(prisma).verifyHandle(GraphQLModelType.Organization, input.where.id, input.data.handle);
+                organizationUpdate.validateSync(input.data, { abortEarly: false });
+                TranslationModel().profanityCheck(input.data);
+                TranslationModel().validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio);
+            }
             // Check that user is owner OR admin of each organization
             const roles = userId
                 ? await verifier.getRoles(userId, updateMany.map(input => input.where.id))

@@ -92,6 +92,7 @@ export interface standard_standard_creator_Organization_tags {
 export interface standard_standard_creator_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: standard_standard_creator_Organization_translations[];
   created_at: any;
   isOpenToNewMembers: boolean;
@@ -149,7 +150,8 @@ export interface standard_standard_creator_User_translations {
 export interface standard_standard_creator_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
   created_at: any;
   stars: number;
   isStarred: boolean;

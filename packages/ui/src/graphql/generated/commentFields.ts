@@ -19,6 +19,7 @@ export interface commentFields_commentedOn_Project_translations {
 export interface commentFields_commentedOn_Project {
   __typename: "Project";
   id: string;
+  handle: string | null;
   translations: commentFields_commentedOn_Project_translations[];
 }
 
@@ -53,13 +54,15 @@ export interface commentFields_creator_Organization_translations {
 export interface commentFields_creator_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: commentFields_creator_Organization_translations[];
 }
 
 export interface commentFields_creator_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type commentFields_creator = commentFields_creator_Organization | commentFields_creator_User;

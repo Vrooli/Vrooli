@@ -31,7 +31,7 @@ import {
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { MarkdownInput, ResourceListHorizontal } from 'components';
-import { getTranslation, Pubs } from 'utils';
+import { getOwnedByString, getTranslation, Pubs, toOwnedBy } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import { ResourceList, User } from 'types';
 import { useLocation } from 'wouter';
@@ -49,29 +49,8 @@ export const BuildInfoDialog = ({
 }: BuildInfoDialogProps) => {
     const [, setLocation] = useLocation();
 
-    /**
-     * Name of user or organization that owns this routine
-     */
-    const ownedBy = useMemo<string | null>(() => {
-        if (!routine?.owner) return null;
-        return getTranslation(routine.owner, 'username', [language]) ?? getTranslation(routine.owner, 'name', [language]);
-    }, [language, routine?.owner]);
-
-    /**
-     * Navigate to owner's profile
-     */
-    const toOwner = useCallback(() => {
-        if (!routine?.owner) {
-            PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });
-            return;
-        }
-        // Check if user or organization
-        if (routine.owner.hasOwnProperty('username')) {
-            setLocation(`${APP_LINKS.User}/${(routine.owner as User).username}`);
-        } else {
-            setLocation(`${APP_LINKS.Organization}/${routine.owner.id}`);
-        }
-    }, [routine?.owner, setLocation]);
+    const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
+    const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
     /**
      * Determines which action buttons to display

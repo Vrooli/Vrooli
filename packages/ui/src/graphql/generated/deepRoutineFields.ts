@@ -95,13 +95,15 @@ export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_o
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
 }
 
 export interface deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_owner = deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_owner_Organization | deepRoutineFields_nodes_data_NodeRoutineList_routines_routine_owner_User;
@@ -257,13 +259,15 @@ export interface deepRoutineFields_owner_Organization_translations {
 export interface deepRoutineFields_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: deepRoutineFields_owner_Organization_translations[];
 }
 
 export interface deepRoutineFields_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type deepRoutineFields_owner = deepRoutineFields_owner_Organization | deepRoutineFields_owner_User;

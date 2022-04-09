@@ -46,13 +46,15 @@ export interface standards_standards_edges_node_creator_Organization_translation
 export interface standards_standards_edges_node_creator_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: standards_standards_edges_node_creator_Organization_translations[];
 }
 
 export interface standards_standards_edges_node_creator_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type standards_standards_edges_node_creator = standards_standards_edges_node_creator_Organization | standards_standards_edges_node_creator_User;

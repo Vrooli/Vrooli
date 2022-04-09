@@ -33,7 +33,7 @@ export const SignUpForm = ({
     const formik = useFormik({
         initialValues: {
             marketingEmails: "true",
-            username: '',
+            name: '',
             email: '',
             password: '',
             confirmPassword: ''
@@ -78,15 +78,15 @@ export const SignUpForm = ({
                         <TextField
                             fullWidth
                             autoFocus
-                            id="username"
-                            name="username"
-                            autoComplete="username"
-                            label="Username"
-                            value={formik.values.username}
+                            id="name"
+                            name="name"
+                            autoComplete="name"
+                            label="name"
+                            value={formik.values.name}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
-                            error={formik.touched.username && Boolean(formik.errors.username)}
-                            helperText={formik.touched.username && formik.errors.username}
+                            error={formik.touched.name && Boolean(formik.errors.name)}
+                            helperText={formik.touched.name && formik.errors.name}
                         />
                     </Grid>
                     <Grid item xs={12}>

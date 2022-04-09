@@ -95,13 +95,15 @@ export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
 }
 
 export interface routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner = routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_Organization | routineUpdate_routineUpdate_nodes_data_NodeRoutineList_routines_routine_owner_User;
@@ -257,13 +259,15 @@ export interface routineUpdate_routineUpdate_owner_Organization_translations {
 export interface routineUpdate_routineUpdate_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: routineUpdate_routineUpdate_owner_Organization_translations[];
 }
 
 export interface routineUpdate_routineUpdate_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type routineUpdate_routineUpdate_owner = routineUpdate_routineUpdate_owner_Organization | routineUpdate_routineUpdate_owner_User;

@@ -15,7 +15,7 @@ export interface walletUpdate_walletUpdate {
   name: string | null;
   publicAddress: string | null;
   stakingAddress: string;
-  handle: string | null;
+  handles: string[];
   verified: boolean;
 }
 

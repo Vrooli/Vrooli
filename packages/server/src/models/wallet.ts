@@ -2,19 +2,65 @@ import { CODE, walletUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import { PrismaType } from "types";
 import { Count, Wallet, WalletUpdateInput } from "../schema/types";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, removeJoinTablesHelper, selectHelper, ValidateMutationsInput } from "./base";
+import { hasProfanity } from "../utils/censor";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
+const joinMapper = { handles: 'handle' };
 export const walletFormatter = (): FormatConverter<Wallet> => ({
     relationshipMap: {
         '__typename': GraphQLModelType.Wallet,
+        'handles': GraphQLModelType.Handle,
         'user': GraphQLModelType.User,
         'organization': GraphQLModelType.Organization,
         'project': GraphQLModelType.Project,
     },
+    addJoinTables: (partial) => {
+        return addJoinTablesHelper(partial, joinMapper);
+    },
+    removeJoinTables: (data) => {
+        return removeJoinTablesHelper(data, joinMapper);
+    },
+})
+
+export const walletVerifier = (prisma: PrismaType) => ({
+    /**
+     * Maps GraphQLModelType to wallet relationship field
+     */
+    walletOwnerMap: {
+        [GraphQLModelType.User]: 'userId',
+        [GraphQLModelType.Organization]: 'organizationId',
+        [GraphQLModelType.Project]: 'projectId',
+    },
+    /**
+     * Verify that a handle is owned by a wallet, that is owned by an object. 
+     * Throws error on failure. 
+     * Allows checks for profanity, cause why not
+     * @params for The type of object that the wallet is owned by (i.e. Project, Organization, User)
+     * @params forId The ID of the object that the wallet is owned by
+     * @params handle The handle to verify
+     */
+    async verifyHandle(forType: GraphQLModelType.User | GraphQLModelType.Organization | GraphQLModelType.Project, forId: string, handle: string | null | undefined): Promise<void> {
+        if (!handle) return;
+        // Check that handle belongs to one of user's wallets
+        const wallets = await prisma.wallet.findMany({
+            where: { [this.walletOwnerMap[forType]]: forId },
+            select: {
+                handles: {
+                    select: {
+                        handle: true,
+                    }
+                }
+            }
+        });
+        const found = Boolean(wallets.find(w => w.handles.find(h => h.handle === handle)));
+        if (!found) throw new CustomError(CODE.InvalidArgs, 'Selected handle cannot be verified.');
+        // Check for censored words
+        if (hasProfanity(handle)) throw new CustomError(CODE.BannedWord);
+    }
 })
 
 export const walletMutater = (prisma: PrismaType) => ({
@@ -146,12 +192,14 @@ export function WalletModel(prisma: PrismaType) {
     const prismaObject = prisma.wallet;
     const format = walletFormatter();
     const mutate = walletMutater(prisma);
+    const verify = walletVerifier(prisma);
 
     return {
         prisma,
         prismaObject,
         ...format,
         ...mutate,
+        ...verify,
     }
 }
 

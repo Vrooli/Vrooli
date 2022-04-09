@@ -78,13 +78,15 @@ export interface projectFields_owner_Organization_translations {
 export interface projectFields_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: projectFields_owner_Organization_translations[];
 }
 
 export interface projectFields_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type projectFields_owner = projectFields_owner_Organization | projectFields_owner_User;
@@ -94,6 +96,7 @@ export interface projectFields {
   id: string;
   completedAt: any | null;
   created_at: any;
+  handle: string | null;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;

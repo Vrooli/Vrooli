@@ -149,7 +149,7 @@ export const SelectLanguageDialog = ({
                 </Stack>
             </Popover>
             {/* Selected language label */}
-            <Tooltip title={AllLanguages[language]} placement="top">
+            <Tooltip title={AllLanguages[language] ?? ''} placement="top">
                 <Stack direction="row" ref={anchorRef} spacing={0} onClick={onOpen} sx={{
                     ...(sxs?.root ?? {}),
                     justifyContent: 'center',

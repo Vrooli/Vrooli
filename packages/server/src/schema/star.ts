@@ -40,9 +40,9 @@ export const resolvers = {
     Star: {
         __resolveType(obj: any) {
             if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
-            if (obj.hasOwnProperty('username')) return GraphQLModelType.User;
             if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
             if (obj.hasOwnProperty('isOpenToNewMembers')) return GraphQLModelType.Organization;
+            if (obj.hasOwnProperty('name')) return GraphQLModelType.User;
             return GraphQLModelType.Routine;
         },
     },

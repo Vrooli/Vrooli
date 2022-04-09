@@ -16,7 +16,7 @@ import { containerShadow } from "styles";
 import { StandardViewProps } from "../types";
 import { BaseObjectActionDialog, SelectLanguageDialog } from "components";
 import { BaseObjectAction } from "components/dialogs/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils";
+import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils";
 import { validate as uuidValidate } from 'uuid';
 import { Standard } from "types";
 
@@ -52,11 +52,7 @@ export const StandardView = ({
 
     const { contributedBy, description, name } = useMemo(() => {
         return {
-            contributedBy: standard?.creator ?
-                standard.creator.__typename === 'User' ?
-                    (standard?.creator as standard_standard_creator_User).username :
-                    getTranslation((standard?.creator as standard_standard_creator_Organization), 'name', getUserLanguages(session), true) :
-                null,
+            contributedBy: getCreatedByString(standard, [language]),
             description: getTranslation(standard, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             name: standard?.name ?? partialData?.name,
         };

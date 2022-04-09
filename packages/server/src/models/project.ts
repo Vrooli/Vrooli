@@ -10,6 +10,7 @@ import { VoteModel } from "./vote";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
+import { WalletModel } from "./wallet";
 
 //==============================================================
 /* #region Custom Components */
@@ -174,9 +175,12 @@ export const projectMutater = (prisma: PrismaType) => ({
             }
         }
         if (updateMany) {
-            updateMany.forEach(input => projectUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
-            updateMany.forEach(input => TranslationModel().validateLineBreaks(input.data, ['description'], CODE.LineBreaksDescription));
+            for (const input of updateMany) {
+                await WalletModel(prisma).verifyHandle(GraphQLModelType.Project, input.where.id, input.data.handle);
+                projectUpdate.validateSync(input.data, { abortEarly: false });
+                TranslationModel().profanityCheck(input.data);
+                TranslationModel().validateLineBreaks(input.data, ['description'], CODE.LineBreaksDescription);
+            }
         }
         if (deleteMany) {
             // Check if user is authorized to delete
@@ -205,6 +209,7 @@ export const projectMutater = (prisma: PrismaType) => ({
          * Helper function for creating create/update Prisma value
          */
         const createData = async (input: ProjectCreateInput | ProjectUpdateInput): Promise<{ [x: string]: any }> => ({
+            handle: (input as ProjectUpdateInput).handle ?? null,
             isComplete: input.isComplete,
             completedAt: input.isComplete ? new Date().toISOString() : null,
             parentId: input.parentId,

@@ -30,6 +30,7 @@ export const typeDef = gql`
     }
     input OrganizationUpdateInput {
         id: ID!
+        handle: String
         isOpenToNewMembers: Boolean
         membersConnect: [ID!]
         membersDisconnect: [ID!]
@@ -47,6 +48,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        handle: String
         isOpenToNewMembers: Boolean!
         stars: Int!
         isStarred: Boolean!

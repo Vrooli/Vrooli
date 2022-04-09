@@ -158,9 +158,4 @@ export const CODE = {
         message: 'Not authorized to perform this action',
         snack: 'Unauthorized',
     },
-    UsernameInUse: {
-        code: 'UsernameInUse',
-        message: 'Account with that username already exists',
-        snack: 'Username taken',
-    },
 }

@@ -133,8 +133,8 @@ export const resolvers = {
     }),
     Contributor: {
         __resolveType(obj: any) {
-            // Only a user has a username field
-            if (obj.hasOwnProperty('username')) return GraphQLModelType.User;
+            // Only a user has a name field
+            if (obj.hasOwnProperty('name')) return GraphQLModelType.User;
             return GraphQLModelType.Organization;
         },
     },
@@ -168,6 +168,7 @@ export const resolvers = {
                 {
                     __typename: 'Organization',
                     id: true,
+                    handle: true,
                     stars: true,
                     isStarred: true,
                     translations: {
@@ -187,6 +188,7 @@ export const resolvers = {
                 {
                     __typename: 'Project',
                     id: true,
+                    handle: true,
                     stars: true,
                     score: true,
                     isStarred: true,
@@ -251,7 +253,8 @@ export const resolvers = {
                 {
                     __typename: 'User',
                     id: true,
-                    username: true,
+                    name: true,
+                    handle: true,
                     stars: true,
                     isStarred: true,
                 },

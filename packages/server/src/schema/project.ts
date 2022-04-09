@@ -35,6 +35,7 @@ export const typeDef = gql`
     }
     input ProjectUpdateInput {
         id: ID!
+        handle: String
         isComplete: Boolean
         organizationId: ID
         parentId: ID
@@ -54,6 +55,7 @@ export const typeDef = gql`
         completedAt: Date
         created_at: Date!
         updated_at: Date!
+        handle: String
         isComplete: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean

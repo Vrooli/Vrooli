@@ -78,13 +78,15 @@ export interface project_project_owner_Organization_translations {
 export interface project_project_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: project_project_owner_Organization_translations[];
 }
 
 export interface project_project_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type project_project_owner = project_project_owner_Organization | project_project_owner_User;
@@ -94,6 +96,7 @@ export interface project_project {
   id: string;
   completedAt: any | null;
   created_at: any;
+  handle: string | null;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;

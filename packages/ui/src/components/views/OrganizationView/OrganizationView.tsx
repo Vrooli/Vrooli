@@ -128,14 +128,14 @@ export const OrganizationView = ({
                     sortOptionLabel: actorOptionLabel,
                     searchQuery: usersQuery,
                     where: { organizationId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.User, newValue.id),
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Profile, newValue.id),
                     searchItemFactory: (node: User, index: number) => (
                         <ActorListItem
                             key={`member-list-item-${index}`}
                             index={index}
                             session={session}
                             data={node}
-                            onClick={(_e, selected: User) => openLink(APP_LINKS.User, selected.id)}
+                            onClick={(_e, selected: User) => openLink(APP_LINKS.Profile, selected.id)}
                         />)
                 };
             case TabOptions.Projects:

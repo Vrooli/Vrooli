@@ -2,7 +2,22 @@ import * as Serialization from '@emurgo/cardano-serialization-lib-nodejs';
 import * as MessageSigning from './message_signing/rust/pkg/emurgo_message_signing';
 import { randomBytes } from 'crypto';
 
-// Generate a random string of the specified length, consisting of the specified characters
+/**
+ * Converts a serialized wallet address to Bech32 format
+ * @param address Serialized wallet address
+ * @returns Bech32 format of wallet address
+ */
+export const serializedAddressToBech32 = (address: string) => {
+    const addressBytes = Serialization.Address.from_bytes(Buffer.from(address, 'hex'));
+    return addressBytes.to_bech32();
+}
+
+/**
+ * Generate a random string of the specified length, consisting of the specified characters
+ * @param length The length of sting to generate
+ * @param chars The available characters to use in the string
+ * @returns A random string of the specified length, consisting of the specified characters
+ */
 export function randomString(
     length: number = 64,
     chars: string = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'

@@ -13,6 +13,7 @@ import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
 import { ResourceListModel } from "./resourceList";
+import { WalletModel } from "./wallet";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -374,10 +375,8 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         input: ProfileUpdateInput,
         info: InfoType,
     ): Promise<RecursivePartial<Profile>> {
-        // Check for valid arguments
-        if (!input.username || input.username.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
-        // Check for censored words
-        if (hasProfanity(input.username)) throw new CustomError(CODE.BannedWord);
+        await WalletModel(prisma).verifyHandle(GraphQLModelType.User, userId, input.handle);
+        if (hasProfanity(input.name)) throw new CustomError(CODE.BannedWord);
         TranslationModel().profanityCheck(input);
         TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio)
         // Convert info to partial select
@@ -385,7 +384,8 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
         // Create user data
         let userData: { [x: string]: any } = {
-            username: input.username,
+            handle: input.handle,
+            name: input.name,
             theme: input.theme,
             // Handle tags TODO probably doesn't work
             hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {

@@ -143,14 +143,14 @@ export const AllRoutes = (props: CommonProps) => {
                 </Route>
                 <Route path={`${LINKS.Run}/:id`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Routine')} {...props}>
+                        <Page {...props}>
                             <RoutineViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Run}/edit/:id`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Routine')} {...props}>
+                        <Page {...props}>
                             <RoutineViewPage session={props.session} />
                         </Page>
                     </Suspense>
@@ -162,49 +162,50 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
                 <Route path={`${LINKS.Organization}/:id?`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Organization')} {...props}>
+                        <Page {...props}>
                             <OrganizationViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Organization}/edit/:id?`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Organization')} {...props}>
+                        <Page {...props}>
                             <OrganizationViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Project}/:id?`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Project')} {...props}>
+                        <Page {...props}>
                             <ProjectViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Project}/edit/:id?`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Project')} {...props}>
+                        <Page {...props}>
                             <ProjectViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Standard}/:id?`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Standard')} {...props}>
+                        <Page {...props}>
                             <StandardViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
                 <Route path={`${LINKS.Standard}/edit/:id?`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('Standard')} {...props}>
+                        <Page {...props}>
                             <StandardViewPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
-                <Route path={`${LINKS.User}/:id?`}>
+                {/* Profile editing is done on settings page, so no need for extra route */}
+                <Route path={`${LINKS.Profile}/:id?`}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('User')} {...props}>
+                        <Page {...props}>
                             <UserViewPage session={props.session} />
                         </Page>
                     </Suspense>

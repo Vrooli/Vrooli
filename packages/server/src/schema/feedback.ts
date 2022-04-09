@@ -25,7 +25,7 @@ export const resolvers = {
             // Find user who sent feedback, if any
             let from = input.userId ? await prisma.user.findUnique({ where: { id: input.userId } }) : null;
             // Send feedback to admin
-            feedbackNotifyAdmin(input.text, from?.username ?? 'anonymous');
+            feedbackNotifyAdmin(input.text, from?.name ?? 'anonymous');
             return { success: true };
         },
     }

@@ -112,6 +112,7 @@ export const EmailList = ({
                 paddingBottom: 6,
             }}>
                 <TextField
+                    autoComplete='email'
                     fullWidth
                     id="email"
                     name="email"

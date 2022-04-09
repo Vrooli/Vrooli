@@ -241,7 +241,7 @@ export interface EmailResetPasswordInput {
 }
 
 export interface EmailSignUpInput {
-  username: string;
+  name: string;
   email: string;
   theme: string;
   marketingEmails: boolean;
@@ -262,6 +262,10 @@ export interface FeedbackInput {
 
 export interface FindByIdInput {
   id: string;
+}
+
+export interface FindHandlesInput {
+  organizationId?: string | null;
 }
 
 export interface InputItemCreateInput {
@@ -530,6 +534,7 @@ export interface OrganizationTranslationUpdateInput {
 
 export interface OrganizationUpdateInput {
   id: string;
+  handle?: string | null;
   isOpenToNewMembers?: boolean | null;
   membersConnect?: string[] | null;
   membersDisconnect?: string[] | null;
@@ -573,7 +578,8 @@ export interface OutputItemUpdateInput {
 }
 
 export interface ProfileUpdateInput {
-  username?: string | null;
+  handle?: string | null;
+  name?: string | null;
   theme?: string | null;
   hiddenTagsConnect?: string[] | null;
   hiddenTagsDisconnect?: string[] | null;
@@ -641,6 +647,7 @@ export interface ProjectTranslationUpdateInput {
 
 export interface ProjectUpdateInput {
   id: string;
+  handle?: string | null;
   isComplete?: boolean | null;
   organizationId?: string | null;
   parentId?: string | null;

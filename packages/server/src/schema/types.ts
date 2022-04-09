@@ -191,9 +191,9 @@ export type EmailSignUpInput = {
   confirmPassword: Scalars['String'];
   email: Scalars['String'];
   marketingEmails: Scalars['Boolean'];
+  name: Scalars['String'];
   password: Scalars['String'];
   theme: Scalars['String'];
-  username: Scalars['String'];
 };
 
 export type EmailUpdateInput = {
@@ -209,6 +209,10 @@ export type FeedbackInput = {
 
 export type FindByIdInput = {
   id: Scalars['ID'];
+};
+
+export type FindHandlesInput = {
+  organizationId?: InputMaybe<Scalars['ID']>;
 };
 
 export type InputItem = {
@@ -949,6 +953,7 @@ export type Organization = {
   __typename?: 'Organization';
   comments: Array<Comment>;
   created_at: Scalars['Date'];
+  handle?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
@@ -1044,6 +1049,7 @@ export type OrganizationTranslationUpdateInput = {
 };
 
 export type OrganizationUpdateInput = {
+  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   membersConnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -1114,9 +1120,11 @@ export type Profile = {
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   emails: Array<Email>;
+  handle?: Maybe<Scalars['String']>;
   hiddenTags?: Maybe<Array<TagHidden>>;
   history: Array<Log>;
   id: Scalars['ID'];
+  name: Scalars['String'];
   projects: Array<Project>;
   projectsCreated: Array<Project>;
   reports: Array<Report>;
@@ -1132,7 +1140,6 @@ export type Profile = {
   theme: Scalars['String'];
   translations: Array<UserTranslation>;
   updated_at: Scalars['Date'];
-  username?: Maybe<Scalars['String']>;
   votes: Array<Vote>;
   wallets: Array<Wallet>;
 };
@@ -1146,9 +1153,11 @@ export type ProfileEmailUpdateInput = {
 };
 
 export type ProfileUpdateInput = {
+  handle?: InputMaybe<Scalars['String']>;
   hiddenTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   hiddenTagsCreate?: InputMaybe<Array<TagCreateInput>>;
   hiddenTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  name?: InputMaybe<Scalars['String']>;
   resourceListsCreate?: InputMaybe<Array<ResourceCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
@@ -1159,7 +1168,6 @@ export type ProfileUpdateInput = {
   translationsCreate?: InputMaybe<Array<UserTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<UserTranslationUpdateInput>>;
-  username?: InputMaybe<Scalars['String']>;
 };
 
 export type Project = {
@@ -1169,6 +1177,7 @@ export type Project = {
   created_at: Scalars['Date'];
   creator?: Maybe<Contributor>;
   forks: Array<Project>;
+  handle?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
@@ -1276,6 +1285,7 @@ export type ProjectTranslationUpdateInput = {
 };
 
 export type ProjectUpdateInput = {
+  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
   organizationId?: InputMaybe<Scalars['ID']>;
@@ -1298,6 +1308,7 @@ export type Query = {
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
   commentsCount: Scalars['Int'];
+  findHandles: Array<Scalars['String']>;
   log?: Maybe<Log>;
   logs: LogSearchResult;
   organization?: Maybe<Organization>;
@@ -1350,6 +1361,11 @@ export type QueryCommentsArgs = {
 
 export type QueryCommentsCountArgs = {
   input: CommentCountInput;
+};
+
+
+export type QueryFindHandlesArgs = {
+  input: FindHandlesInput;
 };
 
 
@@ -2280,8 +2296,10 @@ export type User = {
   __typename?: 'User';
   comments: Array<Comment>;
   created_at: Scalars['Date'];
+  handle?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isStarred: Scalars['Boolean'];
+  name: Scalars['String'];
   projects: Array<Project>;
   projectsCreated: Array<Project>;
   reports: Array<Report>;
@@ -2291,7 +2309,6 @@ export type User = {
   starredBy: Array<User>;
   stars: Scalars['Int'];
   translations: Array<UserTranslation>;
-  username?: Maybe<Scalars['String']>;
 };
 
 export type UserCountInput = {
@@ -2392,7 +2409,7 @@ export type VoteTo = Comment | Project | Routine | Standard | Tag;
 
 export type Wallet = {
   __typename?: 'Wallet';
-  handle?: Maybe<Scalars['String']>;
+  handles: Array<Scalars['String']>;
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
   organization?: Maybe<Organization>;

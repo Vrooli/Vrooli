@@ -84,13 +84,15 @@ export interface projects_projects_edges_node_owner_Organization_translations {
 export interface projects_projects_edges_node_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: projects_projects_edges_node_owner_Organization_translations[];
 }
 
 export interface projects_projects_edges_node_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type projects_projects_edges_node_owner = projects_projects_edges_node_owner_Organization | projects_projects_edges_node_owner_User;
@@ -100,6 +102,7 @@ export interface projects_projects_edges_node {
   id: string;
   completedAt: any | null;
   created_at: any;
+  handle: string | null;
   isComplete: boolean;
   isStarred: boolean;
   isUpvoted: boolean | null;

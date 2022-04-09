@@ -3,16 +3,16 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { FindHandlesInput } from "./globalTypes";
+
 // ====================================================
-// GraphQL fragment: walletFields
+// GraphQL query operation: findHandles
 // ====================================================
 
-export interface walletFields {
-  __typename: "Wallet";
-  id: string;
-  name: string | null;
-  publicAddress: string | null;
-  stakingAddress: string;
-  handles: string[];
-  verified: boolean;
+export interface findHandles {
+  findHandles: string[];
+}
+
+export interface findHandlesVariables {
+  input: FindHandlesInput;
 }

@@ -30,6 +30,7 @@ export const standardFields = gql`
         creator {
             ... on Organization {
                 id
+                handle
                 translations {
                     id
                     language
@@ -38,7 +39,8 @@ export const standardFields = gql`
             }
             ... on User {
                 id
-                username
+                name
+                handle
             }
         }
         stars

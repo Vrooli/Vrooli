@@ -56,7 +56,8 @@ export interface user_user_translations {
 export interface user_user {
   __typename: "User";
   id: string;
-  username: string | null;
+  handle: string | null;
+  name: string;
   created_at: any;
   stars: number;
   isStarred: boolean;

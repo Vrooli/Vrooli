@@ -1,12 +1,12 @@
-import { Box, Container, Grid, TextField, Typography } from "@mui/material"
-import { useMutation } from "@apollo/client";
+import { Autocomplete, Box, Button, Container, Grid, Stack, TextField, Typography } from "@mui/material"
+import { useLazyQuery, useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getUserLanguages } from "utils";
+import { formatForUpdate, getUserLanguages, Pubs } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -15,8 +15,24 @@ import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { SettingsProfileProps } from "../types";
 import { useLocation } from "wouter";
-import { containerShadow } from "styles";
 import { LanguageInput } from "components/inputs";
+import { HelpButton } from "components/buttons";
+import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
+import { findHandlesQuery } from "graphql/query";
+
+const helpText =
+`This page allows you to update your profile, including your name, handle, and bio.
+    
+Handles are unique, and handled (pun intended) by the [ADA Handle Protocol](https://adahandle.com/). This allows for handle to be 
+used across many Cardano applications, and exchanged with others on an open market.
+
+To use an ADA Handle, make sure it is in a wallet which is authenticated with your account.
+
+If you set a handle, your Vrooli profile will be accessible via https://app.vrooli.com/profile/{handle}.
+
+Your bio is displayed on your profile page. You may add multiple translations if you'd like.`;
+
+const TERTIARY_COLOR = '#95f3cd';
 
 export const SettingsProfile = ({
     onUpdated,
@@ -24,6 +40,31 @@ export const SettingsProfile = ({
     session,
 }: SettingsProfileProps) => {
     const [, setLocation] = useLocation();
+
+    // Query for handles associated with the user
+    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyQuery<findHandles, findHandlesVariables>(findHandlesQuery);
+    const [handles, setHandles] = useState<string[]>([]);
+    const fetchHandles = useCallback(() => {
+        const verifiedWallets = profile?.wallets?.filter(w => w.verified) ?? [];
+        if (verifiedWallets.length > 0) {
+            findHandles({ variables: { input: {} } }); // Intentionally empty
+        } else {
+            PubSub.publish(Pubs.Snack, { message: 'No verified wallets associated with account', severity: 'error' })
+        }
+    }, [profile, findHandles]);
+    useEffect(() => {
+        if (handlesData?.findHandles) {
+            console.log('GOT HANDLESSSSSS', handlesData.findHandles);
+            setHandles(handlesData.findHandles);
+        }
+    }, [handlesData])
+
+    const [selectedHandle, setSelectedHandle] = useState<string | null>(null);
+    useEffect(() => {
+        if (profile?.handle) {
+            setSelectedHandle(profile.handle);
+        }
+    }, [profile]);
 
     // Handle translations
     type Translation = {
@@ -58,6 +99,10 @@ export const SettingsProfile = ({
             language: t.language,
             bio: t.bio ?? '',
         })) ?? [{ language: getUserLanguages(session)[0], bio: '' }]);
+        formik.setValues({
+            ...formik.values,
+            name: profile?.name ?? '',
+        })
     }, [profile, session]);
 
     // Handle update
@@ -65,7 +110,7 @@ export const SettingsProfile = ({
     const formik = useFormik({
         initialValues: {
             bio: '',
-            username: profile?.username ?? '',
+            name: '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -78,7 +123,8 @@ export const SettingsProfile = ({
             mutationWrapper({
                 mutation,
                 input: formatForUpdate(profile, {
-                    ...values,
+                    name: values.name,
+                    handle: selectedHandle,
                     translations: allTranslations,
                 }),
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
@@ -158,71 +204,82 @@ export const SettingsProfile = ({
     ], [formik, setLocation]);
 
     return (
-        <Box sx={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
+            {/* Title */}
             <Box sx={{
-                ...containerShadow,
-                borderRadius: 2,
-                overflow: 'overlay',
-                marginTop: '-5vh',
-                background: (t) => t.palette.background.default,
-                width: 'min(100%, 700px)',
+                background: (t) => t.palette.primary.dark,
+                color: (t) => t.palette.primary.contrastText,
+                padding: 0.5,
+                marginBottom: 2,
             }}>
-                <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-                    {/* Title */}
-                    <Box sx={{
-                        background: (t) => t.palette.primary.dark,
-                        color: (t) => t.palette.primary.contrastText,
-                        padding: 0.5,
-                        marginBottom: 2,
-                    }}>
-                        <Typography component="h1" variant="h3" textAlign="center">Update Profile</Typography>
-                    </Box>
-                    <Container sx={{ paddingBottom: 2 }}>
-                        <Grid container spacing={2}>
-                            <Grid item xs={12}>
-                                <LanguageInput
-                                    currentLanguage={language}
-                                    handleAdd={handleAddLanguage}
-                                    handleChange={handleLanguageChange}
-                                    handleDelete={handleLanguageDelete}
-                                    handleSelect={handleLanguageSelect}
-                                    languages={languages}
-                                    session={session}
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    id="username"
-                                    name="username"
-                                    label="Username"
-                                    value={formik.values.username}
-                                    onBlur={formik.handleBlur}
-                                    onChange={formik.handleChange}
-                                    error={formik.touched.username && Boolean(formik.errors.username)}
-                                    helperText={formik.touched.username && formik.errors.username}
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    id="bio"
-                                    name="bio"
-                                    label="Bio"
-                                    multiline
-                                    minRows={4}
-                                    value={formik.values.bio}
-                                    onBlur={formik.handleBlur}
-                                    onChange={formik.handleChange}
-                                    error={formik.touched.bio && Boolean(formik.errors.bio)}
-                                    helperText={formik.touched.bio && formik.errors.bio}
-                                />
-                            </Grid>
-                        </Grid>
-                    </Container>
-                    <DialogActionsContainer fixed={false} actions={actions} />
-                </form>
+                <Typography component="h1" variant="h3" textAlign="center">Update Profile</Typography>
+                <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
             </Box>
-        </Box>
+            <Container sx={{ paddingBottom: 2 }}>
+                <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleChange={handleLanguageChange}
+                            handleDelete={handleLanguageDelete}
+                            handleSelect={handleLanguageSelect}
+                            languages={languages}
+                            session={session}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <Stack direction="row" spacing={1}>
+                            <Autocomplete
+                                disablePortal
+                                id="ada-handle-select"
+                                options={handles}
+                                onChange={(_, value) => { setSelectedHandle(value) }}
+                                renderInput={(params) => <TextField {...params} label="(ADA) Handle" />}
+                                value={selectedHandle}
+                                sx={{
+                                    width: '100%',
+                                }}
+                            />
+                            <Button
+                                color="secondary"
+                                onClick={fetchHandles}
+                                >Find Handles</Button>
+                        </Stack>
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            id="name"
+                            name="name"
+                            label="Name"
+                            multiline
+                            minRows={4}
+                            value={formik.values.name}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            error={formik.touched.name && Boolean(formik.errors.name)}
+                            helperText={formik.touched.name && formik.errors.name}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            id="bio"
+                            name="bio"
+                            label="Bio"
+                            multiline
+                            minRows={4}
+                            value={formik.values.bio}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            error={formik.touched.bio && Boolean(formik.errors.bio)}
+                            helperText={formik.touched.bio && formik.errors.bio}
+                        />
+                    </Grid>
+                </Grid>
+            </Container>
+            <DialogActionsContainer fixed={false} actions={actions} />
+        </form>
     )
 }

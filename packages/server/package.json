@@ -19,6 +19,7 @@
         "graphql-generate": "graphql-codegen && mv generatedTypes.ts src/schema/types.ts"
     },
     "dependencies": {
+        "@blockfrost/blockfrost-js": "^4.1.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
         "@local/shared": "^1.0.0",
@@ -33,6 +34,7 @@
         "graphql-upload": "^12.0.0",
         "jsonwebtoken": "^8.5.1",
         "lodash": "^4.17.21",
+        "node-fetch": "^3.2.3",
         "nodemailer": "^6.6.0",
         "nodemon": "^2.0.7",
         "open-graph-scraper": "^4.11.0",

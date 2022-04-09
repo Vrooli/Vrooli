@@ -24,7 +24,7 @@ export interface profile_profile_wallets {
   name: string | null;
   publicAddress: string | null;
   stakingAddress: string;
-  handle: string | null;
+  handles: string[];
   verified: boolean;
 }
 
@@ -115,7 +115,8 @@ export interface profile_profile_resourceLists {
 export interface profile_profile {
   __typename: "Profile";
   id: string;
-  username: string | null;
+  handle: string | null;
+  name: string;
   emails: profile_profile_emails[];
   wallets: profile_profile_wallets[];
   theme: string;

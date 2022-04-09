@@ -36,21 +36,21 @@ const main = async () => {
 
     // Cross-Origin access. Accepts requests from localhost and dns
     // If you want a public server, this can be set to ['*']
-    let origins;
+    let origins: Array<string | RegExp> = ['https://cardano-mainnet.blockfrost.io'];
     if (process.env.REACT_APP_SERVER_LOCATION === 'local') {
-        origins = [
+        origins.push(
             /^http:\/\/localhost(?::[0-9]+)?$/,
             /^http:\/\/192.168.0.[0-9]{1,2}(?::[0-9]+)?$/,
-            'https://studio.apollographql.com',
-        ]
+            'https://studio.apollographql.com'
+        )
     }
     else {
-        origins = [
+        origins.push(
             `http://app.vrooli.com`,
             `http://www.app.vrooli.com`,
             `https://app.vrooli.com`,
-            `https://www.app.vrooli.com`
-        ]
+            `https://www.app.vrooli.com`,
+        )
     }
 
     app.use(cors({

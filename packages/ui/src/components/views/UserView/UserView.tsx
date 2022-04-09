@@ -35,21 +35,22 @@ export const UserView = ({
 }: UserViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [isProfile] = useRoute(`${APP_LINKS.Settings}/:params*`);
+    const [isProfile] = useRoute(`${APP_LINKS.Profile}`);
+    const [, params1] = useRoute(`${APP_LINKS.Profile}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchUsers}/view/:id`);
     const id: string = useMemo(() => {
-        if (isProfile) return session?.id ?? '';
-        return params2?.id ?? ''
-    }, [isProfile, params2, session]);
+        return isProfile ? (session.id ?? '') : (params1?.id ?? params2?.id ?? '');
+    }, [isProfile, params1, params2, session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery);
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id) && !isProfile) getData({ variables: { input: { id } } })
-    }, [getData, id, isProfile]);
+        //TODO handle handles
+        if (uuidValidate(id)) getData({ variables: { input: { id } } })
+    }, [getData, id]);
     useEffect(() => {
-        setUser(isProfile ? partialData as any : data?.user as any);
+        setUser((data?.user as User) ?? partialData);
     }, [data, isProfile, partialData]);
 
     const [language, setLanguage] = useState<string>('');
@@ -61,11 +62,12 @@ export const UserView = ({
         setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
     }, [session, user]);
 
-    const { bio, username, resourceList } = useMemo(() => {
+    const { bio, name, handle, resourceList } = useMemo(() => {
         const resourceLists = (user as any)?.resourceLists ?? (partialData as any)?.resourceLists ?? [];
         return {
             bio: getTranslation(user, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language]),
-            username: user?.username ?? partialData?.username,
+            name: user?.name ?? partialData?.name,
+            handle: user?.handle ?? partialData?.handle,
             resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
         };
     }, [language, partialData, user]);
@@ -108,7 +110,7 @@ export const UserView = ({
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
     const shareLink = () => {
-        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.User}/${id}`);
+        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Profile}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
     }
 
@@ -247,7 +249,7 @@ export const UserView = ({
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     /**
-     * Displays username, avatar, bio, and quick links
+     * Displays name, handle, avatar, bio, and quick links
      */
     const overviewComponent = useMemo(() => (
         <Box
@@ -303,7 +305,7 @@ export const UserView = ({
                         </Stack>
                     ) : isOwn ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{username}</Typography>
+                            <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit profile">
                                 <IconButton
                                     aria-label="Edit profile"
@@ -315,9 +317,11 @@ export const UserView = ({
                             </Tooltip>
                         </Stack>
                     ) : (
-                        <Typography variant="h4" textAlign="center">{username}</Typography>
+                        <Typography variant="h4" textAlign="center">{name}</Typography>
                     )
                 }
+                {/* Handle */}
+                {handle && <Typography variant="h6" textAlign="center">${handle}</Typography>}
                 {/* Joined date */}
                 {
                     loading ? (
@@ -364,7 +368,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, isOwn, loading, onEdit, openMoreMenu, partialData, session, shareLink, user, username]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, partialData, session, shareLink, user]);
 
     /**
      * Opens add new page

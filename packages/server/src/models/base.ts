@@ -37,6 +37,7 @@ const { isObject } = pkg;
 export enum GraphQLModelType {
     Comment = 'Comment',
     Email = 'Email',
+    Handle = 'Handle',
     InputItem = 'InputItem',
     Member = 'Member',
     Node = 'Node',

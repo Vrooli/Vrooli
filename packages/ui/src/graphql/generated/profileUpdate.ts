@@ -24,7 +24,7 @@ export interface profileUpdate_profileUpdate_wallets {
   name: string | null;
   publicAddress: string | null;
   stakingAddress: string;
-  handle: string | null;
+  handles: string[];
   verified: boolean;
 }
 
@@ -115,7 +115,8 @@ export interface profileUpdate_profileUpdate_resourceLists {
 export interface profileUpdate_profileUpdate {
   __typename: "Profile";
   id: string;
-  username: string | null;
+  handle: string | null;
+  name: string;
   emails: profileUpdate_profileUpdate_emails[];
   wallets: profileUpdate_profileUpdate_wallets[];
   theme: string;
