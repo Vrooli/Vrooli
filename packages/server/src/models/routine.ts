@@ -2,7 +2,7 @@ import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Ro
 import { PrismaType, RecursivePartial } from "types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../error";
-import { CODE, inputCreate, inputUpdate, MemberRole, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@local/shared";
+import { CODE, inputCreate, inputTranslationCreate, inputTranslationUpdate, inputUpdate, MemberRole, outputTranslationCreate, outputTranslationUpdate, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@local/shared";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -392,36 +392,58 @@ export const routineMutater = (prisma: PrismaType) => ({
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
+        console.log('relationshipbuilderinput startttt', JSON.stringify(input))
         // Convert input to Prisma shape
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported in this case (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'inputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         const standardModel = StandardModel(prisma);
         // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs 
         //TODO
         // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            for (const data of formattedInput.create) {
+        if (Array.isArray(createMany)) {
+            let result = [];
+            for (let data of createMany) {
                 // Check for valid arguments
                 inputCreate.validateSync(data, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
-                data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
+                result.push({
+                    name: data.name,
+                    standard: standardModel.relationshipBuilder(userId, data, isAdd),
+                    translations: TranslationModel().relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
+                })
             }
+            createMany = result;
         }
         // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (const update of formattedInput.update) {
+        if (Array.isArray(updateMany)) {
+            let result = [];
+            for (let update of updateMany) {
                 // Check for valid arguments
                 inputUpdate.validateSync(update.data, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(update.data.name, update.data.description)) throw new CustomError(CODE.BannedWord);
                 // Convert nested relationships
-                update.data.standard = standardModel.relationshipBuilder(userId, update.data, isAdd);
+                result.push({
+                    where: update.where,
+                    data: {
+                        name: update.data.name,
+                        standard: standardModel.relationshipBuilder(userId, update.data, isAdd),
+                        translations: TranslationModel().relationshipBuilder(userId, update.data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
+                    }
+                })
             }
+            updateMany = result;
         }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        console.log('formattedinput complete', JSON.stringify(createMany));
+        return Object.keys(formattedInput).length > 0 ? {
+            create: createMany,
+            update: updateMany,
+            delete: deleteMany
+        } : undefined;
     },
     /**
      * Add, update, or remove routine outputs from a routine
@@ -437,32 +459,52 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported in this case (since they can only be applied to one routine)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'outputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         const standardModel = StandardModel(prisma);
         // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs
         //TODO
         // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            for (const data of formattedInput.create) {
+        if (Array.isArray(createMany)) {
+            let result = [];
+            for (let data of createMany) {
                 // Check for valid arguments
                 inputCreate.validateSync(data, { abortEarly: false });
                 // Check for censored words
                 TranslationModel().profanityCheck(data);
                 // Convert nested relationships
-                data.standard = standardModel.relationshipBuilder(userId, data, isAdd);
+                result.push({
+                    name: data.name,
+                    standard: standardModel.relationshipBuilder(userId, data, isAdd),
+                    translations: TranslationModel().relationshipBuilder(userId, data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
+                })
             }
+            createMany = result;
         }
         // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (const update of formattedInput.update) {
+        if (Array.isArray(updateMany)) {
+            let result = [];
+            for (let update of updateMany) {
                 // Check for valid arguments
                 inputUpdate.validateSync(update.data, { abortEarly: false });
                 // Check for censored words
                 TranslationModel().profanityCheck(update.data);
                 // Convert nested relationships
-                update.data.standard = standardModel.relationshipBuilder(userId, update.data, isAdd);
+                result.push({
+                    where: update.where,
+                    data: {
+                        name: update.data.name,
+                        standard: standardModel.relationshipBuilder(userId, update.data, isAdd),
+                        translations: TranslationModel().relationshipBuilder(userId, update.data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
+                    }
+                })
             }
+            updateMany = result;
         }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return Object.keys(formattedInput).length > 0 ? {
+            create: createMany,
+            update: updateMany,
+            delete: deleteMany
+        } : undefined;
     },
     /**
      * Add, update, or remove a routine relationship from a routine list

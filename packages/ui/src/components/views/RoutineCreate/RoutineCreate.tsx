@@ -67,6 +67,15 @@ export const RoutineCreate = ({
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
+        // Also delete translations from inputs and outputs
+        setInputsList(inputsList.map(i => {
+            const updatedTranslationsList = i.translations.filter(t => t.language !== language);
+            return { ...i, translations: updatedTranslationsList };
+        }));
+        setOutputsList(outputsList.map(o => {
+            const updatedTranslationsList = o.translations.filter(t => t.language !== language);
+            return { ...o, translations: updatedTranslationsList };
+        }));
     }, [translations, setTranslations]);
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
@@ -97,8 +106,6 @@ export const RoutineCreate = ({
         },
         validationSchema,
         onSubmit: (values) => {
-            const inputsAdd = inputsList ? formatForCreate(inputsList) : [];
-            const outputsAdd = outputsList ? formatForCreate(outputsList) : [];
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
             const tagsAdd = tags.length > 0 ? {
                 tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
@@ -110,14 +117,12 @@ export const RoutineCreate = ({
                 instructions: values.instructions,
                 title: values.title,
             })
-            console.log('ON SUBMIT INPUT', inputsAdd)
-            console.log('ON SUBMIT OUTPUT', outputsAdd)
             mutationWrapper({
                 mutation,
                 input: formatForCreate({
                     translations: allTranslations,
-                    ...inputsAdd,
-                    ...outputsAdd,
+                    inputs: inputsList,
+                    outputs: outputsList,
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
                     version: values.version,
@@ -266,6 +271,7 @@ export const RoutineCreate = ({
                         isEditing={true}
                         handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
                         isInput={true}
+                        language={language}
                         list={inputsList}
                         session={session}
                     />
@@ -275,6 +281,7 @@ export const RoutineCreate = ({
                         isEditing={true}
                         handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
                         isInput={false}
+                        language={language}
                         list={outputsList}
                         session={session}
                     />

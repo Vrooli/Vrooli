@@ -46,7 +46,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     noResultsText = 'No results',
     session,
 }: SearchListProps<DataType, SortBy>) {
-    console.log('default sort option', defaultSortOption);
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
     const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption.label ?? sortOptions.length > 0 ? sortOptions[0].label : 'Sort');

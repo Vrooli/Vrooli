@@ -152,6 +152,7 @@ export const SelectLanguageDialog = ({
             <Tooltip title={AllLanguages[language] ?? ''} placement="top">
                 <Stack direction="row" ref={anchorRef} spacing={0} onClick={onOpen} sx={{
                     ...(sxs?.root ?? {}),
+                    display: availableLanguages === undefined || availableLanguages.length > 0 ? 'flex' : 'none',
                     justifyContent: 'center',
                     alignItems: 'center',
                     borderRadius: '50px',

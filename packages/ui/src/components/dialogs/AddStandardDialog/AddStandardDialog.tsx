@@ -49,8 +49,14 @@ export const AddStandardDialog = ({
     // If standard selected from search, query for full data
     const [getStandard, { data: standardData, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
     const handeStandardSelect = useCallback((standard: Standard) => {
-        getStandard({ variables: { input: { id: standard.id } } });
-    }, [getStandard]);
+        // Query for full standard data, if not already known (would be known if the same standard was selected last time)
+        if (standardData?.standard?.id === standard.id) {
+            handleAdd(standardData?.standard);
+            handleClose();
+        } else {
+            getStandard({ variables: { input: { id: standard.id } } });
+        }
+    }, [getStandard, standardData]);
     useEffect(() => {
         if (standardData?.standard) {
             handleAdd(standardData.standard);

@@ -4,6 +4,7 @@ export interface InputOutputContainerProps {
     handleUpdate: (updatedList: RoutineInputList | RoutineOutputList) => void;
     isEditing: boolean;
     isInput: boolean;
+    language: string;
     list: RoutineInputList | RoutineOutputList;
     session: Session;
 }
@@ -20,5 +21,6 @@ export interface InputOutputListItemProps {
     handleUpdate: (index: number, updatedItem: RoutineInput | RoutineOutput) => void;
     handleOpenStandardSelect: (index: number) => void;
     handleRemoveStandard: (index: number) => void;
+    language: string;
     session: Session;
 }

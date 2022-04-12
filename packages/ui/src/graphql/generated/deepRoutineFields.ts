@@ -51,6 +51,7 @@ export interface deepRoutineFields_inputs_standard {
 export interface deepRoutineFields_inputs {
   __typename: "InputItem";
   id: string;
+  isRequired: boolean | null;
   name: string | null;
   translations: deepRoutineFields_inputs_translations[];
   standard: deepRoutineFields_inputs_standard | null;

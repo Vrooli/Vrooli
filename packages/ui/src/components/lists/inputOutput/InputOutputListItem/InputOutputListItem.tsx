@@ -24,20 +24,49 @@ export const InputOutputListItem = ({
     handleUpdate,
     handleOpenStandardSelect,
     handleRemoveStandard,
+    language,
     session,
 }: InputOutputListItemProps) => {
 
+    type Translation = {
+        language: string;
+        description: string;
+    };
+    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
+        // Find translation
+        const index = item.translations.findIndex(t => language === t.language);
+        // If language exists, update
+        if (index >= 0) {
+            const newTranslations = [...item.translations];
+            newTranslations[index] = { ...translation } as any;
+            return newTranslations;
+        }
+        // Otherwise, add new
+        else {
+            return [...item.translations, translation];
+        }
+    }, [item.translations]);
+
     const formik = useFormik({
         initialValues: {
-            description: getTranslation(item, 'description', getUserLanguages(session), true) ?? '',
+            description: getTranslation(item, 'description', [language]) ?? '',
             isRequired: true,
             name: item.name ?? '',
         },
         enableReinitialize: true,
         validationSchema: isInput ? inputCreate : outputCreate,
         onSubmit: (values) => {
+            // Update translations
+            const allTranslations = getTranslationsUpdate(language, {
+                language,
+                description: values.description,
+            })
+            console.log('all translations', allTranslations);
             handleUpdate(index, {
-                ...values,
+                ...item,
+                name: values.name,
+                isRequired: values.isRequired,
+                translations: allTranslations,
             } as any);
         },
     });

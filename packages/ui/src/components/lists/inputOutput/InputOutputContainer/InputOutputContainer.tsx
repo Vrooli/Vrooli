@@ -58,12 +58,7 @@ const AddButton = ({ index, isInput, handleAdd }: AddButtonProps) => (
         <IconButton
             id={`add-${isInput ? 'input' : 'output'}-item-${index}`}
             color="inherit"
-            onClick={() => handleAdd(index, {
-                description: '',
-                isRequired: true,
-                name: '',
-                standard: null,
-            } as any)}
+            onClick={() => handleAdd(index, {} as any)}
             aria-label="close"
             sx={{
                 zIndex: 1,
@@ -92,6 +87,7 @@ export const InputOutputContainer = ({
     handleUpdate,
     isEditing,
     isInput,
+    language,
     list,
     session,
 }: InputOutputContainerProps) => {
@@ -114,16 +110,23 @@ export const InputOutputContainer = ({
     }, [isOpenArray]);
 
     const onAdd = useCallback((index: number, newItem: RoutineInput | RoutineOutput) => {
-        console.log('onadd', newItem)
         const newIsOpenArray = new Array(list.length + 1).fill(false);
-        newIsOpenArray[index + 1] = true;
+        newIsOpenArray[Math.min(index + 1, list.length)] = true;
         setIsOpenArray(newIsOpenArray);
-        console.log('oldlistttt', list)
         const newList = [...list];
-        newList.splice(index + 1, 0, newItem as any);
-        console.log('newlistttttt', newList)
+        let newItemFormatted = {
+            ...newItem,
+            name: newItem.name || '',
+            standard: newItem.standard || undefined,
+            translations: newItem.translations ? newItem.translations : [{
+                language,
+                description: ''
+            }]
+        } as any;
+        if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) newItemFormatted.isRequired = true;
+        newList.splice(index + 1, 0, newItemFormatted);
         handleUpdate(newList as any);
-    }, [handleUpdate, list, isOpenArray]);
+    }, [handleUpdate, language, list, isOpenArray]);
 
     const onUpdate = useCallback((index: number, updatedItem: RoutineInput | RoutineOutput) => {
         handleUpdate(updateArray(list, index, updatedItem));
@@ -231,8 +234,8 @@ export const InputOutputContainer = ({
 
     // Add standard dialog
     const [addStandardIndex, setAddStandardIndex] = useState<number | null>(null);
-    const handleOpenStandardSelect = useCallback((index: number) => { setAddStandardIndex(index); }, []);
-    const closeAddStandardDialog = useCallback(() => { setAddStandardIndex(null); }, []);
+    const handleOpenStandardSelect = useCallback((index: number) => { console.log('open standard', index); setAddStandardIndex(index); }, []);
+    const closeAddStandardDialog = useCallback(() => { console.log('close standard'); setAddStandardIndex(null); }, []);
     const handleAddStandard = useCallback((standard: Standard) => {
         if (addStandardIndex === null) return;
         // Add standard to item at index
@@ -246,8 +249,9 @@ export const InputOutputContainer = ({
         // Remove standard from item at index
         handleUpdate(updateArray(list, index, {
             ...list[index],
-            standard: null
+            standard: undefined
         }));
+        setAddStandardIndex(null);
     }, [handleUpdate, list]);
 
     return (
@@ -282,6 +286,7 @@ export const InputOutputContainer = ({
                             handleUpdate={onUpdate}
                             handleOpenStandardSelect={handleOpenStandardSelect}
                             handleRemoveStandard={handleRemoveStandard}
+                            language={language}
                             session={session}
                         />
                         <AddButton

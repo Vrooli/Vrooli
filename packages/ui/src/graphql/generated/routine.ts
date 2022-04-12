@@ -51,6 +51,7 @@ export interface routine_routine_inputs_standard {
 export interface routine_routine_inputs {
   __typename: "InputItem";
   id: string;
+  isRequired: boolean | null;
   name: string | null;
   translations: routine_routine_inputs_translations[];
   standard: routine_routine_inputs_standard | null;

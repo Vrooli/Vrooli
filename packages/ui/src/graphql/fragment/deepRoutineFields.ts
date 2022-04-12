@@ -12,6 +12,7 @@ export const deepRoutineFields = gql`
     }
     fragment deepRoutineInputFields on InputItem {
         id
+        isRequired
         name
         translations {
             id
