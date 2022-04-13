@@ -257,6 +257,16 @@ export const projectMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await createData(input.data);
+                // Find object
+                let object = await prisma.project.findFirst({ where: input.where })
+                if (!object) throw new CustomError(CODE.NotFound, 'Project not found');
+                // Make sure user is authorized to update
+                if (object.organizationId) {
+                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', object.organizationId);
+                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                } else {
+                    if (object.userId !== userId) throw new CustomError(CODE.Unauthorized);
+                }
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.data.organizationId) {
                     // Make sure the user is an admin of the organization
@@ -274,21 +284,6 @@ export const projectMutater = (prisma: PrismaType) => ({
                         organization: { disconnect: true },
                     };
                 }
-                // Find object
-                let object = await prisma.project.findFirst({
-                    where: {
-                        AND: [
-                            input.where,
-                            {
-                                OR: [
-                                    { organizationId: input.data.organizationId },
-                                    { userId },
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.project.update({
                     where: input.where,

@@ -41,6 +41,11 @@ export const StandardView = ({
     }, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(standard?.role ?? ''), [standard]);
 
+    useEffect(() => {
+        const name = standard?.name ?? partialData?.name ?? '';
+        document.title = `${name} | Vrooli`;
+    }, [standard, partialData]);
+
     const [language, setLanguage] = useState<string>('');
     const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
     useEffect(() => {

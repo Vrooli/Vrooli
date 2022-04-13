@@ -68,6 +68,12 @@ export const OrganizationView = ({
         };
     }, [language, organization, partialData, session]);
 
+    useEffect(() => {
+        const handle: string | null = organization?.handle ?? partialData?.handle ?? null;
+        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
+        else document.title = `${name} | Vrooli`;
+    }, [name, organization, partialData]);
+
     const resources = useMemo(() => (resourceList || canEdit) ? (
         <ResourceListVertical
             list={resourceList as any}

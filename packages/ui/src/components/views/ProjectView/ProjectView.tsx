@@ -65,6 +65,12 @@ export const ProjectView = ({
         };
     }, [project, partialData, session]);
 
+    useEffect(() => {
+        const handle: string | null = project?.handle ?? partialData?.handle ?? null;
+        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
+        else document.title = `${name} | Vrooli`;
+    }, [name, project, partialData]);
+
     const resources = useMemo(() => (resourceList || canEdit) ? (
         <ResourceListVertical
             list={resourceList as any}

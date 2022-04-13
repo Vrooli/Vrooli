@@ -93,6 +93,11 @@ export const InputOutputContainer = ({
 }: InputOutputContainerProps) => {
     // Store open/close state of each list item
     const [isOpenArray, setIsOpenArray] = useState<boolean[]>([]);
+    useEffect(() => {
+        if (list.length > 0 && list.length !== isOpenArray.length) {
+            setIsOpenArray(list.map(() => false));
+        }
+    }, [list, isOpenArray]);
 
     /**
      * Open item at index, and close all others

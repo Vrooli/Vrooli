@@ -80,6 +80,10 @@ export const RoutineView = ({
         };
     }, [routine, partialData, session]);
 
+    useEffect(() => {
+        document.title = `${title} | Vrooli`;
+    }, [title]);
+
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
@@ -153,6 +157,20 @@ export const RoutineView = ({
         )
     }, [routine, viewGraph, runRoutine]);
 
+    const resourceList = useMemo(() => {
+        if (!routine || 
+            !Array.isArray(routine.resourceLists) ||
+            routine.resourceLists.length < 1 ||
+            routine.resourceLists[0].resources.length < 1) return null;
+        return <ResourceListHorizontal
+            title={'Resources'}
+            list={(routine as any).resourceLists[0]}
+            canEdit={false}
+            handleUpdate={() => { }} // Intentionally blank
+            session={session}
+        />
+    }, [routine, session]);
+
     /**
      * Display body or loading indicator
      */
@@ -183,13 +201,7 @@ export const RoutineView = ({
 
                     </Box>}
                     {/* Resources */}
-                    {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
-                        title={'Resources'}
-                        list={(routine as any).resourceLists[0]}
-                        canEdit={false}
-                        handleUpdate={() => { }} // Intentionally blank
-                        session={session}
-                    /> : null}
+                    {resourceList}
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
@@ -287,7 +299,7 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { changedRoutine && setChangedRoutine({ ...changedRoutine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
-                        <Typography variant="h5" sx={{textAlign: 'center'}}>{title}</Typography>
+                        <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>
                         {canEdit && <Tooltip title="Edit routine">
                             <IconButton
                                 aria-label="Edit routine"

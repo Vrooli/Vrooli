@@ -18,11 +18,12 @@ import {
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
-import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector } from "components";
+import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { v4 as uuidv4 } from 'uuid';
-import { Organization, ResourceList, Routine } from "types";
+import { Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { InputOutputContainer } from "components/lists/inputOutput";
 
 export const RoutineUpdate = ({
     onCancel,
@@ -39,6 +40,23 @@ export const RoutineUpdate = ({
         if (id) getData({ variables: { input: { id } } });
     }, [id])
     const routine = useMemo(() => data?.routine, [data]);
+
+    // Handle user/organization switch
+    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
+    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+
+    // Hanlde inputs
+    const [inputsList, setInputsList] = useState<RoutineInputList>([]);
+    const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+        console.log('handleInputsUpdate', updatedList);
+        setInputsList(updatedList);
+    }, [setInputsList]);
+
+    // Handle outputs
+    const [outputsList, setOutputsList] = useState<RoutineOutputList>([]);
+    const handleOutputsUpdate = useCallback((updatedList: RoutineOutputList) => {
+        setOutputsList(updatedList);
+    }, [setOutputsList]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -68,6 +86,15 @@ export const RoutineUpdate = ({
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
+        // Also delete translations from inputs and outputs
+        setInputsList(inputsList.map(i => {
+            const updatedTranslationsList = i.translations.filter(t => t.language !== language);
+            return { ...i, translations: updatedTranslationsList };
+        }));
+        setOutputsList(outputsList.map(o => {
+            const updatedTranslationsList = o.translations.filter(t => t.language !== language);
+            return { ...o, translations: updatedTranslationsList };
+        }));
     }, [translations, setTranslations]);
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
@@ -88,6 +115,10 @@ export const RoutineUpdate = ({
     }, [translations, setTranslations]);
 
     useEffect(() => {
+        if (routine?.owner?.__typename === 'Organization') setOrganizationFor(routine.owner as Organization);
+        else setOrganizationFor(null);
+        setInputsList(routine?.inputs ?? []);
+        setOutputsList(routine?.outputs ?? []);
         setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(routine?.tags ?? []);
         setTranslations(routine?.translations?.map(t => ({
@@ -118,6 +149,7 @@ export const RoutineUpdate = ({
                 tagsCreate: tags.filter(t => !t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
             } : {};
+            const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 description: values.description,
@@ -128,12 +160,14 @@ export const RoutineUpdate = ({
                 mutation,
                 input: formatForUpdate(routine, {
                     id,
-                    organizationId: (routine?.owner as Organization)?.id ?? undefined,
+                    ...ownedBy,
                     version: values.version,
+                    inputs: inputsList,
+                    outputs: outputsList,
                     ...resourceListUpdate,
                     ...tagsUpdate,
                     translations: allTranslations,
-                }, ['tags'], ['translations']),
+                }, ['tags', 'inputs.standard', 'outputs.standard'], ['translations', 'inputs', 'outputs']),
                 onSuccess: (response) => { onUpdated(response.data.routineUpdate) },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -156,13 +190,36 @@ export const RoutineUpdate = ({
         }
     }, [languages, setLanguage, setLanguages, translations])
     const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
-        // Update translation
+        // Update main translations
         updateTranslation(oldLanguage, {
             language: newLanguage,
             description: formik.values.description,
             instructions: formik.values.instructions,
             title: formik.values.title,
         });
+        // Update inputs and outputs translations
+        setInputsList(inputsList.map(i => {
+            return {
+                ...i,
+                translations: i.translations.map(t => {
+                    if (t.language === oldLanguage) {
+                        return { ...t, language: newLanguage }
+                    }
+                    return t;
+                })
+            }
+        }));
+        setOutputsList(outputsList.map(o => {
+            return {
+                ...o,
+                translations: o.translations.map(t => {
+                    if (t.language === oldLanguage) {
+                        return { ...t, language: newLanguage }
+                    }
+                    return t;
+                })
+            }
+        }));
         // Change selection
         setLanguage(newLanguage);
         // Update languages
@@ -172,7 +229,7 @@ export const RoutineUpdate = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, inputsList, languages, outputsList, translations, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -220,6 +277,10 @@ export const RoutineUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
+                <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+            </Grid>
+            {/* TODO add project selector */}
+            <Grid item xs={12}>
                 <LanguageInput
                     currentLanguage={language}
                     handleAdd={handleAddLanguage}
@@ -266,6 +327,39 @@ export const RoutineUpdate = ({
                     onChange={(newText: string) => formik.setFieldValue('instructions', newText)}
                     error={formik.touched.instructions && Boolean(formik.errors.instructions)}
                     helperText={formik.touched.instructions ? formik.errors.instructions as string : null}
+                />
+            </Grid>
+            <Grid item xs={12}>
+                <TextField
+                    fullWidth
+                    id="version"
+                    name="version"
+                    label="version"
+                    value={formik.values.version}
+                    onBlur={formik.handleBlur}
+                    onChange={formik.handleChange}
+                    error={formik.touched.version && Boolean(formik.errors.version)}
+                    helperText={formik.touched.version && formik.errors.version}
+                />
+            </Grid>
+            <Grid item xs={12}>
+                <InputOutputContainer
+                    isEditing={true}
+                    handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                    isInput={true}
+                    language={language}
+                    list={inputsList}
+                    session={session}
+                />
+            </Grid>
+            <Grid item xs={12}>
+                <InputOutputContainer
+                    isEditing={true}
+                    handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                    isInput={false}
+                    language={language}
+                    list={outputsList}
+                    session={session}
                 />
             </Grid>
             <Grid item xs={12}>

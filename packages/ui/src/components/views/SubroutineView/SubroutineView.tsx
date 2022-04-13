@@ -34,6 +34,20 @@ export const SubroutineView = ({
     // The schema for the form
     const [schema, setSchema] = useState<any>();
 
+    const resourceList = useMemo(() => {
+        if (!data || 
+            !Array.isArray(data.resourceLists) ||
+            data.resourceLists.length < 1 ||
+            data.resourceLists[0].resources.length < 1) return null;
+        return <ResourceListHorizontal
+            title={'Resources'}
+            list={(data as any).resourceLists[0]}
+            canEdit={false}
+            handleUpdate={() => { }} // Intentionally blank
+            session={session}
+        />
+    }, [data, session]);
+
     if (loading) return (
         <Box sx={{
             minHeight: 'min(300px, 25vh)',
@@ -93,13 +107,7 @@ export const SubroutineView = ({
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
             <Stack direction="column" spacing={2} padding={1}>
                 {/* Resources */}
-                {Array.isArray(data?.resourceLists) && (data?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
-                    title={'Resources'}
-                    list={(data as Routine).resourceLists[0]}
-                    canEdit={false}
-                    handleUpdate={() => { }}
-                    session={session}
-                /> : null}
+                {resourceList}
                 {/* Description */}
                 <Box sx={{
                     padding: 1,

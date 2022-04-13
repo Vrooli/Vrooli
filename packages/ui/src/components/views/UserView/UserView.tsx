@@ -72,6 +72,12 @@ export const UserView = ({
         };
     }, [language, partialData, user]);
 
+    useEffect(() => {
+        const handle: string | null = user?.handle ?? partialData?.handle ?? null;
+        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
+        else document.title = `${name} | Vrooli`;
+    }, [name, user, partialData]);
+
     const resources = useMemo(() => (resourceList || isOwn) ? (
         <ResourceListVertical
             list={resourceList}

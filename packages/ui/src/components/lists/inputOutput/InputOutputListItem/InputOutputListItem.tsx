@@ -65,7 +65,7 @@ export const InputOutputListItem = ({
             handleUpdate(index, {
                 ...item,
                 name: values.name,
-                isRequired: values.isRequired,
+                isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations,
             } as any);
         },
@@ -221,7 +221,7 @@ export const InputOutputListItem = ({
                         )
                         }
                     </Grid>
-                    <Grid item xs={12}>
+                    {isInput && <Grid item xs={12}>
                         <Tooltip placement={'right'} title='Is this input mandatory?'>
                             <FormControlLabel
                                 disabled={!isEditing}
@@ -239,7 +239,7 @@ export const InputOutputListItem = ({
                                 }
                             />
                         </Tooltip>
-                    </Grid>
+                    </Grid>}
                 </Grid>
             </Collapse>
         </Box>

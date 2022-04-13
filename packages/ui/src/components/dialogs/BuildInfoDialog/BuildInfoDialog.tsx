@@ -120,6 +120,20 @@ export const BuildInfoDialog = ({
         }
     };
 
+    const resourceList = useMemo(() => {
+        if (!routine || 
+            !Array.isArray(routine.resourceLists) ||
+            routine.resourceLists.length < 1 ||
+            routine.resourceLists[0].resources.length < 1) return null;
+        return <ResourceListHorizontal
+            title={'Resources'}
+            list={(routine as any).resourceLists[0]}
+            canEdit={false}
+            handleUpdate={() => { }} // Intentionally blank
+            session={session}
+        />
+    }, [routine, session]);
+
     return (
         <>
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
@@ -174,12 +188,7 @@ export const BuildInfoDialog = ({
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
                     {/* Resources */}
-                    {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
-                        list={routine?.resourceLists[0] as ResourceList}
-                        canEdit={isEditing}
-                        handleUpdate={() => { }}
-                        session={session}
-                    /> : null}
+                    {resourceList}
                     {/* Description */}
                     <Box sx={{
                         padding: 1,

@@ -90,6 +90,8 @@ export const ProjectUpdate = ({
     }, [translations, setTranslations]);
 
     useEffect(() => {
+        if (project?.owner?.__typename === 'Organization') setOrganizationFor(project.owner as Organization);
+        else setOrganizationFor(null);
         setResourceList(project?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
         setTags(project?.tags ?? []);
         setTranslations(project?.translations?.map(t => ({
@@ -117,6 +119,7 @@ export const ProjectUpdate = ({
                 tagsCreate: tags.filter(t => !t.id && !project?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !project?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
             } : {};
+            const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
             const allTranslations = getTranslationsUpdate(language, {
                 language,
                 description: values.description,
@@ -126,7 +129,7 @@ export const ProjectUpdate = ({
                 mutation,
                 input: formatForUpdate(project, {
                     id,
-                    organizationId: (project?.owner as Organization)?.id ?? undefined,
+                    ...ownedBy,
                     ...resourceListUpdate,
                     ...tagsUpdate,
                     translations: allTranslations,

@@ -61,6 +61,7 @@ export const formatForCreate = <T>(obj: Partial<T>, treatLikeCreates: string[] =
                 const changedValue = _.isObject(curr) ? formatForCreate(curr, childTreatLikeCreates) : curr;
                 // Check if create (i.e does not contain an id, or is in the treatLikeCreates array)
                 if (changedValue && (curr.id === undefined || treatLikeCreates.includes(key))) {
+                    console.log('found thing to create', key, changedValue, curr);
                     addToChangedArray(`${key}Create`, changedValue);
                 }
                 // Check if connection type 1 (i.e. is an object with an id)
@@ -83,6 +84,7 @@ export const formatForCreate = <T>(obj: Partial<T>, treatLikeCreates: string[] =
             const changedValue = formatForCreate(curr, childTreatLikeCreates);
             // Check if create (i.e does not contain an id)
             if (changedValue && curr.id === undefined) {
+                console.log('found thing to create 2', key, changedValue, curr);
                 changed[`${key}Create`] = changedValue;
             }
             // Check if connection (i.e. is an object with only an id)
@@ -163,6 +165,7 @@ export const formatForUpdate = <S, T>(
                 const changedValue = _.isObject(curr) ? formatForUpdate(originalValue, curr, childTreatLikeConnects, childTreatLikeDeletes) : curr;
                 // Check if create (i.e does not contain an id)
                 if (!Boolean(curr.id)) {
+                    console.log('found thing to create', key, changedValue, curr);
                     addToChangedArray(`${key}Create`, changedValue);
                 }
                 // Check if connection (i.e. is an object with only an id, or simply an id, or in treatLikeConnects),
@@ -179,6 +182,7 @@ export const formatForUpdate = <S, T>(
                     }
                     // If the original value is not found, treat it as a create
                     if (!originalValue) {
+                        console.log('found thing to create 2', key, changedValue, curr);
                         addToChangedArray(`${key}Create`, changedValue);
                     }
                     // Otherwise, treat it as an update
@@ -217,6 +221,7 @@ export const formatForUpdate = <S, T>(
             }
             // Check if create (i.e does not contain an id)
             else if (changedValue && curr.id === undefined) {
+                console.log('found thing to create 3', key, changedValue, curr);
                 changed[`${key}Create`] = changedValue;
             }
             // Check if connection (i.e. is an object with only an id, or simply an id)
@@ -229,7 +234,7 @@ export const formatForUpdate = <S, T>(
                 if (originalValue) changed[`${key}Update`] = changedValue;
                 // Only a create if key not in treatLikeConnects
                 else if (treatLikeConnects.includes(key) && changedValue.hasOwnProperty('id')) changed[`${key}Connect`] = (changedValue as any).id;
-                else changed[`${key}Create`] = changedValue;
+                else { console.log('found thing to create 4', key, changedValue, curr); changed[`${key}Create`] = changedValue; }
             }
             // Shouldn't hit this point under normal circumstances. But if you do,
             // add the value to the changed array

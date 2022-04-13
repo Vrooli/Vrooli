@@ -376,7 +376,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, data, false),
             tags: await TagModel(prisma).relationshipBuilder(userId, data),
             inputs: this.relationshipBuilderInput(userId, data, false),
-            outpus: this.relationshipBuilderOutput(userId, data, false),
+            outputs: this.relationshipBuilderOutput(userId, data, false),
             nodes: await NodeModel(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, false),
             nodeLinks: NodeModel(prisma).relationshipBuilderNodeLink(userId, data, false),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, false),
@@ -630,10 +630,21 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Call createData helper function
                 let data = await this.toDBShape(userId, input.data);
+                // Find object
+                let object = await prisma.routine.findFirst({ where: input.where })
+                if (!object) throw new CustomError(CODE.NotFound, 'Routine not found');
+                // Make sure user is authorized to update
+                if (object.organizationId) {
+                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', object.organizationId);
+                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                } else {
+                    if (object.userId !== userId) throw new CustomError(CODE.Unauthorized);
+                }
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.data.organizationId) {
                     // Make sure the user is an admin of the organization
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.data.organizationId);
+                    console.log('authorized check update routine with organization', isAuthorized, input.data.organizationId);
                     if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
                     data = {
                         ...data,
@@ -647,20 +658,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                         organization: { disconnect: true },
                     };
                 }
-                let object = await prisma.routine.findFirst({
-                    where: {
-                        AND: [
-                            input.where,
-                            {
-                                OR: [
-                                    { organizationId: input.data.organizationId },
-                                    { userId },
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (!object) throw new CustomError(CODE.ErrorUnknown);
                 // Update object
                 const currUpdated = await prisma.routine.update({
                     where: input.where,

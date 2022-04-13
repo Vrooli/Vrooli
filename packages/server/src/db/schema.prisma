@@ -83,10 +83,10 @@ model email {
 
 // ADA Handle
 model handle {
-    id                String        @id @default(uuid()) @db.Uuid
-    handle            String?       @unique @db.VarChar(16)
-    walletId          String?       @db.Uuid
-    wallet            wallet?       @relation(fields: [walletId], references: [id], onDelete: Cascade)
+    id       String  @id @default(uuid()) @db.Uuid
+    handle   String? @unique @db.VarChar(16)
+    walletId String? @db.Uuid
+    wallet   wallet? @relation(fields: [walletId], references: [id], onDelete: Cascade)
 }
 
 // Stores activity log for a user.
@@ -277,7 +277,7 @@ model organization {
     updated_at         DateTime                   @default(now()) @db.Timestamptz(6)
     isOpenToNewMembers Boolean                    @default(false) // If looking for open-source contributors or team members. Paid or unpaid
     stars              Int                        @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
-    handle             String?              @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
+    handle             String?                    @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
     comments           comment[]
     members            organization_users[]
     projects           project[]                  @relation("project_organization_owner") // Projects the organization can contorl
@@ -347,7 +347,7 @@ model project {
     stars                   Int                   @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
     createdByUserId         String?               @db.Uuid // User who created this
     createdByOrganizationId String?               @db.Uuid // Organization who created this
-    handle             String?              @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
+    handle                  String?               @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
     userId                  String?               @db.Uuid // User who can edit this
     organizationId          String?               @db.Uuid // Organization who can edit this
     parentId                String?               @db.Uuid // Parent project, if any
@@ -604,9 +604,9 @@ model routine_output {
     id           String                       @id @default(uuid()) @db.Uuid
     name         String?                      @db.VarChar(128) // Name of the output. If name exists and matches an input's name, then the output can be used to auto-fill the input
     routineId    String                       @db.Uuid
-    standardId   String                       @db.Uuid
+    standardId   String?                      @db.Uuid
     routine      routine                      @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    standard     standard                     @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    standard     standard?                    @relation(fields: [standardId], references: [id], onDelete: Cascade)
     translations routine_output_translation[]
 }
 
@@ -787,9 +787,9 @@ model user {
     password                       String?              @db.VarChar(256)
     resetPasswordCode              String?              @unique @db.VarChar(256)
     sessionToken                   String?              @db.VarChar(1024)
-    name           String       @db.VarChar(128) // Display name. Unlike organizations, does not change between languages
+    name                           String               @db.VarChar(128) // Display name. Unlike organizations, does not change between languages
     theme                          String               @default("light") @db.VarChar(255)
-    handle                       String?              @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
+    handle                         String?              @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
     stars                          Int                  @default(0) // Count of all stars the user has RECEIVED, not given. Makes queries easier than counting the relationship every time
     status                         AccountStatus        @default(Unlocked)
     comments                       comment[]
@@ -909,7 +909,7 @@ model wallet {
     organization      organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     projectId         String?       @db.Uuid
     project           project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    handles          handle[]      
+    handles           handle[]
     created_at        DateTime      @default(now()) @db.Timestamptz(6)
     updated_at        DateTime      @default(now()) @db.Timestamptz(6)
 }
