@@ -30,7 +30,7 @@ const highlight: SxProps<Theme> = {
     '&:hover': {
         color: '(t) => t.palette.secondary.light',
     },
-} as any
+} as const
 
 const menuItem: SxProps<Theme> = {
     borderBottom: `1px solid #373575`,

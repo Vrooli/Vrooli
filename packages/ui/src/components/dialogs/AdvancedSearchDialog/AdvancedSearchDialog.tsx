@@ -1,29 +1,60 @@
 /**
  * Displays all search options for an organization
  */
- import {
+import {
     Box,
+    Button,
     Dialog,
     DialogContent,
+    FormControl,
+    FormControlLabel,
+    FormLabel,
+    Grid,
     IconButton,
+    Radio,
+    RadioGroup,
     Stack,
+    Tooltip,
     Typography
 } from '@mui/material';
-import { HelpButton } from 'components';
 import { useMemo } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
 import {
-    Close as CloseIcon
+    Cancel as CancelIcon,
+    Close as CloseIcon,
+    Search as SearchIcon,
 } from '@mui/icons-material';
+import { useFormik } from 'formik';
+import { QuantityBox } from 'components/inputs';
 
-const helpText =
-    `TODO`
+// const isOpenToNewMembersQuery = input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {};
+// const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
+// const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
+// const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
+// const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
+// const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};
+// const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
+// const userIdQuery = input.userId ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {};
+// const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
+// const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
+// const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
 
 export const AdvancedSearchDialog = ({
     handleClose,
+    handleSearch,
     isOpen,
     session,
 }: AdvancedSearchDialogProps) => {
+
+    const formik = useFormik({
+        initialValues: {
+            isOpenToNewMembers: null,
+            minStars: 0,
+        },
+        onSubmit: (values) => {
+            //TODO
+        },
+    });
 
     /**
      * Title bar with help button and close icon
@@ -37,9 +68,8 @@ export const AdvancedSearchDialog = ({
             justifyContent: 'space-between',
             padding: 2,
         }}>
-            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
+            <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto', paddingLeft: 2, paddingRight: 2 }}>
                 {'Advanced Search'}
-                <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
             </Typography>
             <Box sx={{ marginLeft: 'auto' }}>
                 <IconButton
@@ -64,9 +94,66 @@ export const AdvancedSearchDialog = ({
             {titleBar}
             <DialogContent>
                 <Stack direction="column" spacing={4}>
-                    ghjgkjgfhfghjTODO
+                    {/* Is open to new members radio group */}
+                    <FormControl component="fieldset">
+                        <FormLabel component="legend">Accepting New Members?</FormLabel>
+                        <RadioGroup
+                            aria-label="isOpenToNewMembers"
+                            name="isOpenToNewMembers"
+                            row={true}
+                            value={formik.values.isOpenToNewMembers}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                        >
+                            <FormControlLabel
+                                value={true}
+                                control={<Radio />}
+                                label={"Yes"}
+                            />
+                            <FormControlLabel
+                                value={false}
+                                control={<Radio />}
+                                label={"No"}
+                            />
+                            <FormControlLabel
+                                value={null}
+                                control={<Radio />}
+                                label={"Don't Care"}
+                            />
+                        </RadioGroup>
+                    </FormControl>
+                    {/* Min stars */}
+                    <QuantityBox
+                        id="minStars"
+                        label="Minimum Stars"
+                        min={0}
+                        handleChange={(newValue: number) => { formik.setFieldValue('minStars', newValue) }}
+                        value={formik.values.minStars}
+                        tooltip="Minimum number of stars"
+                    />
                 </Stack>
             </DialogContent>
+            {/* Search/Cancel buttons */}
+            <Grid container spacing={1} sx={{
+                background: (t) => t.palette.primary.dark,
+                maxWidth: 'min(700px, 100%)',
+                margin: 0,
+            }}>
+                <Grid item xs={12} sm={6} p={1} sx={{ paddingTop: 0 }}>
+                    <Button
+                        fullWidth
+                        startIcon={<SearchIcon />}
+                        onClick={handleSearch}
+                    >Search</Button>
+                </Grid>
+                <Grid item xs={12} sm={6} p={1} sx={{ paddingTop: 0 }}>
+                    <Button
+                        fullWidth
+                        startIcon={<CancelIcon />}
+                        onClick={handleClose}
+                    >Cancel</Button>
+                </Grid>
+            </Grid>
         </Dialog>
     )
 }

@@ -202,6 +202,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
             {/* Dialog for setting advanced search items */}
             <AdvancedSearchDialog
                 handleClose={handleAdvancedSearchDialogClose}
+                handleSearch={() => {}}
                 isOpen={advancedSearchDialogOpen}
                 session={session}
             />

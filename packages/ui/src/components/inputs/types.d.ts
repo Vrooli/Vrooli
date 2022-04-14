@@ -1,4 +1,4 @@
-import { InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
+import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { ChangeEvent, MouseEvent } from 'react';
 import { Organization, Session, Tag } from 'types';
 
@@ -55,6 +55,18 @@ export interface MarkdownInputProps extends TextFieldProps {
     placeholder?: string;
     minRows?: number;
     value: string;
+}
+
+export interface QuantityBoxProps extends BoxProps {
+    handleChange: (newValue: number) => any;
+    id: string;
+    initial?: number;
+    label?: string;
+    max?: number;
+    min?: number;
+    step?: number;
+    tooltip?: string;
+    value: number;
 }
 
 export interface SelectorProps extends SelectProps {
