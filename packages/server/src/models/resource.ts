@@ -136,7 +136,6 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (!existingResources.some(r => isOwner(userId, r))) throw new CustomError(CODE.Unauthorized, 'User does not own the resource, or is not an admin of its organization');
     },
     toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean, isRelationship: boolean): any {
-        console.log('resource todb shape', JSON.stringify(data))
         return {
             listId: !isRelationship ? data.listId : undefined,
             index: data.index,
@@ -151,13 +150,11 @@ export const resourceMutater = (prisma: PrismaType) => ({
         isAdd: boolean = true,
         relationshipName: string = 'resources',
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('resource relationship builder start', JSON.stringify(input))
         const fieldExcludes = ['createdFor', 'createdForId'];
         // Convert input to Prisma shape, excluding "createdFor" and "createdForId" fields
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by resources (since they can only be applied to one object)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        console.log('resources here formattedInput', JSON.stringify(formattedInput));
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({
@@ -185,7 +182,6 @@ export const resourceMutater = (prisma: PrismaType) => ({
             }
             formattedInput.update = updates;
         }
-        console.log('resoruce format after', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({

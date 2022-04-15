@@ -87,6 +87,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Admin */
     //==============================================================
+    console.log('admin password', process.env.ADMIN_PASSWORD);
     const adminId = '3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2'
     const admin = await prisma.user.upsert({
         where: {

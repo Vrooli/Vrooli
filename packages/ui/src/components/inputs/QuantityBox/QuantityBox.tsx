@@ -54,7 +54,6 @@ export const QuantityBox = ({
     }, [max, min, handleChange]);
 
     const startHold = useCallback(() => {
-        console.log('startHold start', holdRefs.current);
         // Check if hold is taking place
         if (holdRefs.current.which === null) return;
         // Increment for decrement value, depending on which button was pressed
@@ -67,21 +66,18 @@ export const QuantityBox = ({
     }, [updateValue]);
 
     const handleMinusDown = useCallback(() => {
-        console.log('handleminusdown')
         updateValue(holdRefs.current.value * 1 - step)
         holdRefs.current.which = false;
         holdRefs.current.timeout = setTimeout(startHold, HOLD_DELAY);
     }, [startHold, step, updateValue]);
 
     const handlePlusDown = useCallback(() => {
-        console.log('handleplusdown')
         updateValue(holdRefs.current.value * 1 + step)
         holdRefs.current.which = true;
         holdRefs.current.timeout = setTimeout(startHold, HOLD_DELAY);
     }, [startHold, step, updateValue]);
 
     const stopTouch = () => {
-        console.log('stop touch')
         if (holdRefs.current.timeout) clearTimeout(holdRefs.current.timeout);
         holdRefs.current.which = null;
         holdRefs.current.speed = 1;

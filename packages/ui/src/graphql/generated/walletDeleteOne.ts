@@ -6,18 +6,18 @@
 import { DeleteOneInput } from "./globalTypes";
 
 // ====================================================
-// GraphQL mutation operation: walletRemove
+// GraphQL mutation operation: walletDeleteOne
 // ====================================================
 
-export interface walletRemove_walletRemove {
+export interface walletDeleteOne_walletDeleteOne {
   __typename: "Success";
   success: boolean | null;
 }
 
-export interface walletRemove {
-  walletRemove: walletRemove_walletRemove;
+export interface walletDeleteOne {
+  walletDeleteOne: walletDeleteOne_walletDeleteOne;
 }
 
-export interface walletRemoveVariables {
+export interface walletDeleteOneVariables {
   input: DeleteOneInput;
 }

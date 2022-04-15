@@ -1,4 +1,4 @@
-import { Autocomplete, Box, Button, Container, Grid, Stack, TextField, Typography } from "@mui/material"
+import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -8,6 +8,7 @@ import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, getUserLanguages, Pubs } from "utils";
 import {
+    Refresh as RefreshIcon,
     Restore as CancelIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
@@ -21,7 +22,7 @@ import { findHandles, findHandlesVariables } from "graphql/generated/findHandles
 import { findHandlesQuery } from "graphql/query";
 
 const helpText =
-`This page allows you to update your profile, including your name, handle, and bio.
+    `This page allows you to update your profile, including your name, handle, and bio.
     
 Handles are unique, and handled (pun intended) by the [ADA Handle Protocol](https://adahandle.com/). This allows for handle to be 
 used across many Cardano applications, and exchanged with others on an open market.
@@ -54,7 +55,6 @@ export const SettingsProfile = ({
     }, [profile, findHandles]);
     useEffect(() => {
         if (handlesData?.findHandles) {
-            console.log('GOT HANDLESSSSSS', handlesData.findHandles);
             setHandles(handlesData.findHandles);
         }
     }, [handlesData])
@@ -115,6 +115,7 @@ export const SettingsProfile = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
+            console.log('formik onsubmit', formik.values, formik.errors)
             if (!formik.isValid) return;
             const allTranslations = getTranslationsUpdate(language, {
                 language,
@@ -127,7 +128,7 @@ export const SettingsProfile = ({
                     handle: selectedHandle,
                     translations: allTranslations,
                 }),
-                onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
+                onSuccess: (response) => { onUpdated(response.data.profileUpdate); setLocation(APP_LINKS.Profile, { replace: true }) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
@@ -200,7 +201,7 @@ export const SettingsProfile = ({
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, !formik.touched || formik.isSubmitting, true, () => { }],
-        ['Cancel', CancelIcon, !formik.touched || formik.isSubmitting, false, () => { setLocation(`${APP_LINKS.Settings}/?page=profile`, { replace: true }) }],
+        ['Cancel', CancelIcon, !formik.touched || formik.isSubmitting, false, () => { console.log('yeet'); setLocation(APP_LINKS.Profile, { replace: true }) }],
     ], [formik, setLocation]);
 
     return (
@@ -229,11 +230,13 @@ export const SettingsProfile = ({
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <Stack direction="row" spacing={1}>
+                        <Stack direction="row" spacing={0}>
                             <Autocomplete
                                 disablePortal
                                 id="ada-handle-select"
+                                loading={handlesLoading}
                                 options={handles}
+                                onOpen={fetchHandles}
                                 onChange={(_, value) => { setSelectedHandle(value) }}
                                 renderInput={(params) => <TextField {...params} label="(ADA) Handle" />}
                                 value={selectedHandle}
@@ -241,10 +244,15 @@ export const SettingsProfile = ({
                                     width: '100%',
                                 }}
                             />
-                            <Button
-                                color="secondary"
+                            <IconButton
+                                aria-label='fetch-handles'
                                 onClick={fetchHandles}
-                                >Find Handles</Button>
+                                sx={{
+                                    background: (t) => t.palette.secondary.main,
+                                    borderRadius: '0 5px 5px 0',
+                                }}>
+                                <RefreshIcon />
+                            </IconButton>
                         </Stack>
                     </Grid>
                     <Grid item xs={12}>
@@ -253,8 +261,6 @@ export const SettingsProfile = ({
                             id="name"
                             name="name"
                             label="Name"
-                            multiline
-                            minRows={4}
                             value={formik.values.name}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}

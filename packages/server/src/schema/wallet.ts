@@ -8,7 +8,6 @@ import { CustomError } from '../error';
 import { CODE } from '@local/shared';
 import { serializedAddressToBech32 } from '../auth/walletAuth';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import fetch from 'node-fetch';
 
 export const typeDef = gql`
 
@@ -24,12 +23,18 @@ export const typeDef = gql`
     type Wallet {
         id: ID!
         name: String
-        handles: [String!]!
+        handles: [Handle!]!
         publicAddress: String
         stakingAddress: String!
         verified: Boolean!
         user: User
         organization: Organization
+    }
+
+    type Handle {
+        id: ID!
+        handle: String!
+        wallet: Wallet!
     }
 
     extend type Query {
@@ -48,7 +53,6 @@ export const resolvers = {
          * Finds all ADA handles for your profile, or an organization you belong to.
          */
         findHandles: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<string[]> => {
-            console.log('findhandles start', input)
             const policyID = 'de95598bb370b6d289f42dfc1de656d65c250ec4cdc930d32b1dc0e5'// Fake policy for testing //'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a'; // Mainnet ADA Handle policy ID
             const walletFields = {
                 id: true,
@@ -72,13 +76,13 @@ export const resolvers = {
             }
             else {
                 if (!req.userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to query your wallets')
-                console.log('querying users wallets')
                 wallets = await prisma.wallet.findMany({
                     where: {
                         userId: req.userId
                     },
                     select: walletFields
                 })
+                console.log('GOT WALLETS', JSON.stringify(wallets))
             }
             // Convert wallet staking addresses to Bech32
             const bech32Wallets = wallets.map(wallet => serializedAddressToBech32(wallet.stakingAddress));
@@ -87,12 +91,12 @@ export const resolvers = {
                 projectId: process.env.BLOCKFROST_API_KEY ?? '',
                 isTestnet: false,
                 version: 0,
-                debug: true,
             });
             // Query each wallet with blockfrost to get handles (/accounts/{stake_address}/addresses/assets)
             const handles: string[][] = await Promise.all(bech32Wallets.map(async bech32Wallet => {
                 let handles: string[] = [];
                 try {
+                    console.log('trying to fetch handles', bech32Wallet)
                     const data = await Blockfrost.accountsAddressesAssets(bech32Wallet);
                     // Find handles. Each asset will look something like this:
                     // {"unit":"de95598bb370b6d289f42dfc1de656d65c250ec4cdc930d32b1dc0e5474f4f5345","quantity":"1"}
@@ -111,10 +115,10 @@ export const resolvers = {
                         throw new CustomError(CODE.ErrorUnknown, 'Failed to query Blockfrost');
                     }
                 } finally {
+                    console.log('got handlesssss', handles)
                     return handles;
                 }
             }));
-            console.log('got handles', JSON.stringify(handles));
             // Store handles in database, so we can verify them later
             for (let i = 0; i < handles.length; i++) {
                 const currWallet = wallets[i];

@@ -215,6 +215,13 @@ export type FindHandlesInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
 };
 
+export type Handle = {
+  __typename?: 'Handle';
+  handle: Scalars['String'];
+  id: Scalars['ID'];
+  wallet: Wallet;
+};
+
 export type InputItem = {
   __typename?: 'InputItem';
   id: Scalars['ID'];
@@ -454,6 +461,7 @@ export type Mutation = {
   routineCreate: Routine;
   routineDeleteOne: Success;
   routineUpdate: Routine;
+  sendVerificationEmail: Success;
   standardCreate: Standard;
   standardDeleteOne: Success;
   standardUpdate: Standard;
@@ -467,7 +475,6 @@ export type Mutation = {
   walletComplete: WalletComplete;
   walletDeleteOne: Success;
   walletInit: Scalars['String'];
-  walletRemove: Success;
   walletUpdate: Wallet;
   writeAssets?: Maybe<Scalars['Boolean']>;
 };
@@ -648,6 +655,11 @@ export type MutationRoutineUpdateArgs = {
 };
 
 
+export type MutationSendVerificationEmailArgs = {
+  input: SendVerificationEmailInput;
+};
+
+
 export type MutationStandardCreateArgs = {
   input: StandardCreateInput;
 };
@@ -705,11 +717,6 @@ export type MutationWalletDeleteOneArgs = {
 
 export type MutationWalletInitArgs = {
   input: WalletInitInput;
-};
-
-
-export type MutationWalletRemoveArgs = {
-  input: DeleteOneInput;
 };
 
 
@@ -2013,6 +2020,10 @@ export type RoutineUpdateInput = {
   version?: InputMaybe<Scalars['String']>;
 };
 
+export type SendVerificationEmailInput = {
+  emailAddress: Scalars['String'];
+};
+
 export type Session = {
   __typename?: 'Session';
   id?: Maybe<Scalars['ID']>;
@@ -2409,7 +2420,7 @@ export type VoteTo = Comment | Project | Routine | Standard | Tag;
 
 export type Wallet = {
   __typename?: 'Wallet';
-  handles: Array<Scalars['String']>;
+  handles: Array<Handle>;
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
   organization?: Maybe<Organization>;

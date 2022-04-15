@@ -43,7 +43,10 @@ export const profileFields = gql`
             name
             publicAddress
             stakingAddress
-            handles
+            handles {
+                id
+                handle
+            }
             verified
         }
         theme

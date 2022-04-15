@@ -116,6 +116,7 @@ export const profileValidater = () => ({
      * @returns Session data
      */
     async logIn(password: string, user: any, prisma: PrismaType): Promise<Session | null> {
+        console.log('log in start', password, user);
         // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
         // If account is not deleted or hard-locked, and lockout duration has passed
@@ -127,9 +128,10 @@ export const profileValidater = () => ({
             });
         }
         // If account is deleted or hard-locked, throw error
-        if (unable_to_reset.includes(user.status)) throw new CustomError(CODE.BadCredentials);
+        if (unable_to_reset.includes(user.status)) throw new CustomError(CODE.BadCredentials, 'Account is locked. Please contact us for assistance');
         // If password is valid
         if (this.validatePassword(password, user)) {
+            console.log('password validated!')
             const userData = await prisma.user.update({
                 where: { id: user.id },
                 data: {
@@ -146,6 +148,7 @@ export const profileValidater = () => ({
             });
             return this.toSession(userData);
         }
+        console.log('password invalid :(');
         // If password is invalid
         let new_status: any = AccountStatus.Unlocked;
         let log_in_attempts = user.logInAttempts++;
@@ -335,6 +338,13 @@ const profileQuerier = (prisma: PrismaType) => ({
                 }
             }
         })) as any[]
+        console.log('got profile data', JSON.stringify(profileData))
+        const temp = await prisma.wallet.findMany({
+            where: {
+                userId: userId
+            }
+        })
+        console.log('got wallet temp data', JSON.stringify(temp))
         return { ...profileData, starredTags, hiddenTags };
     },
     /**
@@ -387,7 +397,6 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
             handle: input.handle,
             name: input.name,
             theme: input.theme,
-            // Handle tags TODO probably doesn't work
             hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
                 id: userId,
                 tagsCreate: input.hiddenTagsCreate,

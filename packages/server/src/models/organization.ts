@@ -203,9 +203,6 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Handle members TODO
-                const temp = await this.toDBShape(userId, input.data)
-                console.log('organization update a', JSON.stringify(input));
-                console.log('organization update b', JSON.stringify(temp));
                 // Find in database
                 let object = await prisma.organization.findFirst({
                     where: {

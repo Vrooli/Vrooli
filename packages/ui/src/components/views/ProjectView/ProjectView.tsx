@@ -1,6 +1,6 @@
-import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
+import { APP_LINKS, MemberRole, ResourceListUsedFor, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
@@ -11,11 +11,12 @@ import {
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
     Share as ShareIcon,
+    Today as CalendarIcon,
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
-import { Project, Routine, Standard } from "types";
+import { Project, ResourceList, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
@@ -56,20 +57,20 @@ export const ProjectView = ({
         setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
     }, [project]);
 
-    const { name, description, resourceList } = useMemo(() => {
-        const resourceLists = project?.resourceLists ?? partialData?.resourceLists ?? [];
+    const { name, description, handle, resourceList } = useMemo(() => {
+        const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
         return {
             name: getTranslation(project, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
             description: getTranslation(project, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
-            resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
+            handle: project?.handle ?? partialData?.handle,
+            resourceList,
         };
     }, [project, partialData, session]);
 
     useEffect(() => {
-        const handle: string | null = project?.handle ?? partialData?.handle ?? null;
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
         else document.title = `${name} | Vrooli`;
-    }, [name, project, partialData]);
+    }, [handle, name]);
 
     const resources = useMemo(() => (resourceList || canEdit) ? (
         <ResourceListVertical
@@ -280,14 +281,30 @@ export const ProjectView = ({
                         <Typography variant="h4" textAlign="center">{name}</Typography>
                     )
                 }
-                {/* Joined date */}
+                {/* Handle */}
+                {
+                    handle && <Link href={`https://handle.me/${handle}`} underline="hover">
+                        <Typography
+                            variant="h6"
+                            textAlign="center"
+                            sx={{
+                                color: (t) => t.palette.secondary.dark,
+                                cursor: 'pointer',
+                            }}
+                        >${handle}</Typography>
+                    </Link>
+                }
+                {/* Created date */}
                 {
                     loading ? (
                         <Box sx={{ width: '33%', color: "#00831e" }}>
                             <LinearProgress color="inherit" />
                         </Box>
                     ) : (
-                        <Typography variant="body1" sx={{ color: "#00831e" }}>{project?.created_at ? `🕔 Joined ${new Date(project.created_at).toDateString()}` : ''}</Typography>
+                        project?.created_at && (<Box sx={{ display: 'flex' }} >
+                            <CalendarIcon />
+                            {`Created ${new Date(project.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                        </Box>)
                     )
                 }
                 {/* Description */}

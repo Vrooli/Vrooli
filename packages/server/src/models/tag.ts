@@ -99,6 +99,7 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         input: { [x: string]: any },
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
+        console.log('tags relationshipbuilder start', JSON.stringify(input))
         // If any tag creates, check if they're supposed to be connects
         if (Array.isArray(input[`${relationshipName}Create`])) {
             // Query for all creating tags
@@ -135,6 +136,7 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
             isAdd: !Boolean(input.id),
             relExcludes: [RelationshipTypes.update, RelationshipTypes.delete],
         })
+        console.log('tag formattedinput', JSON.stringify(formattedInput))
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({

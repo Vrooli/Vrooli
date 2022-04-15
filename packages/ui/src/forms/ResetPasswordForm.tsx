@@ -15,6 +15,7 @@ import { emailResetPassword } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
 import { Pubs } from 'utils';
+import { PasswordTextField } from 'components';
 
 export const ResetPasswordForm = ({
     userId,
@@ -45,35 +46,32 @@ export const ResetPasswordForm = ({
             <form onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2}>
                     <Grid item xs={12}>
-                        <TextField
+                        <PasswordTextField
                             fullWidth
                             autoFocus
                             id="newPassword"
                             name="newPassword"
-                            type="password"
-                            autoComplete="password"
+                            autoComplete="new-password"
                             label="New Password"
                             value={formik.values.newPassword}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
                             error={formik.touched.newPassword && Boolean(formik.errors.newPassword)}
-                            helperText={formik.touched.newPassword && formik.errors.newPassword}
+                            helperText={formik.touched.newPassword ? formik.errors.newPassword : null}
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <PasswordTextField
                             fullWidth
-                            autoFocus
                             id="confirmNewPassword"
                             name="confirmNewPassword"
-                            type="password"
                             autoComplete="new-password"
                             label="Confirm New Password"
                             value={formik.values.confirmNewPassword}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
                             error={formik.touched.confirmNewPassword && Boolean(formik.errors.confirmNewPassword)}
-                            helperText={formik.touched.confirmNewPassword && formik.errors.confirmNewPassword}
+                            helperText={formik.touched.confirmNewPassword ? formik.errors.confirmNewPassword : null}
                         />
                     </Grid>
                 </Grid>

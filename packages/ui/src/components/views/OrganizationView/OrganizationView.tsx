@@ -1,4 +1,4 @@
-import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
@@ -11,16 +11,18 @@ import {
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
     Share as ShareIcon,
+    Today as CalendarIcon,
 } from "@mui/icons-material";
 import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, BaseObjectActionDialog, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { OrganizationViewProps } from "../types";
-import { User, Project, Routine, Standard, Organization } from "types";
+import { User, Project, Routine, Standard, Organization, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
+import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
 enum TabOptions {
     Resources = "Resources",
@@ -59,20 +61,20 @@ export const OrganizationView = ({
         setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
     }, [organization]);
 
-    const { bio, name, resourceList } = useMemo(() => {
-        const resourceLists = organization?.resourceLists ?? partialData?.resourceLists ?? [];
+    const { bio, handle, name, resourceList } = useMemo(() => {
+        const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
         return {
             bio: getTranslation(organization, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language]),
+            handle: organization?.handle ?? partialData?.handle,
             name: getTranslation(organization, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
-            resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
+            resourceList,
         };
     }, [language, organization, partialData, session]);
 
     useEffect(() => {
-        const handle: string | null = organization?.handle ?? partialData?.handle ?? null;
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
         else document.title = `${name} | Vrooli`;
-    }, [name, organization, partialData]);
+    }, [handle, name]);
 
     const resources = useMemo(() => (resourceList || canEdit) ? (
         <ResourceListVertical
@@ -321,6 +323,19 @@ export const OrganizationView = ({
                         <Typography variant="h4" textAlign="center">{name}</Typography>
                     )
                 }
+                {/* Handle */}
+                {
+                    handle && <Link href={`https://handle.me/${handle}`} underline="hover">
+                        <Typography
+                            variant="h6"
+                            textAlign="center"
+                            sx={{
+                                color: (t) => t.palette.secondary.dark,
+                                cursor: 'pointer',
+                            }}
+                        >${handle}</Typography>
+                    </Link>
+                }
                 {/* Joined date */}
                 {
                     loading ? (
@@ -328,7 +343,10 @@ export const OrganizationView = ({
                             <LinearProgress color="inherit" />
                         </Box>
                     ) : (
-                        <Typography variant="body1" sx={{ color: "#00831e" }}>{organization?.created_at ? `🕔 Joined ${new Date(organization.created_at).toDateString()}` : ''}</Typography>
+                        organization?.created_at && (<Box sx={{ display: 'flex' }} >
+                            <CalendarIcon />
+                            {`Joined ${new Date(organization.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                        </Box>)
                     )
                 }
                 {/* Bio */}

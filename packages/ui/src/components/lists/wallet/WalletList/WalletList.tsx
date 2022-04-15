@@ -11,7 +11,7 @@ import {
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { Pubs, updateArray } from 'utils';
-import { walletRemoveMutation, walletUpdateMutation } from 'graphql/mutation';
+import { walletDeleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
 
@@ -35,7 +35,7 @@ export const WalletList = ({
         })
     }, [handleUpdate, list]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(walletRemoveMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(walletDeleteOneMutation);
     const onDelete = useCallback((wallet: Wallet) => {
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other wallet or one other email)
@@ -43,13 +43,24 @@ export const WalletList = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot delete your only authentication method!', severity: 'error' });
             return;
         }
-        mutationWrapper({
-            mutation: deleteMutation,
-            input: { id: wallet.id },
-            onSuccess: (response) => {
-                handleUpdate([...list.filter(w => w.id !== wallet.id)])
-            },
-        })
+        // Confirmation dialog
+        PubSub.publish(Pubs.AlertDialog, {
+            message: `Are you sure you want to delete wallet ${wallet.name ?? wallet.stakingAddress}?`,
+            buttons: [
+                {
+                    text: 'Yes', onClick: () => {
+                        mutationWrapper({
+                            mutation: deleteMutation,
+                            input: { id: wallet.id },
+                            onSuccess: (response) => {
+                                handleUpdate([...list.filter(w => w.id !== wallet.id)])
+                            },
+                        })
+                    }
+                },
+                { text: 'Cancel', onClick: () => { } },
+            ]
+        });
     }, [handleUpdate, list, numVerifiedEmails]);
 
     // Opens link to install wallet extension

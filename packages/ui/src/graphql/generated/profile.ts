@@ -18,13 +18,19 @@ export interface profile_profile_emails {
   verified: boolean;
 }
 
+export interface profile_profile_wallets_handles {
+  __typename: "Handle";
+  id: string;
+  handle: string;
+}
+
 export interface profile_profile_wallets {
   __typename: "Wallet";
   id: string;
   name: string | null;
   publicAddress: string | null;
   stakingAddress: string;
-  handles: string[];
+  handles: profile_profile_wallets_handles[];
   verified: boolean;
 }
 

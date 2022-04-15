@@ -1,4 +1,5 @@
 // Defines common props
+import { findHandles_findHandles } from 'graphql/generated/findHandles';
 import { organization_organization } from 'graphql/generated/organization';
 import { profile_profile_emails, profile_profile_resourceLists, profile_profile_wallets } from 'graphql/generated/profile';
 import { project_project } from 'graphql/generated/project';
@@ -27,6 +28,7 @@ export interface CommonProps {
 // Rename auto-generated query objects
 export type Comment = any; //TODO
 export type Email = profile_profile_emails;
+export type Handle = findHandles_findHandles;
 export type Node = routine_routine_nodes;
 export type NodeDataEnd = routine_routine_nodes_data_NodeEnd;
 export type NodeDataLoop = routine_routine_nodes_data_NodeLoop;

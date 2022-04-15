@@ -1,4 +1,4 @@
-import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
@@ -11,15 +11,17 @@ import {
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
     Share as ShareIcon,
+    Today as CalendarIcon,
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
-import { Organization, Project, Routine, Standard, User } from "types";
+import { Organization, Project, ResourceList, Routine, Standard, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
+import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
 enum TabOptions {
     Resources = "Resources",
@@ -63,20 +65,19 @@ export const UserView = ({
     }, [session, user]);
 
     const { bio, name, handle, resourceList } = useMemo(() => {
-        const resourceLists = (user as any)?.resourceLists ?? (partialData as any)?.resourceLists ?? [];
+        const resourceList: ResourceList | undefined = Array.isArray(user?.resourceLists) ? user?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
         return {
             bio: getTranslation(user, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language]),
             name: user?.name ?? partialData?.name,
             handle: user?.handle ?? partialData?.handle,
-            resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
+            resourceList,
         };
     }, [language, partialData, user]);
 
     useEffect(() => {
-        const handle: string | null = user?.handle ?? partialData?.handle ?? null;
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
         else document.title = `${name} | Vrooli`;
-    }, [name, user, partialData]);
+    }, [handle, name]);
 
     const resources = useMemo(() => (resourceList || isOwn) ? (
         <ResourceListVertical
@@ -327,16 +328,29 @@ export const UserView = ({
                     )
                 }
                 {/* Handle */}
-                {handle && <Typography variant="h6" textAlign="center">${handle}</Typography>}
+                {
+                    handle && <Link href={`https://handle.me/${handle}`} underline="hover">
+                        <Typography
+                            variant="h6"
+                            textAlign="center"
+                            sx={{
+                                color: (t) => t.palette.secondary.dark,
+                                cursor: 'pointer',
+                            }}
+                        >${handle}</Typography>
+                    </Link>
+                }
                 {/* Joined date */}
                 {
                     loading ? (
                         <Box sx={{ width: '33%', color: "#00831e" }}>
                             <LinearProgress color="inherit" />
                         </Box>
-                    ) : (
-                        <Typography variant="body1" sx={{ color: "#00831e" }}>{user?.created_at ? `🕔 Joined ${new Date(user.created_at).toDateString()}` : ''}</Typography>
-                    )
+                    ) :
+                        user?.created_at && (<Box sx={{ display: 'flex' }} >
+                            <CalendarIcon />
+                            {`Joined ${new Date(user.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                        </Box>)
                 }
                 {/* Description */}
                 {

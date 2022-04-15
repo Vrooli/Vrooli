@@ -2,6 +2,8 @@ import { idArray, id, language, bio, name, handle } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
+export const theme = yup.string().max(128);
+
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 50;
 // See https://stackoverflow. com/a/21456918/10240279 for more options
@@ -42,15 +44,20 @@ export const userTranslationsUpdate = yup.array().of(userTranslationUpdate.requi
 export const profileUpdateSchema = yup.object().shape({
     name: name.notRequired().default(undefined),
     handle: handle.notRequired().default(undefined),
-    theme: yup.string().max(128).required(),
+    theme: theme.notRequired().default(undefined),
     starredTagsCreate: tagsCreate.notRequired().default(undefined),
     starredTagsConnect: idArray.notRequired().default(undefined),
     starredTagsDisconnect: idArray.notRequired().default(undefined),
     hiddenTagsCreate: tagsCreate.notRequired().default(undefined),
     hiddenTagsConnect: idArray.notRequired().default(undefined),
     hiddenTagsDisconnect: idArray.notRequired().default(undefined),
-    // Don't apply validation to current password. If you change password requirements, users would be unable to change their password
-    currentPassword: yup.string().max(128).required(),
+    // Don't apply validation to current password. If you change password requirements, users would be unable to change their password. 
+    // Also only require current password when changing new password
+    currentPassword: yup.string().max(128).when('newPassword', {
+        is: (newPassword: string | undefined) => !!newPassword,
+        then: yup.string().required(),
+        otherwise: yup.string().notRequired(),
+    }),
     newPassword: passwordSchema.notRequired().default(undefined),
     newPasswordConfirmation: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match'),
     translationsDelete: idArray.notRequired().default(undefined),
@@ -69,7 +76,7 @@ export const emailLogInForm = yup.object().shape({
 /**
  * Schema for traditional email/password log in.
  */
- export const emailLogInSchema = yup.object().shape({
+export const emailLogInSchema = yup.object().shape({
     email: yup.string().email().notRequired().default(undefined),
     password: yup.string().max(128).notRequired().default(undefined),
     verificationCode: yup.string().max(128).notRequired().default(undefined),

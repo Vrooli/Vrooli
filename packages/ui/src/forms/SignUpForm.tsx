@@ -22,6 +22,7 @@ import { emailSignUp } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
+import { PasswordTextField } from 'components';
 
 export const SignUpForm = ({
     onFormChange = () => { },
@@ -104,33 +105,31 @@ export const SignUpForm = ({
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <PasswordTextField
                             fullWidth
                             id="password"
                             name="password"
-                            type="password"
                             autoComplete="new-password"
                             label="Password"
                             value={formik.values.password}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
                             error={formik.touched.password && Boolean(formik.errors.password)}
-                            helperText={formik.touched.password && formik.errors.password}
+                            helperText={formik.touched.password ? formik.errors.password : null}
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <PasswordTextField
                             fullWidth
                             id="confirmPassword"
                             name="confirmPassword"
-                            type="password"
                             autoComplete="new-password"
                             label="Confirm Password"
                             value={formik.values.confirmPassword}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
                             error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
-                            helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
+                            helperText={formik.touched.confirmPassword ? formik.errors.confirmPassword : null}
                         />
                     </Grid>
                     <Grid item xs={12}>

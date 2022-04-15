@@ -168,7 +168,7 @@ export const walletMutater = (prisma: PrismaType) => ({
             const wontHaveVerifiedWallet = numberOfVerifiedWalletDeletes >= verifiedWalletsCount;
             if (wontHaveVerifiedEmail || wontHaveVerifiedWallet) throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods");
             // Delete
-            deleted = await prisma.email.deleteMany({
+            deleted = await prisma.wallet.deleteMany({
                 where: { id: { in: deleteMany } },
             });
         }

@@ -84,7 +84,6 @@ export const typeDef = gql`
         validateSession: Session!
         walletInit(input: WalletInitInput!): String!
         walletComplete(input: WalletCompleteInput!): WalletComplete!
-        walletRemove(input: DeleteOneInput!): Success!
     }
 `
 
@@ -302,13 +301,12 @@ export const resolvers = {
         walletInit: async (_parent: undefined, { input }: IWrap<WalletInitInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<string> => {
             // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
             const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
-            console.log('wallet INIT', deserializedStakingAddress)
             if (!deserializedStakingAddress.startsWith('stake1')) throw new CustomError(CODE.InvalidArgs, 'Must use wallet on mainnet');
             // Generate nonce for handshake
             const nonce = await generateNonce(input.nonceDescription as string | undefined);
             // Find existing wallet data in database
             let walletData = await prisma.wallet.findUnique({
-                where: { 
+                where: {
                     stakingAddress: input.stakingAddress,
                 },
                 select: {
@@ -345,7 +343,7 @@ export const resolvers = {
             return nonce;
         },
         // Verify that signed message from user wallet has been signed by the correct public address
-        walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, res }: Context, _info: GraphQLResolveInfo): Promise<WalletComplete> => {
+        walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, req, res }: Context, _info: GraphQLResolveInfo): Promise<WalletComplete> => {
             // Find wallet with public address
             const walletData = await prisma.wallet.findUnique({
                 where: { stakingAddress: input.stakingAddress },
@@ -353,12 +351,13 @@ export const resolvers = {
                     id: true,
                     nonce: true,
                     nonceCreationTime: true,
-                    userId: true,
                     user: {
                         select: { id: true, theme: true, languages: { select: { language: true } } }
-                    }
+                    },
+                    verified: true,
                 }
             });
+            console.log('got wallet data in complete', walletData?.id);
             // If wallet doesn't exist, throw error
             if (!walletData) throw new CustomError(CODE.InvalidArgs);
             // If nonce expired, throw error
@@ -367,38 +366,52 @@ export const resolvers = {
             const walletVerified = verifySignedMessage(input.stakingAddress, walletData.nonce, input.signedPayload);
             if (!walletVerified) throw new CustomError(CODE.Unauthorized);
             let userData = walletData.user;
-            // If user doesn't exist, create new user
+            // If user doesn't exist, either create new user, or assign to existing user
             let firstLogIn = false;
             if (!userData?.id) {
-                firstLogIn = true;
-                const roles = await prisma.role.findMany({ select: { id: true, title: true } });
-                const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
-                userData = await prisma.user.create({
-                    data: {
-                        name: `user${randomString(8)}`,
-                        roles: {
-                            create: [{ role: { connect: { id: actorRoleId } } }]
+                // If signed in, query existing user data
+                if (req.userId) {
+                    userData = await prisma.user.findUnique({
+                        where: { id: req.userId },
+                        select: { id: true, theme: true, languages: { select: { language: true } } }
+                    })
+                }
+                // If not signed in, create new user
+                else {
+                    console.log('wallet complete user DID NOT EXIST')
+                    firstLogIn = true;
+                    const roles = await prisma.role.findMany({ select: { id: true, title: true } });
+                    const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;
+                    userData = await prisma.user.create({
+                        data: {
+                            name: `user${randomString(8)}`,
+                            roles: {
+                                create: [{ role: { connect: { id: actorRoleId } } }]
+                            },
+                            wallets: {
+                                connect: { id: walletData.id }
+                            },
+                            resourceLists: {
+                                create: [
+                                    {
+                                        usedFor: ResourceListUsedFor.Learn,
+                                    },
+                                    {
+                                        usedFor: ResourceListUsedFor.Research,
+                                    },
+                                    {
+                                        usedFor: ResourceListUsedFor.Develop
+                                    }
+                                ]
+                            }
                         },
-                        wallets: {
-                            connect: { id: walletData.id }
-                        },
-                        resourceLists: {
-                            create: [
-                                {
-                                    usedFor: ResourceListUsedFor.Learn,
-                                },
-                                {
-                                    usedFor: ResourceListUsedFor.Research,
-                                },
-                                {
-                                    usedFor: ResourceListUsedFor.Develop
-                                }
-                            ]
-                        }
-                    },
-                    select: { id: true, theme: true, languages: { select: { language: true } } }
-                });
+                        select: { id: true, theme: true, languages: { select: { language: true } } }
+                    });
+                }
             }
+            // If user exists, make sure it is not verified with a different user
+            // You can take a wallet from a different user if it's not verified
+            else if (req.userId && userData.id !== req.userId && walletData.verified) throw new CustomError(CODE.Unauthorized, 'Wallet assigned to a different user');
             // Update wallet and remove nonce data
             const wallet = await prisma.wallet.update({
                 where: { id: walletData.id },
@@ -407,6 +420,7 @@ export const resolvers = {
                     lastVerifiedTime: new Date().toISOString(),
                     nonce: null,
                     nonceCreationTime: null,
+                    userId: userData?.id,
                 },
                 select: {
                     id: true,
@@ -424,28 +438,18 @@ export const resolvers = {
             })
             // Create session token
             const session = {
-                id: userData.id,
-                languages: userData.languages.map((l: any) => l.language),
+                id: userData?.id,
+                languages: userData?.languages?.map((l: any) => l.language) ?? [],
                 roles: [ROLES.Actor],
-                theme: userData.theme ?? 'light',
+                theme: userData?.theme ?? 'light',
             }
             // Add session token to return payload
             await generateSessionToken(res, session);
             return {
                 firstLogIn,
                 session,
-                wallet: {
-                    ...wallet,
-                    handles: wallet.handles.map((h: any) => h.handle),
-                }
+                wallet,
             } as WalletComplete;
-        },
-        walletRemove: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // TODO Must deleting your own
-            // TODO must keep at least one wallet per user
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            throw new CustomError(CODE.NotImplemented);
         },
     }
 }

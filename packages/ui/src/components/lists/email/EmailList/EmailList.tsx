@@ -2,16 +2,16 @@
  * Displays a list of emails for the user to manage
  */
 import { EmailListProps } from '../types';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { useCallback } from 'react';
 import { Email } from 'types';
-import { Box, Button, Stack, TextField } from '@mui/material';
+import { Box, IconButton, Stack, TextField } from '@mui/material';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { Pubs, updateArray } from 'utils';
-import { emailCreateMutation, emailDeleteOneMutation, emailUpdateMutation } from 'graphql/mutation';
+import { emailCreateMutation, emailDeleteOneMutation, emailUpdateMutation, sendVerificationEmailMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
 import { emailCreateButton as validationSchema } from '@local/shared';
@@ -31,6 +31,7 @@ export const EmailList = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
+            console.log('in formik onsubmitt emailist', formik)
             if (!formik.isValid) return;
             mutationWrapper({
                 mutation: addMutation,
@@ -39,15 +40,15 @@ export const EmailList = ({
                     receivesAccountUpdates: true,
                     receivesBusinessUpdates: true,
                 },
-                onSuccess: (response) => { handleUpdate([...list, response.data.addEmail]); },
+                onSuccess: (response) => {
+                    PubSub.publish(Pubs.Snack, { message: 'Please check your email to complete verification.' });
+                    handleUpdate([...list, response.data.addEmail]);
+                    formik.resetForm();
+                },
                 onError: () => { formik.setSubmitting(false); },
             })
         },
     });
-
-    const onAdd = useCallback((newEmail: Email) => {
-        handleUpdate([...list, newEmail]);
-    }, [handleUpdate, list]);
 
     const [updateMutation, { loading: loadingUpdate }] = useMutation<any>(emailUpdateMutation);
     const onUpdate = useCallback((index: number, updatedEmail: Email) => {
@@ -72,17 +73,39 @@ export const EmailList = ({
             PubSub.publish(Pubs.Snack, { message: 'Cannot delete your only authentication method!', severity: 'error' });
             return;
         }
-        mutationWrapper({
-            mutation: deleteMutation,
-            input: { id: email.id },
-            onSuccess: (response) => {
-                handleUpdate([...list.filter(w => w.id !== email.id)])
-            },
-        })
+        // Confirmation dialog
+        PubSub.publish(Pubs.AlertDialog, {
+            message: `Are you sure you want to delete email ${email.emailAddress}?`,
+            buttons: [
+                {
+                    text: 'Yes', onClick: () => {
+                        mutationWrapper({
+                            mutation: deleteMutation,
+                            input: { id: email.id },
+                            onSuccess: (response) => {
+                                handleUpdate([...list.filter(w => w.id !== email.id)])
+                            },
+                        })
+                    }
+                },
+                { text: 'Cancel', onClick: () => { } },
+            ]
+        });
     }, [handleUpdate, list, numVerifiedWallets]);
 
+    const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<any>(sendVerificationEmailMutation);
+    const sendVerificationEmail = useCallback((email: Email) => {
+        mutationWrapper({
+            mutation: verifyMutation,
+            input: { emailAddress: email.emailAddress },
+            onSuccess: (response) => {
+                PubSub.publish(Pubs.Snack, { message: 'Please check your email to complete verification.' });
+            },
+        })
+    }, [verifyMutation]);
+
     return (
-        <>
+        <form onSubmit={formik.handleSubmit}>
             <Box sx={{
                 overflow: 'overlay',
                 border: '1px solid #e0e0e0',
@@ -99,13 +122,12 @@ export const EmailList = ({
                         index={index}
                         handleUpdate={onUpdate}
                         handleDelete={onDelete}
-                        handleVerify={() => { }}
+                        handleVerify={sendVerificationEmail}
                     />
                 ))}
             </Box>
             {/* Add new email */}
             <Stack direction="row" sx={{
-                alignItems: 'center',
                 display: 'flex',
                 justifyContent: 'center',
                 paddingTop: 2,
@@ -127,17 +149,16 @@ export const EmailList = ({
                         maxWidth: '400px',
                     }}
                 />
-                <Button
-                    fullWidth
-                    startIcon={<AddIcon sx={{ width: '25px', height: '25px' }} />}
+                <IconButton
+                    aria-label='add-new-email-button'
                     type="submit"
                     sx={{
-                        height: '56px',
-                        paddingRight: 0.5,
-                        width: 'auto',
-                    }}
-                ></Button>
+                        background: (t) => t.palette.secondary.main,
+                        borderRadius: '0 5px 5px 0',
+                    }}>
+                    <AddIcon />
+                </IconButton>
             </Stack>
-        </>
+        </form>
     )
 }

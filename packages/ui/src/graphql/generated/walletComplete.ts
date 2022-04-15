@@ -17,13 +17,19 @@ export interface walletComplete_walletComplete_session {
   languages: string[] | null;
 }
 
+export interface walletComplete_walletComplete_wallet_handles {
+  __typename: "Handle";
+  id: string;
+  handle: string;
+}
+
 export interface walletComplete_walletComplete_wallet {
   __typename: "Wallet";
   id: string;
   name: string | null;
   publicAddress: string | null;
   stakingAddress: string;
-  handles: string[];
+  handles: walletComplete_walletComplete_wallet_handles[];
   verified: boolean;
 }
 

@@ -21,6 +21,7 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { useMemo } from 'react';
 import { parseSearchParams } from 'utils/urlTools';
+import { PasswordTextField } from 'components';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -80,18 +81,17 @@ export const LogInForm = ({
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <PasswordTextField
                             fullWidth
                             id="password"
                             name="password"
-                            type="password"
                             autoComplete="current-password"
                             label="Password"
                             value={formik.values.password}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
                             error={formik.touched.password && Boolean(formik.errors.password)}
-                            helperText={formik.touched.password && formik.errors.password}
+                            helperText={formik.touched.password ? formik.errors.password : null}
                         />
                     </Grid>
                 </Grid>

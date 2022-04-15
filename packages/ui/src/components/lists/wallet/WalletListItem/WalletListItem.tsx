@@ -80,8 +80,7 @@ export function WalletListItem({
             </Stack>
             {/* Right action buttons */}
             <Stack direction="row" spacing={1}>
-                {/* TODO switch to !data.verified when done testing */}
-                {data.verified && <Tooltip title="Verify Wallet">
+                {!data.verified && <Tooltip title="Verify Wallet">
                     <IconButton
                         onClick={onVerify}
                     >

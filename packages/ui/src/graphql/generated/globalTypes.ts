@@ -871,6 +871,10 @@ export interface RoutineUpdateInput {
   translationsUpdate?: RoutineTranslationUpdateInput[] | null;
 }
 
+export interface SendVerificationEmailInput {
+  emailAddress: string;
+}
+
 export interface StandardCountInput {
   createdTimeFrame?: TimeFrame | null;
   updatedTimeFrame?: TimeFrame | null;

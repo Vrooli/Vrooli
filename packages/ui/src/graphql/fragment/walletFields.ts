@@ -6,7 +6,10 @@ export const walletFields = gql`
         name
         publicAddress
         stakingAddress
-        handles
+        handles {
+            id
+            handle
+        }
         verified
     }
 `
