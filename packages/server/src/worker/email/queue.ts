@@ -1,7 +1,10 @@
 import Bull from 'bull';
 import { emailProcess } from './process.js';
 import { HOST, PORT } from '../connection.js';
-import { APP_URL, BUSINESS_NAME } from '@local/shared'
+import { APP_URL, BUSINESS_NAME } from '@local/shared';
+import fs from 'fs';
+
+const welcomeTemplate = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/src/worker/email/templates/welcome.html`).toString();
 
 const emailQueue = new Bull('email', { redis: { port: PORT, host: HOST } });
 emailQueue.process(emailProcess);
@@ -25,11 +28,14 @@ export function sendResetPasswordLink(email: string, userId: string | number, co
 }
 
 export function sendVerificationLink(email: string, userId: string | number, code: string) {
+    // Replace all "${VERIFY_LINK}" in welcomeTemplate with the the actual link
+    const link = `${APP_URL}/start?code=${userId}:${code}`;
+    const html = welcomeTemplate.replace(/\$\{VERIFY_LINK\}/g, link);
     emailQueue.add({
         to: [email],
         subject: `Verify ${BUSINESS_NAME} Account`,
         text: `Welcome to ${BUSINESS_NAME}! Please log in through this link (${APP_URL}/start?code=${userId}:${code}) to verify your account. If you did not create an account with us, please ignore this link.`,
-        html: `<p>Welcome to ${BUSINESS_NAME}!</p><p>Please log in through this link (<a href=\"${APP_URL}/start?code=${userId}:${code}\">${APP_URL}/start?code=${userId}:${code}</a>) to verify your account.</p><p>If you did not create an account with us, please ignore this message.</p>`
+        html,
     });
 }
 

@@ -7,19 +7,11 @@ import {
     PlayCircle as RunIcon,
     Update as UpdateIcon
 } from '@mui/icons-material';
-import { withStyles } from '@mui/styles';
 import { BuildRunState } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from 'wouter';
 import { UpTransition } from 'components/dialogs';
 import { RunRoutineView } from 'components/views';
-
-const CustomSlider = withStyles({
-    root: {
-        width: 'calc(100% - 32px)',
-        left: '11px', // 16px - 1/4 of thumb diameter
-    },
-})(Slider);
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
@@ -59,7 +51,7 @@ export const BuildBottomContainer = ({
      * Slider for scaling the graph
      */
     const slider = useMemo(() => (
-        <CustomSlider
+        <Slider
             aria-label="graph-scale"
             defaultValue={1}
             max={1}
@@ -68,7 +60,11 @@ export const BuildBottomContainer = ({
             step={0.01}
             value={scale}
             valueLabelDisplay="auto"
-            sx={{ color: sliderColor, maxWidth: '500px', marginRight: 4 }}
+            sx={{ 
+                color: sliderColor, 
+                maxWidth: '500px', 
+                marginRight: 2,
+            }}
         />
     ), [scale, sliderColor, onScaleChange]);
 

@@ -153,7 +153,7 @@ build/
 *.db
 
 #Persistent data
-data/
+data/postgres/
 
 .eslintcache
 package-lock.json

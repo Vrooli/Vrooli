@@ -52,6 +52,7 @@ services:
             BLOCKFROST_API_KEY: "${BLOCKFROST_API_KEY}"
             SITE_EMAIL_USERNAME: "${SITE_EMAIL_USERNAME}"
             SITE_EMAIL_PASSWORD: "${SITE_EMAIL_PASSWORD}"
+            SITE_EMAIL_ALIAS: "${SITE_EMAIL_ALIAS}"
             VIRTUAL_HOST: "${VIRTUAL_HOST}"
             VIRTUAL_PORT: "5329"
             VIRTUAL_PATH: "/api"
