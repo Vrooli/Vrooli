@@ -1,6 +1,6 @@
 import Bull from 'bull';
 import { emailProcess } from './process.js';
-import { HOST, PORT } from '../connection.js';
+import { HOST, PORT } from '../../redisConn';
 import { APP_URL, BUSINESS_NAME } from '@local/shared';
 import fs from 'fs';
 

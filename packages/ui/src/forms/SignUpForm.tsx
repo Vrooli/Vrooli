@@ -33,7 +33,7 @@ export const SignUpForm = ({
 
     const formik = useFormik({
         initialValues: {
-            marketingEmails: "true",
+            marketingEmails: true,
             name: '',
             email: '',
             password: '',
@@ -70,6 +70,7 @@ export const SignUpForm = ({
 
     const toLogIn = () => onFormChange(Forms.LogIn);
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
+    console.log(formik.values);
 
     return (
         <Paper sx={{ ...formPaper }}>
@@ -82,7 +83,7 @@ export const SignUpForm = ({
                             id="name"
                             name="name"
                             autoComplete="name"
-                            label="name"
+                            label="Name"
                             value={formik.values.name}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
@@ -138,7 +139,6 @@ export const SignUpForm = ({
                                 <Checkbox
                                     id="marketingEmails"
                                     name="marketingEmails"
-                                    value="marketingEmails"
                                     color="secondary"
                                     checked={Boolean(formik.values.marketingEmails)}
                                     onBlur={formik.handleBlur}

@@ -133,6 +133,11 @@ export const CODE = {
         message: 'Account with that phone number already exists',
         snack: 'Phone number taken',
     },
+    RateLimitExceeded: {
+        code: 'RateLimitExceeded',
+        message: 'This resource has been requested too many times. Please try again later.',
+        snack: 'Rate limit exceeded',
+    },
     ReportExists: {
         code: 'ReportExists',
         message: 'You have already submitted a report on this object.',

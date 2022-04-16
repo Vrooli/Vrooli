@@ -33,7 +33,6 @@ export const toCheckbox = (
                 <Checkbox
                     id={data.fieldName}
                     name={data.fieldName}
-                    value={data.fieldName}
                     color={props.color}
                     checked={formik.values[data.fieldName]}
                     onBlur={formik.handleBlur}

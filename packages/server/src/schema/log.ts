@@ -7,6 +7,7 @@ import { FindByIdInput, Count, LogSortBy, LogType, DeleteManyInput, Log, LogSear
 import { Context } from '../context';
 import { deleteManyHelper, LogModel, readManyHelper, readOneHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
+import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum LogSortBy {
@@ -89,17 +90,20 @@ export const resolvers = {
     LogSortBy: LogSortBy,
     LogType: LogType,
     Query: {
-        log: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Log> | null> => {
-            return readOneHelper(req.userId, input, info, LogModel(prisma));
+        log: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Log> | null> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readOneHelper(context.req.userId, input, info, LogModel(context.prisma));
         },
-        logs: async (_parent: undefined, { input }: IWrap<LogSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<LogSearchResult> => {
-            return readManyHelper(req.userId, input, info, LogModel(prisma));
+        logs: async (_parent: undefined, { input }: IWrap<LogSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<LogSearchResult> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readManyHelper(context.req.userId, input, info, LogModel(context.prisma));
         },
     },
     // Logs are created automatically, so the only mutation is to delete them
     Mutation: {
-        logDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
-            return deleteManyHelper(req.userId, input, LogModel(prisma));
+        logDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
+            await rateLimit({ context, info, max: 1000, byAccount: true });
+            return deleteManyHelper(context.req.userId, input, LogModel(context.prisma));
         },
     }
 }

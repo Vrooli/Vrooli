@@ -249,7 +249,6 @@ export const BuildInfoDialog = ({
                                     id='routine-info-dialog-is-internal'
                                     size="small"
                                     name='isInternal'
-                                    value='isInternal'
                                     color='secondary'
                                     checked={formik.values.isInternal}
                                     onChange={formik.handleChange}

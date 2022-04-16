@@ -6,6 +6,7 @@ import { IWrap } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { GraphQLModelType, StarModel } from '../models';
+import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum StarFor {
@@ -51,10 +52,10 @@ export const resolvers = {
          * Adds or removes a star to an object. A user can only star an object once.
          * @returns 
          */
-        star: async (_parent: undefined, { input }: IWrap<StarInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            const success = await StarModel(prisma).star(req.userId, input);
+        star: async (_parent: undefined, { input }: IWrap<StarInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            await rateLimit({ context, info, max: 1000, byAccount: true });
+            const success = await StarModel(context.prisma).star(context.req.userId, input);
             return { success };
         },
     }

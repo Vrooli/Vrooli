@@ -82,6 +82,7 @@ export const StartPage = ({
         if (verificationCode) {
             // If session is already verified, call guest log in
             if (session.id) {
+                console.log('verification code supplied and session verified. calling guest log in')
                 mutationWrapper({
                     mutation: emailLogIn,
                     input: { verificationCode },

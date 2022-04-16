@@ -6,6 +6,7 @@ import { IWrap } from 'types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { GraphQLModelType, VoteModel } from '../models';
+import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum VoteFor {
@@ -49,10 +50,10 @@ export const resolvers = {
          * their previous vote is overruled. A user may vote on their own project/routine/etc.
          * @returns 
          */
-        vote: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            const success = await VoteModel(prisma).vote(req.userId, input);
+        vote: async (_parent: undefined, { input }: IWrap<VoteInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            await rateLimit({ context, info, max: 1000, byAccount: true });
+            const success = await VoteModel(context.prisma).vote(context.req.userId, input);
             return { success };
         },
     }

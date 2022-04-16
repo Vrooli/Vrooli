@@ -4,6 +4,7 @@ import { DeleteOneInput, Email, EmailCreateInput, EmailUpdateInput, Success } fr
 import { Context } from '../context';
 import { createHelper, deleteOneHelper, EmailModel, ProfileModel, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
+import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
 
@@ -44,20 +45,24 @@ export const resolvers = {
         /**
          * Associate a new email address to your account.
          */
-        emailCreate: async (_parent: undefined, { input }: IWrap<EmailCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            return createHelper(req.userId, input, info, EmailModel(prisma));
+        emailCreate: async (_parent: undefined, { input }: IWrap<EmailCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
+            await rateLimit({ context, info, max: 10, byAccount: true });
+            return createHelper(context.req.userId, input, info, EmailModel(context.prisma));
         },
         /**
          * Update an existing email address that is associated with your account.
          */
-        emailUpdate: async (_parent: undefined, { input }: IWrap<EmailUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
-            return updateHelper(req.userId, input, info, EmailModel(prisma));
+        emailUpdate: async (_parent: undefined, { input }: IWrap<EmailUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
+            await rateLimit({ context, info, max: 10, byAccount: true });
+            return updateHelper(context.req.userId, input, info, EmailModel(context.prisma));
         },
-        emailDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, EmailModel(prisma));
+        emailDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            await rateLimit({ context, info, max: 10, byAccount: true });
+            return deleteOneHelper(context.req.userId, input, EmailModel(context.prisma));
         },
-        sendVerificationEmail: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            ProfileModel(prisma).setupVerificationCode(input.emailAddress, prisma);
+        sendVerificationEmail: async (_parent: undefined, { input }: IWrap<any>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            await rateLimit({ context, info, max: 50, byAccount: true });
+            ProfileModel(context.prisma).setupVerificationCode(input.emailAddress, context.prisma);
             return { success: true };   
         },
     }

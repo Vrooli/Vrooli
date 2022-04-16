@@ -206,9 +206,11 @@ export const profileValidater = () => ({
      * @param emailAddress Email address string
      * @param userId ID of user who owns email
      * @param code Verification code
-     * @returns Updated user object
+     * @param prisma 
+     * @returns True if email was is verified
      */
     async validateVerificationCode(emailAddress: string, userId: string, code: string, prisma: PrismaType): Promise<boolean> {
+        console.log('validate verification code start', emailAddress, userId, code)
         // Find email data
         const email: any = await prisma.email.findUnique({
             where: { emailAddress },
@@ -225,26 +227,31 @@ export const profileValidater = () => ({
         if (email.userId !== userId) throw new CustomError(CODE.EmailNotVerified, 'Email does not belong to user');
         // If email already verified, remove old verification code
         if (email.verified) {
+            console.log('email alread verified')
             await prisma.email.update({
                 where: { id: email.id },
                 data: { verificationCode: null, lastVerificationCodeRequestAttempt: null }
             })
+            return true;
         }
         // Otherwise, validate code
         else {
             // If code is correct and not expired
             if (this.validateCode(code, email.verificationCode, email.lastVerificationCodeRequestAttempt)) {
+                console.log('code is correct and not expired')
                 await prisma.email.update({
                     where: { id: email.id },
                     data: { verified: true, verificationCode: null, lastVerificationCodeRequestAttempt: null }
                 })
+                return true;
             }
             // If email is not verified, set up new verification code
             else if (!email.verified) {
+                console.log('was not verified, sending new code')
                 await this.setupVerificationCode(emailAddress, prisma);
             }
+            return false;
         }
-        return true;
     },
     /**
      * Creates session object from user

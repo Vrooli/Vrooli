@@ -9,6 +9,7 @@ import { IWrap } from '../types';
 import { Context } from '../context';
 import { GraphQLModelType, OrganizationModel, ProjectModel, readManyHelper, RoutineModel, StandardModel, UserModel } from '../models';
 import { CustomError } from '../error';
+import { rateLimit } from '../rateLimit';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -139,13 +140,15 @@ export const resolvers = {
         },
     },
     Query: {
-        readAssets: async (_parent: undefined, { input }: any): Promise<Array<String | null>> => {
+        readAssets: async (_parent: undefined, { input }: any, context: Context, info: GraphQLResolveInfo): Promise<Array<String | null>> => {
+            await rateLimit({ context, info, max: 1000 });
             return await readFiles(input.files);
         },
         /**
          * Autocomplete endpoint for main page. Combines search queries for all main objects
          */
-        autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
+        autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, context: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
+            await rateLimit({ context, info, max: 5000 });
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } }
             const tagSelect = {
@@ -163,7 +166,7 @@ export const resolvers = {
             }
             // Query organizations
             const organizations = (await readManyHelper(
-                req.userId, 
+                context.req.userId, 
                 { ...input, take: 5, sortBy: OrganizationSortBy.StarsDesc }, 
                 {
                     __typename: 'Organization',
@@ -178,12 +181,12 @@ export const resolvers = {
                     },
                     tags: tagSelect,
                 },
-                OrganizationModel(prisma),
+                OrganizationModel(context.prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query projects
             const projects = (await readManyHelper(
-                req.userId, 
+                context.req.userId, 
                 { ...input, take: 5, sortBy: ProjectSortBy.StarsDesc }, 
                 {
                     __typename: 'Project',
@@ -200,12 +203,12 @@ export const resolvers = {
                     },
                     tags: tagSelect,
                 },
-                ProjectModel(prisma),
+                ProjectModel(context.prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query routines
             const routines = (await readManyHelper(
-                req.userId, 
+                context.req.userId, 
                 { ...input, take: 5, sortBy: RoutineSortBy.StarsDesc }, 
                 {
                     __typename: 'Routine',
@@ -222,12 +225,12 @@ export const resolvers = {
                     },
                     tags: tagSelect,
                 },
-                RoutineModel(prisma),
+                RoutineModel(context.prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query standards
             const standards = (await readManyHelper(
-                req.userId, 
+                context.req.userId, 
                 { ...input, take: 5, sortBy: StandardSortBy.StarsDesc }, 
                 {
                     __typename: 'Standard',
@@ -243,12 +246,12 @@ export const resolvers = {
                     },
                     tags: tagSelect,
                 },
-                StandardModel(prisma),
+                StandardModel(context.prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             // Query users
             const users = (await readManyHelper(
-                req.userId, 
+                context.req.userId, 
                 { ...input, take: 5, sortBy: UserSortBy.StarsDesc }, 
                 {
                     __typename: 'User',
@@ -258,7 +261,7 @@ export const resolvers = {
                     stars: true,
                     isStarred: true,
                 },
-                UserModel(prisma),
+                UserModel(context.prisma),
                 { ...starsQuery }
             )).edges.map(({ node }: any) => node);
             return {
@@ -272,14 +275,17 @@ export const resolvers = {
         /**
          * Returns site-wide statistics
          */
-        statistics: async (_parent: undefined, { input }: IWrap<AutocompleteInput>): Promise<any> => {
+        statistics: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, context: Context, info: GraphQLResolveInfo): Promise<any> => {
+            await rateLimit({ context, info, max: 500 });
             // Query current stats
             // Read historical stats from file
-            return new CustomError(CODE.NotImplemented);
+            throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {
-        writeAssets: async (_parent: undefined, { input }: any): Promise<boolean> => {
+        writeAssets: async (_parent: undefined, { input }: any, context: Context, info: GraphQLResolveInfo): Promise<boolean> => {
+            await rateLimit({ context, info, max: 500 });
+            throw new CustomError(CODE.NotImplemented); // TODO add safety checks before allowing uploads
             const data = await saveFiles(input.files);
             // Any failed writes will return null
             return !data.some(d => d === null)

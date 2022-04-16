@@ -35,7 +35,7 @@ const main = async () => {
     app.use(auth.authenticate);
 
     // Cross-Origin access. Accepts requests from localhost and dns
-    // If you want a public server, this can be set to ['*']
+    // If you want a public server, set origin to true instead
     let origins: Array<string | RegExp> = ['https://cardano-mainnet.blockfrost.io'];
     if (process.env.REACT_APP_SERVER_LOCATION === 'local') {
         origins.push(
@@ -52,17 +52,20 @@ const main = async () => {
             `https://www.app.vrooli.com`,
         )
     }
-
     app.use(cors({
         credentials: true,
-        origin: origins
+        origin: origins,
     }))
+    // app.use(cors({
+    //     credentials: true,
+    //     origin: true,
+    // }))
 
     // Set static folders
-    app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/uploads`));
+    // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));
 
     // Set up image uploading
-    app.use(`/api/v1`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }),)
+    app.use(`/api/v1`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }))
 
     /**
      * Apollo Server for GraphQL

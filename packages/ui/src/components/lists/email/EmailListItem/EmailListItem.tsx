@@ -63,7 +63,7 @@ export function EmailListItem({
             </Stack>
             {/* Right action buttons */}
             <Stack direction="row" spacing={1}>
-                {data.verified && <Tooltip title="Resend email verification">
+                {!data.verified && <Tooltip title="Resend email verification">
                     <IconButton
                         onClick={onVerify}
                     >

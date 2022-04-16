@@ -4,6 +4,7 @@ import { DeleteOneInput, FindByIdInput, Project, ProjectCreateInput, ProjectUpda
 import { Context } from '../context';
 import { countHelper, createHelper, deleteOneHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
+import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum ProjectSortBy {
@@ -149,25 +150,31 @@ export const typeDef = gql`
 export const resolvers = {
     ProjectSortBy: ProjectSortBy,
     Query: {
-        project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
-            return readOneHelper(req.userId, input, info, ProjectModel(prisma));
+        project: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readOneHelper(context.req.userId, input, info, ProjectModel(context.prisma));
         },
-        projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
-            return readManyHelper(req.userId, input, info, ProjectModel(prisma));
+        projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readManyHelper(context.req.userId, input, info, ProjectModel(context.prisma));
         },
-        projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, ProjectModel(prisma));
+        projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ context, info, max: 1000 });
+            return countHelper(input, ProjectModel(context.prisma));
         },
     },
     Mutation: {
-        projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            return createHelper(req.userId, input, info, ProjectModel(prisma));
+        projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
+            await rateLimit({ context, info, max: 100, byAccount: true });
+            return createHelper(context.req.userId, input, info, ProjectModel(context.prisma));
         },
-        projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
-            return updateHelper(req.userId, input, info, ProjectModel(prisma));
+        projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
+            await rateLimit({ context, info, max: 250, byAccount: true });
+            return updateHelper(context.req.userId, input, info, ProjectModel(context.prisma));
         },
-        projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, ProjectModel(prisma));
+        projectDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            await rateLimit({ context, info, max: 100, byAccount: true });
+            return deleteOneHelper(context.req.userId, input, ProjectModel(context.prisma));
         },
     }
 }

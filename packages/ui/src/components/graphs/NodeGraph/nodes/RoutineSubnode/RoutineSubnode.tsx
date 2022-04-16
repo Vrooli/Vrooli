@@ -141,7 +141,6 @@ export const RoutineSubnode = ({
                                 id={`${title ?? ''}-optional-option`}
                                 size="small"
                                 name='isOptionalCheckbox'
-                                value='isOptionalCheckbox'
                                 color='secondary'
                                 checked={data?.isOptional}
                                 onChange={onOptionalChange}

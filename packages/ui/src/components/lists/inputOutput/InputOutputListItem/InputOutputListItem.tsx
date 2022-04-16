@@ -231,7 +231,6 @@ export const InputOutputListItem = ({
                                         id='routine-info-dialog-is-internal'
                                         size="small"
                                         name='isRequired'
-                                        value='isRequired'
                                         color='secondary'
                                         checked={formik.values.isRequired}
                                         onChange={formik.handleChange}
