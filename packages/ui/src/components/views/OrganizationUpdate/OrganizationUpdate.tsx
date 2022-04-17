@@ -108,7 +108,6 @@ export const OrganizationUpdate = ({
         onSubmit: (values) => {
             const existingResourceList = Array.isArray(organization?.resourceLists) ? (organization as Organization).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
             const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
-            console.log('organization update')
             const tagsUpdate = tags.length > 0 ? {
                 // Create/connect/disconnect new tags
                 tagsCreate: tags.filter(t => !t.id && !organization?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
@@ -120,7 +119,6 @@ export const OrganizationUpdate = ({
                 bio: values.bio,
                 name: values.name,
             })
-            console.log('organization alltranslations', allTranslations)
             mutationWrapper({
                 mutation,
                 input: formatForUpdate(organization, {

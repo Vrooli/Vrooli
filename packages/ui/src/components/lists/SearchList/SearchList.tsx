@@ -10,6 +10,7 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
+import { Pubs } from "utils";
 
 const searchButtonStyle = {
     ...clickSize,
@@ -194,7 +195,11 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Handle advanced search dialog
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
-    const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
+    const handleAdvancedSearchDialogOpen = useCallback(() => { 
+        PubSub.publish(Pubs.Snack, { message: 'Available next update. Please be patient with us😬', severity: 'error' });
+        return;
+        setAdvancedSearchDialogOpen(true) 
+    }, []);
     const handleAdvancedSearchDialogClose = useCallback(() => { setAdvancedSearchDialogOpen(false) }, []);
 
     return (

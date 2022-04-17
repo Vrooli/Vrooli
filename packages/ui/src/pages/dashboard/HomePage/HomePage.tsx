@@ -87,8 +87,8 @@ interface AutocompleteListItem {
 
 const examplesData: [string, string][] = [
     ['Start a new business', '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
-    ['Learn about Project Catalyst', ''], //TODO
-    ['Fund your project', ''], //TODO
+    // ['Learn about Project Catalyst', ''], //TODO
+    // ['Fund your project', ''], //TODO
     ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
 ]
 

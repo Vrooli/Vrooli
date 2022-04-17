@@ -44,7 +44,6 @@ export const SearchRoutinesPage = ({
     }, [session?.roles, setLocation]);
     const closeAdd = useCallback(() => setAddAnchor(null), []);
     const handleAddSelect = useCallback((option: any) => {
-        console.log('handleADdSelect', option);
         if (option === 'basic') setLocation(`${APP_LINKS.SearchRoutines}/add`)
         else setLocation(`${APP_LINKS.Build}/add`)
     }, [setLocation]);

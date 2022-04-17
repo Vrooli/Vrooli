@@ -115,7 +115,6 @@ export const SettingsProfile = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
-            console.log('formik onsubmit', formik.values, formik.errors)
             if (!formik.isValid) return;
             const allTranslations = getTranslationsUpdate(language, {
                 language,
@@ -201,7 +200,7 @@ export const SettingsProfile = ({
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, !formik.touched || formik.isSubmitting, true, () => { }],
-        ['Cancel', CancelIcon, !formik.touched || formik.isSubmitting, false, () => { console.log('yeet'); setLocation(APP_LINKS.Profile, { replace: true }) }],
+        ['Cancel', CancelIcon, !formik.touched || formik.isSubmitting, false, () => { setLocation(APP_LINKS.Profile, { replace: true }) }],
     ], [formik, setLocation]);
 
     return (
@@ -212,8 +211,11 @@ export const SettingsProfile = ({
                 color: (t) => t.palette.primary.contrastText,
                 padding: 0.5,
                 marginBottom: 2,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
             }}>
-                <Typography component="h1" variant="h3" textAlign="center">Update Profile</Typography>
+                <Typography component="h1" variant="h4" textAlign="center">Update Profile</Typography>
                 <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
             </Box>
             <Container sx={{ paddingBottom: 2 }}>

@@ -82,11 +82,14 @@ export const StartPage = ({
         if (verificationCode) {
             // If session is already verified, call guest log in
             if (session.id) {
-                console.log('verification code supplied and session verified. calling guest log in')
                 mutationWrapper({
                     mutation: emailLogIn,
                     input: { verificationCode },
-                    onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) },
+                    onSuccess: (response) => { 
+                        PubSub.publish(Pubs.Snack, { message: 'Email verified!' });
+                        PubSub.publish(Pubs.Session, response.data.emailLogIn); 
+                        setLocation(redirect ?? APP_LINKS.Home) 
+                    },
                     onError: (response) => {
                         if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                             PubSub.publish(Pubs.AlertDialog, {

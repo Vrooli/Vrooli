@@ -113,7 +113,7 @@ const starrer = (prisma: PrismaType) => ({
         starFor: StarFor
     ): Promise<boolean[]> {
         // Create result array that is the same length as ids
-        const result = new Array(ids.length).fill(false); //TODO something wrong with this method. not getting isstarred on tags again
+        const result = new Array(ids.length).fill(false);
         // Filter out nulls and undefineds from ids
         const idsFiltered = ids.filter(id => id !== null && id !== undefined);
         const fieldName = `${starFor.toLowerCase()}Id`;

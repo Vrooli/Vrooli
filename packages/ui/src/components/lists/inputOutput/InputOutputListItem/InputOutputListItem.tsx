@@ -61,7 +61,6 @@ export const InputOutputListItem = ({
                 language,
                 description: values.description,
             })
-            console.log('all translations', allTranslations);
             handleUpdate(index, {
                 ...item,
                 name: values.name,

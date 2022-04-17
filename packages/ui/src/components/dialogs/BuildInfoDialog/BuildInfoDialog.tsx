@@ -15,6 +15,7 @@ import {
 import {
     Box,
     Checkbox,
+    Drawer,
     FormControlLabel,
     IconButton,
     Link,
@@ -139,10 +140,11 @@ export const BuildInfoDialog = ({
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <InfoIcon sx={sxs?.icon} />
             </IconButton>
-            <SwipeableDrawer
+            {/* TODO SwipeableDrawer breaking */}
+            <Drawer
                 anchor="right"
                 open={open}
-                onOpen={() => { }} // Intentionally empty
+                // onOpen={() => { }} // Intentionally empty
                 onClose={closeMenu}
                 sx={{
                     '& .MuiDrawer-paper': {
@@ -272,7 +274,7 @@ export const BuildInfoDialog = ({
                         </ListItem>
                     ))}
                 </List>
-            </SwipeableDrawer>
+            </Drawer>
         </>
     );
 }

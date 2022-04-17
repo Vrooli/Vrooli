@@ -48,7 +48,6 @@ export const RoutineUpdate = ({
     // Hanlde inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
     const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
-        console.log('handleInputsUpdate', updatedList);
         setInputsList(updatedList);
     }, [setInputsList]);
 
@@ -145,9 +144,9 @@ export const RoutineUpdate = ({
             const existingResourceList = Array.isArray(routine?.resourceLists) ? (routine as Routine).resourceLists.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
             const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
             const tagsUpdate = tags.length > 0 ? {
-                // Create/connect new tags
                 tagsCreate: tags.filter(t => !t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !routine?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
+                tagsDisconnect: routine?.tags?.filter(t => !tags.some(tag => tag.tag === t.tag)).map(t => (t.id)),
             } : {};
             const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
             const allTranslations = getTranslationsUpdate(language, {

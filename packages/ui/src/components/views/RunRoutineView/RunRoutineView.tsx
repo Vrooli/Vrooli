@@ -434,7 +434,6 @@ export const RunRoutineView = ({
         // Find step number of node
         if (!stepList) return;
         const locationArray = findLocationArray(selectedNode.id, stepList);
-        console.log('got location array', locationArray);
         if (!locationArray) return;
         // Navigate to current step
         setLocation(`?step=${locationArray.join('.')}`, { replace: true });

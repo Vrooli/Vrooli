@@ -115,9 +115,9 @@ export const ProjectUpdate = ({
             const existingResourceList = Array.isArray(project?.resourceLists) ? (project as Project).resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) : undefined;
             const resourceListUpdate = existingResourceList ? { resourceListsUpdate: formatForUpdate(existingResourceList, resourceList, [], ['resources']) } : {};
             const tagsUpdate = tags.length > 0 ? {
-                // Create/connect new tags
                 tagsCreate: tags.filter(t => !t.id && !project?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !project?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
+                tagsDisconnect: project?.tags?.filter(t => !tags.some(tag => tag.tag === t.tag)).map(t => (t.id)),
             } : {};
             const ownedBy: { organizationId: string; } | { userId: string; } = organizationFor ? { organizationId: organizationFor.id } : { userId: session?.id ?? '' };
             const allTranslations = getTranslationsUpdate(language, {

@@ -103,7 +103,6 @@ export const InputOutputContainer = ({
      * Open item at index, and close all others
      */
     const handleOpen = useCallback((index: number) => {
-        console.log('handleOpen', index, isOpenArray);
         setIsOpenArray(isOpenArray.map((_, i) => i === index ? true : false));
     }, [isOpenArray]);
 
@@ -138,7 +137,6 @@ export const InputOutputContainer = ({
     }, [handleUpdate, list]);
 
     const onDelete = useCallback((index: number) => {
-        console.log('ondelete', index)
         setIsOpenArray(isOpenArray.filter((_, i) => i !== index));
         handleUpdate((list as RoutineInputList).filter((_, i) => i !== index));
     }, [handleUpdate, list, isOpenArray]);
@@ -239,8 +237,8 @@ export const InputOutputContainer = ({
 
     // Add standard dialog
     const [addStandardIndex, setAddStandardIndex] = useState<number | null>(null);
-    const handleOpenStandardSelect = useCallback((index: number) => { console.log('open standard', index); setAddStandardIndex(index); }, []);
-    const closeAddStandardDialog = useCallback(() => { console.log('close standard'); setAddStandardIndex(null); }, []);
+    const handleOpenStandardSelect = useCallback((index: number) => { setAddStandardIndex(index); }, []);
+    const closeAddStandardDialog = useCallback(() => { setAddStandardIndex(null); }, []);
     const handleAddStandard = useCallback((standard: Standard) => {
         if (addStandardIndex === null) return;
         // Add standard to item at index

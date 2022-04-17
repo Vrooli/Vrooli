@@ -159,13 +159,13 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
             isFile: data.isFile,
             schema: data.schema,
             type: data.type,
-            tags: await TagModel(prisma).relationshipBuilder(userId, data),
+            tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
         }
     },
     async toDBShapeUpdate(userId: string | null, data: StandardUpdateInput): Promise<any> {
         return {
-            tags: await TagModel(prisma).relationshipBuilder(userId, data),
+            tags: await TagModel(prisma).relationshipBuilder(userId, data, GraphQLModelType.Standard),
             translations: TranslationModel().relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false),
         }
     },

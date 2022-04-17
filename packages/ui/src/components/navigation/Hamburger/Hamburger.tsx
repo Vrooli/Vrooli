@@ -11,6 +11,7 @@ import {
 } from '@mui/icons-material';
 import {
     Collapse,
+    Drawer,
     IconButton,
     List,
     ListItem,
@@ -67,10 +68,11 @@ export const Hamburger = ({
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <MenuIcon />
             </IconButton>
-            <SwipeableDrawer 
+            {/* TODO SwipeableDrawer breaking */}
+            <Drawer 
                 anchor="right" 
                 open={open} 
-                onOpen={() => { }} 
+                // onOpen={() => { }} 
                 onClose={closeMenu}
                 sx={{
                     '& .MuiDrawer-paper': {
@@ -115,7 +117,7 @@ export const Hamburger = ({
                         marginTop: 'auto',
                     }}
                 />
-            </SwipeableDrawer>
+            </Drawer>
         </>
     );
 }

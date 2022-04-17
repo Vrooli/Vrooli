@@ -65,7 +65,7 @@ export const ProjectView = ({
             handle: project?.handle ?? partialData?.handle,
             resourceList,
         };
-    }, [project, partialData, session]);
+    }, [language, project, partialData]);
 
     useEffect(() => {
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
@@ -343,7 +343,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [project, partialData, canEdit, openMoreMenu, session]);
+    ), [handle, name, project, partialData, canEdit, openMoreMenu, session]);
 
     /**
     * Opens add new page

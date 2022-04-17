@@ -96,9 +96,9 @@ export const StandardUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             const tagsUpdate = tags.length > 0 ? {
-                // Create/connect new tags
                 tagsCreate: tags.filter(t => !t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id && !standard?.tags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
+                tagsDisconnect: standard?.tags?.filter(t => !tags.some(tag => tag.tag === t.tag)).map(t => (t.id)),
             } : {};
             const allTranslations = getTranslationsUpdate(language, {
                 language,

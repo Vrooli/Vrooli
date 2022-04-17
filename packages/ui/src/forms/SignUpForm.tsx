@@ -70,7 +70,6 @@ export const SignUpForm = ({
 
     const toLogIn = () => onFormChange(Forms.LogIn);
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
-    console.log(formik.values);
 
     return (
         <Paper sx={{ ...formPaper }}>

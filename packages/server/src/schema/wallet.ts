@@ -84,7 +84,6 @@ export const resolvers = {
                     },
                     select: walletFields
                 })
-                console.log('GOT WALLETS', JSON.stringify(wallets))
             }
             // Convert wallet staking addresses to Bech32
             const bech32Wallets = wallets.map((wallet) => serializedAddressToBech32(wallet.stakingAddress));
@@ -98,7 +97,6 @@ export const resolvers = {
             const handles: string[][] = await Promise.all(bech32Wallets.map(async (bech32Wallet: string) => {
                 let handles: string[] = [];
                 try {
-                    console.log('trying to fetch handles', bech32Wallet)
                     const data = await Blockfrost.accountsAddressesAssets(bech32Wallet);
                     // Find handles. Each asset will look something like this:
                     // {"unit":"de95598bb370b6d289f42dfc1de656d65c250ec4cdc930d32b1dc0e5474f4f5345","quantity":"1"}
@@ -117,7 +115,6 @@ export const resolvers = {
                         throw new CustomError(CODE.ErrorUnknown, 'Failed to query Blockfrost');
                     }
                 } finally {
-                    console.log('got handlesssss', handles)
                     return handles;
                 }
             }));

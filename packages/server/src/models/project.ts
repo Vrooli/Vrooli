@@ -214,7 +214,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             completedAt: input.isComplete ? new Date().toISOString() : null,
             parentId: input.parentId,
             resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, true),
-            tags: await TagModel(prisma).relationshipBuilder(userId, input),
+            tags: await TagModel(prisma).relationshipBuilder(userId, input, GraphQLModelType.Project),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
         })
         // Perform mutations

@@ -116,7 +116,6 @@ export const profileValidater = () => ({
      * @returns Session data
      */
     async logIn(password: string, user: any, prisma: PrismaType): Promise<Session | null> {
-        console.log('log in start', password, user);
         // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
         // If account is not deleted or hard-locked, and lockout duration has passed
@@ -131,7 +130,6 @@ export const profileValidater = () => ({
         if (unable_to_reset.includes(user.status)) throw new CustomError(CODE.BadCredentials, 'Account is locked. Please contact us for assistance');
         // If password is valid
         if (this.validatePassword(password, user)) {
-            console.log('password validated!')
             const userData = await prisma.user.update({
                 where: { id: user.id },
                 data: {
@@ -148,7 +146,6 @@ export const profileValidater = () => ({
             });
             return this.toSession(userData);
         }
-        console.log('password invalid :(');
         // If password is invalid
         let new_status: any = AccountStatus.Unlocked;
         let log_in_attempts = user.logInAttempts++;
@@ -210,7 +207,6 @@ export const profileValidater = () => ({
      * @returns True if email was is verified
      */
     async validateVerificationCode(emailAddress: string, userId: string, code: string, prisma: PrismaType): Promise<boolean> {
-        console.log('validate verification code start', emailAddress, userId, code)
         // Find email data
         const email: any = await prisma.email.findUnique({
             where: { emailAddress },
@@ -227,7 +223,6 @@ export const profileValidater = () => ({
         if (email.userId !== userId) throw new CustomError(CODE.EmailNotVerified, 'Email does not belong to user');
         // If email already verified, remove old verification code
         if (email.verified) {
-            console.log('email alread verified')
             await prisma.email.update({
                 where: { id: email.id },
                 data: { verificationCode: null, lastVerificationCodeRequestAttempt: null }
@@ -238,7 +233,6 @@ export const profileValidater = () => ({
         else {
             // If code is correct and not expired
             if (this.validateCode(code, email.verificationCode, email.lastVerificationCodeRequestAttempt)) {
-                console.log('code is correct and not expired')
                 await prisma.email.update({
                     where: { id: email.id },
                     data: { verified: true, verificationCode: null, lastVerificationCodeRequestAttempt: null }
@@ -247,7 +241,6 @@ export const profileValidater = () => ({
             }
             // If email is not verified, set up new verification code
             else if (!email.verified) {
-                console.log('was not verified, sending new code')
                 await this.setupVerificationCode(emailAddress, prisma);
             }
             return false;
@@ -301,57 +294,51 @@ const profileQuerier = (prisma: PrismaType) => ({
         info: InfoType,
     ): Promise<RecursivePartial<Profile> | null> {
         const profileData = await readOneHelper<Profile>(userId, { id: userId }, info, ProfileModel(prisma) as any);
-        const starredTags: Tag[] = (await prisma.star.findMany({
+        const starFields = {
+            id: true,
+            created_at: true,
+            isStarred: true,
+            tag: true,
+            stars: true,
+            translations: {
+                id: true,
+                language: true,
+                description: true,
+            },
+        }
+        // Query starred tags
+        const starredTagIds = (await prisma.star.findMany({
             where: {
                 AND: [
                     { byId: userId },
                     { NOT: { tagId: null } }
                 ]
             },
+            select: { tagId: true }
+        })).filter((star: any) => star.tagId).map((star: any) => star.tagId);
+        const starredTags = (await readManyHelper(userId, { ids: starredTagIds, take: 200 }, starFields, TagModel(prisma)))
+            .edges.map((edge: any) => edge.node);
+        // Query hidden tags
+        const hiddenData = (await prisma.user_tag_hidden.findMany({
+            where: { userId },
             select: {
-                tag: {
-                    select: {
-                        id: true,
-                        tag: true,
-                        stars: true,
-                        translations: {
-                            select: {
-                                id: true,
-                                language: true,
-                                description: true,
-                            }
-                        },
-                    }
-                }
-            }
-        })).map(({ tag }) => tag as any) as Tag[]
-        const hiddenTags: TagHidden[] = (await prisma.user_tag_hidden.findMany({
-            where: { userId: userId },
-            select: {
+                id: true,
+                tagId: true,
                 isBlur: true,
-                tag: {
-                    select: {
-                        id: true,
-                        tag: true,
-                        stars: true,
-                        translations: {
-                            select: {
-                                id: true,
-                                language: true,
-                                description: true,
-                            }
-                        },
-                    }
+            }
+        }));
+        const hiddenTagIds = hiddenData.map((hidden: any) => hidden.tagId);
+        const hiddenTags = (await readManyHelper(userId, { ids: hiddenTagIds, take: 200 }, starFields, TagModel(prisma)))
+            .edges.map((edge: any) => {
+                // Combine tags with hidden data
+                const extraData = hiddenData.find((hidden: any) => hidden.tagId === edge.node.id);
+                return {
+                    id: extraData?.id ?? '',
+                    isBlur: extraData?.isBlur ?? false,
+                    tagId: extraData?.tagId ?? '',
+                    tag: edge.node,
                 }
-            }
-        })) as any[]
-        console.log('got profile data', JSON.stringify(profileData))
-        const temp = await prisma.wallet.findMany({
-            where: {
-                userId: userId
-            }
-        })
-        console.log('got wallet temp data', JSON.stringify(temp))
+            })
         return { ...profileData, starredTags, hiddenTags };
     },
     /**
@@ -404,19 +391,19 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
             handle: input.handle,
             name: input.name,
             theme: input.theme,
-            hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
-                id: userId,
-                tagsCreate: input.hiddenTagsCreate,
-                tagsConnect: input.hiddenTagsConnect,
-                tagsDisconnect: input.hiddenTagsDisconnect,
-            }),
-            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
-            stars: await TagModel(prisma).relationshipBuilder(userId, {
-                id: userId,
-                tagsCreate: input.starredTagsCreate,
-                tagsConnect: input.starredTagsConnect,
-                tagsDisconnect: input.starredTagsDisconnect,
-            }),
+            // hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
+            //     id: userId,
+            //     tagsCreate: input.hiddenTagsCreate,
+            //     tagsConnect: input.hiddenTagsConnect,
+            //     tagsDisconnect: input.hiddenTagsDisconnect,
+            // }, GraphQLModelType.User), //TODO will break because there needs to be a model between the user and tags
+            // resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
+            // starred: await TagModel(prisma).relationshipBuilder(userId, {
+            //     id: userId,
+            //     tagsCreate: input.starredTagsCreate,
+            //     tagsConnect: input.starredTagsConnect,
+            //     tagsDisconnect: input.starredTagsDisconnect,
+            // }, GraphQLModelType.User),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
         };
         // Update user

@@ -93,13 +93,11 @@ export const resolvers = {
     Mutation: {
         emailLogIn: async (_parent: undefined, { input }: IWrap<EmailLogInInput>, context: Context, info: GraphQLResolveInfo): Promise<Session> => {
             await rateLimit({ context, info, max: 100 });
-            console.log('email log in start', JSON.stringify(input))
             // Validate arguments with schema
             emailLogInSchema.validateSync(input, { abortEarly: false });
             let user;
             // If email not supplied, check if session is valid
             if (!input.email) {
-                console.log('email not supplied, checking session')
                 if (!context.req.userId) throw new CustomError(CODE.BadCredentials, 'Must supply email if not logged in');
                 // Find user by id
                 user = await context.prisma.user.findUnique({
@@ -113,7 +111,6 @@ export const resolvers = {
                 if (!user) throw new CustomError(CODE.InternalError, 'User not found');
                 // Validate verification code
                 if (input.verificationCode) {
-                    console.log('validating verification code a')
                     if (!input.verificationCode.includes(':')) throw new CustomError(CODE.InvalidArgs, 'Invalid verification code');
                     const [, verificationCode] = input.verificationCode.split(':');
                     // Find all emails for user
@@ -125,7 +122,6 @@ export const resolvers = {
                             ]
                         }
                     });
-                    console.log('got unverified emails', JSON.stringify(emails))
                     if (emails.length === 0) throw new CustomError(CODE.ErrorUnknown, 'Invalid email or expired verification code');
                     const verified = await profileValidater().validateVerificationCode(emails[0].emailAddress, user.id, verificationCode, context.prisma);
                     if (!verified) throw new CustomError(CODE.BadCredentials, 'Could not verify code.');
@@ -134,7 +130,6 @@ export const resolvers = {
             }
             // If email supplied, validate
             else {
-                console.log('email supplied, validating')
                 const email = await context.prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
                 if (!email) throw new CustomError(CODE.BadCredentials);
                 // Find user
@@ -149,7 +144,8 @@ export const resolvers = {
                 if (input.verificationCode) {
                     if (!input.verificationCode.includes(':')) throw new CustomError(CODE.InvalidArgs, 'Invalid verification code');
                     const [, verificationCode] = input.verificationCode.split(':');
-                    await profileValidater().validateVerificationCode(email.emailAddress, user.id, verificationCode, context.prisma);
+                    const verified = await profileValidater().validateVerificationCode(email.emailAddress, user.id, verificationCode, context.prisma);
+                    if (!verified) throw new CustomError(CODE.BadCredentials, 'Could not verify code.');
                 }
                 // Create new session
                 const session = await profileValidater().logIn(input?.password as string, user, context.prisma);
@@ -375,7 +371,6 @@ export const resolvers = {
                     verified: true,
                 }
             });
-            console.log('got wallet data in complete', walletData?.id);
             // If wallet doesn't exist, throw error
             if (!walletData) throw new CustomError(CODE.InvalidArgs);
             // If nonce expired, throw error
@@ -396,7 +391,6 @@ export const resolvers = {
                 }
                 // If not signed in, create new user
                 else {
-                    console.log('wallet complete user DID NOT EXIST')
                     firstLogIn = true;
                     const roles = await context.prisma.role.findMany({ select: { id: true, title: true } });
                     const actorRoleId = roles.filter((r: any) => r.title === ROLES.Actor)[0].id;

@@ -43,7 +43,10 @@ export const LogInForm = ({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode },
                 successCondition: (response) => response.data.emailLogIn !== null,
-                onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) },
+                onSuccess: (response) => { 
+                    if (verificationCode) PubSub.publish(Pubs.Snack, { message: 'Email verified!' });
+                    PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
+                },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(Pubs.AlertDialog, {

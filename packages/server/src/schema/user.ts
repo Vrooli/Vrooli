@@ -169,7 +169,7 @@ export const resolvers = {
         profile: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
             if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
             await rateLimit({ context, info, max: 2000, byAccount: true });
-            return readOneHelper<Profile>(context.req.userId, { id: context.req.userId }, info, ProfileModel(context.prisma) as any);
+            return ProfileModel(context.prisma).findProfile(context.req.userId, info);
         },
         user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
             await rateLimit({ context, info, max: 1000 });

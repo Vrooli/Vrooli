@@ -47,7 +47,6 @@ export const BuildPage = ({
     // Queries routine data
     const [getData, { data: routineData, loading: loadingRead }] = useLazyQuery<routine, routineVariables>(routineQuery);
     useEffect(() => {
-        console.log('id here', id)
         // If not add, fetch data
         if (id && id !== 'add') getData({ variables: { input: { id } } });
         // If add, set initial data
@@ -69,7 +68,6 @@ export const BuildPage = ({
                 fromId: startNode.id,
                 toId: endNode.id,
             } as NodeLink
-            console.log('setting routine... ')
             setRoutine({
                 nodes: [startNode, endNode],
                 nodeLinks: [link],
@@ -101,7 +99,6 @@ export const BuildPage = ({
     const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
 
     useEffect(() => {
-        console.log('setting changed routine', routine);
         setChangedRoutine(routine);
     }, [routine]);
 
@@ -365,8 +362,8 @@ export const BuildPage = ({
             input,
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => { 
-                setRoutine(data.routineUpdate);
-                setLocation(`${APP_LINKS.Build}/${data.routineUpdate.id}`); 
+                setRoutine(data.routineCreate);
+                setLocation(`${APP_LINKS.Build}/${data.routineCreate.id}`); 
             },
         })
     }, [changedRoutine, mutationWrapper]);
@@ -548,8 +545,6 @@ export const BuildPage = ({
      * Deletes a subroutine from a node
      */
     const handleSubroutineDelete = useCallback((nodeId: string, subroutineId: string) => {
-        console.log('handle subroutine delete nodeId', nodeId, changedRoutine);
-        console.log('handle subroutine delete subroutineId', subroutineId, changedRoutine?.nodes?.findIndex(n => n.id === nodeId));
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;

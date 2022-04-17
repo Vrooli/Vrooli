@@ -31,7 +31,6 @@ export const EmailList = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            console.log('in formik onsubmitt emailist', formik)
             if (!formik.isValid) return;
             mutationWrapper({
                 mutation: addMutation,
@@ -151,7 +150,7 @@ export const EmailList = ({
                 />
                 <IconButton
                     aria-label='add-new-email-button'
-                    type="submit"
+                    onClick={() => { formik.handleSubmit() }}
                     sx={{
                         background: (t) => t.palette.secondary.main,
                         borderRadius: '0 5px 5px 0',
