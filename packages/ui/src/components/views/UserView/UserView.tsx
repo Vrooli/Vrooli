@@ -123,7 +123,7 @@ export const UserView = ({
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
-        setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile&editing=true` : `${APP_LINKS.SearchUsers}/edit/${id}`);
+        setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile` : `${APP_LINKS.SearchUsers}/edit/${id}`);
     }, [id, isProfile, setLocation]);
 
     // Determine options available to object, in order

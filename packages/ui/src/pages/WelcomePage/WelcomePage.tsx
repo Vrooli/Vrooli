@@ -5,6 +5,7 @@ import {
     Article as WhitePaperIcon,
     AccountCircle as ProfileIcon,
     PlayCircle as ExampleIcon,
+    YouTube as VideoIcon,
 } from '@mui/icons-material';
 import { useLocation } from 'wouter';
 import { clickSize } from 'styles';
@@ -59,6 +60,11 @@ export const WelcomePage = () => {
                 <Typography component="h2" variant="h4" mb={3}>Not sure where to start?</Typography>
                 <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
                     <Button
+                        onClick={() => openLink("https://www.youtube.com/watch?v=hBHaPYi5esQ")}
+                        startIcon={<VideoIcon />}
+                        sx={{ ...buttonProps, marginBottom: 0 }}
+                    >Understand the vision</Button>
+                    <Button
                         onClick={() => setLocation(APP_LINKS.FAQ)}
                         startIcon={<FAQIcon />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
@@ -69,7 +75,7 @@ export const WelcomePage = () => {
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Read the White Paper</Button>
                     <Button
-                        onClick={() => setLocation(`${APP_LINKS.Profile}&editing=true`)}
+                        onClick={() => setLocation(`${APP_LINKS.Settings}?page=profile`)}
                         startIcon={<ProfileIcon />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Set Up Profile</Button>

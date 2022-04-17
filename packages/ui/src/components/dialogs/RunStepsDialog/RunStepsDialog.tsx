@@ -11,7 +11,6 @@ import {
     alpha,
     Box,
     Checkbox,
-    Drawer,
     IconButton,
     styled,
     SvgIcon,
@@ -174,11 +173,11 @@ export const RunStepsDialog = ({
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <TreeIcon sx={sxs?.icon} />
             </IconButton>
-            {/* TODO SwipeableDrawer breaking */}
-            <Drawer
+            {/* @ts-ignore TODO */}
+            <SwipeableDrawer
                 anchor="right"
                 open={isOpen}
-                // onOpen={() => { }}
+                onOpen={() => { }}
                 onClose={closeDialog}
                 ModalProps={{
                     container: document.getElementById("run-routine-view-dialog"),
@@ -231,7 +230,7 @@ export const RunStepsDialog = ({
                 >
                     {stepList && getTreeItem(stepList)}
                 </TreeView>
-            </Drawer>
+            </SwipeableDrawer>
         </>
     );
 }

@@ -55,7 +55,8 @@ export const resolvers = {
          */
         findHandles: async (_parent: undefined, { input }: IWrap<any>, context: Context, info: GraphQLResolveInfo): Promise<string[]> => {
             await rateLimit({ context, info, max: 50 });
-            const policyID = 'de95598bb370b6d289f42dfc1de656d65c250ec4cdc930d32b1dc0e5'// Fake policy for testing //'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a'; // Mainnet ADA Handle policy ID
+            // const policyID = 'de95598bb370b6d289f42dfc1de656d65c250ec4cdc930d32b1dc0e5'; // Fake policy ID for testing
+            const policyID = 'f0ff48bbb7bbe9d59a40f1ce90e9e9d0ff5002ec48f232b49ca0fb9a'; // Mainnet ADA Handle policy ID
             const walletFields = {
                 id: true,
                 stakingAddress: true,

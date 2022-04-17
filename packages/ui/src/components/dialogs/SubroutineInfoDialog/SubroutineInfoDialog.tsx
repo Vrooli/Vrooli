@@ -10,7 +10,6 @@ import {
 import {
     Box,
     Button,
-    Drawer,
     Grid,
     IconButton,
     Link,
@@ -75,13 +74,13 @@ export const SubroutineInfoDialog = ({
         handleViewFull();
     }, [handleViewFull]);
 
-    // TODO SwipeableDrawer breaking 
     return (
-        <Drawer
+        // @ts-ignore TODO
+        <SwipeableDrawer
             anchor="bottom"
             variant='persistent'
             open={open}
-            // onOpen={() => { }}
+            onOpen={() => { }}
             onClose={onClose}
             sx={{
                 '& .MuiDrawer-paper': {
@@ -202,6 +201,6 @@ export const SubroutineInfoDialog = ({
                     >View Graph</Button>
                 </Box>
             )}
-        </Drawer>
+        </SwipeableDrawer>
     );
 }
