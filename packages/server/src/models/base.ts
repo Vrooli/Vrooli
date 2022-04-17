@@ -37,6 +37,7 @@ const { isObject } = pkg;
 export enum GraphQLModelType {
     Comment = 'Comment',
     Email = 'Email',
+    Handle = 'Handle',
     InputItem = 'InputItem',
     Member = 'Member',
     Node = 'Node',
@@ -640,6 +641,7 @@ export const relationshipToPrisma = ({
     let converted: { [x: string]: any } = {};
     // Loop through object's keys
     for (const [key, value] of Object.entries(data)) {
+        if (value === null || value === undefined) continue;
         // Skip if not matching relationship or not a valid operation
         if (!key.startsWith(relationshipName) || !ops.some(o => key.toLowerCase().endsWith(o))) continue;
         // Determine operation
@@ -650,11 +652,11 @@ export const relationshipToPrisma = ({
         converted[currOp] = Array.isArray(converted[currOp]) ? [...converted[currOp], ...shapedData] : shapedData;
     };
     // Connects, diconnects, and deletes must be shaped in the form of { id: '123' } (i.e. no other fields)
-    if (converted.connect) converted.connect = converted.connect.map((e: { [x: string]: any }) => ({ id: e.id }));
-    if (converted.disconnect) converted.disconnect = converted.disconnect.map((e: { [x: string]: any }) => ({ id: e.id }));
-    if (converted.delete) converted.delete = converted.delete.map((e: { [x: string]: any }) => ({ id: e.id }));
+    if (Array.isArray(converted.connect) && converted.connect.length > 0) converted.connect = converted.connect.map((e: { [x: string]: any }) => ({ id: e.id }));
+    if (Array.isArray(converted.disconnect) && converted.disconnect.length > 0) converted.disconnect = converted.disconnect.map((e: { [x: string]: any }) => ({ id: e.id }));
+    if (Array.isArray(converted.delete) && converted.delete.length > 0) converted.delete = converted.delete.map((e: { [x: string]: any }) => ({ id: e.id }));
     // Updates must be shaped in the form of { where: { id: '123' }, data: {...}}
-    if (converted.update) {
+    if (Array.isArray(converted.update) && converted.update.length > 0) {
         converted.update = converted.update.map((e: any) => ({ where: { id: e.id }, data: e }));
     }
     return converted;

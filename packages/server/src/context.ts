@@ -14,5 +14,5 @@ export interface Context extends ContextProps {
 export const context = ({ req, res }: ContextProps): Context => ({
     prisma,
     req,
-    res
+    res,
 })

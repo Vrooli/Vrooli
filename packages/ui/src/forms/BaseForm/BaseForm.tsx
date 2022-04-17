@@ -26,7 +26,6 @@ export const BaseForm = ({
 
     // Generate yup schema from overall schema
     const validationSchema = useMemo(() => generateYupSchema(schema), [schema]);
-    console.log('GENERATED YUP SCHEMA', validationSchema);
 
     /**
      * Controls updates and validation of form

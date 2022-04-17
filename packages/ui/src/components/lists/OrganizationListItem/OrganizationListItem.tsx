@@ -110,4 +110,4 @@ export function OrganizationListItem({
 
 export const OrganizationSortOptions: LabelledSortOption<OrganizationSortBy>[] = labelledSortOptions(OrganizationSortBy);
 export const organizationDefaultSortOption = OrganizationSortOptions[1];
-export const organizationOptionLabel = (o: Organization) => getTranslation(o, 'name', ['en'], true) ?? '';
+export const organizationOptionLabel = (o: Organization, languages: readonly string[]) => getTranslation(o, 'name', languages, true) ?? o.handle ?? '';

@@ -64,7 +64,8 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
         return ({
             OR: [
                 { translations: { some: { language: languages ? { in: languages } : undefined, bio: {...insensitive} } } },
-                { username: { ...insensitive } },
+                { name: { ...insensitive } },
+                { handle: { ...insensitive } },
             ]
         })
     },

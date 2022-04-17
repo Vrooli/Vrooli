@@ -1,3 +1,4 @@
+export * from './byTools';
 export * from './arrayTools';
 export * from './combineStyles';
 export * from './consts';

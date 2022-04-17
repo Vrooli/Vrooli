@@ -4,6 +4,7 @@ import { IWrap, RecursivePartial } from 'types';
 import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult, ResourceFor, ResourceSortBy, ResourceUsedFor } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
+import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum ResourceFor {
@@ -136,25 +137,31 @@ export const resolvers = {
     ResourceSortBy: ResourceSortBy,
     ResourceUsedFor: ResourceUsedFor,
     Query: {
-        resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
-            return readOneHelper(req.userId, input, info, ResourceModel(prisma));
+        resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readOneHelper(context.req.userId, input, info, ResourceModel(context.prisma));
         },
-        resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ResourceSearchResult> => {
-            return readManyHelper(req.userId, input, info, ResourceModel(prisma));
+        resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<ResourceSearchResult> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readManyHelper(context.req.userId, input, info, ResourceModel(context.prisma));
         },
-        resourcesCount: async (_parent: undefined, { input }: IWrap<ResourceCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, ResourceModel(prisma));
+        resourcesCount: async (_parent: undefined, { input }: IWrap<ResourceCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ context, info, max: 1000 });
+            return countHelper(input, ResourceModel(context.prisma));
         },
     },
     Mutation: {
-        resourceCreate: async (_parent: undefined, { input }: IWrap<ResourceCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            return createHelper(req.userId, input, info, ResourceModel(prisma));
+        resourceCreate: async (_parent: undefined, { input }: IWrap<ResourceCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
+            await rateLimit({ context, info, max: 500, byAccount: true });
+            return createHelper(context.req.userId, input, info, ResourceModel(context.prisma));
         },
-        resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            return updateHelper(req.userId, input, info, ResourceModel(prisma));
+        resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
+            await rateLimit({ context, info, max: 1000, byAccount: true });
+            return updateHelper(context.req.userId, input, info, ResourceModel(context.prisma));
         },
-        resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Count> => {
-            return deleteManyHelper(req.userId, input, ResourceModel(prisma));
+        resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, context: Context, info: GraphQLResolveInfo): Promise<Count> => {
+            await rateLimit({ context, info, max: 500, byAccount: true });
+            return deleteManyHelper(context.req.userId, input, ResourceModel(context.prisma));
         },
     }
 }

@@ -5,7 +5,7 @@ import {
 import { useCallback, useMemo } from "react";
 import { containerShadow, multiLineEllipsis } from "styles";
 import { Node, NodeLink } from "types";
-import { getTranslation } from "utils";
+import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
 
 type Decision = {
@@ -17,6 +17,7 @@ export const DecisionView = ({
     data,
     handleDecisionSelect,
     nodes,
+    session,
 }: DecisionViewProps) => {
     /**
      * Pair each link with its "to" node
@@ -42,8 +43,9 @@ export const DecisionView = ({
             <Typography variant="h4">What would you like to do next?</Typography>
             {/* Each decision as its own ListItem, with title and description */}
             {decisions.map((decision, index) => {
-                const title = getTranslation(decision.node, 'title', ['en'], true)
-                const description = getTranslation(decision.node, 'description', ['en'], true);
+                const languages = getUserLanguages(session);
+                const title = getTranslation(decision.node, 'title', languages, true)
+                const description = getTranslation(decision.node, 'description', languages, true);
                 return (<ListItem
                     disablePadding
                     onClick={() => { toDecision(index); }}

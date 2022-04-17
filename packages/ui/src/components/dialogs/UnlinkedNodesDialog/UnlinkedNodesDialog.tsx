@@ -22,10 +22,11 @@ import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
 
 export const UnlinkedNodesDialog = ({
-    open,
-    nodes,
     handleNodeDelete,
     handleToggleOpen,
+    language,
+    nodes,
+    open,
 }: UnlinkedNodesDialogProps) => {
 
     /**
@@ -55,6 +56,7 @@ export const UnlinkedNodesDialog = ({
                     {...nodeProps}
                     canExpand={false}
                     labelVisible={true}
+                    language={language}
                     handleUpdate={() => { }} // Intentionally blank
                 />
             default:
@@ -108,9 +110,9 @@ export const UnlinkedNodesDialog = ({
                                 {createNode(node)}
                             </Box>
                             {/* Node title */}
-                            {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', ['en'], true)}</Typography>)}
+                            {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', [language], true)}</Typography>)}
                             {/* Delete node icon */}
-                            <Tooltip title={`Delete ${getTranslation(node, 'title', ['en'], true)} node`} placement="left">
+                            <Tooltip title={`Delete ${getTranslation(node, 'title', [language], true)} node`} placement="left">
                                 <Box sx={{ marginLeft: 'auto' }}>
                                     <IconButton
                                         color="inherit"

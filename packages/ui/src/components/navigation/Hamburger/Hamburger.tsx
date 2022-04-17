@@ -30,7 +30,7 @@ const highlight: SxProps<Theme> = {
     '&:hover': {
         color: '(t) => t.palette.secondary.light',
     },
-} as any
+} as const
 
 const menuItem: SxProps<Theme> = {
     borderBottom: `1px solid #373575`,
@@ -67,6 +67,7 @@ export const Hamburger = ({
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <MenuIcon />
             </IconButton>
+            {/* @ts-ignore TODO */}
             <SwipeableDrawer 
                 anchor="right" 
                 open={open} 

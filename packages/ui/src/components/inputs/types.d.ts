@@ -1,4 +1,4 @@
-import { InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
+import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { ChangeEvent, MouseEvent } from 'react';
 import { Organization, Session, Tag } from 'types';
 
@@ -27,12 +27,23 @@ export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
     value: string;
     loading?: boolean;
     options?: T[];
-    getOptionKey: (option: T) => string;
-    getOptionLabel: (option: T) => string;
+    getOptionKey: (option: T, languages: readonly string[]) => string;
+    getOptionLabel: (option: T, languages: readonly string[]) => string;
     getOptionLabelSecondary?: (option: T) => string;
     onChange: (updatedText: string) => any;
     onInputChange: (newValue: T) => any;
     debounce?: number;
+    session: Session;
+}
+
+export interface LanguageInputProps {
+    currentLanguage: string;
+    handleAdd: (language: string) => any;
+    handleChange: (oldLanguage: string, newLanguage: string) => any;
+    handleDelete: (language: string) => any;
+    handleSelect: (language: string) => any;
+    languages: string[];
+    session: Session;
 }
 
 export interface MarkdownInputProps extends TextFieldProps {
@@ -44,6 +55,32 @@ export interface MarkdownInputProps extends TextFieldProps {
     placeholder?: string;
     minRows?: number;
     value: string;
+}
+
+export interface PasswordTextFieldProps extends TextFieldProps {
+    autoComplete?: string;
+    autoFocus?: boolean;
+    error?: boolean;
+    helperText?: string | null | undefined;
+    fullWidth?: boolean;
+    id?: string;
+    label?: string;
+    name?: string;
+    onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
+    onChange: (e: ChangeEvent<any>) => any;
+    value: string;
+}
+
+export interface QuantityBoxProps extends BoxProps {
+    handleChange: (newValue: number) => any;
+    id: string;
+    initial?: number;
+    label?: string;
+    max?: number;
+    min?: number;
+    step?: number;
+    tooltip?: string;
+    value: number;
 }
 
 export interface SelectorProps extends SelectProps {

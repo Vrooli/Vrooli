@@ -1,5 +1,5 @@
 import { RoutineView } from 'components';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BaseObjectDialog } from '..';
 import { RoutineCreate } from 'components/views/RoutineCreate/RoutineCreate';
 import { RoutineUpdate } from 'components/views/RoutineUpdate/RoutineUpdate';
@@ -7,11 +7,12 @@ import { RoutineDialogProps, ObjectDialogAction } from 'components/dialogs/types
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { Routine } from 'types';
+import { getUserLanguages } from 'utils';
 
 export const RoutineDialog = ({
-    hasPrevious,
-    hasNext,
     canEdit = false,
+    hasNext,
+    hasPrevious,
     partialData,
     session
 }: RoutineDialogProps) => {
@@ -44,7 +45,7 @@ export const RoutineDialog = ({
     }, [id, setLocation]);
 
     const title = useMemo(() => {
-        switch(state) {
+        switch (state) {
             case 'add':
                 return 'Add Routine';
             case 'edit':
@@ -55,23 +56,34 @@ export const RoutineDialog = ({
     }, [state]);
 
     const child = useMemo(() => {
-        switch(state) {
+        switch (state) {
             case 'add':
-                return <RoutineCreate session={session} onCreated={(data: Routine) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <RoutineCreate
+                    onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onCreated={(data: Routine) => onAction(ObjectDialogAction.Add, data)}
+                    session={session}
+                />
             case 'edit':
-                return <RoutineUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <RoutineUpdate
+                    onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onUpdated={() => onAction(ObjectDialogAction.Save)}
+                    session={session}
+                />
             default:
-                return <RoutineView session={session} partialData={partialData} />
+                return <RoutineView
+                    partialData={partialData}
+                    session={session}
+                />
         }
     }, [state]);
 
     return (
         <BaseObjectDialog
-            title={title}
-            open={Boolean(params?.params)}
-            hasPrevious={hasPrevious}
             hasNext={hasNext}
+            hasPrevious={hasPrevious}
             onAction={onAction}
+            open={Boolean(params?.params)}
+            title={title}
         >
             {child}
         </BaseObjectDialog>

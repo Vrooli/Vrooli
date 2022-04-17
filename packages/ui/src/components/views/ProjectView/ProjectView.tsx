@@ -1,6 +1,6 @@
-import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
+import { APP_LINKS, MemberRole, ResourceListUsedFor, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { routinesQuery, standardsQuery, projectQuery } from "graphql/query";
@@ -11,14 +11,15 @@ import {
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
     Share as ShareIcon,
+    Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
-import { Project, Routine, Standard } from "types";
+import { Project, ResourceList, Routine, Standard } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { getTranslation, Pubs } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { validate as uuidValidate } from 'uuid';
 
 enum TabOptions {
@@ -28,8 +29,8 @@ enum TabOptions {
 }
 
 export const ProjectView = ({
-    session,
     partialData,
+    session,
 }: ProjectViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
@@ -47,15 +48,29 @@ export const ProjectView = ({
     }, [data]);
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
 
-    const { name, description, resourceList } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
-        const resourceLists = project?.resourceLists ?? partialData?.resourceLists ?? [];
+    const [language, setLanguage] = useState<string>('');
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        const availableLanguages = project?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+        const userLanguages = getUserLanguages(session);
+        setAvailableLanguages(availableLanguages);
+        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
+    }, [project]);
+
+    const { name, description, handle, resourceList } = useMemo(() => {
+        const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
         return {
-            name: getTranslation(project, 'name', languages) ?? getTranslation(partialData, 'name', languages),
-            description: getTranslation(project, 'description', languages) ?? getTranslation(partialData, 'description', languages),
-            resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
+            name: getTranslation(project, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
+            description: getTranslation(project, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
+            handle: project?.handle ?? partialData?.handle,
+            resourceList,
         };
-    }, [project, partialData, session]);
+    }, [language, project, partialData]);
+
+    useEffect(() => {
+        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
+        else document.title = `${name} | Vrooli`;
+    }, [handle, name]);
 
     const resources = useMemo(() => (resourceList || canEdit) ? (
         <ResourceListVertical
@@ -266,14 +281,30 @@ export const ProjectView = ({
                         <Typography variant="h4" textAlign="center">{name}</Typography>
                     )
                 }
-                {/* Joined date */}
+                {/* Handle */}
+                {
+                    handle && <Link href={`https://handle.me/${handle}`} underline="hover">
+                        <Typography
+                            variant="h6"
+                            textAlign="center"
+                            sx={{
+                                color: (t) => t.palette.secondary.dark,
+                                cursor: 'pointer',
+                            }}
+                        >${handle}</Typography>
+                    </Link>
+                }
+                {/* Created date */}
                 {
                     loading ? (
                         <Box sx={{ width: '33%', color: "#00831e" }}>
                             <LinearProgress color="inherit" />
                         </Box>
                     ) : (
-                        <Typography variant="body1" sx={{ color: "#00831e" }}>{project?.created_at ? `🕔 Joined ${new Date(project.created_at).toDateString()}` : ''}</Typography>
+                        project?.created_at && (<Box sx={{ display: 'flex' }} >
+                            <CalendarIcon />
+                            {`Created ${new Date(project.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                        </Box>)
                     )
                 }
                 {/* Description */}
@@ -312,7 +343,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [project, partialData, canEdit, openMoreMenu, session]);
+    ), [handle, name, project, partialData, canEdit, openMoreMenu, session]);
 
     /**
     * Opens add new page
@@ -341,8 +372,29 @@ export const ProjectView = ({
                 title='Project Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                session={session}
             />
-            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+            <Box sx={{ 
+                display: 'flex', 
+                paddingTop: 5, 
+                paddingBottom: 5, 
+                background: "#b2b3b3",
+                position: "relative",
+            }}>
+                {/* Language display/select */}
+                <Box sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                }}>
+                    <SelectLanguageDialog
+                        availableLanguages={availableLanguages}
+                        canDropdownOpen={availableLanguages.length > 1}
+                        handleSelect={setLanguage}
+                        language={language}
+                        session={session}
+                    />
+                </Box>
                 {overviewComponent}
             </Box>
             {/* View routines and standards associated with this project */}
@@ -393,6 +445,7 @@ export const ProjectView = ({
                                 listItemFactory={searchItemFactory}
                                 getOptionLabel={sortOptionLabel}
                                 onObjectSelect={onSearchSelect}
+                                session={session}
                             />
                         )
                     }

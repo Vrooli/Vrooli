@@ -17,19 +17,19 @@ import {
 } from '@mui/icons-material';
 import { UpTransition } from 'components';
 import { useCallback, useState } from 'react';
-import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction, ObjectDialogState } from '../types';
+import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction } from '../types';
 
 /**
  * Dialog for displaying any "Add" form
  * @returns 
  */
 export const BaseObjectDialog = ({
-    title,
-    open = true,
-    hasPrevious,
-    hasNext,
-    onAction,
     children,
+    hasNext,
+    hasPrevious,
+    onAction,
+    open = true,
+    title,
 }: BaseObjectDialogProps) => {
     const [scrollTarget, setScrollTarget] = useState<HTMLElement | undefined>(undefined);
     const scrollTrigger = useScrollTrigger({ target: scrollTarget });
@@ -58,6 +58,7 @@ export const BaseObjectDialog = ({
                         </IconButton>
                         <Box sx={{ width: '100%', alignItems: 'center' }}>
                             <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                                {/* Navigate to previous */}
                                 {hasPrevious && (
                                     <Tooltip title="Previous" placement="bottom">
                                         <IconButton size="large" onClick={onPrevious} aria-label="previous">
@@ -65,9 +66,11 @@ export const BaseObjectDialog = ({
                                         </IconButton>
                                     </Tooltip>
                                 )}
+                                {/* Title */}
                                 <Typography variant="h5">
                                     {title}
                                 </Typography>
+                                {/* Navigate to next */}
                                 {hasNext && (
                                     <Tooltip title="Next" placement="bottom">
                                         <IconButton size="large" onClick={onNext} aria-label="next">

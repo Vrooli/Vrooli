@@ -4,6 +4,7 @@ import { IWrap, RecursivePartial } from 'types';
 import { CommentModel, countHelper, createHelper, deleteOneHelper, GraphQLModelType, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
+import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum CommentFor {
@@ -130,25 +131,31 @@ export const resolvers = {
         },
     },
     Query: {
-        comment: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment> | null> => {
-            return readOneHelper(req.userId, input, info, CommentModel(prisma));
+        comment: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment> | null> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readOneHelper(context.req.userId, input, info, CommentModel(context.prisma));
         },
-        comments: async (_parent: undefined, { input }: IWrap<CommentSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<CommentSearchResult> => {
-            return readManyHelper(req.userId, input, info, CommentModel(prisma));
+        comments: async (_parent: undefined, { input }: IWrap<CommentSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<CommentSearchResult> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readManyHelper(context.req.userId, input, info, CommentModel(context.prisma));
         },
-        commentsCount: async (_parent: undefined, { input }: IWrap<CommentCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, CommentModel(prisma));
+        commentsCount: async (_parent: undefined, { input }: IWrap<CommentCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ context, info, max: 1000 });
+            return countHelper(input, CommentModel(context.prisma));
         },
     },
     Mutation: {
-        commentCreate: async (_parent: undefined, { input }: IWrap<CommentCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
-            return createHelper(req.userId, input, info, CommentModel(prisma));
+        commentCreate: async (_parent: undefined, { input }: IWrap<CommentCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
+            await rateLimit({ context, info, max: 250, byAccount: true });
+            return createHelper(context.req.userId, input, info, CommentModel(context.prisma));
         },
-        commentUpdate: async (_parent: undefined, { input }: IWrap<CommentUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
-            return updateHelper(req.userId, input, info, CommentModel(prisma));
+        commentUpdate: async (_parent: undefined, { input }: IWrap<CommentUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment>> => {
+            await rateLimit({ context, info, max: 1000, byAccount: true });
+            return updateHelper(context.req.userId, input, info, CommentModel(context.prisma));
         },
-        commentDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, CommentModel(prisma));
+        commentDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            await rateLimit({ context, info, max: 1000, byAccount: true });
+            return deleteOneHelper(context.req.userId, input, CommentModel(context.prisma));
         },
     }
 }

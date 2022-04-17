@@ -62,7 +62,8 @@ export interface users_users_edges_node_translations {
 export interface users_users_edges_node {
   __typename: "User";
   id: string;
-  username: string | null;
+  handle: string | null;
+  name: string;
   created_at: any;
   stars: number;
   isStarred: boolean;

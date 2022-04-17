@@ -32,8 +32,8 @@ export const RoutineSubnode = ({
     handleEdit,
     handleDelete,
     handleUpdate,
+    language,
 }: RoutineSubnodeProps) => {
-    console.log('ROUTINE SUBNODE RENDER', data, data.id);
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
@@ -53,7 +53,7 @@ export const RoutineSubnode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {
             ...data,
-            translations: updateTranslationField(data, 'title', newLabel, 'en') as any[],
+            translations: updateTranslationField(data, 'title', newLabel, language) as any[],
         });
     }, [handleUpdate, data]);
 
@@ -140,7 +140,6 @@ export const RoutineSubnode = ({
                                 id={`${title ?? ''}-optional-option`}
                                 size="small"
                                 name='isOptionalCheckbox'
-                                value='isOptionalCheckbox'
                                 color='secondary'
                                 checked={data?.isOptional}
                                 onChange={onOptionalChange}

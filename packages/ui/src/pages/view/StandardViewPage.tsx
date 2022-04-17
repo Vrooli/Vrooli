@@ -48,30 +48,30 @@ export const StandardViewPage = ({
         <Box pt="10vh" sx={{ minHeight: '88vh' }}>
             {/* Add dialog */}
             <BaseObjectDialog
-                title={"Add Standard"}
-                open={isAddDialogOpen}
-                hasPrevious={false}
                 hasNext={false}
+                hasPrevious={false}
                 onAction={onAction}
+                open={isAddDialogOpen}
+                title={"Add Standard"}
             >
                 <StandardCreate
-                    session={session}
-                    onCreated={(data: Standard) => onAction(ObjectDialogAction.Add, data)}
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onCreated={(data: Standard) => onAction(ObjectDialogAction.Add, data)}
+                    session={session}
                 />
             </BaseObjectDialog>
             {/* Update dialog */}
             <BaseObjectDialog
-                title={"Update Standard"}
-                open={isEditDialogOpen}
-                hasPrevious={false}
                 hasNext={false}
+                hasPrevious={false}
                 onAction={onAction}
+                open={isEditDialogOpen}
+                title={"Update Standard"}
             >
                 <StandardUpdate
-                    session={session}
-                    onUpdated={() => onAction(ObjectDialogAction.Save)}
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onUpdated={() => onAction(ObjectDialogAction.Save)}
+                    session={session}
                 />
             </BaseObjectDialog>
             {/* Main view */}

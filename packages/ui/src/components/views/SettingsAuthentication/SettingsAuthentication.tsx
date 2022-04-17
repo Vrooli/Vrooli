@@ -8,31 +8,38 @@ import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { formatForUpdate, Pubs } from "utils";
 import {
+    AccountBalanceWallet as WalletIcon,
     Add as AddIcon,
+    Email as EmailIcon,
     Restore as RevertIcon,
     Save as SaveIcon,
 } from '@mui/icons-material';
-import { DialogActionItem } from "components/containers/types";
-import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from "wouter";
-import { containerShadow } from "styles";
 import { logOutMutation } from 'graphql/mutation';
 import { HelpButton } from "components/buttons";
+import { EmailList, WalletList } from "components/lists";
+import { Email, Wallet } from "types";
+import { PasswordTextField } from "components";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
 
-const TERTIARY_COLOR = '#95f3cd';
+const walletHelpText =
+    `This list contains all of your connected wallets. If a custom name has not been set, 
+the wallet's reward address will be displayed.
 
-/**
- * Card styles
- */
-const cardStyles = [
-    { background: 'linear-gradient(38deg, rgba(65,96,233,1) 0%, rgba(235,54,106,1) 100%)', color: 'white' },
-    { background: 'linear-gradient(38deg, rgba(65,233,177,1) 0%, rgba(54,131,235,1) 100%)', color: 'white' },
-    { background: 'linear-gradient(38deg, rgba(233,186,65,1) 0%, rgba(172,54,235,1) 100%)', color: 'white' },
-]
+You may add or remove as many wallets as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
+
+const emailHelpText =
+    `This list contains all of your connected email addresses.
+
+You may add or remove as many email addresses as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
+
+const passwordHelpText =
+    `Change the password you use for email log ins. Wallet log ins use your wallet's extension, so no need to set a password here.`
+
+const TERTIARY_COLOR = '#95f3cd';
 
 export const SettingsAuthentication = ({
     profile,
@@ -46,6 +53,22 @@ export const SettingsAuthentication = ({
         PubSub.publish(Pubs.Session, {});
         setLocation(APP_LINKS.Home);
     }, []);
+
+    const updateWallets = useCallback((updatedList: Wallet[]) => {
+        onUpdated({
+            ...profile,
+            wallets: updatedList,
+        });
+    }, [onUpdated, profile]);
+    const numVerifiedEmails = profile?.emails?.filter((email) => email.verified)?.length ?? 0;
+
+    const updateEmails = useCallback((updatedList: Email[]) => {
+        onUpdated({
+            ...profile,
+            emails: updatedList,
+        });
+    }, [onUpdated, profile]);
+    const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
     const [mutation] = useMutation<user>(profileUpdateMutation);
@@ -63,140 +86,130 @@ export const SettingsAuthentication = ({
                 mutation,
                 input: formatForUpdate(profile, { ...values }),
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate) },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });
 
-    const walletsGrid = useMemo(() => {
-        if (!profile?.wallets || !profile.wallets.length) return null;
-        const walletCards = profile.wallets.map((wallet, index) => (
-            <Box key={index} sx={{
-                ...containerShadow,
-                borderRadius: 2,
-                margin: 2,
-                marginLeft: 'auto',
-                marginRight: 'auto',
-                padding: 1,
-                maxWidth: 'min(350px, 100%)',
-                lineBreak: 'anywhere',
-                ...cardStyles[Math.floor(Math.random() * cardStyles.length)],
-            }}>
-                {/* Display nickname and public address */}
-                <Typography variant="h6">{wallet.name}</Typography>
-                <Typography variant="body1">{wallet.publicAddress}</Typography>
-                <Typography variant="body1">{wallet.verified ? 'Verified' : 'Not verified'}</Typography>
-            </Box>
-        ));
-        return (
+    return (
+        <Box style={{ overflow: 'hidden' }}>
+            {/* Title */}
             <Box sx={{
+                background: (t) => t.palette.primary.dark,
+                color: (t) => t.palette.primary.contrastText,
+                padding: 0.5,
+                marginBottom: 2,
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
             }}>
-                {walletCards}
+                <Typography component="h1" variant="h3" textAlign="center">Authentication</Typography>
+                <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
             </Box>
-        )
-    }, [profile]);
-
-    const actions: DialogActionItem[] = useMemo(() => [
-        ['Save', SaveIcon, !formik.touched || formik.isSubmitting, true, () => { }],
-        ['Cancel', RevertIcon, !formik.touched || formik.isSubmitting, false, () => { formik.resetForm() }],
-    ], [formik, setLocation]);
-
-    return (
-        <Box sx={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <Stack direction="column">
-                <Box sx={{
-                    ...containerShadow,
-                    borderRadius: 2,
-                    overflow: 'overlay',
-                    marginTop: '-5vh',
-                    background: (t) => t.palette.background.default,
-                    width: 'min(100%, 700px)',
-                }}>
-                    <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-                        {/* Title */}
-                        <Box sx={{
-                            background: (t) => t.palette.primary.dark,
-                            color: (t) => t.palette.primary.contrastText,
-                            padding: 0.5,
-                            marginBottom: 2,
-                        }}>
-                            <Typography component="h1" variant="h3" textAlign="center">Authentication</Typography>
-                            <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
-                        </Box>
-                        <Typography component="h2" variant="h5" textAlign="center">Connected Wallets</Typography>
-                        <Stack direction="column" spacing={2} sx={{ paddingBottom: 2 }}>
-                            {walletsGrid}
-                            {/* Add wallet button, centered horizontally */}
-                            <Box sx={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                            }}>
-                                <Button color="secondary" startIcon={<AddIcon />}>Add Wallet</Button>
-                            </Box>
-                        </Stack>
-                        <Typography component="h2" variant="h5" textAlign="center">Connected Emails</Typography>
-                        <Container sx={{ paddingBottom: 2 }}>
-                            {/* TODO Emails */}
-                            <Grid container spacing={2}>
-                                <Grid item xs={12}>
-                                    <TextField
-                                        fullWidth
-                                        id="currentPassword"
-                                        name="currentPassword"
-                                        type="password"
-                                        autoComplete="password"
-                                        label="Current Password"
-                                        value={formik.values.currentPassword}
-                                        onBlur={formik.handleBlur}
-                                        onChange={formik.handleChange}
-                                        error={formik.touched.currentPassword && Boolean(formik.errors.currentPassword)}
-                                        helperText={formik.touched.currentPassword && formik.errors.currentPassword}
-                                    />
-                                </Grid>
-                                <Grid item xs={12}>
-                                    <TextField
-                                        fullWidth
-                                        id="newPassword"
-                                        name="newPassword"
-                                        type="password"
-                                        autoComplete="new-password"
-                                        label="New Password"
-                                        value={formik.values.newPassword}
-                                        onBlur={formik.handleBlur}
-                                        onChange={formik.handleChange}
-                                        error={formik.touched.newPassword && Boolean(formik.errors.newPassword)}
-                                        helperText={formik.touched.newPassword && formik.errors.newPassword}
-                                    />
-                                </Grid>
-                                <Grid item xs={12}>
-                                    <TextField
-                                        fullWidth
-                                        id="newPasswordConfirmation"
-                                        name="newPasswordConfirmation"
-                                        type="password"
-                                        autoComplete="new-password"
-                                        label="Confirm New Password"
-                                        value={formik.values.newPasswordConfirmation}
-                                        onBlur={formik.handleBlur}
-                                        onChange={formik.handleChange}
-                                        error={formik.touched.newPasswordConfirmation && Boolean(formik.errors.newPasswordConfirmation)}
-                                        helperText={formik.touched.newPasswordConfirmation && formik.errors.newPasswordConfirmation}
-                                    />
-                                </Grid>
-                            </Grid>
-                        </Container>
-                        <DialogActionsContainer fixed={false} actions={actions} />
-                    </form>
-                </Box>
-                <Button color="secondary" onClick={onLogOut} sx={{
-                    width: 'min(100%, 400px)',
-                    margin: 'auto',
-                    marginTop: 5,
-                }}>Log Out</Button>
+            <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
+                <WalletIcon sx={{ marginRight: 1 }} />
+                <Typography component="h2" variant="h5" textAlign="center">Connected Wallets</Typography>
+                <HelpButton markdown={walletHelpText} />
             </Stack>
+            <WalletList
+                handleUpdate={updateWallets}
+                list={profile?.wallets ?? []}
+                numVerifiedEmails={numVerifiedEmails}
+            />
+            <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
+                <EmailIcon sx={{ marginRight: 1 }} />
+                <Typography component="h2" variant="h5" textAlign="center">Connected Emails</Typography>
+                <HelpButton markdown={emailHelpText} />
+            </Stack>
+            <EmailList
+                handleUpdate={updateEmails}
+                list={profile?.emails ?? []}
+                numVerifiedWallets={numVerifiedWallets}
+            />
+            <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
+                <Typography component="h2" variant="h5" textAlign="center">Change Password</Typography>
+                <HelpButton markdown={passwordHelpText} />
+            </Stack>
+            <form onSubmit={formik.handleSubmit} style={{ margin: 8, paddingBottom: 16 }}>
+                {/* Hidden username input because some password managers require it */}
+                <TextField
+                    name="username"
+                    autoComplete="username"
+                    sx={{ display: 'none' }}
+                />
+                <Grid container spacing={1}>
+                    <Grid item xs={12}>
+                        <PasswordTextField
+                            fullWidth
+                            id="currentPassword"
+                            name="currentPassword"
+                            label="Current Password"
+                            autoComplete="current-password"
+                            value={formik.values.currentPassword}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            error={formik.touched.currentPassword && Boolean(formik.errors.currentPassword)}
+                            helperText={formik.touched.currentPassword ? formik.errors.currentPassword : null}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <PasswordTextField
+                            fullWidth
+                            id="newPassword"
+                            name="newPassword"
+                            label="New Password"
+                            autoComplete="new-password"
+                            value={formik.values.newPassword}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            error={formik.touched.newPassword && Boolean(formik.errors.newPassword)}
+                            helperText={formik.touched.newPassword ? formik.errors.newPassword : null}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
+                        <PasswordTextField
+                            fullWidth
+                            id="newPasswordConfirmation"
+                            name="newPasswordConfirmation"
+                            autoComplete="new-password"
+                            label="Confirm New Password"
+                            value={formik.values.newPasswordConfirmation}
+                            onBlur={formik.handleBlur}
+                            onChange={formik.handleChange}
+                            error={formik.touched.newPasswordConfirmation && Boolean(formik.errors.newPasswordConfirmation)}
+                            helperText={formik.touched.newPasswordConfirmation ? formik.errors.newPasswordConfirmation : null}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Button
+                            fullWidth
+                            startIcon={<SaveIcon />}
+                            disabled={!Object.values(formik.values).some(v => v.length > 0) || !formik.isValid || formik.isSubmitting}
+                            type="submit"
+                        >
+                            Save
+                        </Button>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Button
+                            fullWidth
+                            startIcon={<RevertIcon />}
+                            disabled={!Object.values(formik.values).some(v => v.length > 0) || formik.isSubmitting}
+                            onClick={() => { formik.resetForm() }}
+                        >
+                            Cancel
+                        </Button>
+                    </Grid>
+                </Grid>
+            </form>
+            <Button color="secondary" onClick={onLogOut} sx={{
+                display: 'block',
+                width: 'min(100%, 400px)',
+                marginLeft: 'auto',
+                marginRight: 'auto',
+                marginTop: 5,
+                marginBottom: 2,
+            }}>Log Out</Button>
         </Box>
     )
 }

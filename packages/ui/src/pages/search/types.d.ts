@@ -14,13 +14,14 @@ export interface BaseSearchPageProps<DataType, SortBy> {
     query: DocumentNode;
     take?: number; // Number of items to fetch per page
     listItemFactory: (node: DataType, index: number) => JSX.Element;
-    getOptionLabel: (option: any) => string;
+    getOptionLabel: (option: any, languages: readonly string[]) => string;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     showAddButton?: boolean; // Displays add button next to title
     onAddClick?: (ev: MouseEvent<any>) => void; // Callback when add button is clicked
     popupButtonText?: string; // Button that appears when scrolled past a certain point, prompting the user to create a new object
     popupButtonTooltip?: string; // Tooltip for the popup button
     onPopupButtonClick?: (ev: MouseEvent<any>) => void; // Called when the popup button is clicked
+    session: Session;
 }
 
 export interface SearchPageBaseProps {

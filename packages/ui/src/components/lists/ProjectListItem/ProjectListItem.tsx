@@ -82,4 +82,4 @@ export function ProjectListItem({
 
 export const ProjectSortOptions: LabelledSortOption<ProjectSortBy>[] = labelledSortOptions(ProjectSortBy);
 export const projectDefaultSortOption = ProjectSortOptions[1];
-export const projectOptionLabel = (o: Project) => getTranslation(o, 'name', ['en'], true) ?? '';
+export const projectOptionLabel = (o: Project, languages: readonly string[]) => getTranslation(o, 'name', languages, true) ?? o.handle ?? '';

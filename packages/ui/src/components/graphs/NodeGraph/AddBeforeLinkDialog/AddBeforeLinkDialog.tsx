@@ -10,7 +10,7 @@ import {
     Close as CloseIcon,
 } from '@mui/icons-material';
 import { noSelect } from 'styles';
-import { getTranslation } from 'utils';
+import { getTranslation, getUserLanguages } from 'utils';
 
 export const AddBeforeLinkDialog = ({
     isOpen,
@@ -19,6 +19,7 @@ export const AddBeforeLinkDialog = ({
     nodeId,
     nodes,
     links,
+    session,
 }: AddBeforeLinkDialogProps) => {
 
     /**
@@ -26,8 +27,8 @@ export const AddBeforeLinkDialog = ({
      */
     const getNodeName = useCallback((nodeId: string) => {
         const node = nodes.find(n => n.id === nodeId);
-        return getTranslation(node, 'title', ['en'], true);
-    }, [nodes, nodeId]);
+        return getTranslation(node, 'title', getUserLanguages(session), true);
+    }, [nodes, nodeId, session]);
 
     /**
      * Find links where the "toId" is the nodeId

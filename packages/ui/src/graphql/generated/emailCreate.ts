@@ -15,6 +15,7 @@ export interface emailCreate_emailCreate {
   emailAddress: string;
   receivesAccountUpdates: boolean;
   receivesBusinessUpdates: boolean;
+  verified: boolean;
 }
 
 export interface emailCreate {

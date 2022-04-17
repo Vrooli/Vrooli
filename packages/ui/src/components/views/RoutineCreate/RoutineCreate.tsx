@@ -5,27 +5,31 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
-import { formatForCreate } from "utils";
+import { formatForCreate, getUserLanguages } from "utils";
 import { RoutineCreateProps } from "../types";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
 import {
     Add as CreateIcon,
     Restore as CancelIcon,
 } from '@mui/icons-material';
 import { TagSelectorTag } from "components/inputs/types";
-import { MarkdownInput, ResourceListHorizontal, TagSelector } from "components";
+import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { ResourceList, RoutineInputList, RoutineOutputList } from "types";
+import { Organization, ResourceList, RoutineInputList, RoutineOutputList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 
 export const RoutineCreate = ({
-    session,
     onCreated,
     onCancel,
+    session,
 }: RoutineCreateProps) => {
+
+    // Handle user/organization switch
+    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
+    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Hanlde inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
@@ -57,6 +61,44 @@ export const RoutineCreate = ({
         setTags([]);
     }, [setTags]);
 
+    // Handle translations
+    type Translation = {
+        language: string;
+        description: string;
+        instructions: string;
+        title: string;
+    };
+    const [translations, setTranslations] = useState<Translation[]>([]);
+    const deleteTranslation = useCallback((language: string) => {
+        setTranslations([...translations.filter(t => t.language !== language)]);
+        // Also delete translations from inputs and outputs
+        setInputsList(inputsList.map(i => {
+            const updatedTranslationsList = i.translations.filter(t => t.language !== language);
+            return { ...i, translations: updatedTranslationsList };
+        }));
+        setOutputsList(outputsList.map(o => {
+            const updatedTranslationsList = o.translations.filter(t => t.language !== language);
+            return { ...o, translations: updatedTranslationsList };
+        }));
+    }, [translations, setTranslations]);
+    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
+        // Find translation
+        const index = translations.findIndex(t => language === t.language);
+        // If language exists, update
+        if (index >= 0) {
+            const newTranslations = [...translations];
+            newTranslations[index] = { ...translation };
+            return newTranslations;
+        }
+        // Otherwise, add new
+        else {
+            return [...translations, translation];
+        }
+    }, [translations]);
+    const updateTranslation = useCallback((language: string, translation: Translation) => {
+        setTranslations(getTranslationsUpdate(language, translation));
+    }, [translations, setTranslations]);
+
     // Handle create
     const [mutation] = useMutation<routine>(routineCreateMutation);
     const formik = useFormik({
@@ -64,36 +106,124 @@ export const RoutineCreate = ({
             description: '',
             instructions: '',
             title: '',
-            version: ''
+            version: '1.0',
         },
         validationSchema,
         onSubmit: (values) => {
-            const inputsAdd = inputsList ? formatForCreate(inputsList) : [];
-            const outputsAdd = outputsList ? formatForCreate(outputsList) : [];
             const resourceListAdd = resourceList ? formatForCreate(resourceList) : {};
             const tagsAdd = tags.length > 0 ? {
                 tagsCreate: tags.filter(t => !t.id).map(t => ({ tag: t.tag })),
                 tagsConnect: tags.filter(t => t.id).map(t => (t.id)),
             } : {};
+            const createdFor = organizationFor ? { createdByOrganizationId: organizationFor.id } : {};
+            const allTranslations = getTranslationsUpdate(language, {
+                language,
+                description: values.description,
+                instructions: values.instructions,
+                title: values.title,
+            })
             mutationWrapper({
                 mutation,
                 input: formatForCreate({
-                    translations: [{
-                        language: 'en',
-                        description: values.description,
-                        instructions: values.instructions,
-                        title: values.title,
-                    }],
-                    ...inputsAdd,
-                    ...outputsAdd,
+                    ...createdFor,
+                    translations: allTranslations,
+                    inputs: inputsList,
+                    outputs: outputsList,
                     resourceListsCreate: [resourceListAdd],
                     ...tagsAdd,
                     version: values.version,
                 }) as any,
                 onSuccess: (response) => { onCreated(response.data.routineCreate) },
+                onError: () => { formik.setSubmitting(false) }
             })
         },
     });
+
+    // Handle languages
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    const [languages, setLanguages] = useState<string[]>([getUserLanguages(session)[0]]);
+    useEffect(() => {
+        if (languages.length === 0) {
+            const userLanguage = getUserLanguages(session)[0]
+            setLanguage(userLanguage)
+            setLanguages([userLanguage])
+        }
+    }, [languages, session, setLanguage, setLanguages])
+    const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
+        // Update main translations
+        updateTranslation(oldLanguage, {
+            language: newLanguage,
+            description: formik.values.description,
+            instructions: formik.values.instructions,
+            title: formik.values.title,
+        });
+        // Update inputs and outputs translations
+        setInputsList(inputsList.map(i => {
+            return {
+                ...i,
+                translations: i.translations.map(t => {
+                    if (t.language === oldLanguage) {
+                        return { ...t, language: newLanguage }
+                    }
+                    return t;
+                })
+            }
+        }));
+        setOutputsList(outputsList.map(o => {
+            return {
+                ...o,
+                translations: o.translations.map(t => {
+                    if (t.language === oldLanguage) {
+                        return { ...t, language: newLanguage }
+                    }
+                    return t;
+                })
+            }
+        }));
+        // Change selection
+        setLanguage(newLanguage);
+        // Update languages
+        const newLanguages = [...languages];
+        const index = newLanguages.findIndex(l => l === oldLanguage);
+        if (index >= 0) {
+            newLanguages[index] = newLanguage;
+            setLanguages(newLanguages);
+        }
+    }, [formik.values, inputsList, languages, outputsList, translations, setLanguage, setLanguages, updateTranslation]);
+    const updateFormikTranslation = useCallback((language: string) => {
+        const existingTranslation = translations.find(t => t.language === language);
+        formik.setValues({
+            ...formik.values,
+            description: existingTranslation?.description ?? '',
+            instructions: existingTranslation?.instructions ?? '',
+            title: existingTranslation?.title ?? '',
+        });
+    }, [formik.setValues, translations]);
+    const handleLanguageSelect = useCallback((newLanguage: string) => {
+        // Update old select
+        updateTranslation(language, {
+            language,
+            description: formik.values.description,
+            instructions: formik.values.instructions,
+            title: formik.values.title,
+        })
+        // Update formik
+        updateFormikTranslation(newLanguage);
+        // Change language
+        setLanguage(newLanguage);
+    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    const handleAddLanguage = useCallback((newLanguage: string) => {
+        setLanguages([...languages, newLanguage]);
+        handleLanguageSelect(newLanguage);
+    }, [handleLanguageSelect, languages, setLanguages]);
+    const handleLanguageDelete = useCallback((language: string) => {
+        const newLanguages = [...languages.filter(l => l !== language)]
+        if (newLanguages.length === 0) return;
+        deleteTranslation(language);
+        updateFormikTranslation(newLanguages[0]);
+        setLanguage(newLanguages[0]);
+        setLanguages(newLanguages);
+    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
 
     const actions: DialogActionItem[] = useMemo(() => {
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
@@ -116,6 +246,21 @@ export const RoutineCreate = ({
         }}
         >
             <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
+                <Grid item xs={12}>
+                    <UserOrganizationSwitch session={session} selected={organizationFor} onChange={onSwitchChange} />
+                </Grid>
+                {/* TODO add project selector */}
+                <Grid item xs={12}>
+                    <LanguageInput
+                        currentLanguage={language}
+                        handleAdd={handleAddLanguage}
+                        handleChange={handleLanguageChange}
+                        handleDelete={handleLanguageDelete}
+                        handleSelect={handleLanguageSelect}
+                        languages={languages}
+                        session={session}
+                    />
+                </Grid>
                 <Grid item xs={12}>
                     <TextField
                         fullWidth
@@ -155,10 +300,24 @@ export const RoutineCreate = ({
                     />
                 </Grid>
                 <Grid item xs={12}>
+                    <TextField
+                        fullWidth
+                        id="version"
+                        name="version"
+                        label="version"
+                        value={formik.values.version}
+                        onBlur={formik.handleBlur}
+                        onChange={formik.handleChange}
+                        error={formik.touched.version && Boolean(formik.errors.version)}
+                        helperText={formik.touched.version && formik.errors.version}
+                    />
+                </Grid>
+                <Grid item xs={12}>
                     <InputOutputContainer
                         isEditing={true}
                         handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
                         isInput={true}
+                        language={language}
                         list={inputsList}
                         session={session}
                     />
@@ -168,6 +327,7 @@ export const RoutineCreate = ({
                         isEditing={true}
                         handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
                         isInput={false}
+                        language={language}
                         list={outputsList}
                         session={session}
                     />

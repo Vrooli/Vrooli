@@ -13,7 +13,7 @@ export interface ResourceListVerticalProps {
     title?: string;
     canEdit?: boolean;
     handleUpdate?: (updatedList: ResourceList) => void;
-    list: ResourceList | null;
+    list: ResourceList | null | undefined;
     session: session
     mutate: boolean;
 }

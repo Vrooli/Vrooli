@@ -1,6 +1,6 @@
 import { BoxProps } from '@mui/material';
 import { NodeType } from 'graphql/generated/globalTypes';
-import { Node, NodeLink } from 'types';
+import { Node, NodeLink, Session } from 'types';
 import { BuildDialogOption, BuildStatus } from 'utils';
 import { NodeContextMenuAction } from './NodeContextMenu/NodeContextMenu';
 
@@ -18,6 +18,7 @@ export interface AddAfterLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
+    session: Session;
 }
 
 export interface AddBeforeLinkDialogProps {
@@ -27,6 +28,7 @@ export interface AddBeforeLinkDialogProps {
     nodeId: string;
     nodes: Node[];
     links: NodeLink[];
+    session: Session;
 }
 
 export type BuildStatusObject = {
@@ -65,6 +67,7 @@ export interface NodeGraphProps {
      * Delete a link between two nodes
      */
     handleLinkDelete: (link: NodeLink) => void;
+    language: string;
     /**
      * Dictionary of row and column pairs for every node ID on graph
      */
@@ -85,6 +88,7 @@ export interface NodeColumnProps {
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
     handleNodeDrop: (nodeId: string, columnIndex: number | null, rowIndex: number | null) => void;
     handleNodeUpdate: (updatedNode: Node) => void;
+    language: string;
 }
 
 export interface NodeEdgeProps {

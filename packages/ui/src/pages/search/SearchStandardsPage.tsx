@@ -17,7 +17,7 @@ export const SearchStandardsPage = ({
     const [selectedItem, setSelectedItem] = useState<Standard | undefined>(undefined);
     const handleSelected = useCallback((selected: Standard) => {
         setSelectedItem(selected);
-    }, [setLocation]);
+    }, []);
     useEffect(() => {
         if (selectedItem) {
             setLocation(`${APP_LINKS.SearchStandards}/view/${selectedItem.id}`);
@@ -74,6 +74,7 @@ export const SearchStandardsPage = ({
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={handleAddDialogOpen}
+                session={session}
             />
         </>
     )

@@ -24,10 +24,10 @@ const colorOptions: [string, string][] = [
 ]
 
 export const ActorListItem = ({
-    session,
-    index,
     data,
+    index,
     onClick,
+    session,
 }: ActorListItemProps) => {
     const [, setLocation] = useLocation();
     const isOwn = useMemo(() => data?.id == session?.id, [data, session]);
@@ -45,7 +45,7 @@ export const ActorListItem = ({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the actor's profile
-        else setLocation(`${APP_LINKS.User}/${data.id}`)
+        else setLocation(`${APP_LINKS.Profile}/${data.id}`)
     }, [onClick, data, setLocation]);
 
     return (
@@ -60,26 +60,26 @@ export const ActorListItem = ({
             >
                 <ListItemButton component="div" onClick={handleClick}>
                     <Box
-                        width="50px"
-                        minWidth="50px"
-                        height="50px"
-                        borderRadius='100%'
-                        bgcolor={profileColors[0]}
-                        justifyContent='center'
                         alignItems='center'
+                        bgcolor={profileColors[0]}
+                        borderRadius='100%'
+                        height="50px"
+                        justifyContent='center'
+                        minWidth="50px"
+                        width="50px"
                         sx={{
                             display: { xs: 'none', sm: 'flex' },
                         }}
                     >
                         <PersonIcon sx={{
                             fill: profileColors[1],
-                            width: '80%',
                             height: '80%',
+                            width: '80%',
                         }} />
                     </Box>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         <ListItemText
-                            primary={data.username}
+                            primary={data.name}
                             sx={{ ...multiLineEllipsis(1) }}
                         />
                         <ListItemText
@@ -88,13 +88,13 @@ export const ActorListItem = ({
                         />
                     </Stack>
                     {
-                        isOwn ? null : <StarButton
-                            session={session}
-                            objectId={data.id ?? ''}
-                            starFor={StarFor.User}
+                        !isOwn && <StarButton
                             isStar={data.isStarred}
-                            stars={data.stars}
+                            objectId={data.id ?? ''}
                             onChange={(isStar: boolean) => { }}
+                            session={session}
+                            starFor={StarFor.User}
+                            stars={data.stars}
                         />
                     }
                 </ListItemButton>
@@ -105,4 +105,4 @@ export const ActorListItem = ({
 
 export const ActorSortOptions: LabelledSortOption<UserSortBy>[] = labelledSortOptions(UserSortBy);
 export const actorDefaultSortOption = ActorSortOptions[1];
-export const actorOptionLabel = (o: User) => o.username ?? '';
+export const actorOptionLabel = (o: User, languages: readonly string[]) => o.name ?? o.handle ?? '';

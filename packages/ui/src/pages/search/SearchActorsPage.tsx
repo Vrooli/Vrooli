@@ -16,7 +16,7 @@ export const SearchActorsPage = ({
     const [selectedItem, setSelectedItem] = useState<User | undefined>(undefined);
     const handleSelected = useCallback((selected: User) => {
         setSelectedItem(selected);
-    }, [setLocation]);
+    }, []);
     useEffect(() => {
         if (selectedItem) {
             setLocation(`${APP_LINKS.SearchUsers}/view/${selectedItem.id}`);
@@ -57,7 +57,7 @@ export const SearchActorsPage = ({
             {/* Search component */}
             <BaseSearchPage
                 title="Users"
-                searchPlaceholder="Search by username..."
+                searchPlaceholder="Search by name/handle..."
                 sortOptions={ActorSortOptions}
                 defaultSortOption={actorDefaultSortOption}
                 query={usersQuery}
@@ -68,6 +68,7 @@ export const SearchActorsPage = ({
                 popupButtonText="Invite"
                 popupButtonTooltip="Can't find who you're looking for? Invite them😊"
                 onPopupButtonClick={handleSurpriseDialogOpen}
+                session={session}
             />
         </>
     )

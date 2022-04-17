@@ -173,6 +173,7 @@ export const RunStepsDialog = ({
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <TreeIcon sx={sxs?.icon} />
             </IconButton>
+            {/* @ts-ignore TODO */}
             <SwipeableDrawer
                 anchor="right"
                 open={isOpen}

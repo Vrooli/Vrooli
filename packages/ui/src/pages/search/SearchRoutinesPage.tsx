@@ -44,10 +44,9 @@ export const SearchRoutinesPage = ({
     }, [session?.roles, setLocation]);
     const closeAdd = useCallback(() => setAddAnchor(null), []);
     const handleAddSelect = useCallback((option: any) => {
-        console.log('handleADdSelect', option);
         if (option === 'basic') setLocation(`${APP_LINKS.SearchRoutines}/add`)
         else setLocation(`${APP_LINKS.Build}/add`)
-    }, []);
+    }, [setLocation]);
     const addOptions: ListMenuItemData<string>[] = [
         { label: 'Basic (Single Step)', value: 'basic' },
         { label: 'Advanced (Multi Step)', value: 'advanced' },
@@ -95,6 +94,7 @@ export const SearchRoutinesPage = ({
                 popupButtonText="Add"
                 popupButtonTooltip="Can't find what you're looking for? Create it!😎"
                 onPopupButtonClick={openAdd}
+                session={session}
             />
         </>
     )

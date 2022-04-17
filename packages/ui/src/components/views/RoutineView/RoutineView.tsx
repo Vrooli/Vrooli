@@ -13,7 +13,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunRoutineView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getTranslation, Pubs } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
 import { ResourceList, Routine, User } from "types";
 import Markdown from "markdown-to-jsx";
 import { routineDeleteOneMutation } from "graphql/mutation";
@@ -25,8 +25,8 @@ import { containerShadow } from "styles";
 const TERTIARY_COLOR = '#95f3cd';
 
 export const RoutineView = ({
-    session,
     partialData,
+    session,
 }: RoutineViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
@@ -41,7 +41,6 @@ export const RoutineView = ({
     const routine = useMemo(() => data?.routine, [data]);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null); // Routine may change if it is starred/upvoted/etc.
     const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role ?? ''), [routine]);
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = () => setDeleteOpen(true);
@@ -65,38 +64,28 @@ export const RoutineView = ({
         })
     }, [routine, routineDelete])
 
+    const [language, setLanguage] = useState<string>('');
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        const availableLanguages = routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+        const userLanguages = getUserLanguages(session);
+        setAvailableLanguages(availableLanguages);
+        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
+    }, [routine]);
     const { title, description, instructions } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
         return {
-            title: getTranslation(routine, 'title', languages) ?? getTranslation(partialData, 'title', languages),
-            description: getTranslation(routine, 'description', languages) ?? getTranslation(partialData, 'description', languages),
-            instructions: getTranslation(routine, 'instructions', languages) ?? getTranslation(partialData, 'instructions', languages),
+            title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),
+            description: getTranslation(routine, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
+            instructions: getTranslation(routine, 'instructions', [language]) ?? getTranslation(partialData, 'instructions', [language]),
         };
     }, [routine, partialData, session]);
 
-    /**
-     * Name of user or organization that owns this routine
-     */
-    const ownedBy = useMemo<string | null>(() => {
-        if (!routine?.owner) return null;
-        return getTranslation(routine.owner, 'username', languages) ?? getTranslation(routine.owner, 'name', languages);
-    }, [routine?.owner, languages]);
+    useEffect(() => {
+        document.title = `${title} | Vrooli`;
+    }, [title]);
 
-    /**
-     * Navigate to owner's profile
-     */
-    const toOwner = useCallback(() => {
-        if (!routine?.owner) {
-            PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });
-            return;
-        }
-        // Check if user or organization
-        if (routine.owner.hasOwnProperty('username')) {
-            setLocation(`${APP_LINKS.User}/${(routine.owner as User).username}`);
-        } else {
-            setLocation(`${APP_LINKS.Organization}/${routine.owner.id}`);
-        }
-    }, [routine?.owner, setLocation]);
+    const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
+    const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
     const viewGraph = () => {
         setLocation(`${APP_LINKS.Build}/${routine?.id}`);
@@ -168,6 +157,20 @@ export const RoutineView = ({
         )
     }, [routine, viewGraph, runRoutine]);
 
+    const resourceList = useMemo(() => {
+        if (!routine || 
+            !Array.isArray(routine.resourceLists) ||
+            routine.resourceLists.length < 1 ||
+            routine.resourceLists[0].resources.length < 1) return null;
+        return <ResourceListHorizontal
+            title={'Resources'}
+            list={(routine as any).resourceLists[0]}
+            canEdit={false}
+            handleUpdate={() => { }} // Intentionally blank
+            session={session}
+        />
+    }, [routine, session]);
+
     /**
      * Display body or loading indicator
      */
@@ -198,13 +201,7 @@ export const RoutineView = ({
 
                     </Box>}
                     {/* Resources */}
-                    {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
-                        title={'Resources'}
-                        list={(routine as any).resourceLists[0]}
-                        canEdit={false}
-                        handleUpdate={() => { }} // Intentionally blank
-                        session={session}
-                    /> : null}
+                    {resourceList}
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
@@ -241,7 +238,7 @@ export const RoutineView = ({
             {/* Delete routine confirmation dialog */}
             <DeleteRoutineDialog
                 isOpen={deleteOpen}
-                routineName={getTranslation(routine, 'title', ['en']) ?? ''}
+                routineName={getTranslation(routine, 'title', getUserLanguages(session)) ?? ''}
                 handleClose={closeDelete}
                 handleDelete={deleteRoutine}
             />
@@ -269,6 +266,7 @@ export const RoutineView = ({
                 title='Routine Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                session={session}
             />
             {/* Main container */}
             <Box sx={{
@@ -301,7 +299,7 @@ export const RoutineView = ({
                             onChange={(isStar: boolean) => { changedRoutine && setChangedRoutine({ ...changedRoutine, isStarred: isStar }) }}
                             tooltipPlacement="bottom"
                         />
-                        <Typography variant="h5" sx={{textAlign: 'center'}}>{title}</Typography>
+                        <Typography variant="h5" sx={{ textAlign: 'center' }}>{title}</Typography>
                         {canEdit && <Tooltip title="Edit routine">
                             <IconButton
                                 aria-label="Edit routine"

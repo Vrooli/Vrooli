@@ -108,7 +108,7 @@ export const LinkDialog = ({
             fromNodes = fromNodes.filter(node => !existingLinks.some(link => link.fromId === node.id && link.toId === toNode.id));
         }
         return { fromOptions: fromNodes, toOptions: toNodes };
-    }, [fromNode, toNode, routine]);
+    }, [fromNode, routine, toNode]);
 
     /**
      * Find the text to display for a node

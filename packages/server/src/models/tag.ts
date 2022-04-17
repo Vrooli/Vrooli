@@ -94,9 +94,19 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
             translations: TranslationModel().relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
         }
     },
+    /**
+     * Maps type of a tag's parent with the unique field
+     */
+    parentMapper: {
+        [GraphQLModelType.Organization]: 'organization_tags_taggedid_tagid_unique',
+        [GraphQLModelType.Project]: 'project_tags_taggedid_tagid_unique',
+        [GraphQLModelType.Routine]: 'routine_tags_taggedid_tagid_unique',
+        [GraphQLModelType.Standard]: 'standard_tags_taggedid_tagid_unique',
+    },
     async relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
+        parentType: keyof typeof this.parentMapper,
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
         // If any tag creates, check if they're supposed to be connects
@@ -127,7 +137,7 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = joinRelationshipToPrisma({
             data: input,
             joinFieldName: 'tag',
-            uniqueFieldName: 'organization_tags_taggedid_tagid_unique',
+            uniqueFieldName: this.parentMapper[parentType],
             childIdFieldName: 'tagId',
             parentIdFieldName: 'taggedId',
             parentId: input.id ?? null,

@@ -12,6 +12,7 @@ export const commentFields = gql`
         commentedOn {
             ... on Project {
                 id
+                handle
                 translations {
                     id
                     language
@@ -34,6 +35,7 @@ export const commentFields = gql`
         creator {
             ... on Organization {
                 id
+                handle
                 translations {
                     id
                     language
@@ -42,7 +44,8 @@ export const commentFields = gql`
             }
             ... on User {
                 id
-                username
+                name
+                handle
             }
         }
         translations {

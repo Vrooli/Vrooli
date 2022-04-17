@@ -6,7 +6,7 @@ import { PageProps } from './types';
 
 export const Page = ({
     children,
-    redirect = APP_LINKS.Home,
+    redirect = APP_LINKS.Start,
     restrictedToRoles = [],
     session,
     sessionChecked,

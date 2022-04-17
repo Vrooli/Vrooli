@@ -1,4 +1,4 @@
-import { Button, Grid } from "@mui/material";
+import { Box, Button, Grid } from "@mui/material";
 import { DialogActionsContainerProps, DialogActionItem } from "../types";
 import { useCallback, useMemo } from "react";
 import Measure from "react-measure";
@@ -30,7 +30,7 @@ export const DialogActionsContainer = ({
         }
 
         return actions.map(([label, Icon, disabled, isSubmit, onClick]: DialogActionItem, index) => (
-            <Grid item key={label} {...gridItemSizes} p={1} sx={{paddingTop: 0}}>
+            <Grid item key={label} {...gridItemSizes} p={1} sx={{ paddingTop: 0 }}>
                 <Button
                     fullWidth
                     startIcon={<Icon />}
@@ -48,16 +48,23 @@ export const DialogActionsContainer = ({
             onResize={handleResize}
         >
             {({ measureRef }) => (
-                <Grid container ref={measureRef} spacing={2} sx={{
+                <Box sx={{
                     position: fixed ? 'fixed' : 'relative',
                     bottom: fixed ? '0' : 'auto',
-                    background: (t) => t.palette.primary.main,
-                    margin: 0,
-                    zIndex: 4,
                     width: fixed ? '-webkit-fill-available' : 'auto',
+                    zIndex: 4,
+                    background: (t) => t.palette.primary.main,
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
                 }}>
-                    {gridItems}
-                </Grid>
+                    <Grid container ref={measureRef} spacing={2} sx={{
+                        maxWidth: 'min(700px, 100%)',
+                        margin: 0,
+                    }}>
+                        {gridItems}
+                    </Grid>
+                </Box>
             )}
         </Measure>
     )

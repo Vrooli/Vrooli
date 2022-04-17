@@ -21,6 +21,7 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { useMemo } from 'react';
 import { parseSearchParams } from 'utils/urlTools';
+import { PasswordTextField } from 'components';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -42,7 +43,10 @@ export const LogInForm = ({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode },
                 successCondition: (response) => response.data.emailLogIn !== null,
-                onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) },
+                onSuccess: (response) => { 
+                    if (verificationCode) PubSub.publish(Pubs.Snack, { message: 'Email verified!' });
+                    PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
+                },
                 onError: (response) => {
                     if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                         PubSub.publish(Pubs.AlertDialog, {
@@ -52,6 +56,7 @@ export const LogInForm = ({
                             ]
                         });
                     }
+                    formik.setSubmitting(false);
                 }
             })
         },
@@ -79,18 +84,17 @@ export const LogInForm = ({
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <PasswordTextField
                             fullWidth
                             id="password"
                             name="password"
-                            type="password"
                             autoComplete="current-password"
                             label="Password"
                             value={formik.values.password}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
                             error={formik.touched.password && Boolean(formik.errors.password)}
-                            helperText={formik.touched.password && formik.errors.password}
+                            helperText={formik.touched.password ? formik.errors.password : null}
                         />
                     </Grid>
                 </Grid>

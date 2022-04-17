@@ -39,6 +39,7 @@ export const organizationFields = gql`
     fragment organizationFields on Organization {
         id
         created_at
+        handle
         isOpenToNewMembers
         isStarred
         role

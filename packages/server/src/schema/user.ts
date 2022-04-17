@@ -6,6 +6,7 @@ import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdInput, U
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
+import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -22,7 +23,8 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        username: String
+        handle: String
+        name: String!
         theme: String!
         status: AccountStatus!
         history: [Log!]!
@@ -49,7 +51,8 @@ export const typeDef = gql`
     type User {
         id: ID!
         created_at: Date!
-        username: String
+        handle: String
+        name: String!
         stars: Int!
         isStarred: Boolean!
         comments: [Comment!]!
@@ -79,7 +82,8 @@ export const typeDef = gql`
     }
 
     input ProfileUpdateInput {
-        username: String
+        handle: String
+        name: String
         theme: String
         hiddenTagsConnect: [ID!]
         hiddenTagsDisconnect: [ID!]
@@ -162,51 +166,55 @@ export const typeDef = gql`
 export const resolvers = {
     UserSortBy: UserSortBy,
     Query: {
-        profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return readOneHelper<Profile>(req.userId, { id: req.userId }, info, ProfileModel(prisma) as any);
+        profile: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
+            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            await rateLimit({ context, info, max: 2000, byAccount: true });
+            return ProfileModel(context.prisma).findProfile(context.req.userId, info);
         },
-        user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
-            return readOneHelper(req.userId, input, info, UserModel(prisma));
+        user: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readOneHelper(context.req.userId, input, info, UserModel(context.prisma));
         },
-        users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
-            return readManyHelper(req.userId, input, info, UserModel(prisma));
+        users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
+            await rateLimit({ context, info, max: 1000 });
+            return readManyHelper(context.req.userId, input, info, UserModel(context.prisma));
         },
-        usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, { prisma }: Context, _info: GraphQLResolveInfo): Promise<number> => {
-            return countHelper(input, UserModel(prisma));
+        usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
+            await rateLimit({ context, info, max: 1000 });
+            return countHelper(input, UserModel(context.prisma));
         },
     },
     Mutation: {
-        profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
+        profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
+            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            await rateLimit({ context, info, max: 250, byAccount: true });
             // Update object
-            const updated = await ProfileModel(prisma).updateProfile(req.userId, input, info);
+            const updated = await ProfileModel(context.prisma).updateProfile(context.req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
-        profileEmailUpdate: async (_parent: undefined, { input }: IWrap<ProfileEmailUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
+        profileEmailUpdate: async (_parent: undefined, { input }: IWrap<ProfileEmailUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
+            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            await rateLimit({ context, info, max: 100, byAccount: true });
             // Update object
-            const updated = await ProfileModel(prisma).updateEmails(req.userId, input, info);
+            const updated = await ProfileModel(context.prisma).updateEmails(context.req.userId, input, info);
             if (!updated) throw new CustomError(CODE.ErrorUnknown);
             return updated;
         },
-        userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            // Must be logged in with an account
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await ProfileModel(prisma).deleteProfile(req.userId, input);
+        userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            await rateLimit({ context, info, max: 5 });
+            return await ProfileModel(context.prisma).deleteProfile(context.req.userId, input);
         },
         /**
          * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).
          * In the future, an import function will be added.
          * @returns JSON of all user data
          */
-        exportData: async (_parent: undefined, _args: undefined, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<string> => {
-            // Must be logged in
-            if (!req.userId) throw new CustomError(CODE.Unauthorized);
-            return await ProfileModel(prisma).exportData(req.userId);
+        exportData: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<string> => {
+            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            await rateLimit({ context, info, max: 5, byAccount: true });
+            return await ProfileModel(context.prisma).exportData(context.req.userId);
         }
     }
 }

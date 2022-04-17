@@ -12,6 +12,7 @@ export const deepRoutineFields = gql`
     }
     fragment deepRoutineInputFields on InputItem {
         id
+        isRequired
         name
         translations {
             id
@@ -87,6 +88,7 @@ export const deepRoutineFields = gql`
                         owner {
                             ... on Organization {
                                 id
+                                handle
                                 translations {
                                     id
                                     language
@@ -95,7 +97,8 @@ export const deepRoutineFields = gql`
                             }
                             ... on User {
                                 id
-                                username
+                                name
+                                handle
                             }
                         }
                         simplicity
@@ -206,6 +209,7 @@ export const deepRoutineFields = gql`
         owner {
             ... on Organization {
                 id
+                handle
                 translations {
                     id
                     language
@@ -214,7 +218,8 @@ export const deepRoutineFields = gql`
             }
             ... on User {
                 id
-                username
+                name
+                handle
             }
         }
         parent {

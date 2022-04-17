@@ -9,7 +9,7 @@ export const APP_LINKS = {
     Home: '/', // Main dashboard for logged in users
     Learn: '/learn', // Learn dashboard
     Organization: '/organization', // View or update specific organization
-    Profile: '/settings?page=profile', // View or update profile and settings (or view another actor's profile)
+    Profile: '/profile', // View profile
     Project: '/project', // View or update specific project
     Research: '/research', // Research dashboard
     Run: '/run', // Displays a UI corresponding to the current subroutine
@@ -19,11 +19,10 @@ export const APP_LINKS = {
     SearchRoutines: '/search/routine', // Search routines
     SearchStandards: '/search/standard', // Search standards
     SearchUsers: '/search/user', // Search users
-    Settings: '/settings', // View or update settings
+    Settings: '/settings', // View or update profile/settings
     Standard: '/standard', // View or update specific standard
     Start: '/start', // Provides options for entering application
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)
-    User: '/user', // View a user's profile
     Welcome: '/welcome', // Displays the first time you enter the application (either as guest or as logged in user)
 }
 export type APP_LINKS = ValueOf<typeof APP_LINKS>;

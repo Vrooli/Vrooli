@@ -72,6 +72,7 @@ export interface organizationCreate_organizationCreate {
   __typename: "Organization";
   id: string;
   created_at: any;
+  handle: string | null;
   isOpenToNewMembers: boolean;
   isStarred: boolean;
   role: MemberRole | null;

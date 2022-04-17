@@ -106,6 +106,7 @@ export const ResourceListVertical = ({
             onCreated={onAdd}
             onUpdated={onUpdate}
             mutate={mutate}
+            session={session}
         /> : null
     ), [onAdd, onUpdate, isDialogOpen, list, editingIndex, mutate]);
 

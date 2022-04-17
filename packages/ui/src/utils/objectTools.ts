@@ -229,7 +229,7 @@ export const formatForUpdate = <S, T>(
                 if (originalValue) changed[`${key}Update`] = changedValue;
                 // Only a create if key not in treatLikeConnects
                 else if (treatLikeConnects.includes(key) && changedValue.hasOwnProperty('id')) changed[`${key}Connect`] = (changedValue as any).id;
-                else changed[`${key}Create`] = changedValue;
+                else { changed[`${key}Create`] = changedValue; }
             }
             // Shouldn't hit this point under normal circumstances. But if you do,
             // add the value to the changed array

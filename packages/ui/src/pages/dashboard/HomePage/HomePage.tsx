@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Grid, Stack, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
@@ -87,8 +87,8 @@ interface AutocompleteListItem {
 
 const examplesData: [string, string][] = [
     ['Start a new business', '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
-    ['Learn about Project Catalyst', ''], //TODO
-    ['Fund your project', ''], //TODO
+    // ['Learn about Project Catalyst', ''], //TODO
+    // ['Fund your project', ''], //TODO
     ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
 ]
 
@@ -127,12 +127,12 @@ export const HomePage = ({
         const projects = data.autocomplete.projects.map(p => ({ title: getTranslation(p, 'name', languages, true), id: p.id, stars: p.stars, objectType: ObjectType.Project }));
         const organizations = data.autocomplete.organizations.map(o => ({ title: getTranslation(o, 'name', languages, true), id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
         const standards = data.autocomplete.standards.map(s => ({ title: s.name, id: s.id, stars: s.stars, objectType: ObjectType.Standard }));
-        const users = data.autocomplete.users.map(u => ({ title: u.username, id: u.id, stars: u.stars, objectType: ObjectType.User }));
+        const users = data.autocomplete.users.map(u => ({ title: u.name, id: u.id, stars: u.stars, objectType: ObjectType.User }));
         const options = [...routines, ...projects, ...organizations, ...standards, ...users].sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
         return options;
-    }, [data]);
+    }, [data, languages]);
 
     const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
     const openCreateDialog = useCallback(() => { setCreateDialogOpen(true) }, [setCreateDialogOpen]);
@@ -265,7 +265,7 @@ export const HomePage = ({
             }
         }
         return listFeeds;
-    }, [feedOrder, loading, organizations, projects, routines, standards, users, openSearch]);
+    }, [feedOrder, getFeedTitle, loading, organizations, projects, routines, session, standards, users, openSearch]);
 
     return (
         <Box id="page">
@@ -289,6 +289,7 @@ export const HomePage = ({
                     value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
+                    session={session}
                     sx={{ width: 'min(100%, 600px)' }}
                 />
                 {/* =========  #endregion ========= */}

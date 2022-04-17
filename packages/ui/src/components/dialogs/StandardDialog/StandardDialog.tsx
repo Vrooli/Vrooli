@@ -1,5 +1,5 @@
 import { StandardView } from 'components';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BaseObjectDialog } from '..';
 import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
 import { StandardUpdate } from 'components/views/StandardUpdate/StandardUpdate';
@@ -7,11 +7,12 @@ import { StandardDialogProps, ObjectDialogAction } from 'components/dialogs/type
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { Standard } from 'types';
+import { getUserLanguages } from 'utils';
 
 export const StandardDialog = ({
-    hasPrevious,
-    hasNext,
     canEdit = false,
+    hasNext,
+    hasPrevious,
     partialData,
     session
 }: StandardDialogProps) => {
@@ -41,10 +42,10 @@ export const StandardDialog = ({
                 setLocation(`${APP_LINKS.SearchStandards}/view/${id}`, { replace: true });
                 break;
         }
-    },  [id, setLocation]);
+    }, [id, setLocation]);
 
     const title = useMemo(() => {
-        switch(state) {
+        switch (state) {
             case 'add':
                 return 'Add Standard';
             case 'edit':
@@ -55,23 +56,34 @@ export const StandardDialog = ({
     }, [state]);
 
     const child = useMemo(() => {
-        switch(state) {
+        switch (state) {
             case 'add':
-                return <StandardCreate session={session} onCreated={(data: Standard) => onAction(ObjectDialogAction.Add, data)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <StandardCreate
+                    onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onCreated={(data: Standard) => onAction(ObjectDialogAction.Add, data)}
+                    session={session}
+                />
             case 'edit':
-                return <StandardUpdate session={session} onUpdated={() => onAction(ObjectDialogAction.Save)} onCancel={() => onAction(ObjectDialogAction.Cancel)} />
+                return <StandardUpdate
+                    onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onUpdated={() => onAction(ObjectDialogAction.Save)}
+                    session={session}
+                />
             default:
-                return <StandardView session={session} partialData={partialData} />
+                return <StandardView
+                    partialData={partialData}
+                    session={session}
+                />
         }
     }, [state]);
 
     return (
         <BaseObjectDialog
-            title={title}
-            open={Boolean(params?.params)}
-            hasPrevious={hasPrevious}
             hasNext={hasNext}
+            hasPrevious={hasPrevious}
             onAction={onAction}
+            open={Boolean(params?.params)}
+            title={title}
         >
             {child}
         </BaseObjectDialog>

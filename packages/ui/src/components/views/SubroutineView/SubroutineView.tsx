@@ -4,12 +4,11 @@ import {
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
 import { ResourceListHorizontal } from "components";
-import { BaseForm } from "forms";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { containerShadow } from "styles";
 import { ResourceList, Routine, User } from "types";
-import { getTranslation, Pubs } from "utils";
+import { getOwnedByString, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 
@@ -29,32 +28,25 @@ export const SubroutineView = ({
         }
     }, [data]);
 
-    /**
-     * Name of user or organization that owns this routine
-     */
-     const ownedBy = useMemo<string | null>(() => {
-        if (!data?.owner) return null;
-        return getTranslation(data.owner, 'username', ['en']) ?? getTranslation(data.owner, 'name', ['en']);
-    }, [data?.owner]);
+    const ownedBy = useMemo<string | null>(() => getOwnedByString(data, getUserLanguages(session)), [data, session]);
+    const toOwner = useCallback(() => { toOwnedBy(data, setLocation) }, [data, setLocation]);
 
     // The schema for the form
     const [schema, setSchema] = useState<any>();
 
-    /**
-     * Navigate to owner's profile
-     */
-     const toOwner = useCallback(() => {
-        if (!data?.owner) {
-            PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });
-            return;
-        }
-        // Check if user or organization
-        if (data?.owner.hasOwnProperty('username')) {
-            setLocation(`${APP_LINKS.User}/${(data?.owner as User).username}`);
-        } else {
-            setLocation(`${APP_LINKS.Organization}/${data?.owner.id}`);
-        }
-    }, [data?.owner, setLocation]);
+    const resourceList = useMemo(() => {
+        if (!data || 
+            !Array.isArray(data.resourceLists) ||
+            data.resourceLists.length < 1 ||
+            data.resourceLists[0].resources.length < 1) return null;
+        return <ResourceListHorizontal
+            title={'Resources'}
+            list={(data as any).resourceLists[0]}
+            canEdit={false}
+            handleUpdate={() => { }} // Intentionally blank
+            session={session}
+        />
+    }, [data, session]);
 
     if (loading) return (
         <Box sx={{
@@ -115,13 +107,7 @@ export const SubroutineView = ({
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
             <Stack direction="column" spacing={2} padding={1}>
                 {/* Resources */}
-                {Array.isArray(data?.resourceLists) && (data?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
-                    title={'Resources'}
-                    list={(data as Routine).resourceLists[0]}
-                    canEdit={false}
-                    handleUpdate={() => { }}
-                    session={session}
-                /> : null}
+                {resourceList}
                 {/* Description */}
                 <Box sx={{
                     padding: 1,

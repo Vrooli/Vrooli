@@ -31,7 +31,7 @@ import {
 import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { MarkdownInput, ResourceListHorizontal } from 'components';
-import { getTranslation, Pubs } from 'utils';
+import { getOwnedByString, getTranslation, Pubs, toOwnedBy } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import { ResourceList, User } from 'types';
 import { useLocation } from 'wouter';
@@ -49,29 +49,8 @@ export const BuildInfoDialog = ({
 }: BuildInfoDialogProps) => {
     const [, setLocation] = useLocation();
 
-    /**
-     * Name of user or organization that owns this routine
-     */
-    const ownedBy = useMemo<string | null>(() => {
-        if (!routine?.owner) return null;
-        return getTranslation(routine.owner, 'username', [language]) ?? getTranslation(routine.owner, 'name', [language]);
-    }, [routine?.owner, language]);
-
-    /**
-     * Navigate to owner's profile
-     */
-    const toOwner = useCallback(() => {
-        if (!routine?.owner) {
-            PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });
-            return;
-        }
-        // Check if user or organization
-        if (routine.owner.hasOwnProperty('username')) {
-            setLocation(`${APP_LINKS.User}/${(routine.owner as User).username}`);
-        } else {
-            setLocation(`${APP_LINKS.Organization}/${routine.owner.id}`);
-        }
-    }, [routine?.owner, setLocation]);
+    const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
+    const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
     /**
      * Determines which action buttons to display
@@ -95,7 +74,7 @@ export const BuildInfoDialog = ({
             )
         }
         return results;
-    }, [isEditing, routine]);
+    }, [isEditing]);
 
     // Handle update
     const formik = useFormik({
@@ -114,7 +93,7 @@ export const BuildInfoDialog = ({
                 isInternal: values.isInternal,
                 version: values.version,
                 translations: [{
-                    language: 'en',
+                    language,
                     title: values.title,
                     description: values.description,
                     instructions: values.instructions,
@@ -141,11 +120,26 @@ export const BuildInfoDialog = ({
         }
     };
 
+    const resourceList = useMemo(() => {
+        if (!routine || 
+            !Array.isArray(routine.resourceLists) ||
+            routine.resourceLists.length < 1 ||
+            routine.resourceLists[0].resources.length < 1) return null;
+        return <ResourceListHorizontal
+            title={'Resources'}
+            list={(routine as any).resourceLists[0]}
+            canEdit={false}
+            handleUpdate={() => { }} // Intentionally blank
+            session={session}
+        />
+    }, [routine, session]);
+
     return (
         <>
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
                 <InfoIcon sx={sxs?.icon} />
             </IconButton>
+            {/* @ts-ignore TODO */}
             <SwipeableDrawer
                 anchor="right"
                 open={open}
@@ -195,12 +189,7 @@ export const BuildInfoDialog = ({
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
                     {/* Resources */}
-                    {Array.isArray(routine?.resourceLists) && (routine?.resourceLists as ResourceList[]).length > 0 ? <ResourceListHorizontal
-                        list={routine?.resourceLists[0] as ResourceList}
-                        canEdit={isEditing}
-                        handleUpdate={() => { }}
-                        session={session}
-                    /> : null}
+                    {resourceList}
                     {/* Description */}
                     <Box sx={{
                         padding: 1,
@@ -261,7 +250,6 @@ export const BuildInfoDialog = ({
                                     id='routine-info-dialog-is-internal'
                                     size="small"
                                     name='isInternal'
-                                    value='isInternal'
                                     color='secondary'
                                     checked={formik.values.isInternal}
                                     onChange={formik.handleChange}

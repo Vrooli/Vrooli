@@ -31,6 +31,7 @@ export function BaseSearchPage<DataType, SortBy>({
     popupButtonText,
     popupButtonTooltip = "Couldn't find what you were looking for? Try creating your own!",
     onPopupButtonClick,
+    session,
 }: BaseSearchPageProps<DataType, SortBy>) {
     const [, setLocation] = useLocation();
     // Handle url search
@@ -48,7 +49,7 @@ export function BaseSearchPage<DataType, SortBy>({
     const tabIndex = useMemo(() => {
         const index = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
         return Math.max(index, 0);
-    }, [window.location.pathname]);
+    }, []);
     const handleTabChange = (_e, newIndex) => { 
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
@@ -132,6 +133,7 @@ export function BaseSearchPage<DataType, SortBy>({
                 getOptionLabel={getOptionLabel}
                 onObjectSelect={onObjectSelect}
                 onScrolledFar={handleScrolledFar}
+                session={session}
             />
             {popupButtonContainer}
         </Box >

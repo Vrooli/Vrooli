@@ -22,6 +22,7 @@ import { emailSignUp } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
+import { PasswordTextField } from 'components';
 
 export const SignUpForm = ({
     onFormChange = () => { },
@@ -32,8 +33,8 @@ export const SignUpForm = ({
 
     const formik = useFormik({
         initialValues: {
-            marketingEmails: "true",
-            username: '',
+            marketingEmails: true,
+            name: '',
             email: '',
             password: '',
             confirmPassword: ''
@@ -61,6 +62,7 @@ export const SignUpForm = ({
                             buttons: [{ text: 'OK', onClick: () => onFormChange(Forms.ForgotPassword) }]
                         });
                     }
+                    formik.setSubmitting(false);
                 }
             })
         },
@@ -77,15 +79,15 @@ export const SignUpForm = ({
                         <TextField
                             fullWidth
                             autoFocus
-                            id="username"
-                            name="username"
-                            autoComplete="username"
-                            label="Username"
-                            value={formik.values.username}
+                            id="name"
+                            name="name"
+                            autoComplete="name"
+                            label="Name"
+                            value={formik.values.name}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
-                            error={formik.touched.username && Boolean(formik.errors.username)}
-                            helperText={formik.touched.username && formik.errors.username}
+                            error={formik.touched.name && Boolean(formik.errors.name)}
+                            helperText={formik.touched.name && formik.errors.name}
                         />
                     </Grid>
                     <Grid item xs={12}>
@@ -103,33 +105,31 @@ export const SignUpForm = ({
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <PasswordTextField
                             fullWidth
                             id="password"
                             name="password"
-                            type="password"
                             autoComplete="new-password"
                             label="Password"
                             value={formik.values.password}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
                             error={formik.touched.password && Boolean(formik.errors.password)}
-                            helperText={formik.touched.password && formik.errors.password}
+                            helperText={formik.touched.password ? formik.errors.password : null}
                         />
                     </Grid>
                     <Grid item xs={12}>
-                        <TextField
+                        <PasswordTextField
                             fullWidth
                             id="confirmPassword"
                             name="confirmPassword"
-                            type="password"
                             autoComplete="new-password"
                             label="Confirm Password"
                             value={formik.values.confirmPassword}
                             onBlur={formik.handleBlur}
                             onChange={formik.handleChange}
                             error={formik.touched.confirmPassword && Boolean(formik.errors.confirmPassword)}
-                            helperText={formik.touched.confirmPassword && formik.errors.confirmPassword}
+                            helperText={formik.touched.confirmPassword ? formik.errors.confirmPassword : null}
                         />
                     </Grid>
                     <Grid item xs={12}>
@@ -138,7 +138,6 @@ export const SignUpForm = ({
                                 <Checkbox
                                     id="marketingEmails"
                                     name="marketingEmails"
-                                    value="marketingEmails"
                                     color="secondary"
                                     checked={Boolean(formik.values.marketingEmails)}
                                     onBlur={formik.handleBlur}

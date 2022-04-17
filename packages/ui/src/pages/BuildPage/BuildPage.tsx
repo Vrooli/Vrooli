@@ -6,7 +6,7 @@ import { useMutation, useLazyQuery } from '@apollo/client';
 import { routineCreateMutation, routineDeleteOneMutation, routineUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/wrappers';
 import { routine, routineVariables } from 'graphql/generated/routine';
-import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate } from 'utils';
+import { deleteArrayIndex, formatForUpdate, BuildAction, BuildRunState, BuildStatus, Pubs, updateArray, getTranslation, formatForCreate, getUserLanguages } from 'utils';
 import {
     AddLink as AddLinkIcon,
     Compress as CleanUpIcon,
@@ -39,10 +39,14 @@ export const BuildPage = ({
     const [, params] = useRoute(`${APP_LINKS.Build}/:id`);
     const id: string = useMemo(() => params?.id ?? '', [params]);
     const [isEditing, setIsEditing] = useState<boolean>(false);
+
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
+    const handleLanguageUpdate = useCallback((language: string) => { setLanguage(language); }, []);
+
     // Queries routine data
     const [getData, { data: routineData, loading: loadingRead }] = useLazyQuery<routine, routineVariables>(routineQuery);
     useEffect(() => {
-        console.log('id here', id)
         // If not add, fetch data
         if (id && id !== 'add') getData({ variables: { input: { id } } });
         // If add, set initial data
@@ -64,19 +68,18 @@ export const BuildPage = ({
                 fromId: startNode.id,
                 toId: endNode.id,
             } as NodeLink
-            console.log('setting routine... ')
             setRoutine({
                 nodes: [startNode, endNode],
                 nodeLinks: [link],
                 translations: [{
-                    language: 'en',
+                    language,
                     title: 'New Routine',
                     instructions: 'Enter instructions here',
                 }]
             } as Routine)
             setIsEditing(true);
         }
-    }, [id, getData]);
+    }, [id, getData, language]);
     const [routine, setRoutine] = useState<Routine | null>(null);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
     useEffect(() => { if (routineData?.routine) setRoutine(routineData?.routine ?? null) }, [routineData]);
@@ -90,14 +93,12 @@ export const BuildPage = ({
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
     const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
-    const language = 'en';
-
+    
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);
     const toggleUnlinkedNodes = useCallback(() => setIsUnlinkedNodesOpen(curr => !curr), []);
 
     useEffect(() => {
-        console.log('setting changed routine', routine);
         setChangedRoutine(routine);
     }, [routine]);
 
@@ -361,8 +362,8 @@ export const BuildPage = ({
             input,
             successMessage: () => 'Routine created.',
             onSuccess: ({ data }) => { 
-                setRoutine(data.routineUpdate);
-                setLocation(`${APP_LINKS.Build}/${data.routineUpdate.id}`); 
+                setRoutine(data.routineCreate);
+                setLocation(`${APP_LINKS.Build}/${data.routineCreate.id}`); 
             },
         })
     }, [changedRoutine, mutationWrapper]);
@@ -423,7 +424,7 @@ export const BuildPage = ({
         if (!changedRoutine) return;
         setChangedRoutine({
             ...changedRoutine, translations: [
-                { language: 'en', title },
+                { language, title },
             ]
         } as any);
     }, [changedRoutine]);
@@ -544,8 +545,6 @@ export const BuildPage = ({
      * Deletes a subroutine from a node
      */
     const handleSubroutineDelete = useCallback((nodeId: string, subroutineId: string) => {
-        console.log('handle subroutine delete nodeId', nodeId, changedRoutine);
-        console.log('handle subroutine delete subroutineId', subroutineId, changedRoutine?.nodes?.findIndex(n => n.id === nodeId));
         if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
@@ -912,6 +911,7 @@ export const BuildPage = ({
                 nodes={changedRoutine?.nodes ?? []}
                 links={changedRoutine?.nodeLinks ?? []}
                 nodeId={addAfterLinkNode}
+                session={session}
             />}
             {/* Popup for "Add before" dialog */}
             {addBeforeLinkNode && <AddBeforeLinkDialog
@@ -921,6 +921,7 @@ export const BuildPage = ({
                 nodes={changedRoutine?.nodes ?? []}
                 links={changedRoutine?.nodeLinks ?? []}
                 nodeId={addBeforeLinkNode}
+                session={session}
             />}
             {/* Popup for creating new links */}
             {changedRoutine ? <LinkDialog
@@ -946,6 +947,7 @@ export const BuildPage = ({
             {/* Displays main routine's information and some buttons */}
             <BuildInfoContainer
                 canEdit={canEdit}
+                handleLanguageUpdate={handleLanguageUpdate}
                 handleRoutineAction={handleRoutineAction}
                 handleRoutineUpdate={updateRoutine}
                 handleStartEdit={startEditing}
@@ -1009,20 +1011,22 @@ export const BuildPage = ({
                 </Tooltip>
                 {/* Displays unlinked nodes */}
                 <UnlinkedNodesDialog
-                    open={isUnlinkedNodesOpen}
-                    nodes={nodesOffGraph}
                     handleNodeDelete={handleNodeDelete}
                     handleToggleOpen={toggleUnlinkedNodes}
+                    language={language}
+                    nodes={nodesOffGraph}
+                    open={isUnlinkedNodesOpen}
                 />
             </Box> : null}
             <Box sx={{
-                width: '100%',
+                bottom: '0',
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'fixed',
-                bottom: '0',
+                width: '100%',
             }}>
                 <NodeGraph
+                    columns={columns}
                     handleAction={handleAction}
                     handleLinkCreate={handleLinkCreate}
                     handleLinkUpdate={handleLinkUpdate}
@@ -1034,7 +1038,6 @@ export const BuildPage = ({
                     labelVisible={true}
                     language={language}
                     links={changedRoutine?.nodeLinks ?? []}
-                    columns={columns}
                     nodesById={nodesById}
                     scale={scale}
                 />
@@ -1046,8 +1049,8 @@ export const BuildPage = ({
                     handleAdd={createRoutine}
                     handleUpdate={updateRoutine}
                     handleScaleChange={handleScaleChange}
-                    hasPrevious={false}
                     hasNext={false}
+                    hasPrevious={false}
                     isAdding={id === 'add'}
                     isEditing={isEditing}
                     loading={loading}

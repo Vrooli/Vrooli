@@ -25,13 +25,15 @@ export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_own
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
 }
 
 export interface deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner = deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_Organization | deepRoutineNodeFields_data_NodeRoutineList_routines_routine_owner_User;

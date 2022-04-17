@@ -5,6 +5,7 @@ import { DeleteOneInput, Node, NodeCreateInput, NodeUpdateInput, Success } from 
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from '@prisma/client';
+import { rateLimit } from '../rateLimit';
 const { NodeType } = pkg;
 
 export const typeDef = gql`
@@ -291,14 +292,17 @@ export const resolvers = {
          * Note that the order of a routine (i.e. previous, next) cannot be updated with this mutation. 
          * @returns Updated node
          */
-        nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            return createHelper(req.userId, input, info, NodeModel(prisma));
+        nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
+            await rateLimit({ context, info, max: 2000, byAccount: true });
+            return createHelper(context.req.userId, input, info, NodeModel(context.prisma));
         },
-        nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
-            return updateHelper(req.userId, input, info, NodeModel(prisma));
+        nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
+            await rateLimit({ context, info, max: 2000, byAccount: true });
+            return updateHelper(context.req.userId, input, info, NodeModel(context.prisma));
         },
-        nodeDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, _info: GraphQLResolveInfo): Promise<Success> => {
-            return deleteOneHelper(req.userId, input, NodeModel(prisma));
+        nodeDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            await rateLimit({ context, info, max: 1000, byAccount: true });
+            return deleteOneHelper(context.req.userId, input, NodeModel(context.prisma));
         }
     }
 }

@@ -163,7 +163,7 @@ export const NodeEdge = ({
         return () => {
             if (dragRef.current) clearInterval(dragRef.current);
         }
-    }, [dragId, calculateDims, link.fromId, link.toId, scale]);
+    }, [calculateDims, dragId, link.fromId, link.toId, scale]);
 
     /**
      * Edge component
@@ -317,7 +317,7 @@ export const NodeEdge = ({
                 </Popover>
             </>
         );
-    }, [isEditOpen, isEditing, isFromRoutineList, isToRoutineList, dims, scale]);
+    }, [dims, isEditing, isEditOpen, isFromRoutineList, isToRoutineList, scale]);
 
     return (
         <>

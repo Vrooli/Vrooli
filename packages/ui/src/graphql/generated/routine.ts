@@ -51,6 +51,7 @@ export interface routine_routine_inputs_standard {
 export interface routine_routine_inputs {
   __typename: "InputItem";
   id: string;
+  isRequired: boolean | null;
   name: string | null;
   translations: routine_routine_inputs_translations[];
   standard: routine_routine_inputs_standard | null;
@@ -95,13 +96,15 @@ export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_own
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: routine_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
 }
 
 export interface routine_routine_nodes_data_NodeRoutineList_routines_routine_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type routine_routine_nodes_data_NodeRoutineList_routines_routine_owner = routine_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization | routine_routine_nodes_data_NodeRoutineList_routines_routine_owner_User;
@@ -257,13 +260,15 @@ export interface routine_routine_owner_Organization_translations {
 export interface routine_routine_owner_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: routine_routine_owner_Organization_translations[];
 }
 
 export interface routine_routine_owner_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type routine_routine_owner = routine_routine_owner_Organization | routine_routine_owner_User;

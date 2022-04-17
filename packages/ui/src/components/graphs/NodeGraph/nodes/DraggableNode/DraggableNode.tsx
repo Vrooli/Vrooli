@@ -101,6 +101,7 @@ export const DraggableNode = ({
     }, [nodeId]);
 
     return (
+        // @ts-ignore TODO
         <Draggable
             handle=".handle"
             defaultPosition={{ x: 0, y: 0 }}

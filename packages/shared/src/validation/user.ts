@@ -1,18 +1,15 @@
-import { idArray, id, language, bio } from './base';
+import { idArray, id, language, bio, name, handle } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 
-export const MIN_USERNAME_LENGTH = 3;
-export const MAX_USERNAME_LENGTH = 25;
-export const USERNAME_REGEX = /^[a-zA-Z0-9_.-]*$/;
-export const USERNAME_REGEX_ERROR = `Characters allowed: letters, numbers, '-', '.', '_'`;
+export const theme = yup.string().max(128);
+
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 50;
 // See https://stackoverflow. com/a/21456918/10240279 for more options
 export const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]{8,}$/;
 export const PASSWORD_REGEX_ERROR = "Must be at least 8 characters, with at least one character and one number";
 
-export const usernameSchema = yup.string().min(MIN_USERNAME_LENGTH).max(MAX_USERNAME_LENGTH).matches(USERNAME_REGEX, USERNAME_REGEX_ERROR);
 export const passwordSchema = yup.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH).matches(PASSWORD_REGEX, PASSWORD_REGEX_ERROR);
 
 export const emailSchema = yup.object().shape({
@@ -25,7 +22,7 @@ export const emailSchema = yup.object().shape({
 
 // Schema for creating a new account
 export const emailSignUpSchema = yup.object().shape({
-    username: usernameSchema.required(),
+    name: name.required(),
     email: yup.string().email().required(),
     marketingEmails: yup.boolean().required(),
     password: passwordSchema.required(),
@@ -45,17 +42,22 @@ export const userTranslationsCreate = yup.array().of(userTranslationCreate.requi
 export const userTranslationsUpdate = yup.array().of(userTranslationUpdate.required())
 
 export const profileUpdateSchema = yup.object().shape({
-    username: usernameSchema.required(),
-    email: yup.string().email().required(),
-    theme: yup.string().max(128).required(),
+    name: name.notRequired().default(undefined),
+    handle: handle.notRequired().default(undefined),
+    theme: theme.notRequired().default(undefined),
     starredTagsCreate: tagsCreate.notRequired().default(undefined),
     starredTagsConnect: idArray.notRequired().default(undefined),
     starredTagsDisconnect: idArray.notRequired().default(undefined),
     hiddenTagsCreate: tagsCreate.notRequired().default(undefined),
     hiddenTagsConnect: idArray.notRequired().default(undefined),
     hiddenTagsDisconnect: idArray.notRequired().default(undefined),
-    // Don't apply validation to current password. If you change password requirements, users would be unable to change their password
-    currentPassword: yup.string().max(128).required(),
+    // Don't apply validation to current password. If you change password requirements, users would be unable to change their password. 
+    // Also only require current password when changing new password
+    currentPassword: yup.string().max(128).when('newPassword', {
+        is: (newPassword: string | undefined) => !!newPassword,
+        then: yup.string().required(),
+        otherwise: yup.string().notRequired(),
+    }),
     newPassword: passwordSchema.notRequired().default(undefined),
     newPasswordConfirmation: yup.string().oneOf([yup.ref('newPassword'), null], 'Passwords must match'),
     translationsDelete: idArray.notRequired().default(undefined),
@@ -74,7 +76,7 @@ export const emailLogInForm = yup.object().shape({
 /**
  * Schema for traditional email/password log in.
  */
- export const emailLogInSchema = yup.object().shape({
+export const emailLogInSchema = yup.object().shape({
     email: yup.string().email().notRequired().default(undefined),
     password: yup.string().max(128).notRequired().default(undefined),
     verificationCode: yup.string().max(128).notRequired().default(undefined),

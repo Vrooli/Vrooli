@@ -72,12 +72,10 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         isAdd: boolean = true,
         relationshipName: string = 'resourceLists',
     ): Promise<{ [x: string]: any } | undefined> {
-        console.log('resourcelists relationshipbuilder starttttt', JSON.stringify(input))
         const fieldExcludes = ['createdFor', 'createdForId'];
         // Convert input to Prisma shape. Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by resource lists (since they can only be applied to one object)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        console.log('resourcelists relationshipbuilder formattedInput', JSON.stringify(formattedInput))
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({
@@ -105,7 +103,6 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             }
             formattedInput.update = updates;
         }
-        console.log('resourcelistbuilder complete', JSON.stringify(formattedInput));
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({

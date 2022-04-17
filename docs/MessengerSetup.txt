@@ -11,7 +11,8 @@ To generate the password, select Other and set the name to something memorable (
 
 Then, you will need to set the following environment variables on the server:
 SITE_EMAIL_USERNAME - What you login as (ex: personalaccount@gmail.ccom)
-SITE_EMAIL_FROM - Who the recipient thinks the email is from (ex: no-reply@faroutrides.fakesite)
+SITE_EMAIL_ALIAS - What sender address the user sees. Can be the same as SITE_EMAIL_USERNAME, or can be an alias you've set up
+SITE_EMAIL_FROM - What sender name the user sees
 SITE_EMAIL_PASSWORD - The app password generated in the previous step
 TWILIO_ACCOUNT_SID - Can be found at twilio.com/console
 TWILIO_AUTH_TOKEN - Can be found at twilio.com/console

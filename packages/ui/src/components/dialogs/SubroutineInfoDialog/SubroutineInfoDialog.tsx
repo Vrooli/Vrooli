@@ -20,7 +20,7 @@ import {
 import { useLocation } from 'wouter';
 import { User } from 'types';
 import { SubroutineInfoDialogProps } from '../types';
-import { getTranslation, Pubs } from 'utils';
+import { getOwnedByString, getTranslation, Pubs, toOwnedBy } from 'utils';
 import { APP_LINKS } from '@local/shared';
 import Markdown from 'markdown-to-jsx';
 import { routineUpdateForm as validationSchema } from '@local/shared';
@@ -37,29 +37,9 @@ export const SubroutineInfoDialog = ({
     onClose,
 }: SubroutineInfoDialogProps) => {
     const [, setLocation] = useLocation();
-    /**
-     * Name of user or organization that owns this routine
-     */
-    const ownedBy = useMemo<string | null>(() => {
-        if (!subroutine?.owner) return null;
-        return getTranslation(subroutine.owner, 'username', [language]) ?? getTranslation(subroutine.owner, 'name', [language]);
-    }, [subroutine?.owner, language]);
 
-    /**
-     * Navigate to owner's profile
-     */
-    const toOwner = useCallback(() => {
-        if (!subroutine?.owner) {
-            PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });
-            return;
-        }
-        // Check if user or organization
-        if (subroutine?.owner.hasOwnProperty('username')) {
-            setLocation(`${APP_LINKS.User}/${(subroutine?.owner as User).username}`);
-        } else {
-            setLocation(`${APP_LINKS.Organization}/${subroutine?.owner.id}`);
-        }
-    }, [subroutine?.owner, setLocation]);
+    const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine, [language]), [subroutine, language]);
+    const toOwner = useCallback(() => { toOwnedBy(subroutine, setLocation) }, [subroutine, setLocation]);
 
     // Handle update
     const formik = useFormik({
@@ -78,7 +58,7 @@ export const SubroutineInfoDialog = ({
                 isInternal: values.isInternal,
                 version: values.version,
                 translations: [{
-                    language: 'en',
+                    language,
                     title: values.title,
                     description: values.description,
                     instructions: values.instructions,
@@ -95,6 +75,7 @@ export const SubroutineInfoDialog = ({
     }, [handleViewFull]);
 
     return (
+        // @ts-ignore TODO
         <SwipeableDrawer
             anchor="bottom"
             variant='persistent'

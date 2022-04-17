@@ -35,8 +35,8 @@ const useStyles = makeStyles(() => ({
             },
         },
         '#page': {
-            minWidth: '100%',
-            minHeight: '100%',
+            minWidth: '100vw',
+            minHeight: '100vh',
             padding: '0.5em',
             paddingTop: '10vh'
         },
@@ -92,7 +92,7 @@ export function App() {
                 }
             }, 0);
         }
-    }, []); // do this on route change
+    }, [window.location.hash]); // do this on route change
 
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);

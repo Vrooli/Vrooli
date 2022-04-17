@@ -19,11 +19,12 @@ import * as Star from './star';
 import * as Tag from './tag';
 import * as User from './user';
 import * as Vote from './vote';
+import * as Wallet from './wallet';
 
 const models = [
     Root, Auth, Comment, Email, Feedback, Log, Node,
     Organization, Project, Report, Resource, ResourceList, Role,
-    Routine, Standard, Star, Tag, User, Vote
+    Routine, Standard, Star, Tag, User, Vote, Wallet
 ]
 
 export const schema = makeExecutableSchema({

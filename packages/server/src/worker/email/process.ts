@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 
 export async function emailProcess(job: any) {
     transporter.sendMail({
-        from : `"${process.env.SITE_EMAIL_FROM}" <${process.env.SITE_EMAIL_USERNAME}>`,
+        from : `"${process.env.SITE_EMAIL_FROM}" <${process.env.SITE_EMAIL_ALIAS ?? process.env.SITE_EMAIL_USERNAME}>`,
         to: job.data.to.join(', '),
         subject: job.data.subject,
         text: job.data.text,

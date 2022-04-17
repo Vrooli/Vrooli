@@ -13,6 +13,7 @@ import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
 import { ResourceListModel } from "./resourceList";
+import { WalletModel } from "./wallet";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -126,7 +127,7 @@ export const profileValidater = () => ({
             });
         }
         // If account is deleted or hard-locked, throw error
-        if (unable_to_reset.includes(user.status)) throw new CustomError(CODE.BadCredentials);
+        if (unable_to_reset.includes(user.status)) throw new CustomError(CODE.BadCredentials, 'Account is locked. Please contact us for assistance');
         // If password is valid
         if (this.validatePassword(password, user)) {
             const userData = await prisma.user.update({
@@ -202,7 +203,8 @@ export const profileValidater = () => ({
      * @param emailAddress Email address string
      * @param userId ID of user who owns email
      * @param code Verification code
-     * @returns Updated user object
+     * @param prisma 
+     * @returns True if email was is verified
      */
     async validateVerificationCode(emailAddress: string, userId: string, code: string, prisma: PrismaType): Promise<boolean> {
         // Find email data
@@ -225,6 +227,7 @@ export const profileValidater = () => ({
                 where: { id: email.id },
                 data: { verificationCode: null, lastVerificationCodeRequestAttempt: null }
             })
+            return true;
         }
         // Otherwise, validate code
         else {
@@ -234,13 +237,14 @@ export const profileValidater = () => ({
                     where: { id: email.id },
                     data: { verified: true, verificationCode: null, lastVerificationCodeRequestAttempt: null }
                 })
+                return true;
             }
             // If email is not verified, set up new verification code
             else if (!email.verified) {
                 await this.setupVerificationCode(emailAddress, prisma);
             }
+            return false;
         }
-        return true;
     },
     /**
      * Creates session object from user
@@ -290,50 +294,51 @@ const profileQuerier = (prisma: PrismaType) => ({
         info: InfoType,
     ): Promise<RecursivePartial<Profile> | null> {
         const profileData = await readOneHelper<Profile>(userId, { id: userId }, info, ProfileModel(prisma) as any);
-        const starredTags: Tag[] = (await prisma.star.findMany({
+        const starFields = {
+            id: true,
+            created_at: true,
+            isStarred: true,
+            tag: true,
+            stars: true,
+            translations: {
+                id: true,
+                language: true,
+                description: true,
+            },
+        }
+        // Query starred tags
+        const starredTagIds = (await prisma.star.findMany({
             where: {
                 AND: [
                     { byId: userId },
                     { NOT: { tagId: null } }
                 ]
             },
+            select: { tagId: true }
+        })).filter((star: any) => star.tagId).map((star: any) => star.tagId);
+        const starredTags = (await readManyHelper(userId, { ids: starredTagIds, take: 200 }, starFields, TagModel(prisma)))
+            .edges.map((edge: any) => edge.node);
+        // Query hidden tags
+        const hiddenData = (await prisma.user_tag_hidden.findMany({
+            where: { userId },
             select: {
-                tag: {
-                    select: {
-                        id: true,
-                        tag: true,
-                        stars: true,
-                        translations: {
-                            select: {
-                                id: true,
-                                language: true,
-                                description: true,
-                            }
-                        },
-                    }
-                }
-            }
-        })).map(({ tag }) => tag as any) as Tag[]
-        const hiddenTags: TagHidden[] = (await prisma.user_tag_hidden.findMany({
-            where: { userId: userId },
-            select: {
+                id: true,
+                tagId: true,
                 isBlur: true,
-                tag: {
-                    select: {
-                        id: true,
-                        tag: true,
-                        stars: true,
-                        translations: {
-                            select: {
-                                id: true,
-                                language: true,
-                                description: true,
-                            }
-                        },
-                    }
-                }
             }
-        })) as any[]
+        }));
+        const hiddenTagIds = hiddenData.map((hidden: any) => hidden.tagId);
+        const hiddenTags = (await readManyHelper(userId, { ids: hiddenTagIds, take: 200 }, starFields, TagModel(prisma)))
+            .edges.map((edge: any) => {
+                // Combine tags with hidden data
+                const extraData = hiddenData.find((hidden: any) => hidden.tagId === edge.node.id);
+                return {
+                    id: extraData?.id ?? '',
+                    isBlur: extraData?.isBlur ?? false,
+                    tagId: extraData?.tagId ?? '',
+                    tag: edge.node,
+                }
+            })
         return { ...profileData, starredTags, hiddenTags };
     },
     /**
@@ -374,10 +379,8 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         input: ProfileUpdateInput,
         info: InfoType,
     ): Promise<RecursivePartial<Profile>> {
-        // Check for valid arguments
-        if (!input.username || input.username.length < 1) throw new CustomError(CODE.InternalError, 'Name too short');
-        // Check for censored words
-        if (hasProfanity(input.username)) throw new CustomError(CODE.BannedWord);
+        await WalletModel(prisma).verifyHandle(GraphQLModelType.User, userId, input.handle);
+        if (hasProfanity(input.name)) throw new CustomError(CODE.BannedWord);
         TranslationModel().profanityCheck(input);
         TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio)
         // Convert info to partial select
@@ -385,22 +388,22 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
         // Create user data
         let userData: { [x: string]: any } = {
-            username: input.username,
+            handle: input.handle,
+            name: input.name,
             theme: input.theme,
-            // Handle tags TODO probably doesn't work
-            hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
-                id: userId,
-                tagsCreate: input.hiddenTagsCreate,
-                tagsConnect: input.hiddenTagsConnect,
-                tagsDisconnect: input.hiddenTagsDisconnect,
-            }),
-            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
-            stars: await TagModel(prisma).relationshipBuilder(userId, {
-                id: userId,
-                tagsCreate: input.starredTagsCreate,
-                tagsConnect: input.starredTagsConnect,
-                tagsDisconnect: input.starredTagsDisconnect,
-            }),
+            // hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
+            //     id: userId,
+            //     tagsCreate: input.hiddenTagsCreate,
+            //     tagsConnect: input.hiddenTagsConnect,
+            //     tagsDisconnect: input.hiddenTagsDisconnect,
+            // }, GraphQLModelType.User), //TODO will break because there needs to be a model between the user and tags
+            // resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
+            // starred: await TagModel(prisma).relationshipBuilder(userId, {
+            //     id: userId,
+            //     tagsCreate: input.starredTagsCreate,
+            //     tagsConnect: input.starredTagsConnect,
+            //     tagsDisconnect: input.starredTagsDisconnect,
+            // }, GraphQLModelType.User),
             translations: TranslationModel().relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
         };
         // Update user

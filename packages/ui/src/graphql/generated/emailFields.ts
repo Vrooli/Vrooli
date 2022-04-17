@@ -13,4 +13,5 @@ export interface emailFields {
   emailAddress: string;
   receivesAccountUpdates: boolean;
   receivesBusinessUpdates: boolean;
+  verified: boolean;
 }

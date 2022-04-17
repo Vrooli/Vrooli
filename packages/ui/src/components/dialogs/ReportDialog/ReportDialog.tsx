@@ -10,10 +10,12 @@ import { ReportDialogProps } from '../types';
 import {
     Close as CloseIcon
 } from '@mui/icons-material';
-import { Pubs } from 'utils';
+import { getUserLanguages, Pubs } from 'utils';
+import { useEffect, useState } from 'react';
+import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
 
 const helpText =
-`Reports help us moderate content. For now, reports will be handled by moderators. 
+    `Reports help us moderate content. For now, reports will be handled by moderators. 
 
 In the future, we would like to implement a community governance system.
 `
@@ -35,12 +37,16 @@ const ReportReasons = {
 }
 
 export const ReportDialog = ({
-    open,
-    onClose,
-    title = 'Report',
-    reportFor,
     forId,
+    onClose,
+    open,
+    reportFor,
+    session,
+    title = 'Report',
 }: ReportDialogProps) => {
+
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
 
     const [mutation, { loading }] = useMutation<reportCreate>(reportCreateMutation);
     const formik = useFormik({
@@ -48,13 +54,14 @@ export const ReportDialog = ({
             reason: '',
             otherReason: '',
             details: '',
-            language: 'en',
+            language,
         },
         validationSchema,
         onSubmit: (values) => {
             mutationWrapper({
                 mutation,
                 input: {
+                    language,
                     reason: values.otherReason.length > 0 ? values.otherReason : values.reason,
                     createdFor: reportFor,
                     createdForId: forId
@@ -65,6 +72,7 @@ export const ReportDialog = ({
                     formik.resetForm();
                     onClose()
                 },
+                onError: () => { formik.setSubmitting(false) },
             })
         },
     });
@@ -95,11 +103,18 @@ export const ReportDialog = ({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                 }}>
-                    <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                        {title}
-                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
-                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ marginLeft: 'auto' }}>
+                        <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
+                            {title}
+                        </Typography>
+                        <SelectLanguageDialog
+                            language={language}
+                            handleSelect={setLanguage}
+                            session={session}
+                        />
+                    </Stack>
                     <Box sx={{ marginLeft: 'auto' }}>
+                        <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
                         <IconButton
                             edge="start"
                             onClick={handleClose}

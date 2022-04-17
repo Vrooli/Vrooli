@@ -40,13 +40,15 @@ export interface standardUpdate_standardUpdate_creator_Organization_translations
 export interface standardUpdate_standardUpdate_creator_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: standardUpdate_standardUpdate_creator_Organization_translations[];
 }
 
 export interface standardUpdate_standardUpdate_creator_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type standardUpdate_standardUpdate_creator = standardUpdate_standardUpdate_creator_Organization | standardUpdate_standardUpdate_creator_User;

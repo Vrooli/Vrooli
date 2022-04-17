@@ -356,6 +356,8 @@ export const MarkdownInput = ({
                             style={{
                                 minWidth: '-webkit-fill-available',
                                 maxWidth: '-webkit-fill-available',
+                                minHeight: '50px',
+                                maxHeight: '800px',
                                 background: 'transparent',
                                 borderColor: error ? 'red' : 'unset',
                                 borderRadius: '0 0 0.5rem 0.5rem',

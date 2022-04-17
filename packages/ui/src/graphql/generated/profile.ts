@@ -15,12 +15,22 @@ export interface profile_profile_emails {
   emailAddress: string;
   receivesAccountUpdates: boolean;
   receivesBusinessUpdates: boolean;
+  verified: boolean;
+}
+
+export interface profile_profile_wallets_handles {
+  __typename: "Handle";
+  id: string;
+  handle: string;
 }
 
 export interface profile_profile_wallets {
   __typename: "Wallet";
+  id: string;
   name: string | null;
-  publicAddress: string;
+  publicAddress: string | null;
+  stakingAddress: string;
+  handles: profile_profile_wallets_handles[];
   verified: boolean;
 }
 
@@ -111,7 +121,8 @@ export interface profile_profile_resourceLists {
 export interface profile_profile {
   __typename: "Profile";
   id: string;
-  username: string | null;
+  handle: string | null;
+  name: string;
   emails: profile_profile_emails[];
   wallets: profile_profile_wallets[];
   theme: string;

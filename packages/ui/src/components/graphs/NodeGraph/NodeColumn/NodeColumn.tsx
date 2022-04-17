@@ -15,6 +15,7 @@ export const NodeColumn = ({
     isEditing,
     columnIndex,
     labelVisible,
+    language,
     dragId,
     nodes,
     scale = 1,
@@ -75,6 +76,7 @@ export const NodeColumn = ({
                         {...nodeProps}
                         canExpand={true}
                         handleUpdate={handleNodeUpdate}
+                        language={language}
                     />)
                 case NodeType.Start:
                     return <StartNode {...nodeProps} />
@@ -82,7 +84,7 @@ export const NodeColumn = ({
                     return null;
             }
         })
-    }, [dragId, nodes, scale, labelVisible, isEditing]);
+    }, [dragId, isEditing, labelVisible, nodes, scale]);
 
     return (
         <Stack

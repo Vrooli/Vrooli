@@ -1,5 +1,6 @@
 export * from './ActorListItem/ActorListItem';
 export * from './DateRangeMenu/DateRangeMenu';
+export * from './email';
 export * from './OrganizationListItem/OrganizationListItem';
 export * from './ProjectListItem/ProjectListItem';
 export * from './resource';
@@ -12,3 +13,4 @@ export * from './StatsList/StatsList';
 export * from './TagList/TagList';
 export * from './TimeMenu/TimeMenu';
 export * from './UpvoteDownvote/UpvoteDownvote';
+export * from './wallet';

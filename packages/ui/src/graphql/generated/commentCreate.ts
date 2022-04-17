@@ -19,6 +19,7 @@ export interface commentCreate_commentCreate_commentedOn_Project_translations {
 export interface commentCreate_commentCreate_commentedOn_Project {
   __typename: "Project";
   id: string;
+  handle: string | null;
   translations: commentCreate_commentCreate_commentedOn_Project_translations[];
 }
 
@@ -53,13 +54,15 @@ export interface commentCreate_commentCreate_creator_Organization_translations {
 export interface commentCreate_commentCreate_creator_Organization {
   __typename: "Organization";
   id: string;
+  handle: string | null;
   translations: commentCreate_commentCreate_creator_Organization_translations[];
 }
 
 export interface commentCreate_commentCreate_creator_User {
   __typename: "User";
   id: string;
-  username: string | null;
+  name: string;
+  handle: string | null;
 }
 
 export type commentCreate_commentCreate_creator = commentCreate_commentCreate_creator_Organization | commentCreate_commentCreate_creator_User;

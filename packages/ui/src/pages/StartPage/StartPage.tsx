@@ -85,7 +85,11 @@ export const StartPage = ({
                 mutationWrapper({
                     mutation: emailLogIn,
                     input: { verificationCode },
-                    onSuccess: (response) => { PubSub.publish(Pubs.Session, response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) },
+                    onSuccess: (response) => { 
+                        PubSub.publish(Pubs.Snack, { message: 'Email verified!' });
+                        PubSub.publish(Pubs.Session, response.data.emailLogIn); 
+                        setLocation(redirect ?? APP_LINKS.Home) 
+                    },
                     onError: (response) => {
                         if (Array.isArray(response.graphQLErrors) && response.graphQLErrors.some(e => e.extensions.code === CODE.MustResetPassword.code)) {
                             PubSub.publish(Pubs.AlertDialog, {
@@ -104,19 +108,19 @@ export const StartPage = ({
                 setPopupForm(Forms.LogIn);
             }
         }
-    })
+    }, [emailLogIn, verificationCode, redirect, session.id])
 
-    // Wallet connect popup
-    const [walletOptionPopupOpen, setWalletOptionPopupOpen] = useState(false);
+    // Wallet provider select popup
+    const [providerOpen, setProviderPopupOpen] = useState(false);
     const [walletDialogFor, setWalletDialogFor] = useState<'connect' | 'download'>('connect');
     const openWalletConnectDialog = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
         setWalletDialogFor('connect');
-        setWalletOptionPopupOpen(true);
+        setProviderPopupOpen(true);
         ev.preventDefault();
     }, []);
     const openWalletDownloadDialog = useCallback((ev: MouseEvent<HTMLButtonElement>) => {
         setWalletDialogFor('download');
-        setWalletOptionPopupOpen(true);
+        setProviderPopupOpen(true);
         ev.preventDefault();
     }, []);
 
@@ -145,7 +149,7 @@ export const StartPage = ({
         // Check if wallet extension installed
         if (!hasWalletExtension(provider)) {
             PubSub.publish(Pubs.AlertDialog, {
-                message: 'Wallet not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
+                message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
                 buttons: [
                     { text: 'Try Again', onClick: walletLogin },
                     { text: 'Install Wallet', onClick: openWalletDownloadDialog },
@@ -163,7 +167,7 @@ export const StartPage = ({
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
         }
-    }, [downloadExtension, setLocation, redirect, toEmailLogIn])
+    }, [downloadExtension, openWalletDownloadDialog, setLocation, redirect, toEmailLogIn])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({
@@ -175,17 +179,17 @@ export const StartPage = ({
         })
     }, [guestLogIn, setLocation, redirect]);
 
+    const handleProviderClose = useCallback(() => {
+        setProviderPopupOpen(false);
+    }, [])
     const handleWalletDialogSelect = useCallback((selected: WalletProvider) => {
         if (walletDialogFor === 'connect') {
             walletLogin(selected);
         } else if (walletDialogFor === 'download') {
             downloadExtension(selected);
         }
-        handleWalletDialogClose();
-    }, []);
-    const handleWalletDialogClose = useCallback(() => {
-        setWalletOptionPopupOpen(false);
-    }, []);
+        handleProviderClose();
+    }, [walletDialogFor, walletLogin, downloadExtension, handleProviderClose])
 
     return (
         <Box
@@ -196,9 +200,9 @@ export const StartPage = ({
             }}
         >
             <Dialog
-                open={walletOptionPopupOpen}
+                open={providerOpen}
                 disableScrollLock={true}
-                onClose={handleWalletDialogClose}
+                onClose={handleProviderClose}
             >
                 <Box
                     sx={{

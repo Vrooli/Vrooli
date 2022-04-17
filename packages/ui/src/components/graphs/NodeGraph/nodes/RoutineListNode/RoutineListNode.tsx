@@ -24,7 +24,7 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, Pubs, updateTranslationField } from 'utils';
+import { getTranslation, BuildAction, Pubs, updateTranslationField, getUserLanguages } from 'utils';
 import { EditableLabel } from 'components/inputs';
 
 export const RoutineListNode = ({
@@ -34,6 +34,7 @@ export const RoutineListNode = ({
     handleUpdate,
     isLinked,
     labelVisible,
+    language,
     isEditing,
     node,
     scale = 1,
@@ -50,7 +51,7 @@ export const RoutineListNode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate({
             ...node,
-            translations: updateTranslationField(node, 'title', newLabel, 'en') as any[],
+            translations: updateTranslationField(node, 'title', newLabel, language) as any[],
         });
     }, [handleUpdate, node]);
 
@@ -98,7 +99,7 @@ export const RoutineListNode = ({
 
     const { label } = useMemo(() => {
         return {
-            label: getTranslation(node, 'title', ['en'], true),
+            label: getTranslation(node, 'title', [language], true),
         }
     }, [node]);
 
@@ -185,7 +186,6 @@ export const RoutineListNode = ({
                             id={`${label ?? ''}-ordered-option`}
                             size="small"
                             name='isOrderedCheckbox'
-                            value='isOrderedCheckbox'
                             color='secondary'
                             checked={(node?.data as NodeDataRoutineList)?.isOrdered}
                             onChange={onOrderedChange}
@@ -204,7 +204,6 @@ export const RoutineListNode = ({
                             id={`${label ?? ''}-optional-option`}
                             size="small"
                             name='isOptionalCheckbox'
-                            value='isOptionalCheckbox'
                             color='secondary'
                             checked={(node?.data as NodeDataRoutineList)?.isOptional}
                             onChange={onOptionalChange}
@@ -228,6 +227,7 @@ export const RoutineListNode = ({
             isEditing={isEditing}
             isOpen={collapseOpen}
             labelVisible={labelVisible}
+            language={language}
             scale={scale}
         />
     )), [collapseOpen, node?.data, isEditing, labelVisible, scale]);

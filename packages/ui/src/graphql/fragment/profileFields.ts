@@ -29,16 +29,24 @@ export const profileFields = gql`
     }
     fragment profileFields on Profile {
         id
-        username
+        handle
+        name
         emails {
             id
             emailAddress
             receivesAccountUpdates
             receivesBusinessUpdates
+            verified
         }
         wallets {
+            id
             name
             publicAddress
+            stakingAddress
+            handles {
+                id
+                handle
+            }
             verified
         }
         theme

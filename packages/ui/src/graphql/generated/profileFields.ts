@@ -15,12 +15,22 @@ export interface profileFields_emails {
   emailAddress: string;
   receivesAccountUpdates: boolean;
   receivesBusinessUpdates: boolean;
+  verified: boolean;
+}
+
+export interface profileFields_wallets_handles {
+  __typename: "Handle";
+  id: string;
+  handle: string;
 }
 
 export interface profileFields_wallets {
   __typename: "Wallet";
+  id: string;
   name: string | null;
-  publicAddress: string;
+  publicAddress: string | null;
+  stakingAddress: string;
+  handles: profileFields_wallets_handles[];
   verified: boolean;
 }
 
@@ -111,7 +121,8 @@ export interface profileFields_resourceLists {
 export interface profileFields {
   __typename: "Profile";
   id: string;
-  username: string | null;
+  handle: string | null;
+  name: string;
   emails: profileFields_emails[];
   wallets: profileFields_wallets[];
   theme: string;

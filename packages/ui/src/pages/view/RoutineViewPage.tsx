@@ -48,30 +48,30 @@ export const RoutineViewPage = ({
         <Box pt="10vh" sx={{ minHeight: '88vh' }}>
             {/* Add dialog */}
             <BaseObjectDialog
-                title={"Add Routine"}
-                open={isAddDialogOpen}
-                hasPrevious={false}
                 hasNext={false}
+                hasPrevious={false}
                 onAction={onAction}
+                open={isAddDialogOpen}
+                title={"Add Routine"}
             >
                 <RoutineCreate
-                    session={session}
-                    onCreated={(data: Routine) => onAction(ObjectDialogAction.Add, data)}
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onCreated={(data: Routine) => onAction(ObjectDialogAction.Add, data)}
+                    session={session}
                 />
             </BaseObjectDialog>
             {/* Update dialog */}
             <BaseObjectDialog
-                title={"Update Routine"}
-                open={isEditDialogOpen}
-                hasPrevious={false}
                 hasNext={false}
+                hasPrevious={false}
                 onAction={onAction}
+                open={isEditDialogOpen}
+                title={"Update Routine"}
             >
                 <RoutineUpdate
-                    session={session}
-                    onUpdated={() => onAction(ObjectDialogAction.Save)}
                     onCancel={() => onAction(ObjectDialogAction.Cancel)}
+                    onUpdated={() => onAction(ObjectDialogAction.Save)}
+                    session={session}
                 />
             </BaseObjectDialog>
             {/* Main view */}

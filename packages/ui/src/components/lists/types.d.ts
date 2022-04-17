@@ -85,7 +85,7 @@ export interface SearchListGenerator {
     noResultsText: string;
     sortOptions: LabelledSortOption<any>[];
     defaultSortOption: LabelledSortOption<any>;
-    sortOptionLabel: (sortOption: any) => string;
+    sortOptionLabel: (sortOption: any, languages: readonly string[]) => string;
     searchQuery: any;
     where: any;
     onSearchSelect: (objectData: any) => void;
@@ -106,11 +106,12 @@ export interface SearchListProps<DataType, SortBy> {
     setSortBy: (sortBy: string | undefined) => void;
     setTimeFrame: (timeFrame: string | undefined) => void;
     listItemFactory: (node: DataType, index: number) => JSX.Element | null;
-    getOptionLabel: (option: any) => string;
+    getOptionLabel: (option: any, languages: readonly string[]) => string;
     onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
     noResultsText?: string; // Text to display when no results are found
+    session: Session;
 }
 
 export interface TagListProps {

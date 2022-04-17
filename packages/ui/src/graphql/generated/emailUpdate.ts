@@ -15,6 +15,7 @@ export interface emailUpdate_emailUpdate {
   emailAddress: string;
   receivesAccountUpdates: boolean;
   receivesBusinessUpdates: boolean;
+  verified: boolean;
 }
 
 export interface emailUpdate {

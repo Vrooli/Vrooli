@@ -1,4 +1,4 @@
-import { Box, IconButton, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
@@ -11,15 +11,17 @@ import {
     MoreHoriz as EllipsisIcon,
     Person as PersonIcon,
     Share as ShareIcon,
+    Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { getTranslation, Pubs } from "utils";
-import { Organization, Project, Routine, Standard, User } from "types";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { Organization, Project, ResourceList, Routine, Standard, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
+import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
 enum TabOptions {
     Resources = "Resources",
@@ -35,32 +37,47 @@ export const UserView = ({
 }: UserViewProps) => {
     const [, setLocation] = useLocation();
     // Get URL params
-    const [isProfile] = useRoute(`${APP_LINKS.Settings}/:params*`);
+    const [isProfile] = useRoute(`${APP_LINKS.Profile}`);
+    const [, params1] = useRoute(`${APP_LINKS.Profile}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchUsers}/view/:id`);
     const id: string = useMemo(() => {
-        if (isProfile) return session?.id ?? '';
-        return params2?.id ?? ''
-    }, [isProfile, params2, session]);
+        return isProfile ? (session.id ?? '') : (params1?.id ?? params2?.id ?? '');
+    }, [isProfile, params1, params2, session]);
     const isOwn: boolean = useMemo(() => Boolean(session?.id && session.id === id), [id, session]);
     // Fetch data
     const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery);
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id) && !isProfile) getData({ variables: { input: { id } } })
-    }, [getData, id, isProfile]);
+        //TODO handle handles
+        if (uuidValidate(id)) getData({ variables: { input: { id } } })
+    }, [getData, id]);
     useEffect(() => {
-        setUser(isProfile ? partialData as any : data?.user as any);
+        setUser((data?.user as User) ?? partialData);
     }, [data, isProfile, partialData]);
 
-    const { bio, username, resourceList } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
-        const resourceLists = (user as any)?.resourceLists ?? (partialData as any)?.resourceLists ?? [];
+    const [language, setLanguage] = useState<string>('');
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+    useEffect(() => {
+        const availableLanguages = user?.translations?.map(t => getLanguageSubtag(t.language)) ?? [];
+        const userLanguages = getUserLanguages(session);
+        setAvailableLanguages(availableLanguages);
+        setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
+    }, [session, user]);
+
+    const { bio, name, handle, resourceList } = useMemo(() => {
+        const resourceList: ResourceList | undefined = Array.isArray(user?.resourceLists) ? user?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
         return {
-            bio: getTranslation(user, 'bio', languages) ?? getTranslation(partialData, 'bio', languages),
-            username: user?.username ?? partialData?.username,
-            resourceList: resourceLists.length > 0 ? resourceLists[0] : [],
+            bio: getTranslation(user, 'bio', [language]) ?? getTranslation(partialData, 'bio', [language]),
+            name: user?.name ?? partialData?.name,
+            handle: user?.handle ?? partialData?.handle,
+            resourceList,
         };
-    }, [user, partialData, session]);
+    }, [language, partialData, user]);
+
+    useEffect(() => {
+        if (handle) document.title = `${name} ($${handle}) | Vrooli`;
+        else document.title = `${name} | Vrooli`;
+    }, [handle, name]);
 
     const resources = useMemo(() => (resourceList || isOwn) ? (
         <ResourceListVertical
@@ -100,14 +117,14 @@ export const UserView = ({
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
     const shareLink = () => {
-        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.User}/${id}`);
+        navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Profile}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
     }
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
-        setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile&editing=true` : `${APP_LINKS.SearchUsers}/edit/${id}`);
-    }, [setLocation, id]);
+        setLocation(isProfile ? `${APP_LINKS.Settings}?page=profile` : `${APP_LINKS.SearchUsers}/edit/${id}`);
+    }, [id, isProfile, setLocation]);
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {
@@ -239,7 +256,7 @@ export const UserView = ({
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     /**
-     * Displays username, avatar, bio, and quick links
+     * Displays name, handle, avatar, bio, and quick links
      */
     const overviewComponent = useMemo(() => (
         <Box
@@ -295,7 +312,7 @@ export const UserView = ({
                         </Stack>
                     ) : isOwn ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
-                            <Typography variant="h4" textAlign="center">{username}</Typography>
+                            <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit profile">
                                 <IconButton
                                     aria-label="Edit profile"
@@ -307,8 +324,21 @@ export const UserView = ({
                             </Tooltip>
                         </Stack>
                     ) : (
-                        <Typography variant="h4" textAlign="center">{username}</Typography>
+                        <Typography variant="h4" textAlign="center">{name}</Typography>
                     )
+                }
+                {/* Handle */}
+                {
+                    handle && <Link href={`https://handle.me/${handle}`} underline="hover">
+                        <Typography
+                            variant="h6"
+                            textAlign="center"
+                            sx={{
+                                color: (t) => t.palette.secondary.dark,
+                                cursor: 'pointer',
+                            }}
+                        >${handle}</Typography>
+                    </Link>
                 }
                 {/* Joined date */}
                 {
@@ -316,9 +346,11 @@ export const UserView = ({
                         <Box sx={{ width: '33%', color: "#00831e" }}>
                             <LinearProgress color="inherit" />
                         </Box>
-                    ) : (
-                        <Typography variant="body1" sx={{ color: "#00831e" }}>{user?.created_at ? `🕔 Joined ${new Date(user.created_at).toDateString()}` : ''}</Typography>
-                    )
+                    ) :
+                        user?.created_at && (<Box sx={{ display: 'flex' }} >
+                            <CalendarIcon />
+                            {`Joined ${new Date(user.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                        </Box>)
                 }
                 {/* Description */}
                 {
@@ -356,7 +388,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [user, partialData, isOwn, session]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, partialData, session, shareLink, user]);
 
     /**
      * Opens add new page
@@ -391,8 +423,29 @@ export const UserView = ({
                 title='User Options'
                 availableOptions={moreOptions}
                 onClose={closeMoreMenu}
+                session={session}
             />
-            <Box sx={{ display: 'flex', paddingTop: 5, paddingBottom: 5, background: "#b2b3b3" }}>
+            <Box sx={{
+                display: 'flex',
+                paddingTop: 5,
+                paddingBottom: 5,
+                background: "#b2b3b3",
+                position: "relative",
+            }}>
+                {/* Language display/select */}
+                <Box sx={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                }}>
+                    <SelectLanguageDialog
+                        availableLanguages={availableLanguages}
+                        canDropdownOpen={availableLanguages.length > 1}
+                        handleSelect={setLanguage}
+                        language={language}
+                        session={session}
+                    />
+                </Box>
                 {overviewComponent}
             </Box>
             {/* View routines, organizations, standards, and projects associated with this user */}
@@ -443,6 +496,7 @@ export const UserView = ({
                                 listItemFactory={searchItemFactory}
                                 getOptionLabel={sortOptionLabel}
                                 onObjectSelect={onSearchSelect}
+                                session={session}
                             />
                         )
                     }
