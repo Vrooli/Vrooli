@@ -71,6 +71,7 @@ model email {
     receivesAccountUpdates             Boolean   @default(true) // Account-level notifications
     receivesBusinessUpdates            Boolean   @default(true) // Newsletters, promos, etc.
     verified                           Boolean   @default(false)
+    lastVerifiedTime  DateTime?     @db.Timestamptz(6)
     verificationCode                   String?   @unique @db.VarChar(256)
     lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
     userId                             String?   @db.Uuid
@@ -780,9 +781,10 @@ model user {
     confirmationCode               String?              @unique @db.VarChar(256)
     confirmationCodeDate           DateTime?            @db.Timestamptz(6)
     lastExport                     DateTime?            @db.Timestamptz(6)
-    lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6)
+    lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6) // Time of last failed login attempt
     lastResetPasswordReqestAttempt DateTime?            @db.Timestamptz(6)
     logInAttempts                  Int                  @default(0)
+    lastSessionVerified            DateTime?            @db.Timestamptz(6) // Time of last login, or verified session token
     numExports                     Int                  @default(0)
     password                       String?              @db.VarChar(256)
     resetPasswordCode              String?              @unique @db.VarChar(256)

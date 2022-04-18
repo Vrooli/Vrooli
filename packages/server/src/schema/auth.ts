@@ -126,7 +126,7 @@ export const resolvers = {
                     const verified = await profileValidater().validateVerificationCode(emails[0].emailAddress, user.id, verificationCode, context.prisma);
                     if (!verified) throw new CustomError(CODE.BadCredentials, 'Could not verify code.');
                 }
-                return profileValidater().toSession(user);
+                return await profileValidater().toSession(user, context.prisma);
             }
             // If email supplied, validate
             else {
@@ -203,7 +203,7 @@ export const resolvers = {
             });
             if (!user) throw new CustomError(CODE.ErrorUnknown);
             // Create session from user object
-            const session = profileValidater().toSession(user);
+            const session = await profileValidater().toSession(user, context.prisma);
             // Set up session token
             await generateSessionToken(context.res, session);
             // Send verification email
@@ -260,7 +260,7 @@ export const resolvers = {
                 }
             })
             // Return session
-            return profileValidater().toSession(user);
+            return await profileValidater().toSession(user, context.prisma);
         },
         guestLogIn: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             await rateLimit({ context, info, max: 500 });
@@ -301,7 +301,7 @@ export const resolvers = {
                     roles: { select: { role: { select: { title: true } } } }
                 }
             });
-            if (userData) return profileValidater().toSession(userData);
+            if (userData) return await profileValidater().toSession(userData, context.prisma);
             // If user data failed to fetch, clear session and return error
             context.res.clearCookie(COOKIE.Session);
             throw new CustomError(CODE.ErrorUnknown);

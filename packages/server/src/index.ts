@@ -9,6 +9,7 @@ import { schema } from './schema';
 import { context } from './context';
 import { envVariableExists } from './utils/envVariableExists';
 import { setupDatabase } from './utils/setupDatabase';
+import { initStatsCronJobs } from './statsLog';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -86,6 +87,9 @@ const main = async () => {
     });
     // Start Express server
     app.listen(5329);
+    
+    // Start cron jobs for calculating site statistics
+    initStatsCronJobs();
 
     console.info(`🚀 Server running at ${SERVER_URL}`)
 }

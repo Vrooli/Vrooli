@@ -9,14 +9,15 @@ const MAX_BUFFER_SIZE = 1000000000;
 // Location of persistent storage directory
 const UPLOAD_DIR = `${process.env.PROJECT_DIR}/data/uploads`;
 
-// Replace any invalid characters from a file name
-// Args:
-// file - exs: 'boop.png', 'images/boop.png'
-// defaultFolder - default for file's location (ex: 'images')
-// Returns:
-// name - name of file, excluding extension and location
-// ext - extension of file
-// folder - path of file
+/**
+ * Replaces any invalid characters from a file name
+ * @param file Name of file (e.g. 'boop.png', 'images/boop.png')
+ * @param defaultFolder Default for file's location (e.g. 'images')
+ * @returns Object of shape:
+ * - name - name of file, excluding extension and location
+ * - ext - extension of file
+ * - folder - path of file
+ */
 export function clean(file: string, defaultFolder?: string): {
     name?: string,
     ext?: string,
@@ -33,10 +34,13 @@ export function clean(file: string, defaultFolder?: string): {
     return { name, ext, folder: folder ?? defaultFolder };
 }
 
-// Returns a filename that can be used at the specified path
-// Args:
-// filenname - name of file (ex: 'public/boop.png')
-// defaultFolder - default for file's location (ex: 'images')
+/**
+ * Finds a filename that can be used at the specified path
+ * @param file The preferred file name
+ * @param defaultFolder Directory the file will be in, if not already part of file name
+ * @returns The preferred file name, or the name with the lowest available number appended to it
+ * (starting from 0)
+ */
 export async function findFileName(file: string, defaultFolder?: string): Promise<{
     name?: string,
     ext?: string,
@@ -56,13 +60,17 @@ export async function findFileName(file: string, defaultFolder?: string): Promis
     return { };
 }
 
-// Saves a file in the specified folder at the server root directory
-// Returns an object containing a success boolean and the file name
-// Arguments:
-// stream - data stream of file
-// filename - name of file, including extension and folder (ex: 'public/boop.png')
-// overwrite - boolean indicating if existing files can be overwritten
-// acceptedTypes - a string or array of accepted file types, in mimetype form (ex: 'application/vnd.ms-excel')
+/**
+ * Saves a file in the specified folder, that folder being located in UPLOAD_DIR
+ * @param stream Data stream of file
+ * @param filename Name of file, including extension and folder (ex: 'public/boop.png')
+ * @param mimetype Mime type of file (e.g. 'image/png', 'application/vnd.ms-excel')
+ * @param overwrite Boolean indicating if existing files can be overwritten
+ * @param acceptedTypes String or array of accepted file types, in mimetype form (e.g. 'image/png', 'application/vnd.ms-excel')
+ * @returns An object containing:
+ * - success - True if successful
+ * - filename - Name of file that was saved (since naming conflicts might mean that a number was appended)
+ */
 export async function saveFile(stream: any, filename: string, mimetype: any, overwrite?: boolean, acceptedTypes?: string[]) {
     try {
         const { name, ext, folder } = await (overwrite ? clean(filename, 'public') : findFileName(filename));
@@ -87,10 +95,11 @@ export async function saveFile(stream: any, filename: string, mimetype: any, ove
     }
 }
 
-// Deletes the specified file from the specified folder
-// Arguments:
-// filename - name of file, including extension (ex: 'boop.png')
-// folder - folder in server directory (ex: 'images')
+/**
+ * Deletes the specified file from the specified folder (in UPLOAD_DIR)
+ * @param file Name of file, including extension (ex: 'boop.png')
+ * @returns True if successful
+ */
 export async function deleteFile(file: string) {
     try {
         const { name, ext, folder } = clean(file);
@@ -102,12 +111,16 @@ export async function deleteFile(file: string) {
     }
 }
 
-// Reads a list of files
+/**
+ * Reads all lines from each file in an array of filenames
+ * @param files Array of filenames
+ * @returns Array of data from each file
+ */
 export async function readFiles(files: string[]) {
     let data = [];
     for (const file of files) {
         const { name, ext, folder } = clean(file, 'public');
-        const path = `${process.env.PROJECT_DIR}/data/uploads/${folder}/${name}${ext}`;
+        const path = `${UPLOAD_DIR}/${folder}/${name}${ext}`;
         if (fs.existsSync(path)) {
             data.push(fs.readFileSync(path, 'utf8'));
         } else {
@@ -117,7 +130,13 @@ export async function readFiles(files: string[]) {
     return data;
 }
 
-// Writes a list of files
+/**
+ * Saves a list of files
+ * @param files Array of filenames, including extension (ex: 'boop.png')
+ * @param overwrite Boolean indicating if existing files should be overwritten
+ * @param acceptedTypes String or array of accepted file types, in mimetype form (e.g. 'image/png', 'application/vnd.ms-excel')
+ * @returns Array of each filename saved, or null if unsuccessful
+ */
 export async function saveFiles(files: any, overwrite: boolean = true, acceptedTypes: string[] = []) {
     let data = [];
     for (const file of files) {
@@ -127,4 +146,20 @@ export async function saveFiles(files: any, overwrite: boolean = true, acceptedT
         data.push(success ? finalFilename : null);
     }
     return data;
+}
+
+/**
+ * Appends data to the end of a file. Useful for writing to a log file
+ * @param file Name of file, including extension (ex: 'boop.txt')
+ * @returns True if successful
+ */
+export async function appendToFile(file: string, data: string) {
+    try {
+        const { name, ext, folder } = clean(file, 'public');
+        fs.appendFileSync(`${UPLOAD_DIR}/${folder}/${name}${ext}`, data);
+        return true;
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
 }

@@ -2,7 +2,7 @@ import { PrismaType, RecursivePartial } from "types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagHidden, TagSearchInput, User, UserDeleteInput } from "../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
 import { addJoinTablesHelper, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, PaginatedSearchResult, readManyHelper, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialSelect } from "./base";
-import { user } from "@prisma/client";
+import { prisma, user } from "@prisma/client";
 import { CODE, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
 import { CustomError } from "../error";
 import bcrypt from 'bcrypt';
@@ -144,7 +144,7 @@ export const profileValidater = () => ({
                     roles: { select: { role: { select: { title: true } } } }
                 }
             });
-            return this.toSession(userData);
+            return await this.toSession(userData, prisma);
         }
         // If password is invalid
         let new_status: any = AccountStatus.Unlocked;
@@ -235,7 +235,12 @@ export const profileValidater = () => ({
             if (this.validateCode(code, email.verificationCode, email.lastVerificationCodeRequestAttempt)) {
                 await prisma.email.update({
                     where: { id: email.id },
-                    data: { verified: true, verificationCode: null, lastVerificationCodeRequestAttempt: null }
+                    data: { 
+                        verified: true, 
+                        lastVerifiedTime: new Date().toISOString(),
+                        verificationCode: null, 
+                        lastVerificationCodeRequestAttempt: null 
+                    }
                 })
                 return true;
             }
@@ -247,11 +252,22 @@ export const profileValidater = () => ({
         }
     },
     /**
-     * Creates session object from user
+     * Creates session object from user. 
+     * Also updates user's lastSessionVerified
+     * @param user User object
+     * @param prisma 
+     * @returns Session object
      */
-    toSession(user: RecursivePartial<user>): Session {
+    async toSession(user: RecursivePartial<user>, prisma: PrismaType): Promise<Session> {
+        if (!user.id) throw new CustomError(CODE.ErrorUnknown, 'User ID not found');
+        // Update user's lastSessionVerified
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { lastSessionVerified: new Date().toISOString() }
+        })
+        // Return shaped session object
         return {
-            id: user.id ?? '',
+            id: user.id,
             theme: user.theme ?? 'light',
             roles: [ROLES.Actor],
             languages: (user as any)?.languages ? (user as any).languages.map((language: any) => language.language) : null,
