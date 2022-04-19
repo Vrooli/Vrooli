@@ -1,9 +1,8 @@
 import { CODE, commentCreate, CommentSortBy, commentTranslationCreate, commentTranslationUpdate, commentUpdate } from "@local/shared";
-import { CustomError } from "../error";
-import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, Count } from "../schema/types";
+import { CustomError } from "../../error";
+import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType } from "types";
 import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructUnion, FormatConverter, removeCreatorField, removeJoinTablesHelper, selectHelper, modelToGraphQL, ValidateMutationsInput, Searcher, GraphQLModelType } from "./base";
-import { hasProfanity } from "../utils/censor";
 import { organizationVerifier } from "./organization";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";

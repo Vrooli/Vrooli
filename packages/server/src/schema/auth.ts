@@ -455,6 +455,11 @@ export const resolvers = {
                 roles: [ROLES.Actor],
                 theme: userData?.theme ?? 'light',
             }
+            // Update user's lastSessionVerified
+            await context.prisma.user.update({
+                where: { id: userData?.id },
+                data: { lastSessionVerified: new Date().toISOString() }
+            })
             // Add session token to return payload
             await generateSessionToken(context.res, session);
             return {

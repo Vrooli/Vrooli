@@ -1,6 +1,6 @@
 // Components for providing basic functionality to model objects
-import { Count, FindByIdInput, PageInfo, Success, TimeFrame } from '../schema/types';
-import { PrismaType, RecursivePartial } from '../types';
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, PageInfo, Success, TimeFrame } from '../../schema/types';
+import { PrismaType, RecursivePartial } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from 'lodash';
 import _ from 'lodash';
@@ -18,15 +18,16 @@ import { userFormatter, userSearcher } from './user';
 import { starFormatter } from './star';
 import { voteFormatter } from './vote';
 import { emailFormatter } from './email';
-import { CustomError } from '../error';
+import { CustomError } from '../../error';
 import { CODE } from '@local/shared';
 import { profileFormatter } from './profile';
 import { memberFormatter } from './member';
-import { resolveGraphQLInfo } from '../utils';
+import { resolveGraphQLInfo } from '../../utils';
 import { inputItemFormatter } from './inputItem';
 import { outputItemFormatter } from './outputItem';
 import { resourceListFormatter, resourceListSearcher } from './resourceList';
 import { tagHiddenFormatter } from './tagHidden';
+import { Log, LogType } from '../../models/nosql';
 const { isObject } = pkg;
 
 
@@ -632,7 +633,7 @@ export const relationshipToPrisma = ({
     disconnect?: { id: string }[],
     delete?: { id: string }[],
     create?: { [x: string]: any }[],
-    update?: { where: { id: string}, data: { [x: string]: any } }[],
+    update?: { where: { id: string }, data: { [x: string]: any } }[],
 } => {
     // Determine valid operations, and remove operations that should be excluded
     let ops = isAdd ? [RelationshipTypes.connect, RelationshipTypes.create] : Object.values(RelationshipTypes);
@@ -738,9 +739,9 @@ export const joinRelationshipToPrisma = ({
         //         data: { tag: { update: { tag: 'fdas', } } }
         //     }]
         for (const data of (normalJoinData?.update ?? [])) {
-            const curr = { 
-                where: { [uniqueFieldName]: { [childIdFieldName]: data.where.id, [parentIdFieldName]: parentId } }, 
-                data: { [joinFieldName]: { update: data.data } } 
+            const curr = {
+                where: { [uniqueFieldName]: { [childIdFieldName]: data.where.id, [parentIdFieldName]: parentId } },
+                data: { [joinFieldName]: { update: data.data } }
             };
             converted.update = Array.isArray(converted.update) ? [...converted.update, curr] : [curr];
         }
@@ -1288,9 +1289,21 @@ export async function createHelper<GraphQLModel>(
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     const partial = toPartialSelect(info, model.relationshipMap);
     if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
-    const boop = await model.cud({ partial, userId, createMany: [input] });
-    const { created } = boop
+    const cudResult = await model.cud({ partial, userId, createMany: [input] });
+    const { created } = cudResult;
     if (created && created.length > 0) {
+        // If organization, project, routine, or standard, log for stats
+        const objectType = partial.__typename;
+        if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
+            const logs = created.map((c: any) => ({
+                timestamp: Date.now(),
+                userId: userId,
+                action: LogType.Create,
+                object1Type: objectType,
+                object1Id: c.id,
+            }));
+            await Log.collection.insertMany(logs)
+        }
         return (await addSupplementalFields(model.prisma, userId, created, partial))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown);
@@ -1320,6 +1333,18 @@ export async function updateHelper<GraphQLModel>(
     const shapedInput = { where: { id: input.id }, data: input };
     const { updated } = await model.cud({ partial, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
+        // If organization, project, routine, or standard, log for stats
+        const objectType = partial.__typename;
+        if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
+            const logs = updated.map((c: any) => ({
+                timestamp: Date.now(),
+                userId: userId,
+                action: LogType.Update,
+                object1Type: objectType,
+                object1Id: c.id,
+            }));
+            await Log.collection.insertMany(logs)
+        }
         return (await addSupplementalFields(model.prisma, userId, updated, partial))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown);
@@ -1335,13 +1360,27 @@ export async function updateHelper<GraphQLModel>(
  */
 export async function deleteOneHelper(
     userId: string | null,
-    input: any,
+    input: DeleteOneInput,
     model: ModelBusinessLayer<any, any>,
 ): Promise<Success> {
     if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object');
     if (!model.cud) throw new CustomError(CODE.InternalError, 'Model does not support delete');
     const { deleted } = await model.cud({ partial: {}, userId, deleteMany: [input.id] });
-    return { success: Boolean((deleted as any)?.count > 0) };
+    if (deleted?.count && deleted.count > 0) {
+        // If organization, project, routine, or standard, log for stats
+        const objectType = model.relationshipMap.__typename;
+        if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
+            await Log.collection.insertOne({
+                timestamp: Date.now(),
+                userId: userId,
+                action: LogType.Delete,
+                object1Type: objectType,
+                object1Id: input.id,
+            })
+        }
+        return { success: true }
+    }
+    return { success: false };
 }
 
 /**
@@ -1354,12 +1393,24 @@ export async function deleteOneHelper(
  */
 export async function deleteManyHelper(
     userId: string | null,
-    input: any,
+    input: DeleteManyInput,
     model: ModelBusinessLayer<any, any>,
 ): Promise<Count> {
     if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects');
     if (!model.cud) throw new CustomError(CODE.InternalError, 'Model does not support delete');
-    const { deleted } = await model.cud({ partial: {}, userId, deleteMany: [input.id] });
+    const { deleted } = await model.cud({ partial: {}, userId, deleteMany: input.ids });
     if (!deleted) throw new CustomError(CODE.ErrorUnknown);
+    // If organization, project, routine, or standard, log for stats
+    const objectType = model.relationshipMap.__typename;
+    if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
+        const logs = input.ids.map((id: string) => ({
+            timestamp: Date.now(),
+            userId: userId,
+            action: LogType.Delete,
+            object1Type: objectType,
+            object1Id: id,
+        }));
+        await Log.collection.insertMany(logs)
+    }
     return deleted
 }

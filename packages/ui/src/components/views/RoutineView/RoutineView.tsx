@@ -16,11 +16,13 @@ import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
 import { ResourceList, Routine, User } from "types";
 import Markdown from "markdown-to-jsx";
-import { routineDeleteOneMutation } from "graphql/mutation";
+import { routineDeleteOneMutation, routineStartMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/wrappers";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
+import { routineStart, routineStartVariables } from "graphql/generated/routineStart";
+import { validate as uuidValidate } from 'uuid';
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -91,9 +93,16 @@ export const RoutineView = ({
         setLocation(`${APP_LINKS.Build}/${routine?.id}`);
     }
 
+    const [logRoutineStart] = useMutation<routineStart, routineStartVariables>(routineStartMutation);
     const [isRunOpen, setIsRunOpen] = useState(false)
     const runRoutine = () => {
+        if (!uuidValidate(id ?? '')) {
+            PubSub.publish(Pubs.Snack, { message: 'Error loading routine.', severity: 'error' });
+            return;
+        }
         setIsRunOpen(true)
+        // Log start
+        logRoutineStart({ variables: { input: { id: id ?? '' } } })
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {

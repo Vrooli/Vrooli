@@ -1,9 +1,9 @@
-import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../schema/types";
+import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
-import { CustomError } from "../error";
+import { CustomError } from "../../error";
 import { CODE, tagCreate, tagTranslationCreate, tagTranslationUpdate, tagUpdate } from "@local/shared";
-import { hasProfanity } from "../utils/censor";
+import { hasProfanity } from "../../utils/censor";
 import { StarModel } from "./star";
 import _ from "lodash";
 import { TranslationModel } from "./translation";

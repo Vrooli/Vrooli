@@ -1,5 +1,5 @@
 import { PrismaType } from "types";
-import { TagHidden } from "../schema/types";
+import { TagHidden } from "../../schema/types";
 import { FormatConverter, GraphQLModelType } from "./base";
 
 //==============================================================

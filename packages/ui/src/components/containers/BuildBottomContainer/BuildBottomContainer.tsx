@@ -12,6 +12,9 @@ import { BuildBottomContainerProps } from '../types';
 import { useLocation } from 'wouter';
 import { UpTransition } from 'components/dialogs';
 import { RunRoutineView } from 'components/views';
+import { useMutation } from '@apollo/client';
+import { routineStart, routineStartVariables } from 'graphql/generated/routineStart';
+import { routineStartMutation } from 'graphql/mutation';
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
@@ -29,6 +32,7 @@ export const BuildBottomContainer = ({
     scale,
     session,
     sliderColor,
+    routineId,
     runState,
 }: BuildBottomContainerProps) => {
     const [, setLocation] = useLocation();
@@ -37,8 +41,11 @@ export const BuildBottomContainer = ({
         handleScaleChange(newScale as number);
     };
 
+    const [logRoutineStart] = useMutation<routineStart, routineStartVariables>(routineStartMutation);
     const [isRunOpen, setIsRunOpen] = useState(false)
     const runRoutine = () => {
+        // Log start
+        logRoutineStart({ variables: { input: { id: routineId ?? '' } } })
         setLocation(`?step=1`, { replace: true });
         setIsRunOpen(true)
     };

@@ -1,7 +1,7 @@
 import { CODE, VoteFor } from "@local/shared";
-import { CustomError } from "../error";
+import { CustomError } from "../../error";
 import { Vote, VoteInput } from "schema/types";
-import { PrismaType } from "../types";
+import { PrismaType } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
 

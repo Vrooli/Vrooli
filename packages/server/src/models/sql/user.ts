@@ -1,6 +1,6 @@
-import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../schema/types";
+import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../../schema/types";
 import { addJoinTablesHelper, FormatConverter, GraphQLModelType, PartialInfo, removeJoinTablesHelper, Searcher } from "./base";
-import { PrismaType, RecursivePartial } from "../types";
+import { PrismaType, RecursivePartial } from "../../types";
 import { StarModel } from "./star";
 
 //==============================================================

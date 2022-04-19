@@ -1,7 +1,7 @@
-import { PrismaType, RecursivePartial } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../schema/types";
+import { PrismaType, RecursivePartial } from "../../types";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialInfo } from "./base";
-import { CustomError } from "../error";
+import { CustomError } from "../../error";
 import { CODE, MemberRole, organizationCreate, organizationTranslationCreate, organizationTranslationUpdate, organizationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";

@@ -13,6 +13,26 @@ export enum CommentFor {
   Standard = "Standard",
 }
 
+export enum LogSortBy {
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+}
+
+export enum LogType {
+  Create = "Create",
+  Delete = "Delete",
+  OrganizationAddMember = "OrganizationAddMember",
+  OrganizationJoin = "OrganizationJoin",
+  OrganizationLeave = "OrganizationLeave",
+  OrganizationRemoveMember = "OrganizationRemoveMember",
+  OrganizationUpdateMember = "OrganizationUpdateMember",
+  ProjectComplete = "ProjectComplete",
+  RoutineCancel = "RoutineCancel",
+  RoutineComplete = "RoutineComplete",
+  RoutineStart = "RoutineStart",
+  Update = "Update",
+}
+
 export enum MemberRole {
   Admin = "Admin",
   Member = "Member",
@@ -298,6 +318,20 @@ export interface InputItemUpdateInput {
   translationsDelete?: string[] | null;
   translationsCreate?: InputItemTranslationCreateInput[] | null;
   translationsUpdate?: InputItemTranslationUpdateInput[] | null;
+}
+
+export interface LogSearchInput {
+  action?: string | null;
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  data?: string | null;
+  ids?: string[] | null;
+  sortBy?: LogSortBy | null;
+  object1Type?: string | null;
+  object1Id?: string | null;
+  object2Type?: string | null;
+  object2Id?: string | null;
+  take?: number | null;
 }
 
 export interface LoopCreateInput {
@@ -773,6 +807,14 @@ export interface ResourceUpdateInput {
   usedFor?: ResourceUsedFor | null;
 }
 
+export interface RoutineCancelInput {
+  id: string;
+}
+
+export interface RoutineCompleteInput {
+  id: string;
+}
+
 export interface RoutineCountInput {
   createdTimeFrame?: TimeFrame | null;
   updatedTimeFrame?: TimeFrame | null;
@@ -822,6 +864,10 @@ export interface RoutineSearchInput {
   take?: number | null;
   updatedTimeFrame?: TimeFrame | null;
   userId?: string | null;
+}
+
+export interface RoutineStartInput {
+  id: string;
 }
 
 export interface RoutineTranslationCreateInput {

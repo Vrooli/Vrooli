@@ -1,7 +1,7 @@
 import { CODE, StarFor } from "@local/shared";
-import { CustomError } from "../error";
-import { Star, StarInput } from "../schema/types";
-import { PrismaType } from "../types";
+import { CustomError } from "../../error";
+import { Star, StarInput } from "../../schema/types";
+import { PrismaType } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
 

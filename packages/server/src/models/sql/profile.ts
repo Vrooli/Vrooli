@@ -1,18 +1,16 @@
 import { PrismaType, RecursivePartial } from "types";
-import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagHidden, TagSearchInput, User, UserDeleteInput } from "../schema/types";
-import { sendResetPasswordLink, sendVerificationLink } from "../worker/email/queue";
+import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, TagSearchInput, User, UserDeleteInput } from "../../schema/types";
+import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
 import { addJoinTablesHelper, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, PaginatedSearchResult, readManyHelper, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialSelect } from "./base";
-import { prisma, user } from "@prisma/client";
+import { user } from "@prisma/client";
 import { CODE, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
-import { CustomError } from "../error";
+import { CustomError } from "../../error";
 import bcrypt from 'bcrypt';
-import { hasProfanity } from "../utils/censor";
+import { hasProfanity } from "../../utils/censor";
 import { TagModel } from "./tag";
 import { EmailModel } from "./email";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
-import { ResourceModel } from "./resource";
-import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 const { AccountStatus } = pkg;
 
@@ -21,8 +19,6 @@ const HASHING_ROUNDS = 8;
 const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 3;
 const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 10;
 const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000;
-const EXPORT_LIMIT = 3;
-const EXPORT_LIMIT_TIMEOUT = 24 * 3600 * 1000;
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
 export const profileFormatter = (): FormatConverter<User> => ({
@@ -298,8 +294,6 @@ const porter = (prisma: PrismaType) => ({
         // Find user
         const user = await prisma.user.findUnique({ where: { id }, select: { numExports: true, lastExport: true } });
         if (!user) throw new CustomError(CODE.ErrorUnknown);
-        // Check if export is allowed TODO export reset and whatnot
-        if (user.numExports >= EXPORT_LIMIT) throw new CustomError(CODE.ExportLimitReached);
         throw new CustomError(CODE.NotImplemented)
     },
 })

@@ -5,6 +5,9 @@ ${PROJECT_DIR}/scripts/wait-for.sh ${DB_CONN} -t 1000 -- echo 'Database is up'
 ${PROJECT_DIR}/scripts/wait-for.sh ${REDIS_CONN} -t 1000 -- echo 'Redis is up'
 echo 'Starting backend...'
 
+# Make sure citext is installed
+psql -h ${DB_CONN} -U ${DB_USER} -d ${DB_NAME} -c 'CREATE EXTENSION IF NOT EXISTS citext';
+
 PRISMA_SCHEMA_FILE="src/db/schema.prisma"
 
 cd ${PROJECT_DIR}/packages/server

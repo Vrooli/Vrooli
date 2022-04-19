@@ -20,13 +20,10 @@
  * its acceleration (i.e. how much the velocity changed since the last update).
  */
 import cron from 'node-cron';
-import fs from 'fs';
 import { PrismaType } from './types';
 import pkg from '@prisma/client';
+import { StatAllTime, StatDay, StatMonth, StatWeek, StatYear } from './models';
 const { PrismaClient } = pkg;
-
-// Location of persistent storage directory
-const STAT_DIR = `${process.env.PROJECT_DIR}/data/stats`;
 
 // Daily triggered every 15 minutes
 const dailyCron = '*/15 * * * *';
@@ -113,23 +110,6 @@ function getTimeIntervalStart(timeInterval: StatTimeInterval): number {
             firstDayOfYear.setMonth(0);
             return firstDayOfYear.setDate(0);
     }
-}
-
-/**
- * Calculates the time string for an interval's file name. 
- * Daily is the current day 
- * Weekly is the first day of the current week
- * Monthly is the first day of the current month
- * Yearly is the first day of the current year
- * All-time is the first day of the current year
- * @param timeInterval Time interval to calculate the time string for
- * @returns String representing the current time interval file (e.g. 20220420)
- */
- function getTimeString(timeInterval: StatTimeInterval): string {
-    // Get the timestamp of the start of the current time interval
-    // Except for all-time, where we want the start of the current year
-    const start = getTimeIntervalStart(timeInterval === StatTimeInterval.AllTime ? StatTimeInterval.Yearly : timeInterval);
-    return (new Date(start).toISOString().split('T')[0]).replace(/-/g, '')
 }
 
 /**
@@ -230,7 +210,10 @@ async function calculateRoutines(timeInterval: StatTimeInterval, prisma: PrismaT
     // Count routines in database created in the last time interval
     const routines = await prisma.routine.count({
         where: {
-            created_at: { gte: new Date(getTimeIntervalStart(timeInterval)) }
+            AND: [
+                { created_at: { gte: new Date(getTimeIntervalStart(timeInterval)) } },
+                { isInternal: false },
+            ]
         },
     });
     return routines;
@@ -258,11 +241,12 @@ async function calculateStandards(timeInterval: StatTimeInterval, prisma: Prisma
  * @return An object containing all statistics for the given time interval, 
  * where each key is a StatType, and the value is the calculated statistic as a number
  */
-async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in StatType]: number }> {
+async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in StatType]: number } & { timestamp: number }> {
     console.log('calculatestats start', timeInterval);
     const prisma = new PrismaClient();
     console.log('got prisma')
     return {
+        timestamp: Date.now(),
         [StatType.ActiveUsers]: await calculateActiveUsers(timeInterval, prisma),
         [StatType.VerifiedWallets]: await calculateVerifiedWallets(timeInterval, prisma),
         [StatType.VerifiedEmails]: await calculateVerifiedEmails(timeInterval, prisma),
@@ -286,41 +270,29 @@ async function logStats(timeInterval: StatTimeInterval) {
     console.log('logstats start', timeInterval);
     // Query the database for the statistics relevant to this time interval
     const stats = await calculateStats(timeInterval);
-    console.log('logstats stats', JSON.stringify(stats));
-    // Determine time string for file name (e.g. daily -> '-daily-20200101', weekly -> '-weekly-20200101')
-    let timeString = `-${timeInterval}-${getTimeString(timeInterval)}`;
-    console.log('logstats timeString', timeString);
-    // If STAT_DIR does not exist, create it
-    if (!fs.existsSync(STAT_DIR)) {
-        console.log('logstats mkdir triggered stat_dir', STAT_DIR);
-        fs.mkdirSync(STAT_DIR);
+    // Create and save new MongoDB object for this time interval
+    switch (timeInterval) {
+        case StatTimeInterval.Daily:
+            const dailyStats = new StatDay(stats);
+            await dailyStats.save();
+            break;
+        case StatTimeInterval.Weekly:
+            const weeklyStats = new StatWeek(stats);
+            await weeklyStats.save();
+            break;
+        case StatTimeInterval.Monthly:
+            const monthlyStats = new StatMonth(stats);
+            await monthlyStats.save();
+            break;
+        case StatTimeInterval.Yearly:
+            const yearlyStats = new StatYear(stats);
+            await yearlyStats.save();
+            break;
+        case StatTimeInterval.AllTime:
+            const allTimeStats = new StatAllTime(stats);
+            await allTimeStats.save();
+            break;
     }
-    // Loop through each calculated stat, and store it in the correct location
-    Object.entries(stats).forEach(([statType, stat]) => {
-        console.log('in loop', statType, stat);
-        // Determine the file name for the statistic
-        const fileName = `${statType}${timeString}.json`;
-        // Determine the file path for the statistic
-        const filePath = `${STAT_DIR}/${statType}/${fileName}`;
-        // Determine the folder path for the statistic
-        const folderPath = `${STAT_DIR}/${statType}`;
-        console.log('logstats filepath', filePath);
-        // If the folder doesn't exist, create it
-        if (!fs.existsSync(folderPath)) {
-            console.log('logstats mkdir triggered folderPath', folderPath);
-            fs.mkdirSync(folderPath);
-        }
-        // If the file doesn't exist, create it
-        if (!fs.existsSync(filePath)) {
-            console.log('writing to filePath', filePath);
-            fs.writeFileSync(filePath, JSON.stringify(stat));
-        }
-        // Otherwise, append the new stat to the file
-        else {
-            console.log('appending to filePath', filePath);
-            fs.appendFileSync(filePath, JSON.stringify(stat));
-        }
-    });
 }
 
 /**

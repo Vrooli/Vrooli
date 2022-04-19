@@ -1,9 +1,9 @@
 import { CODE, MemberRole, standardCreate, standardTranslationCreate, standardTranslationUpdate, standardUpdate } from "@local/shared";
-import { CustomError } from "../error";
+import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
-import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../schema/types";
+import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
 import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
-import { hasProfanity } from "../utils/censor";
+import { hasProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";

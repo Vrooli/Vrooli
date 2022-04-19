@@ -12,13 +12,15 @@ import {
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getTranslation, getUserLanguages, Pubs, RoutineStepType, updateArray, useHistoryState } from "utils";
-import { useLazyQuery } from "@apollo/client";
+import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { parseSearchParams } from "utils/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
+import { routineComplete, routineCompleteVariables } from "graphql/generated/routineComplete";
+import { routineCompleteMutation } from "graphql/mutation";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -383,11 +385,13 @@ export const RunRoutineView = ({
         setStepParams(nextStep);
     }, [nextStep, progress, stepParams, setLocation, setProgress]);
 
+    const [logRoutineComplete] = useMutation<routineComplete, routineCompleteVariables>(routineCompleteMutation);
     /**
      * Mark routine as complete and navigate
      */
     const toComplete = () => {
-        //TODO
+        // Log complete
+        logRoutineComplete({ variables: { input: { id: routine?.id ?? '' } } })
         PubSub.publish(Pubs.Snack, { message: 'Routine completed!🎉' });
         handleClose();
     }
@@ -396,7 +400,10 @@ export const RunRoutineView = ({
      * End routine early
      */
     const toFinishNotComplete = () => {
+        console.log('tofinishnotcomplete');
         //TODO
+        // Log complete
+        logRoutineComplete({ variables: { input: { id: routine?.id ?? '' } } })
         handleClose();
     }
 

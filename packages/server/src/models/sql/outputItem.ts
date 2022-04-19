@@ -1,17 +1,16 @@
-import { PrismaType } from "../types";
-import { Member } from "../schema/types";
+import { OutputItem } from "../../schema/types";
+import { PrismaType } from "types";
 import { FormatConverter, GraphQLModelType } from "./base";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-export const memberFormatter = (): FormatConverter<Member> => ({
+export const outputItemFormatter = (): FormatConverter<OutputItem> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.Member,
-        'organization': GraphQLModelType.Organization,
-        'user': GraphQLModelType.User,
-    }
+        '__typename': GraphQLModelType.OutputItem,
+        'standard': GraphQLModelType.Standard,
+    },
 })
 
 //==============================================================
@@ -22,9 +21,9 @@ export const memberFormatter = (): FormatConverter<Member> => ({
 /* #region Model */
 //==============================================================
 
-export function MemberModel(prisma: PrismaType) {
-    const prismaObject = prisma.organization_users;
-    const format = memberFormatter();
+export function OutputItemModel(prisma: PrismaType) {
+    const prismaObject = prisma.routine_output;
+    const format = outputItemFormatter();
 
     return {
         prisma,
@@ -32,7 +31,6 @@ export function MemberModel(prisma: PrismaType) {
         ...format,
     }
 }
-
 //==============================================================
 /* #endregion Model */
 //==============================================================

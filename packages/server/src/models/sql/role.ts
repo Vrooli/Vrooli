@@ -1,15 +1,22 @@
-import { InputItem } from "../schema/types";
 import { PrismaType } from "types";
-import { FormatConverter, GraphQLModelType } from "./base";
+import { Role } from "../../schema/types";
+import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper, GraphQLModelType } from "./base";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-export const inputItemFormatter = (): FormatConverter<InputItem> => ({
+const joinMapper = { users: 'user' };
+export const roleFormatter = (): FormatConverter<Role> => ({
     relationshipMap: {
-        '__typename': GraphQLModelType.InputItem,
-        'standard': GraphQLModelType.Standard,
+        '__typename': GraphQLModelType.Role,
+        'users': GraphQLModelType.User,
+    },
+    addJoinTables: (partial) => {
+        return addJoinTablesHelper(partial, joinMapper);
+    },
+    removeJoinTables: (data) => {
+        return removeJoinTablesHelper(data, joinMapper);
     },
 })
 
@@ -21,9 +28,9 @@ export const inputItemFormatter = (): FormatConverter<InputItem> => ({
 /* #region Model */
 //==============================================================
 
-export function InputItemModel(prisma: PrismaType) {
-    const prismaObject = prisma.routine_input;
-    const format = inputItemFormatter();
+export function RoleModel(prisma: PrismaType) {
+    const prismaObject = prisma.role;
+    const format = roleFormatter();
 
     return {
         prisma,
@@ -31,6 +38,7 @@ export function InputItemModel(prisma: PrismaType) {
         ...format,
     }
 }
+
 //==============================================================
 /* #endregion Model */
 //==============================================================
