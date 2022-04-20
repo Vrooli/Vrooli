@@ -154,6 +154,7 @@ build/
 
 #Persistent data
 data/postgres/
+data/redis/
 data/stats/
 data/uploads/
 

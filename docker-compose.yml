@@ -41,8 +41,6 @@ services:
             REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
             REDIS_CONN: "redis:6379"
             DB_CONN: "db:5432"
-            DB_USER: "${DB_USER}"
-            DB_NAME: "${DB_NAME}"
             DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
             CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
             DB_PULL: "${DB_PULL}"
@@ -84,17 +82,24 @@ services:
             POSTGRES_DB: "${DB_NAME}"
             POSTGRES_USER: "${DB_USER}"
             POSTGRES_PASSWORD: "${DB_PASSWORD}"
+            PROJECT_DIR: "${PROJECT_DIR}"
         ports:
-                - 5432:5432
+            - 5432:5432
         networks:
            - app       
         volumes:
             - ./data/postgres:/var/lib/postgresql/data
+            - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
     redis:
         image: redis
         container_name: redis
+        command: redis-server /usr/local/etc/redis/redis.conf 
+        restart: always
         networks:
-          - app        
+          - app   
+        volumes:
+          - ./data/redis:/srv/app/data/redis:z
+          - ./packages/redis/redis.conf:/usr/local/etc/redis/redis.conf     
         ports:
             - 6379:6379
     # adminer:
