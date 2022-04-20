@@ -1,5 +1,6 @@
 export * from './autocomplete';
 export * from './findHandles';
+export * from './logs';
 export * from './organization';
 export * from './organizations';
 export * from './organizationsCount';

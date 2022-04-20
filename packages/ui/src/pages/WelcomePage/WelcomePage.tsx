@@ -10,6 +10,10 @@ import {
 import { useLocation } from 'wouter';
 import { clickSize } from 'styles';
 
+/**
+ * 
+ */
+
 const buttonProps = {
     height: "48px",
     background: "white",

@@ -89,7 +89,7 @@ export const TagSelector = ({
             multiple
             freeSolo={true}
             options={autocompleteOptions}
-            getOptionLabel={(o: TagSelectorTag) => o.tag}
+            getOptionLabel={(o: string | TagSelectorTag) => (typeof o === 'string' ? o : o.tag)}
             inputValue={inputValue}
             noOptionsText={'No suggestions'}
             limitTags={3}

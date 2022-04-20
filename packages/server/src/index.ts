@@ -9,6 +9,8 @@ import { schema } from './schema';
 import { context } from './context';
 import { envVariableExists } from './utils/envVariableExists';
 import { setupDatabase } from './utils/setupDatabase';
+import { initStatsCronJobs } from './statsLog';
+import mongoose from 'mongoose';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -20,8 +22,13 @@ const main = async () => {
     // Check for required .env variables
     if (['JWT_SECRET'].some(name => !envVariableExists(name))) process.exit(1);
 
-    // Setup database
+    // Setup databases
     await setupDatabase();
+    await mongoose.connect(process.env.MONGO_CONN ?? '', {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+    } as mongoose.ConnectOptions);
+    console.info('✅ Connected to MongoDB');
 
     const app = express();
 
@@ -86,6 +93,9 @@ const main = async () => {
     });
     // Start Express server
     app.listen(5329);
+    
+    // Start cron jobs for calculating site statistics
+    initStatsCronJobs();
 
     console.info(`🚀 Server running at ${SERVER_URL}`)
 }

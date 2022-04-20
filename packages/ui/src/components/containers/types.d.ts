@@ -42,6 +42,7 @@ export interface BuildBottomContainerProps {
     scale: number;
     session: Session;
     sliderColor: string;
+    routineId: string | null;
     runState: BuildRunState
 }
 

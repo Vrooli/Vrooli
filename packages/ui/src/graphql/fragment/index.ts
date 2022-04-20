@@ -2,6 +2,7 @@
 export * from './commentFields';
 export * from './deepRoutineFields';
 export * from './emailFields';
+export * from './logFields';
 export * from './nodeFields';
 export * from './organizationFields';
 export * from './profileFields';

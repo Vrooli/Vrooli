@@ -67,10 +67,11 @@ model comment_translation {
 // Email data
 model email {
     id                                 String    @id @default(uuid()) @db.Uuid
-    emailAddress                       String    @unique @db.VarChar(128)
+    emailAddress                       String    @unique @db.Citext()
     receivesAccountUpdates             Boolean   @default(true) // Account-level notifications
     receivesBusinessUpdates            Boolean   @default(true) // Newsletters, promos, etc.
     verified                           Boolean   @default(false)
+    lastVerifiedTime                   DateTime? @db.Timestamptz(6)
     verificationCode                   String?   @unique @db.VarChar(256)
     lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
     userId                             String?   @db.Uuid
@@ -87,25 +88,6 @@ model handle {
     handle   String? @unique @db.VarChar(16)
     walletId String? @db.Uuid
     wallet   wallet? @relation(fields: [walletId], references: [id], onDelete: Cascade)
-}
-
-// Stores activity log for a user.
-// Activities include:
-// - Creating, updating, and deleting Comments, Organizations, Projects, Reports, Routines, Standards, and Tags
-// - Starting, running, canceling, and completing routines
-// - Joining, leaving, and being added to organizations
-// - Adding, removing, and updating roles of members in organizations
-model log {
-    id         String   @id @default(uuid()) @db.Uuid
-    created_at DateTime @default(now()) @db.Timestamptz(6) // No updated_at because activity is not updated
-    log        LogType
-    data       String?  @db.VarChar(2048) // Additional data for the action
-    table1     String?  @db.VarChar(32) // Table name for object1Id
-    table2     String?  @db.VarChar(32) // Table name for object2Id
-    object1Id  String?  @db.Uuid // Optional object ID for object the action applies to (e.g. organization member was removed from)
-    object2Id  String?  @db.Uuid // Optional object ID for object the action applies to (e.g. member that was removed from organization)
-    userId     String   @db.Uuid
-    user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 //==============================================================
@@ -780,9 +762,10 @@ model user {
     confirmationCode               String?              @unique @db.VarChar(256)
     confirmationCodeDate           DateTime?            @db.Timestamptz(6)
     lastExport                     DateTime?            @db.Timestamptz(6)
-    lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6)
+    lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6) // Time of last failed login attempt
     lastResetPasswordReqestAttempt DateTime?            @db.Timestamptz(6)
     logInAttempts                  Int                  @default(0)
+    lastSessionVerified            DateTime?            @db.Timestamptz(6) // Time of last login, or verified session token
     numExports                     Int                  @default(0)
     password                       String?              @db.VarChar(256)
     resetPasswordCode              String?              @unique @db.VarChar(256)
@@ -795,7 +778,6 @@ model user {
     comments                       comment[]
     emails                         email[]
     hiddenTags                     user_tag_hidden[]
-    history                        log[]
     languages                      user_language[]
     reports                        report[]
     resourceLists                  resource_list[]
@@ -977,22 +959,6 @@ enum StandardType {
     Array
     File
     Url
-}
-
-enum LogType {
-    Complete // Completed table1 object1Id
-    Create // Create on table1
-    Update // Update on table1
-    Delete // Delete on table1
-    Start // Started routine object1Id
-    Run // Ran at least part of routine object1Id
-    RunComplete // Finished running routine object1Id
-    Cancel // Canceled running routine object1Id
-    Join // Joined organization object1Id
-    Leave // Left organization object1Id
-    AddMember // Added member object2Id to organization object1Id
-    RemoveMember // Removed member object2Id from organization object1Id
-    UpdateMember // Updated member object2Id in organization object1Id
 }
 
 //==============================================================

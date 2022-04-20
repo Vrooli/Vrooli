@@ -273,24 +273,23 @@ export type InputItemUpdateInput = {
 
 export type Log = {
   __typename?: 'Log';
-  created_at: Scalars['Date'];
+  action: LogType;
   data?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  log: LogType;
   object1Id?: Maybe<Scalars['ID']>;
+  object1Type?: Maybe<Scalars['String']>;
   object2Id?: Maybe<Scalars['ID']>;
-  table1?: Maybe<Scalars['String']>;
-  table2?: Maybe<Scalars['String']>;
+  object2Type?: Maybe<Scalars['String']>;
+  timestamp: Scalars['Date'];
 };
 
 export type LogCreateInput = {
+  action: LogType;
   data?: InputMaybe<Scalars['String']>;
-  log: LogType;
   object1Id?: InputMaybe<Scalars['ID']>;
+  object1Type?: InputMaybe<Scalars['String']>;
   object2Id?: InputMaybe<Scalars['ID']>;
-  table1?: InputMaybe<Scalars['String']>;
-  table2?: InputMaybe<Scalars['String']>;
-  userId: Scalars['ID'];
+  object2Type?: InputMaybe<Scalars['String']>;
 };
 
 export type LogEdge = {
@@ -300,15 +299,16 @@ export type LogEdge = {
 };
 
 export type LogSearchInput = {
+  action?: InputMaybe<Scalars['String']>;
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  data?: InputMaybe<Scalars['String']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   object1Id?: InputMaybe<Scalars['ID']>;
+  object1Type?: InputMaybe<Scalars['String']>;
   object2Id?: InputMaybe<Scalars['ID']>;
-  searchString?: InputMaybe<Scalars['String']>;
+  object2Type?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<LogSortBy>;
-  table1?: InputMaybe<Scalars['String']>;
-  table2?: InputMaybe<Scalars['String']>;
   take?: InputMaybe<Scalars['Int']>;
 };
 
@@ -324,19 +324,18 @@ export enum LogSortBy {
 }
 
 export enum LogType {
-  AddMember = 'AddMember',
-  Cancel = 'Cancel',
-  Complete = 'Complete',
   Create = 'Create',
   Delete = 'Delete',
-  Join = 'Join',
-  Leave = 'Leave',
-  RemoveMember = 'RemoveMember',
-  Run = 'Run',
-  RunComplete = 'RunComplete',
-  Start = 'Start',
-  Update = 'Update',
-  UpdateMember = 'UpdateMember'
+  OrganizationAddMember = 'OrganizationAddMember',
+  OrganizationJoin = 'OrganizationJoin',
+  OrganizationLeave = 'OrganizationLeave',
+  OrganizationRemoveMember = 'OrganizationRemoveMember',
+  OrganizationUpdateMember = 'OrganizationUpdateMember',
+  ProjectComplete = 'ProjectComplete',
+  RoutineCancel = 'RoutineCancel',
+  RoutineComplete = 'RoutineComplete',
+  RoutineStart = 'RoutineStart',
+  Update = 'Update'
 }
 
 export type Loop = {
@@ -458,8 +457,11 @@ export type Mutation = {
   resourceListDeleteMany: Count;
   resourceListUpdate: ResourceList;
   resourceUpdate: Resource;
+  routineCancel: Log;
+  routineComplete: Log;
   routineCreate: Routine;
   routineDeleteOne: Success;
+  routineStart: Log;
   routineUpdate: Routine;
   sendVerificationEmail: Success;
   standardCreate: Standard;
@@ -640,6 +642,16 @@ export type MutationResourceUpdateArgs = {
 };
 
 
+export type MutationRoutineCancelArgs = {
+  input: RoutineCancelInput;
+};
+
+
+export type MutationRoutineCompleteArgs = {
+  input: RoutineCompleteInput;
+};
+
+
 export type MutationRoutineCreateArgs = {
   input: RoutineCreateInput;
 };
@@ -647,6 +659,11 @@ export type MutationRoutineCreateArgs = {
 
 export type MutationRoutineDeleteOneArgs = {
   input: DeleteOneInput;
+};
+
+
+export type MutationRoutineStartArgs = {
+  input: RoutineStartInput;
 };
 
 
@@ -1316,7 +1333,6 @@ export type Query = {
   comments: CommentSearchResult;
   commentsCount: Scalars['Int'];
   findHandles: Array<Scalars['String']>;
-  log?: Maybe<Log>;
   logs: LogSearchResult;
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
@@ -1373,11 +1389,6 @@ export type QueryCommentsCountArgs = {
 
 export type QueryFindHandlesArgs = {
   input: FindHandlesInput;
-};
-
-
-export type QueryLogArgs = {
-  input: FindByIdInput;
 };
 
 
@@ -1884,6 +1895,14 @@ export type Routine = {
   version?: Maybe<Scalars['String']>;
 };
 
+export type RoutineCancelInput = {
+  id: Scalars['ID'];
+};
+
+export type RoutineCompleteInput = {
+  id: Scalars['ID'];
+};
+
 export type RoutineCountInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -1963,6 +1982,10 @@ export enum RoutineSortBy {
   VotesAsc = 'VotesAsc',
   VotesDesc = 'VotesDesc'
 }
+
+export type RoutineStartInput = {
+  id: Scalars['ID'];
+};
 
 export type RoutineTranslation = {
   __typename?: 'RoutineTranslation';
