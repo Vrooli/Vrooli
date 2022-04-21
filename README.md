@@ -1,6 +1,6 @@
 [
     <p align="center">
-        <img alt="Vrooli logo with motto" src="./docs/assets/readme-display.png" width="300px"/>
+        <img alt="Vrooli logo with motto" src="./docs/assets/readme-display.png" width="500px"/>
     </p>
 ][website]
 &nbsp;&nbsp;
