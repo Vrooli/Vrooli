@@ -92,7 +92,7 @@ To achieve this grand vision, we must think from first principles. What properti
 ## 🔗 Quick Links
 - [Motivations and goals](https://www.youtube.com/watch?v=hBHaPYi5esQ)
 - [White paper (plus long-term vision for Vrooli and the future of society)](https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4/edit?usp=sharing)
-- [Fund6 proposal (Need an IdeaScale account to view)](https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088)
+- [Fund6 proposal](https://cardano.ideascale.com/a/dtd/Community-Made-Interactive-Guides/367058-48088)
 - [Join the discussion on Discord!](https://discord.com/invite/VyrDFzbmmF)
 - [Follow us on Twitter!](https://twitter.com/VrooliOfficial)
 
