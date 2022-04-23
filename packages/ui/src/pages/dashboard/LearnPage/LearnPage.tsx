@@ -2,11 +2,12 @@ import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
 import { ProjectSortBy, ResourceListUsedFor, ResourceUsedFor, RoutineSortBy } from 'graphql/generated/globalTypes';
+import { learnPage } from 'graphql/generated/learnPage';
 import { profile } from 'graphql/generated/profile';
 import { projects, projectsVariables } from 'graphql/generated/projects';
 import { routines, routinesVariables } from 'graphql/generated/routines';
 import { profileUpdateMutation } from 'graphql/mutation';
-import { profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
+import { learnPageQuery, profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Project, ResourceList, Routine } from 'types';
 import { LearnPageProps } from '../types';
@@ -132,44 +133,27 @@ export const LearnPage = ({
         getProfile();
     }, [updateResources]);
 
-    const { data: coursesData, loading: coursesLoading } = useQuery<projects, projectsVariables>(projectsQuery, {
-        variables: {
-            input: {
-                take: 5,
-                sortBy: ProjectSortBy.VotesDesc,
-                tags: ['learn'],
-            }
-        }
-    });
-    const { data: tutorialsData, loading: tutorialsLoading } = useQuery<routines, routinesVariables>(routinesQuery, {
-        variables: {
-            input: {
-                take: 5,
-                sortBy: RoutineSortBy.VotesDesc,
-                tags: ['learn'],
-            }
-        }
-    });
+    const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery);
 
-    const courses = useMemo(() => coursesData?.projects?.edges?.map((o, index) => (
+    const courses = useMemo(() => learnPageData?.learnPage?.courses?.map((o, index) => (
         <ProjectListItem
             key={`course-list-item-${index}`}
             index={index}
             session={session}
-            data={o.node as Project}
+            data={o as Project}
             onClick={() => { }}
         />
-    )) ?? [], [coursesData]);
+    )) ?? [], [learnPageData]);
 
-    const tutorials = useMemo(() => tutorialsData?.routines?.edges?.map((o, index) => (
+    const tutorials = useMemo(() => learnPageData?.learnPage?.tutorials?.map((o, index) => (
         <RoutineListItem
             key={`tutorial-list-item-${index}`}
             index={index}
             session={session}
-            data={o.node as Routine}
+            data={o as Routine}
             onClick={() => { }}
         />
-    )) ?? [], [tutorialsData]);
+    )) ?? [], [learnPageData]);
 
     return (
         <Box id="page">
@@ -197,7 +181,7 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Courses"}
                     helpText={courseText}
-                    loading={coursesLoading}
+                    loading={learnPageLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -207,7 +191,7 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Tutorials"}
                     helpText={tutorialText}
-                    loading={tutorialsLoading}
+                    loading={learnPageLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >

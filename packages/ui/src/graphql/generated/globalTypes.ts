@@ -29,7 +29,9 @@ export enum LogType {
   ProjectComplete = "ProjectComplete",
   RoutineCancel = "RoutineCancel",
   RoutineComplete = "RoutineComplete",
-  RoutineStart = "RoutineStart",
+  RoutineStartCanceled = "RoutineStartCanceled",
+  RoutineStartCompleted = "RoutineStartCompleted",
+  RoutineStartIncomplete = "RoutineStartIncomplete",
   Update = "Update",
 }
 

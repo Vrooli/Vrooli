@@ -2,19 +2,21 @@ import { useLazyQuery, useMutation } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ProjectListItem, ResourceListHorizontal, TitleContainer } from 'components';
+import { LogType } from 'graphql/generated/globalTypes';
+import { logs, logsVariables } from 'graphql/generated/logs';
 import { profile } from 'graphql/generated/profile';
 import { profileUpdateMutation } from 'graphql/mutation';
-import { profileQuery } from 'graphql/query';
+import { logsQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { ResourceList } from 'types';
 import { DevelopPageProps } from '../types';
 
 const completedText =
-`Find projects and routines that you've recently completed
+    `Find projects and routines that you've recently completed
 `
 
 const developPageText =
-`The **Develop Dashboard** is designed to help you implement new projects and routines.
+    `The **Develop Dashboard** is designed to help you implement new projects and routines.
 
 Currently, the page is bare-bones. It contains sections for:  
 - Projects and routines you've recently completed
@@ -42,6 +44,19 @@ const defaultResourceList: ResourceList = {
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
+
+    const [getLogs, { data: logsData, loading: logsLoading }] = useLazyQuery<logs, logsVariables>(logsQuery);
+    useEffect(() => {
+        if (!session?.id) return;
+        getLogs({
+            variables: {
+                input: {
+                    action: LogType.RoutineStartIncomplete,
+                }
+            }
+        });
+    }, [session?.id]);
+    console.log('LOGS DATA', logsData);
 
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
@@ -94,7 +109,7 @@ export const DevelopPage = ({
                 alignItems="center"
                 sx={{ marginTop: 2, marginBottom: 2 }}
             >
-                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' }}}>Develop Dashboard</Typography>
+                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' } }}>Develop Dashboard</Typography>
                 <HelpButton markdown={developPageText} sx={{ width: '40px', height: '40px' }} />
             </Stack>
             <Stack direction="column" spacing={10}>

@@ -154,6 +154,13 @@ export type DeleteOneInput = {
   id: Scalars['ID'];
 };
 
+export type DevelopPageResult = {
+  __typename?: 'DevelopPageResult';
+  completed: Array<ProjectOrRoutine>;
+  inProgress: Array<ProjectOrRoutine>;
+  recent: Array<ProjectOrRoutine>;
+};
+
 export type Email = {
   __typename?: 'Email';
   emailAddress: Scalars['String'];
@@ -271,6 +278,12 @@ export type InputItemUpdateInput = {
   translationsUpdate?: InputMaybe<Array<InputItemTranslationUpdateInput>>;
 };
 
+export type LearnPageResult = {
+  __typename?: 'LearnPageResult';
+  courses: Array<Project>;
+  tutorials: Array<Routine>;
+};
+
 export type Log = {
   __typename?: 'Log';
   action: LogType;
@@ -334,7 +347,9 @@ export enum LogType {
   ProjectComplete = 'ProjectComplete',
   RoutineCancel = 'RoutineCancel',
   RoutineComplete = 'RoutineComplete',
-  RoutineStart = 'RoutineStart',
+  RoutineStartCanceled = 'RoutineStartCanceled',
+  RoutineStartCompleted = 'RoutineStartCompleted',
+  RoutineStartIncomplete = 'RoutineStartIncomplete',
   Update = 'Update'
 }
 
@@ -1243,6 +1258,10 @@ export type ProjectEdge = {
   node: Project;
 };
 
+export type ProjectOrOrganization = Organization | Project;
+
+export type ProjectOrRoutine = Project | Routine;
+
 export type ProjectSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
@@ -1332,7 +1351,9 @@ export type Query = {
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
   commentsCount: Scalars['Int'];
+  developPage: DevelopPageResult;
   findHandles: Array<Scalars['String']>;
+  learnPage: LearnPageResult;
   logs: LogSearchResult;
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
@@ -1345,6 +1366,7 @@ export type Query = {
   report?: Maybe<Report>;
   reports: ReportSearchResult;
   reportsCount: Scalars['Int'];
+  researchPage: ResearchPageResult;
   resource?: Maybe<Resource>;
   resourceList?: Maybe<Resource>;
   resourceLists: ResourceListSearchResult;
@@ -1613,6 +1635,15 @@ export type ReportUpdateInput = {
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
   reason?: InputMaybe<Scalars['String']>;
+};
+
+export type ResearchPageResult = {
+  __typename?: 'ResearchPageResult';
+  needInvestments: Array<Project>;
+  needMembers: Array<Organization>;
+  needVotes: Array<Project>;
+  newlyCompleted: Array<ProjectOrRoutine>;
+  processes: Array<Routine>;
 };
 
 export type Resource = {

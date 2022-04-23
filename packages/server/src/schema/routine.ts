@@ -285,6 +285,9 @@ export const typeDef = gql`
     }
 `
 
+// All logs related to executing routines. Used to query for last status of routine.
+const routineLogs = [LogType.RoutineCancel, LogType.RoutineComplete, LogType.RoutineStartCanceled, LogType.RoutineStartCompleted, LogType.RoutineStartIncomplete]
+
 export const resolvers = {
     RoutineSortBy: RoutineSortBy,
     Query: {
@@ -316,38 +319,40 @@ export const resolvers = {
         },
         routineStart: async (_parent: undefined, { input }: IWrap<RoutineStartInput>, context: Context, info: GraphQLResolveInfo): Promise<LogReturn> => {
             if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
-            // Find most recent log for this routine
+            // Check if log already exists
             const lastLog = await Log.find({
-                action: { $in: [LogType.RoutineStart, LogType.RoutineComplete, LogType.RoutineCancel] },
+                action: { $in: routineLogs },
                 input1Type: GraphQLModelType.Routine,
                 input1Id: input.id,
                 userId: context.req.userId,
             }).sort({ timestamp: -1 }).limit(1).lean().exec();
             // If last log exists and is start, return it
-            if (lastLog.length > 0 && lastLog[0].action === LogType.RoutineStart) return lastLog[0];
+            if (lastLog.length > 0 && lastLog[0].action === LogType.RoutineStartIncomplete) return lastLog[0];
             // Otherwise, create new start log
             else {
                 const logData = {
                     timestamp: Date.now(),
                     userId: context.req.userId,
-                    action: LogType.RoutineStart,
+                    action: LogType.RoutineStartIncomplete,
                     object1Type: GraphQLModelType.Routine,
                     object1Id: input.id,
                 }
                 const log = await Log.collection.insertOne(logData)
-                return { id: log.insertedId.toString(), ...logData };
+                return { id: log.insertedId.toString(), ...logData } as any; //TODO remove any
             }
         },
         routineComplete: async (_parent: undefined, { input }: IWrap<RoutineCompleteInput>, context: Context, info: GraphQLResolveInfo): Promise<LogReturn> => {
             if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
             // Make sure start log exists
             const lastLog = await Log.find({
-                action: { $in: [LogType.RoutineStart, LogType.RoutineComplete, LogType.RoutineCancel] },
+                action: { $in: routineLogs },
                 input1Type: GraphQLModelType.Routine,
                 input1Id: input.id,
                 userId: context.req.userId,
             }).sort({ timestamp: -1 }).limit(1).lean().exec();
-            if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStart) throw new CustomError(CODE.InternalError, 'Could not find start log for routine');
+            if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStartIncomplete) throw new CustomError(CODE.InternalError, 'Could not find start log for routine');
+            // Update old log from incomplete to complete
+            await Log.updateOne({ _id: lastLog[0]._id }, { action: LogType.RoutineStartCompleted }).exec();
             // Insert new complete log
             const logData = {
                 timestamp: Date.now(),
@@ -357,18 +362,21 @@ export const resolvers = {
                 object1Id: input.id,
             }
             const log = await Log.collection.insertOne(logData)
-            return { id: log.insertedId.toString(), ...logData };
+            return { id: log.insertedId.toString(), ...logData } as any; //TODO remove any
         },
         routineCancel: async (_parent: undefined, { input }: IWrap<RoutineCancelInput>, context: Context, info: GraphQLResolveInfo): Promise<LogReturn> => {
             if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
             // Make sure start log exists
             const lastLog = await Log.find({
-                action: { $in: [LogType.RoutineStart, LogType.RoutineComplete, LogType.RoutineCancel] },
+                action: { $in: routineLogs },
                 input1Type: GraphQLModelType.Routine,
                 input1Id: input.id,
                 userId: context.req.userId,
             }).sort({ timestamp: -1 }).limit(1).lean().exec();
-            if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStart) throw new CustomError(CODE.InternalError, 'Could not find start log for routine');
+            if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStartIncomplete) throw new CustomError(CODE.InternalError, 'Could not find start log for routine');
+            // Update old log from incomplete to canceled
+            await Log.updateOne({ _id: lastLog[0]._id }, { action: LogType.RoutineStartCanceled }).exec();
+            // Insert new canceled log
             const logData = {
                 timestamp: Date.now(),
                 userId: context.req.userId,
@@ -377,7 +385,7 @@ export const resolvers = {
                 object1Id: input.id,
             }
             const log = await Log.collection.insertOne(logData)
-            return { id: log.insertedId.toString(), ...logData };
+            return { id: log.insertedId.toString(), ...logData } as any; //TODO remove any
         },
     }
 }

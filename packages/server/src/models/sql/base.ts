@@ -1007,14 +1007,16 @@ export const addSupplementalFields = async (
     prisma: PrismaType,
     userId: string | null,
     data: { [x: string]: any }[],
-    partial: PartialInfo,
+    partial: PartialInfo | PartialInfo[],
 ): Promise<{ [x: string]: any }[]> => {
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: string[] } = {};
     let selectFieldsDict: { [x: string]: { [x: string]: any } } = {};
-    for (const d of data) {
-        const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(d, partial);
+    for (let i = 0; i < data.length; i++) {
+        const currData = data[i];
+        const currPartial = Array.isArray(partial) ? partial[i] : partial;
+        const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(currData, currPartial);
         // Merge each array in childObjectIdsDict into objectIdsDict
         for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
             objectIdsDict[childType] = objectIdsDict[childType] ?? [];
@@ -1046,9 +1048,50 @@ export const addSupplementalFields = async (
         }
     }
 
-    let result = data.map(d => combineSupplements(d, objectsById));
     // Convert objectsById dictionary back into shape of data
+    let result = data.map(d => combineSupplements(d, objectsById));
     return result
+}
+
+/**
+ * Combines addSupplementalFields calls for multiple object types
+ * @param data Array of arrays, where each array is a list of the same object type queried from the database
+ * @param partials Array of PartialInfos, in the same order as data arrays
+ * @param keys Keys to associate with each data array
+ * @param userId Requesting user's ID
+ * @param prisma Prisma client
+ * @returns Object with keys equal to objectTypes, and values equal to arrays of objects with supplemental fields added
+ */
+export const addSupplementalFieldsMultiTypes = async (
+    data: { [x: string]: any }[][],
+    partials: PartialInfo[],
+    keys: string[],
+    userId: string | null,
+    prisma: PrismaType,
+): Promise<{ [x: string]: any[] }> => {
+    // Flatten data array
+    const combinedData = _.flatten(data);
+    // Create an array of partials, that match the data array
+    let combinedPartials: PartialInfo[] = [];
+    for (let i = 0; i < data.length; i++) {
+        const currPartial = partials[i];
+        // Push partial for each data array
+        for (let j = 0; j < data[i].length; j++) {
+            combinedPartials.push(currPartial);
+        }
+    }
+    // Call addSupplementalFields
+    const combinedResult = await addSupplementalFields(prisma, userId, combinedData, combinedPartials);
+    // Convert combinedResult into object with keys equal to objectTypes, and values equal to arrays of those types
+    const formatted: { [y: string]: any[] } = {};
+    let start = 0;
+    for (let i = 0; i < keys.length; i++) {
+        const currKey = keys[i];
+        const end = start + data[i].length;
+        formatted[currKey] = combinedResult.slice(start, end);
+        start = end;
+    }
+    return formatted;
 }
 
 /**
@@ -1167,6 +1210,9 @@ export async function readOneHelper<GraphQLModel>(
  * @param info GraphQL info object
  * @param model Business layer object
  * @param additionalQueries Additional where clauses to apply to the search
+ * @param addSupplemental Decides if queried data should be called. Defaults to true. 
+ * You may want to set this to false if you are calling readManyHelper multiple times, so you can do this 
+ * later in one call
  * @returns Paginated search result
  */
 export async function readManyHelper<GraphQLModel, SearchInput extends SearchInputBase<any>>(
@@ -1175,6 +1221,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     info: InfoType,
     model: ModelBusinessLayer<GraphQLModel, SearchInput>,
     additionalQueries?: { [x: string]: any },
+    addSupplemental = true,
 ): Promise<PaginatedSearchResult> {
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = toPartialSelect(info, model.relationshipMap);
@@ -1240,6 +1287,8 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
             edges: []
         }
     }
+    // If not adding supplemental fields, return the paginated results
+    if (!addSupplemental) return paginatedResults;
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partial as PartialInfo));
