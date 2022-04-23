@@ -5,6 +5,7 @@ import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL,
 import { CustomError } from "../../error";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -133,7 +134,8 @@ export const resourceMutater = (prisma: PrismaType) => ({
             if (!data.list) return false;
             return data.list.some((l: any) => isUserOwner(userId, l) || isOrganizationOwner(userId, l) || isProjectOwner(userId, l) || isRoutineOwner(userId, l));
         }
-        if (!existingResources.some(r => isOwner(userId, r))) throw new CustomError(CODE.Unauthorized, 'User does not own the resource, or is not an admin of its organization');
+        if (!existingResources.some(r => isOwner(userId, r))) 
+            throw new CustomError(CODE.Unauthorized, 'You do not own the resource, or are not an admin of its organization', { code: genErrorCode('0086') });
     },
     toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean, isRelationship: boolean): any {
         return {
@@ -187,7 +189,8 @@ export const resourceMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceCreateInput, ResourceUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0087') });
         if (createMany) {
             createMany.forEach(input => resourceCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
@@ -225,7 +228,8 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 let object = await prisma.report.findFirst({
                     where: { ...input.where, userId }
                 })
-                if (!object) throw new CustomError(CODE.ErrorUnknown);
+                if (!object) 
+                    throw new CustomError(CODE.ErrorUnknown, 'Resource not found', { code: genErrorCode('0088') });
                 // Update object
                 const currUpdated = await prisma.resource.update({
                     where: input.where,

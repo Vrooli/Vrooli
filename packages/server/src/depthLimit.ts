@@ -1,5 +1,6 @@
 import { GraphQLError, Kind } from 'graphql';
 import isArray from 'lodash/isArray';
+import { genErrorCode, logger, LogLevel } from './logger';
 
 interface Options {
     ignoreTypenames?: any
@@ -25,11 +26,9 @@ export const depthLimit = (maxDepth: number, options: Options = {}, callback: an
         }
         callback(queryDepths)
         return validationContext
-    } catch (err) {
-      /* istanbul ignore next */ { // eslint-disable-line no-lone-blocks
-            console.error(err)
-            throw err
-        }
+    } catch (error) {
+        logger.log(LogLevel.error, 'Caught error finding depthLimit', { code: genErrorCode('0001'), error });
+        throw error
     }
 }
 

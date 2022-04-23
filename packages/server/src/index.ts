@@ -7,10 +7,10 @@ import { depthLimit } from './depthLimit';
 import { graphqlUploadExpress } from 'graphql-upload';
 import { schema } from './schema';
 import { context } from './context';
-import { envVariableExists } from './utils/envVariableExists';
 import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
 import mongoose from 'mongoose';
+import { genErrorCode, logger, LogLevel } from './logger';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -20,7 +20,10 @@ const main = async () => {
     console.info('Starting server...')
 
     // Check for required .env variables
-    if (['JWT_SECRET'].some(name => !envVariableExists(name))) process.exit(1);
+    if (['JWT_SECRET'].some(name => !process.env[name])) {
+        logger.log(LogLevel.error, '🚨 JWT_SECRET not in environment variables. Stopping server', { code: genErrorCode('0007') });
+        process.exit(1);
+    }
 
     // Setup databases
     await setupDatabase();

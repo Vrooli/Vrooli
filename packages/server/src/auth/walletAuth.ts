@@ -1,6 +1,7 @@
 import * as Serialization from '@emurgo/cardano-serialization-lib-nodejs';
 import * as MessageSigning from './message_signing/rust/pkg/emurgo_message_signing';
 import { randomBytes } from 'crypto';
+import { genErrorCode, logger, LogLevel } from '../logger';
 
 /**
  * Converts a serialized wallet address to Bech32 format
@@ -113,7 +114,7 @@ const verifyAddress = (address: string, addressCose: Serialization.Address, publ
 
         return true;
     } catch (error) {
-        console.error('Caught error verifying address', error)
+        logger.log(LogLevel.error, 'Caught error validating wallet address', { code: genErrorCode('0005'), error });
     }
     return false;
 };

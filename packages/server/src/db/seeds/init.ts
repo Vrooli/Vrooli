@@ -4,9 +4,9 @@
  */
 import { ROLES, StandardType } from '@local/shared';
 import { ProfileModel } from '../../models';
-import { envVariableExists } from '../../utils';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
+import { genErrorCode, logger, LogLevel } from '../../logger';
 const { AccountStatus, MemberRole, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 
 export async function init(prisma: PrismaType) {
@@ -17,8 +17,8 @@ export async function init(prisma: PrismaType) {
     console.info('🌱 Starting database intial seed...');
 
     // Check for required .env variables
-    if (['ADMIN_WALLET', 'ADMIN_PASSWORD', 'SITE_EMAIL_USERNAME'].some(name => !envVariableExists(name))) {
-        console.error('🚨 Missing required .env variables. Not seeding database.');
+    if (['ADMIN_WALLET', 'ADMIN_PASSWORD', 'SITE_EMAIL_USERNAME'].some(name => !process.env[name])) {
+        logger.log(LogLevel.error, '🚨 Missing required .env variables. Not seeding database.', { code: genErrorCode('0006') });
         return;
     };
 

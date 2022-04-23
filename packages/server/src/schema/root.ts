@@ -7,9 +7,10 @@ import { AutocompleteInput, AutocompleteResult, DevelopPageResult, LearnPageResu
 import { CODE } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFields, addSupplementalFieldsMultiTypes, GraphQLModelType, modelToGraphQL, OrganizationModel, PartialInfo, ProjectModel, readManyHelper, RoutineModel, StandardModel, toPartialSelect, UserModel } from '../models';
+import { addSupplementalFieldsMultiTypes, GraphQLModelType, modelToGraphQL, OrganizationModel, PartialInfo, ProjectModel, readManyHelper, RoutineModel, StandardModel, toPartialSelect, UserModel } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
+import { genErrorCode, logger, LogLevel } from '../logger';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -274,7 +275,7 @@ export const resolvers = {
             await rateLimit({ context, info, max: 5000 });
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
-            const take = 2; //TODO should be 5, but testing is easier with 2
+            const take = 5;
             // Initialize models
             const oModel = OrganizationModel(context.prisma);
             const pModel = ProjectModel(context.prisma);

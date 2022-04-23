@@ -4,6 +4,7 @@ import { Vote, VoteInput } from "schema/types";
 import { PrismaType } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -59,7 +60,8 @@ const voter = (prisma: PrismaType) => ({
         const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);
         // Check if object being voted on exists
         const votingFor: null | { id: string, score: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, score: true } });
-        if (!votingFor) throw new CustomError(CODE.ErrorUnknown);
+        if (!votingFor) 
+            throw new CustomError(CODE.ErrorUnknown, 'Could not find object being voted on', { code: genErrorCode('0118') });
         // Check if vote exists
         const vote = await prisma.vote.findFirst({
             where: {

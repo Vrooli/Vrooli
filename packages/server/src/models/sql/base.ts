@@ -28,6 +28,7 @@ import { outputItemFormatter } from './outputItem';
 import { resourceListFormatter, resourceListSearcher } from './resourceList';
 import { tagHiddenFormatter } from './tagHidden';
 import { Log, LogType } from '../../models/nosql';
+import { genErrorCode } from '../../logger';
 const { isObject } = pkg;
 
 
@@ -1185,18 +1186,21 @@ export async function readOneHelper<GraphQLModel>(
     model: ModelBusinessLayer<GraphQLModel, any>,
 ): Promise<RecursivePartial<GraphQLModel>> {
     // Validate input
-    if (!input.id) throw new CustomError(CODE.InvalidArgs, 'id is required');
+    if (!input.id) 
+        throw new CustomError(CODE.InvalidArgs, 'id is required', { code: genErrorCode('0019') });
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = toPartialSelect(info, model.relationshipMap);
-    if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
+    if (!partial) 
+        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
     // Uses __typename to determine which Prisma object is being queried
     const objectType = partial.__typename;
     if (!objectType || !(objectType in PrismaMap)) {
-        throw new CustomError(CODE.InternalError, `${objectType} not found`);
+        throw new CustomError(CODE.InternalError, `${objectType} not found`, { code: genErrorCode('0021') });
     }
     // Get the Prisma object
     let object = await PrismaMap[objectType](model.prisma).findUnique({ where: { id: input.id }, ...selectHelper(partial) });
-    if (!object) throw new CustomError(CODE.NotFound, `${objectType} not found`);
+    if (!object) 
+        throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partial) as RecursivePartial<GraphQLModel>;
     return (await addSupplementalFields(model.prisma, userId, [formatted], partial))[0] as RecursivePartial<GraphQLModel>;
@@ -1225,10 +1229,12 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
 ): Promise<PaginatedSearchResult> {
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = toPartialSelect(info, model.relationshipMap);
-    if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
+    if (!partial) 
+        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
     // Uses __typename to determine which Prisma object is being queried
     const objectType = partial.__typename;
-    if (!objectType || !(objectType in PrismaMap)) throw new CustomError(CODE.InternalError, `${objectType} not found`);
+    if (!objectType || !(objectType in PrismaMap)) 
+        throw new CustomError(CODE.InternalError, `${objectType} not found`, { code: genErrorCode('0024') });
     // Create query for specified ids
     const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
     // Determine text search query
@@ -1333,11 +1339,14 @@ export async function createHelper<GraphQLModel>(
     info: InfoType,
     model: ModelBusinessLayer<GraphQLModel, any>,
 ): Promise<RecursivePartial<GraphQLModel>> {
-    if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object');
-    if (!model.cud) throw new CustomError(CODE.InternalError, 'Model does not support create');
+    if (!userId) 
+        throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0025') });
+    if (!model.cud) 
+        throw new CustomError(CODE.InternalError, 'Model does not support create', { code: genErrorCode('0026') });
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     const partial = toPartialSelect(info, model.relationshipMap);
-    if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
+    if (!partial) 
+        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
     const cudResult = await model.cud({ partial, userId, createMany: [input] });
     const { created } = cudResult;
     if (created && created.length > 0) {
@@ -1355,7 +1364,7 @@ export async function createHelper<GraphQLModel>(
         }
         return (await addSupplementalFields(model.prisma, userId, created, partial))[0] as any;
     }
-    throw new CustomError(CODE.ErrorUnknown);
+    throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in createHelper', { code: genErrorCode('0028') });
 }
 
 /**
@@ -1373,11 +1382,14 @@ export async function updateHelper<GraphQLModel>(
     info: InfoType,
     model: ModelBusinessLayer<GraphQLModel, any>
 ): Promise<RecursivePartial<GraphQLModel>> {
-    if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object');
-    if (!model.cud) throw new CustomError(CODE.InternalError, 'Model does not support update');
+    if (!userId) 
+        throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0029') });
+    if (!model.cud) 
+        throw new CustomError(CODE.InternalError, 'Model does not support update', { code: genErrorCode('0030') });
     // Partially convert info type so it is easily usable (i.e. in prisma mutation shape, but with __typename and without padded selects)
     let partial = toPartialSelect(info, model.relationshipMap);
-    if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
+    if (!partial) 
+        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0031') });
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: { id: input.id }, data: input };
     const { updated } = await model.cud({ partial, userId, updateMany: [shapedInput] });
@@ -1396,7 +1408,7 @@ export async function updateHelper<GraphQLModel>(
         }
         return (await addSupplementalFields(model.prisma, userId, updated, partial))[0] as any;
     }
-    throw new CustomError(CODE.ErrorUnknown);
+    throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in updateHelper', { code: genErrorCode('0032') });
 }
 
 /**
@@ -1412,8 +1424,10 @@ export async function deleteOneHelper(
     input: DeleteOneInput,
     model: ModelBusinessLayer<any, any>,
 ): Promise<Success> {
-    if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object');
-    if (!model.cud) throw new CustomError(CODE.InternalError, 'Model does not support delete');
+    if (!userId) 
+        throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object', { code: genErrorCode('0033') });
+    if (!model.cud) 
+        throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0034') });
     const { deleted } = await model.cud({ partial: {}, userId, deleteMany: [input.id] });
     if (deleted?.count && deleted.count > 0) {
         // If organization, project, routine, or standard, log for stats
@@ -1445,10 +1459,13 @@ export async function deleteManyHelper(
     input: DeleteManyInput,
     model: ModelBusinessLayer<any, any>,
 ): Promise<Count> {
-    if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects');
-    if (!model.cud) throw new CustomError(CODE.InternalError, 'Model does not support delete');
+    if (!userId) 
+        throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects', { code: genErrorCode('0035') });
+    if (!model.cud) 
+        throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
     const { deleted } = await model.cud({ partial: {}, userId, deleteMany: input.ids });
-    if (!deleted) throw new CustomError(CODE.ErrorUnknown);
+    if (!deleted) 
+        throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
     // If organization, project, routine, or standard, log for stats
     const objectType = model.relationshipMap.__typename;
     if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {

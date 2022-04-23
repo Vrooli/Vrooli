@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import { LogSearchInput, LogSearchResult, LogSortBy } from '../../schema/types';
 import { CustomError } from '../../error';
 import { CODE } from '@local/shared';
+import { genErrorCode } from '../../logger';
 
 // TODO ✅ = implemented
 export enum LogType {
@@ -113,7 +114,8 @@ export const logSearcher = () => ({
         }
     },
     async readMany(userId: string | null, input: LogSearchInput): Promise<LogSearchResult> {
-        if (!userId) throw new CustomError(CODE.InvalidArgs, 'userId is required to search logs');
+        if (!userId) 
+            throw new CustomError(CODE.InvalidArgs, 'userId is required to search logs', { code: genErrorCode('0015') });
         const take = input.take || 10;
         // Initialize results
         let paginatedResults: LogSearchResult = { pageInfo: { endCursor: null, hasNextPage: false }, edges: [] };

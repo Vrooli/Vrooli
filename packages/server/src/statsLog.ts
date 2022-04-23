@@ -23,6 +23,7 @@ import cron from 'node-cron';
 import { PrismaType } from './types';
 import pkg from '@prisma/client';
 import { StatAllTime, StatDay, StatMonth, StatWeek, StatYear } from './models';
+import { genErrorCode, logger, LogLevel } from './logger';
 const { PrismaClient } = pkg;
 
 // Daily triggered every 15 minutes
@@ -241,22 +242,29 @@ async function calculateStandards(timeInterval: StatTimeInterval, prisma: Prisma
  * @return An object containing all statistics for the given time interval, 
  * where each key is a StatType, and the value is the calculated statistic as a number
  */
-async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in StatType]: number } & { timestamp: number }> {
+async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in StatType]: number } & { timestamp: number } | undefined> {
     console.log('calculatestats start', timeInterval);
     const prisma = new PrismaClient();
     console.log('got prisma')
-    return {
-        timestamp: Date.now(),
-        [StatType.ActiveUsers]: await calculateActiveUsers(timeInterval, prisma),
-        [StatType.VerifiedWallets]: await calculateVerifiedWallets(timeInterval, prisma),
-        [StatType.VerifiedEmails]: await calculateVerifiedEmails(timeInterval, prisma),
-        [StatType.Organizations]: await calculateOrganizations(timeInterval, prisma),
-        [StatType.Projects]: await calculateProjects(timeInterval, prisma),
-        [StatType.Routines]: await calculateRoutines(timeInterval, prisma),
-        // [StatType.RoutinesCompleted]: await calculateRoutinesCompleted(timeInterval, prisma),
-        // [StatType.RoutinesCompletedTimeTotal]: await calculateRoutinesCompletedTimeTotal(timeInterval, prisma),
-        // [StatType.RoutinesCompletedTimeAverage]: await calculateRoutinesCompletedTimeAverage(timeInterval, prisma),
-        [StatType.Standards]: await calculateStandards(timeInterval, prisma),
+    let results = undefined;
+    try {
+        results = {
+            timestamp: Date.now(),
+            [StatType.ActiveUsers]: await calculateActiveUsers(timeInterval, prisma),
+            [StatType.VerifiedWallets]: await calculateVerifiedWallets(timeInterval, prisma),
+            [StatType.VerifiedEmails]: await calculateVerifiedEmails(timeInterval, prisma),
+            [StatType.Organizations]: await calculateOrganizations(timeInterval, prisma),
+            [StatType.Projects]: await calculateProjects(timeInterval, prisma),
+            [StatType.Routines]: await calculateRoutines(timeInterval, prisma),
+            // [StatType.RoutinesCompleted]: await calculateRoutinesCompleted(timeInterval, prisma),
+            // [StatType.RoutinesCompletedTimeTotal]: await calculateRoutinesCompletedTimeTotal(timeInterval, prisma),
+            // [StatType.RoutinesCompletedTimeAverage]: await calculateRoutinesCompletedTimeAverage(timeInterval, prisma),
+            [StatType.Standards]: await calculateStandards(timeInterval, prisma),
+        }
+    } catch (error) {
+        logger.log(LogLevel.error, 'Caught error calculating stats', { code: genErrorCode('0000'), error }); 
+    } finally {
+        return results;
     }
 }
 

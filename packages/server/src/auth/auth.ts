@@ -4,6 +4,7 @@ import { CODE, COOKIE, ROLES } from '@local/shared';
 import { CustomError } from '../error';
 import { Session } from 'schema/types';
 import { RecursivePartial } from '../types';
+import { genErrorCode, logger, LogLevel } from '../logger';
 
 const SESSION_MILLI = 30*86400*1000;
 
@@ -17,7 +18,7 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         return;
     }
     if (!process.env.JWT_SECRET) {
-        console.error('❗️ JWT_SECRET not set! Please check .env file');
+        logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0003') });
         return;
     }
     // Second, verify that the session token is valid
@@ -73,7 +74,7 @@ export async function generateSessionToken(res: Response, session: RecursivePart
         userId: session.id ?? null,
     }
     if (!process.env.JWT_SECRET) {
-        console.error('❗️ JWT_SECRET not set! Please check .env file');
+        logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0004') });
         return;
     }
     const token = jwt.sign(tokenContents, process.env.JWT_SECRET);
@@ -86,6 +87,6 @@ export async function generateSessionToken(res: Response, session: RecursivePart
 
 // Middleware that restricts access to logged in users
 export async function requireLoggedIn(req: any, _: any, next: any) {
-    if (!req.isLoggedIn) return new CustomError(CODE.Unauthorized);
+    if (!req.isLoggedIn) return new CustomError(CODE.Unauthorized, 'You must be logged in to access this resource', { code: genErrorCode('0018') });
     next();
 }

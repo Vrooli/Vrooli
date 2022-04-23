@@ -153,6 +153,7 @@ build/
 *.db
 
 #Persistent data
+data/logs/
 data/postgres/
 data/redis/
 data/stats/

@@ -4,6 +4,7 @@ import { Star, StarInput } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -69,7 +70,8 @@ const starrer = (prisma: PrismaType) => ({
         const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as any);
         // Check if object being starred exists
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
-        if (!starringFor) throw new CustomError(CODE.ErrorUnknown);
+        if (!starringFor) 
+            throw new CustomError(CODE.ErrorUnknown, 'Could not find object being starred', { code: genErrorCode('0110') });
         // Check if star already exists on object by this user
         const star = await prisma.star.findFirst({
             where: {

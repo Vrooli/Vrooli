@@ -5,6 +5,7 @@ import { PrismaType } from "types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import { hasProfanity } from "../../utils/censor";
 import { profileValidater } from "./profile";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -19,7 +20,8 @@ export const emailFormatter = (): FormatConverter<Email> => ({
 
 export const emailVerifier = () => ({
     profanityCheck(data: EmailCreateInput): void {
-        if (hasProfanity(data.emailAddress)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(data.emailAddress)) 
+            throw new CustomError(CODE.BannedWord, 'Email address contains banned word', { code: genErrorCode('0042') });
     },
 })
 
@@ -46,13 +48,15 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<EmailCreateInput, EmailUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0043') });
         if (createMany) {
             // Make sure emails aren't already in use
             const emails = await prisma.email.findMany({
                 where: { emailAddress: { in: createMany.map(email => email.emailAddress) } },
             });
-            if (emails.length > 0) throw new CustomError(CODE.EmailInUse);
+            if (emails.length > 0) 
+                throw new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0044') });
             // Perform other checks
             for (const email of createMany) {
                 // Check for valid arguments
@@ -71,7 +75,8 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
                     ],
                 },
             });
-            if (emails.length !== updateMany.length) throw new CustomError(CODE.EmailInUse, 'At least one of these emails is not yours');
+            if (emails.length !== updateMany.length) 
+                throw new CustomError(CODE.EmailInUse, 'At least one of these emails is not yours', { code: genErrorCode('0045') });
             for (const email of updateMany) {
                 // Check for valid arguments
                 emailUpdate.validateSync(email.data, { abortEarly: false });
@@ -87,7 +92,8 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
             for (const input of createMany) {
                 // Check for existing email
                 const existing = await prisma.email.findUnique({ where: { emailAddress: input.emailAddress } });
-                if (existing) throw new CustomError(CODE.EmailInUse)
+                if (existing) 
+                    throw new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0046') });
                 // Create object
                 const currCreated = await prisma.email.create({
                     data: {
@@ -116,7 +122,8 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
                         ]
                     }
                 })
-                if (!object) throw new CustomError(CODE.NotFound, "Email not found");
+                if (!object) 
+                    throw new CustomError(CODE.NotFound, "Email not found", { code: genErrorCode('0047') });
                 // Update
                 object = await prisma.email.update({
                     where: input.where,
@@ -143,7 +150,8 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
                     verified: true,
                 }
             })
-            if (!emails) throw new CustomError(CODE.NotFound, "Email not found");
+            if (!emails) 
+                throw new CustomError(CODE.NotFound, "Email not found", { code: genErrorCode('0048') });
             // Check if user has at least one verified authentication method, besides the one being deleted
             const numberOfVerifiedEmailDeletes = emails.filter(email => email.verified).length;
             const verifiedEmailsCount = await prisma.email.count({
@@ -154,7 +162,8 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
             })
             const wontHaveVerifiedEmail = numberOfVerifiedEmailDeletes >= verifiedEmailsCount;
             const wontHaveVerifiedWallet = verifiedWalletsCount <= 0;
-            if (wontHaveVerifiedEmail || wontHaveVerifiedWallet) throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods");
+            if (wontHaveVerifiedEmail || wontHaveVerifiedWallet) 
+                throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods", { code: genErrorCode('0049') });
             // Delete
             deleted = await prisma.email.deleteMany({
                 where: { id: { in: deleteMany } },

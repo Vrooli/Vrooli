@@ -10,6 +10,7 @@ import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -146,7 +147,8 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
 
 export const standardVerifier = () => ({
     profanityCheck(data: StandardCreateInput | StandardUpdateInput): void {
-        if (hasProfanity((data as any)?.name)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity((data as any)?.name)) 
+            throw new CustomError(CODE.BannedWord, 'Name contains banned word', { code: genErrorCode('0102') });
         TranslationModel().profanityCheck(data);
     },
 })
@@ -204,7 +206,8 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<StandardCreateInput, StandardUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0103') });
         if (createMany) {
             createMany.forEach(input => standardCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => verifier.profanityCheck(input));
@@ -228,7 +231,8 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
                 if (input.createdByOrganizationId) {
                     // Make sure the user is an admin of the organization
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.createdByOrganizationId);
-                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                    if (!isAuthorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Must be an admin of the organization to create standards for it', { code: genErrorCode('0104') });
                     data = {
                         ...data,
                         createdByOrganization: { connect: { id: input.createdByOrganizationId } },
@@ -259,13 +263,17 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
                         createdByOrganizationId: true,
                     }
                 })
-                if (!object) throw new CustomError(CODE.ErrorUnknown);
+                if (!object) 
+                    throw new CustomError(CODE.ErrorUnknown, 'Standard not found', { code: genErrorCode('0105') });
                 // Check if authorized to update
-                if (!object) throw new CustomError(CODE.NotFound, 'Standard not found');
-                if (object.createdByUserId && object.createdByUserId !== userId) throw new CustomError(CODE.Unauthorized);
+                if (!object) 
+                    throw new CustomError(CODE.NotFound, 'Standard not found', { code: genErrorCode('0106') });
+                if (object.createdByUserId && object.createdByUserId !== userId) 
+                    throw new CustomError(CODE.Unauthorized, 'Not authorized to update standard', { code: genErrorCode('0107') });
                 if (object.createdByOrganizationId) {
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', object.createdByOrganizationId);
-                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                    if (!isAuthorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Must be an admin of the organization to update standards for it', { code: genErrorCode('0108') });
                 }
                 // Update standard
                 const currUpdated = await prisma.standard.update({
@@ -293,9 +301,11 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
             if (objectsToCheck.length > 0) {
                 for (const check of objectsToCheck) {
                     // Check if user is authorized to delete
-                    if (!check.createdByOrganizationId) throw new CustomError(CODE.Unauthorized, 'Not authorized to delete');
+                    if (!check.createdByOrganizationId) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete', { code: genErrorCode('0108') });
                     const [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', check.createdByOrganizationId);
-                    if (!authorized) throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.');
+                    if (!authorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0109') });
                 }
             }
             // Delete

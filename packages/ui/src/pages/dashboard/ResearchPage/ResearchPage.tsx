@@ -6,9 +6,10 @@ import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor } from 'graphql/gene
 import { organizations, organizationsVariables } from 'graphql/generated/organizations';
 import { profile } from 'graphql/generated/profile';
 import { projects, projectsVariables } from 'graphql/generated/projects';
+import { researchPage } from 'graphql/generated/researchPage';
 import { routines, routinesVariables } from 'graphql/generated/routines';
 import { profileUpdateMutation } from 'graphql/mutation';
-import { organizationsQuery, profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
+import { organizationsQuery, profileQuery, projectsQuery, researchPageQuery, routinesQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Organization, Project, ResourceList, Routine } from 'types';
 import { ResearchPageProps } from '../types';
@@ -110,92 +111,54 @@ export const ResearchPage = ({
         getProfile();
     }, [updateResources]);
 
-    const { data: processesData, loading: processesLoading } = useQuery<routines, routinesVariables>(routinesQuery, { 
-        variables: { input: { 
-            take: 5,
-            sortBy: RoutineSortBy.VotesDesc,
-            tags: ['research'],
-        } } 
-    });
+    const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery);
 
-    const { data: newlyCompletedData, loading: newlyCompletedLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
-        variables: { input: { 
-            take: 5,
-            isComplete: true,
-            sortBy: ProjectSortBy.DateCompletedAsc,
-        } } 
-    });
-
-    // We check if a project needs votes by the existence of a Proposal resource
-    const { data: needVotesData, loading: needVotesLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
-        variables: { input: { 
-            take: 5,
-            resourceTypes: [ResourceUsedFor.Proposal],
-        } } 
-    });
-
-    // We check if a project needs donations or is an investment opportunity by the existence of a token TODO
-    // const { data: donateOrInvestData, loading: donateOrInvestLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
-    //     variables: { input: { 
-    //         take: 5,
-    //         TODO
-    //     } } 
-    // });
-
-    const { data: needMembersData, loading: needMembersLoading } = useQuery<organizations, organizationsVariables>(organizationsQuery, { 
-        variables: { input: { 
-            take: 5,
-            isOpenToNewMembers: true,
-            sortBy: OrganizationSortBy.StarsDesc
-        } } 
-    });
-
-    const processes = useMemo(() => processesData?.routines?.edges?.map((o, index) => (
+    const processes = useMemo(() => researchPageData?.researchPage?.processes?.map((o, index) => (
         <RoutineListItem
             key={`research-processes-list-item-${index}`}
             index={index}
             session={session}
-            data={o.node as Routine}
+            data={o as Routine}
             onClick={() => {}}
         />
     )) ?? [], []);
 
-    const newlyCompleted = useMemo(() => newlyCompletedData?.projects?.edges?.map((o, index) => (
+    const newlyCompleted = useMemo(() => researchPageData?.researchPage?.newlyCompleted?.map((o, index) => (
         <ProjectListItem
             key={`recently-completed-projects-list-item-${index}`}
             index={index}
             session={session}
-            data={o.node as Project}
+            data={o as Project}
             onClick={() => {}}
         />
     )) ?? [], []);
 
-    const needVotes = useMemo(() => needVotesData?.projects?.edges?.map((o, index) => (
+    const needVotes = useMemo(() => researchPageData?.researchPage?.needVotes?.map((o, index) => (
         <ProjectListItem
             key={`projects-that-need-votes-list-item-${index}`}
             index={index}
             session={session}
-            data={o.node as Project}
+            data={o as Project}
             onClick={() => {}}
         />
     )) ?? [], []);
 
-    // const donateOrInvest = useMemo(() => donateOrInvestData?.projects?.edges?.map((o, index) => ( 
-    //     <ProjectListItem
-    //         key={`projects-that-need-funding-list-item-${index}`}
-    //         index={index}
-    //         session={session}
-    //         data={o.node as Project}
-    //         onClick={() => {}}
-    //     />
-    // )) ?? [], []);
+    const donateOrInvest = useMemo(() => researchPageData?.researchPage?.needInvestments?.map((o, index) => ( 
+        <ProjectListItem
+            key={`projects-that-need-funding-list-item-${index}`}
+            index={index}
+            session={session}
+            data={o as Project}
+            onClick={() => {}}
+        />
+    )) ?? [], []);
 
-    const needMembers = useMemo(() => needMembersData?.organizations?.edges?.map((o, index) => (
+    const needMembers = useMemo(() => researchPageData?.researchPage?.needMembers?.map((o, index) => (
         <OrganizationListItem
             key={`looking-for-members-list-item-${index}`}
             index={index}
             session={session}
-            data={o.node as Organization}
+            data={o as Organization}
             onClick={() => {}}
         />
     )) ?? [], []);
@@ -225,7 +188,7 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Processes"}
                     helpText={processesText}
-                    loading={processesLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -234,7 +197,7 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Newly Completed"}
                     helpText={newlyCompletedText}
-                    loading={newlyCompletedLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -243,25 +206,25 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Vote"}
                     helpText={voteText}
-                    loading={needVotesLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {needVotes}
                 </TitleContainer>
-                {/* <TitleContainer
+                <TitleContainer
                     title={"Donate or Invest"}
                     helpText={donateOrInvestText}
-                    loading={donateOrInvestLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {donateOrInvest}
-                </TitleContainer> */}
+                </TitleContainer>
                 <TitleContainer
                     title={"Join a Team"}
                     helpText={joinATeamText}
-                    loading={needMembersLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['Update profile', () => { }], ['See all', () => { }]]}
                 >
