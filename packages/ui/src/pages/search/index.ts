@@ -1,4 +1,4 @@
-export * from './SearchActorsPage';
+export * from './SearchUsersPage';
 export * from './SearchOrganizationsPage';
 export * from './SearchProjectsPage';
 export * from './SearchRoutinesPage';

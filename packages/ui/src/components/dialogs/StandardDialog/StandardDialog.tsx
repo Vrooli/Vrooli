@@ -1,5 +1,5 @@
 import { StandardView } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
 import { StandardUpdate } from 'components/views/StandardUpdate/StandardUpdate';
@@ -7,7 +7,6 @@ import { StandardDialogProps, ObjectDialogAction } from 'components/dialogs/type
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { Standard } from 'types';
-import { getUserLanguages } from 'utils';
 
 export const StandardDialog = ({
     canEdit = false,

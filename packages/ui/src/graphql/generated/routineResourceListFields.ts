@@ -6,10 +6,10 @@
 import { ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
-// GraphQL fragment: deepRoutineResourceListFields
+// GraphQL fragment: routineResourceListFields
 // ====================================================
 
-export interface deepRoutineResourceListFields_translations {
+export interface routineResourceListFields_translations {
   __typename: "ResourceListTranslation";
   id: string;
   language: string;
@@ -17,7 +17,7 @@ export interface deepRoutineResourceListFields_translations {
   title: string | null;
 }
 
-export interface deepRoutineResourceListFields_resources_translations {
+export interface routineResourceListFields_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -25,7 +25,7 @@ export interface deepRoutineResourceListFields_resources_translations {
   title: string | null;
 }
 
-export interface deepRoutineResourceListFields_resources {
+export interface routineResourceListFields_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -33,15 +33,15 @@ export interface deepRoutineResourceListFields_resources {
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: deepRoutineResourceListFields_resources_translations[];
+  translations: routineResourceListFields_resources_translations[];
 }
 
-export interface deepRoutineResourceListFields {
+export interface routineResourceListFields {
   __typename: "ResourceList";
   id: string;
   created_at: any;
   index: number | null;
   usedFor: ResourceListUsedFor | null;
-  translations: deepRoutineResourceListFields_translations[];
-  resources: deepRoutineResourceListFields_resources[];
+  translations: routineResourceListFields_translations[];
+  resources: routineResourceListFields_resources[];
 }

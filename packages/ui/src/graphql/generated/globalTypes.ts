@@ -203,11 +203,6 @@ export enum VoteFor {
   Tag = "Tag",
 }
 
-export interface AutocompleteInput {
-  searchString: string;
-  take?: number | null;
-}
-
 export interface CommentCreateInput {
   createdFor: CommentFor;
   forId: string;
@@ -288,6 +283,16 @@ export interface FindByIdInput {
 
 export interface FindHandlesInput {
   organizationId?: string | null;
+}
+
+export interface ForYouPageInput {
+  searchString: string;
+  take?: number | null;
+}
+
+export interface HomePageInput {
+  searchString: string;
+  take?: number | null;
 }
 
 export interface InputItemCreateInput {

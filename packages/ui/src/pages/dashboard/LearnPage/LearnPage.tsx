@@ -10,6 +10,7 @@ import { profileUpdateMutation } from 'graphql/mutation';
 import { learnPageQuery, profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Project, ResourceList, Routine } from 'types';
+import { listToListItems } from 'utils';
 import { LearnPageProps } from '../types';
 
 const courseText =
@@ -135,25 +136,19 @@ export const LearnPage = ({
 
     const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery);
 
-    const courses = useMemo(() => learnPageData?.learnPage?.courses?.map((o, index) => (
-        <ProjectListItem
-            key={`course-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o as Project}
-            onClick={() => { }}
-        />
-    )) ?? [], [learnPageData]);
+    const courses = useMemo(() => listToListItems(
+        learnPageData?.learnPage?.courses ?? [],
+        session,
+        'course-list-item',
+        () => {}
+    ), [learnPageData, session])
 
-    const tutorials = useMemo(() => learnPageData?.learnPage?.tutorials?.map((o, index) => (
-        <RoutineListItem
-            key={`tutorial-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o as Routine}
-            onClick={() => { }}
-        />
-    )) ?? [], [learnPageData]);
+    const tutorials = useMemo(() => listToListItems(
+        learnPageData?.learnPage?.tutorials ?? [],
+        session,
+        'tutorial-list-item',
+        () => {}
+    ), [learnPageData, session])
 
     return (
         <Box id="page">

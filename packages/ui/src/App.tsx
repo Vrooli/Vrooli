@@ -7,7 +7,7 @@ import {
     Snack
 } from 'components';
 import PubSub from 'pubsub-js';
-import { Pubs, themes } from 'utils';
+import { Pubs, themes, useReactHash } from 'utils';
 import { AllRoutes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -77,6 +77,7 @@ export function App() {
     const [validateSession] = useMutation<any>(validateSessionMutation);
 
     // If anchor tag in url, scroll to element
+    const hash = useReactHash();
     useEffect(() => {
         // if not a hash link, scroll to top
         if (window.location.hash === '') {
@@ -92,7 +93,7 @@ export function App() {
                 }
             }, 0);
         }
-    }, [window.location.hash]); // do this on route change
+    }, [hash]);
 
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);

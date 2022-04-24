@@ -8,6 +8,7 @@ import * as Feedback from './feedback';
 import * as Log from './log';
 import * as Node from './node';
 import * as Organization from './organization';
+import * as Pages from './pages';
 import * as Project from './project';
 import * as Report from './report';
 import * as Resource from './resource';
@@ -23,7 +24,7 @@ import * as Wallet from './wallet';
 
 const models = [
     Root, Auth, Comment, Email, Feedback, Log, Node,
-    Organization, Project, Report, Resource, ResourceList, Role,
+    Organization, Pages, Project, Report, Resource, ResourceList, Role,
     Routine, Standard, Star, Tag, User, Vote, Wallet
 ]
 

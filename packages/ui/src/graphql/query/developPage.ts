@@ -1,33 +1,33 @@
 import { gql } from 'graphql-tag';
-import { deepRoutineFields, projectFields } from 'graphql/fragment';
+import { listProjectFields, listRoutineFields } from 'graphql/fragment';
 
 export const developPageQuery = gql`
-    ${deepRoutineFields}
-    ${projectFields}
+    ${listProjectFields}
+    ${listRoutineFields}
     query developPage {
         developPage {
             completed {
                 ... on Project {
-                    ...projectFields
+                    ...listProjectFields
                 }
                 ... on Routine {
-                    ...deepRoutineFields
+                    ...listRoutineFields
                 }
             }
             inProgress {
                 ... on Project {
-                    ...projectFields
+                    ...listProjectFields
                 }
                 ... on Routine {
-                    ...deepRoutineFields
+                    ...listRoutineFields
                 }
             }
             recent {
                 ... on Project {
-                    ...projectFields
+                    ...listProjectFields
                 }
                 ... on Routine {
-                    ...deepRoutineFields
+                    ...listRoutineFields
                 }
             }
         }

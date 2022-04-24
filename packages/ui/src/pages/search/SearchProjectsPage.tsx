@@ -1,5 +1,5 @@
 import { APP_LINKS, ROLES } from "@local/shared";
-import { projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ProjectDialog } from "components";
+import { projectDefaultSortOption, ProjectSortOptions, ProjectDialog } from "components";
 import { projectsQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
 import { Project } from "types";
@@ -41,15 +41,6 @@ export const SearchProjectsPage = ({
         }
     }, [session?.roles, setLocation]);
 
-    const listItemFactory = (node: Project, index: number) => (
-        <ProjectListItem
-            key={`project-list-item-${index}`}
-            index={index}
-            session={session}
-            data={node}
-            onClick={(_e, selected: Project) => setSelectedItem(selected)}
-        />)
-
     return (
         <>
             {/* Selected dialog */}
@@ -62,13 +53,12 @@ export const SearchProjectsPage = ({
             />
             {/* Search component */}
             <BaseSearchPage
+                itemKeyPrefix="project-list-item"
                 title="Projects"
                 searchPlaceholder="Search..."
                 sortOptions={ProjectSortOptions}
                 defaultSortOption={projectDefaultSortOption}
                 query={projectsQuery}
-                listItemFactory={listItemFactory}
-                getOptionLabel={projectOptionLabel}
                 onObjectSelect={handleSelected}
                 onAddClick={handleAddDialogOpen}
                 popupButtonText="Add"

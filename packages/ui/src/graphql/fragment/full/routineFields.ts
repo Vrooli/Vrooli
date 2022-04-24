@@ -1,7 +1,7 @@
 import { gql } from 'graphql-tag';
 
-export const deepRoutineFields = gql`
-    fragment deepRoutineTagFields on Tag {
+export const routineFields = gql`
+    fragment routineTagFields on Tag {
         id
         tag
         translations {
@@ -10,7 +10,7 @@ export const deepRoutineFields = gql`
             description
         }
     }
-    fragment deepRoutineInputFields on InputItem {
+    fragment routineInputFields on InputItem {
         id
         isRequired
         name
@@ -26,7 +26,7 @@ export const deepRoutineFields = gql`
             name
             schema
             tags {
-                ...deepRoutineTagFields
+                ...routineTagFields
             }
             translations {
                 id
@@ -35,7 +35,7 @@ export const deepRoutineFields = gql`
             }
         }
     }
-    fragment deepRoutineOutputFields on OutputItem {
+    fragment routineOutputFields on OutputItem {
         id
         name
         translations {
@@ -50,7 +50,7 @@ export const deepRoutineFields = gql`
             name
             schema
             tags {
-                ...deepRoutineTagFields
+                ...routineTagFields
             }
             translations {
                 id
@@ -59,7 +59,7 @@ export const deepRoutineFields = gql`
             }
         }
     }
-    fragment deepRoutineNodeFields on Node {
+    fragment routineNodeFields on Node {
         id
         columnIndex,
         created_at
@@ -143,7 +143,7 @@ export const deepRoutineFields = gql`
             title
         }
     }
-    fragment deepRoutineNodeLinkFields on NodeLink {
+    fragment routineNodeLinkFields on NodeLink {
         id
         fromId
         toId
@@ -158,7 +158,7 @@ export const deepRoutineFields = gql`
             }
         }
     }
-    fragment deepRoutineResourceListFields on ResourceList {
+    fragment routineResourceListFields on ResourceList {
         id
         created_at
         index
@@ -184,13 +184,13 @@ export const deepRoutineFields = gql`
             }
         }
     }
-    fragment deepRoutineFields on Routine {
+    fragment routineFields on Routine {
         id
         completedAt
         complexity
         created_at
         inputs {
-            ...deepRoutineInputFields
+            ...routineInputFields
         }
         isAutomatable
         isComplete
@@ -198,13 +198,13 @@ export const deepRoutineFields = gql`
         isStarred
         isUpvoted
         nodeLinks {
-            ...deepRoutineNodeLinkFields
+            ...routineNodeLinkFields
         }
         nodes {
-            ...deepRoutineNodeFields
+            ...routineNodeFields
         }
         outputs {
-            ...deepRoutineOutputFields
+            ...routineOutputFields
         }
         owner {
             ... on Organization {
@@ -231,14 +231,14 @@ export const deepRoutineFields = gql`
             }
         }
         resourceLists {
-            ...deepRoutineResourceListFields
+            ...routineResourceListFields
         }
         score
         simplicity
         stars
         role
         tags {
-            ...deepRoutineTagFields
+            ...routineTagFields
         }
         translations {
             id

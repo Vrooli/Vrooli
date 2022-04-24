@@ -1,8 +1,11 @@
 import { gql } from 'graphql-tag';
 
-export const routineFields = gql`
-    fragment routineTagFields on Tag {
+export const listRoutineFields = gql`
+    fragment listRoutineTagFields on Tag {
         id
+        created_at
+        isStarred
+        stars
         tag
         translations {
             id
@@ -10,7 +13,7 @@ export const routineFields = gql`
             description
         }
     }
-    fragment routineFields on Routine {
+    fragment listRoutineFields on Routine {
         id
         completedAt
         complexity
@@ -25,7 +28,7 @@ export const routineFields = gql`
         simplicity
         stars
         tags {
-            ...routineTagFields
+            ...listRoutineTagFields
         }
         translations {
             id

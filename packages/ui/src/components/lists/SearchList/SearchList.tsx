@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { Box, Button, CircularProgress, List, SxProps, Theme, Tooltip, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, List, Tooltip, Typography } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickSize, containerShadow } from "styles";
@@ -10,7 +10,10 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { Pubs } from "utils";
+import { AutocompleteListItem, getListItemLabel, getUserLanguages, listToAutocomplete, listToListItems, Pubs } from "utils";
+import { ListOrganization, ListProject, ListRoutine, ListStandard } from "types";
+
+type ListItem = ListOrganization | ListProject | ListRoutine | ListStandard | ListOrganization;
 
 const searchButtonStyle = {
     ...clickSize,
@@ -27,26 +30,25 @@ const searchButtonStyle = {
 };
 
 export function SearchList<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
-    handleAdd,
-    searchPlaceholder = 'Search...',
-    sortOptions,
     defaultSortOption,
+    handleAdd,
+    itemKeyPrefix,
+    noResultsText = 'No results',
+    searchPlaceholder = 'Search...',
+    setSearchString,
+    sortOptions,
     query,
     take = 20,
     searchString,
     sortBy,
     timeFrame,
-    setSearchString,
     setSortBy,
     setTimeFrame,
-    listItemFactory,
-    getOptionLabel,
     onObjectSelect,
     onScrolledFar,
     where,
-    noResultsText = 'No results',
     session,
-}: SearchListProps<DataType, SortBy>) {
+}: SearchListProps<SortBy>) {
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
     const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption.label ?? sortOptions.length > 0 ? sortOptions[0].label : 'Sort');
@@ -108,7 +110,18 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         }
     }, [pageData]);
 
-    const listItems = useMemo(() => allData.map((data, index) => listItemFactory(data, index)), [allData, listItemFactory]);
+    const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
+        return listToAutocomplete(allData, getUserLanguages(session)).sort((a: any, b: any) => {
+            return b.stars - a.stars;
+        });
+    }, [allData, session]);
+
+    const listItems = useMemo(() => listToListItems(
+        allData,
+        session,
+        itemKeyPrefix,
+        (item) => onObjectSelect(item),
+    ), [allData, session, itemKeyPrefix, onObjectSelect])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -195,10 +208,10 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Handle advanced search dialog
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
-    const handleAdvancedSearchDialogOpen = useCallback(() => { 
+    const handleAdvancedSearchDialogOpen = useCallback(() => {
         PubSub.publish(Pubs.Snack, { message: 'Available next update. Please be patient with us😬', severity: 'error' });
         return;
-        setAdvancedSearchDialogOpen(true) 
+        setAdvancedSearchDialogOpen(true)
     }, []);
     const handleAdvancedSearchDialogClose = useCallback(() => { setAdvancedSearchDialogOpen(false) }, []);
 
@@ -207,7 +220,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
             {/* Dialog for setting advanced search items */}
             <AdvancedSearchDialog
                 handleClose={handleAdvancedSearchDialogClose}
-                handleSearch={() => {}}
+                handleSearch={() => { }}
                 isOpen={advancedSearchDialogOpen}
                 session={session}
             />
@@ -227,10 +240,10 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                     <AutocompleteSearchBar
                         id={`search-bar`}
                         placeholder={searchPlaceholder}
-                        options={allData}
+                        options={autocompleteOptions}
                         loading={loading}
-                        getOptionKey={getOptionLabel}
-                        getOptionLabel={getOptionLabel}
+                        getOptionKey={(option: AutocompleteListItem) => option.label ?? ''}
+                        getOptionLabel={(option: AutocompleteListItem) => option.label ?? ''}
                         value={searchString}
                         onChange={handleSearch}
                         onInputChange={onInputSelect}

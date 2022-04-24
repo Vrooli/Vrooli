@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { LogSearchInput, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { LogSearchInput, LogType } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: logs
@@ -17,6 +17,14 @@ export interface logs_logs_pageInfo {
 
 export interface logs_logs_edges_node {
   __typename: "Log";
+  id: string;
+  timestamp: any;
+  action: LogType;
+  object1Type: string | null;
+  object1Id: string | null;
+  object2Type: string | null;
+  object2Id: string | null;
+  data: string | null;
 }
 
 export interface logs_logs_edges {

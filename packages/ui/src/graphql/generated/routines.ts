@@ -25,6 +25,9 @@ export interface routines_routines_edges_node_tags_translations {
 export interface routines_routines_edges_node_tags {
   __typename: "Tag";
   id: string;
+  created_at: any;
+  isStarred: boolean;
+  stars: number;
   tag: string;
   translations: routines_routines_edges_node_tags_translations[];
 }

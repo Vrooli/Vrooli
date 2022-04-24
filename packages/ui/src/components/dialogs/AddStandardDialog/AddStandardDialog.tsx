@@ -15,12 +15,11 @@ import {
     Close as CloseIcon
 } from '@mui/icons-material';
 import { Standard } from 'types';
-import { standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, SearchList } from 'components/lists';
+import { standardDefaultSortOption, StandardSortOptions, SearchList } from 'components/lists';
 import { standardQuery, standardsQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { standard, standardVariables } from 'graphql/generated/standard';
 import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
-import { getUserLanguages } from 'utils';
 
 const helpText =
     `This dialog allows you to connect a new or existing standard to a routine input/output.
@@ -56,7 +55,7 @@ export const AddStandardDialog = ({
         } else {
             getStandard({ variables: { input: { id: standard.id } } });
         }
-    }, [getStandard, standardData]);
+    }, [getStandard, standardData, handleAdd, handleClose]);
     useEffect(() => {
         if (standardData?.standard) {
             handleAdd(standardData.standard);
@@ -134,16 +133,8 @@ export const AddStandardDialog = ({
                         <Typography variant="h6" sx={{ marginLeft: 'auto', marginRight: 'auto' }}>Or</Typography>
                     </Box>
                     <SearchList
+                        itemKeyPrefix='standard-list-item'
                         defaultSortOption={standardDefaultSortOption}
-                        getOptionLabel={standardOptionLabel}
-                        listItemFactory={(node: Standard, index: number) => (
-                            <StandardListItem
-                                key={`standard-list-item-${index}`}
-                                index={index}
-                                session={session}
-                                data={node}
-                                onClick={(_e, selected: Standard) => handeStandardSelect(selected)}
-                            />)}
                         noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handeStandardSelect(newValue)}
                         query={standardsQuery}

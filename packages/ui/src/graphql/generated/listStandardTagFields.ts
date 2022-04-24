@@ -4,19 +4,22 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL fragment: deepRoutineTagFields
+// GraphQL fragment: listStandardTagFields
 // ====================================================
 
-export interface deepRoutineTagFields_translations {
+export interface listStandardTagFields_translations {
   __typename: "TagTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface deepRoutineTagFields {
+export interface listStandardTagFields {
   __typename: "Tag";
   id: string;
+  created_at: any;
+  isStarred: boolean;
+  stars: number;
   tag: string;
-  translations: deepRoutineTagFields_translations[];
+  translations: listStandardTagFields_translations[];
 }

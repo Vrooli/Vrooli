@@ -1,16 +1,16 @@
 import { gql } from 'graphql-tag';
-import { deepRoutineFields, projectFields } from 'graphql/fragment';
+import { listProjectFields, listRoutineFields } from 'graphql/fragment';
 
 export const learnPageQuery = gql`
-    ${deepRoutineFields}
-    ${projectFields}
+    ${listProjectFields}
+    ${listRoutineFields}
     query learnPage {
         learnPage {
             courses {
-                ...projectFields
+                ...listProjectFields
             }
             tutorials {
-                ...deepRoutineFields
+                ...listRoutineFields
             }
         }
     }

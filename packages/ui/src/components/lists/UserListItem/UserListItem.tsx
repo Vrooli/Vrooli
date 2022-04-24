@@ -1,6 +1,6 @@
 // Used to display popular/search results of a particular object type
 import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
-import { ActorListItemProps } from '../types';
+import { UserListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, UserSortBy } from '@local/shared';
@@ -23,12 +23,12 @@ const colorOptions: [string, string][] = [
     ["#8ec22c", "#cfe7b4"],
 ]
 
-export const ActorListItem = ({
+export const UserListItem = ({
     data,
     index,
     onClick,
     session,
-}: ActorListItemProps) => {
+}: UserListItemProps) => {
     const [, setLocation] = useLocation();
     const isOwn = useMemo(() => data?.id == session?.id, [data, session]);
 
@@ -44,7 +44,7 @@ export const ActorListItem = ({
     const handleClick = useCallback((e: any) => {
         // If onClick provided, call it
         if (onClick) onClick(e, data);
-        // Otherwise, navigate to the actor's profile
+        // Otherwise, navigate to the user's profile
         else setLocation(`${APP_LINKS.Profile}/${data.id}`)
     }, [onClick, data, setLocation]);
 
@@ -103,6 +103,5 @@ export const ActorListItem = ({
     )
 }
 
-export const ActorSortOptions: LabelledSortOption<UserSortBy>[] = labelledSortOptions(UserSortBy);
-export const actorDefaultSortOption = ActorSortOptions[1];
-export const actorOptionLabel = (o: User, languages: readonly string[]) => o.name ?? o.handle ?? '';
+export const UserSortOptions: LabelledSortOption<UserSortBy>[] = labelledSortOptions(UserSortBy);
+export const userDefaultSortOption = UserSortOptions[1];

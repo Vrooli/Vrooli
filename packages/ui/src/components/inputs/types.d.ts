@@ -1,6 +1,6 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { ChangeEvent, MouseEvent } from 'react';
-import { Organization, Session, Tag } from 'types';
+import { ListOrganization, Organization, Session, Tag } from 'types';
 
 export interface DropzoneProps {
     acceptedFileTypes?: string[];
@@ -116,8 +116,8 @@ export interface TagSelectorProps {
 
 export interface UserOrganizationSwitchProps extends UseSwitchProps {
     session: Session;
-    selected: Organization | null;
-    onChange: (value: Organization | null) => any;
+    selected: ListOrganization | null;
+    onChange: (value: ListOrganization | null) => any;
     disabled?: boolean;
 }
 

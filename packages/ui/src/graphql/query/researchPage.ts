@@ -1,32 +1,31 @@
 import { gql } from 'graphql-tag';
-import { deepRoutineFields, organizationFields, projectFields, routineFields } from 'graphql/fragment';
+import { listOrganizationFields, listProjectFields, listRoutineFields } from 'graphql/fragment';
 
 export const researchPageQuery = gql`
-    ${deepRoutineFields}
-    ${organizationFields}
-    ${projectFields}
-    ${routineFields}
+    ${listOrganizationFields}
+    ${listProjectFields}
+    ${listRoutineFields}
     query researchPage {
         researchPage {
             processes {
-                ...routineFields
+                ...listRoutineFields
             }
             newlyCompleted {
                 ... on Project {
-                    ...projectFields
+                    ...listProjectFields
                 }
                 ... on Routine {
-                    ...deepRoutineFields
+                    ...listRoutineFields
                 }
             }
             needVotes {
-                ...projectFields
+                ...listProjectFields
             }
             needInvestments {
-                ...organizationFields
+                ...listOrganizationFields
             }
             needMembers {
-                ...organizationFields
+                ...listOrganizationFields
             }
         }
     }

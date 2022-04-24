@@ -17,17 +17,16 @@ const tabOptions = [
 ];
 
 export function BaseSearchPage<DataType, SortBy>({
+    itemKeyPrefix,
     title = 'Search',
     searchPlaceholder = 'Search...',
     sortOptions,
     defaultSortOption,
     query,
     take = 20,
-    listItemFactory,
-    getOptionLabel,
     onObjectSelect,
     showAddButton = true,
-    onAddClick = () => {},
+    onAddClick = () => { },
     popupButtonText,
     popupButtonTooltip = "Couldn't find what you were looking for? Try creating your own!",
     onPopupButtonClick,
@@ -50,7 +49,7 @@ export function BaseSearchPage<DataType, SortBy>({
         const index = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
         return Math.max(index, 0);
     }, []);
-    const handleTabChange = (_e, newIndex) => { 
+    const handleTabChange = (_e, newIndex) => {
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
@@ -111,13 +110,14 @@ export function BaseSearchPage<DataType, SortBy>({
             </Tabs>
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{title}</Typography>
-                { showAddButton ? <Tooltip title="Add new" placement="top">
-                    <IconButton size="large" onClick={onAddClick} sx={{padding: 1}}>
-                        <AddIcon color="primary" sx={{width: '1.5em', height: '1.5em'}} />
+                {showAddButton ? <Tooltip title="Add new" placement="top">
+                    <IconButton size="large" onClick={onAddClick} sx={{ padding: 1 }}>
+                        <AddIcon color="primary" sx={{ width: '1.5em', height: '1.5em' }} />
                     </IconButton>
-                </Tooltip> : null }
+                </Tooltip> : null}
             </Stack>
             <SearchList
+                itemKeyPrefix={itemKeyPrefix}
                 searchPlaceholder={searchPlaceholder}
                 sortOptions={sortOptions}
                 defaultSortOption={defaultSortOption}
@@ -129,8 +129,6 @@ export function BaseSearchPage<DataType, SortBy>({
                 setSearchString={setSearchString}
                 setSortBy={setSortBy}
                 setTimeFrame={setTimeFrame}
-                listItemFactory={listItemFactory}
-                getOptionLabel={getOptionLabel}
                 onObjectSelect={onObjectSelect}
                 onScrolledFar={handleScrolledFar}
                 session={session}

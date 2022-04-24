@@ -1,5 +1,5 @@
 import { ProjectView } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { ProjectUpdate } from 'components/views/ProjectUpdate/ProjectUpdate';
 import { ProjectDialogProps, ObjectDialogAction } from 'components/dialogs/types';
@@ -7,7 +7,6 @@ import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ProjectCreate } from 'components/views/ProjectCreate/ProjectCreate';
 import { Project } from 'types';
-import { getUserLanguages } from 'utils';
 
 export const ProjectDialog = ({
     canEdit = false,

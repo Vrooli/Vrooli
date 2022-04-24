@@ -1,5 +1,6 @@
 // Defines common props
 import { findHandles_findHandles } from 'graphql/generated/findHandles';
+import { homePage_homePage_organizations, homePage_homePage_projects, homePage_homePage_routines, homePage_homePage_users } from 'graphql/generated/homePage';
 import { organization_organization } from 'graphql/generated/organization';
 import { profile_profile_emails, profile_profile_resourceLists, profile_profile_wallets } from 'graphql/generated/profile';
 import { project_project } from 'graphql/generated/project';
@@ -29,6 +30,11 @@ export interface CommonProps {
 export type Comment = any; //TODO
 export type Email = profile_profile_emails;
 export type Handle = findHandles_findHandles;
+export type ListOrganization = homePage_homePage_organizations;
+export type ListProject = homePage_homePage_projects;
+export type ListRoutine = homePage_homePage_routines;
+export type ListStandard = homePage_homePage_standards;
+export type ListUser = homePage_homePage_users;
 export type Node = routine_routine_nodes;
 export type NodeDataEnd = routine_routine_nodes_data_NodeEnd;
 export type NodeDataLoop = routine_routine_nodes_data_NodeLoop;

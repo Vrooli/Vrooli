@@ -1,15 +1,15 @@
 import { APP_LINKS } from "@local/shared";
-import { actorDefaultSortOption, ActorListItem, actorOptionLabel, ActorSortOptions, ShareDialog, UserDialog } from "components";
+import { userDefaultSortOption, UserSortOptions, ShareDialog, UserDialog } from "components";
 import { usersQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
 import { User } from "types";
 import { BaseSearchPage } from "./BaseSearchPage";
-import { SearchActorsPageProps } from "./types";
+import { SearchUsersPageProps } from "./types";
 import { useLocation } from "wouter";
 
-export const SearchActorsPage = ({
+export const SearchUsersPage = ({
     session
-}: SearchActorsPageProps) => {
+}: SearchUsersPageProps) => {
     const [location, setLocation] = useLocation();
 
     // Handles item add/select/edit
@@ -33,15 +33,6 @@ export const SearchActorsPage = ({
     const handleSurpriseDialogOpen = useCallback(() => setSurpriseDialogOpen(true), []);
     const handleSurpriseDialogClose = useCallback(() => setSurpriseDialogOpen(false), []);
 
-    const listItemFactory = (node: User, index: number) => (
-        <ActorListItem
-            key={`actor-list-item-${index}`}
-            index={index}
-            session={session}
-            data={node}
-            onClick={(_e, selected: User) => setSelectedItem(selected)}
-        />)
-
     return (
         <>
             {/* Invite link dialog */}
@@ -56,13 +47,12 @@ export const SearchActorsPage = ({
             />
             {/* Search component */}
             <BaseSearchPage
+                itemKeyPrefix="user-list-item"
                 title="Users"
                 searchPlaceholder="Search by name/handle..."
-                sortOptions={ActorSortOptions}
-                defaultSortOption={actorDefaultSortOption}
+                sortOptions={UserSortOptions}
+                defaultSortOption={userDefaultSortOption}
                 query={usersQuery}
-                listItemFactory={listItemFactory}
-                getOptionLabel={actorOptionLabel}
                 onObjectSelect={handleSelected}
                 showAddButton={false}
                 popupButtonText="Invite"

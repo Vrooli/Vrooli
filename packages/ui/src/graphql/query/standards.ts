@@ -1,8 +1,8 @@
 import { gql } from 'graphql-tag';
-import { standardFields } from 'graphql/fragment';
+import { listStandardFields } from 'graphql/fragment';
 
 export const standardsQuery = gql`
-    ${standardFields}
+    ${listStandardFields}
     query standards($input: StandardSearchInput!) {
         standards(input: $input) {
             pageInfo {
@@ -12,7 +12,7 @@ export const standardsQuery = gql`
             edges {
                 cursor
                 node {
-                    ...standardFields
+                    ...listStandardFields
                 }
             }
         }

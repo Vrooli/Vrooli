@@ -1,7 +1,7 @@
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ProjectListItem, ResourceListHorizontal, TitleContainer } from 'components';
+import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
 import { developPage } from 'graphql/generated/developPage';
 import { LogType } from 'graphql/generated/globalTypes';
 import { logs, logsVariables } from 'graphql/generated/logs';
@@ -10,6 +10,7 @@ import { profileUpdateMutation } from 'graphql/mutation';
 import { developPageQuery, logsQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { ResourceList } from 'types';
+import { listToListItems } from 'utils';
 import { DevelopPageProps } from '../types';
 
 const completedText =
@@ -73,35 +74,26 @@ export const DevelopPage = ({
 
     const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery);
 
-    const inProgress = useMemo(() => developPageData?.developPage?.inProgress?.map((o, index) => (
-        <ProjectListItem
-            key={`in-progress-list-item-${'TODO'}`}
-            index={index}
-            session={session}
-            data={o}
-            onClick={() => { }}
-        />
-    )), []);
+    const inProgress = useMemo(() => listToListItems(
+        developPageData?.developPage?.inProgress ?? [],
+        session,
+        'in-progress-list-item',
+        () => {}
+    ), [developPageData, session])
 
-    const recent = useMemo(() => [].map((o, index) => (
-        <ProjectListItem
-            key={`recently-projects-list-item-${'TODO'}`}
-            index={index}
-            session={session}
-            data={o}
-            onClick={() => { }}
-        />
-    )), []);
+    const recent = useMemo(() => listToListItems(
+        developPageData?.developPage?.recent ?? [],
+        session,
+        'recently-updated-list-item',
+        () => {}
+    ), [developPageData, session])
 
-    const completed = useMemo(() => [].map((o, index) => (
-        <ProjectListItem
-            key={`completed-projects-list-item-${'TODO'}`}
-            index={index}
-            session={session}
-            data={o}
-            onClick={() => { }}
-        />
-    )), []);
+    const completed = useMemo(() => listToListItems(
+        developPageData?.developPage?.completed ?? [],
+        session,
+        'completed-list-item',
+        () => {}
+    ), [developPageData, session])
 
     return (
         <Box id="page">

@@ -21,7 +21,7 @@ import { DialogActionItem } from "components/containers/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { v4 as uuidv4 } from 'uuid';
-import { Organization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
+import { ListOrganization, ResourceList, Routine, RoutineInputList, RoutineOutputList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
 
@@ -42,8 +42,8 @@ export const RoutineUpdate = ({
     const routine = useMemo(() => data?.routine, [data]);
 
     // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
-    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
+    const onSwitchChange = useCallback((organization: ListOrganization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Hanlde inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
@@ -114,7 +114,7 @@ export const RoutineUpdate = ({
     }, [translations, setTranslations]);
 
     useEffect(() => {
-        if (routine?.owner?.__typename === 'Organization') setOrganizationFor(routine.owner as Organization);
+        if (routine?.owner?.__typename === 'Organization') setOrganizationFor(routine.owner as ListOrganization);
         else setOrganizationFor(null);
         setInputsList(routine?.inputs ?? []);
         setOutputsList(routine?.outputs ?? []);

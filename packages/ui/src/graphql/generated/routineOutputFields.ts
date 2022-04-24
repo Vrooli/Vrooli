@@ -4,52 +4,52 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL fragment: deepRoutineOutputFields
+// GraphQL fragment: routineOutputFields
 // ====================================================
 
-export interface deepRoutineOutputFields_translations {
+export interface routineOutputFields_translations {
   __typename: "OutputItemTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface deepRoutineOutputFields_standard_tags_translations {
+export interface routineOutputFields_standard_tags_translations {
   __typename: "TagTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface deepRoutineOutputFields_standard_tags {
+export interface routineOutputFields_standard_tags {
   __typename: "Tag";
   id: string;
   tag: string;
-  translations: deepRoutineOutputFields_standard_tags_translations[];
+  translations: routineOutputFields_standard_tags_translations[];
 }
 
-export interface deepRoutineOutputFields_standard_translations {
+export interface routineOutputFields_standard_translations {
   __typename: "StandardTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface deepRoutineOutputFields_standard {
+export interface routineOutputFields_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
   isFile: boolean;
   name: string;
   schema: string;
-  tags: deepRoutineOutputFields_standard_tags[];
-  translations: deepRoutineOutputFields_standard_translations[];
+  tags: routineOutputFields_standard_tags[];
+  translations: routineOutputFields_standard_translations[];
 }
 
-export interface deepRoutineOutputFields {
+export interface routineOutputFields {
   __typename: "OutputItem";
   id: string;
   name: string | null;
-  translations: deepRoutineOutputFields_translations[];
-  standard: deepRoutineOutputFields_standard | null;
+  translations: routineOutputFields_translations[];
+  standard: routineOutputFields_standard | null;
 }

@@ -4,10 +4,10 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL fragment: deepRoutineNodeLinkFields
+// GraphQL fragment: routineNodeLinkFields
 // ====================================================
 
-export interface deepRoutineNodeLinkFields_whens_translations {
+export interface routineNodeLinkFields_whens_translations {
   __typename: "NodeLinkWhenTranslation";
   id: string;
   language: string;
@@ -15,17 +15,17 @@ export interface deepRoutineNodeLinkFields_whens_translations {
   title: string;
 }
 
-export interface deepRoutineNodeLinkFields_whens {
+export interface routineNodeLinkFields_whens {
   __typename: "NodeLinkWhen";
   id: string;
   condition: string;
-  translations: deepRoutineNodeLinkFields_whens_translations[];
+  translations: routineNodeLinkFields_whens_translations[];
 }
 
-export interface deepRoutineNodeLinkFields {
+export interface routineNodeLinkFields {
   __typename: "NodeLink";
   id: string;
   fromId: string;
   toId: string;
-  whens: deepRoutineNodeLinkFields_whens[];
+  whens: routineNodeLinkFields_whens[];
 }

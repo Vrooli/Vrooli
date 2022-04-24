@@ -15,7 +15,7 @@ import {
     Close as CloseIcon
 } from '@mui/icons-material';
 import { Routine } from 'types';
-import { routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList } from 'components/lists';
+import { routineDefaultSortOption, RoutineSortOptions, SearchList } from 'components/lists';
 import { routineQuery, routinesQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
@@ -129,16 +129,8 @@ export const AddSubroutineDialog = ({
                         <Typography variant="h6" sx={{ marginLeft: 'auto', marginRight: 'auto' }}>Or</Typography>
                     </Box>
                     <SearchList
+                        itemKeyPrefix='routine-list-item'
                         defaultSortOption={routineDefaultSortOption}
-                        getOptionLabel={routineOptionLabel}
-                        listItemFactory={(node: Routine, index: number) => (
-                            <RoutineListItem
-                                key={`routine-list-item-${index}`}
-                                index={index}
-                                session={session}
-                                data={node}
-                                onClick={(_e, selected: Routine) => handleRoutineSelect(selected)}
-                            />)}
                         noResultsText={"None found. Maybe you should create one?"}
                         onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
                         query={routinesQuery}

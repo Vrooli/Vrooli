@@ -23,20 +23,6 @@ export enum AccountStatus {
   Unlocked = 'Unlocked'
 }
 
-export type AutocompleteInput = {
-  searchString: Scalars['String'];
-  take?: InputMaybe<Scalars['Int']>;
-};
-
-export type AutocompleteResult = {
-  __typename?: 'AutocompleteResult';
-  organizations: Array<Organization>;
-  projects: Array<Project>;
-  routines: Array<Routine>;
-  standards: Array<Standard>;
-  users: Array<User>;
-};
-
 export type Comment = {
   __typename?: 'Comment';
   commentedOn: CommentedOn;
@@ -222,11 +208,38 @@ export type FindHandlesInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
 };
 
+export type ForYouPageInput = {
+  searchString: Scalars['String'];
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type ForYouPageResult = {
+  __typename?: 'ForYouPageResult';
+  activeRoutines: Array<Routine>;
+  completedRoutines: Array<Routine>;
+  recent: Array<ProjectOrOrganizationOrRoutineOrStandardOrUser>;
+  starred: Array<ProjectOrOrganizationOrRoutineOrStandardOrUser>;
+};
+
 export type Handle = {
   __typename?: 'Handle';
   handle: Scalars['String'];
   id: Scalars['ID'];
   wallet: Wallet;
+};
+
+export type HomePageInput = {
+  searchString: Scalars['String'];
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type HomePageResult = {
+  __typename?: 'HomePageResult';
+  organizations: Array<Organization>;
+  projects: Array<Project>;
+  routines: Array<Routine>;
+  standards: Array<Standard>;
+  users: Array<User>;
 };
 
 export type InputItem = {
@@ -316,7 +329,6 @@ export type LogSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   data?: InputMaybe<Scalars['String']>;
-  group?: any;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   object1Id?: InputMaybe<Scalars['ID']>;
   object1Type?: InputMaybe<Scalars['String']>;
@@ -1261,6 +1273,8 @@ export type ProjectEdge = {
 
 export type ProjectOrOrganization = Organization | Project;
 
+export type ProjectOrOrganizationOrRoutineOrStandardOrUser = Organization | Project | Routine | Standard | User;
+
 export type ProjectOrRoutine = Project | Routine;
 
 export type ProjectSearchInput = {
@@ -1348,12 +1362,13 @@ export type ProjectUpdateInput = {
 
 export type Query = {
   __typename?: 'Query';
-  autocomplete: AutocompleteResult;
   comment?: Maybe<Comment>;
   comments: CommentSearchResult;
   commentsCount: Scalars['Int'];
   developPage: DevelopPageResult;
   findHandles: Array<Scalars['String']>;
+  forYouPage: ForYouPageResult;
+  homePage: HomePageResult;
   learnPage: LearnPageResult;
   logs: LogSearchResult;
   organization?: Maybe<Organization>;
@@ -1380,18 +1395,13 @@ export type Query = {
   standard?: Maybe<Standard>;
   standards: StandardSearchResult;
   standardsCount: Scalars['Int'];
-  statistics: StatisticsResult;
+  statisticsPage: StatisticsPageResult;
   tag?: Maybe<Tag>;
   tags: TagSearchResult;
   tagsCount: Scalars['Int'];
   user?: Maybe<User>;
   users: UserSearchResult;
   usersCount: Scalars['Int'];
-};
-
-
-export type QueryAutocompleteArgs = {
-  input: AutocompleteInput;
 };
 
 
@@ -1412,6 +1422,16 @@ export type QueryCommentsCountArgs = {
 
 export type QueryFindHandlesArgs = {
   input: FindHandlesInput;
+};
+
+
+export type QueryForYouPageArgs = {
+  input: ForYouPageInput;
+};
+
+
+export type QueryHomePageArgs = {
+  input: HomePageInput;
 };
 
 
@@ -1527,6 +1547,11 @@ export type QueryStandardsArgs = {
 
 export type QueryStandardsCountArgs = {
   input: StandardCountInput;
+};
+
+
+export type QueryStatisticsPageArgs = {
+  input: StatisticsPageInput;
 };
 
 
@@ -2238,8 +2263,13 @@ export type StarInput = {
 
 export type StarTo = Comment | Organization | Project | Routine | Standard | Tag;
 
-export type StatisticsResult = {
-  __typename?: 'StatisticsResult';
+export type StatisticsPageInput = {
+  searchString: Scalars['String'];
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatisticsPageResult = {
+  __typename?: 'StatisticsPageResult';
   allTime: StatisticsTimeFrame;
   daily: StatisticsTimeFrame;
   monthly: StatisticsTimeFrame;

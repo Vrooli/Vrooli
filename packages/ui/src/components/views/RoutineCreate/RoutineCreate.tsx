@@ -16,7 +16,7 @@ import {
 import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, MarkdownInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { Organization, ResourceList, RoutineInputList, RoutineOutputList } from "types";
+import { ListOrganization, ResourceList, RoutineInputList, RoutineOutputList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { v4 as uuidv4 } from 'uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
@@ -28,8 +28,8 @@ export const RoutineCreate = ({
 }: RoutineCreateProps) => {
 
     // Handle user/organization switch
-    const [organizationFor, setOrganizationFor] = useState<Organization | null>(null);
-    const onSwitchChange = useCallback((organization: Organization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
+    const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
+    const onSwitchChange = useCallback((organization: ListOrganization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
     // Hanlde inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);

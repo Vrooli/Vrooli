@@ -1,8 +1,8 @@
 import { gql } from 'graphql-tag';
-import { organizationFields } from 'graphql/fragment';
+import { listOrganizationFields } from 'graphql/fragment';
 
 export const organizationsQuery = gql`
-    ${organizationFields}
+    ${listOrganizationFields}
     query organizations($input: OrganizationSearchInput!) {
         organizations(input: $input) {
             pageInfo {
@@ -12,7 +12,7 @@ export const organizationsQuery = gql`
             edges {
                 cursor
                 node {
-                    ...organizationFields
+                    ...listOrganizationFields
                 }
             }
         }

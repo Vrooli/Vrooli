@@ -13,10 +13,10 @@ import {
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, ResourceListVertical, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { ProjectViewProps } from "../types";
-import { Project, ResourceList, Routine, Standard } from "types";
+import { Project, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
@@ -144,55 +144,39 @@ export const ProjectView = ({
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     // Create search data
-    const { placeholder, sortOptions, defaultSortOption, sortOptionLabel, searchQuery, where, noResultsText, onSearchSelect, searchItemFactory } = useMemo<SearchListGenerator>(() => {
+    const { itemKeyPrefix, placeholder, sortOptions, defaultSortOption, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the project's set resources
         switch (currTabType) {
             case TabOptions.Routines:
                 return {
+                    itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
                     sortOptions: RoutineSortOptions,
                     defaultSortOption: routineDefaultSortOption,
-                    sortOptionLabel: routineOptionLabel,
                     searchQuery: routinesQuery,
                     where: { projectId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
-                    searchItemFactory: (node: Routine, index: number) => (
-                        <RoutineListItem
-                            key={`routine-list-item-${index}`}
-                            index={index}
-                            session={session}
-                            data={node}
-                            onClick={(_e, selected: Routine) => openLink(APP_LINKS.Run, selected.id)}
-                        />)
                 };
             case TabOptions.Standards:
                 return {
+                    itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
                     sortOptions: StandardSortOptions,
                     defaultSortOption: standardDefaultSortOption,
-                    sortOptionLabel: standardOptionLabel,
                     searchQuery: standardsQuery,
                     where: { projectId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
-                    searchItemFactory: (node: Standard, index: number) => (
-                        <StandardListItem
-                            key={`standard-list-item-${index}`}
-                            index={index}
-                            session={session}
-                            data={node}
-                            onClick={(_e, selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
-                        />)
                 }
             default:
                 return {
+                    itemKeyPrefix: '',
                     placeholder: '',
                     noResultsText: '',
                     sortOptions: [],
                     defaultSortOption: { label: '', value: null },
-                    sortOptionLabel: (o: any) => '',
                     searchQuery: null,
                     where: {},
                     onSearchSelect: (o: any) => { },
@@ -374,10 +358,10 @@ export const ProjectView = ({
                 onClose={closeMoreMenu}
                 session={session}
             />
-            <Box sx={{ 
-                display: 'flex', 
-                paddingTop: 5, 
-                paddingBottom: 5, 
+            <Box sx={{
+                display: 'flex',
+                paddingTop: 5,
+                paddingBottom: 5,
                 background: "#b2b3b3",
                 position: "relative",
             }}>
@@ -428,24 +412,23 @@ export const ProjectView = ({
                     {
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
-                                searchPlaceholder={placeholder}
-                                sortOptions={sortOptions}
                                 defaultSortOption={defaultSortOption}
-                                query={searchQuery}
-                                take={20}
-                                searchString={searchString}
-                                sortBy={sortBy}
-                                timeFrame={timeFrame}
-                                where={where}
                                 handleAdd={toAddNew}
+                                itemKeyPrefix={itemKeyPrefix}
                                 noResultsText={noResultsText}
+                                onObjectSelect={onSearchSelect}
+                                query={searchQuery}
+                                searchPlaceholder={placeholder}
+                                searchString={searchString}
+                                session={session}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}
                                 setTimeFrame={setTimeFrame}
-                                listItemFactory={searchItemFactory}
-                                getOptionLabel={sortOptionLabel}
-                                onObjectSelect={onSearchSelect}
-                                session={session}
+                                sortBy={sortBy}
+                                sortOptions={sortOptions}
+                                take={20}
+                                timeFrame={timeFrame}
+                                where={where}
                             />
                         )
                     }

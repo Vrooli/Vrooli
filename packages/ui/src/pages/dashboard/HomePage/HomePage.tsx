@@ -1,10 +1,10 @@
-import { Box, Button, Grid, Stack, Typography } from '@mui/material';
+import { Box, Button, Grid, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
-import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
+import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
-import { autocompleteQuery } from 'graphql/query';
-import { ActorListItem, OrganizationListItem, ProjectListItem, RoutineListItem, AutocompleteSearchBar, StandardListItem, TitleContainer, CreateNewDialog } from 'components';
+import { homePageQuery } from 'graphql/query';
+import { AutocompleteSearchBar, TitleContainer, CreateNewDialog } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
@@ -14,7 +14,8 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { getTranslation } from 'utils';
+import { AutocompleteListItem, listToAutocomplete, listToListItems } from 'utils';
+import _ from 'lodash';
 
 const faqText =
 `## What is This?
@@ -62,6 +63,11 @@ The simplest thing you can do right now is to participate! You can:
 If you would like to contribute to the development of Vrooli, please contact us!
 `
 
+const tabOptions = [
+    ['Popular', APP_LINKS.Home],
+    ['For You', APP_LINKS.ForYou],
+];
+
 const ObjectType = {
     Organization: 'Organization',
     Project: 'Project',
@@ -76,13 +82,6 @@ const linkMap: { [x: string]: [string, string] } = {
     [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Run],
     [ObjectType.Standard]: [APP_LINKS.SearchStandards, APP_LINKS.Standard],
     [ObjectType.User]: [APP_LINKS.SearchUsers, APP_LINKS.Profile],
-}
-
-interface AutocompleteListItem {
-    title: string | null;
-    id: string;
-    stars: number;
-    objectType: string;
 }
 
 const examplesData: [string, string][] = [
@@ -109,30 +108,25 @@ export const HomePage = ({
     });
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     // Search query removes words that start with a '!'. These are used for sorting results. TODO doesn't work
-    const { data, refetch, loading } = useQuery<autocomplete, autocompleteVariables>(autocompleteQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
-    //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
+    const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
+
+    // Handle tabs
+    const tabIndex = useMemo(() => {
+        if (window.location.pathname === APP_LINKS.ForYou) return 1;
+        return 0;
+    }, []);
+    const handleTabChange = (_e, newIndex) => { 
+        setLocation(tabOptions[newIndex][1], { replace: true });
+    };
 
     const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
 
-    const { routines, projects, organizations, standards, users } = useMemo(() => {
-        if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
-        const { routines, projects, organizations, standards, users } = data.autocomplete;
-        return { routines, projects, organizations, standards, users };
-    }, [data]);
-
     const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
-        if (!data) return [];
-        const routines = data.autocomplete.routines.map(r => ({ title: getTranslation(r, 'title', languages, true), id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
-        const projects = data.autocomplete.projects.map(p => ({ title: getTranslation(p, 'name', languages, true), id: p.id, stars: p.stars, objectType: ObjectType.Project }));
-        const organizations = data.autocomplete.organizations.map(o => ({ title: getTranslation(o, 'name', languages, true), id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
-        const standards = data.autocomplete.standards.map(s => ({ title: s.name, id: s.id, stars: s.stars, objectType: ObjectType.Standard }));
-        const users = data.autocomplete.users.map(u => ({ title: u.name, id: u.id, stars: u.stars, objectType: ObjectType.User }));
-        const options = [...routines, ...projects, ...organizations, ...standards, ...users].sort((a: any, b: any) => {
+        return listToAutocomplete(_.flatten(Object.values(data?.homePage ?? [])), languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
-        return options;
-    }, [data, languages]);
+    }, [languages, data]);
 
     const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
     const openCreateDialog = useCallback(() => { setCreateDialogOpen(true) }, [setCreateDialogOpen]);
@@ -192,64 +186,30 @@ export const HomePage = ({
     const feeds = useMemo(() => {
         let listFeeds: JSX.Element[] = [];
         for (const objectType of feedOrder) {
-            let listFeedItems: JSX.Element[] = [];
+            let currentList: any[] = [];
             switch (objectType) {
                 case ObjectType.Organization:
-                    listFeedItems = organizations.map((o, index) => (
-                        <OrganizationListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.organizations ?? [];
                     break;
                 case ObjectType.Project:
-                    listFeedItems = projects.map((o, index) => (
-                        <ProjectListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.projects ?? [];
                     break;
                 case ObjectType.Routine:
-                    listFeedItems = routines.map((o, index) => (
-                        <RoutineListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.routines ?? [];
                     break;
                 case ObjectType.Standard:
-                    listFeedItems = standards.map((o, index) => (
-                        <StandardListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.standards ?? [];
                     break;
                 case ObjectType.User:
-                    listFeedItems = users.map((o, index) => (
-                        <ActorListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.users ?? [];
                     break;
             }
+            const listFeedItems: JSX.Element[] = listToListItems(
+                currentList, 
+                session, 
+                'feed-list-item',
+                (item: any, e: any) => openSearch(e, linkMap[objectType], item.id),
+            );
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((
                     <TitleContainer
@@ -265,10 +225,37 @@ export const HomePage = ({
             }
         }
         return listFeeds;
-    }, [feedOrder, getFeedTitle, loading, organizations, projects, routines, session, standards, users, openSearch]);
+    }, [data, feedOrder, getFeedTitle, loading, openSearch]);
 
     return (
         <Box id="page">
+            {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
+            <Tabs
+                value={tabIndex}
+                onChange={handleTabChange}
+                indicatorColor="secondary"
+                textColor="inherit"
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+                aria-label="search-type-tabs"
+                sx={{
+                    marginBottom: 2,
+                    '& .MuiTabs-flexContainer': {
+                        justifyContent: 'center',
+                    },
+                }}
+            >
+                {tabOptions.map((option, index) => (
+                    <Tab
+                        key={index}
+                        id={`home-tab-${index}`}
+                        {...{ 'aria-controls': `home-tabpanel-${index}` }}
+                        label={option[0]}
+                        color={index === 0 ? '#ce6c12' : 'default'}
+                    />
+                ))}
+            </Tabs>
             {/* Create new popup */}
             <CreateNewDialog
                 isOpen={isCreateDialogOpen}
@@ -283,7 +270,7 @@ export const HomePage = ({
                     placeholder='Search routines, projects, and more...'
                     options={autocompleteOptions}
                     getOptionKey={(option) => option.id}
-                    getOptionLabel={(option) => option.title ?? ''}
+                    getOptionLabel={(option) => option.label ?? ''}
                     getOptionLabelSecondary={(option) => option.objectType}
                     loading={loading}
                     value={searchString}

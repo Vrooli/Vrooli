@@ -7,11 +7,6 @@ import {
     User 
 } from 'types';
 
-export interface ActorCardProps {
-    data: User;
-    onClick?: (id: string) => void;
-}
-
 export interface OrganizationCardProps {
     data: Organization;
     onClick?: (id: string) => void;
@@ -46,4 +41,9 @@ export interface StatCardProps {
     title?: string;
     data: any;
     index: number;
+}
+
+export interface UserCardProps {
+    data: User;
+    onClick?: (id: string) => void;
 }

@@ -1,17 +1,15 @@
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
-import { ResourceListUsedFor, RoutineSortBy } from '@local/shared';
+import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, OrganizationListItem, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
-import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { organizations, organizationsVariables } from 'graphql/generated/organizations';
+import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { profile } from 'graphql/generated/profile';
-import { projects, projectsVariables } from 'graphql/generated/projects';
 import { researchPage } from 'graphql/generated/researchPage';
-import { routines, routinesVariables } from 'graphql/generated/routines';
 import { profileUpdateMutation } from 'graphql/mutation';
-import { organizationsQuery, profileQuery, projectsQuery, researchPageQuery, routinesQuery } from 'graphql/query';
+import { profileQuery, researchPageQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
-import { Organization, Project, ResourceList, Routine } from 'types';
+import { ResourceList } from 'types';
+import { listToListItems } from 'utils';
 import { ResearchPageProps } from '../types';
 
 const donateOrInvestText = 
@@ -113,83 +111,40 @@ export const ResearchPage = ({
 
     const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery);
 
-    const processes = useMemo(() => researchPageData?.researchPage?.processes?.map((o, index) => (
-        <RoutineListItem
-            key={`research-processes-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o as Routine}
-            onClick={() => {}}
-        />
-    )) ?? [], []);
+    const processes = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.processes ?? [],
+        session,
+        'research-process-list-item',
+        () => {}
+    ), [researchPageData, session])
 
-    // Can either be routines or projects
-    const newlyCompleted = useMemo(() => researchPageData?.researchPage?.newlyCompleted?.map((o, index) => {
-        if (o.__typename === 'Routine') {
-            return (
-                <RoutineListItem
-                    key={`research-newly-completed-list-item-${index}`}
-                    index={index}
-                    session={session}
-                    data={o as Routine}
-                    onClick={() => {}}
-                />
-            )
-        }
-        return (
-            <ProjectListItem
-                key={`research-newly-completed-list-item-${index}`}
-                index={index}
-                session={session}
-                data={o as Project}
-                onClick={() => {}}
-            />
-        )
-    }, []) ?? [], [researchPageData]);
+    const newlyCompleted = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.newlyCompleted ?? [],
+        session,
+        'newly-completed-list-item',
+        () => {}
+    ), [researchPageData, session])
 
-    const needVotes = useMemo(() => researchPageData?.researchPage?.needVotes?.map((o, index) => (
-        <ProjectListItem
-            key={`projects-that-need-votes-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o as Project}
-            onClick={() => {}}
-        />
-    )) ?? [], []);
+    const needVotes = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.needVotes ?? [],
+        session,
+        'need-votes-list-item',
+        () => {}
+    ), [researchPageData, session])
 
-    // Can either be projects or organizations
-    const donateOrInvest = useMemo(() => researchPageData?.researchPage?.needInvestments?.map((o, index) => {
-        if (o.__typename === 'Project') {
-            return (
-                <ProjectListItem
-                    key={`projects-that-need-investments-list-item-${index}`}
-                    index={index}
-                    session={session}
-                    data={o as Project}
-                    onClick={() => {}}
-                />
-            )
-        }
-        return (
-            <OrganizationListItem
-                key={`projects-that-need-investments-list-item-${index}`}
-                index={index}
-                session={session}
-                data={o as Organization}
-                onClick={() => {}}
-            />
-        )
-    }, []) ?? [], [researchPageData]);
+    const needInvestments = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.needInvestments ?? [],
+        session,
+        'need-investments-list-item',
+        () => {}
+    ), [researchPageData, session])
 
-    const needMembers = useMemo(() => researchPageData?.researchPage?.needMembers?.map((o, index) => (
-        <OrganizationListItem
-            key={`looking-for-members-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o as Organization}
-            onClick={() => {}}
-        />
-    )) ?? [], []);
+    const needMembers = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.needMembers ?? [],
+        session,
+        'need-members-list-item',
+        () => {}
+    ), [researchPageData, session])
 
     return (
         <Box id="page">
@@ -247,7 +202,7 @@ export const ResearchPage = ({
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
-                    {donateOrInvest}
+                    {needInvestments}
                 </TitleContainer>
                 <TitleContainer
                     title={"Join a Team"}

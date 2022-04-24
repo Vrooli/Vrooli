@@ -13,11 +13,11 @@ import {
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, projectDefaultSortOption, ProjectListItem, projectOptionLabel, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineListItem, routineOptionLabel, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardListItem, standardOptionLabel, StandardSortOptions, StarButton } from "components";
+import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationSortOptions, projectDefaultSortOption, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
-import { Organization, Project, ResourceList, Routine, Standard, User } from "types";
+import { ResourceList, Standard, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
@@ -144,97 +144,64 @@ export const UserView = ({
     }, [user, isOwn, session]);
 
     // Create search data
-    const { placeholder, sortOptions, defaultSortOption, sortOptionLabel, searchQuery, where, noResultsText, onSearchSelect, searchItemFactory } = useMemo<SearchListGenerator>(() => {
+    const { itemKeyPrefix, placeholder, sortOptions, defaultSortOption, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
         const openLink = (baseLink: string, id: string) => setLocation(`${baseLink}/${id}`);
         // The first tab doesn't have search results, as it is the user's set resources
         switch (currTabType) {
             case TabOptions.Organizations:
                 return {
+                    itemKeyPrefix: 'organization-list-item',
                     placeholder: "Search user's organizations...",
                     noResultsText: "No organizations found",
                     sortOptions: OrganizationSortOptions,
                     defaultSortOption: organizationDefaultSortOption,
-                    sortOptionLabel: organizationOptionLabel,
                     searchQuery: organizationsQuery,
                     where: { userId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Organization, newValue.id),
-                    searchItemFactory: (node: Organization, index: number) => (
-                        <OrganizationListItem
-                            key={`organization-list-item-${index}`}
-                            index={index}
-                            session={session}
-                            data={node}
-                            onClick={(_e, selected: Organization) => openLink(APP_LINKS.Organization, selected.id)}
-                        />)
                 }
             case TabOptions.Projects:
                 return {
+                    itemKeyPrefix: 'project-list-item',
                     placeholder: "Search user's projects...",
                     noResultsText: "No projects found",
                     sortOptions: ProjectSortOptions,
                     defaultSortOption: projectDefaultSortOption,
-                    sortOptionLabel: projectOptionLabel,
                     searchQuery: projectsQuery,
                     where: { userId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Project, newValue.id),
-                    searchItemFactory: (node: Project, index: number) => (
-                        <ProjectListItem
-                            key={`project-list-item-${index}`}
-                            index={index}
-                            session={session}
-                            data={node}
-                            onClick={(_e, selected: Project) => openLink(APP_LINKS.Project, selected.id)}
-                        />)
                 }
             case TabOptions.Routines:
                 return {
+                    itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search user's routines...",
                     noResultsText: "No routines found",
                     sortOptions: RoutineSortOptions,
                     defaultSortOption: routineDefaultSortOption,
-                    sortOptionLabel: routineOptionLabel,
                     searchQuery: routinesQuery,
                     where: { userId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
-                    searchItemFactory: (node: Routine, index: number) => (
-                        <RoutineListItem
-                            key={`routine-list-item-${index}`}
-                            index={index}
-                            session={session}
-                            data={node}
-                            onClick={(_e, selected: Routine) => openLink(APP_LINKS.Run, selected.id)}
-                        />)
                 }
             case TabOptions.Standards:
                 return {
+                    itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search user's standards...",
                     noResultsText: "No standards found",
                     sortOptions: StandardSortOptions,
                     defaultSortOption: standardDefaultSortOption,
-                    sortOptionLabel: standardOptionLabel,
                     searchQuery: standardsQuery,
                     where: { userId: id },
                     onSearchSelect: (newValue) => openLink(APP_LINKS.Standard, newValue.id),
-                    searchItemFactory: (node: Standard, index: number) => (
-                        <StandardListItem
-                            key={`standard-list-item-${index}`}
-                            index={index}
-                            session={session}
-                            data={node}
-                            onClick={(_e, selected: Standard) => openLink(APP_LINKS.Standard, selected.id)}
-                        />)
                 }
             default:
                 return {
+                    itemKeyPrefix: '',
                     placeholder: '',
                     noResultsText: '',
                     sortOptions: [],
                     defaultSortOption: { label: '', value: null },
-                    sortOptionLabel: (o: any) => '',
                     searchQuery: null,
                     where: {},
                     onSearchSelect: (o: any) => { },
-                    searchItemFactory: (a: any, b: any) => null
                 }
         }
     }, [currTabType, id, session]);
@@ -479,24 +446,23 @@ export const UserView = ({
                     {
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
-                                searchPlaceholder={placeholder}
-                                sortOptions={sortOptions}
                                 defaultSortOption={defaultSortOption}
-                                query={searchQuery}
-                                take={20}
-                                searchString={searchString}
-                                sortBy={sortBy}
-                                timeFrame={timeFrame}
-                                where={where}
-                                noResultsText={noResultsText}
                                 handleAdd={toAddNew}
+                                itemKeyPrefix={itemKeyPrefix}
+                                noResultsText={noResultsText}
+                                onObjectSelect={onSearchSelect}
+                                query={searchQuery}
+                                searchPlaceholder={placeholder}
+                                searchString={searchString}
+                                session={session}
                                 setSearchString={setSearchString}
                                 setSortBy={setSortBy}
                                 setTimeFrame={setTimeFrame}
-                                listItemFactory={searchItemFactory}
-                                getOptionLabel={sortOptionLabel}
-                                onObjectSelect={onSearchSelect}
-                                session={session}
+                                sortBy={sortBy}
+                                sortOptions={sortOptions}
+                                take={20}
+                                timeFrame={timeFrame}
+                                where={where}
                             />
                         )
                     }
