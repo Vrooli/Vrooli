@@ -1,12 +1,13 @@
-import { useLazyQuery, useMutation } from '@apollo/client';
+import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ProjectListItem, ResourceListHorizontal, TitleContainer } from 'components';
+import { developPage } from 'graphql/generated/developPage';
 import { LogType } from 'graphql/generated/globalTypes';
 import { logs, logsVariables } from 'graphql/generated/logs';
 import { profile } from 'graphql/generated/profile';
 import { profileUpdateMutation } from 'graphql/mutation';
-import { logsQuery, profileQuery } from 'graphql/query';
+import { developPageQuery, logsQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { ResourceList } from 'types';
 import { DevelopPageProps } from '../types';
@@ -70,7 +71,9 @@ export const DevelopPage = ({
         getProfile();
     }, [updateResources]);
 
-    const inProgress = useMemo(() => [].map((o, index) => (
+    const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery);
+
+    const inProgress = useMemo(() => developPageData?.developPage?.inProgress?.map((o, index) => (
         <ProjectListItem
             key={`in-progress-list-item-${'TODO'}`}
             index={index}

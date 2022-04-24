@@ -123,15 +123,29 @@ export const ResearchPage = ({
         />
     )) ?? [], []);
 
-    const newlyCompleted = useMemo(() => researchPageData?.researchPage?.newlyCompleted?.map((o, index) => (
-        <ProjectListItem
-            key={`recently-completed-projects-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o as Project}
-            onClick={() => {}}
-        />
-    )) ?? [], []);
+    // Can either be routines or projects
+    const newlyCompleted = useMemo(() => researchPageData?.researchPage?.newlyCompleted?.map((o, index) => {
+        if (o.__typename === 'Routine') {
+            return (
+                <RoutineListItem
+                    key={`research-newly-completed-list-item-${index}`}
+                    index={index}
+                    session={session}
+                    data={o as Routine}
+                    onClick={() => {}}
+                />
+            )
+        }
+        return (
+            <ProjectListItem
+                key={`research-newly-completed-list-item-${index}`}
+                index={index}
+                session={session}
+                data={o as Project}
+                onClick={() => {}}
+            />
+        )
+    }, []) ?? [], [researchPageData]);
 
     const needVotes = useMemo(() => researchPageData?.researchPage?.needVotes?.map((o, index) => (
         <ProjectListItem
@@ -143,15 +157,29 @@ export const ResearchPage = ({
         />
     )) ?? [], []);
 
-    const donateOrInvest = useMemo(() => researchPageData?.researchPage?.needInvestments?.map((o, index) => ( 
-        <ProjectListItem
-            key={`projects-that-need-funding-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o as Project}
-            onClick={() => {}}
-        />
-    )) ?? [], []);
+    // Can either be projects or organizations
+    const donateOrInvest = useMemo(() => researchPageData?.researchPage?.needInvestments?.map((o, index) => {
+        if (o.__typename === 'Project') {
+            return (
+                <ProjectListItem
+                    key={`projects-that-need-investments-list-item-${index}`}
+                    index={index}
+                    session={session}
+                    data={o as Project}
+                    onClick={() => {}}
+                />
+            )
+        }
+        return (
+            <OrganizationListItem
+                key={`projects-that-need-investments-list-item-${index}`}
+                index={index}
+                session={session}
+                data={o as Organization}
+                onClick={() => {}}
+            />
+        )
+    }, []) ?? [], [researchPageData]);
 
     const needMembers = useMemo(() => researchPageData?.researchPage?.needMembers?.map((o, index) => (
         <OrganizationListItem

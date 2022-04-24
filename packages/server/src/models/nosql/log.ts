@@ -1,11 +1,8 @@
 // Logs user actions, such as viewing an item, starting/completing a routine, 
 // joining/leaving an organization, etc.
-import { GraphQLModelType, Searcher } from '../../models/sql';
+import { GraphQLModelType } from '../../models/sql';
 import mongoose from 'mongoose';
-import { LogSearchInput, LogSearchResult, LogSortBy } from '../../schema/types';
-import { CustomError } from '../../error';
-import { CODE } from '@local/shared';
-import { genErrorCode } from '../../logger';
+import { LogSearchInput, LogSortBy } from '../../schema/types';
 
 // TODO ✅ = implemented
 export enum LogType {
@@ -88,6 +85,7 @@ export const Log = mongoose.model('Log', logSchema);
 // Search for logs
 export const logSearcher = () => ({
     defaultSort: LogSortBy.DateCreatedDesc,
+    defaultProjection: { _id: 1, timestamp: 1, userId: 1, action: 1 },
     getSortQuery: (sortBy: string): any => {
         return {
             [LogSortBy.DateCreatedAsc]: { timestamp: 1, _id: 1 },
@@ -113,34 +111,4 @@ export const logSearcher = () => ({
             return { userId };
         }
     },
-    async readMany(userId: string | null, input: LogSearchInput): Promise<LogSearchResult> {
-        if (!userId) 
-            throw new CustomError(CODE.InvalidArgs, 'userId is required to search logs', { code: genErrorCode('0015') });
-        const take = input.take || 10;
-        // Initialize results
-        let paginatedResults: LogSearchResult = { pageInfo: { endCursor: null, hasNextPage: false }, edges: [] };
-        // Create the search and sort queries
-        const findQuery = logSearcher().getFindQuery(userId ?? '', input);
-        const sortQuery = logSearcher().getSortQuery(input.sortBy ?? LogSortBy.DateCreatedDesc);
-        // Create cursor
-        const cursor = Log.find(findQuery).sort(sortQuery).skip(input.after ? parseInt(input.after) : 0).limit(take + 1).cursor();
-        const index = 0;
-        for (let page = await cursor.next(); page != null; page = await cursor.next()) {
-            // If index is equal to take, then this page is considered the "has more"
-            if (index === take) {
-                paginatedResults.pageInfo.hasNextPage = true;
-                paginatedResults.pageInfo.endCursor = page._id;
-                break;
-            }
-            // Otherwise, add to the results
-            else {
-                paginatedResults.edges.push({ 
-                    cursor: page._doc._id.toString(), 
-                    // Node is _doc, except that _id is changed to id
-                    node: { ...page._doc, id: page._doc._id.toString(), _id: undefined }
-                });
-            }
-        }
-        return paginatedResults;
-    }
 })

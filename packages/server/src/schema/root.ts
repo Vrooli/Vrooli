@@ -3,11 +3,11 @@ import { GraphQLResolveInfo, GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 // import ogs from 'open-graph-scraper';
-import { AutocompleteInput, AutocompleteResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy } from './types';
+import { AutocompleteInput, AutocompleteResult, DevelopPageResult, LearnPageResult, LogSearchResult, LogSortBy, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy } from './types';
 import { CODE } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, GraphQLModelType, modelToGraphQL, OrganizationModel, PartialInfo, ProjectModel, readManyHelper, RoutineModel, StandardModel, toPartialSelect, UserModel } from '../models';
+import { addSupplementalFieldsMultiTypes, GraphQLModelType, logSearcher, LogType, modelToGraphQL, OrganizationModel, paginatedMongoSearch, PartialInfo, ProjectModel, readManyHelper, RoutineModel, StandardModel, toPartialSelect, UserModel } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 import { genErrorCode, logger, LogLevel } from '../logger';
@@ -492,6 +492,28 @@ export const resolvers = {
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
+            // Initialize models
+            const oModel = OrganizationModel(context.prisma);
+            const pModel = ProjectModel(context.prisma);
+            const rModel = RoutineModel(context.prisma);
+            // Find completed logs
+            const completedLogs = await paginatedMongoSearch<LogSearchResult>({
+                findQuery: logSearcher().getFindQuery(context.req.userId ?? '', { action: LogType.RoutineComplete }),
+                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
+                take,
+                project: logSearcher().defaultProjection,
+            });
+            console.log('develop query completed logs', JSON.stringify(completedLogs));
+            // Use logs to find full routine data from Prisma
+            const completedIds = completedLogs.edges.map(({ node }: any) => node.object1Id);
+            const completedRoutines = (await readManyHelper(
+                context.req.userId,
+                { ids: completedIds, sortBy: RoutineSortBy.DateCompletedAsc },
+                routineSelect,
+                rModel,
+                { ...starsQuery },
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
             throw new CustomError(CODE.NotImplemented);
             // Query completed
             //TODO

@@ -9,7 +9,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 import { CustomError } from '../error';
 import { CODE } from '@local/shared';
-import { Log, logSearcher, LogType } from '../models';
+import { Log, logSearcher, LogType, paginatedMongoSearch } from '../models';
 
 export const typeDef = gql`
     enum LogSortBy {
@@ -95,7 +95,17 @@ export const resolvers = {
         logs: async (_parent: undefined, { input }: IWrap<LogSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<LogSearchResult> => {
             console.log('logs start', JSON.stringify(input))
             await rateLimit({ context, info, max: 1000, byAccount: true });
-            return logSearcher().readMany(context.req.userId, input);
+            // Create the search and sort queries
+            const findQuery = logSearcher().getFindQuery(context.req.userId ?? '', input);
+            const sortQuery = logSearcher().getSortQuery(input.sortBy ?? LogSortBy.DateCreatedDesc);
+            const project = logSearcher().defaultProjection;
+            return paginatedMongoSearch<LogSearchResult>({
+                findQuery,
+                sortQuery,
+                take: input.take ?? 10,
+                after: input.after ?? undefined,
+                project,
+            });
         },
     },
     // Logs are created automatically, so the only mutation is to delete them

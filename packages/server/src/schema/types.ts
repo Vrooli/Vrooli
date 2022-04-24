@@ -316,6 +316,7 @@ export type LogSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   data?: InputMaybe<Scalars['String']>;
+  group?: any;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   object1Id?: InputMaybe<Scalars['ID']>;
   object1Type?: InputMaybe<Scalars['String']>;
