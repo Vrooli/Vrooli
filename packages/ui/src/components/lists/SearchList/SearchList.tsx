@@ -209,8 +209,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     // Handle advanced search dialog
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
     const handleAdvancedSearchDialogOpen = useCallback(() => {
-        PubSub.publish(Pubs.Snack, { message: 'Available next update. Please be patient with us😬', severity: 'error' });
-        return;
+        // PubSub.publish(Pubs.Snack, { message: 'Available next update. Please be patient with us😬', severity: 'error' });
+        // return;
         setAdvancedSearchDialogOpen(true)
     }, []);
     const handleAdvancedSearchDialogClose = useCallback(() => { setAdvancedSearchDialogOpen(false) }, []);

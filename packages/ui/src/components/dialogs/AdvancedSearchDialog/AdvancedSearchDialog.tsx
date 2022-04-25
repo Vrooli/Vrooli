@@ -26,6 +26,8 @@ import {
 } from '@mui/icons-material';
 import { useFormik } from 'formik';
 import { QuantityBox } from 'components/inputs';
+import { FormSchema, InputType } from 'forms/types';
+import { BaseForm } from 'forms';
 
 // const isOpenToNewMembersQuery = input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {};
 // const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
@@ -38,6 +40,38 @@ import { QuantityBox } from 'components/inputs';
 // const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
 // const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
 // const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
+
+const organizationFormSchema: FormSchema = {
+    formLayout: {
+        title: "Search Organizations",
+        direction: "column",
+        rowSpacing: 5,
+    },
+    fields: [
+        {
+            fieldName: "isOpenToNewMembers",
+            label: "Accepting new members?",
+            type: InputType.Radio,
+            props: {
+                defaultValue: null,
+                row: true,
+                options: [
+                    { label: "Yes", value: true },
+                    { label: "No", value: false },
+                    { label: "Don't Care", value: null },
+                ]
+            }
+        },
+        {
+            fieldName: "minimumStars",
+            label: "Minimum Stars",
+            type: InputType.QuantityBox,
+            props: {
+                min: 10,
+            }
+        }
+    ]
+}
 
 export const AdvancedSearchDialog = ({
     handleClose,
@@ -93,8 +127,12 @@ export const AdvancedSearchDialog = ({
         >
             {titleBar}
             <DialogContent>
-                <Stack direction="column" spacing={4}>
-                    {/* Is open to new members radio group */}
+                <BaseForm
+                    onSubmit={formik.handleSubmit}
+                    schema={organizationFormSchema}
+                />
+                {/* <Stack direction="column" spacing={4}>
+                    // Accepting new members
                     <FormControl component="fieldset">
                         <FormLabel component="legend">Accepting New Members?</FormLabel>
                         <RadioGroup
@@ -122,7 +160,7 @@ export const AdvancedSearchDialog = ({
                             />
                         </RadioGroup>
                     </FormControl>
-                    {/* Min stars */}
+                    // Min Stars
                     <QuantityBox
                         id="minStars"
                         label="Minimum Stars"
@@ -131,7 +169,7 @@ export const AdvancedSearchDialog = ({
                         value={formik.values.minStars}
                         tooltip="Minimum number of stars"
                     />
-                </Stack>
+                </Stack> */}
             </DialogContent>
             {/* Search/Cancel buttons */}
             <Grid container spacing={1} sx={{

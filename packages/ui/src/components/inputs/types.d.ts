@@ -72,8 +72,12 @@ export interface PasswordTextFieldProps extends TextFieldProps {
 }
 
 export interface QuantityBoxProps extends BoxProps {
+    autoFocus?: boolean;
+    error?: boolean;
     handleChange: (newValue: number) => any;
+    helperText?: string | null | undefined;
     id: string;
+    key?: string;
     initial?: number;
     label?: string;
     max?: number;

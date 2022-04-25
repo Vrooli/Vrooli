@@ -13,22 +13,32 @@ import {
     TextField,
     Typography
 } from '@mui/material'
-import { Dropzone, Selector } from 'components'
-import { DropzoneProps, SelectorProps } from 'components/inputs/types'
+import { Dropzone, QuantityBox, Selector } from 'components'
+import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/inputs/types'
 import { CheckboxProps, FieldData, InputType, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
+
+/**
+ * Function signature shared between all input components
+ */
+export interface InputGeneratorProps {
+    data: FieldData,
+    formik: any,
+    index: number
+}
 
 /**
  * Converts JSON into a Checkbox component.
  * Uses formik for validation and onChange.
  */
-export const toCheckbox = (
-    data: FieldData,
-    formik: any,
-    index: number
-): React.ReactElement => {
+export const toCheckbox = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
     const props = data.props as CheckboxProps;
     return (
         <FormControlLabel
+            key={`field-${data.fieldName}-${index}`}
             control={
                 <Checkbox
                     id={data.fieldName}
@@ -37,6 +47,7 @@ export const toCheckbox = (
                     checked={formik.values[data.fieldName]}
                     onBlur={formik.handleBlur}
                     onChange={formik.handleChange}
+                    tabIndex={index}
                 />
             }
             label={data.label}
@@ -47,14 +58,13 @@ export const toCheckbox = (
 /**
  * Converts JSON into a Dropzone component.
  */
-export const toDropzone = (
-    data: FieldData,
-    formik: any,
-    index: number
-): React.ReactElement => {
+export const toDropzone = ({
+    data,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
     const props = data.props as DropzoneProps;
     return (
-        <Stack direction="column" spacing={1}>
+        <Stack direction="column" key={`field-${data.fieldName}-${index}`} spacing={1}>
             <Typography variant="h5" textAlign="center">{data.label}</Typography>
             <Dropzone
                 acceptedFileTypes={props.acceptedFileTypes}
@@ -73,22 +83,23 @@ export const toDropzone = (
  * Converts JSON into a Radio component.
  * Uses formik for validation and onChange.
  */
-export const toRadio = (
-    data: FieldData,
-    formik: any,
-    index: number
-): React.ReactElement => {
+export const toRadio = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
     const props = data.props as RadioProps;
     return (
-        <FormControl component="fieldset">
+        <FormControl component="fieldset" key={`field-${data.fieldName}-${index}`}>
             <FormLabel component="legend">{data.label}</FormLabel>
             <RadioGroup
                 aria-label={data.fieldName}
-                name="radio-buttons-group"
                 row={props.row}
+                name={data.fieldName}
                 value={formik.values[data.fieldName]}
                 onBlur={formik.handleBlur}
                 onChange={formik.handleChange}
+                tabIndex={index}
             >
                 {
                     props.options.map((option, index) => (
@@ -110,14 +121,15 @@ export const toRadio = (
  * Converts JSON into a Selector component.
  * Uses formik for validation and onChange.
  */
-export const toSelector = (
-    data: FieldData,
-    formik: any,
-    index: number
-): React.ReactElement => {
+export const toSelector = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
     const props = data.props as SelectorProps;
     return (
         <Selector
+            key={`field-${data.fieldName}-${index}`}
             options={props.options}
             getOptionLabel={props.getOptionLabel}
             selected={formik.values[data.fieldName]}
@@ -129,6 +141,7 @@ export const toSelector = (
             noneOption={props.noneOption}
             label={data.label}
             color={props.color}
+            tabIndex={index}
         />
     );
 }
@@ -137,15 +150,16 @@ export const toSelector = (
  * Converts JSON into a Slider component.
  * Uses formik for validation and onChange.
  */
-export const toSlider = (
-    data: FieldData,
-    formik: any,
-    index: number
-): React.ReactElement => {
+export const toSlider = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
     const props = data.props as SliderProps;
     return (
         <Slider
             aria-label={data.fieldName}
+            key={`field-${data.fieldName}-${index}`}
             min={props.min}
             max={props.max}
             step={props.step}
@@ -153,6 +167,7 @@ export const toSlider = (
             value={formik.values[data.fieldName]}
             onBlur={formik.handleBlur}
             onChange={formik.handleChange}
+            tabIndex={index}
         />
     );
 }
@@ -161,18 +176,18 @@ export const toSlider = (
  * Converts JSON into a Switch component.
  * Uses formik for validation and onChange.
  */
-export const toSwitch = (
-    data: FieldData,
-    formik: any,
-    index: number
-): React.ReactElement => {
+export const toSwitch = ({
+    data,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
     const props = data.props as SwitchProps;
     return (
-        <FormGroup>
+        <FormGroup key={`field-${data.fieldName}-${index}`}>
             <FormControlLabel control={(
                 <Switch
                     size={props.size}
                     color={props.color}
+                    tabIndex={index}
                 />
             )} label={data.fieldName} />
         </FormGroup>
@@ -184,20 +199,22 @@ export const toSwitch = (
  * Uses formik for validation and onChange.
  * If this component is first in the list, it will be focused.
  */
-export const toTextField = (
-    data: FieldData,
-    formik: any,
-    index: number
-): React.ReactElement => {
+export const toTextField = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
     const props = data.props as TextFieldProps;
     const multiLineProps = props.maxRows ? { multiline: true, rows: props.maxRows } : {};
     return (
         <TextField
+            key={`field-${data.fieldName}-${index}`}
             fullWidth
             autoFocus={index === 0}
+            tabIndex={index}
             id={data.fieldName}
             name={data.fieldName}
-            required={props.required}
+            required={data.yup?.required}
             autoComplete={props.autoComplete}
             label={data.label}
             value={formik.values[data.fieldName]}
@@ -211,9 +228,39 @@ export const toTextField = (
 }
 
 /**
+ * Converts JSON into a QuantityBox (number input) component.
+ * Uses formik for validation and onChange.
+ * If this component is first in the list, it will be focused.
+ */
+export const toQuantityBox = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
+    const props = data.props as QuantityBoxProps;
+    console.log('quantity box generator', data, formik, index)
+    return (
+        <QuantityBox
+            autoFocus={index === 0}
+            key={`field-${data.fieldName}-${index}`}
+            tabIndex={index}
+            id={data.fieldName}
+            label={data.label}
+            min={props.min ?? 0}
+            tooltip={props.tooltip ?? ''}
+            value={formik.values[data.fieldName]}
+            onBlur={formik.handleBlur}
+            handleChange={(value: number) => formik.setFieldValue(data.fieldName, value)}
+            error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
+            helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+        />
+    );
+}
+
+/**
  * Maps a data input type string to its corresponding component generator function
  */
- const typeMap = {
+const typeMap = {
     [InputType.Checkbox]: toCheckbox,
     [InputType.Dropzone]: toDropzone,
     [InputType.Radio]: toRadio,
@@ -221,6 +268,7 @@ export const toTextField = (
     [InputType.Slider]: toSlider,
     [InputType.Switch]: toSwitch,
     [InputType.TextField]: toTextField,
+    [InputType.QuantityBox]: toQuantityBox,
 }
 
 /**
@@ -234,8 +282,13 @@ export const toTextField = (
  * - TextField
  * @param data The data to convert
  * @param formik The formik object
- * @param index The index of the component (mainly for autoFocus)
+ * @param index The index of the component (for autoFocus & tabIndex)
  */
-export const generateInputComponent = (data: FieldData, formik: any, index: number): React.ReactElement | null => {
-    return typeMap[data.type](data, formik, index);
+export const generateInputComponent = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement | null => {
+    console.log('generateInputComponent start', data, index);
+    return typeMap[data.type]({ data, formik, index });
 }

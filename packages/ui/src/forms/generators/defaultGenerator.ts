@@ -1,13 +1,13 @@
 import { CheckboxProps, InputType, RadioProps, SliderProps, SwitchProps, TextFieldProps } from '../types';
 import { FieldData } from 'forms/types';
-import { DropzoneProps, SelectorProps } from 'components/inputs/types';
+import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/inputs/types';
 
 /**
  * Maps a data input type to a function that calculates its default values.
  * Values already set have precedence
  * @returns The passed-in props object with default values added
  */
-const defaultMap = {
+const defaultMap: { [key in InputType]: (props: any) => any } = {
     [InputType.Checkbox]: (props: CheckboxProps): CheckboxProps => ({
         defaultValue: false,
         color: 'secondary',
@@ -49,6 +49,9 @@ const defaultMap = {
         defaultValue: '',
         ...props
     }),
+    [InputType.QuantityBox]: (props: Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'>): Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'> => ({
+        ...props
+    }),
 }
 
 /**
@@ -56,6 +59,7 @@ const defaultMap = {
  * @param fields The form's field data
  */
 export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
+    console.log('generating default props', fields)
     if (!fields) return [];
     return fields.map(field => {
         const { props, ...otherKeys } = field;
