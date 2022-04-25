@@ -4,6 +4,7 @@ import {
     FormControl,
     FormControlLabel,
     FormGroup,
+    FormHelperText,
     FormLabel,
     Radio,
     RadioGroup,
@@ -13,9 +14,10 @@ import {
     TextField,
     Typography
 } from '@mui/material'
-import { Dropzone, QuantityBox, Selector } from 'components'
+import { Dropzone, JSONInput, MarkdownInput, QuantityBox, Selector } from 'components'
 import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/inputs/types'
-import { CheckboxProps, FieldData, InputType, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
+import { CheckboxProps, FieldData, InputType, JSONProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
+import { updateArray } from 'utils'
 
 /**
  * Function signature shared between all input components
@@ -23,11 +25,12 @@ import { CheckboxProps, FieldData, InputType, RadioProps, SliderProps, SwitchPro
 export interface InputGeneratorProps {
     data: FieldData,
     formik: any,
-    index: number
+    index: number,
+    onUpload: (fieldName: string, files: string[]) => void,
 }
 
 /**
- * Converts JSON into a Checkbox component.
+ * Converts JSON into a Checkbox group component.
  * Uses formik for validation and onChange.
  */
 export const toCheckbox = ({
@@ -36,24 +39,71 @@ export const toCheckbox = ({
     index,
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as CheckboxProps;
+    const hasError: boolean = formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName]);
+    const errorText: string | null = hasError ? formik.errors[data.fieldName] : null;
+    console.log('TO CHECKBOXXXX', props, formik.values[data.fieldName]);
+    console.log('yeeties a', Array.isArray(formik.values[data.fieldName]))
+    console.log('yeeties b', formik.values[data.fieldName].lenth)
+    console.log('yeeties c', Array.isArray(formik.values[data.fieldName]) && formik.values[data.fieldName].length > index)
     return (
-        <FormControlLabel
+        <FormControl
             key={`field-${data.fieldName}-${index}`}
-            control={
-                <Checkbox
-                    id={data.fieldName}
-                    name={data.fieldName}
-                    color={props.color}
-                    checked={formik.values[data.fieldName]}
-                    onBlur={formik.handleBlur}
-                    onChange={formik.handleChange}
-                    tabIndex={index}
-                />
-            }
-            label={data.label}
-        />
-    );
+            required={data.yup?.required}
+            error={hasError}
+            component="fieldset"
+            sx={{ m: 3 }}
+            variant="standard"
+        >
+            <FormLabel component="legend">{data.label}</FormLabel>
+            <FormGroup row={props.row ?? false}>
+                {
+                    props.options.map((option, index) => (
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={(Array.isArray(formik.values[data.fieldName]) && formik.values[data.fieldName].length > index) ? formik.values[data.fieldName][index] : false}
+                                    onChange={(event) => { console.log('checkbox on change!!!', event.target.checked, index); formik.setFieldValue(data.fieldName, updateArray(formik.values[data.fieldName], index, event.target.checked)) }}
+                                    name={`${data.fieldName}-${index}`}
+                                />
+                            }
+                            label={option.label}
+                        />
+                    ))
+                }
+            </FormGroup>
+            {errorText && <FormHelperText>{errorText}</FormHelperText>}
+        </FormControl>
+    )
 }
+
+// /**
+//  * Converts JSON into a Checkbox component.
+//  * Uses formik for validation and onChange.
+//  */
+// export const toCheckbox = ({
+//     data,
+//     formik,
+//     index,
+// }: InputGeneratorProps): React.ReactElement => {
+//     const props = data.props as CheckboxProps;
+//     return (
+//         <FormControlLabel
+//             key={`field-${data.fieldName}-${index}`}
+//             control={
+//                 <Checkbox
+//                     id={data.fieldName}
+//                     name={data.fieldName}
+//                     color={props.color}
+//                     checked={formik.values[data.fieldName]}
+//                     onBlur={formik.handleBlur}
+//                     onChange={formik.handleChange}
+//                     tabIndex={index}
+//                 />
+//             }
+//             label={data.label}
+//         />
+//     );
+// }
 
 /**
  * Converts JSON into a Dropzone component.
@@ -61,6 +111,7 @@ export const toCheckbox = ({
 export const toDropzone = ({
     data,
     index,
+    onUpload,
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as DropzoneProps;
     return (
@@ -73,10 +124,60 @@ export const toDropzone = ({
                 cancelText={props.cancelText}
                 maxFiles={props.maxFiles}
                 showThumbs={props.showThumbs}
-                onUpload={() => { }} //TODO
+                onUpload={(files) => { onUpload(data.fieldName, files) }}
             />
         </Stack>
     );
+}
+
+/**
+ * Converts JSON into a JSON input component. This component 
+ * allows you to view the JSON format, insert JSON that matches, 
+ * and highlights the incorrect parts of the input.
+ * Uses formik for validation and onChange.
+ */
+export const toJSON = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
+    const props = data.props as JSONProps;
+    return (
+        <JSONInput
+            id={data.fieldName}
+            format={props.format}
+            variables={props.variables}
+            placeholder={props.placeholder ?? data.label}
+            value={formik.values[data.fieldName]}
+            minRows={props.minRows}
+            onChange={(newText: string) => formik.setFieldValue(data.fieldName, newText)}
+            error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
+            helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+        />
+    )
+}
+
+/**
+ * Converts JSON into a markdown input component.
+ * Uses formik for validation and onChange.
+ */
+export const toMarkdown = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
+    const props = data.props as MarkdownProps;
+    return (
+        <MarkdownInput
+            id={data.fieldName}
+            placeholder={props.placeholder ?? data.label}
+            value={formik.values[data.fieldName]}
+            minRows={props.minRows}
+            onChange={(newText: string) => formik.setFieldValue(data.fieldName, newText)}
+            error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
+            helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+        />
+    )
 }
 
 /**
@@ -263,6 +364,8 @@ export const toQuantityBox = ({
 const typeMap = {
     [InputType.Checkbox]: toCheckbox,
     [InputType.Dropzone]: toDropzone,
+    [InputType.JSON]: toJSON,
+    [InputType.Markdown]: toMarkdown,
     [InputType.Radio]: toRadio,
     [InputType.Selector]: toSelector,
     [InputType.Slider]: toSlider,
@@ -283,12 +386,14 @@ const typeMap = {
  * @param data The data to convert
  * @param formik The formik object
  * @param index The index of the component (for autoFocus & tabIndex)
+ * @param onUpload Callback for uploading files
  */
 export const generateInputComponent = ({
     data,
     formik,
     index,
+    onUpload,
 }: InputGeneratorProps): React.ReactElement | null => {
     console.log('generateInputComponent start', data, index);
-    return typeMap[data.type]({ data, formik, index });
+    return typeMap[data.type]({ data, formik, index, onUpload });
 }

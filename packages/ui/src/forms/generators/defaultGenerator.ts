@@ -1,6 +1,5 @@
-import { CheckboxProps, InputType, RadioProps, SliderProps, SwitchProps, TextFieldProps } from '../types';
+import { CheckboxProps, DropzoneProps, InputType, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps } from '../types';
 import { FieldData } from 'forms/types';
-import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/inputs/types';
 
 /**
  * Maps a data input type to a function that calculates its default values.
@@ -9,11 +8,23 @@ import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/input
  */
 const defaultMap: { [key in InputType]: (props: any) => any } = {
     [InputType.Checkbox]: (props: CheckboxProps): CheckboxProps => ({
-        defaultValue: false,
+        defaultValue: new Array(props.options.length).fill(false),
         color: 'secondary',
+        row: true,
         ...props
     }),
-    [InputType.Dropzone]: (props: DropzoneProps): DropzoneProps => ({ ...props }),
+    [InputType.Dropzone]: (props: DropzoneProps): DropzoneProps => ({ 
+        defaultValue: [],
+        ...props 
+    }),
+    [InputType.JSON]: (props: JSONProps): JSONProps => ({ 
+        defaultValue: '',
+        ...props 
+    }),
+    [InputType.Markdown]: (props: MarkdownProps): MarkdownProps => ({ 
+        defaultValue: '',
+        ...props 
+    }),
     [InputType.Radio]: (props: RadioProps) => ({
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
         ...props

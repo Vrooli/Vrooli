@@ -1,39 +1,108 @@
 import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
+import { JSONVariable, YupField } from 'forms/types';
 import { ChangeEvent, MouseEvent } from 'react';
 import { ListOrganization, Organization, Session, Tag } from 'types';
 
-export interface DropzoneProps {
-    acceptedFileTypes?: string[];
-    dropzoneText?: string;
-    onUpload: (files: any[]) => any;
-    showThumbs?: boolean;
-    maxFiles?: number;
-    uploadText?: string;
-    cancelText?: string;
-    disabled?: boolean;
-}
-
-export interface SearchBarProps extends InputProps {
-    id?: string;
-    placeholder?: string;
-    value: string;
-    onChange: (updatedText: string) => any;
-    debounce?: number;
-}
-
 export interface AutocompleteSearchBarProps<T> extends SearchBarProps {
-    id?: string;
-    placeholder?: string;
-    value: string;
-    loading?: boolean;
-    options?: T[];
+    debounce?: number;
     getOptionKey: (option: T, languages: readonly string[]) => string;
     getOptionLabel: (option: T, languages: readonly string[]) => string;
     getOptionLabelSecondary?: (option: T) => string;
+    id?: string;
+    loading?: boolean;
     onChange: (updatedText: string) => any;
     onInputChange: (newValue: T) => any;
-    debounce?: number;
+    options?: T[];
+    placeholder?: string;
     session: Session;
+    value: string;
+}
+
+export interface DropzoneProps {
+    acceptedFileTypes?: string[];
+    cancelText?: string;
+    disabled?: boolean;
+    dropzoneText?: string;
+    maxFiles?: number;
+    onUpload: (files: any[]) => any;
+    showThumbs?: boolean;
+    uploadText?: string;
+}
+
+export interface EditableLabelProps {
+    canEdit: boolean;
+    handleUpdate: (newTitle: string) => void;
+    renderLabel: (label: string) => JSX.Element;
+    sxs?: { stack?: { [x: string]: any } };
+    text: string;
+}
+
+export interface JSONInputProps {
+    id: string;
+    description?: string;
+    disabled?: boolean;
+    error?: boolean;
+    /**
+     * JSON string representing the format that the 
+     * input should follow. 
+     * Any key/value that's a plain string (e.g. "name", "age") 
+     * must appear in the input value exactly as shown. 
+     * Any key/value that's wrapped in <> (e.g. <name>, <age>) 
+     * refers to a variable.
+     * Any key that starts with a ? is optional.
+     * Any key that's wrapped in [] (e.g. [x]) 
+     * means that additional keys can be added to the object. The value of these 
+     * keys is also wrapped in [] (e.g. [string], [any], [number | string])
+     * to specify the types of values allowed.
+     * ex: {
+     * "<721>": {
+     *   "<policy_id>": {
+     *     "<asset_name>": {
+     *       "name": "<asset_name>",
+     *       "image": "<ipfs_link>",
+     *       "?mediaType": "<mime_type>",
+     *       "?description": "<description>",
+     *       "?files": [
+     *         {
+     *          "name": "<asset_name>",
+     *           "mediaType": "<mime_type>",
+     *           "src": "<ipfs_link>"
+     *         }
+     *       ],
+     *       "[x]": "[any]"
+     *     }
+     *   },
+     *   "version": "1.0"
+     *  }
+     * }
+     */
+    format?: string;
+    helperText?: string | null | undefined;
+    minRows?: number;
+    onChange: (newText: string) => any;
+    placeholder?: string;
+    title?: string;
+    /**
+     * JSON string representing the value of the input
+     */
+    value: string;
+    /**
+     * Dictionary which describes variables (e.g. <name>, <age>) in
+     * the format JSON. 
+     * Each variable can have a label, helper text, a type, and accepted values.
+     * ex: {
+     *  "policy_id": {
+     *      "label": "Policy ID",
+     *      "helperText": "Human-readable name of the policy.",
+     *  },
+     *  "721": {
+     *      "label": "721",
+     *      "helperText": "The transaction_metadatum_label that describes the type of data. 
+     *      721 is the number for NFTs.",
+     *   }
+     * }
+     */
+    variables?: { [x: string]: JSONVariable };
 }
 
 export interface LanguageInputProps {
@@ -51,9 +120,9 @@ export interface MarkdownInputProps extends TextFieldProps {
     disabled?: boolean;
     error?: boolean;
     helperText?: string | null | undefined;
+    minRows?: number;
     onChange: (newText: string) => any;
     placeholder?: string;
-    minRows?: number;
     value: string;
 }
 
@@ -85,6 +154,14 @@ export interface QuantityBoxProps extends BoxProps {
     step?: number;
     tooltip?: string;
     value: number;
+}
+
+export interface SearchBarProps extends InputProps {
+    debounce?: number;
+    id?: string;
+    placeholder?: string;
+    value: string;
+    onChange: (updatedText: string) => any;
 }
 
 export interface SelectorProps extends SelectProps {
@@ -123,12 +200,4 @@ export interface UserOrganizationSwitchProps extends UseSwitchProps {
     selected: ListOrganization | null;
     onChange: (value: ListOrganization | null) => any;
     disabled?: boolean;
-}
-
-export interface EditableLabelProps {
-    canEdit: boolean;
-    handleUpdate: (newTitle: string) => void;
-    renderLabel: (label: string) => JSX.Element;
-    sxs?: { stack?: { [x: string]: any } };
-    text: string;
 }

@@ -6,15 +6,8 @@ import {
     Button,
     Dialog,
     DialogContent,
-    FormControl,
-    FormControlLabel,
-    FormLabel,
     Grid,
     IconButton,
-    Radio,
-    RadioGroup,
-    Stack,
-    Tooltip,
     Typography
 } from '@mui/material';
 import { useMemo } from 'react';
@@ -25,7 +18,6 @@ import {
     Search as SearchIcon,
 } from '@mui/icons-material';
 import { useFormik } from 'formik';
-import { QuantityBox } from 'components/inputs';
 import { FormSchema, InputType } from 'forms/types';
 import { BaseForm } from 'forms';
 
@@ -67,9 +59,35 @@ const organizationFormSchema: FormSchema = {
             label: "Minimum Stars",
             type: InputType.QuantityBox,
             props: {
-                min: 10,
+                min: 0,
+                defaultValue: 5,
             }
-        }
+        },
+        {
+            fieldName: "testCheckboxMulti",
+            label: "Test Checkbox Multi",
+            type: InputType.Checkbox,
+            props: {
+                color: "secondary",
+                options: [{ label: "Boop" }, { label: "Beep" }, { label: "Bop" }],
+            }
+        },
+        {
+            fieldName: "testDropzone",
+            label: "Test Dropzone",
+            type: InputType.Dropzone,
+            props: {
+                maxFiles: 1,
+            }
+        },
+        // {
+        //     fieldName: "testJSONInput",
+        //     label: "Test JSON Input",
+        //     type: InputType.JSON,
+        //     props: {
+        //         description: "This is a JSON input",
+        //     }
+        // }
     ]
 }
 

@@ -1,6 +1,6 @@
 import { APP_LINKS } from "@local/shared";
 import { Organization, Project, Routine, Standard, User } from "types";
-import { Pubs } from "./consts";
+import { Pubs } from "../consts";
 import { getTranslation } from "./translationTools";
 
 /**

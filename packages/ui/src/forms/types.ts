@@ -1,6 +1,6 @@
 import { CommonProps } from "types";
 import { Forms } from "utils";
-import { DropzoneProps as DP, QuantityBoxProps, SelectorProps as SP } from 'components/inputs/types';
+import { DropzoneProps as DP, JSONInputProps as JP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP } from 'components/inputs/types';
 
 //==============================================================
 /* #region Specific Form Props */
@@ -35,6 +35,8 @@ export interface ResetPasswordFormProps extends FormProps {
 export enum InputType {
     Checkbox = 'Checkbox',
     Dropzone = 'Dropzone',
+    JSON = 'JSON',
+    Markdown = 'Markdown',
     Radio = 'Radio',
     Selector = 'Selector',
     Slider = 'Slider',
@@ -48,14 +50,39 @@ export enum InputType {
  */
 export interface CheckboxProps {
     color?: 'primary' | 'secondary' | 'default';
-    defaultValue?: boolean;
+    /**
+     * Array of booleans, one for each option in props
+     */
+    defaultValue?: boolean[];
+    /**
+     * Array of checkbox options
+     */
+    options: { label: string; }[];
+    /**
+     * If true, displays options in a row
+     */
+    row?: boolean;
 }
 
 /**
  * Props for rendering a Checkbox input component
  */
-export interface DropzoneProps extends DP {
-    defaultValue?: any; // Ignored
+export interface DropzoneProps extends Omit<DP, 'onUpload'> { 
+     defaultValue?: [];
+} // onUpload handled by form
+
+/**
+ * Props for rendering a JSON input component
+ */
+export interface JSONProps extends Omit<JP, 'onChange' | 'value'> { 
+    defaultValue?: '';
+}
+
+/**
+ * Props for rendering a Markdown input component
+ */
+export interface MarkdownProps extends Omit<MP, 'onChange' | 'value'> {
+    defaultValue?: string;
 }
 
 /**
@@ -79,8 +106,8 @@ export interface RadioProps {
 /**
  * Props for rendering a Selector input component
  */
-export interface SelectorProps extends SP {
-    defaultValue?: any; // Ignored
+export interface SelectorProps extends Omit<SP, 'selected' | 'handleChange'> {
+    defaultValue?: any; // Ignored for now
 }
 
 /**
@@ -122,6 +149,13 @@ export interface TextFieldProps {
 }
 
 /**
+ * Props for rendering a QuantityBox input component
+ */
+export interface QuantityBoxProps extends Omit<QP, 'id' | 'value' | 'handleChange'> { // onUpload handled by form
+    defaultValue?: any; // Ignored
+}
+
+/**
  * Common props required by every FieldData type
  */
 interface FieldDataBase {
@@ -153,7 +187,6 @@ interface FieldDataCheckbox extends FieldDataBase {
     props: CheckboxProps
 }
 
-
 /**
  * Field data type and props for Dropzone input components
  */
@@ -166,6 +199,34 @@ interface FieldDataDropzone extends FieldDataBase {
      * Extra props for the input component, depending on the type
      */
     props: DropzoneProps;
+}
+
+/**
+ * Field data type and props for JSON input components
+ */
+interface FieldDataJSON extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.JSON;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: JSONProps
+}
+
+/**
+ * Field data type and props for Markdown input components
+ */
+interface FieldDataMarkdown extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.Markdown;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: MarkdownProps
 }
 
 /**
@@ -217,11 +278,11 @@ interface FieldDataSwitch extends FieldDataBase {
     /**
      * The type of the field
      */
-     type: InputType.Switch;
-     /**
-      * Extra props for the input component, depending on the type
-      */
-     props: SwitchProps;
+    type: InputType.Switch;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: SwitchProps;
 }
 
 /**
@@ -231,11 +292,11 @@ interface FieldDataTextField extends FieldDataBase {
     /**
      * The type of the field
      */
-     type: InputType.TextField;
-     /**
-      * Extra props for the input component, depending on the type
-      */
-     props: TextFieldProps;
+    type: InputType.TextField;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: TextFieldProps;
 }
 
 /**
@@ -245,17 +306,27 @@ interface FieldDataQuantityBox extends FieldDataBase {
     /**
      * The type of the field
      */
-     type: InputType.QuantityBox;
-     /**
-      * Extra props for the input component, depending on the type
-      */
-     props: Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'>;
+    type: InputType.QuantityBox;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: QuantityBoxProps;
 }
 
 /**
  * Shape of a field's data structure. Parsed from its JSON representation
  */
-export type FieldData = FieldDataCheckbox | FieldDataDropzone | FieldDataRadio | FieldDataSelector | FieldDataSlider | FieldDataSwitch | FieldDataTextField | FieldDataQuantityBox;
+export type FieldData =
+    FieldDataCheckbox |
+    FieldDataDropzone |
+    FieldDataJSON |
+    FieldDataMarkdown |
+    FieldDataRadio |
+    FieldDataSelector |
+    FieldDataSlider |
+    FieldDataSwitch |
+    FieldDataTextField |
+    FieldDataQuantityBox;
 
 //==============================================================
 /* #endregion Input Component Data */
@@ -452,4 +523,64 @@ export interface FormSchema {
      * Defines the shape of every field in the form.
      */
     fields: FieldData[];
+}
+
+/**
+ * JSON-Schema format, but with keys/values that can be variables.
+ * See https://json-schema.org/ for the full specification (minus the variables part).
+ */
+export interface JSONSchemaFormat {
+    /**
+     * Specifies format this schema is in. (e.g. "https://json-schema.org/draft/2020-12/schema")
+     */
+    $schema?: string;
+    /**
+     * ID of the schema, as it appears in the database.
+     */
+    $id?: string;
+    /**
+     * The title of the schema.
+     */
+    title?: string;
+    /**
+     * The description of the schema.
+     */
+    description?: string;
+    /**
+     * Specifies the type of this schema. (e.g. "object"). 
+     * See https://json-schema.org/draft/2020-12/json-schema-validation.html#rfc.section.6.1.1
+     */
+    type?: "null" | "boolean" | "object" | "array" | "number" | "string" | "integer";
+    /**
+     * Specifies the properties of this schema, if type is "object".
+     */
+    properties?: { [x: string]: any }; // TODO
+}
+
+/**
+ * Shape of the JSON input's variable definitions
+ */
+export interface JSONVariable {
+    /**
+     * The label to display for the field
+     */
+    label?: string;
+    /**
+     * Describes what the field is for, or any other relevant information
+     */
+    helperText?: string;
+    /**
+     * Defines validation schema for the field
+     */
+    yup?: YupField;
+    /**
+     * Default value. If variable is used as a key, this 
+     * can only be a string, otherwise, it can be a string or valid JSON
+     */
+    defaultValue?: string | object;
+    /**
+     * Value of the field, or list of accepted values
+     * //TODO might replace with yup validation
+     */
+    value?: string | string[];
 }

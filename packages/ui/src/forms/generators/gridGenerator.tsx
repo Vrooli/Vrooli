@@ -21,12 +21,14 @@ export const generateGridItem = (component: React.ReactElement, sizes: GridItemS
  * @param layout Layout data of the grid
  * @param fields Fields inside the grid
  * @param formik Formik object
+ * @param onUpload Callback for uploading files
  */
 export const generateGrid = (
     layout: GridContainer | GridContainerBase | undefined,
     childContainers: GridContainer[] | undefined,
     fields: FieldData[],
     formik: any,
+    onUpload: (fieldName: string, files: string[]) => void,
 ): React.ReactElement | React.ReactElement[] => {
     console.log('generateGrid start', layout, childContainers, fields, formik);
     // Split fields into which containers they belong to.
@@ -54,6 +56,7 @@ export const generateGrid = (
                 data: field,
                 formik,
                 index,
+                onUpload,
             });
             return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing, index) : null;
         });

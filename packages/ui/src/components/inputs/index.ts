@@ -1,6 +1,7 @@
 export * from './AutocompleteSearchBar/AutocompleteSearchBar';
 export * from './Dropzone/Dropzone';
 export * from './EditableLabel/EditableLabel';
+export * from './JSONInput/JSONInput';
 export * from './LanguageInput/LanguageInput';
 export * from './MarkdownInput/MarkdownInput';
 export * from './PasswordTextField/PasswordTextField';
