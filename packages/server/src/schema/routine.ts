@@ -8,6 +8,7 @@ import { rateLimit } from '../rateLimit';
 import { CustomError } from '../error';
 import { CODE } from '@local/shared';
 import { genErrorCode } from '../logger';
+import { randomString } from '../auth/walletAuth';
 
 export const typeDef = gql`
     enum RoutineSortBy {
@@ -287,6 +288,8 @@ export const typeDef = gql`
 `
 
 // All logs related to executing routines. Used to query for last status of routine.
+// To make querying easier, the log type for starting a routine changes as the progress of the routine is tracked. 
+// For example, the log will start as LogType.RoutineStartIncomplete, then switch to LogType.RoutineStartCompleted when the routine is completed.
 const routineLogs = [LogType.RoutineCancel, LogType.RoutineComplete, LogType.RoutineStartCanceled, LogType.RoutineStartCompleted, LogType.RoutineStartIncomplete]
 
 export const resolvers = {
@@ -338,6 +341,7 @@ export const resolvers = {
                     action: LogType.RoutineStartIncomplete,
                     object1Type: GraphQLModelType.Routine,
                     object1Id: input.id,
+                    session: randomString(16),
                 }
                 const log = await Log.collection.insertOne(logData)
                 return { id: log.insertedId.toString(), ...logData } as any; //TODO remove any
@@ -363,6 +367,7 @@ export const resolvers = {
                 action: LogType.RoutineComplete,
                 object1Type: GraphQLModelType.Routine,
                 object1Id: input.id,
+                session: lastLog[0].session,
             }
             const log = await Log.collection.insertOne(logData)
             return { id: log.insertedId.toString(), ...logData } as any; //TODO remove any
@@ -388,6 +393,7 @@ export const resolvers = {
                 action: LogType.RoutineCancel,
                 object1Type: GraphQLModelType.Routine,
                 object1Id: input.id,
+                session: lastLog[0].session,
             }
             const log = await Log.collection.insertOne(logData)
             return { id: log.insertedId.toString(), ...logData } as any; //TODO remove any

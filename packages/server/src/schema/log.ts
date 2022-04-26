@@ -9,7 +9,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 import { CustomError } from '../error';
 import { CODE } from '@local/shared';
-import { Log, logSearcher, LogType, paginatedMongoSearch } from '../models';
+import { logSearcher, LogType, paginatedMongoSearch } from '../models';
 
 export const typeDef = gql`
     enum LogSortBy {
@@ -20,18 +20,24 @@ export const typeDef = gql`
     enum LogType {
         Create
         Delete
+        Downvote
         OrganizationAddMember
         OrganizationJoin
         OrganizationLeave
         OrganizationRemoveMember
         OrganizationUpdateMember
+        ProjectComplete
+        RemoveStar
+        RemoveVote
         RoutineCancel
         RoutineComplete
         RoutineStartIncomplete
         RoutineStartCanceled
         RoutineStartCompleted
-        ProjectComplete
+        Star
         Update
+        Upvote
+        View
     }
  
     input LogCreateInput {

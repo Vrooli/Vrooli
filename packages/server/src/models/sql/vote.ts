@@ -1,10 +1,11 @@
 import { CODE, VoteFor } from "@local/shared";
 import { CustomError } from "../../error";
-import { Vote, VoteInput } from "schema/types";
+import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
 import { genErrorCode } from "../../logger";
+import { Log } from "../../models/nosql";
 
 //==============================================================
 /* #region Custom Components */
@@ -60,7 +61,7 @@ const voter = (prisma: PrismaType) => ({
         const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);
         // Check if object being voted on exists
         const votingFor: null | { id: string, score: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, score: true } });
-        if (!votingFor) 
+        if (!votingFor)
             throw new CustomError(CODE.ErrorUnknown, 'Could not find object being voted on', { code: genErrorCode('0118') });
         // Check if vote exists
         const vote = await prisma.vote.findFirst({
@@ -77,12 +78,28 @@ const voter = (prisma: PrismaType) => ({
             if (input.isUpvote === null) {
                 // Delete vote
                 await prisma.vote.delete({ where: { id: vote.id } })
+                // Log remove vote
+                await Log.collection.insertOne({
+                    timestamp: Date.now(),
+                    userId: userId,
+                    action: LogType.RemoveVote,
+                    object1Type: input.voteFor,
+                    object1Id: input.forId,
+                })
             }
             // Otherwise, update the vote
             else {
                 await prisma.vote.update({
                     where: { id: vote.id },
                     data: { isUpvote: input.isUpvote }
+                })
+                // Log vote/unvote
+                await Log.collection.insertOne({
+                    timestamp: Date.now(),
+                    userId: userId,
+                    action: input.isUpvote ? LogType.Upvote : LogType.Downvote,
+                    object1Type: input.voteFor,
+                    object1Id: input.forId,
                 })
             }
             // Update the score
@@ -106,6 +123,14 @@ const voter = (prisma: PrismaType) => ({
                     isUpvote: input.isUpvote,
                     [`${forMapper[input.voteFor]}Id`]: input.forId
                 }
+            })
+            // Log vote
+            await Log.collection.insertOne({
+                timestamp: Date.now(),
+                userId: userId,
+                action: input.isUpvote ? LogType.Upvote : LogType.Downvote,
+                object1Type: input.voteFor,
+                object1Id: input.forId,
             })
             // Update the score
             const voteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;

@@ -12,13 +12,13 @@ import { parseSearchParams } from 'utils/urlTools';
 import { AutocompleteListItem, listToAutocomplete, listToListItems } from 'utils';
 import _ from 'lodash';
 
-const activeRoutinesText = `TODO`
+const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 
-const completedRoutinesText = `TODO`
+const completedRoutinesText = `Routines that you've executed and completed`
 
-const recentText = `TODO`
+const recentText = `Organizations, projects, routines, standards, and users that you've recently viewed.`;
 
-const starredText = `TODO`
+const starredText = `Organizations, projects, routines, standards, and users that you've starred.`;
 
 const tabOptions = [
     ['Popular', APP_LINKS.Home],
@@ -169,7 +169,7 @@ export const ForYouPage = ({
                 handleClose={closeCreateDialog}
             />
             {/* Prompt stack */}
-            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh' }}>
+            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh', paddingBottom: '5vh' }}>
                 <Typography component="h1" variant="h2" textAlign="center">What would you like to do?</Typography>
                 {/* ========= #region Custom SearchBar ========= */}
                 <AutocompleteSearchBar

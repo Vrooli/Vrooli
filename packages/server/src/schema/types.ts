@@ -352,18 +352,24 @@ export enum LogSortBy {
 export enum LogType {
   Create = 'Create',
   Delete = 'Delete',
+  Downvote = 'Downvote',
   OrganizationAddMember = 'OrganizationAddMember',
   OrganizationJoin = 'OrganizationJoin',
   OrganizationLeave = 'OrganizationLeave',
   OrganizationRemoveMember = 'OrganizationRemoveMember',
   OrganizationUpdateMember = 'OrganizationUpdateMember',
   ProjectComplete = 'ProjectComplete',
+  RemoveStar = 'RemoveStar',
+  RemoveVote = 'RemoveVote',
   RoutineCancel = 'RoutineCancel',
   RoutineComplete = 'RoutineComplete',
   RoutineStartCanceled = 'RoutineStartCanceled',
   RoutineStartCompleted = 'RoutineStartCompleted',
   RoutineStartIncomplete = 'RoutineStartIncomplete',
-  Update = 'Update'
+  Star = 'Star',
+  Update = 'Update',
+  Upvote = 'Upvote',
+  View = 'View'
 }
 
 export type Loop = {

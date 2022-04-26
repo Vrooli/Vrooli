@@ -110,6 +110,7 @@ export const HomePage = ({
     // Search query removes words that start with a '!'. These are used for sorting results. TODO doesn't work
     const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
+    const showForYou = useMemo(() => Array.isArray(session?.roles) && session.roles.length > 0, [session]);
 
     // Handle tabs
     const tabIndex = useMemo(() => {
@@ -230,7 +231,7 @@ export const HomePage = ({
     return (
         <Box id="page">
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
-            <Tabs
+            {showForYou && <Tabs
                 value={tabIndex}
                 onChange={handleTabChange}
                 indicatorColor="secondary"
@@ -255,7 +256,7 @@ export const HomePage = ({
                         color={index === 0 ? '#ce6c12' : 'default'}
                     />
                 ))}
-            </Tabs>
+            </Tabs>}
             {/* Create new popup */}
             <CreateNewDialog
                 isOpen={isCreateDialogOpen}

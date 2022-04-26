@@ -22,7 +22,7 @@ export const researchPageQuery = gql`
                 ...listProjectFields
             }
             needInvestments {
-                ...listOrganizationFields
+                ...listProjectFields
             }
             needMembers {
                 ...listOrganizationFields

@@ -74,7 +74,7 @@ export const AllRoutes = (props: CommonProps) => {
                 </Route>
                 <Route path={LINKS.ForYou}>
                     <Suspense fallback={Fallback}>
-                        <Page title={title('For You')} {...props}>
+                        <Page title={title('For You')} restrictedToRoles={[ROLES.Actor]} {...props}>
                             <ForYouPage session={props.session} />
                         </Page>
                     </Suspense>

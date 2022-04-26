@@ -3,7 +3,7 @@
  */
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
-import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, LogSearchResult, LogSortBy, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, ForYouPageInput, ForYouPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, Log } from './types';
+import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, LogSearchResult, LogSortBy, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, ForYouPageInput, ForYouPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, Log, Organization, Standard, User } from './types';
 import { CODE } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
@@ -191,6 +191,20 @@ export const resolvers = {
             return GraphQLModelType.Organization;
         }
     },
+    ProjectOrOrganizationOrRoutineOrStandardOrUser: {
+        __resolveType(obj: any) {
+            // Only a routine has a complexity field
+            if (obj.hasOwnProperty('complexity')) return GraphQLModelType.Routine;
+            // Only a user has an untranslated name field
+            if (obj.hasOwnProperty('name')) return GraphQLModelType.User;
+            // Out of the remaining types, only an organization does not have isUpvoted field
+            if (!obj.hasOwnProperty('isUpvoted')) return GraphQLModelType.Organization;
+            // Out of the remaining types, only a project has a handle field
+            if (obj.hasOwnProperty('handle')) return GraphQLModelType.Project;
+            // There is only one remaining type, the standard
+            return GraphQLModelType.Standard;
+        }
+    },
     Query: {
         homePage: async (_parent: undefined, { input }: IWrap<HomePageInput>, context: Context, info: GraphQLResolveInfo): Promise<HomePageResult> => {
             await rateLimit({ context, info, max: 5000 });
@@ -265,80 +279,7 @@ export const resolvers = {
                 users: withSupplemental['u'],
             }
         },
-        //TODO: this is just a copy of the home page right now
-        forYouPage: async (_parent: undefined, { input }: IWrap<ForYouPageInput>, context: Context, info: GraphQLResolveInfo): Promise<ForYouPageResult> => {
-            await rateLimit({ context, info, max: 5000 });
-            const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
-            const starsQuery = { stars: { gte: MinimumStars } };
-            const take = 5;
-            // Initialize models
-            const oModel = OrganizationModel(context.prisma);
-            const pModel = ProjectModel(context.prisma);
-            const rModel = RoutineModel(context.prisma);
-            const sModel = StandardModel(context.prisma);
-            const uModel = UserModel(context.prisma);
-            // Query organizations
-            let organizations = (await readManyHelper(
-                context.req.userId,
-                { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
-                organizationSelect,
-                oModel,
-                { ...starsQuery },
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(organizationSelect, oModel.relationshipMap) as PartialInfo)) as any[]
-            // Query projects
-            let projects = (await readManyHelper(
-                context.req.userId,
-                { ...input, take, sortBy: ProjectSortBy.StarsDesc },
-                projectSelect,
-                pModel,
-                { ...starsQuery },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
-            // Query routines
-            let routines = (await readManyHelper(
-                context.req.userId,
-                { ...input, take, sortBy: RoutineSortBy.StarsDesc },
-                routineSelect,
-                rModel,
-                { ...starsQuery },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
-            // Query standards
-            let standards = (await readManyHelper(
-                context.req.userId,
-                { ...input, take, sortBy: StandardSortBy.StarsDesc },
-                standardSelect,
-                sModel,
-                { ...starsQuery },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(standardSelect, sModel.relationshipMap) as PartialInfo)) as any[]
-            // Query users
-            let users = (await readManyHelper(
-                context.req.userId,
-                { ...input, take, sortBy: UserSortBy.StarsDesc },
-                userSelect,
-                uModel,
-                { ...starsQuery },
-                false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(userSelect, uModel.relationshipMap) as PartialInfo)) as any[]
-            // Add supplemental fields to every result
-            const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [organizations, projects, routines, standards, users],
-                [organizationSelect, projectSelect, routineSelect, standardSelect, userSelect] as any,
-                ['o', 'p', 'r', 's', 'u'],
-                context.req.userId,
-                context.prisma,
-            )
-            // Return results
-            return {
-                organizations: withSupplemental['o'],
-                projects: withSupplemental['p'],
-                routines: withSupplemental['r'],
-                standards: withSupplemental['s'],
-                users: withSupplemental['u'],
-            } as any
-        },
+
         /**
          * Queries data shown on Learn page
          */
@@ -618,6 +559,193 @@ export const resolvers = {
                 inProgress,
                 recent,
             }
+        },
+        /**
+         * Queries data shown on For You page 
+         */
+        forYouPage: async (_parent: undefined, { input }: IWrap<ForYouPageInput>, context: Context, info: GraphQLResolveInfo): Promise<ForYouPageResult> => {
+            // If not signed in, shouldn't be able to see this page
+            if (!context.req.userId) throw new CustomError(CODE.Unauthorized, 'Must be signed in to see this page');
+            await rateLimit({ context, info, max: 5000 });
+            const take = 5;
+            // Initialize models
+            const oModel = OrganizationModel(context.prisma);
+            const pModel = ProjectModel(context.prisma);
+            const rModel = RoutineModel(context.prisma);
+            const sModel = StandardModel(context.prisma);
+            const uModel = UserModel(context.prisma);
+            // Query RoutineIncomplete logs
+            const activeLogs = (await paginatedMongoSearch<LogSearchResult>({
+                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.RoutineStartIncomplete] }),
+                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
+                take,
+                project: logSearcher().defaultProjection,
+            })).edges.map(({ node }: any) => node) as Log[]
+            console.log('active logs!', JSON.stringify(activeLogs));
+            // Use logs to find full routine data from Prisma
+            const activeRoutineIds = activeLogs.map((node: any) => node.object1Id);
+            const activeRoutines = (await readManyHelper(
+                context.req.userId,
+                { ids: activeRoutineIds },
+                routineSelect,
+                rModel,
+                {},
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[];
+            // Sort by timestamp of corresponding log
+            activeRoutines.sort((a, b) => {
+                const aLog = activeLogs.find((log: Log) => log.object1Id === a.id);
+                const bLog = activeLogs.find((log: Log) => log.object1Id === b.id);
+                if (aLog && bLog) {
+                    if (aLog.timestamp < bLog.timestamp) return -1;
+                    if (aLog.timestamp > bLog.timestamp) return 1;
+                    return 0;
+                }
+                return 0;
+            });
+            console.log('active routines!', JSON.stringify(activeRoutines));
+            // Query recently completed routines
+            const completedLogs = (await paginatedMongoSearch<LogSearchResult>({
+                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.RoutineComplete] }),
+                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
+                take,
+                project: logSearcher().defaultProjection,
+            })).edges.map(({ node }: any) => node) as Log[]
+            // Use logs to find full routine data from Prisma
+            const completedRoutineIds = completedLogs.map((node: any) => node.object1Id);
+            const completedRoutines = (await readManyHelper(
+                context.req.userId,
+                { ids: completedRoutineIds },
+                routineSelect,
+                rModel,
+                {},
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[];
+            // Sort by timestamp of corresponding log
+            completedRoutines.sort((a, b) => {
+                const aLog = activeLogs.find((log: Log) => log.object1Id === a.id);
+                const bLog = activeLogs.find((log: Log) => log.object1Id === b.id);
+                if (aLog && bLog) {
+                    if (aLog.timestamp < bLog.timestamp) return -1;
+                    if (aLog.timestamp > bLog.timestamp) return 1;
+                    return 0;
+                }
+                return 0;
+            });
+            // Query recently viewed objects (of any type)
+            const viewedLogs = (await paginatedMongoSearch<LogSearchResult>({
+                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.View] }),
+                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
+                take,
+                project: logSearcher().defaultProjection,
+            })).edges.map(({ node }: any) => node) as Log[]
+            console.log('viewed logs!', JSON.stringify(viewedLogs));
+            // Query recently starred objects (of any type)
+            const starredLogs = (await paginatedMongoSearch<LogSearchResult>({
+                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.Star] }),
+                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
+                take,
+                project: logSearcher().defaultProjection,
+            })).edges.map(({ node }: any) => node) as Log[]
+            console.log('starred logs!', JSON.stringify(starredLogs));
+            // Group log ids from viewedLogs and starredLogs by object type, to reduce database calls
+            const combinedLogs = [...viewedLogs, ...starredLogs];
+            const organizationLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.Organization).map((log: Log) => log.object1Id) as string[];
+            const projectLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.Project).map((log: Log) => log.object1Id) as string[];
+            const routineLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.Routine).map((log: Log) => log.object1Id) as string[];
+            const standardLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.Standard).map((log: Log) => log.object1Id) as string[];
+            const userLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.User).map((log: Log) => log.object1Id) as string[];
+            console.log('combined logs', JSON.stringify(combinedLogs));
+            console.log('organization log ids', JSON.stringify(organizationLogIds));
+            console.log('project log ids', JSON.stringify(projectLogIds));
+            console.log('routine log ids', JSON.stringify(routineLogIds));
+            console.log('standard log ids', JSON.stringify(standardLogIds));
+            console.log('user log ids', JSON.stringify(userLogIds));
+            // Query each object type separately
+            const organizations = (await readManyHelper(
+                context.req.userId,
+                { ids: organizationLogIds },
+                organizationSelect,
+                oModel,
+                {},
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(organizationSelect, oModel.relationshipMap) as PartialInfo)) as any[];
+            const projects = (await readManyHelper(
+                context.req.userId,
+                { ids: projectLogIds },
+                projectSelect,
+                pModel,
+                {},
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[];
+            const routines = (await readManyHelper(
+                context.req.userId,
+                { ids: routineLogIds },
+                routineSelect,
+                rModel,
+                {},
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[];
+            const standards = (await readManyHelper(
+                context.req.userId,
+                { ids: standardLogIds },
+                standardSelect,
+                sModel,
+                {},
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(standardSelect, sModel.relationshipMap) as PartialInfo)) as any[];
+            const users = (await readManyHelper(
+                context.req.userId,
+                { ids: userLogIds },
+                userSelect,
+                uModel,
+                {},
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(userSelect, uModel.relationshipMap) as PartialInfo)) as any[];
+            // Add supplemental fields to every result
+            const withSupplemental = await addSupplementalFieldsMultiTypes(
+                [activeRoutines, completedRoutines, organizations, projects, routines, standards, users],
+                [routineSelect, routineSelect, organizationSelect, projectSelect, routineSelect, standardSelect, userSelect] as any,
+                ['ar', 'cr', 'o', 'p', 'r', 's', 'u'],
+                context.req.userId,
+                context.prisma,
+            )
+            // Recombine organizations, projects, routines, standards, and users into two arrays - one for viewed and one for starred
+            // Also sort by timestamp of corresponding log
+            const viewedAndStarred = [...withSupplemental['o'], ...withSupplemental['p'], ...withSupplemental['r'], ...withSupplemental['s'], ...withSupplemental['u']];
+            const viewed = viewedAndStarred.filter((obj: Organization | Project | Routine | Standard | User) => {
+                const log = viewedLogs.find((log: Log) => log.object1Id === obj.id);
+                return Boolean(log);
+            }).sort((a, b) => {
+                const aLog = viewedLogs.find((log: Log) => log.object1Id === a.id);
+                const bLog = viewedLogs.find((log: Log) => log.object1Id === b.id);
+                if (aLog && bLog) {
+                    if (aLog.timestamp < bLog.timestamp) return -1;
+                    if (aLog.timestamp > bLog.timestamp) return 1;
+                    return 0;
+                }
+                return 0;
+            });
+            const starred = viewedAndStarred.filter((obj: Organization | Project | Routine | Standard | User) => {
+                const log = starredLogs.find((log: Log) => log.object1Id === obj.id);
+                return Boolean(log);
+            }).sort((a, b) => {
+                const aLog = starredLogs.find((log: Log) => log.object1Id === a.id);
+                const bLog = starredLogs.find((log: Log) => log.object1Id === b.id);
+                if (aLog && bLog) {
+                    if (aLog.timestamp < bLog.timestamp) return -1;
+                    if (aLog.timestamp > bLog.timestamp) return 1;
+                    return 0;
+                }
+                return 0;
+            });
+            // Return results
+            return {
+                activeRoutines: withSupplemental['ar'],
+                completedRoutines: withSupplemental['cr'],
+                recent: viewed,
+                starred,
+            } as any
         },
         /**
          * Returns site-wide statistics
