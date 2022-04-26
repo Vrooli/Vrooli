@@ -9,13 +9,14 @@ import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { parseSearchParams } from 'utils/urlTools';
+import { parseSearchParams } from 'utils/navigation/urlTools';
 import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { AutocompleteListItem, listToAutocomplete, listToListItems } from 'utils';
+import { AutocompleteListItem, listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage } from 'utils';
 import _ from 'lodash';
+import { Organization, Project, Routine, Standard, User } from 'types';
 
 const faqText =
 `## What is This?
@@ -67,22 +68,6 @@ const tabOptions = [
     ['Popular', APP_LINKS.Home],
     ['For You', APP_LINKS.ForYou],
 ];
-
-const ObjectType = {
-    Organization: 'Organization',
-    Project: 'Project',
-    Routine: 'Routine',
-    Standard: 'Standard',
-    User: 'User',
-}
-
-const linkMap: { [x: string]: [string, string] } = {
-    [ObjectType.Organization]: [APP_LINKS.SearchOrganizations, APP_LINKS.Organization],
-    [ObjectType.Project]: [APP_LINKS.SearchProjects, APP_LINKS.Project],
-    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Run],
-    [ObjectType.Standard]: [APP_LINKS.SearchStandards, APP_LINKS.Standard],
-    [ObjectType.User]: [APP_LINKS.SearchUsers, APP_LINKS.Profile],
-}
 
 const examplesData: [string, string][] = [
     ['Start a new business', '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
@@ -143,11 +128,8 @@ export const HomePage = ({
         if (!newValue) return;
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
-        // Determine object from selected label
-        const selectedItem = autocompleteOptions.find(o => o.id === newValue.id);
-        if (!selectedItem) return;
-        const linkBases = linkMap[selectedItem.objectType];
-        setLocation(selectedItem.id ? `${linkBases[1]}/${selectedItem.id}` : linkBases[0]);
+        // Navigate to item page
+        openObject(newValue, setLocation);
     }, [autocompleteOptions]);
 
     // Feed title is Popular when no search
@@ -156,13 +138,28 @@ export const HomePage = ({
         return `${prefix}${objectName}`;
     }, [searchString]);
 
-    // Opens correct search page
-    const openSearch = useCallback((event: any, linkBases: [string, string], id?: string) => {
+    /**
+     * Opens search page for object type
+     */
+    const toSearchPage = useCallback((event: any, objectType: ObjectType) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
-        setLocation(id ? `${linkBases[1]}/${id}` : linkBases[0]);
+        // Navigate to search page
+        openSearchPage(objectType, setLocation);
     }, [searchString, setLocation]);
+
+    /**
+     * Opens page for list item
+     */
+    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+        event?.stopPropagation();
+        // Replace current state with search string, so that search is not lost
+        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
+        // Navigate to item page
+        openObject(item, setLocation);
+    }, [searchString, setLocation]);
+
 
     /**
      * Determine the order that the feed lists should be displayed in.
@@ -209,7 +206,7 @@ export const HomePage = ({
                 currentList, 
                 session, 
                 'feed-list-item',
-                (item: any, e: any) => openSearch(e, linkMap[objectType], item.id),
+                (item: any, e: any) => toItemPage(e, item),
             );
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((
@@ -217,8 +214,8 @@ export const HomePage = ({
                         key={`feed-list-${objectType}`}
                         title={getFeedTitle(`${objectType}s`)}
                         loading={loading}
-                        onClick={(e) => openSearch(e, linkMap[objectType])}
-                        options={[['See more results', (e) => { openSearch(e, linkMap[objectType]) }]]}
+                        onClick={(e) => toSearchPage(e, objectType)}
+                        options={[['See more results', (e) => { toSearchPage(e, objectType) }]]}
                     >
                         {listFeedItems}
                     </TitleContainer>
@@ -226,7 +223,7 @@ export const HomePage = ({
             }
         }
         return listFeeds;
-    }, [data, feedOrder, getFeedTitle, loading, openSearch]);
+    }, [data, feedOrder, getFeedTitle, loading, session, toItemPage, toSearchPage]);
 
     return (
         <Box id="page">
@@ -272,7 +269,7 @@ export const HomePage = ({
                     options={autocompleteOptions}
                     getOptionKey={(option) => option.id}
                     getOptionLabel={(option) => option.label ?? ''}
-                    getOptionLabelSecondary={(option) => option.objectType}
+                    getOptionLabelSecondary={(option) => option.__typename ?? ''}
                     loading={loading}
                     value={searchString}
                     onChange={updateSearch}

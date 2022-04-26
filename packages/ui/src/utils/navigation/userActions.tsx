@@ -20,6 +20,7 @@ import {
 import { ROLES, ValueOf } from '@local/shared';
 import { openLink } from 'utils';
 import { Path } from 'wouter';
+import { SetLocation } from 'types';
 
 export const ACTION_TAGS = {
     Home: 'home',
@@ -79,7 +80,7 @@ export const createActions = (actions: ActionArray[]): Action[] => actions.map(a
 // Display actions as a list
 interface ActionsToListProps {
     actions: Action[];
-    setLocation: (to: Path, options?: { replace?: boolean }) => void;
+    setLocation: SetLocation;
     sxs?: { listItem: { [x: string]: any }, listItemIcon: { [x: string]: any } };
     showIcon?: boolean;
     onAnyClick?: () => any;
@@ -108,7 +109,7 @@ export const actionsToList = ({ actions, setLocation, sxs = { listItem: {}, list
 // Display actions in a horizontal menu
 interface ActionsToMenuProps {
     actions: Action[];
-    setLocation: (to: Path, options?: { replace?: boolean }) => void;
+    setLocation: SetLocation;
     classes?: { [key: string]: string };
 }
 export const actionsToMenu = ({ actions, setLocation, classes = { root: '' } }: ActionsToMenuProps) => {
@@ -128,7 +129,7 @@ export const actionsToMenu = ({ actions, setLocation, classes = { root: '' } }: 
 // Display actions in a bottom navigation
 interface ActionsToBottomNavProps {
     actions: Action[];
-    setLocation: (to: Path, options?: { replace?: boolean }) => void;
+    setLocation: SetLocation;
     classes?: { [key: string]: string };
 }
 export const actionsToBottomNav = ({ actions, setLocation, classes = { root: '' } }: ActionsToBottomNavProps) => {
@@ -146,7 +147,7 @@ export const actionsToBottomNav = ({ actions, setLocation, classes = { root: '' 
 // Display an action as an icon button
 interface ActionToIconButtonProps {
     action: Action;
-    setLocation: (to: Path, options?: { replace?: boolean }) => void;
+    setLocation: SetLocation;
     classes?: { [key: string]: string };
 }
 export const actionToIconButton = ({ action, setLocation, classes = { root: '' } }: ActionToIconButtonProps) => {

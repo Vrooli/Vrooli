@@ -5,7 +5,7 @@ import {
 import { BreadcrumbsBaseProps } from '../types';
 import { useMemo } from 'react';
 import { useLocation } from 'wouter';
-import { openLink } from 'utils/openLink';
+import { openLink } from 'utils/navigation/openLink';
 
 export const BreadcrumbsBase = ({
     paths,

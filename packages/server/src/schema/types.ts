@@ -209,7 +209,6 @@ export type FindHandlesInput = {
 };
 
 export type ForYouPageInput = {
-  searchString: Scalars['String'];
   take?: InputMaybe<Scalars['Int']>;
 };
 

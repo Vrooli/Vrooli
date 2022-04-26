@@ -3,9 +3,9 @@ import { OrganizationListItem, ProjectListItem, RoutineListItem, StandardListIte
 import { getTranslation, getUserLanguages } from "./translationTools";
 
 export interface AutocompleteListItem {
+    __typename: string;
     id: string;
     label: string | null;
-    objectType: string;
     stars: number;
 }
 
@@ -95,9 +95,9 @@ export function listToAutocomplete(
     languages: readonly string[]
 ): AutocompleteListItem[] {
     return objects.map(o => ({
+        __typename: o.__typename,
         id: o.id,
         label: getListItemLabel(o, languages),
-        objectType: o.__typename,
         stars: o.stars ?? 0
     }));
 }

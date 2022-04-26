@@ -8,24 +8,25 @@ import { researchPage } from 'graphql/generated/researchPage';
 import { profileUpdateMutation } from 'graphql/mutation';
 import { profileQuery, researchPageQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
-import { ResourceList } from 'types';
-import { listToListItems } from 'utils';
+import { Organization, Project, ResourceList, Routine, Standard, User } from 'types';
+import { listToListItems, openObject } from 'utils';
+import { useLocation } from 'wouter';
 import { ResearchPageProps } from '../types';
 
-const donateOrInvestText = 
-``
+const donateOrInvestText =
+    ``
 
-const joinATeamText = 
-`Organizations listed here have indicated that they are open to new members. Check them out and contact them if you have anything to contribute!`
+const joinATeamText =
+    `Organizations listed here have indicated that they are open to new members. Check them out and contact them if you have anything to contribute!`
 
 const newlyCompletedText =
-`Projects listed here have been recently completed, which means their main routine(s) are ready to run.`
+    `Projects listed here have been recently completed, which means their main routine(s) are ready to run.`
 
-const processesText = 
-``
+const processesText =
+    ``
 
-const researchPageText = 
-`The **Research Dashboard** is designed to help you validate ideas and discover new projects and routines.
+const researchPageText =
+    `The **Research Dashboard** is designed to help you validate ideas and discover new projects and routines.
 
 Currently, the page is bare-bones. It contains sections for:  
 - Projects looking for funding/investments
@@ -37,20 +38,20 @@ Currently, the page is bare-bones. It contains sections for:
 The top of this page also contains a list of resources, which you can update with your favorite research-related links. 
 If you are not logged in, default resources will be displayed.`
 
-const voteText = 
-`Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
+const voteText =
+    `Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
 
 /**
  * Default research resources
  */
- const defaultResourceList: ResourceList = {    
+const defaultResourceList: ResourceList = {
     usedFor: ResourceListUsedFor.Research,
     resources: [
         {
             link: 'https://cardano.stackexchange.com/',
             usedFor: ResourceUsedFor.Community,
             translations: [
-                { 
+                {
                     language: 'en',
                     title: 'Cardano Stack Exchange',
                     description: 'Browse and ask technical questions about Cardano',
@@ -96,7 +97,7 @@ const voteText =
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
-
+    const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
 
@@ -111,56 +112,65 @@ export const ResearchPage = ({
 
     const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery);
 
+    /**
+     * Opens page for list item
+     */
+    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+        event?.stopPropagation();
+        // Navigate to item page
+        openObject(item, setLocation);
+    }, [setLocation]);
+
     const processes = useMemo(() => listToListItems(
         researchPageData?.researchPage?.processes ?? [],
         session,
         'research-process-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [researchPageData, session])
 
     const newlyCompleted = useMemo(() => listToListItems(
         researchPageData?.researchPage?.newlyCompleted ?? [],
         session,
         'newly-completed-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [researchPageData, session])
 
     const needVotes = useMemo(() => listToListItems(
         researchPageData?.researchPage?.needVotes ?? [],
         session,
         'need-votes-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [researchPageData, session])
 
     const needInvestments = useMemo(() => listToListItems(
         researchPageData?.researchPage?.needInvestments ?? [],
         session,
         'need-investments-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [researchPageData, session])
 
     const needMembers = useMemo(() => listToListItems(
         researchPageData?.researchPage?.needMembers ?? [],
         session,
         'need-members-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [researchPageData, session])
 
     return (
         <Box id="page">
             {/* Title and help button */}
-            <Stack 
-                direction="row" 
-                justifyContent="center" 
-                alignItems="center" 
-                sx={{ marginTop: 2, marginBottom: 2}}
+            <Stack
+                direction="row"
+                justifyContent="center"
+                alignItems="center"
+                sx={{ marginTop: 2, marginBottom: 2 }}
             >
-                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' }}}>Research Dashboard</Typography>
-                <HelpButton markdown={researchPageText} sx={{width: '40px', height: '40px'}} />
+                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' } }}>Research Dashboard</Typography>
+                <HelpButton markdown={researchPageText} sx={{ width: '40px', height: '40px' }} />
             </Stack>
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
-                <ResourceListHorizontal 
+                <ResourceListHorizontal
                     title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
                     list={resourceList}
                     canEdit={Boolean(session?.id)}

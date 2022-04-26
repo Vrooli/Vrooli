@@ -20,7 +20,7 @@ import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { useMemo } from 'react';
-import { parseSearchParams } from 'utils/urlTools';
+import { parseSearchParams } from 'utils/navigation/urlTools';
 import { PasswordTextField } from 'components';
 
 export const LogInForm = ({

@@ -292,7 +292,6 @@ export interface FindHandlesInput {
 }
 
 export interface ForYouPageInput {
-  searchString: string;
   take?: number | null;
 }
 

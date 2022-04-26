@@ -115,7 +115,6 @@ export const typeDef = gql`
     }
 
     input ForYouPageInput {
-        searchString: String!
         take: Int
     }
 

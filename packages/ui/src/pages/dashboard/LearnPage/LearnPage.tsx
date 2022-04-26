@@ -10,7 +10,8 @@ import { profileUpdateMutation } from 'graphql/mutation';
 import { learnPageQuery, profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Project, ResourceList, Routine } from 'types';
-import { listToListItems } from 'utils';
+import { listToListItems, openObject } from 'utils';
+import { useLocation } from 'wouter';
 import { LearnPageProps } from '../types';
 
 const courseText =
@@ -121,7 +122,7 @@ const defaultResourceList: ResourceList = {
 export const LearnPage = ({
     session,
 }: LearnPageProps) => {
-
+    const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
 
@@ -136,18 +137,27 @@ export const LearnPage = ({
 
     const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery);
 
+    /**
+     * Opens page for list item
+     */
+     const toItemPage = useCallback((event: any, item: Project | Routine) => {
+        event?.stopPropagation();
+        // Navigate to item page
+        openObject(item, setLocation);
+    }, [setLocation]);
+
     const courses = useMemo(() => listToListItems(
         learnPageData?.learnPage?.courses ?? [],
         session,
         'course-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [learnPageData, session])
 
     const tutorials = useMemo(() => listToListItems(
         learnPageData?.learnPage?.tutorials ?? [],
         session,
         'tutorial-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [learnPageData, session])
 
     return (

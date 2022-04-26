@@ -1,16 +1,15 @@
-import { Box, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Stack, Tab, Tabs } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { centeredDiv } from 'styles';
 import { forYouPage, forYouPageVariables } from 'graphql/generated/forYouPage';
 import { useQuery } from '@apollo/client';
 import { forYouPageQuery } from 'graphql/query';
-import { AutocompleteSearchBar, TitleContainer, CreateNewDialog } from 'components';
+import { TitleContainer, CreateNewDialog } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ForYouPageProps } from '../types';
-import { parseSearchParams } from 'utils/urlTools';
-import { AutocompleteListItem, listToAutocomplete, listToListItems } from 'utils';
+import { AutocompleteListItem, listToAutocomplete, listToListItems, openObject } from 'utils';
 import _ from 'lodash';
+import { Organization, Project, Routine, Standard, User } from 'types';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 
@@ -52,13 +51,8 @@ export const ForYouPage = ({
     session
 }: ForYouPageProps) => {
     const [, setLocation] = useLocation();
-    const [searchString, setSearchString] = useState<string>(() => {
-        const { search } = parseSearchParams(window.location.search);
-        return search ?? '';
-    });
-    const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-    const { data, refetch, loading } = useQuery<forYouPage, forYouPageVariables>(forYouPageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
-    useEffect(() => { refetch() }, [refetch, searchString]);
+    const { data, refetch, loading } = useQuery<forYouPage, forYouPageVariables>(forYouPageQuery, { variables: { input: {} } });
+    useEffect(() => { refetch() }, [refetch]);
 
     // Handle tabs
     const tabIndex = useMemo(() => {
@@ -78,60 +72,43 @@ export const ForYouPage = ({
     }, [languages, data]);
 
     const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
-    const openCreateDialog = useCallback(() => { setCreateDialogOpen(true) }, [setCreateDialogOpen]);
     const closeCreateDialog = useCallback(() => { setCreateDialogOpen(false) }, [setCreateDialogOpen]);
-    const openAdvancedSearch = useCallback(() => {
-        //TODO
-    }, [setLocation]);
 
     /**
-     * When an autocomplete item is selected, navigate to object
+     * Opens page for list item
      */
-    const onInputSelect = useCallback((newValue: AutocompleteListItem) => {
-        if (!newValue) return;
-        // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.ForYou}?search=${searchString}`, { replace: true });
-        // Determine object from selected label
-        const selectedItem = autocompleteOptions.find(o => o.id === newValue.id);
-        if (!selectedItem) return;
-        const linkBases = linkMap[selectedItem.objectType];
-        setLocation(selectedItem.id ? `${linkBases[1]}/${selectedItem.id}` : linkBases[0]);
-    }, [autocompleteOptions]);
-
-    // Opens correct search page
-    const openSearch = useCallback((event: any, linkBases: [string, string], id?: string) => {
+     const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
         event?.stopPropagation();
-        // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.ForYou}?search=${searchString}`, { replace: true });
-        setLocation(id ? `${linkBases[1]}/${id}` : linkBases[0]);
-    }, [searchString, setLocation]);
+        // Navigate to item page
+        openObject(item, setLocation);
+    }, [setLocation]);
 
     const activeRoutines = useMemo(() => listToListItems(
         data?.forYouPage?.activeRoutines ?? [],
         session,
         'active-routines-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [data, session])
 
     const completedRoutines = useMemo(() => listToListItems(
         data?.forYouPage?.completedRoutines ?? [],
         session,
         'completed-routines-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [data, session])
 
     const recent = useMemo(() => listToListItems(
         data?.forYouPage?.recent ?? [],
         session,
         'recently-viewed-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [data, session])
 
     const starred = useMemo(() => listToListItems(
         data?.forYouPage?.starred ?? [],
         session,
         'starred-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [data, session])
 
     return (
@@ -156,8 +133,8 @@ export const ForYouPage = ({
                 {tabOptions.map((option, index) => (
                     <Tab
                         key={index}
-                        id={`home-tab-${index}`}
-                        {...{ 'aria-controls': `home-tabpanel-${index}` }}
+                        id={`for-you-tab-${index}`}
+                        {...{ 'aria-controls': `for-you-tabpanel-${index}` }}
                         label={option[0]}
                         color={index === 0 ? '#ce6c12' : 'default'}
                     />
@@ -168,26 +145,6 @@ export const ForYouPage = ({
                 isOpen={isCreateDialogOpen}
                 handleClose={closeCreateDialog}
             />
-            {/* Prompt stack */}
-            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh', paddingBottom: '5vh' }}>
-                <Typography component="h1" variant="h2" textAlign="center">What would you like to do?</Typography>
-                {/* ========= #region Custom SearchBar ========= */}
-                <AutocompleteSearchBar
-                    id="main-search"
-                    placeholder='Search routines, projects, and more...'
-                    options={autocompleteOptions}
-                    getOptionKey={(option) => option.id}
-                    getOptionLabel={(option) => option.label ?? ''}
-                    getOptionLabelSecondary={(option) => option.objectType}
-                    loading={loading}
-                    value={searchString}
-                    onChange={updateSearch}
-                    onInputChange={onInputSelect}
-                    session={session}
-                    sx={{ width: 'min(100%, 600px)' }}
-                />
-                {/* =========  #endregion ========= */}
-            </Stack>
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 {/* Search results */}

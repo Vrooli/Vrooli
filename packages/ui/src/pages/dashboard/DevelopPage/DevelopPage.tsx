@@ -9,8 +9,9 @@ import { profile } from 'graphql/generated/profile';
 import { profileUpdateMutation } from 'graphql/mutation';
 import { developPageQuery, logsQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
-import { ResourceList } from 'types';
-import { listToListItems } from 'utils';
+import { Organization, Project, ResourceList, Routine, Standard, User } from 'types';
+import { listToListItems, openObject } from 'utils';
+import { useLocation } from 'wouter';
 import { DevelopPageProps } from '../types';
 
 const completedText =
@@ -46,7 +47,7 @@ const defaultResourceList: ResourceList = {
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
-
+    const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
 
@@ -61,25 +62,34 @@ export const DevelopPage = ({
 
     const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery);
 
+    /**
+     * Opens page for list item
+     */
+    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+        event?.stopPropagation();
+        // Navigate to item page
+        openObject(item, setLocation);
+    }, [setLocation]);
+
     const inProgress = useMemo(() => listToListItems(
         developPageData?.developPage?.inProgress ?? [],
         session,
         'in-progress-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [developPageData, session])
 
     const recent = useMemo(() => listToListItems(
         developPageData?.developPage?.recent ?? [],
         session,
         'recently-updated-list-item',
-        () => {}
+        (item, event) => { toItemPage(event, item) },
     ), [developPageData, session])
 
     const completed = useMemo(() => listToListItems(
         developPageData?.developPage?.completed ?? [],
         session,
         'completed-list-item',
-        () => {}
+        () => { }
     ), [developPageData, session])
 
     return (

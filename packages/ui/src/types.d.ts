@@ -83,3 +83,6 @@ declare global {
     interface Window { cardano: any; }
 }
 window.cardano = window.cardano || {};
+
+// Miscellaneous types
+export type SetLocation = (to: Path, options?: { replace?: boolean }) => void;

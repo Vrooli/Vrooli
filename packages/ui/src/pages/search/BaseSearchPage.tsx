@@ -6,7 +6,7 @@ import { centeredDiv } from "styles";
 import { useLocation } from "wouter";
 import { BaseSearchPageProps } from "./types";
 import { Add as AddIcon } from '@mui/icons-material';
-import { parseSearchParams } from "utils/urlTools";
+import { parseSearchParams } from "utils/navigation/urlTools";
 
 const tabOptions = [
     ['Organizations', APP_LINKS.SearchOrganizations],

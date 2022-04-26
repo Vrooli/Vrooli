@@ -17,7 +17,7 @@ import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, SubroutineStep } from "types";
-import { parseSearchParams } from "utils/urlTools";
+import { parseSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { routineComplete, routineCompleteVariables } from "graphql/generated/routineComplete";
 import { routineCompleteMutation } from "graphql/mutation";

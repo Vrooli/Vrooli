@@ -1,5 +1,5 @@
 import { APP_LINKS } from "@local/shared";
-import { Organization, Project, Routine, Standard, User } from "types";
+import { Organization, Project, Routine, SetLocation, Standard, User } from "types";
 import { Pubs } from "../consts";
 import { getTranslation } from "./translationTools";
 
@@ -42,7 +42,7 @@ export const getOwnedByString = (object: Project | Routine | null | undefined, l
  */
 export const toOwnedBy = (
     object: Project | Routine | null | undefined,
-    setLocation: (to: string, options?: { replace?: boolean | undefined } | undefined) => void
+    setLocation: SetLocation,
 ): void => {
     if (!object || !object.owner) {
         PubSub.publish(Pubs.Snack, { message: 'Could not find owner.', severity: 'Error' });

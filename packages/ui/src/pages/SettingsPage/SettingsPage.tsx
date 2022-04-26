@@ -14,7 +14,7 @@ import { useLazyQuery } from '@apollo/client';
 import { APP_LINKS } from '@local/shared';
 import { useLocation } from 'wouter';
 import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
-import { parseSearchParams } from 'utils/urlTools';
+import { parseSearchParams } from 'utils/navigation/urlTools';
 import { profile, profile_profile } from 'graphql/generated/profile';
 import { profileQuery } from 'graphql/query';
 import { SettingsAuthentication } from 'components/views/SettingsAuthentication/SettingsAuthentication';
