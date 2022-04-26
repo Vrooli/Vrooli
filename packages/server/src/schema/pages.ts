@@ -3,7 +3,7 @@
  */
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
-import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, LogSearchResult, LogSortBy, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, ForYouPageInput, ForYouPageResult, StatisticsPageInput, StatisticsPageResult } from './types';
+import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, LogSearchResult, LogSortBy, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, ForYouPageInput, ForYouPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, Log } from './types';
 import { CODE } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
@@ -484,6 +484,12 @@ export const resolvers = {
          * Queries data shown on Develop page
          */
         developPage: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<DevelopPageResult> => {
+            // If not signed in, return empty data
+            if (!context.req.userId) return {
+                completed: [],
+                inProgress: [],
+                recent: [],
+            }
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
@@ -491,16 +497,16 @@ export const resolvers = {
             const oModel = OrganizationModel(context.prisma);
             const pModel = ProjectModel(context.prisma);
             const rModel = RoutineModel(context.prisma);
-            // Find completed logs
-            const completedLogs = await paginatedMongoSearch<LogSearchResult>({
-                findQuery: logSearcher().getFindQuery(context.req.userId ?? '', { action: LogType.RoutineComplete }),
+            // Find completed logs for routines
+            const completedLogs = (await paginatedMongoSearch<LogSearchResult>({
+                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.RoutineComplete] }),
                 sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
                 take,
                 project: logSearcher().defaultProjection,
-            });
+            })).edges.map(({ node }: any) => node) as Log[]
             console.log('develop query completed logs', JSON.stringify(completedLogs));
             // Use logs to find full routine data from Prisma
-            const completedIds = completedLogs.edges.map(({ node }: any) => node.object1Id);
+            const completedIds = completedLogs.map((node: any) => node.object1Id);
             const completedRoutines = (await readManyHelper(
                 context.req.userId,
                 { ids: completedIds, sortBy: RoutineSortBy.DateCompletedAsc },
@@ -509,19 +515,109 @@ export const resolvers = {
                 { ...starsQuery },
                 false,
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
-            throw new CustomError(CODE.NotImplemented);
-            // Query completed
-            //TODO
-            // Query inProgress
-            //TODO
-            // Query recent
-            //TODO
+            // Projects can be found without looking up logs
+            const completedProjects = (await readManyHelper(
+                context.req.userId,
+                { take, isComplete: true, userId: context.req.userId, sortBy: ProjectSortBy.DateCompletedAsc },
+                projectSelect,
+                pModel,
+                { ...starsQuery },
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            // Find in progress logs
+            const inProgressLogs = (await paginatedMongoSearch<LogSearchResult>({
+                findQuery: logSearcher().getFindQuery(context.req.userId ?? '', { actions: [LogType.RoutineStartIncomplete] }),
+                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
+                take,
+                project: logSearcher().defaultProjection,
+            })).edges.map(({ node }: any) => node) as Log[]
+            console.log('develop query in progress logs', JSON.stringify(inProgressLogs));
+            // Use logs to find full routine data from Prisma
+            const inProgressIds = inProgressLogs.map((node: any) => node.object1Id);
+            const inProgressRoutines = (await readManyHelper(
+                context.req.userId,
+                { ids: inProgressIds, sortBy: RoutineSortBy.DateCreatedAsc },
+                routineSelect,
+                rModel,
+                { ...starsQuery },
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
+            // Projects can be found without looking up logs
+            const inProgressProjects = (await readManyHelper(
+                context.req.userId,
+                { take, isComplete: false, userId: context.req.userId, sortBy: ProjectSortBy.DateCreatedAsc },
+                projectSelect,
+                pModel,
+                { ...starsQuery },
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            // Query recently created/updated routines
+            const recentRoutines = (await readManyHelper(
+                context.req.userId,
+                { take, userId: context.req.userId, sortBy: RoutineSortBy.DateUpdatedAsc },
+                routineSelect,
+                rModel,
+                { ...starsQuery },
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
+            // Query recently created/updated projects
+            const recentProjects = (await readManyHelper(
+                context.req.userId,
+                { take, userId: context.req.userId, sortBy: ProjectSortBy.DateUpdatedAsc },
+                projectSelect,
+                pModel,
+                { ...starsQuery },
+                false,
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
+            // Add supplemental fields to every result
+            const withSupplemental = await addSupplementalFieldsMultiTypes(
+                [completedRoutines, completedProjects, inProgressRoutines, inProgressProjects, recentRoutines, recentProjects],
+                [routineSelect, projectSelect, routineSelect, projectSelect, routineSelect, projectSelect] as any,
+                ['cr', 'cp', 'ipr', 'ipp', 'rr', 'rp'],
+                context.req.userId,
+                context.prisma,
+            )
+            // Combine arrays
+            const completed: Array<Project | Routine> = [...withSupplemental['cr'], ...withSupplemental['cp']];
+            const inProgress: Array<Project | Routine> = [...withSupplemental['ipr'], ...withSupplemental['ipp']];
+            const recent: Array<Project | Routine> = [...withSupplemental['rr'], ...withSupplemental['rp']];
+            // Sort arrays by date completed/updated. Completed and inProgress have to be sorted differently than other 
+            // sorts, because the timestamp for routines is in the log, but the timestamp for projects is in the project data.
+            completed.sort((a, b) => {
+                // Check for log, which means it's a routine
+                const aLog = completedLogs.find((log: Log) => log.id === a.id);
+                const bLog = completedLogs.find((log: Log) => log.id === b.id);
+                // Determine completedAt
+                const aCompletedAt = aLog ? aLog.timestamp : (a as Project).completedAt;
+                const bCompletedAt = bLog ? bLog.timestamp : (b as Project).completedAt;
+                // Compare
+                if (aCompletedAt < bCompletedAt) return -1;
+                if (aCompletedAt > bCompletedAt) return 1;
+                return 0;
+            });
+            inProgress.sort((a, b) => {
+                // Check for log, which means it's a routine
+                const aLog = inProgressLogs.find((log: Log) => log.id === a.id);
+                const bLog = inProgressLogs.find((log: Log) => log.id === b.id);
+                // Determine updatedAt
+                const aUpdatedAt = aLog ? aLog.timestamp : (a as Project).updated_at;
+                const bUpdatedAt = bLog ? bLog.timestamp : (b as Project).updated_at;
+                // Compare
+                if (aUpdatedAt < bUpdatedAt) return -1;
+                if (aUpdatedAt > bUpdatedAt) return 1;
+                return 0;
+            });
+            recent.sort((a, b) => {
+                if (a.updated_at < b.updated_at) return -1;
+                if (a.updated_at > b.updated_at) return 1;
+                return 0;
+            });
             // Return data
-            // return {
-            //     completed,
-            //     inProgress,
-            //     recent,
-            // }
+            return {
+                completed,
+                inProgress,
+                recent,
+            }
         },
         /**
          * Returns site-wide statistics

@@ -54,7 +54,7 @@ export const typeDef = gql`
     }
 
     input LogSearchInput {
-        action: String
+        actions: [String!]
         after: String
         createdTimeFrame: TimeFrame
         data: String

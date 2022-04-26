@@ -325,7 +325,7 @@ export type LogEdge = {
 };
 
 export type LogSearchInput = {
-  action?: InputMaybe<Scalars['String']>;
+  actions?: InputMaybe<Array<Scalars['String']>>;
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   data?: InputMaybe<Scalars['String']>;

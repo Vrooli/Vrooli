@@ -106,11 +106,16 @@ export interface JSONInputProps {
 }
 
 export interface LanguageInputProps {
-    currentLanguage: string;
+    /**
+     * Currently-selected language, if using this component to add/edit an object
+     * with translations. Not needed if using this component to select languages 
+     * for an advanced search, for example.
+     */
+    currentLanguage?: string;
     handleAdd: (language: string) => any;
-    handleChange: (oldLanguage: string, newLanguage: string) => any;
-    handleDelete: (language: string) => any;
-    handleSelect: (language: string) => any;
+    handleChange: (oldLanguage: string, newLanguage: string) => void;
+    handleDelete: (language: string) => void;
+    handleSelect: (language: string) => void;
     languages: string[];
     session: Session;
 }

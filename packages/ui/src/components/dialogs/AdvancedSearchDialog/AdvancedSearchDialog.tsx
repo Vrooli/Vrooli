@@ -10,7 +10,7 @@ import {
     IconButton,
     Typography
 } from '@mui/material';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
 import {
     Cancel as CancelIcon,
@@ -20,76 +20,67 @@ import {
 import { useFormik } from 'formik';
 import { FormSchema, InputType } from 'forms/types';
 import { BaseForm } from 'forms';
+import { organizationSearchSchema, projectSearchSchema, routineSearchSchema, standardSearchSchema, userSearchSchema } from './schemas';
+import { useReactPath } from 'utils';
+import { APP_LINKS } from '@local/shared';
 
-// const isOpenToNewMembersQuery = input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {};
-// const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-// const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-// const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-// const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
-// const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};
-// const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
-// const userIdQuery = input.userId ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {};
-// const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-// const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-// const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-
-const organizationFormSchema: FormSchema = {
-    formLayout: {
-        title: "Search Organizations",
-        direction: "column",
-        rowSpacing: 5,
-    },
-    fields: [
-        {
-            fieldName: "isOpenToNewMembers",
-            label: "Accepting new members?",
-            type: InputType.Radio,
-            props: {
-                defaultValue: null,
-                row: true,
-                options: [
-                    { label: "Yes", value: true },
-                    { label: "No", value: false },
-                    { label: "Don't Care", value: null },
-                ]
-            }
-        },
-        {
-            fieldName: "minimumStars",
-            label: "Minimum Stars",
-            type: InputType.QuantityBox,
-            props: {
-                min: 0,
-                defaultValue: 5,
-            }
-        },
-        {
-            fieldName: "testCheckboxMulti",
-            label: "Test Checkbox Multi",
-            type: InputType.Checkbox,
-            props: {
-                color: "secondary",
-                options: [{ label: "Boop" }, { label: "Beep" }, { label: "Bop" }],
-            }
-        },
-        {
-            fieldName: "testDropzone",
-            label: "Test Dropzone",
-            type: InputType.Dropzone,
-            props: {
-                maxFiles: 1,
-            }
-        },
-        // {
-        //     fieldName: "testJSONInput",
-        //     label: "Test JSON Input",
-        //     type: InputType.JSON,
-        //     props: {
-        //         description: "This is a JSON input",
-        //     }
-        // }
-    ]
-}
+// const organizationFormSchema: FormSchema = {
+//     formLayout: {
+//         title: "Search Organizations",
+//         direction: "column",
+//         rowSpacing: 5,
+//     },
+//     fields: [
+//         {
+//             fieldName: "isOpenToNewMembers",
+//             label: "Accepting new members?",
+//             type: InputType.Radio,
+//             props: {
+//                 defaultValue: null,
+//                 row: true,
+//                 options: [
+//                     { label: "Yes", value: true },
+//                     { label: "No", value: false },
+//                     { label: "Don't Care", value: null },
+//                 ]
+//             }
+//         },
+//         {
+//             fieldName: "minimumStars",
+//             label: "Minimum Stars",
+//             type: InputType.QuantityBox,
+//             props: {
+//                 min: 0,
+//                 defaultValue: 5,
+//             }
+//         },
+//         {
+//             fieldName: "testCheckboxMulti",
+//             label: "Test Checkbox Multi",
+//             type: InputType.Checkbox,
+//             props: {
+//                 color: "secondary",
+//                 options: [{ label: "Boop" }, { label: "Beep" }, { label: "Bop" }],
+//             }
+//         },
+//         {
+//             fieldName: "testDropzone",
+//             label: "Test Dropzone",
+//             type: InputType.Dropzone,
+//             props: {
+//                 maxFiles: 1,
+//             }
+//         },
+//         // {
+//         //     fieldName: "testJSONInput",
+//         //     label: "Test JSON Input",
+//         //     type: InputType.JSON,
+//         //     props: {
+//         //         description: "This is a JSON input",
+//         //     }
+//         // }
+//     ]
+// }
 
 export const AdvancedSearchDialog = ({
     handleClose,
@@ -97,16 +88,38 @@ export const AdvancedSearchDialog = ({
     isOpen,
     session,
 }: AdvancedSearchDialogProps) => {
+    // Search schema to use
+    const [schema, setSchema] = useState<FormSchema | null>(null);
 
-    const formik = useFormik({
-        initialValues: {
-            isOpenToNewMembers: null,
-            minStars: 0,
-        },
-        onSubmit: (values) => {
-            //TODO
-        },
-    });
+    // Use path to determine which form schema to use
+    const path = useReactPath();
+    useEffect(() => {
+        switch (path) {
+            case APP_LINKS.SearchOrganizations:
+                setSchema(organizationSearchSchema);
+                break;
+            case APP_LINKS.SearchProjects:
+                setSchema(projectSearchSchema);
+                break;
+            case APP_LINKS.SearchRoutines:
+                setSchema(routineSearchSchema);
+                break;
+            case APP_LINKS.SearchStandards:
+                setSchema(standardSearchSchema);
+                break;
+            case APP_LINKS.SearchUsers:
+                setSchema(userSearchSchema);
+                break;
+            default:
+                setSchema(null);
+                break;
+        }
+    }, [path]);
+
+    const handleSubmit = useCallback((values: any) => {
+        console.log('AdvancedSearchDialog handleSubmit', values);
+        //TODO
+    }, []);
 
     /**
      * Title bar with help button and close icon
@@ -145,49 +158,10 @@ export const AdvancedSearchDialog = ({
         >
             {titleBar}
             <DialogContent>
-                <BaseForm
-                    onSubmit={formik.handleSubmit}
-                    schema={organizationFormSchema}
-                />
-                {/* <Stack direction="column" spacing={4}>
-                    // Accepting new members
-                    <FormControl component="fieldset">
-                        <FormLabel component="legend">Accepting New Members?</FormLabel>
-                        <RadioGroup
-                            aria-label="isOpenToNewMembers"
-                            name="isOpenToNewMembers"
-                            row={true}
-                            value={formik.values.isOpenToNewMembers}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                        >
-                            <FormControlLabel
-                                value={true}
-                                control={<Radio />}
-                                label={"Yes"}
-                            />
-                            <FormControlLabel
-                                value={false}
-                                control={<Radio />}
-                                label={"No"}
-                            />
-                            <FormControlLabel
-                                value={null}
-                                control={<Radio />}
-                                label={"Don't Care"}
-                            />
-                        </RadioGroup>
-                    </FormControl>
-                    // Min Stars
-                    <QuantityBox
-                        id="minStars"
-                        label="Minimum Stars"
-                        min={0}
-                        handleChange={(newValue: number) => { formik.setFieldValue('minStars', newValue) }}
-                        value={formik.values.minStars}
-                        tooltip="Minimum number of stars"
-                    />
-                </Stack> */}
+                {schema && <BaseForm
+                    onSubmit={handleSubmit}
+                    schema={schema}
+                />}
             </DialogContent>
             {/* Search/Cancel buttons */}
             <Grid container spacing={1} sx={{

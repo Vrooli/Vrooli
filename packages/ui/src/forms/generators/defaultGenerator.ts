@@ -1,4 +1,4 @@
-import { CheckboxProps, DropzoneProps, InputType, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps } from '../types';
+import { CheckboxProps, DropzoneProps, InputType, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps } from '../types';
 import { FieldData } from 'forms/types';
 
 /**
@@ -19,6 +19,10 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
     }),
     [InputType.JSON]: (props: JSONProps): JSONProps => ({ 
         defaultValue: '',
+        ...props 
+    }),
+    [InputType.LanguageInput]: (props: LanguageInputProps): LanguageInputProps => ({ 
+        defaultValue: [],
         ...props 
     }),
     [InputType.Markdown]: (props: MarkdownProps): MarkdownProps => ({ 
@@ -55,6 +59,10 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         color: 'secondary',
         size: 'medium',
         ...props
+    }),
+    [InputType.TagSelector]: (props: TagSelectorProps): TagSelectorProps => ({ 
+        defaultValue: [],
+        ...props 
     }),
     [InputType.TextField]: (props: TextFieldProps): TextFieldProps => ({
         defaultValue: '',

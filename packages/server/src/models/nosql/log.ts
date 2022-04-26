@@ -100,7 +100,7 @@ export const logSearcher = () => ({
             input.object2Id ? { object2Id: input.object2Id } : undefined,
             input.object1Type ? { object1Type: input.object1Type } : undefined,
             input.object2Type ? { object2Type: input.object2Type } : undefined,
-            input.action ? { action: input.action } : undefined,
+            input.actions ? (input.actions.length !== 1 ? { action: { $in: input.actions } } : { action: input.actions[0] }) : undefined,
             input.data ? { data: input.data } : undefined,
         ]
         // Combine all the queries

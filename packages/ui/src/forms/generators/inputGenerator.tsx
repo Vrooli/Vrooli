@@ -14,9 +14,9 @@ import {
     TextField,
     Typography
 } from '@mui/material'
-import { Dropzone, JSONInput, MarkdownInput, QuantityBox, Selector } from 'components'
-import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/inputs/types'
-import { CheckboxProps, FieldData, InputType, JSONProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
+import { Dropzone, JSONInput, LanguageInput, MarkdownInput, QuantityBox, Selector, TagSelector } from 'components'
+import { DropzoneProps, QuantityBoxProps, SelectorProps, TagSelectorTag } from 'components/inputs/types'
+import { CheckboxProps, FieldData, InputType, JSONProps, LanguageInputProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps } from 'forms/types'
 import { updateArray } from 'utils'
 
 /**
@@ -153,6 +153,44 @@ export const toJSON = ({
             onChange={(newText: string) => formik.setFieldValue(data.fieldName, newText)}
             error={formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName])}
             helperText={formik.touched[data.fieldName] && formik.errors[data.fieldName]}
+        />
+    )
+}
+
+/**
+ * Converts JSON into a LanguageInput component.
+ * Uses formik for validation and onChange.
+ */
+export const toLanguageInput = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
+    const props = data.props as LanguageInputProps;
+    const languages = formik.values[data.fieldName] as string[];
+    const addLanguage = (lang: string) => {
+        formik.setFieldValue(data.fieldName, [...languages, lang]);
+    };
+    const changeLanguage = (oldLang: string, newLang: string) => {
+        const newLanguages = [...languages];
+        const index = newLanguages.findIndex(l => l === oldLang);
+        if (index >= 0) {
+            newLanguages[index] = newLang;
+            formik.setFieldValue(data.fieldName, newLanguages);
+        }
+    }
+    const deleteLanguage = (lang: string) => {
+        const newLanguages = [...languages.filter(l => l !== lang)]
+        formik.setFieldValue(data.fieldName, newLanguages);
+    }
+    return (
+        <LanguageInput
+            handleAdd={addLanguage}
+            handleChange={changeLanguage}
+            handleDelete={deleteLanguage}
+            handleSelect={() => {}}
+            languages={languages}
+            session={{}} //TODO
         />
     )
 }
@@ -296,6 +334,37 @@ export const toSwitch = ({
 }
 
 /**
+ * Converts JSON into a TagSelector component.
+ * Uses formik for validation and onChange.
+ */
+export const toTagSelector = ({
+    data,
+    formik,
+    index,
+}: InputGeneratorProps): React.ReactElement => {
+    const props = data.props as TagSelectorProps;
+    const tags = formik.values[data.fieldName] as TagSelectorTag[];
+    const addTag = (tag: TagSelectorTag) => {
+        formik.setFieldValue(data.fieldName, [...tags, tag]);
+    };
+    const removeTag = (tag: TagSelectorTag) => {
+        formik.setFieldValue(data.fieldName, tags.filter((t) => t.tag !== tag.tag));
+    };
+    const clearTags = () => {
+        formik.setFieldValue(data.fieldName, []);
+    };
+    return (
+        <TagSelector
+            session={{}} //TODO
+            tags={tags}
+            onTagAdd={addTag}
+            onTagRemove={removeTag}
+            onTagsClear={clearTags}
+        />
+    );
+}
+
+/**
  * Converts JSON into a TextField component.
  * Uses formik for validation and onChange.
  * If this component is first in the list, it will be focused.
@@ -361,15 +430,17 @@ export const toQuantityBox = ({
 /**
  * Maps a data input type string to its corresponding component generator function
  */
-const typeMap = {
+const typeMap: { [key in InputType]: (props: InputGeneratorProps) => any } = {
     [InputType.Checkbox]: toCheckbox,
     [InputType.Dropzone]: toDropzone,
     [InputType.JSON]: toJSON,
+    [InputType.LanguageInput]: toLanguageInput,
     [InputType.Markdown]: toMarkdown,
     [InputType.Radio]: toRadio,
     [InputType.Selector]: toSelector,
     [InputType.Slider]: toSlider,
     [InputType.Switch]: toSwitch,
+    [InputType.TagSelector]: toTagSelector,
     [InputType.TextField]: toTextField,
     [InputType.QuantityBox]: toQuantityBox,
 }

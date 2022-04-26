@@ -328,7 +328,7 @@ export interface InputItemUpdateInput {
 }
 
 export interface LogSearchInput {
-  action?: string | null;
+  actions?: string[] | null;
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   data?: string | null;

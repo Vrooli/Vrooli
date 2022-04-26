@@ -45,9 +45,9 @@ export const LanguageInput = ({
             return (
                 <SelectLanguageDialog
                     availableLanguages={availableLanguages}
-                    canDelete={l === currentLanguage && languages.length > 1}
-                    canDropdownOpen={l === currentLanguage}
-                    color={l === currentLanguage ? '#3790a7' : 'default'}
+                    canDelete={!currentLanguage || (l === currentLanguage && languages.length > 1)}
+                    canDropdownOpen={!currentLanguage || l === currentLanguage}
+                    color={!!currentLanguage && l === currentLanguage ? '#3790a7' : 'default'}
                     handleDelete={() => { handleDelete(l) }}
                     handleSelect={(newLanguage: string) => { handleChange(l, newLanguage) }}
                     key={l}

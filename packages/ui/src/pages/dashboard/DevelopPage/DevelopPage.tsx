@@ -47,19 +47,6 @@ export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
 
-    const [getLogs, { data: logsData, loading: logsLoading }] = useLazyQuery<logs, logsVariables>(logsQuery);
-    useEffect(() => {
-        if (!session?.id) return;
-        getLogs({
-            variables: {
-                input: {
-                    action: LogType.RoutineStartIncomplete,
-                }
-            }
-        });
-    }, [session?.id]);
-    console.log('LOGS DATA', logsData);
-
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
 
@@ -121,7 +108,7 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"In Progress"}
                     helpText={inProgressText}
-                    loading={true}
+                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -130,7 +117,7 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"Recent"}
                     helpText={recentText}
-                    loading={true}
+                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -139,7 +126,7 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"Completed"}
                     helpText={completedText}
-                    loading={true}
+                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >

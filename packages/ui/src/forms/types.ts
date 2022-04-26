@@ -1,6 +1,6 @@
 import { CommonProps } from "types";
 import { Forms } from "utils";
-import { DropzoneProps as DP, JSONInputProps as JP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP } from 'components/inputs/types';
+import { DropzoneProps as DP, JSONInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP, TagSelectorTag } from 'components/inputs/types';
 
 //==============================================================
 /* #region Specific Form Props */
@@ -36,11 +36,13 @@ export enum InputType {
     Checkbox = 'Checkbox',
     Dropzone = 'Dropzone',
     JSON = 'JSON',
+    LanguageInput = 'LanguageInput',
     Markdown = 'Markdown',
     Radio = 'Radio',
     Selector = 'Selector',
     Slider = 'Slider',
     Switch = 'Switch',
+    TagSelector = 'TagSelector',
     TextField = 'TextField',
     QuantityBox = 'QuantityBox',
 }
@@ -75,7 +77,14 @@ export interface DropzoneProps extends Omit<DP, 'onUpload'> {
  * Props for rendering a JSON input component
  */
 export interface JSONProps extends Omit<JP, 'onChange' | 'value'> { 
-    defaultValue?: '';
+    defaultValue?: string;
+}
+
+/**
+ * Props for rendering a LanguageInput component
+ */
+export interface LanguageInputProps extends Omit<LP, 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleSelect' | 'languages' | 'session'> {
+    defaultValue?: string[];
 }
 
 /**
@@ -128,6 +137,13 @@ export interface SwitchProps {
     defaultValue?: boolean; // Maps to defaultChecked
     size?: 'small' | 'medium';
     color?: 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'default';
+}
+
+/**
+ * Props for rendering a TagSelector input component
+ */
+export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'session' | 'tags' | 'onTagAdd' | 'onTagRemove' | 'onTagsClear'> {
+    defaultValue?: TagSelectorTag[];
 }
 
 /**
@@ -216,6 +232,20 @@ interface FieldDataJSON extends FieldDataBase {
 }
 
 /**
+ * Field data type and props for LanguageInput input components
+ */
+interface FieldDataLanguageInput extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+     type: InputType.LanguageInput;
+     /**
+      * Extra props for the input component, depending on the type
+      */
+     props: LanguageInputProps;
+}
+
+/**
  * Field data type and props for Markdown input components
  */
 interface FieldDataMarkdown extends FieldDataBase {
@@ -286,6 +316,20 @@ interface FieldDataSwitch extends FieldDataBase {
 }
 
 /**
+ * Field data type and props for TagSelector input components
+ */
+ interface FieldDataTagSelector extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.TagSelector;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: TagSelectorProps;
+}
+
+/**
  * Field data type and props for TextField input components
  */
 interface FieldDataTextField extends FieldDataBase {
@@ -320,11 +364,13 @@ export type FieldData =
     FieldDataCheckbox |
     FieldDataDropzone |
     FieldDataJSON |
+    FieldDataLanguageInput |
     FieldDataMarkdown |
     FieldDataRadio |
     FieldDataSelector |
     FieldDataSlider |
     FieldDataSwitch |
+    FieldDataTagSelector |
     FieldDataTextField |
     FieldDataQuantityBox;
 
