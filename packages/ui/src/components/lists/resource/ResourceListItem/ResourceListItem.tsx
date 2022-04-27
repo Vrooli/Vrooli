@@ -3,14 +3,26 @@ import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip } fr
 import { ResourceListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { MemberRole, ResourceSortBy, ResourceUsedFor } from '@local/shared';
+import { adaHandleRegex, MemberRole, ResourceSortBy, ResourceUsedFor, urlRegex, walletAddressRegex } from '@local/shared';
 import { useLocation } from 'wouter';
-import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions, openLink, Pubs, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import {
     OpenInNew as OpenLinkIcon
 } from '@mui/icons-material';
+
+/**
+ * Determines if a resource is a URL, wallet payment address, or an ADA handle
+ * @param link String to check
+ * @returns ResourceType if type found, or null if not
+ */
+ const getResourceType = (link: string): ResourceType | null => {
+    if (urlRegex.test(link)) return ResourceType.Url;
+    if (walletAddressRegex.test(link)) return ResourceType.Wallet;
+    if (adaHandleRegex.test(link)) return ResourceType.Handle;
+    return null;
+}
 
 export function ResourceListItem({
     session,
@@ -30,9 +42,34 @@ export function ResourceListItem({
 
     const Icon = useMemo(() => getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link), [data]);
 
-    const handleClick = useCallback((e: any) => {
-        e.stopPropagation();
-        window.open(data.link, '_blank', 'noopener,noreferrer')
+    const handleClick = useCallback((event: any) => {
+        event.stopPropagation();
+        // Find the resource type
+        const resourceType = getResourceType(data.link);
+        // If null, show error
+        if (!resourceType) {
+            PubSub.publish(Pubs.Snack, { message: 'Unable to open link', severity: 'error' });
+            return;
+        }
+        // If URL, open in new tab
+        if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
+        // If wallet address, open dialog to copy to clipboard
+        else if (resourceType === ResourceType.Wallet) {
+            PubSub.publish(Pubs.AlertDialog, {
+                message: `Wallet address: ${data.link}`,
+                buttons: [
+                    {
+                        text: 'Copy', onClick: () => {
+                            navigator.clipboard.writeText(data.link);
+                            PubSub.publish(Pubs.Snack, { message: 'Copied.', severity: 'success' });
+                        }
+                    },
+                    { text: 'Close' }
+                ]
+            });
+        }
+        // If handle, open ADA Handle payment site
+        else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
     }, [data]);
 
     return (

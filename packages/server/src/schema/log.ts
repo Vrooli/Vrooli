@@ -9,7 +9,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 import { CustomError } from '../error';
 import { CODE } from '@local/shared';
-import { Log, logSearcher, LogType } from '../models';
+import { logSearcher, LogType, paginatedMongoSearch } from '../models';
 
 export const typeDef = gql`
     enum LogSortBy {
@@ -20,16 +20,24 @@ export const typeDef = gql`
     enum LogType {
         Create
         Delete
+        Downvote
         OrganizationAddMember
         OrganizationJoin
         OrganizationLeave
         OrganizationRemoveMember
         OrganizationUpdateMember
+        ProjectComplete
+        RemoveStar
+        RemoveVote
         RoutineCancel
         RoutineComplete
-        RoutineStart
-        ProjectComplete
+        RoutineStartIncomplete
+        RoutineStartCanceled
+        RoutineStartCompleted
+        Star
         Update
+        Upvote
+        View
     }
  
     input LogCreateInput {
@@ -52,7 +60,7 @@ export const typeDef = gql`
     }
 
     input LogSearchInput {
-        action: String
+        actions: [String!]
         after: String
         createdTimeFrame: TimeFrame
         data: String
@@ -91,57 +99,19 @@ export const resolvers = {
     LogType: LogType,
     Query: {
         logs: async (_parent: undefined, { input }: IWrap<LogSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<LogSearchResult> => {
+            console.log('logs start', JSON.stringify(input))
             await rateLimit({ context, info, max: 1000, byAccount: true });
-            // Initialize results
-            let paginatedResults = {
-                pageInfo: {
-                    endCursor: null,
-                    hasNextPage: false,
-                },
-                edges: []
-            }
-            // Attempt to query MongoDB
-            try {
-                // Create the search and sort queries
-                const findQuery = logSearcher().getFindQuery(context.req.userId ?? '', input);
-                console.log('logs findQuery', JSON.stringify(findQuery));
-                const sortQuery = logSearcher().getSortQuery(input.sortBy ?? LogSortBy.DateCreatedDesc);
-                console.log('logs sortQuery', JSON.stringify(sortQuery));
-                // Perform a cursor-based paginated query, using input.after as the starting point
-                const cursor = Log.find(findQuery).sort(sortQuery).skip(input.after ? parseInt(input.after) : 0).limit(input.take ?? 10).cursor();
-                // const searchResults = await Log.find(findQuery).sort(sortQuery);
-                console.log('SEARCHED LOGS', JSON.stringify(cursor));
-                // Create the paginated results by iterating through the cursor
-                for (let doc = await cursor.next(); doc != null; doc = await cursor.next()) {
-                    console.log('GOT SERARCH DOC', JSON.stringify(doc));
-                }
-                //TODO
-                // if (searchResults. > 0) {
-                //     // Find cursor
-                //     const cursor = searchResults[searchResults.length - 1]._id;
-                //     // Query after the cursor to check if there are more results
-                //     const hasNextPage = await PrismaMap[objectType](model.prisma).findMany({
-                //         take: 1,
-                //         cursor: {
-                //             id: cursor
-                //         }
-                //     });
-                //     paginatedResults = {
-                //         pageInfo: {
-                //             hasNextPage: hasNextPage.length > 0,
-                //             endCursor: cursor,
-                //         },
-                //         edges: searchResults.map((result: any) => ({
-                //             cursor: result.id,
-                //             node: result,
-                //         }))
-                //     }
-                // }
-            } catch (e) {
-                throw new CustomError(CODE.InternalError, 'Error searching logs');
-            } finally {
-                return paginatedResults;
-            }
+            // Create the search and sort queries
+            const findQuery = logSearcher().getFindQuery(context.req.userId ?? '', input);
+            const sortQuery = logSearcher().getSortQuery(input.sortBy ?? LogSortBy.DateCreatedDesc);
+            const project = logSearcher().defaultProjection;
+            return paginatedMongoSearch<LogSearchResult>({
+                findQuery,
+                sortQuery,
+                take: input.take ?? 10,
+                after: input.after ?? undefined,
+                project,
+            });
         },
     },
     // Logs are created automatically, so the only mutation is to delete them

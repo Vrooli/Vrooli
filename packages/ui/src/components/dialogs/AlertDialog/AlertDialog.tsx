@@ -51,7 +51,10 @@ const AlertDialog = () => {
         >
             {state.title ? <DialogTitle id="alert-dialog-title">{state.title}</DialogTitle> : null}
             <DialogContent>
-                <DialogContentText id="alert-dialog-description">
+                <DialogContentText id="alert-dialog-description" sx={{
+                    whiteSpace: 'pre-wrap',
+                    wordWrap: 'break-word',
+                }}>
                     {state.message}
                 </DialogContentText>
             </DialogContent>

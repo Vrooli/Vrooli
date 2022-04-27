@@ -82,4 +82,3 @@ export function RoutineListItem({
 
 export const RoutineSortOptions: LabelledSortOption<RoutineSortBy>[] = labelledSortOptions(RoutineSortBy);
 export const routineDefaultSortOption = RoutineSortOptions[1];
-export const routineOptionLabel = (o: Routine, languages: readonly string[]) => getTranslation(o, 'title', languages, true) ?? '';

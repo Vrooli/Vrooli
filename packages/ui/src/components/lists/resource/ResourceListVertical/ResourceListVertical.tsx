@@ -86,20 +86,20 @@ export const ResourceListVertical = ({
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false) }, []);
-    const [editingIndex, setEditingIndex] = useState<number | undefined>(undefined);
+    const [editingIndex, setEditingIndex] = useState<number>(-1);
     const openUpdateDialog = useCallback((index: number) => { 
         setEditingIndex(index);
         setIsDialogOpen(true) 
     }, []);
     const closeUpdateDialog = useCallback(() => { 
-        setEditingIndex(undefined);
+        setEditingIndex(-1);
         setIsDialogOpen(false) 
     }, []);
 
     const dialog = useMemo(() => (
         list ? <ResourceDialog
-            isAdd={editingIndex === undefined}
-            partialData={editingIndex ? list.resources[editingIndex as number] as any : undefined}
+            index={editingIndex}
+            partialData={(editingIndex >= 0) ? list.resources[editingIndex as number] as any : undefined}
             listId={list.id}
             open={isDialogOpen}
             onClose={closeDialog}

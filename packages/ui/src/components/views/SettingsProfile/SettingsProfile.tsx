@@ -126,7 +126,7 @@ export const SettingsProfile = ({
                     name: values.name,
                     handle: selectedHandle,
                     translations: allTranslations,
-                }),
+                }, [], ['translations']),
                 onSuccess: (response) => { onUpdated(response.data.profileUpdate); setLocation(APP_LINKS.Profile, { replace: true }) },
                 onError: () => { formik.setSubmitting(false) },
             })

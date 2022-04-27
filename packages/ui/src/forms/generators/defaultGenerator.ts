@@ -1,19 +1,34 @@
-import { CheckboxProps, InputType, RadioProps, SliderProps, SwitchProps, TextFieldProps } from '../types';
+import { CheckboxProps, DropzoneProps, InputType, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps } from '../types';
 import { FieldData } from 'forms/types';
-import { DropzoneProps, SelectorProps } from 'components/inputs/types';
 
 /**
  * Maps a data input type to a function that calculates its default values.
  * Values already set have precedence
  * @returns The passed-in props object with default values added
  */
-const defaultMap = {
+const defaultMap: { [key in InputType]: (props: any) => any } = {
     [InputType.Checkbox]: (props: CheckboxProps): CheckboxProps => ({
-        defaultValue: false,
+        defaultValue: new Array(props.options.length).fill(false),
         color: 'secondary',
+        row: true,
         ...props
     }),
-    [InputType.Dropzone]: (props: DropzoneProps): DropzoneProps => ({ ...props }),
+    [InputType.Dropzone]: (props: DropzoneProps): DropzoneProps => ({ 
+        defaultValue: [],
+        ...props 
+    }),
+    [InputType.JSON]: (props: JSONProps): JSONProps => ({ 
+        defaultValue: '',
+        ...props 
+    }),
+    [InputType.LanguageInput]: (props: LanguageInputProps): LanguageInputProps => ({ 
+        defaultValue: [],
+        ...props 
+    }),
+    [InputType.Markdown]: (props: MarkdownProps): MarkdownProps => ({ 
+        defaultValue: '',
+        ...props 
+    }),
     [InputType.Radio]: (props: RadioProps) => ({
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
         ...props
@@ -45,8 +60,15 @@ const defaultMap = {
         size: 'medium',
         ...props
     }),
+    [InputType.TagSelector]: (props: TagSelectorProps): TagSelectorProps => ({ 
+        defaultValue: [],
+        ...props 
+    }),
     [InputType.TextField]: (props: TextFieldProps): TextFieldProps => ({
         defaultValue: '',
+        ...props
+    }),
+    [InputType.QuantityBox]: (props: Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'>): Omit<QuantityBoxProps, 'id' | 'value' | 'handleChange'> => ({
         ...props
     }),
 }

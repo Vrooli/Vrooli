@@ -4,6 +4,10 @@ export interface HomePageProps {
     session: Session;
 }
 
+export interface ForYouPageProps {
+    session: Session;
+}
+
 export interface LearnPageProps {
     session: Session;
 }

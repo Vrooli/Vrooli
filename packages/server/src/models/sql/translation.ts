@@ -2,6 +2,7 @@ import { relationshipToPrisma, RelationshipTypes, ValidateMutationsInput } from 
 import { CustomError } from "../../error";
 import { CODE } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -40,7 +41,8 @@ export const translationMutater = () => ({
                 }
             }
         }
-        if (hasProfanity(...fields)) throw new CustomError(CODE.BannedWord)
+        if (hasProfanity(...fields)) 
+            throw new CustomError(CODE.BannedWord, 'Banned word detected', { code: genErrorCode('0115'), fields });
     },
     /**
      * Makes sure there are no more than k line breaks in the specified fields
@@ -55,7 +57,7 @@ export const translationMutater = () => ({
             translations.forEach((x: any) => {
                 fields.forEach(field => {
                     if (x[field] && x[field].split('\n').length > (k + 1)) {
-                        throw new CustomError(error)
+                        throw new CustomError(error, 'Maximun number of line breaks exceeded', { code: genErrorCode('0116') });
                     }
                 })
             })
@@ -85,7 +87,8 @@ export const translationMutater = () => ({
         { userId, createMany, updateMany, deleteMany }: ValidateMutationsInput<CreateInput, UpdateInput>,
         validators: { create: any, update: any }
     ): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0117') });
         if (createMany) {
             createMany.forEach(input => validators.create.validateSync(input, { abortEarly: false }));
         }

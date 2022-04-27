@@ -6,6 +6,7 @@ import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, deconstructU
 import { organizationVerifier } from "./organization";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
+import { genErrorCode } from "../../logger";
 const { MemberRole } = pkg;
 
 //==============================================================
@@ -100,7 +101,8 @@ export const commentMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<CommentCreateInput, CommentUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0038') });
         if (createMany) {
             createMany.forEach(input => commentCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
@@ -123,13 +125,15 @@ export const commentMutater = (prisma: PrismaType) => ({
             // Filter out comments that user created
             const notCreatedByThisUser = comments.filter(c => c.userId !== userId);
             // If any comments not created by this user have a null organizationId, throw error
-            if (notCreatedByThisUser.some(c => c.organizationId === null)) throw new CustomError(CODE.Unauthorized);
+            if (notCreatedByThisUser.some(c => c.organizationId === null)) 
+                throw new CustomError(CODE.Unauthorized, 'Some comments were not created by this user', { code: genErrorCode('0039') });
             // Of the remaining comments, check that user is an admin of the organization
             const organizationIds = notCreatedByThisUser.map(c => c.organizationId).filter(id => id !== null) as string[];
             const roles = userId
                 ? await organizationVerifier(prisma).getRoles(userId, organizationIds)
                 : Array(deleteMany.length).fill(null);
-            if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin)) throw new CustomError(CODE.Unauthorized);
+            if (roles.some((role: any) => role !== MemberRole.Owner && role !== MemberRole.Admin)) 
+                throw new CustomError(CODE.Unauthorized, 'User must be an admin of the organization to delete comments', { code: genErrorCode('0040') });
         }
     },
     /**
@@ -162,7 +166,8 @@ export const commentMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Find comment
                 let comment = await prisma.comment.findUnique({ where: input.where });
-                if (!comment) throw new CustomError(CODE.NotFound, "Comment not found");
+                if (!comment) 
+                    throw new CustomError(CODE.NotFound, "Comment not found", { code: genErrorCode('0041') });
                 // Update comment
                 const currUpdated = await prisma.comment.update({
                     where: input.where,

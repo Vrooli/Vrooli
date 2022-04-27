@@ -6,10 +6,11 @@ import { generateInputComponent } from '.';
  * Wraps a component in a Grid item
  * @param component The component to wrap
  * @param sizes The sizes of the grid item
+ * @param index The index of the grid
  * @returns Grid item component
  */
-export const generateGridItem = (component: React.ReactElement, sizes: GridItemSpacing | undefined): React.ReactElement => (
-    <Grid item {...sizes}>
+export const generateGridItem = (component: React.ReactElement, sizes: GridItemSpacing | undefined, index: number): React.ReactElement => (
+    <Grid item key={`grid-${index}`} {...sizes}>
         {component}
     </Grid>
 );
@@ -20,14 +21,15 @@ export const generateGridItem = (component: React.ReactElement, sizes: GridItemS
  * @param layout Layout data of the grid
  * @param fields Fields inside the grid
  * @param formik Formik object
+ * @param onUpload Callback for uploading files
  */
 export const generateGrid = (
     layout: GridContainer | GridContainerBase | undefined,
     childContainers: GridContainer[] | undefined,
     fields: FieldData[],
     formik: any,
+    onUpload: (fieldName: string, files: string[]) => void,
 ): React.ReactElement | React.ReactElement[] => {
-
     // Split fields into which containers they belong to.
     // Represented by 2D array, where each sub-array represents a container.
     let splitFields: FieldData[][] = [];
@@ -40,7 +42,6 @@ export const generateGrid = (
             lastField += numInContainer;
         }
     }
-
     // Generate grid for each container
     let grids: React.ReactElement[] = [];
     for (let i = 0; i < splitFields.length; i++) {
@@ -48,12 +49,19 @@ export const generateGrid = (
         const currLayout = childContainers ? childContainers[i] : layout;
         // Generate component for each field in the grid, and wrap it in a grid item
         const gridItems: Array<React.ReactElement | null> = currFields.map((field, index) => {
-            const inputComponent = generateInputComponent(field, formik, index);
-            return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing) : null;
+            const inputComponent = generateInputComponent({
+                data: field,
+                formik,
+                index,
+                onUpload,
+            });
+            return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing, index) : null;
         });
         grids.push(
             <Grid
                 container
+                direction={layout?.direction ?? 'row'}
+                key={`grid-container-${i}`}
                 spacing={layout?.spacing}
                 columnSpacing={layout?.columnSpacing}
                 rowSpacing={layout?.rowSpacing}

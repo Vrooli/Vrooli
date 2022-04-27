@@ -1,8 +1,8 @@
 import { gql } from 'graphql-tag';
-import { projectFields } from 'graphql/fragment';
+import { listProjectFields } from 'graphql/fragment';
 
 export const projectsQuery = gql`
-    ${projectFields}
+    ${listProjectFields}
     query projects($input: ProjectSearchInput!) {
         projects(input: $input) {
             pageInfo {
@@ -12,7 +12,7 @@ export const projectsQuery = gql`
             edges {
                 cursor
                 node {
-                    ...projectFields
+                    ...listProjectFields
                 }
             }
         }

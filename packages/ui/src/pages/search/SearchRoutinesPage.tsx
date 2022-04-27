@@ -1,5 +1,5 @@
 import { APP_LINKS, ROLES } from "@local/shared";
-import { routineDefaultSortOption, routineOptionLabel, RoutineSortOptions, RoutineListItem, RoutineDialog, ListMenu } from "components";
+import { routineDefaultSortOption, RoutineSortOptions, RoutineDialog, ListMenu } from "components";
 import { routinesQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useState } from "react";
 import { Routine } from "types";
@@ -52,15 +52,6 @@ export const SearchRoutinesPage = ({
         { label: 'Advanced (Multi Step)', value: 'advanced' },
     ]
 
-    const listItemFactory = (node: Routine, index: number) => (
-        <RoutineListItem
-            key={`routine-list-item-${index}`}
-            index={index}
-            session={session}
-            data={node}
-            onClick={(_e, selected: Routine) => setSelectedItem(selected)}
-        />)
-
     return (
         <>
             {/* Selected dialog */}
@@ -82,13 +73,12 @@ export const SearchRoutinesPage = ({
             />
             {/* Search component */}
             <BaseSearchPage
+                itemKeyPrefix="routine-list-item"
                 title="Routines"
                 searchPlaceholder="Search..."
                 sortOptions={RoutineSortOptions}
                 defaultSortOption={routineDefaultSortOption}
                 query={routinesQuery}
-                listItemFactory={listItemFactory}
-                getOptionLabel={routineOptionLabel}
                 onObjectSelect={handleSelected}
                 onAddClick={openAdd}
                 popupButtonText="Add"

@@ -4,6 +4,7 @@ import { Count, Report, ReportCreateInput, ReportSearchInput, ReportSortBy, Repo
 import { PrismaType, RecursivePartial } from "types";
 import { hasProfanity } from "../../utils/censor";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -66,8 +67,11 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
 })
 
 export const reportVerifier = () => ({
+    // TODO not sure if report should have profanity check, since someone might 
+    // just be trying to submit a report for a profane word
     profanityCheck(data: ReportCreateInput | ReportUpdateInput): void {
-        if (hasProfanity(data.reason, data.details)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(data.reason, data.details)) 
+            throw new CustomError(CODE.BannedWord, 'Profanity is not allowed in the report reason or details.', { code: genErrorCode('0082') });
     },
 })
 
@@ -99,7 +103,8 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ReportCreateInput, ReportUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0083') });
         if (createMany) {
             createMany.forEach(input => reportCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => verifier.profanityCheck(input));
@@ -112,7 +117,7 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
                     }
                 })
                 if (existingReport > 0) {
-                    throw new CustomError(CODE.ReportExists);
+                    throw new CustomError(CODE.ReportExists, 'You have already submitted a report for this object.', { code: genErrorCode('0084') });
                 }
             }
         }
@@ -145,7 +150,7 @@ export const reportMutater = (prisma: PrismaType, verifier: any) => ({
                 let object = await prisma.report.findFirst({
                     where: { ...input.where, userId }
                 })
-                if (!object) throw new CustomError(CODE.ErrorUnknown);
+                if (!object) throw new CustomError(CODE.ErrorUnknown, 'Report not found.', { code: genErrorCode('0085') });
                 // Update object
                 const currUpdated = await prisma.report.update({
                     where: input.where,

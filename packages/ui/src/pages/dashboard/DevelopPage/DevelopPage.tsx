@@ -1,20 +1,25 @@
-import { useLazyQuery, useMutation } from '@apollo/client';
+import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ProjectListItem, ResourceListHorizontal, TitleContainer } from 'components';
+import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { developPage } from 'graphql/generated/developPage';
+import { LogType } from 'graphql/generated/globalTypes';
+import { logs, logsVariables } from 'graphql/generated/logs';
 import { profile } from 'graphql/generated/profile';
 import { profileUpdateMutation } from 'graphql/mutation';
-import { profileQuery } from 'graphql/query';
+import { developPageQuery, logsQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
-import { ResourceList } from 'types';
+import { Organization, Project, ResourceList, Routine, Standard, User } from 'types';
+import { listToListItems, openObject } from 'utils';
+import { useLocation } from 'wouter';
 import { DevelopPageProps } from '../types';
 
 const completedText =
-`Find projects and routines that you've recently completed
+    `Find projects and routines that you've recently completed
 `
 
 const developPageText =
-`The **Develop Dashboard** is designed to help you implement new projects and routines.
+    `The **Develop Dashboard** is designed to help you implement new projects and routines.
 
 Currently, the page is bare-bones. It contains sections for:  
 - Projects and routines you've recently completed
@@ -42,7 +47,7 @@ const defaultResourceList: ResourceList = {
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
-
+    const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
 
@@ -55,35 +60,37 @@ export const DevelopPage = ({
         getProfile();
     }, [updateResources]);
 
-    const inProgress = useMemo(() => [].map((o, index) => (
-        <ProjectListItem
-            key={`in-progress-list-item-${'TODO'}`}
-            index={index}
-            session={session}
-            data={o}
-            onClick={() => { }}
-        />
-    )), []);
+    const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery);
 
-    const recent = useMemo(() => [].map((o, index) => (
-        <ProjectListItem
-            key={`recently-projects-list-item-${'TODO'}`}
-            index={index}
-            session={session}
-            data={o}
-            onClick={() => { }}
-        />
-    )), []);
+    /**
+     * Opens page for list item
+     */
+    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+        event?.stopPropagation();
+        // Navigate to item page
+        openObject(item, setLocation);
+    }, [setLocation]);
 
-    const completed = useMemo(() => [].map((o, index) => (
-        <ProjectListItem
-            key={`completed-projects-list-item-${'TODO'}`}
-            index={index}
-            session={session}
-            data={o}
-            onClick={() => { }}
-        />
-    )), []);
+    const inProgress = useMemo(() => listToListItems(
+        developPageData?.developPage?.inProgress ?? [],
+        session,
+        'in-progress-list-item',
+        (item, event) => { toItemPage(event, item) },
+    ), [developPageData, session])
+
+    const recent = useMemo(() => listToListItems(
+        developPageData?.developPage?.recent ?? [],
+        session,
+        'recently-updated-list-item',
+        (item, event) => { toItemPage(event, item) },
+    ), [developPageData, session])
+
+    const completed = useMemo(() => listToListItems(
+        developPageData?.developPage?.completed ?? [],
+        session,
+        'completed-list-item',
+        () => { }
+    ), [developPageData, session])
 
     return (
         <Box id="page">
@@ -94,7 +101,7 @@ export const DevelopPage = ({
                 alignItems="center"
                 sx={{ marginTop: 2, marginBottom: 2 }}
             >
-                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' }}}>Develop Dashboard</Typography>
+                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' } }}>Develop Dashboard</Typography>
                 <HelpButton markdown={developPageText} sx={{ width: '40px', height: '40px' }} />
             </Stack>
             <Stack direction="column" spacing={10}>
@@ -111,7 +118,7 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"In Progress"}
                     helpText={inProgressText}
-                    loading={true}
+                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -120,7 +127,7 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"Recent"}
                     helpText={recentText}
-                    loading={true}
+                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -129,7 +136,7 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"Completed"}
                     helpText={completedText}
-                    loading={true}
+                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >

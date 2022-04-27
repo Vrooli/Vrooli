@@ -69,3 +69,12 @@ export enum RoutineStepType {
     Decision = 'Decision',
     Subroutine = 'Subroutine',
 }
+
+/**
+ * Supported types of resources
+ */
+export enum ResourceType {
+    Url = 'Url',
+    Wallet = 'Wallet',
+    Handle = 'Handle',
+}

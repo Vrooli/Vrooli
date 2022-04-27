@@ -11,6 +11,7 @@ import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -156,7 +157,8 @@ export const projectMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ProjectCreateInput, ProjectUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0073') });
         if (createMany) {
             createMany.forEach(input => projectCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
@@ -171,7 +173,7 @@ export const projectMutater = (prisma: PrismaType) => ({
                 }
             })
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
-                throw new CustomError(CODE.MaxProjectsReached);
+                throw new CustomError(CODE.MaxProjectsReached, 'Reached the maximum number of projects allowed on this account', { code: genErrorCode('0074') });
             }
         }
         if (updateMany) {
@@ -193,9 +195,11 @@ export const projectMutater = (prisma: PrismaType) => ({
             if (objectsToCheck.length > 0) {
                 for (const check of objectsToCheck) {
                     // Check if user is authorized to delete
-                    if (!check.organizationId) throw new CustomError(CODE.Unauthorized, 'Not authorized to delete');
+                    if (!check.organizationId) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete', { code: genErrorCode('0075') });
                     const [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', check.organizationId);
-                    if (!authorized) throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.');
+                    if (!authorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0076') });
                 }
             }
         }
@@ -228,7 +232,8 @@ export const projectMutater = (prisma: PrismaType) => ({
                 if (input.createdByOrganizationId) {
                     // Make sure the user is an admin of the organization
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.createdByOrganizationId);
-                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                    if (!isAuthorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to create project', { code: genErrorCode('0077') });
                     data = {
                         ...data,
                         organization: { connect: { id: input.createdByOrganizationId } },
@@ -259,19 +264,23 @@ export const projectMutater = (prisma: PrismaType) => ({
                 let data = await createData(input.data);
                 // Find object
                 let object = await prisma.project.findFirst({ where: input.where })
-                if (!object) throw new CustomError(CODE.NotFound, 'Project not found');
+                if (!object) 
+                    throw new CustomError(CODE.NotFound, 'Project not found', { code: genErrorCode('0078') });
                 // Make sure user is authorized to update
                 if (object.organizationId) {
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', object.organizationId);
-                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                    if (!isAuthorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update project', { code: genErrorCode('0079') });
                 } else {
-                    if (object.userId !== userId) throw new CustomError(CODE.Unauthorized);
+                    if (object.userId !== userId) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update project', { code: genErrorCode('0080') });
                 }
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.data.organizationId) {
                     // Make sure the user is an admin of the organization
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.data.organizationId);
-                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                    if (!isAuthorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update project', { code: genErrorCode('0081') });
                     data = {
                         ...data,
                         organization: { connect: { id: input.data.organizationId } },

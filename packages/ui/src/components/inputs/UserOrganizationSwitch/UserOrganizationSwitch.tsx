@@ -5,7 +5,7 @@ import { organizationsQuery } from 'graphql/query';
 import { organizations, organizationsVariables } from 'graphql/generated/organizations';
 import { APP_LINKS, MemberRole, OrganizationSortBy } from '@local/shared';
 import { useLazyQuery } from '@apollo/client';
-import { Organization } from 'types';
+import { ListOrganization } from 'types';
 import { noSelect } from 'styles';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useLocation } from 'wouter';
@@ -72,8 +72,8 @@ export function UserOrganizationSwitch({
     }, []);
 
     const organizationListItems: JSX.Element[] = useMemo(() => {
-        const filtered = organizations?.filter((o: Organization) => getTranslation(o, 'name', languages, true)?.toLowerCase()?.includes(search.toLowerCase()) ?? '');
-        return filtered?.map((o: Organization, index) => {
+        const filtered = organizations?.filter((o: ListOrganization) => getTranslation(o, 'name', languages, true)?.toLowerCase()?.includes(search.toLowerCase()) ?? '');
+        return filtered?.map((o: ListOrganization, index) => {
             const canSelect = o.role && [MemberRole.Admin, MemberRole.Owner].includes(o.role);
             return (
                 <ListItem

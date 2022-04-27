@@ -1,8 +1,8 @@
 import { gql } from 'graphql-tag';
-import { userFields } from 'graphql/fragment';
+import { listUserFields } from 'graphql/fragment';
 
 export const usersQuery = gql`
-    ${userFields}
+    ${listUserFields}
     query users($input: UserSearchInput!) {
         users(input: $input) {
             pageInfo {
@@ -12,7 +12,7 @@ export const usersQuery = gql`
             edges {
                 cursor
                 node {
-                    ...userFields
+                    ...listUserFields
                 }
             }
         }

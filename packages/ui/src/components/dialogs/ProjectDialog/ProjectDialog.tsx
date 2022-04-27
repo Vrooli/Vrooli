@@ -1,5 +1,5 @@
 import { ProjectView } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { ProjectUpdate } from 'components/views/ProjectUpdate/ProjectUpdate';
 import { ProjectDialogProps, ObjectDialogAction } from 'components/dialogs/types';
@@ -7,7 +7,6 @@ import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ProjectCreate } from 'components/views/ProjectCreate/ProjectCreate';
 import { Project } from 'types';
-import { getUserLanguages } from 'utils';
 
 export const ProjectDialog = ({
     canEdit = false,
@@ -26,20 +25,20 @@ export const ProjectDialog = ({
                 if (data?.id) setLocation(`${APP_LINKS.SearchProjects}/view/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.SearchProjects}/view`, { replace: true });
+                window.history.back();
                 break;
             case ObjectDialogAction.Close:
                 window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.SearchProjects}/edit/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.SearchProjects}/edit/${id}`);
                 break;
             case ObjectDialogAction.Next:
                 break;
             case ObjectDialogAction.Previous:
                 break;
             case ObjectDialogAction.Save:
-                setLocation(`${APP_LINKS.SearchProjects}/view/${id}`, { replace: true });
+                window.history.back();
                 break;
         }
     }, [id, setLocation]);

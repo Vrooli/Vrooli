@@ -1,16 +1,20 @@
 import { FormSchema, YupSchema } from "../types";
 import { buildYup } from 'schema-to-yup';
+import { FormikConfig } from "formik";
 
 /**
- * Generate a yup schema from a form schema
+ * Generate a yup schema from a form schema. Each field in this schema 
+ * contains its own yup schema, which we must combine into a single schema. 
+ * Then we convert this schema into a yup object.
+ * @param formSchema The schema of the entire form
  */
-export const generateYupSchema = (formSchema: FormSchema): any => {
+export const generateYupSchema = (formSchema: FormSchema): FormikConfig<any>['validationSchema'] => {
     if (!formSchema) return null;
     // Create shape object to describe yup validation
     const shape: YupSchema = {
         title: 'validationSchema',
         type: 'object',
-        required: [],
+        required: [], // Name of every field that is required
         properties: {}
     }
     // Create config object for yup builder. Currently only used for error messages
@@ -18,16 +22,20 @@ export const generateYupSchema = (formSchema: FormSchema): any => {
     // Loop through each field in the form schema
     formSchema.fields.forEach(field => {
         const name = field.fieldName;
-        // Add field to properties, even if no validation is required
-        shape.properties[name] = { type: field.type, nullable: true };
         if (field.yup) {
-            // Set up required error message
+            // Add field to properties
+            shape.properties[name] = { type: field.type };
+            // Set up required and error messages
             config.errMessages[name] = {}
             if (field.yup.required) {
-                shape.properties[name].nullable = false;
+                shape.properties[name].required = true;
                 shape.required.push(name);
                 config.errMessages[name].required = `${field.label} is required`
                 config.errMessages[name].string = `${field.label} is required`
+            }
+            else {
+                shape.properties[name].required = false;
+                shape.properties[name].nullable = true;
             }
             // Add additional validation checks
             if (Array.isArray(field.yup.checks)) {

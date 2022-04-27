@@ -1,5 +1,5 @@
 import { Box, Button, Dialog, IconButton, Slider, Stack, Tooltip } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     Add as AddIcon,
     Cancel as CancelIcon,
@@ -37,9 +37,9 @@ export const BuildBottomContainer = ({
 }: BuildBottomContainerProps) => {
     const [, setLocation] = useLocation();
 
-    const onScaleChange = (_event: any, newScale: number | number[]) => {
+    const onScaleChange = useCallback((_event: any, newScale: number | number[]) => {
         handleScaleChange(newScale as number);
-    };
+    }, [handleScaleChange]);
 
     const [logRoutineStart] = useMutation<routineStart, routineStartVariables>(routineStartMutation);
     const [isRunOpen, setIsRunOpen] = useState(false)
@@ -127,7 +127,7 @@ export const BuildBottomContainer = ({
                             <PreviousIcon sx={{ fill: hasPrevious ? '#e4efee' : '#a7a7a7' }} />
                         </IconButton>
                     </Tooltip> */}
-                    {runState == BuildRunState.Running ? (
+                    {runState === BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
                             <IconButton aria-label="pause-routine" size='large'>
                                 <PauseIcon sx={{ fill: '#e4efee', transform: 'scale(2)' }} />
@@ -147,7 +147,7 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                 </Stack>
             )
-    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleCancelUpdate, handleUpdate, hasNext, hasPrevious, isAdding, isEditing, loading, runRoutine, runState]);
+    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleCancelUpdate, handleUpdate, isAdding, isEditing, loading, runRoutine, runState]);
 
     return (
         <Box p={2} sx={{

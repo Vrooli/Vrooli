@@ -5,7 +5,7 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { getTranslation, openLink } from 'utils';
+import { getTranslation, openLink, Pubs, ResourceType } from 'utils';
 import { useCallback, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { ResourceCardProps } from '../../../cards/types';
@@ -17,6 +17,7 @@ import {
 } from '@mui/icons-material';
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
+import { urlRegex, walletAddressRegex, adaHandleRegex } from '@local/shared';
 
 const buttonProps = {
     position: 'absolute',
@@ -29,6 +30,18 @@ const buttonProps = {
         filter: `brightness(120%)`,
         background: 'white',
     },
+}
+
+/**
+ * Determines if a resource is a URL, wallet payment address, or an ADA handle
+ * @param link String to check
+ * @returns ResourceType if type found, or null if not
+ */
+const getResourceType = (link: string): ResourceType | null => {
+    if (urlRegex.test(link)) return ResourceType.Url;
+    if (walletAddressRegex.test(link)) return ResourceType.Wallet;
+    if (adaHandleRegex.test(link)) return ResourceType.Handle;
+    return null;
 }
 
 export const ResourceCard = ({
@@ -55,7 +68,32 @@ export const ResourceCard = ({
     }, [data]);
 
     const handleClick = useCallback((event: any) => {
-        if (data.link) openLink(setLocation, data.link);
+        // Find the resource type
+        const resourceType = getResourceType(data.link);
+        // If null, show error
+        if (!resourceType) {
+            PubSub.publish(Pubs.Snack, { message: 'Unable to open link', severity: 'error' });
+            return;
+        }
+        // If URL, open in new tab
+        if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
+        // If wallet address, open dialog to copy to clipboard
+        else if (resourceType === ResourceType.Wallet) {
+            PubSub.publish(Pubs.AlertDialog, {
+                message: `Wallet address: ${data.link}`,
+                buttons: [
+                    {
+                        text: 'Copy', onClick: () => {
+                            navigator.clipboard.writeText(data.link);
+                            PubSub.publish(Pubs.Snack, { message: 'Copied.', severity: 'success' });
+                        }
+                    },
+                    { text: 'Close' }
+                ]
+            });
+        }
+        // If handle, open ADA Handle payment site
+        else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
     }, [data]);
     const handleRightClick = useCallback((event: any) => {
         if (onRightClick) onRightClick(event, index);

@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { genErrorCode, logger, LogLevel } from '../logger';
 
 // How many times a file name should be checked before giving up
 // ex: if 'billy.png' is taken, tries 'billy-1.png', 'billy-2.png', etc.
@@ -87,7 +88,7 @@ export async function saveFile(stream: any, filename: string, mimetype: any, ove
             filename: `${folder}/${name}${ext}`
         }
     } catch (error) {
-        console.error(error);
+        logger.log(LogLevel.error, 'Failed to save file.', { code: genErrorCode('0008'), error });
         return {
             success: false,
             filename: filename ?? ''
@@ -106,7 +107,7 @@ export async function deleteFile(file: string) {
         fs.unlinkSync(`${UPLOAD_DIR}/${folder}/${name}${ext}`);
         return true;
     } catch (error) {
-        console.error(error);
+        logger.log(LogLevel.error, 'Failed to delete file', { code: genErrorCode('0009'), error });
         return false;
     }
 }
@@ -159,7 +160,7 @@ export async function appendToFile(file: string, data: string) {
         fs.appendFileSync(`${UPLOAD_DIR}/${folder}/${name}${ext}`, data);
         return true;
     } catch (error) {
-        console.error(error);
+        logger.log(LogLevel.error, 'Failed to append to file', { code: genErrorCode('00010'), error });
         return false;
     }
 }

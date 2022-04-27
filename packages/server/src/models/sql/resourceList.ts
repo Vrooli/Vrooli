@@ -6,6 +6,7 @@ import { CustomError } from "../../error";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -108,7 +109,8 @@ export const resourceListMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0089') });
         // TODO check that user can add resource to this forId, like in node validateMutations
         if (createMany) {
             createMany.forEach(input => resourceListCreate.validateSync(input, { abortEarly: false }));
@@ -145,7 +147,8 @@ export const resourceListMutater = (prisma: PrismaType) => ({
                 let object = await prisma.report.findFirst({
                     where: { ...input.where, userId }
                 })
-                if (!object) throw new CustomError(CODE.ErrorUnknown);
+                if (!object) 
+                    throw new CustomError(CODE.ErrorUnknown, 'Object not found', { code: genErrorCode('0090') });
                 // Update object
                 const currUpdated = await prisma.resource_list.update({
                     where: input.where,

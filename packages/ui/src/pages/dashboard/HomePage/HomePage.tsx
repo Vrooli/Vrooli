@@ -1,23 +1,26 @@
-import { Box, Button, Grid, Stack, Typography } from '@mui/material';
+import { Box, Button, Grid, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
-import { autocomplete, autocompleteVariables } from 'graphql/generated/autocomplete';
+import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
-import { autocompleteQuery } from 'graphql/query';
-import { ActorListItem, OrganizationListItem, ProjectListItem, RoutineListItem, AutocompleteSearchBar, StandardListItem, TitleContainer, CreateNewDialog } from 'components';
+import { homePageQuery } from 'graphql/query';
+import { AutocompleteSearchBar, TitleContainer, ListMenu } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { parseSearchParams } from 'utils/urlTools';
+import { parseSearchParams } from 'utils/navigation/urlTools';
 import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { getTranslation } from 'utils';
+import { AutocompleteListItem, listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage } from 'utils';
+import _ from 'lodash';
+import { Organization, Project, Routine, Standard, User } from 'types';
+import { ListMenuItemData } from 'components/dialogs/types';
 
 const faqText =
-`## What is This?
+    `## What is This?
 Vrooli is an automation platform built for the decentralized age. We are aiming to become the "missing piece" in the [Project Catalyst](https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e) ecosystem, which:  
 - guides proposers through the process of validating, creating, and developing projects  
 - helps developers discover and implement projects  
@@ -62,28 +65,26 @@ The simplest thing you can do right now is to participate! You can:
 If you would like to contribute to the development of Vrooli, please contact us!
 `
 
-const ObjectType = {
-    Organization: 'Organization',
-    Project: 'Project',
-    Routine: 'Routine',
-    Standard: 'Standard',
-    User: 'User',
-}
+const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
+    { label: 'Organization', value: `${APP_LINKS.SearchOrganizations}?advanced=true` },
+    { label: 'Project', value: `${APP_LINKS.SearchProjects}?advanced=true` },
+    { label: 'Routine', value: `${APP_LINKS.SearchRoutines}?advanced=true` },
+    { label: 'Standard', value: `${APP_LINKS.SearchStandards}?advanced=true` },
+    { label: 'User', value: `${APP_LINKS.SearchUsers}?advanced=true` },
+]
 
-const linkMap: { [x: string]: [string, string] } = {
-    [ObjectType.Organization]: [APP_LINKS.SearchOrganizations, APP_LINKS.Organization],
-    [ObjectType.Project]: [APP_LINKS.SearchProjects, APP_LINKS.Project],
-    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Run],
-    [ObjectType.Standard]: [APP_LINKS.SearchStandards, APP_LINKS.Standard],
-    [ObjectType.User]: [APP_LINKS.SearchUsers, APP_LINKS.Profile],
-}
+const createNewPopupOptions: ListMenuItemData<string>[] = [
+    { label: 'Organization', value: `${APP_LINKS.Organization}/add` },
+    { label: 'Project', value: `${APP_LINKS.Project}/add` },
+    { label: 'Routine (Single Step)', value: `${APP_LINKS.Run}/add` },
+    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Build}/add` },
+    { label: 'Standard', value: `${APP_LINKS.Standard}/add` },
+]
 
-interface AutocompleteListItem {
-    title: string | null;
-    id: string;
-    stars: number;
-    objectType: string;
-}
+const tabOptions = [
+    ['Popular', APP_LINKS.Home],
+    ['For You', APP_LINKS.ForYou],
+];
 
 const examplesData: [string, string][] = [
     ['Start a new business', '5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
@@ -91,6 +92,106 @@ const examplesData: [string, string][] = [
     // ['Fund your project', ''], //TODO
     ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
 ]
+
+interface ShortcutItem {
+    label: string;
+    link: string;
+}
+/**
+ * Shortcuts that can appear in the search bar
+ */
+const shortcuts: ShortcutItem[] = [
+    {
+        label: 'Create new organization',
+        link: `${APP_LINKS.Organization}/add`,
+    },
+    {
+        label: 'Create new project',
+        link: `${APP_LINKS.Project}/add`,
+    },
+    {
+        label: 'Create new single-step routine',
+        link: `${APP_LINKS.Run}/add`,
+    },
+    {
+        label: 'Create new multi-step routine',
+        link: `${APP_LINKS.Build}/add`,
+    },
+    {
+        label: 'Create new standard',
+        link: `${APP_LINKS.Standard}/add`,
+    },
+    {
+        label: 'View learn dashboard',
+        link: `${APP_LINKS.Learn}`,
+    },
+    {
+        label: 'View research dashboard',
+        link: `${APP_LINKS.Research}`,
+    },
+    {
+        label: 'View develop dashboard',
+        link: `${APP_LINKS.Develop}`,
+    },
+    {
+        label: 'View for you page',
+        link: `${APP_LINKS.ForYou}`,
+    },
+    {
+        label: 'Search organizations',
+        link: `${APP_LINKS.SearchOrganizations}`,
+    },
+    {
+        label: 'Search projects',
+        link: `${APP_LINKS.SearchProjects}`,
+    },
+    {
+        label: 'Search routines',
+        link: `${APP_LINKS.SearchRoutines}`,
+    },
+    {
+        label: 'Search standards',
+        link: `${APP_LINKS.SearchStandards}`,
+    },
+    {
+        label: 'Search users',
+        link: `${APP_LINKS.SearchUsers}`,
+    },
+    {
+        label: 'Search organizations advanced',
+        link: `${APP_LINKS.SearchOrganizations}?advanced=true`,
+    },
+    {
+        label: 'Search projects advanced',
+        link: `${APP_LINKS.SearchProjects}?advanced=true`,
+    },
+    {
+        label: 'Search routines advanced',
+        link: `${APP_LINKS.SearchRoutines}?advanced=true`,
+    },
+    {
+        label: 'Search standards advanced',
+        link: `${APP_LINKS.SearchStandards}?advanced=true`,
+    },
+    {
+        label: 'Search users advanced',
+        link: `${APP_LINKS.SearchUsers}?advanced=true`,
+    },
+    {
+        label: `Beginner's Guide`,
+        link: `${APP_LINKS.Welcome}`,
+    },
+    {
+        label: 'FAQ',
+        link: `${APP_LINKS.FAQ}`,
+    },
+]
+// Shape shortcuts to match AutoCompleteListItem format
+const shortcutsItems: AutocompleteListItem[] = shortcuts.map(({ label, link }) => ({
+    __typename: "Shortcut",
+    label,
+    id: link,
+}))
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -108,38 +209,41 @@ export const HomePage = ({
         return search ?? '';
     });
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-    // Search query removes words that start with a '!'. These are used for sorting results. TODO doesn't work
-    const { data, refetch, loading } = useQuery<autocomplete, autocompleteVariables>(autocompleteQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
-    //const debouncedRefetch = useMemo(() => AwesomeDebouncePromise(refetch, 500), [refetch]);
+    const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
+    const showForYou = useMemo(() => Array.isArray(session?.roles) && session.roles.length > 0, [session]);
+
+    // Handle tabs
+    const tabIndex = useMemo(() => {
+        if (window.location.pathname === APP_LINKS.ForYou) return 1;
+        return 0;
+    }, []);
+    const handleTabChange = (_e, newIndex) => {
+        setLocation(tabOptions[newIndex][1], { replace: true });
+    };
 
     const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
 
-    const { routines, projects, organizations, standards, users } = useMemo(() => {
-        if (!data) return { routines: [], projects: [], organizations: [], standards: [], users: [] };
-        const { routines, projects, organizations, standards, users } = data.autocomplete;
-        return { routines, projects, organizations, standards, users };
-    }, [data]);
-
     const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
-        if (!data) return [];
-        const routines = data.autocomplete.routines.map(r => ({ title: getTranslation(r, 'title', languages, true), id: r.id, stars: r.stars, objectType: ObjectType.Routine }));
-        const projects = data.autocomplete.projects.map(p => ({ title: getTranslation(p, 'name', languages, true), id: p.id, stars: p.stars, objectType: ObjectType.Project }));
-        const organizations = data.autocomplete.organizations.map(o => ({ title: getTranslation(o, 'name', languages, true), id: o.id, stars: o.stars, objectType: ObjectType.Organization }));
-        const standards = data.autocomplete.standards.map(s => ({ title: s.name, id: s.id, stars: s.stars, objectType: ObjectType.Standard }));
-        const users = data.autocomplete.users.map(u => ({ title: u.name, id: u.id, stars: u.stars, objectType: ObjectType.User }));
-        const options = [...routines, ...projects, ...organizations, ...standards, ...users].sort((a: any, b: any) => {
+        const firstResults: AutocompleteListItem[] = [];
+        // If "help" typed, add help and faq shortcuts as first result
+        if (searchString.toLowerCase().startsWith('help')) {
+            firstResults.push({
+                __typename: "Shortcut",
+                label: `Help - Beginner's Guide`,
+                id: APP_LINKS.Welcome,
+            }, {
+                __typename: "Shortcut",
+                label: 'Help - FAQ',
+                id: APP_LINKS.FAQ,
+            });
+        }
+        // Group all query results and sort by number of stars
+        const queryItems = listToAutocomplete(_.flatten(Object.values(data?.homePage ?? [])), languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
-        return options;
-    }, [data, languages]);
-
-    const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
-    const openCreateDialog = useCallback(() => { setCreateDialogOpen(true) }, [setCreateDialogOpen]);
-    const closeCreateDialog = useCallback(() => { setCreateDialogOpen(false) }, [setCreateDialogOpen]);
-    const openAdvancedSearch = useCallback(() => {
-        //TODO
-    }, [setLocation]);
+        return [...firstResults, ...queryItems, ...shortcutsItems];
+    }, [languages, data, searchString]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -148,11 +252,14 @@ export const HomePage = ({
         if (!newValue) return;
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
-        // Determine object from selected label
-        const selectedItem = autocompleteOptions.find(o => o.id === newValue.id);
-        if (!selectedItem) return;
-        const linkBases = linkMap[selectedItem.objectType];
-        setLocation(selectedItem.id ? `${linkBases[1]}/${selectedItem.id}` : linkBases[0]);
+        // If selected item is a shortcut, navigate to it
+        if (newValue.__typename === 'Shortcut') {
+            setLocation(newValue.id);
+        }
+        // Otherwise, navigate to item page
+        else {
+            openObject(newValue, setLocation);
+        }
     }, [autocompleteOptions]);
 
     // Feed title is Popular when no search
@@ -161,13 +268,28 @@ export const HomePage = ({
         return `${prefix}${objectName}`;
     }, [searchString]);
 
-    // Opens correct search page
-    const openSearch = useCallback((event: any, linkBases: [string, string], id?: string) => {
+    /**
+     * Opens search page for object type
+     */
+    const toSearchPage = useCallback((event: any, objectType: ObjectType) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
-        setLocation(id ? `${linkBases[1]}/${id}` : linkBases[0]);
+        // Navigate to search page
+        openSearchPage(objectType, setLocation);
     }, [searchString, setLocation]);
+
+    /**
+     * Opens page for list item
+     */
+    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+        event?.stopPropagation();
+        // Replace current state with search string, so that search is not lost
+        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
+        // Navigate to item page
+        openObject(item, setLocation);
+    }, [searchString, setLocation]);
+
 
     /**
      * Determine the order that the feed lists should be displayed in.
@@ -192,72 +314,38 @@ export const HomePage = ({
     const feeds = useMemo(() => {
         let listFeeds: JSX.Element[] = [];
         for (const objectType of feedOrder) {
-            let listFeedItems: JSX.Element[] = [];
+            let currentList: any[] = [];
             switch (objectType) {
                 case ObjectType.Organization:
-                    listFeedItems = organizations.map((o, index) => (
-                        <OrganizationListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.organizations ?? [];
                     break;
                 case ObjectType.Project:
-                    listFeedItems = projects.map((o, index) => (
-                        <ProjectListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.projects ?? [];
                     break;
                 case ObjectType.Routine:
-                    listFeedItems = routines.map((o, index) => (
-                        <RoutineListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.routines ?? [];
                     break;
                 case ObjectType.Standard:
-                    listFeedItems = standards.map((o, index) => (
-                        <StandardListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.standards ?? [];
                     break;
                 case ObjectType.User:
-                    listFeedItems = users.map((o, index) => (
-                        <ActorListItem
-                            key={`feed-list-item-${o.id}`}
-                            index={index}
-                            session={session}
-                            data={o}
-                            onClick={(e) => openSearch(e, linkMap[objectType], o.id)}
-                        />
-                    ))
+                    currentList = data?.homePage?.users ?? [];
                     break;
             }
+            const listFeedItems: JSX.Element[] = listToListItems(
+                currentList,
+                session,
+                'feed-list-item',
+                (item: any, e: any) => toItemPage(e, item),
+            );
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((
                     <TitleContainer
                         key={`feed-list-${objectType}`}
                         title={getFeedTitle(`${objectType}s`)}
                         loading={loading}
-                        onClick={(e) => openSearch(e, linkMap[objectType])}
-                        options={[['See more results', (e) => { openSearch(e, linkMap[objectType]) }]]}
+                        onClick={(e) => toSearchPage(e, objectType)}
+                        options={[['See more results', (e) => { toSearchPage(e, objectType) }]]}
                     >
                         {listFeedItems}
                     </TitleContainer>
@@ -265,14 +353,74 @@ export const HomePage = ({
             }
         }
         return listFeeds;
-    }, [feedOrder, getFeedTitle, loading, organizations, projects, routines, session, standards, users, openSearch]);
+    }, [data, feedOrder, getFeedTitle, loading, session, toItemPage, toSearchPage]);
+
+    // Menu for opening an advanced search page
+    const [advancedSearchAnchor, setAdvancedSearchAnchor] = useState<any>(null);
+    const openAdvancedSearch = useCallback((ev: React.MouseEvent<any>) => {
+        setAdvancedSearchAnchor(ev.currentTarget)
+    }, [setAdvancedSearchAnchor]);
+    const closeAdvancedSearch = useCallback(() => setAdvancedSearchAnchor(null), []);
+    const handleAdvancedSearchSelect = useCallback((path: string) => {
+        setLocation(path);
+    }, [setLocation]);
+
+    // Menu for opening a create page
+    const [createNewAnchor, setCreateNewAnchor] = useState<any>(null);
+    const openCreateNew = useCallback((ev: React.MouseEvent<any>) => {
+        setCreateNewAnchor(ev.currentTarget)
+    }, [setCreateNewAnchor]);
+    const closeCreateNew = useCallback(() => setCreateNewAnchor(null), []);
+    const handleCreateNewSelect = useCallback((path: string) => {
+        setLocation(path);
+    }, [setLocation]);
 
     return (
         <Box id="page">
-            {/* Create new popup */}
-            <CreateNewDialog
-                isOpen={isCreateDialogOpen}
-                handleClose={closeCreateDialog}
+            {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
+            {showForYou && <Tabs
+                value={tabIndex}
+                onChange={handleTabChange}
+                indicatorColor="secondary"
+                textColor="inherit"
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+                aria-label="search-type-tabs"
+                sx={{
+                    marginBottom: 2,
+                    '& .MuiTabs-flexContainer': {
+                        justifyContent: 'center',
+                    },
+                }}
+            >
+                {tabOptions.map((option, index) => (
+                    <Tab
+                        key={index}
+                        id={`home-tab-${index}`}
+                        {...{ 'aria-controls': `home-tabpanel-${index}` }}
+                        label={option[0]}
+                        color={index === 0 ? '#ce6c12' : 'default'}
+                    />
+                ))}
+            </Tabs>}
+            {/* Advanced search dialog */}
+            <ListMenu
+                id={`open-advanced-search-menu`}
+                anchorEl={advancedSearchAnchor}
+                title='Select Object Type'
+                data={advancedSearchPopupOptions}
+                onSelect={handleAdvancedSearchSelect}
+                onClose={closeAdvancedSearch}
+            />
+            {/* Create new dialog */}
+            <ListMenu
+                id={`open-advanced-search-menu`}
+                anchorEl={createNewAnchor}
+                title='Create New...'
+                data={createNewPopupOptions}
+                onSelect={handleCreateNewSelect}
+                onClose={closeCreateNew}
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '30vh' } }}>
@@ -283,8 +431,8 @@ export const HomePage = ({
                     placeholder='Search routines, projects, and more...'
                     options={autocompleteOptions}
                     getOptionKey={(option) => option.id}
-                    getOptionLabel={(option) => option.title ?? ''}
-                    getOptionLabelSecondary={(option) => option.objectType}
+                    getOptionLabel={(option) => option.label ?? ''}
+                    getOptionLabelSecondary={(option) => option.__typename === 'Shortcut' ? "↪ Shortcut" : option.__typename}
                     loading={loading}
                     value={searchString}
                     onChange={updateSearch}
@@ -325,7 +473,7 @@ export const HomePage = ({
                             <Button fullWidth onClick={openAdvancedSearch} startIcon={<SearchIcon />}>Advanced Search</Button>
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={openCreateDialog} startIcon={<CreateIcon />}>Create New</Button>
+                            <Button fullWidth onClick={openCreateNew} startIcon={<CreateIcon />}>Create New</Button>
                         </Grid>
                     </Grid>
                 </Stack>

@@ -3,11 +3,9 @@ import { GraphQLResolveInfo, GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 // import ogs from 'open-graph-scraper';
-import { AutocompleteInput, AutocompleteResult, OrganizationSortBy, ProjectSortBy, RoutineSortBy, StandardSortBy, UserSortBy } from './types';
 import { CODE } from '@local/shared';
-import { IWrap } from '../types';
 import { Context } from '../context';
-import { GraphQLModelType, OrganizationModel, ProjectModel, readManyHelper, RoutineModel, StandardModel, UserModel } from '../models';
+import { GraphQLModelType } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 
@@ -70,43 +68,11 @@ export const typeDef = gql`
         ids: [ID!]!
     }
 
-    # Input for site-wide autocomplete search
-    input AutocompleteInput {
-        searchString: String!
-        take: Int
-    }
-
-    type AutocompleteResult {
-        organizations: [Organization!]!
-        projects: [Project!]!
-        routines: [Routine!]!
-        standards: [Standard!]!
-        users: [User!]!
-    }
-
-    type StatisticsResult {
-        daily: StatisticsTimeFrame!
-        weekly: StatisticsTimeFrame!
-        monthly: StatisticsTimeFrame!
-        yearly: StatisticsTimeFrame!
-        allTime: StatisticsTimeFrame!
-    }
-
-    type StatisticsTimeFrame {
-        organizations: [Int!]!
-        projects: [Int!]!
-        routines: [Int!]!
-        standards: [Int!]!
-        users: [Int!]!
-    }
-
     # Base query. Must contain something,
     # which can be as simple as '_empty: String'
     type Query {
         # _empty: String
         readAssets(input: ReadAssetsInput!): [String]!
-        autocomplete(input: AutocompleteInput!): AutocompleteResult!
-        statistics: StatisticsResult!
     }
     # Base mutation. Must contain something,
     # which can be as simple as '_empty: String'
@@ -143,143 +109,6 @@ export const resolvers = {
         readAssets: async (_parent: undefined, { input }: any, context: Context, info: GraphQLResolveInfo): Promise<Array<String | null>> => {
             await rateLimit({ context, info, max: 1000 });
             return await readFiles(input.files);
-        },
-        /**
-         * Autocomplete endpoint for main page. Combines search queries for all main objects
-         */
-        autocomplete: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, context: Context, info: GraphQLResolveInfo): Promise<AutocompleteResult> => {
-            await rateLimit({ context, info, max: 5000 });
-            const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
-            const starsQuery = { stars: { gte: MinimumStars } }
-            const tagSelect = {
-                __typename: 'Tag',
-                id: true,
-                created_at: true,
-                tag: true,
-                stars: true,
-                isStarred: true,
-                translations: {
-                    id: true,
-                    language: true,
-                    description: true,
-                }
-            }
-            // Query organizations
-            const organizations = (await readManyHelper(
-                context.req.userId, 
-                { ...input, take: 5, sortBy: OrganizationSortBy.StarsDesc }, 
-                {
-                    __typename: 'Organization',
-                    id: true,
-                    handle: true,
-                    stars: true,
-                    isStarred: true,
-                    translations: {
-                        id: true,
-                        language: true,
-                        name: true,
-                    },
-                    tags: tagSelect,
-                },
-                OrganizationModel(context.prisma),
-                { ...starsQuery }
-            )).edges.map(({ node }: any) => node);
-            // Query projects
-            const projects = (await readManyHelper(
-                context.req.userId, 
-                { ...input, take: 5, sortBy: ProjectSortBy.StarsDesc }, 
-                {
-                    __typename: 'Project',
-                    id: true,
-                    handle: true,
-                    stars: true,
-                    score: true,
-                    isStarred: true,
-                    isUpvoted: true,
-                    translations: {
-                        id: true,
-                        language: true,
-                        name: true,
-                    },
-                    tags: tagSelect,
-                },
-                ProjectModel(context.prisma),
-                { ...starsQuery }
-            )).edges.map(({ node }: any) => node);
-            // Query routines
-            const routines = (await readManyHelper(
-                context.req.userId, 
-                { ...input, take: 5, sortBy: RoutineSortBy.StarsDesc }, 
-                {
-                    __typename: 'Routine',
-                    id: true,
-                    stars: true,
-                    score: true,
-                    isStarred: true,
-                    isUpvoted: true,
-                    translations: {
-                        id: true,
-                        language: true,
-                        title: true,
-                        instructions: true,
-                    },
-                    tags: tagSelect,
-                },
-                RoutineModel(context.prisma),
-                { ...starsQuery }
-            )).edges.map(({ node }: any) => node);
-            // Query standards
-            const standards = (await readManyHelper(
-                context.req.userId, 
-                { ...input, take: 5, sortBy: StandardSortBy.StarsDesc }, 
-                {
-                    __typename: 'Standard',
-                    id: true,
-                    name: true,
-                    stars: true,
-                    score: true,
-                    isStarred: true,
-                    isUpvoted: true,
-                    translations: {
-                        id: true,
-                        language: true,
-                    },
-                    tags: tagSelect,
-                },
-                StandardModel(context.prisma),
-                { ...starsQuery }
-            )).edges.map(({ node }: any) => node);
-            // Query users
-            const users = (await readManyHelper(
-                context.req.userId, 
-                { ...input, take: 5, sortBy: UserSortBy.StarsDesc }, 
-                {
-                    __typename: 'User',
-                    id: true,
-                    name: true,
-                    handle: true,
-                    stars: true,
-                    isStarred: true,
-                },
-                UserModel(context.prisma),
-                { ...starsQuery }
-            )).edges.map(({ node }: any) => node);
-            return {
-                organizations,
-                projects,
-                routines,
-                standards,
-                users
-            }
-        },
-        /**
-         * Returns site-wide statistics
-         */
-        statistics: async (_parent: undefined, { input }: IWrap<AutocompleteInput>, context: Context, info: GraphQLResolveInfo): Promise<any> => {
-            await rateLimit({ context, info, max: 500 });
-            // Query current stats
-            // Read historical stats from file
-            throw new CustomError(CODE.NotImplemented);
         },
     },
     Mutation: {

@@ -1,5 +1,8 @@
-export * from './autocomplete';
+export * from './developPage';
 export * from './findHandles';
+export * from './forYouPage';
+export * from './homePage';
+export * from './learnPage';
 export * from './logs';
 export * from './organization';
 export * from './organizations';
@@ -9,6 +12,7 @@ export * from './project';
 export * from './projects';
 export * from './projectsCount';
 export * from './readAssets';
+export * from './researchPage';
 export * from './resource';
 export * from './resources';
 export * from './resourcesCount';

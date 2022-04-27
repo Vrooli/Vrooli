@@ -19,6 +19,7 @@ export const LanguageInput = ({
     languages,
     session,
 }: LanguageInputProps) => {
+    console.log('in languages input', languages);
     const canAdd = useMemo(() => Object.keys(AllLanguages).filter(l => languages.indexOf(l) === -1).length > 0, [languages]);
     const handleAddButtonClick = useCallback(() => {
         // Try to default to first user language that isn't in list already
@@ -45,9 +46,9 @@ export const LanguageInput = ({
             return (
                 <SelectLanguageDialog
                     availableLanguages={availableLanguages}
-                    canDelete={l === currentLanguage && languages.length > 1}
-                    canDropdownOpen={l === currentLanguage}
-                    color={l === currentLanguage ? '#3790a7' : 'default'}
+                    canDelete={!currentLanguage || (l === currentLanguage && languages.length > 1)}
+                    canDropdownOpen={!currentLanguage || l === currentLanguage}
+                    color={!!currentLanguage && l === currentLanguage ? '#3790a7' : 'default'}
                     handleDelete={() => { handleDelete(l) }}
                     handleSelect={(newLanguage: string) => { handleChange(l, newLanguage) }}
                     key={l}

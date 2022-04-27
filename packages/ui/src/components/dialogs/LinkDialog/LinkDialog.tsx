@@ -82,7 +82,7 @@ export const LinkDialog = ({
                 </IconButton>
             </Box>
         </Box>
-    ), [])
+    ), [handleClose, isAdd]);
 
     /**
      * Calculate the "From" and "To" options
@@ -119,7 +119,7 @@ export const LinkDialog = ({
         if (node.type === NodeType.Start) return 'Start';
         if (node.type === NodeType.End) return 'End';
         return 'Untitled';
-    }, []);
+    }, [language]);
 
     /**
      * Container that displays "From" and "To" node selections, with right arrow inbetween
@@ -166,7 +166,7 @@ export const LinkDialog = ({
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
         </Stack>
-    ), [fromOptions, toOptions, language]);
+    ), [fromOptions, toOptions, language, handleFromSelect, handleToSelect]);
 
     /**
      * Container for creating link conditions.
@@ -179,7 +179,7 @@ export const LinkDialog = ({
      */
     const deleteOption = useMemo(() => isAdd ? (
         <></>
-    ) : null, [])
+    ) : null, [isAdd]);
 
     return (
         <Dialog

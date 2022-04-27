@@ -1,3 +1,11 @@
+/**
+ * Custom Dropzone component for auto-generated forms. Typically this would 
+ * include an "Upload" and "Cancel" button, and only send the file data to the 
+ * parent component when the "Upload" button is clicked. Instead, this sends 
+ * the file data to the parent component when the file is dropped, and displays files as tags 
+ * which can be removed.
+ * //TODO do what this comment says
+ */
 import { useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Pubs } from 'utils';

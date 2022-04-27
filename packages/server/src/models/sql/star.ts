@@ -1,9 +1,11 @@
 import { CODE, StarFor } from "@local/shared";
 import { CustomError } from "../../error";
-import { Star, StarInput } from "../../schema/types";
+import { LogType, Star, StarInput } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
+import { genErrorCode } from "../../logger";
+import { Log } from "../../models/nosql";
 
 //==============================================================
 /* #region Custom Components */
@@ -69,7 +71,8 @@ const starrer = (prisma: PrismaType) => ({
         const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as any);
         // Check if object being starred exists
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
-        if (!starringFor) throw new CustomError(CODE.ErrorUnknown);
+        if (!starringFor) 
+            throw new CustomError(CODE.ErrorUnknown, 'Could not find object being starred', { code: genErrorCode('0110') });
         // Check if star already exists on object by this user
         const star = await prisma.star.findFirst({
             where: {
@@ -94,6 +97,14 @@ const starrer = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { stars: starringFor.stars + 1 }
             })
+            // Log star event
+            await Log.collection.insertOne({
+                timestamp: Date.now(),
+                userId: userId,
+                action: LogType.Star,
+                object1Type: input.starFor,
+                object1Id: input.forId,
+            })
         }
         // If star did exist and we don't want to star, delete
         else if (star && !input.isStar) {
@@ -103,6 +114,14 @@ const starrer = (prisma: PrismaType) => ({
             await prismaFor.update({
                 where: { id: input.forId },
                 data: { stars: starringFor.stars - 1 }
+            })
+            // Log unstar event
+            await Log.collection.insertOne({
+                timestamp: Date.now(),
+                userId: userId,
+                action: LogType.RemoveStar,
+                object1Type: input.starFor,
+                object1Id: input.forId,
             })
         }
         return true;

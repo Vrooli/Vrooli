@@ -1,8 +1,8 @@
 import { gql } from 'graphql-tag';
-import { routineFields } from 'graphql/fragment';
+import { listRoutineFields } from 'graphql/fragment';
 
 export const routinesQuery = gql`
-    ${routineFields}
+    ${listRoutineFields}
     query routines($input: RoutineSearchInput!) {
         routines(input: $input) {
             pageInfo {
@@ -12,7 +12,7 @@ export const routinesQuery = gql`
             edges {
                 cursor
                 node {
-                    ...routineFields
+                    ...listRoutineFields
                 }
             }
         }

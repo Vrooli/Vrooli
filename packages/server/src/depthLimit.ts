@@ -1,15 +1,21 @@
 import { GraphQLError, Kind } from 'graphql';
 import isArray from 'lodash/isArray';
+import { genErrorCode, logger, LogLevel } from './logger';
+
+interface Options {
+    ignoreTypenames?: any
+}
 
 /**
- * Creates a validator for the GraphQL query depth
+ * Creates a validator for the GraphQL query depth. 
+ * Setting a depth limit is useful for preventing client attacks.
  * @param {Number} maxDepth - The maximum allowed depth for any operation in a GraphQL document.
  * @param {Object} [options]
- * @param {Array<String|RegExp|Function>} options.ignore - Stops recursive depth checking based on a field name. Either a string or regexp to match the name, or a function that reaturns a boolean.
+ * @param {Options} options - Options for changing the behavior of the validator.
  * @param {Function} [callback] - Called each time validation runs. Receives an Object which is a map of the depths for each operation. 
  * @returns {Function} The validator function for GraphQL validation phase.
  */
-export const depthLimit = (maxDepth: number, options = {}, callback: any = () => { }) => (validationContext: any) => {
+export const depthLimit = (maxDepth: number, options: Options = {}, callback: any = () => { }) => (validationContext: any) => {
     try {
         const { definitions } = validationContext.getDocument()
         const fragments = getFragments(definitions)
@@ -20,11 +26,9 @@ export const depthLimit = (maxDepth: number, options = {}, callback: any = () =>
         }
         callback(queryDepths)
         return validationContext
-    } catch (err) {
-      /* istanbul ignore next */ { // eslint-disable-line no-lone-blocks
-            console.error(err)
-            throw err
-        }
+    } catch (error) {
+        logger.log(LogLevel.error, 'Caught error finding depthLimit', { code: genErrorCode('0001'), error });
+        throw error
     }
 }
 
@@ -46,8 +50,21 @@ function getQueriesAndMutations(definitions: any) {
         return map
     }, {})
 }
-
-const determineDepth: any = (node: any, fragments: any, depthSoFar: any, maxDepth: any, context: any, operationName: any, options: any) => {
+/**
+ * Recursively determines depth of a query node
+ * @param node - The query node to determine depth for
+ * @param fragments - The fragments in the query
+ * @param {number} depthSoFar - The current depth of the query
+ * @param {number} maxDepth - The maximum allowed depth allowed. Throws error if exceeded.
+ * @param context - The GraphQL validation context
+ * @param operationName - The name of the operation 
+ * @param options - The options for the depth limit
+ * @returns {Number} The depth of the query node
+ */
+const determineDepth: any = (node: any, fragments: any, depthSoFar: number, maxDepth: number, context: any, operationName: any, options: Options) => {
+    if (node === undefined) {
+        throw new Error('Node is undefined in depth limit. This usually means that your query is invalid. Please check if your query fragments are spelled correctly.')
+    }
     if (depthSoFar > maxDepth) {
         return context.reportError(
             new GraphQLError(`'${operationName}' exceeds maximum operation depth of ${maxDepth}`, [node])
@@ -57,7 +74,7 @@ const determineDepth: any = (node: any, fragments: any, depthSoFar: any, maxDept
     switch (node.kind) {
         case Kind.FIELD:
             // by default, ignore the introspection fields which begin with double underscores
-            const shouldIgnore = /^__/.test(node.name.value) || seeIfIgnored(node, options.ignore)
+            const shouldIgnore = /^__/.test(node.name.value) || seeIfIgnored(node, options.ignoreTypenames)
 
             if (shouldIgnore || !node.selectionSet) {
                 return 0

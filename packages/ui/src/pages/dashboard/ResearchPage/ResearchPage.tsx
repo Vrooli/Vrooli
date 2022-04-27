@@ -1,32 +1,32 @@
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
-import { ResourceListUsedFor, RoutineSortBy } from '@local/shared';
+import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, OrganizationListItem, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
-import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { organizations, organizationsVariables } from 'graphql/generated/organizations';
+import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { profile } from 'graphql/generated/profile';
-import { projects, projectsVariables } from 'graphql/generated/projects';
-import { routines, routinesVariables } from 'graphql/generated/routines';
+import { researchPage } from 'graphql/generated/researchPage';
 import { profileUpdateMutation } from 'graphql/mutation';
-import { organizationsQuery, profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
+import { profileQuery, researchPageQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
-import { Organization, Project, ResourceList, Routine } from 'types';
+import { Organization, Project, ResourceList, Routine, Standard, User } from 'types';
+import { listToListItems, openObject } from 'utils';
+import { useLocation } from 'wouter';
 import { ResearchPageProps } from '../types';
 
-const donateOrInvestText = 
-``
+const donateOrInvestText =
+    ``
 
-const joinATeamText = 
-`Organizations listed here have indicated that they are open to new members. Check them out and contact them if you have anything to contribute!`
+const joinATeamText =
+    `Organizations listed here have indicated that they are open to new members. Check them out and contact them if you have anything to contribute!`
 
 const newlyCompletedText =
-`Projects listed here have been recently completed, which means their main routine(s) are ready to run.`
+    `Projects listed here have been recently completed, which means their main routine(s) are ready to run.`
 
-const processesText = 
-``
+const processesText =
+    ``
 
-const researchPageText = 
-`The **Research Dashboard** is designed to help you validate ideas and discover new projects and routines.
+const researchPageText =
+    `The **Research Dashboard** is designed to help you validate ideas and discover new projects and routines.
 
 Currently, the page is bare-bones. It contains sections for:  
 - Projects looking for funding/investments
@@ -38,20 +38,20 @@ Currently, the page is bare-bones. It contains sections for:
 The top of this page also contains a list of resources, which you can update with your favorite research-related links. 
 If you are not logged in, default resources will be displayed.`
 
-const voteText = 
-`Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
+const voteText =
+    `Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
 
 /**
  * Default research resources
  */
- const defaultResourceList: ResourceList = {    
+const defaultResourceList: ResourceList = {
     usedFor: ResourceListUsedFor.Research,
     resources: [
         {
             link: 'https://cardano.stackexchange.com/',
             usedFor: ResourceUsedFor.Community,
             translations: [
-                { 
+                {
                     language: 'en',
                     title: 'Cardano Stack Exchange',
                     description: 'Browse and ask technical questions about Cardano',
@@ -97,7 +97,7 @@ const voteText =
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
-
+    const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
 
@@ -110,111 +110,67 @@ export const ResearchPage = ({
         getProfile();
     }, [updateResources]);
 
-    const { data: processesData, loading: processesLoading } = useQuery<routines, routinesVariables>(routinesQuery, { 
-        variables: { input: { 
-            take: 5,
-            sortBy: RoutineSortBy.VotesDesc,
-            tags: ['research'],
-        } } 
-    });
+    const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery);
 
-    const { data: newlyCompletedData, loading: newlyCompletedLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
-        variables: { input: { 
-            take: 5,
-            isComplete: true,
-            sortBy: ProjectSortBy.DateCompletedAsc,
-        } } 
-    });
+    /**
+     * Opens page for list item
+     */
+    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+        event?.stopPropagation();
+        // Navigate to item page
+        openObject(item, setLocation);
+    }, [setLocation]);
 
-    // We check if a project needs votes by the existence of a Proposal resource
-    const { data: needVotesData, loading: needVotesLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
-        variables: { input: { 
-            take: 5,
-            resourceTypes: [ResourceUsedFor.Proposal],
-        } } 
-    });
+    const processes = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.processes ?? [],
+        session,
+        'research-process-list-item',
+        (item, event) => { toItemPage(event, item) },
+    ), [researchPageData, session])
 
-    // We check if a project needs donations or is an investment opportunity by the existence of a token TODO
-    // const { data: donateOrInvestData, loading: donateOrInvestLoading } = useQuery<projects, projectsVariables>(projectsQuery, { 
-    //     variables: { input: { 
-    //         take: 5,
-    //         TODO
-    //     } } 
-    // });
+    const newlyCompleted = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.newlyCompleted ?? [],
+        session,
+        'newly-completed-list-item',
+        (item, event) => { toItemPage(event, item) },
+    ), [researchPageData, session])
 
-    const { data: needMembersData, loading: needMembersLoading } = useQuery<organizations, organizationsVariables>(organizationsQuery, { 
-        variables: { input: { 
-            take: 5,
-            isOpenToNewMembers: true,
-            sortBy: OrganizationSortBy.StarsDesc
-        } } 
-    });
+    const needVotes = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.needVotes ?? [],
+        session,
+        'need-votes-list-item',
+        (item, event) => { toItemPage(event, item) },
+    ), [researchPageData, session])
 
-    const processes = useMemo(() => processesData?.routines?.edges?.map((o, index) => (
-        <RoutineListItem
-            key={`research-processes-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o.node as Routine}
-            onClick={() => {}}
-        />
-    )) ?? [], []);
+    const needInvestments = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.needInvestments ?? [],
+        session,
+        'need-investments-list-item',
+        (item, event) => { toItemPage(event, item) },
+    ), [researchPageData, session])
 
-    const newlyCompleted = useMemo(() => newlyCompletedData?.projects?.edges?.map((o, index) => (
-        <ProjectListItem
-            key={`recently-completed-projects-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o.node as Project}
-            onClick={() => {}}
-        />
-    )) ?? [], []);
-
-    const needVotes = useMemo(() => needVotesData?.projects?.edges?.map((o, index) => (
-        <ProjectListItem
-            key={`projects-that-need-votes-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o.node as Project}
-            onClick={() => {}}
-        />
-    )) ?? [], []);
-
-    // const donateOrInvest = useMemo(() => donateOrInvestData?.projects?.edges?.map((o, index) => ( 
-    //     <ProjectListItem
-    //         key={`projects-that-need-funding-list-item-${index}`}
-    //         index={index}
-    //         session={session}
-    //         data={o.node as Project}
-    //         onClick={() => {}}
-    //     />
-    // )) ?? [], []);
-
-    const needMembers = useMemo(() => needMembersData?.organizations?.edges?.map((o, index) => (
-        <OrganizationListItem
-            key={`looking-for-members-list-item-${index}`}
-            index={index}
-            session={session}
-            data={o.node as Organization}
-            onClick={() => {}}
-        />
-    )) ?? [], []);
+    const needMembers = useMemo(() => listToListItems(
+        researchPageData?.researchPage?.needMembers ?? [],
+        session,
+        'need-members-list-item',
+        (item, event) => { toItemPage(event, item) },
+    ), [researchPageData, session])
 
     return (
         <Box id="page">
             {/* Title and help button */}
-            <Stack 
-                direction="row" 
-                justifyContent="center" 
-                alignItems="center" 
-                sx={{ marginTop: 2, marginBottom: 2}}
+            <Stack
+                direction="row"
+                justifyContent="center"
+                alignItems="center"
+                sx={{ marginTop: 2, marginBottom: 2 }}
             >
-                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' }}}>Research Dashboard</Typography>
-                <HelpButton markdown={researchPageText} sx={{width: '40px', height: '40px'}} />
+                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' } }}>Research Dashboard</Typography>
+                <HelpButton markdown={researchPageText} sx={{ width: '40px', height: '40px' }} />
             </Stack>
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
-                <ResourceListHorizontal 
+                <ResourceListHorizontal
                     title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
@@ -225,7 +181,7 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Processes"}
                     helpText={processesText}
-                    loading={processesLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -234,7 +190,7 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Newly Completed"}
                     helpText={newlyCompletedText}
-                    loading={newlyCompletedLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -243,25 +199,25 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Vote"}
                     helpText={voteText}
-                    loading={needVotesLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {needVotes}
                 </TitleContainer>
-                {/* <TitleContainer
+                <TitleContainer
                     title={"Donate or Invest"}
                     helpText={donateOrInvestText}
-                    loading={donateOrInvestLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
-                    {donateOrInvest}
-                </TitleContainer> */}
+                    {needInvestments}
+                </TitleContainer>
                 <TitleContainer
                     title={"Join a Team"}
                     helpText={joinATeamText}
-                    loading={needMembersLoading}
+                    loading={researchPageLoading}
                     onClick={() => { }}
                     options={[['Update profile', () => { }], ['See all', () => { }]]}
                 >

@@ -1,5 +1,5 @@
 import { APP_LINKS, ROLES } from "@local/shared";
-import { organizationDefaultSortOption, OrganizationListItem, organizationOptionLabel, OrganizationSortOptions, ShareDialog } from "components";
+import { organizationDefaultSortOption, OrganizationSortOptions, ShareDialog } from "components";
 import { OrganizationDialog } from "components/dialogs/OrganizationDialog/OrganizationDialog";
 import { organizationsQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
@@ -47,15 +47,6 @@ export const SearchOrganizationsPage = ({
     const handleSurpriseDialogOpen = useCallback(() => setSurpriseDialogOpen(true), []);
     const handleSurpriseDialogClose = useCallback(() => setSurpriseDialogOpen(false), []);
 
-    const listItemFactory = (node: Organization, index: number) => (
-        <OrganizationListItem
-            key={`organization-list-item-${index}`}
-            index={index}
-            session={session}
-            data={node}
-            onClick={(_e, selected: Organization) => setSelectedItem(selected)}
-        />)
-
     return (
         <>
             {/* Invite link dialog */}
@@ -70,13 +61,12 @@ export const SearchOrganizationsPage = ({
             />
             {/* Search component */}
             <BaseSearchPage
+                itemKeyPrefix="organization-list-item"
                 title="Organizations"
                 searchPlaceholder="Search..."
                 sortOptions={OrganizationSortOptions}
                 defaultSortOption={organizationDefaultSortOption}
                 query={organizationsQuery}
-                listItemFactory={listItemFactory}
-                getOptionLabel={organizationOptionLabel}
                 onObjectSelect={handleSelected}
                 onAddClick={handleAddDialogOpen}
                 popupButtonText="Invite"

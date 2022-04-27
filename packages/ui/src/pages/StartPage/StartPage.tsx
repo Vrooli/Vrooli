@@ -30,7 +30,7 @@ import {
 import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { parseSearchParams } from 'utils/urlTools';
+import { parseSearchParams } from 'utils/navigation/urlTools';
 import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { StartPageProps } from 'pages/types';
 

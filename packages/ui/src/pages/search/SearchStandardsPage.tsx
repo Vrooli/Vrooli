@@ -1,4 +1,4 @@
-import { StandardListItem, StandardSortOptions, standardDefaultSortOption, standardOptionLabel, StandardDialog } from "components";
+import { StandardSortOptions, standardDefaultSortOption, StandardDialog } from "components";
 import { standardsQuery } from "graphql/query";
 import { useCallback, useEffect, useState } from "react";
 import { Standard } from "types";
@@ -41,15 +41,6 @@ export const SearchStandardsPage = ({
         }
     }, [session?.roles, setLocation]);
 
-    const listItemFactory = (node: Standard, index: number) => (
-        <StandardListItem
-            key={`standard-list-item-${index}`}
-            index={index}
-            session={session}
-            data={node}
-            onClick={(_e, selected: Standard) => setSelectedItem(selected)}
-        />)
-
     return (
         <>
             {/* Selected dialog */}
@@ -62,13 +53,12 @@ export const SearchStandardsPage = ({
             />
             {/* Search component */}
             <BaseSearchPage
+                itemKeyPrefix="standard-list-item"
                 title="Standards"
                 searchPlaceholder="Search..."
                 sortOptions={StandardSortOptions}
                 defaultSortOption={standardDefaultSortOption}
                 query={standardsQuery}
-                listItemFactory={listItemFactory}
-                getOptionLabel={standardOptionLabel}
                 onObjectSelect={handleSelected}
                 onAddClick={handleAddDialogOpen}
                 popupButtonText="Add"

@@ -7,6 +7,7 @@ import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
+import { genErrorCode } from '../logger';
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -167,7 +168,8 @@ export const resolvers = {
     UserSortBy: UserSortBy,
     Query: {
         profile: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!context.req.userId) 
+                throw new CustomError(CODE.Unauthorized, 'Must be logged in to query profile', { code: genErrorCode('0158') });
             await rateLimit({ context, info, max: 2000, byAccount: true });
             return ProfileModel(context.prisma).findProfile(context.req.userId, info);
         },
@@ -186,23 +188,28 @@ export const resolvers = {
     },
     Mutation: {
         profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!context.req.userId) 
+                throw new CustomError(CODE.Unauthorized, 'Must be logged in to update profile', { code: genErrorCode('0159') });
             await rateLimit({ context, info, max: 250, byAccount: true });
             // Update object
             const updated = await ProfileModel(context.prisma).updateProfile(context.req.userId, input, info);
-            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            if (!updated) 
+                throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0160') });
             return updated;
         },
         profileEmailUpdate: async (_parent: undefined, { input }: IWrap<ProfileEmailUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!context.req.userId) 
+                throw new CustomError(CODE.Unauthorized, 'Must be logged in to update profile', { code: genErrorCode('0161') });
             await rateLimit({ context, info, max: 100, byAccount: true });
             // Update object
             const updated = await ProfileModel(context.prisma).updateEmails(context.req.userId, input, info);
-            if (!updated) throw new CustomError(CODE.ErrorUnknown);
+            if (!updated) 
+                throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0162') });
             return updated;
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!context.req.userId) 
+                throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete account', { code: genErrorCode('0163') });
             await rateLimit({ context, info, max: 5 });
             return await ProfileModel(context.prisma).deleteProfile(context.req.userId, input);
         },
@@ -212,7 +219,8 @@ export const resolvers = {
          * @returns JSON of all user data
          */
         exportData: async (_parent: undefined, _args: undefined, context: Context, info: GraphQLResolveInfo): Promise<string> => {
-            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!context.req.userId) 
+                throw new CustomError(CODE.Unauthorized, 'Must be logged in to export data', { code: genErrorCode('0164') });
             await rateLimit({ context, info, max: 5, byAccount: true });
             return await ProfileModel(context.prisma).exportData(context.req.userId);
         }

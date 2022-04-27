@@ -7,6 +7,7 @@ import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { GraphQLModelType, StarModel } from '../models';
 import { rateLimit } from '../rateLimit';
+import { genErrorCode } from '../logger';
 
 export const typeDef = gql`
     enum StarFor {
@@ -53,7 +54,8 @@ export const resolvers = {
          * @returns 
          */
         star: async (_parent: undefined, { input }: IWrap<StarInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            if (!context.req.userId) throw new CustomError(CODE.Unauthorized);
+            if (!context.req.userId) 
+                throw new CustomError(CODE.Unauthorized, 'Must be logged in to star', { code: genErrorCode('0157') });
             await rateLimit({ context, info, max: 1000, byAccount: true });
             const success = await StarModel(context.prisma).star(context.req.userId, input);
             return { success };

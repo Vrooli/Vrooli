@@ -26,8 +26,12 @@ type HoldRefs = {
 }
 
 export const QuantityBox = ({
+    autoFocus = false,
+    error = false, // TODO use
     handleChange,
+    helperText = '', //TODO use
     id,
+    key,
     initial = 0,
     label = 'Quantity',
     max = 2097151,
@@ -85,7 +89,7 @@ export const QuantityBox = ({
 
     return (
         <Tooltip title={tooltip}>
-            <Box {...props} sx={{
+            <Box key={key} {...props} sx={{
                 ...props?.sx ?? {},
                 display: 'flex',
             }}>
@@ -105,6 +109,7 @@ export const QuantityBox = ({
                 <FormControl sx={{
                     background: (t) => t.palette.primary.contrastText,
                     width: '60%',
+                    maxWidth: `12ch`,
                     height: '100%',
                     display: 'grid',
                     "& input::-webkit-clear-button, & input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {
@@ -113,6 +118,7 @@ export const QuantityBox = ({
                 }}>
                     <InputLabel htmlFor={`quantity-box-${id}`} sx={{ color: 'grey', paddingTop: '10px' }}>{label}</InputLabel>
                     <Input
+                        autoFocus={autoFocus}
                         id={`quantity-box-${id}`}
                         aria-describedby={`helper-text-${id}`}
                         style={{ color: 'black' }}

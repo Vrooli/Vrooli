@@ -1,6 +1,6 @@
 import { CommonProps } from "types";
 import { Forms } from "utils";
-import { DropzoneProps as DP, SelectorProps as SP } from 'components/inputs/types';
+import { DropzoneProps as DP, JSONInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP, TagSelectorTag } from 'components/inputs/types';
 
 //==============================================================
 /* #region Specific Form Props */
@@ -35,11 +35,16 @@ export interface ResetPasswordFormProps extends FormProps {
 export enum InputType {
     Checkbox = 'Checkbox',
     Dropzone = 'Dropzone',
+    JSON = 'JSON',
+    LanguageInput = 'LanguageInput',
+    Markdown = 'Markdown',
     Radio = 'Radio',
     Selector = 'Selector',
     Slider = 'Slider',
     Switch = 'Switch',
+    TagSelector = 'TagSelector',
     TextField = 'TextField',
+    QuantityBox = 'QuantityBox',
 }
 
 /**
@@ -47,30 +52,71 @@ export enum InputType {
  */
 export interface CheckboxProps {
     color?: 'primary' | 'secondary' | 'default';
-    defaultValue?: boolean;
+    /**
+     * Array of booleans, one for each option in props
+     */
+    defaultValue?: boolean[];
+    /**
+     * Array of checkbox options
+     */
+    options: { label: string }[];
+    /**
+     * If true, displays options in a row
+     */
+    row?: boolean;
 }
 
 /**
  * Props for rendering a Checkbox input component
  */
- export interface DropzoneProps extends DP {
-    defaultValue?: any; // Ignored
+export interface DropzoneProps extends Omit<DP, 'onUpload'> { 
+     defaultValue?: [];
+} // onUpload handled by form
+
+/**
+ * Props for rendering a JSON input component
+ */
+export interface JSONProps extends Omit<JP, 'onChange' | 'value'> { 
+    defaultValue?: string;
+}
+
+/**
+ * Props for rendering a LanguageInput component
+ */
+export interface LanguageInputProps extends Omit<LP, 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleSelect' | 'languages' | 'session'> {
+    defaultValue?: string[];
+}
+
+/**
+ * Props for rendering a Markdown input component
+ */
+export interface MarkdownProps extends Omit<MP, 'onChange' | 'value'> {
+    defaultValue?: string;
 }
 
 /**
  * Props for rendering a Radio button input component
  */
 export interface RadioProps {
-    defaultValue?: string; // Must be one of the values in the options array
-    options: { label: string; value: string }[];
+    /**
+     * The initial value of the radio button. Must be one of the options in the `options` prop.
+     */
+    defaultValue?: any;
+    /**
+     * Radio button options.
+     */
+    options: { label: string; value: any }[];
+    /**
+     * If true, displays options in a row.
+     */
     row?: boolean;
 }
 
 /**
  * Props for rendering a Selector input component
  */
- export interface SelectorProps extends SP {
-    defaultValue?: any; // Ignored
+export interface SelectorProps extends Omit<SP, 'selected' | 'handleChange'> {
+    defaultValue?: any; // Ignored for now
 }
 
 /**
@@ -94,25 +140,239 @@ export interface SwitchProps {
 }
 
 /**
+ * Props for rendering a TagSelector input component
+ */
+export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'session' | 'tags' | 'onTagAdd' | 'onTagRemove' | 'onTagsClear'> {
+    defaultValue?: TagSelectorTag[];
+}
+
+/**
  * Props for rendering a TextField input component (the most common input component)
  */
 export interface TextFieldProps {
+    /**
+     * Initial value of the text field.
+     */
     defaultValue?: string;
+    /**
+     * Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password')
+     */
     autoComplete?: string;
-    required?: boolean;
+    /**
+     * Maximum number of rows for the text field. Defaults to 1.
+     */
     maxRows?: number;
+}
+
+/**
+ * Props for rendering a QuantityBox input component
+ */
+export interface QuantityBoxProps extends Omit<QP, 'id' | 'value' | 'handleChange'> { // onUpload handled by form
+    defaultValue?: any; // Ignored
+}
+
+/**
+ * Common props required by every FieldData type
+ */
+interface FieldDataBase {
+    /**
+     * The name of the field, as will be used by formik
+     */
+    fieldName: string;
+    /**
+     * The label to display for the field
+     */
+    label: string;
+    /**
+     * Defines validation schema for the field
+     */
+    yup?: YupField;
+}
+
+/**
+ * Field data type and props for Checkbox input components
+ */
+interface FieldDataCheckbox extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.Checkbox;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: CheckboxProps
+}
+
+/**
+ * Field data type and props for Dropzone input components
+ */
+interface FieldDataDropzone extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.Dropzone;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: DropzoneProps;
+}
+
+/**
+ * Field data type and props for JSON input components
+ */
+interface FieldDataJSON extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.JSON;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: JSONProps
+}
+
+/**
+ * Field data type and props for LanguageInput input components
+ */
+interface FieldDataLanguageInput extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+     type: InputType.LanguageInput;
+     /**
+      * Extra props for the input component, depending on the type
+      */
+     props: LanguageInputProps;
+}
+
+/**
+ * Field data type and props for Markdown input components
+ */
+interface FieldDataMarkdown extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.Markdown;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: MarkdownProps
+}
+
+/**
+ * Field data type and props for Radio button input components
+ */
+interface FieldDataRadio extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.Radio;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: RadioProps;
+}
+
+/**
+ * Field data type and props for Selector input components
+ */
+interface FieldDataSelector extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.Selector;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: SelectorProps;
+}
+
+/**
+ * Field data type and props for Slider input components
+ */
+interface FieldDataSlider extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.Slider;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: SliderProps;
+}
+
+/**
+ * Field data type and props for Switch input components
+ */
+interface FieldDataSwitch extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.Switch;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: SwitchProps;
+}
+
+/**
+ * Field data type and props for TagSelector input components
+ */
+ interface FieldDataTagSelector extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.TagSelector;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: TagSelectorProps;
+}
+
+/**
+ * Field data type and props for TextField input components
+ */
+interface FieldDataTextField extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.TextField;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: TextFieldProps;
+}
+
+/**
+ * Field data type and props for QuantityBox input components
+ */
+interface FieldDataQuantityBox extends FieldDataBase {
+    /**
+     * The type of the field
+     */
+    type: InputType.QuantityBox;
+    /**
+     * Extra props for the input component, depending on the type
+     */
+    props: QuantityBoxProps;
 }
 
 /**
  * Shape of a field's data structure. Parsed from its JSON representation
  */
-export interface FieldData {
-    fieldName: string;
-    label: string;
-    type: InputType;
-    props: CheckboxProps | DropzoneProps | RadioProps | SelectorProps | SliderProps | SwitchProps | TextFieldProps;
-    yup: YupField;
-}
+export type FieldData =
+    FieldDataCheckbox |
+    FieldDataDropzone |
+    FieldDataJSON |
+    FieldDataLanguageInput |
+    FieldDataMarkdown |
+    FieldDataRadio |
+    FieldDataSelector |
+    FieldDataSlider |
+    FieldDataSwitch |
+    FieldDataTagSelector |
+    FieldDataTextField |
+    FieldDataQuantityBox;
 
 //==============================================================
 /* #endregion Input Component Data */
@@ -169,11 +429,28 @@ export interface YupCheck {
 }
 
 /**
+ * Types supported by yup validation. Does not include "array" because this type is applied to 
+ * a single field.
+ */
+export type YupType = "boolean" | "date" | "mixed" | "number" | "object" | "string";
+
+/**
  * Shape of yup inside FieldData, BEFORE it is converted to an overall yup schema
  */
 export interface YupField {
+    /**
+     * Indicates if the field is required
+     */
     required?: boolean;
-    type?: string;
+    /**
+     * Specifies type of object being validated.
+     */
+    type?: YupType;
+    /**
+     * Constraints for the field (e.g. minLength, maxLength, email, integer, etc.). 
+     * For example, if the type is "string", then the constraints must be functions 
+     * in yup.string().
+     */
     checks: YupCheck[];
 }
 
@@ -184,7 +461,7 @@ export interface YupSchema {
     title: string;
     type: 'object';
     required: any[];
-    properties: {[x:string]: any};
+    properties: { [x: string]: any };
 }
 
 //==============================================================
@@ -211,7 +488,7 @@ export type GridItemSpacing = number | string | {
  * MUI spacing options. Each key represents a "breakpoint", which is set based
  * on the width of the screen.
  */
- export type GridSpacing = number | string | Array<number | string | null> | {
+export type GridSpacing = number | string | Array<number | string | null> | {
     xs?: number | 'auto';
     sm?: number | 'auto';
     md?: number | 'auto';
@@ -223,13 +500,34 @@ export type GridItemSpacing = number | string | {
  * The layout of a specific grid container (or the entire form depending on the context)
  */
 export interface GridContainerBase {
-    title?: string; // Title of the container
-    description?: string; // Description of the container
-    spacing?: GridSpacing; // Spacing of the container. Overrides parent spacing
-    direction?: 'column' | 'row'; // Direction to display items in the container. Overrides parent spacing
-    columnSpacing?: GridSpacing; // Spacing of container's columns. Overrides spacing field
-    rowSpacing?: GridSpacing; // Spacing of container's rows. Overrides spacing field
-    itemSpacing?: GridItemSpacing; // Spacing of individual fields in the container
+    /**
+     * Title of the container
+     */
+    title?: string;
+    /**
+     * Description of the container
+     */
+    description?: string;
+    /**
+     * Spacing of the container. Overrides parent spacing
+     */
+    spacing?: GridSpacing;
+    /**
+     * Direction to display items in the container. Overrides parent spacing
+     */
+    direction?: 'column' | 'row';
+    /**
+     * Spacing of container's columns. Overrides spacing field
+     */
+    columnSpacing?: GridSpacing;
+    /**
+     * Spacing of container's rows. Overrides spacing field
+     */
+    rowSpacing?: GridSpacing;
+    /**
+     * Spacing of individual fields in the container
+     */
+    itemSpacing?: GridItemSpacing;
 }
 
 /**
@@ -253,8 +551,82 @@ export interface GridContainer extends GridContainerBase {
  * - Validation and Error Messages
  */
 export interface FormSchema {
-    $id?: string; // ID of the form in the database
-    formLayout?: GridContainerBase; // Contains information about the overall layout of the form, as well as specific sections
+    /**
+     * If form is stored in database, its ID
+     */
+    $id?: string;
+    /**
+     * Contains information about the overall layout of the form
+     */
+    formLayout?: GridContainerBase;
+    /**
+     * Contains information about subsections of the form. Subsections 
+     * can only be one level deep. If this is empty, then formLayout is 
+     * used instead.
+     */
     containers?: GridContainer[];
+    /**
+     * Defines the shape of every field in the form.
+     */
     fields: FieldData[];
+}
+
+/**
+ * JSON-Schema format, but with keys/values that can be variables.
+ * See https://json-schema.org/ for the full specification (minus the variables part).
+ */
+export interface JSONSchemaFormat {
+    /**
+     * Specifies format this schema is in. (e.g. "https://json-schema.org/draft/2020-12/schema")
+     */
+    $schema?: string;
+    /**
+     * ID of the schema, as it appears in the database.
+     */
+    $id?: string;
+    /**
+     * The title of the schema.
+     */
+    title?: string;
+    /**
+     * The description of the schema.
+     */
+    description?: string;
+    /**
+     * Specifies the type of this schema. (e.g. "object"). 
+     * See https://json-schema.org/draft/2020-12/json-schema-validation.html#rfc.section.6.1.1
+     */
+    type?: "null" | "boolean" | "object" | "array" | "number" | "string" | "integer";
+    /**
+     * Specifies the properties of this schema, if type is "object".
+     */
+    properties?: { [x: string]: any }; // TODO
+}
+
+/**
+ * Shape of the JSON input's variable definitions
+ */
+export interface JSONVariable {
+    /**
+     * The label to display for the field
+     */
+    label?: string;
+    /**
+     * Describes what the field is for, or any other relevant information
+     */
+    helperText?: string;
+    /**
+     * Defines validation schema for the field
+     */
+    yup?: YupField;
+    /**
+     * Default value. If variable is used as a key, this 
+     * can only be a string, otherwise, it can be a string or valid JSON
+     */
+    defaultValue?: string | object;
+    /**
+     * Value of the field, or list of accepted values
+     * //TODO might replace with yup validation
+     */
+    value?: string | string[];
 }

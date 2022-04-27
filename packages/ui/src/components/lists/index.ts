@@ -1,4 +1,4 @@
-export * from './ActorListItem/ActorListItem';
+export * from './UserListItem/UserListItem';
 export * from './DateRangeMenu/DateRangeMenu';
 export * from './email';
 export * from './OrganizationListItem/OrganizationListItem';

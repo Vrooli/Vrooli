@@ -1,5 +1,5 @@
 import { StandardView } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { BaseObjectDialog } from '..';
 import { StandardCreate } from 'components/views/StandardCreate/StandardCreate';
 import { StandardUpdate } from 'components/views/StandardUpdate/StandardUpdate';
@@ -7,7 +7,6 @@ import { StandardDialogProps, ObjectDialogAction } from 'components/dialogs/type
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { Standard } from 'types';
-import { getUserLanguages } from 'utils';
 
 export const StandardDialog = ({
     canEdit = false,
@@ -23,23 +22,23 @@ export const StandardDialog = ({
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                if (data?.id) setLocation(`${APP_LINKS.SearchStandards}/view/${data?.id}`, { replace: true });
+                setLocation(`${APP_LINKS.SearchStandards}/view/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.SearchStandards}/view`, { replace: true });
+                window.history.back();
                 break;
             case ObjectDialogAction.Close:
                 window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.SearchStandards}/edit/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.SearchStandards}/edit/${id}`);
                 break;
             case ObjectDialogAction.Next:
                 break;
             case ObjectDialogAction.Previous:
                 break;
             case ObjectDialogAction.Save:
-                setLocation(`${APP_LINKS.SearchStandards}/view/${id}`, { replace: true });
+                window.history.back();
                 break;
         }
     }, [id, setLocation]);

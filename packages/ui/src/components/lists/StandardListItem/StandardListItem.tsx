@@ -81,4 +81,3 @@ export function StandardListItem({
 
 export const StandardSortOptions: LabelledSortOption<StandardSortBy>[] = labelledSortOptions(StandardSortBy);
 export const standardDefaultSortOption = StandardSortOptions[1];
-export const standardOptionLabel = (o: Standard, languages: readonly string[]) => o.name ?? '';

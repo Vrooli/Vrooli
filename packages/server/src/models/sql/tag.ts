@@ -7,6 +7,7 @@ import { hasProfanity } from "../../utils/censor";
 import { StarModel } from "./star";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -81,7 +82,8 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
 
 export const tagVerifier = () => ({
     profanityCheck(data: TagCreateInput | TagUpdateInput): void {
-        if (hasProfanity(data.tag)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(data.tag)) 
+            throw new CustomError(CODE.BannedWord, 'Tag contains banned word', { code: genErrorCode('0111') });
         TranslationModel().profanityCheck(data);
     },
 })
@@ -150,7 +152,8 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<TagCreateInput, TagUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0112') });
         if (createMany) {
             createMany.forEach(input => tagCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => verifier.profanityCheck(input));
@@ -185,7 +188,8 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
                 let object = await prisma.tag.findFirst({
                     where: { ...input.where, createdByUserId: userId },
                 })
-                if (!object) throw new CustomError(CODE.ErrorUnknown);
+                if (!object) 
+                    throw new CustomError(CODE.ErrorUnknown, 'Tag not found', { code: genErrorCode('0113') });
                 // Update object
                 const currUpdated = await prisma.tag.update({
                     where: input.where,
@@ -202,7 +206,8 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
             const tags = await prisma.tag.findMany({
                 where: { id: { in: deleteMany } },
             })
-            if (tags.some(t => t.createdByUserId !== userId)) throw new CustomError(CODE.Unauthorized, "You can't delete tags you didn't create");
+            if (tags.some(t => t.createdByUserId !== userId)) 
+                throw new CustomError(CODE.Unauthorized, "You can't delete tags you didn't create", { code: genErrorCode('0114') });
             deleted = await prisma.tag.deleteMany({
                 where: { id: { in: tags.map(t => t.id) } },
             });

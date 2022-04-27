@@ -6,18 +6,11 @@ import {
     Button,
     Dialog,
     DialogContent,
-    FormControl,
-    FormControlLabel,
-    FormLabel,
     Grid,
     IconButton,
-    Radio,
-    RadioGroup,
-    Stack,
-    Tooltip,
     Typography
 } from '@mui/material';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
 import {
     Cancel as CancelIcon,
@@ -25,19 +18,101 @@ import {
     Search as SearchIcon,
 } from '@mui/icons-material';
 import { useFormik } from 'formik';
-import { QuantityBox } from 'components/inputs';
+import { FieldData, FormSchema, InputType } from 'forms/types';
+import { BaseForm } from 'forms';
+import { organizationSearchSchema, projectSearchSchema, routineSearchSchema, standardSearchSchema, userSearchSchema } from './schemas';
+import { useReactPath } from 'utils';
+import { APP_LINKS } from '@local/shared';
+import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
+import { Tag } from 'types';
 
-// const isOpenToNewMembersQuery = input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {};
-// const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-// const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-// const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-// const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
-// const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};
-// const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
-// const userIdQuery = input.userId ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {};
-// const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-// const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-// const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
+/**
+ * Maps routes to their corresponding search schemas
+ */
+const routeToSchema = {
+    [APP_LINKS.SearchOrganizations]: organizationSearchSchema,
+    [APP_LINKS.SearchProjects]: projectSearchSchema,
+    [APP_LINKS.SearchRoutines]: routineSearchSchema,
+    [APP_LINKS.SearchStandards]: standardSearchSchema,
+    [APP_LINKS.SearchUsers]: userSearchSchema,
+};
+
+const yesNoDontCareToSearch = (value: 'yes' | 'no' | 'dontCare'): boolean | undefined => {
+    switch (value) {
+        case 'yes':
+            return true;
+        case 'no':
+            return false;
+        case 'dontCare':
+            return undefined;
+    }
+};
+
+const languagesToSearch = (languages: string[] | undefined): string[] | undefined => {
+    if (Array.isArray(languages)) {
+        if (languages.length === 0) return undefined;
+        return languages;
+    }
+    return undefined;
+};
+
+const tagsToSearch = (tags: Tag[] | undefined): string[] | undefined => {
+    if (Array.isArray(tags)) {
+        if (tags.length === 0) return undefined;
+        return tags.map(({ tag }) => tag);
+    }
+    return undefined;
+};
+
+const shapeFormikOrganization = (values: { [x: string]: any }) => ({
+    isOpenToNewMembers: yesNoDontCareToSearch(values.isOpenToNewMembers),
+    minStars: values.minStars,
+    languages: languagesToSearch(values.languages),
+    tags: tagsToSearch(values.tags),
+})
+
+const shapeFormikProject = (values: { [x: string]: any }) => ({
+    isComplete: yesNoDontCareToSearch(values.isComplete),
+    minScore: values.minScore,
+    minStars: values.minStars,
+    languages: languagesToSearch(values.languages),
+    tags: tagsToSearch(values.tags),
+})
+
+const shapeFormikRoutine = (values: { [x: string]: any }) => ({
+    isComplete: yesNoDontCareToSearch(values.isComplete),
+    minScore: values.minScore,
+    minStars: values.minStars,
+    minComplexity: values.minComplexity,
+    maxComplexity: values.maxComplexity === 0 ? undefined : values.maxComplexity,
+    minSimplicity: values.minSimplicity,
+    maxSimplicity: values.maxSimplicity === 0 ? undefined : values.maxSimplicity,
+    languages: languagesToSearch(values.languages),
+    tags: tagsToSearch(values.tags),
+})
+
+const shapeFormikStandard = (values: { [x: string]: any }) => ({
+    minScore: values.minScore,
+    minStars: values.minStars,
+    languages: languagesToSearch(values.languages),
+    tags: tagsToSearch(values.tags),
+})
+
+const shapeFormikUser = (values: { [x: string]: any }) => ({
+    minStars: values.minStars,
+    languages: languagesToSearch(values.languages),
+})
+
+/**
+ * Shapes formik values to match the search query
+ */
+const shapeFormik = {
+    [APP_LINKS.SearchOrganizations]: shapeFormikOrganization,
+    [APP_LINKS.SearchProjects]: shapeFormikProject,
+    [APP_LINKS.SearchRoutines]: shapeFormikRoutine,
+    [APP_LINKS.SearchStandards]: shapeFormikStandard,
+    [APP_LINKS.SearchUsers]: shapeFormikUser,
+}
 
 export const AdvancedSearchDialog = ({
     handleClose,
@@ -45,16 +120,55 @@ export const AdvancedSearchDialog = ({
     isOpen,
     session,
 }: AdvancedSearchDialogProps) => {
+    // Search schema to use
+    const [schema, setSchema] = useState<FormSchema | null>(null);
 
+    // Use path to determine which form schema to use
+    const path = useReactPath();
+    useEffect(() => {
+        if (path in routeToSchema) {
+            setSchema(routeToSchema[path]);
+        }
+    }, [path]);
+
+    // Get field inputs from schema, and add default values
+    const fieldInputs = useMemo<FieldData[]>(() => schema?.fields ? generateDefaultProps(schema.fields) : [], [schema?.fields]);
+    console.log('fieldInputs', fieldInputs);
+
+    // Parse default values from fieldInputs, to use in formik
+    const initialValues = useMemo(() => {
+        let values: { [x: string]: any } = {};
+        fieldInputs.forEach((field) => {
+            values[field.fieldName] = field.props.defaultValue;
+        });
+        return values;
+    }, [fieldInputs])
+    console.log('initialValues', initialValues);
+
+    // Generate yup validation schema
+    const validationSchema = useMemo(() => schema ? generateYupSchema(schema) : undefined, [schema]);
+    console.log('validationSchema', validationSchema);
+
+    /**
+     * Controls updates and validation of form
+     */
     const formik = useFormik({
-        initialValues: {
-            isOpenToNewMembers: null,
-            minStars: 0,
-        },
+        initialValues,
+        enableReinitialize: true,
+        validationSchema,
         onSubmit: (values) => {
-            //TODO
+            console.log('in advanced search submit!!!!!!!!!!!😎', values);
+            // Shape values to match search query
+            const searchValues = shapeFormik[path](values);
+            handleSearch(searchValues);
         },
     });
+    console.log('formik values', formik.values)
+    console.log('formik error', formik.errors);
+    const grid = useMemo(() => {
+        if (!schema) return null;
+        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, () => { })
+    }, [schema, formik])
 
     /**
      * Title bar with help button and close icon
@@ -92,68 +206,32 @@ export const AdvancedSearchDialog = ({
             }}
         >
             {titleBar}
-            <DialogContent>
-                <Stack direction="column" spacing={4}>
-                    {/* Is open to new members radio group */}
-                    <FormControl component="fieldset">
-                        <FormLabel component="legend">Accepting New Members?</FormLabel>
-                        <RadioGroup
-                            aria-label="isOpenToNewMembers"
-                            name="isOpenToNewMembers"
-                            row={true}
-                            value={formik.values.isOpenToNewMembers}
-                            onBlur={formik.handleBlur}
-                            onChange={formik.handleChange}
-                        >
-                            <FormControlLabel
-                                value={true}
-                                control={<Radio />}
-                                label={"Yes"}
-                            />
-                            <FormControlLabel
-                                value={false}
-                                control={<Radio />}
-                                label={"No"}
-                            />
-                            <FormControlLabel
-                                value={null}
-                                control={<Radio />}
-                                label={"Don't Care"}
-                            />
-                        </RadioGroup>
-                    </FormControl>
-                    {/* Min stars */}
-                    <QuantityBox
-                        id="minStars"
-                        label="Minimum Stars"
-                        min={0}
-                        handleChange={(newValue: number) => { formik.setFieldValue('minStars', newValue) }}
-                        value={formik.values.minStars}
-                        tooltip="Minimum number of stars"
-                    />
-                </Stack>
-            </DialogContent>
-            {/* Search/Cancel buttons */}
-            <Grid container spacing={1} sx={{
-                background: (t) => t.palette.primary.dark,
-                maxWidth: 'min(700px, 100%)',
-                margin: 0,
-            }}>
-                <Grid item xs={12} sm={6} p={1} sx={{ paddingTop: 0 }}>
-                    <Button
-                        fullWidth
-                        startIcon={<SearchIcon />}
-                        onClick={handleSearch}
-                    >Search</Button>
+            <form onSubmit={formik.handleSubmit}>
+                <DialogContent>
+                    {grid}
+                </DialogContent>
+                {/* Search/Cancel buttons */}
+                <Grid container spacing={1} sx={{
+                    background: (t) => t.palette.primary.dark,
+                    maxWidth: 'min(700px, 100%)',
+                    margin: 0,
+                }}>
+                    <Grid item xs={12} sm={6} p={1} sx={{ paddingTop: 0 }}>
+                        <Button
+                            fullWidth
+                            startIcon={<SearchIcon />}
+                            type="submit"
+                        >Search</Button>
+                    </Grid>
+                    <Grid item xs={12} sm={6} p={1} sx={{ paddingTop: 0 }}>
+                        <Button
+                            fullWidth
+                            startIcon={<CancelIcon />}
+                            onClick={handleClose}
+                        >Cancel</Button>
+                    </Grid>
                 </Grid>
-                <Grid item xs={12} sm={6} p={1} sx={{ paddingTop: 0 }}>
-                    <Button
-                        fullWidth
-                        startIcon={<CancelIcon />}
-                        onClick={handleClose}
-                    >Cancel</Button>
-                </Grid>
-            </Grid>
+            </form>
         </Dialog>
     )
 }

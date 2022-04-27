@@ -184,7 +184,6 @@ export const OrganizationCreate = ({
             paddingBottom: `${formBottom}px`,
         }}
         >
-
             <Grid container spacing={2} sx={{ padding: 2, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
                     <LanguageInput

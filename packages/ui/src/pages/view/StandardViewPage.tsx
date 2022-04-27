@@ -24,22 +24,19 @@ export const StandardViewPage = ({
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                if (data?.id) setLocation(`${APP_LINKS.Standard}/${data?.id}`, { replace: true });
-                else setLocation(APP_LINKS.Standard, { replace: true });
+                setLocation(`${APP_LINKS.Standard}/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                if (id) setLocation(`${APP_LINKS.Standard}/${id}`, { replace: true });
-                else window.history.back();
+                window.history.back();
                 break;
             case ObjectDialogAction.Close:
-                if (id) setLocation(`${APP_LINKS.Standard}/${id}`, { replace: true });
-                else window.history.back();
+                window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.Standard}/edit/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.Standard}/edit/${id}`);
                 break;
             case ObjectDialogAction.Save:
-                setLocation(`${APP_LINKS.Standard}/${id}`, { replace: true });
+                window.history.back();
                 break;
         }
     }, [id, setLocation]);

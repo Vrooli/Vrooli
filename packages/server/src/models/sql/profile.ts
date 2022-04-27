@@ -12,6 +12,7 @@ import { EmailModel } from "./email";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { WalletModel } from "./wallet";
+import { genErrorCode } from "../../logger";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -100,7 +101,8 @@ export const profileValidater = () => ({
             [AccountStatus.SoftLocked]: CODE.SoftLockout,
             [AccountStatus.HardLocked]: CODE.HardLockout
         }
-        if (user.status in status_to_code) throw new CustomError(status_to_code[user.status]);
+        if (user.status in status_to_code) 
+            throw new CustomError(status_to_code[user.status], 'Account is locked or deleted', { code: genErrorCode('0059'), status: user.status });
         // Validate plaintext password against hash
         return bcrypt.compareSync(plaintext, user.password)
     },
@@ -123,7 +125,8 @@ export const profileValidater = () => ({
             });
         }
         // If account is deleted or hard-locked, throw error
-        if (unable_to_reset.includes(user.status)) throw new CustomError(CODE.BadCredentials, 'Account is locked. Please contact us for assistance');
+        if (unable_to_reset.includes(user.status)) 
+            throw new CustomError(CODE.BadCredentials, 'Account is locked. Please contact us for assistance', { code: genErrorCode('0060'), status: user.status });
         // If password is valid
         if (this.validatePassword(password, user)) {
             const userData = await prisma.user.update({
@@ -189,7 +192,8 @@ export const profileValidater = () => ({
             select: { userId: true }
         })
         // If email is not associated with a user, throw error
-        if (!email.userId) throw new CustomError(CODE.ErrorUnknown, 'Email not associated with a user');
+        if (!email.userId) 
+            throw new CustomError(CODE.ErrorUnknown, 'Email not associated with a user', { code: genErrorCode('0061') });
         // Send new verification email
         sendVerificationLink(emailAddress, email.userId, verificationCode);
         // TODO send email to existing emails from user, warning of new email
@@ -214,9 +218,11 @@ export const profileValidater = () => ({
                 lastVerificationCodeRequestAttempt: true
             }
         })
-        if (!email) throw new CustomError(CODE.EmailNotVerified, 'Email not found');
+        if (!email) 
+            throw new CustomError(CODE.EmailNotVerified, 'Email not found', { code: genErrorCode('0062') });
         // Check that userId matches email's userId
-        if (email.userId !== userId) throw new CustomError(CODE.EmailNotVerified, 'Email does not belong to user');
+        if (email.userId !== userId) 
+            throw new CustomError(CODE.EmailNotVerified, 'Email does not belong to user', { code: genErrorCode('0063') });
         // If email already verified, remove old verification code
         if (email.verified) {
             await prisma.email.update({
@@ -255,7 +261,8 @@ export const profileValidater = () => ({
      * @returns Session object
      */
     async toSession(user: RecursivePartial<user>, prisma: PrismaType): Promise<Session> {
-        if (!user.id) throw new CustomError(CODE.ErrorUnknown, 'User ID not found');
+        if (!user.id) 
+            throw new CustomError(CODE.ErrorUnknown, 'User ID not found', { code: genErrorCode('0064') });
         // Update user's lastSessionVerified
         await prisma.user.update({
             where: { id: user.id },
@@ -293,7 +300,7 @@ const porter = (prisma: PrismaType) => ({
     async exportData(id: string): Promise<string> {
         // Find user
         const user = await prisma.user.findUnique({ where: { id }, select: { numExports: true, lastExport: true } });
-        if (!user) throw new CustomError(CODE.ErrorUnknown);
+        if (!user) throw new CustomError(CODE.ErrorUnknown, 'User not found', { code: genErrorCode('0065') });
         throw new CustomError(CODE.NotImplemented)
     },
 })
@@ -390,12 +397,14 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         info: InfoType,
     ): Promise<RecursivePartial<Profile>> {
         await WalletModel(prisma).verifyHandle(GraphQLModelType.User, userId, input.handle);
-        if (hasProfanity(input.name)) throw new CustomError(CODE.BannedWord);
+        if (hasProfanity(input.name)) 
+            throw new CustomError(CODE.BannedWord, 'User name contains banned word', { code: genErrorCode('0066') });
         TranslationModel().profanityCheck(input);
         TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio)
         // Convert info to partial select
         const partial = toPartialSelect(info, formatter.relationshipMap);
-        if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
+        if (!partial) 
+            throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0067') });
         // Create user data
         let userData: { [x: string]: any } = {
             handle: input.handle,
@@ -431,11 +440,14 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
     ): Promise<RecursivePartial<Profile>> {
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) throw new CustomError(CODE.InternalError, 'User not found');
-        if (!validater.validatePassword(input.currentPassword, user)) throw new CustomError(CODE.BadCredentials);
+        if (!user) 
+            throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0068') });
+        if (!validater.validatePassword(input.currentPassword, user)) 
+            throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0069') });
         // Convert input to partial select
         const partial = toPartialSelect(info, formatter.relationshipMap);
-        if (!partial) throw new CustomError(CODE.InternalError, 'Could not convert info to partial select');
+        if (!partial) 
+            throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0070') });
         // Create user data
         let userData: { [x: string]: any } = {
             password: input.newPassword ? validater.hashPassword(input.newPassword) : undefined,
@@ -458,8 +470,10 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
     async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) throw new CustomError(CODE.InternalError, 'User not found');
-        if (!validater.validatePassword(input.password, user)) throw new CustomError(CODE.BadCredentials);
+        if (!user) 
+            throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0071') });
+        if (!validater.validatePassword(input.password, user)) 
+            throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0072') });
         await prisma.user.delete({
             where: { id: userId }
         })

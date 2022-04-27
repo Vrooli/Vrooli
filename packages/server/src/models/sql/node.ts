@@ -7,6 +7,7 @@ import { hasProfanityRecursive } from "../../utils/censor";
 import { RoutineModel } from "./routine";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
+import { genErrorCode } from "../../logger";
 const { MemberRole } = pkg;
 
 const MAX_NODES_IN_ROUTINE = 100;
@@ -96,9 +97,10 @@ export const nodeVerifier = () => ({
             // If all nodes are new, return null for routineId
             if (newNodes === 0) return null;
             // If not all nodes are new, then there must be one that is not new and not owned by the user
-            else throw new CustomError(CODE.Unauthorized, 'You do not own all nodes');
+            else throw new CustomError(CODE.Unauthorized, 'You do not own all nodes', { code: genErrorCode('0050') });
         }
-        if (uniqueRoutineIds.size > 1) throw new CustomError(CODE.InvalidArgs, 'All nodes must be in the same routine!');
+        if (uniqueRoutineIds.size > 1) 
+            throw new CustomError(CODE.InvalidArgs, 'All nodes must be in the same routine!', { code: genErrorCode('0051') });
         return uniqueRoutineIds.values().next().value;
     },
     /**
@@ -112,11 +114,12 @@ export const nodeVerifier = () => ({
             include: { _count: { select: { nodes: true } } }
         });
         if ((existingCount?._count.nodes ?? 0) + numAdding > MAX_NODES_IN_ROUTINE) {
-            throw new CustomError(CODE.ErrorUnknown, `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`);
+            throw new CustomError(CODE.ErrorUnknown, `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`, { code: genErrorCode('0052') });
         }
     },
     profanityCheck(data: NodeCreateInput | NodeUpdateInput): void {
-        if (hasProfanityRecursive(data, ['condition', 'description', 'title'])) throw new CustomError(CODE.BannedWord);
+        if (hasProfanityRecursive(data, ['condition', 'description', 'title'])) 
+            throw new CustomError(CODE.BannedWord, 'Detected bad word in node', { code: genErrorCode('0053') });
     },
 })
 
@@ -443,8 +446,8 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<NodeCreateInput, NodeUpdateInput>): Promise<void> {
-        if (!userId) throw new CustomError(CODE.Unauthorized);
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if (!userId) 
+            throw new CustomError(CODE.Unauthorized, 'Must pass valid userId to validateMutations', { code: genErrorCode('0054') });
         // Make sure the user has access to these nodes
         const createNodeIds = createMany?.map(node => node.id) ?? []; // Nodes can have an ID on create, unlike most other objects
         const updateNodeIds = updateMany?.map(node => node.where.id) ?? [];

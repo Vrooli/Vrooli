@@ -13,6 +13,7 @@ import { StandardModel } from "./standard";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -408,7 +409,8 @@ export const routineMutater = (prisma: PrismaType) => ({
                 // Check for valid arguments
                 inputCreate.validateSync(data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(data.name, data.description)) throw new CustomError(CODE.BannedWord);
+                if (hasProfanity(data.name, data.description)) 
+                    throw new CustomError(CODE.BannedWord, 'Name or description includes bad word', { code: genErrorCode('0091') });
                 // Convert nested relationships
                 result.push({
                     name: data.name,
@@ -425,7 +427,8 @@ export const routineMutater = (prisma: PrismaType) => ({
                 // Check for valid arguments
                 inputUpdate.validateSync(update.data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(update.data.name, update.data.description)) throw new CustomError(CODE.BannedWord);
+                if (hasProfanity(update.data.name, update.data.description)) 
+                    throw new CustomError(CODE.BannedWord, 'Name or description contains banned word', { code: genErrorCode('0092') });
                 // Convert nested relationships
                 result.push({
                     where: update.where,
@@ -547,7 +550,8 @@ export const routineMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RoutineCreateInput, RoutineUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
         if (createMany) {
             createMany.forEach(input => routineCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
@@ -562,7 +566,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 }
             })
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
-                throw new CustomError(CODE.MaxRoutinesReached);
+                throw new CustomError(CODE.MaxRoutinesReached, 'Maximum routines reached on this account', { code: genErrorCode('0094') });
             }
         }
         if (updateMany) {
@@ -581,9 +585,11 @@ export const routineMutater = (prisma: PrismaType) => ({
             if (objectsToCheck.length > 0) {
                 for (const check of objectsToCheck) {
                     // Check if user is authorized to delete
-                    if (!check.organizationId) throw new CustomError(CODE.Unauthorized, 'Not authorized to delete');
+                    if (!check.organizationId) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete', { code: genErrorCode('0095') });
                     const [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', check.organizationId);
-                    if (!authorized) throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.');
+                    if (!authorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0096') });
                 }
             }
         }
@@ -604,7 +610,8 @@ export const routineMutater = (prisma: PrismaType) => ({
                 if (input.createdByOrganizationId) {
                     // Make sure the user is an admin of the organization
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.createdByOrganizationId);
-                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                    if (!isAuthorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to create routine', { code: genErrorCode('0097') });
                     data = {
                         ...data,
                         organization: { connect: { id: input.createdByOrganizationId } },
@@ -632,20 +639,24 @@ export const routineMutater = (prisma: PrismaType) => ({
                 let data = await this.toDBShape(userId, input.data);
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
-                if (!object) throw new CustomError(CODE.NotFound, 'Routine not found');
+                if (!object)    
+                    throw new CustomError(CODE.NotFound, 'Routine not found', { code: genErrorCode('0098') });
                 // Make sure user is authorized to update
                 if (object.organizationId) {
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', object.organizationId);
-                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                    if (!isAuthorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update routine', { code: genErrorCode('0099') });
                 } else {
-                    if (object.userId !== userId) throw new CustomError(CODE.Unauthorized);
+                    if (object.userId !== userId) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update routine', { code: genErrorCode('0100') });
                 }
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.data.organizationId) {
                     // Make sure the user is an admin of the organization
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.data.organizationId);
                     console.log('authorized check update routine with organization', isAuthorized, input.data.organizationId);
-                    if (!isAuthorized) throw new CustomError(CODE.Unauthorized);
+                    if (!isAuthorized) 
+                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update routine', { code: genErrorCode('0101') });
                     data = {
                         ...data,
                         organization: { connect: { id: input.data.organizationId } },

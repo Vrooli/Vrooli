@@ -5,7 +5,16 @@ export const logsQuery = gql`
     ${logFields}
     query logs($input: LogSearchInput!) {
         logs(input: $input) {
-            ...logFields
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            edges {
+                cursor
+                node {
+                    ...logFields
+                }
+            }
         }
     }
 `

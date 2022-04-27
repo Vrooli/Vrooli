@@ -24,22 +24,19 @@ export const OrganizationViewPage = ({
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                if (data?.id) setLocation(`${APP_LINKS.Organization}/${data?.id}`, { replace: true });
-                else setLocation(APP_LINKS.Organization, { replace: true });
+                setLocation(`${APP_LINKS.Organization}/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                if (id) setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });
-                else window.history.back();
+                window.history.back();
                 break;
             case ObjectDialogAction.Close:
-                if (id) setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });
-                else window.history.back();
+                window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.Organization}/edit/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.Organization}/edit/${id}`);
                 break;
             case ObjectDialogAction.Save:
-                setLocation(`${APP_LINKS.Organization}/${id}`, { replace: true });
+                window.history.back();
                 break;
         }
     }, [id, setLocation]);

@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { StandardSearchInput, MemberRole, StandardType } from "./globalTypes";
+import { StandardSearchInput, MemberRole } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standards
@@ -25,6 +25,9 @@ export interface standards_standards_edges_node_tags_translations {
 export interface standards_standards_edges_node_tags {
   __typename: "Tag";
   id: string;
+  created_at: any;
+  isStarred: boolean;
+  stars: number;
   tag: string;
   translations: standards_standards_edges_node_tags_translations[];
 }
@@ -36,46 +39,17 @@ export interface standards_standards_edges_node_translations {
   description: string | null;
 }
 
-export interface standards_standards_edges_node_creator_Organization_translations {
-  __typename: "OrganizationTranslation";
-  id: string;
-  language: string;
-  name: string;
-}
-
-export interface standards_standards_edges_node_creator_Organization {
-  __typename: "Organization";
-  id: string;
-  handle: string | null;
-  translations: standards_standards_edges_node_creator_Organization_translations[];
-}
-
-export interface standards_standards_edges_node_creator_User {
-  __typename: "User";
-  id: string;
-  name: string;
-  handle: string | null;
-}
-
-export type standards_standards_edges_node_creator = standards_standards_edges_node_creator_Organization | standards_standards_edges_node_creator_User;
-
 export interface standards_standards_edges_node {
   __typename: "Standard";
   id: string;
+  score: number;
+  stars: number;
+  isUpvoted: boolean | null;
+  isStarred: boolean;
   name: string;
   role: MemberRole | null;
-  type: StandardType;
-  schema: string;
-  default: string | null;
-  isFile: boolean;
-  created_at: any;
   tags: standards_standards_edges_node_tags[];
   translations: standards_standards_edges_node_translations[];
-  creator: standards_standards_edges_node_creator | null;
-  stars: number;
-  isStarred: boolean;
-  score: number;
-  isUpvoted: boolean | null;
 }
 
 export interface standards_standards_edges {

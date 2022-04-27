@@ -21,16 +21,24 @@ export enum LogSortBy {
 export enum LogType {
   Create = "Create",
   Delete = "Delete",
+  Downvote = "Downvote",
   OrganizationAddMember = "OrganizationAddMember",
   OrganizationJoin = "OrganizationJoin",
   OrganizationLeave = "OrganizationLeave",
   OrganizationRemoveMember = "OrganizationRemoveMember",
   OrganizationUpdateMember = "OrganizationUpdateMember",
   ProjectComplete = "ProjectComplete",
+  RemoveStar = "RemoveStar",
+  RemoveVote = "RemoveVote",
   RoutineCancel = "RoutineCancel",
   RoutineComplete = "RoutineComplete",
-  RoutineStart = "RoutineStart",
+  RoutineStartCanceled = "RoutineStartCanceled",
+  RoutineStartCompleted = "RoutineStartCompleted",
+  RoutineStartIncomplete = "RoutineStartIncomplete",
+  Star = "Star",
   Update = "Update",
+  Upvote = "Upvote",
+  View = "View",
 }
 
 export enum MemberRole {
@@ -201,11 +209,6 @@ export enum VoteFor {
   Tag = "Tag",
 }
 
-export interface AutocompleteInput {
-  searchString: string;
-  take?: number | null;
-}
-
 export interface CommentCreateInput {
   createdFor: CommentFor;
   forId: string;
@@ -288,6 +291,15 @@ export interface FindHandlesInput {
   organizationId?: string | null;
 }
 
+export interface ForYouPageInput {
+  take?: number | null;
+}
+
+export interface HomePageInput {
+  searchString: string;
+  take?: number | null;
+}
+
 export interface InputItemCreateInput {
   isRequired?: boolean | null;
   name?: string | null;
@@ -321,7 +333,7 @@ export interface InputItemUpdateInput {
 }
 
 export interface LogSearchInput {
-  action?: string | null;
+  actions?: string[] | null;
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   data?: string | null;

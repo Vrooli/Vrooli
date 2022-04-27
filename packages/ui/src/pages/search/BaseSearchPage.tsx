@@ -6,7 +6,7 @@ import { centeredDiv } from "styles";
 import { useLocation } from "wouter";
 import { BaseSearchPageProps } from "./types";
 import { Add as AddIcon } from '@mui/icons-material';
-import { parseSearchParams } from "utils/urlTools";
+import { parseSearchParams, stringifySearchParams } from "utils/navigation/urlTools";
 
 const tabOptions = [
     ['Organizations', APP_LINKS.SearchOrganizations],
@@ -17,17 +17,16 @@ const tabOptions = [
 ];
 
 export function BaseSearchPage<DataType, SortBy>({
+    itemKeyPrefix,
     title = 'Search',
     searchPlaceholder = 'Search...',
     sortOptions,
     defaultSortOption,
     query,
     take = 20,
-    listItemFactory,
-    getOptionLabel,
     onObjectSelect,
     showAddButton = true,
-    onAddClick = () => {},
+    onAddClick = () => { },
     popupButtonText,
     popupButtonTooltip = "Couldn't find what you were looking for? Try creating your own!",
     onPopupButtonClick,
@@ -39,18 +38,21 @@ export function BaseSearchPage<DataType, SortBy>({
     const [sortBy, setSortBy] = useState<string | undefined>(parseSearchParams(window.location.search).sort ?? defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
     const [timeFrame, setTimeFrame] = useState<string | undefined>(parseSearchParams(window.location.search).time);
     useEffect(() => {
-        let searchUrl = '?';
-        if (searchString) searchUrl += `search=${searchString}&`;
-        if (sortBy) searchUrl += `sort=${sortBy}&`;
-        if (timeFrame) searchUrl += `time=${timeFrame}&`;
-        setLocation(searchUrl.substring(0, searchUrl.length - 1), { replace: true });
+        const params: { [x: string]: string } = parseSearchParams(window.location.search);
+        if (searchString) params.search = searchString;
+        else delete params.search;
+        if (sortBy) params.sort = sortBy;
+        else delete params.sort;
+        if (timeFrame) params.time = timeFrame;
+        else delete params.time;
+        setLocation(stringifySearchParams(params), { replace: true });
     }, [searchString, sortBy, timeFrame, setLocation]);
     // Handle tabs
     const tabIndex = useMemo(() => {
         const index = tabOptions.findIndex(t => window.location.pathname.startsWith(t[1]));
         return Math.max(index, 0);
     }, []);
-    const handleTabChange = (_e, newIndex) => { 
+    const handleTabChange = (_e, newIndex) => {
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
@@ -111,13 +113,14 @@ export function BaseSearchPage<DataType, SortBy>({
             </Tabs>
             <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
                 <Typography component="h2" variant="h4">{title}</Typography>
-                { showAddButton ? <Tooltip title="Add new" placement="top">
-                    <IconButton size="large" onClick={onAddClick} sx={{padding: 1}}>
-                        <AddIcon color="primary" sx={{width: '1.5em', height: '1.5em'}} />
+                {showAddButton ? <Tooltip title="Add new" placement="top">
+                    <IconButton size="large" onClick={onAddClick} sx={{ padding: 1 }}>
+                        <AddIcon color="primary" sx={{ width: '1.5em', height: '1.5em' }} />
                     </IconButton>
-                </Tooltip> : null }
+                </Tooltip> : null}
             </Stack>
             <SearchList
+                itemKeyPrefix={itemKeyPrefix}
                 searchPlaceholder={searchPlaceholder}
                 sortOptions={sortOptions}
                 defaultSortOption={defaultSortOption}
@@ -129,8 +132,6 @@ export function BaseSearchPage<DataType, SortBy>({
                 setSearchString={setSearchString}
                 setSortBy={setSortBy}
                 setTimeFrame={setTimeFrame}
-                listItemFactory={listItemFactory}
-                getOptionLabel={getOptionLabel}
                 onObjectSelect={onObjectSelect}
                 onScrolledFar={handleScrolledFar}
                 session={session}

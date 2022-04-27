@@ -9,6 +9,7 @@ import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
+import { genErrorCode } from "../../logger";
 
 //==============================================================
 /* #region Custom Components */
@@ -147,7 +148,8 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+        if ((createMany || updateMany || deleteMany) && !userId) 
+            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0055') });
         if (createMany) {
             createMany.forEach(input => organizationCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
@@ -155,7 +157,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             // Check if user will pass max organizations limit
             const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } });
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
-                throw new CustomError(CODE.MaxOrganizationsReached);
+                throw new CustomError(CODE.MaxOrganizationsReached, 'Cannot create any more organizations with this account - maximum reached', { code: genErrorCode('0056') });
             }
         }
         if (updateMany) {
@@ -176,7 +178,8 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             const roles = userId
                 ? await verifier.getRoles(userId, deleteMany)
                 : Array(deleteMany.length).fill(null);
-            if (roles.some((role: any) => role !== MemberRole.Owner)) throw new CustomError(CODE.Unauthorized);
+            if (roles.some((role: any) => role !== MemberRole.Owner)) 
+                throw new CustomError(CODE.Unauthorized, 'User must be owner of organization to delete', { code: genErrorCode('0057') });
         }
     },
     /**
@@ -212,7 +215,7 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
                         ]
                     }
                 })
-                if (!object) throw new CustomError(CODE.Unauthorized);
+                if (!object) throw new CustomError(CODE.Unauthorized, 'User must be member of organization to update', { code: genErrorCode('0058') });
                 // Update object
                 const currUpdated = await prisma.organization.update({
                     where: input.where,

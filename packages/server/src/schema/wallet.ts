@@ -9,6 +9,7 @@ import { CODE } from '@local/shared';
 import { serializedAddressToBech32 } from '../auth/walletAuth';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 import { rateLimit } from '../rateLimit';
+import { genErrorCode } from '../logger';
 
 export const typeDef = gql`
 
@@ -78,7 +79,8 @@ export const resolvers = {
                 })
             }
             else {
-                if (!context.req.userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to query your wallets')
+                if (!context.req.userId) 
+                    throw new CustomError(CODE.Unauthorized, 'Must be logged in to query your wallets', { code: genErrorCode('0166') })
                 wallets = await context.prisma.wallet.findMany({
                     where: {
                         userId: context.req.userId
@@ -113,7 +115,7 @@ export const resolvers = {
                     // If code is 404, then resource does not exist. This means that the wallet has no transactions.
                     // In this case, we shouldn't throw an error
                     if (err.status_code !== 404) {
-                        throw new CustomError(CODE.ErrorUnknown, 'Failed to query Blockfrost');
+                        throw new CustomError(CODE.ErrorUnknown, 'Failed to query Blockfrost', { code: genErrorCode('0167') });
                     }
                 } finally {
                     return handles;

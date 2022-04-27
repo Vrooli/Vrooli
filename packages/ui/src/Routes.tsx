@@ -16,6 +16,7 @@ import { Box, CircularProgress } from '@mui/material';
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
     HomePage,
+    ForYouPage,
     LearnPage,
     ResearchPage,
     DevelopPage,
@@ -25,11 +26,11 @@ const { SettingsPage } = lazily(() => import('./pages/SettingsPage/SettingsPage'
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
 const { StatsPage } = lazily(() => import('./pages/dashboard/StatsPage/StatsPage'));
 const {
-    SearchActorsPage,
     SearchOrganizationsPage,
     SearchProjectsPage,
     SearchRoutinesPage,
     SearchStandardsPage,
+    SearchUsersPage,
 } = lazily(() => import('./pages/search'));
 const { OrganizationViewPage } = lazily(() => import('./pages/view/OrganizationViewPage'));
 const { ProjectViewPage } = lazily(() => import('./pages/view/ProjectViewPage'));
@@ -71,6 +72,13 @@ export const AllRoutes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
+                <Route path={LINKS.ForYou}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('For You')} restrictedToRoles={[ROLES.Actor]} {...props}>
+                            <ForYouPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
                 <Route path={LINKS.Learn} >
                     <Suspense fallback={Fallback}>
                         <Page title={title('Learn')} {...props}>
@@ -95,13 +103,6 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #endregion Dashboard Routes ========= */}
 
                 {/* ========= #region Search Routes ========= */}
-                <Route path={`${LINKS.SearchUsers}/:params*`}>
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Users Search')} {...props}>
-                            <SearchActorsPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
                 <Route path={`${LINKS.SearchOrganizations}/:params*`}>
                     <Suspense fallback={Fallback}>
                         <Page title={title('Organizations Search')} {...props}>
@@ -127,6 +128,13 @@ export const AllRoutes = (props: CommonProps) => {
                     <Suspense fallback={Fallback}>
                         <Page title={title('Standards Search')} {...props}>
                             <SearchStandardsPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route path={`${LINKS.SearchUsers}/:params*`}>
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('Users Search')} {...props}>
+                            <SearchUsersPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
@@ -158,7 +166,7 @@ export const AllRoutes = (props: CommonProps) => {
                 {/* ========= #endregion Routine Routes ========= */}
 
                 {/* ========= #region Views Routes ========= */}
-                {/* Views for main Vrooli components (organizations, actors, projects, routines, resources, data) */}
+                {/* Views for main Vrooli components (i.e. organizations, projects, routines, standards, users) */}
                 {/* Opens objects as their own page, as opposed to the search routes which open them as popup dialogs */}
                 <Route path={`${LINKS.Organization}/:id?`}>
                     <Suspense fallback={Fallback}>
