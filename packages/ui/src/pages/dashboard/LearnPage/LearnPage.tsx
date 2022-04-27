@@ -33,92 +33,6 @@ In the future, we will add many new learning features, such as:
 const tutorialText =
 `Tutorials are community-created routines, each designed to teach a specific skill. Any routine associated with the "learn" tag will be listed here.`
 
-/**
- * Default learning resources
- */
-const defaultResourceList: ResourceList = {
-    usedFor: ResourceListUsedFor.Learn,
-    resources: [
-        {
-            link: 'https://www.goodreads.com/review/list/138131443?shelf=must-reads-for-everyone',
-            usedFor: ResourceUsedFor.Learning,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'Reading list',
-                    description: 'Must-read books',
-                }
-            ]
-        } as any,
-        {
-            link: 'https://www.notion.so/',
-            usedFor: ResourceUsedFor.Notes,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'Notion',
-                    description: 'Jot down your thoughts and ideas',
-                }
-            ]
-        } as any,
-        {
-            link: 'https://calendar.google.com/calendar/u/0/r',
-            usedFor: ResourceUsedFor.Scheduling,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'My Schedule',
-                    description: 'Schedule study sessions',
-                }
-            ]
-        } as any,
-        {
-            link: 'https://lifeat.io/',
-            usedFor: ResourceUsedFor.Learning,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'Study Session',
-                    description: 'Start a study session on LifeAt',
-                }
-            ]
-        } as any,
-        {
-            link: 'https://github.com/MattHalloran/Vrooli',
-            usedFor: ResourceUsedFor.Learning,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'TED Talks',
-                    description: 'Find some inspiration by watching educational videos',
-                }
-            ]
-        } as any,
-        {
-            link: 'https://www.duolingo.com/learn',
-            usedFor: ResourceUsedFor.Learning,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'Duolingo',
-                    description: 'Learn a new language',
-                }
-            ]
-        } as any,
-        {
-            link: 'https://www.khanacademy.org/profile/me/courses',
-            usedFor: ResourceUsedFor.Learning,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'Khan Academy',
-                    description: 'Brush up on your math skills',
-                }
-            ]
-        } as any
-    ]
-} as any;
-
 export const LearnPage = ({
     session,
 }: LearnPageProps) => {
@@ -126,9 +40,8 @@ export const LearnPage = ({
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
 
-    const resourceList = useMemo(() => {
-        if (!profileData?.profile?.resourceLists) return defaultResourceList;
-        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? null;
+    const resourceList: ResourceList = useMemo(() => {
+        return (profileData?.profile?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? []) as ResourceList;
     }, [profileData]);
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
@@ -174,14 +87,14 @@ export const LearnPage = ({
             </Stack>
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
-                <ResourceListHorizontal
+                {session?.id && <ResourceListHorizontal
                     title={Boolean(session?.id) ? '📌 Resources' : 'Example Resources'}
                     list={resourceList}
                     canEdit={Boolean(session?.id)}
                     handleUpdate={handleResourcesUpdate}
                     mutate={true}
                     session={session}
-                />
+                />}
                 {/* Available courses */}
                 <TitleContainer
                     title={"Courses"}

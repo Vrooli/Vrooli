@@ -207,7 +207,10 @@ export const resolvers = {
                                 usedFor: ResourceListUsedFor.Research,
                             },
                             {
-                                usedFor: ResourceListUsedFor.Develop
+                                usedFor: ResourceListUsedFor.Develop,
+                            },
+                            {
+                                usedFor: ResourceListUsedFor.Display,
                             }
                         ]
                     }
@@ -431,7 +434,10 @@ export const resolvers = {
                                         usedFor: ResourceListUsedFor.Research,
                                     },
                                     {
-                                        usedFor: ResourceListUsedFor.Develop
+                                        usedFor: ResourceListUsedFor.Develop,
+                                    },
+                                    {
+                                        usedFor: ResourceListUsedFor.Display,
                                     }
                                 ]
                             }

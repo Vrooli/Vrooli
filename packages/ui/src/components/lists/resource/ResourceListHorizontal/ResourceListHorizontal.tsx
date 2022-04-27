@@ -91,14 +91,15 @@ export const ResourceListHorizontal = ({
     const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
     const openUpdateDialog = useCallback((index: number) => { 
+        console.log('open update dialog', index)
         setEditingIndex(index);
         setIsDialogOpen(true) 
     }, []);
 
     const dialog = useMemo(() => (
         list ? <ResourceDialog
-            isAdd={editingIndex >= 0}
             partialData={editingIndex >= 0 ? list.resources[editingIndex as number] as any : undefined}
+            index={editingIndex}
             listId={list.id}
             open={isDialogOpen}
             onClose={closeDialog}

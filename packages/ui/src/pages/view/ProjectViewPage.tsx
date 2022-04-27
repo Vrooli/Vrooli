@@ -24,22 +24,19 @@ export const ProjectViewPage = ({
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                if (data?.id) setLocation(`${APP_LINKS.Project}/${data?.id}`, { replace: true });
-                else setLocation(APP_LINKS.Project, { replace: true });
+                setLocation(`${APP_LINKS.Project}/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                if (id) setLocation(`${APP_LINKS.Project}/${id}`, { replace: true });
-                else window.history.back();
+                window.history.back();
                 break;
             case ObjectDialogAction.Close:
-                if (id) setLocation(`${APP_LINKS.Project}/${id}`, { replace: true });
-                else window.history.back();
+                window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.Project}/edit/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.Project}/edit/${id}`);
                 break;
             case ObjectDialogAction.Save:
-                setLocation(`${APP_LINKS.Project}/${id}`, { replace: true });
+                window.history.back();
                 break;
         }
     }, [id, setLocation]);

@@ -22,23 +22,23 @@ export const RoutineDialog = ({
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                if (data?.id) setLocation(`${APP_LINKS.SearchRoutines}/view/${data?.id}`, { replace: true });
+                setLocation(`${APP_LINKS.SearchRoutines}/view/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.SearchRoutines}/view`, { replace: true });
+                window.history.back();
                 break;
             case ObjectDialogAction.Close:
                 window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.SearchRoutines}/edit/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.SearchRoutines}/edit/${id}`);
                 break;
             case ObjectDialogAction.Next:
                 break;
             case ObjectDialogAction.Previous:
                 break;
             case ObjectDialogAction.Save:
-                setLocation(`${APP_LINKS.SearchRoutines}/view/${id}`, { replace: true });
+                window.history.back();
                 break;
         }
     }, [id, setLocation]);

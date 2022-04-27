@@ -4,7 +4,7 @@ import { centeredDiv } from 'styles';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
 import { homePageQuery } from 'graphql/query';
-import { AutocompleteSearchBar, TitleContainer, CreateNewDialog } from 'components';
+import { AutocompleteSearchBar, TitleContainer, ListMenu } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
@@ -17,6 +17,7 @@ import {
 import { AutocompleteListItem, listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage } from 'utils';
 import _ from 'lodash';
 import { Organization, Project, Routine, Standard, User } from 'types';
+import { ListMenuItemData } from 'components/dialogs/types';
 
 const faqText =
     `## What is This?
@@ -63,6 +64,22 @@ The simplest thing you can do right now is to participate! You can:
 
 If you would like to contribute to the development of Vrooli, please contact us!
 `
+
+const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
+    { label: 'Organization', value: `${APP_LINKS.SearchOrganizations}?advancedOpen=true` },
+    { label: 'Project', value: `${APP_LINKS.SearchProjects}?advancedOpen=true` },
+    { label: 'Routine', value: `${APP_LINKS.SearchRoutines}?advancedOpen=true` },
+    { label: 'Standard', value: `${APP_LINKS.SearchStandards}?advancedOpen=true` },
+    { label: 'User', value: `${APP_LINKS.SearchUsers}?advancedOpen=true` },
+]
+
+const createNewPopupOptions: ListMenuItemData<string>[] = [
+    { label: 'Organization', value: `${APP_LINKS.Organization}/add` },
+    { label: 'Project', value: `${APP_LINKS.Project}/add` },
+    { label: 'Routine (Single Step)', value: `${APP_LINKS.Run}/add` },
+    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Build}/add` },
+    { label: 'Standard', value: `${APP_LINKS.Standard}/add` },
+]
 
 const tabOptions = [
     ['Popular', APP_LINKS.Home],
@@ -160,6 +177,14 @@ const shortcuts: ShortcutItem[] = [
         label: 'Search users advanced',
         link: `${APP_LINKS.SearchUsers}?advancedOpen=true`,
     },
+    {
+        label: `Beginner's Guide`,
+        link: `${APP_LINKS.Welcome}`,
+    },
+    {
+        label: 'FAQ',
+        link: `${APP_LINKS.FAQ}`,
+    },
 ]
 // Shape shortcuts to match AutoCompleteListItem format
 const shortcutsItems: AutocompleteListItem[] = shortcuts.map(({ label, link }) => ({
@@ -200,19 +225,25 @@ export const HomePage = ({
     const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
 
     const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
+        const firstResults: AutocompleteListItem[] = [];
+        // If "help" typed, add help and faq shortcuts as first result
+        if (searchString.toLowerCase().startsWith('help')) {
+            firstResults.push({
+                __typename: "Shortcut",
+                label: `Help - Beginner's Guide`,
+                id: APP_LINKS.Welcome,
+            }, {
+                __typename: "Shortcut",
+                label: 'Help - FAQ',
+                id: APP_LINKS.FAQ,
+            });
+        }
         // Group all query results and sort by number of stars
         const queryItems = listToAutocomplete(_.flatten(Object.values(data?.homePage ?? [])), languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
-        return [...queryItems, ...shortcutsItems];
+        return [...firstResults, ...queryItems, ...shortcutsItems];
     }, [languages, data, searchString]);
-
-    const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
-    const openCreateDialog = useCallback(() => { setCreateDialogOpen(true) }, [setCreateDialogOpen]);
-    const closeCreateDialog = useCallback(() => { setCreateDialogOpen(false) }, [setCreateDialogOpen]);
-    const openAdvancedSearch = useCallback(() => {
-        //TODO
-    }, [setLocation]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -324,6 +355,26 @@ export const HomePage = ({
         return listFeeds;
     }, [data, feedOrder, getFeedTitle, loading, session, toItemPage, toSearchPage]);
 
+    // Menu for opening an advanced search page
+    const [advancedSearchAnchor, setAdvancedSearchAnchor] = useState<any>(null);
+    const openAdvancedSearch = useCallback((ev: React.MouseEvent<any>) => {
+        setAdvancedSearchAnchor(ev.currentTarget)
+    }, [setAdvancedSearchAnchor]);
+    const closeAdvancedSearch = useCallback(() => setAdvancedSearchAnchor(null), []);
+    const handleAdvancedSearchSelect = useCallback((path: string) => {
+        setLocation(path);
+    }, [setLocation]);
+
+    // Menu for opening a create page
+    const [createNewAnchor, setCreateNewAnchor] = useState<any>(null);
+    const openCreateNew = useCallback((ev: React.MouseEvent<any>) => {
+        setCreateNewAnchor(ev.currentTarget)
+    }, [setCreateNewAnchor]);
+    const closeCreateNew = useCallback(() => setCreateNewAnchor(null), []);
+    const handleCreateNewSelect = useCallback((path: string) => {
+        setLocation(path);
+    }, [setLocation]);
+
     return (
         <Box id="page">
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
@@ -353,10 +404,23 @@ export const HomePage = ({
                     />
                 ))}
             </Tabs>}
-            {/* Create new popup */}
-            <CreateNewDialog
-                isOpen={isCreateDialogOpen}
-                handleClose={closeCreateDialog}
+            {/* Advanced search dialog */}
+            <ListMenu
+                id={`open-advanced-search-menu`}
+                anchorEl={advancedSearchAnchor}
+                title='Select Object Type'
+                data={advancedSearchPopupOptions}
+                onSelect={handleAdvancedSearchSelect}
+                onClose={closeAdvancedSearch}
+            />
+            {/* Create new dialog */}
+            <ListMenu
+                id={`open-advanced-search-menu`}
+                anchorEl={createNewAnchor}
+                title='Create New...'
+                data={createNewPopupOptions}
+                onSelect={handleCreateNewSelect}
+                onClose={closeCreateNew}
             />
             {/* Prompt stack */}
             <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '30vh' } }}>
@@ -409,7 +473,7 @@ export const HomePage = ({
                             <Button fullWidth onClick={openAdvancedSearch} startIcon={<SearchIcon />}>Advanced Search</Button>
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <Button fullWidth onClick={openCreateDialog} startIcon={<CreateIcon />}>Create New</Button>
+                            <Button fullWidth onClick={openCreateNew} startIcon={<CreateIcon />}>Create New</Button>
                         </Grid>
                     </Grid>
                 </Stack>

@@ -116,10 +116,9 @@ export interface ReportDialogProps extends DialogProps {
 
 export interface ResourceDialogProps extends DialogProps {
     /**
-     * Determines if mutation is an add or edit
+     * Index in resource list. -1 if new
      */
-    isAdd: boolean;
-    index?: number;
+    index: number;
     listId: string;
     /**
      * Determines if add resource should be called by this dialog, or is handled later
@@ -131,7 +130,6 @@ export interface ResourceDialogProps extends DialogProps {
     onUpdated: (index: number, resource: Resource) => any;
     partialData?: Partial<Resource>;
     session: Session;
-    title?: string;
 }
 
 export interface RoutineDialogProps {

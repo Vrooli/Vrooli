@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { forYouPage, forYouPageVariables } from 'graphql/generated/forYouPage';
 import { useQuery } from '@apollo/client';
 import { forYouPageQuery } from 'graphql/query';
-import { TitleContainer, CreateNewDialog } from 'components';
+import { TitleContainer } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ForYouPageProps } from '../types';
@@ -116,11 +116,6 @@ export const ForYouPage = ({
                     />
                 ))}
             </Tabs>
-            {/* Create new popup */}
-            <CreateNewDialog
-                isOpen={isCreateDialogOpen}
-                handleClose={closeCreateDialog}
-            />
             {/* Result feeds (or popular feeds if no search string) */}
             <Stack spacing={10} direction="column">
                 {/* Search results */}

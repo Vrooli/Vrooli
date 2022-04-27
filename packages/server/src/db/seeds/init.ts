@@ -123,7 +123,10 @@ export async function init(prisma: PrismaType) {
                         usedFor: ResourceListUsedFor.Research,
                     },
                     {
-                        usedFor: ResourceListUsedFor.Develop
+                        usedFor: ResourceListUsedFor.Develop,
+                    },
+                    {
+                        usedFor: ResourceListUsedFor.Display,
                     }
                 ]
             }

@@ -14,8 +14,6 @@ import { AutocompleteListItem, getUserLanguages, listToAutocomplete, listToListI
 import { ListOrganization, ListProject, ListRoutine, ListStandard } from "types";
 import { useLocation } from "wouter";
 
-type ListItem = ListOrganization | ListProject | ListRoutine | ListStandard | ListOrganization;
-
 const searchButtonStyle = {
     ...clickSize,
     display: 'flex',
@@ -217,18 +215,9 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Update query params
     useEffect(() => {
-        const params = parseSearchParams(window.location.search);
-        // If search dialog open, add to params if not already present
-        if (advancedSearchDialogOpen) {
-            if (!params.advancedOpen) {
-                params.advancedOpen = "true";
-            }
-        }
-        // If search dialog closed, remove from params if present
-        else if (params.advancedOpen) {
-            delete params.advancedOpen;
-        }
-        // Update window.location.search
+        let params = parseSearchParams(window.location.search);
+        if (advancedSearchDialogOpen) params.advancedOpen = "true";
+        else delete params.advancedOpen;
         setLocation(stringifySearchParams(params), { replace: true });
     }, [advancedSearchDialogOpen]);
 

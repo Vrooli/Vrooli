@@ -38,10 +38,13 @@ export function BaseSearchPage<DataType, SortBy>({
     const [sortBy, setSortBy] = useState<string | undefined>(parseSearchParams(window.location.search).sort ?? defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
     const [timeFrame, setTimeFrame] = useState<string | undefined>(parseSearchParams(window.location.search).time);
     useEffect(() => {
-        const params: { [x: string]: string } = {};
+        const params: { [x: string]: string } = parseSearchParams(window.location.search);
         if (searchString) params.search = searchString;
+        else delete params.search;
         if (sortBy) params.sort = sortBy;
+        else delete params.sort;
         if (timeFrame) params.time = timeFrame;
+        else delete params.time;
         setLocation(stringifySearchParams(params), { replace: true });
     }, [searchString, sortBy, timeFrame, setLocation]);
     // Handle tabs

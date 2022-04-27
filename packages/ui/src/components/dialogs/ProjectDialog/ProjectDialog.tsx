@@ -25,20 +25,20 @@ export const ProjectDialog = ({
                 if (data?.id) setLocation(`${APP_LINKS.SearchProjects}/view/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
-                setLocation(`${APP_LINKS.SearchProjects}/view`, { replace: true });
+                window.history.back();
                 break;
             case ObjectDialogAction.Close:
                 window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.SearchProjects}/edit/${id}`, { replace: true });
+                setLocation(`${APP_LINKS.SearchProjects}/edit/${id}`);
                 break;
             case ObjectDialogAction.Next:
                 break;
             case ObjectDialogAction.Previous:
                 break;
             case ObjectDialogAction.Save:
-                setLocation(`${APP_LINKS.SearchProjects}/view/${id}`, { replace: true });
+                window.history.back();
                 break;
         }
     }, [id, setLocation]);

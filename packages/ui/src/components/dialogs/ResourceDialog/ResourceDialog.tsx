@@ -9,12 +9,13 @@ import { ResourceDialogProps } from '../types';
 import {
     Close as CloseIcon
 } from '@mui/icons-material';
-import { formatForCreate, getTranslation, getUserLanguages, Pubs } from 'utils';
+import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs } from 'utils';
 import { resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate } from 'graphql/generated/resourceUpdate';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SelectLanguageDialog } from '../SelectLanguageDialog/SelectLanguageDialog';
+import { LanguageInput } from 'components/inputs';
 
 const helpText =
     `## What are resources?
@@ -51,7 +52,6 @@ const UsedForDisplay = {
 }
 
 export const ResourceDialog = ({
-    isAdd,
     mutate,
     open,
     onClose,
@@ -60,14 +60,50 @@ export const ResourceDialog = ({
     index,
     partialData,
     session,
-    title = 'Add Resource',
     listId,
 }: ResourceDialogProps) => {
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
 
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
+    // Handle translations
+    type Translation = {
+        language: string;
+        description: string;
+        title: string;
+    };
+    const [translations, setTranslations] = useState<Translation[]>([]);
+    const deleteTranslation = useCallback((language: string) => {
+        setTranslations([...translations.filter(t => t.language !== language)]);
+    }, [translations, setTranslations]);
+    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
+        // Find translation
+        const index = translations.findIndex(t => language === t.language);
+        // If language exists, update
+        if (index >= 0) {
+            const newTranslations = [...translations];
+            newTranslations[index] = { ...translation };
+            return newTranslations;
+        }
+        // Otherwise, add new
+        else {
+            return [...translations, translation];
+        }
+    }, [translations]);
+    const updateTranslation = useCallback((language: string, translation: Translation) => {
+        setTranslations(getTranslationsUpdate(language, translation));
+    }, [translations, setTranslations]);
+
+    useEffect(() => {
+        setTranslations(partialData?.translations?.map(t => ({
+            id: t.id,
+            language: t.language,
+            description: t.description ?? '',
+            title: t.title ?? '',
+        })) ?? []);
+    }, [partialData]);
+
+    const [language, setLanguage] = useState<string>(index < 0 ? getUserLanguages(session)[0] : '');
+    const [languages, setLanguages] = useState<string[]>(index < 0 ? getUserLanguages(session): []);
 
     const formik = useFormik({
         initialValues: {
@@ -79,24 +115,29 @@ export const ResourceDialog = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            const input = formatForCreate({
+            const allTranslations = getTranslationsUpdate(language, {
+                language,
+                description: values.description,
+                title: values.title,
+            })
+            const data = {
+                id: partialData?.id ?? undefined,
                 listId,
                 link: values.link,
                 usedFor: values.usedFor,
-                translations: [{
-                    language,
-                    title: values.title,
-                    description: values.description,
-                }],
-            })
+                translations: allTranslations,
+            };
+            console.log('data before update', data)
+            const input = (index < 0) ? formatForCreate(data) : formatForUpdate(partialData, data, [], ['translations']);
+            console.log('input before update', input);
             if (mutate) {
                 mutationWrapper({
-                    mutation: isAdd ? addMutation : updateMutation,
+                    mutation: (index < 0) ? addMutation : updateMutation,
                     input,
                     successCondition: (response) => response.data.resourceCreate !== null,
                     onSuccess: (response) => {
-                        PubSub.publish(Pubs.Snack, { message: 'Resource created.' });
-                        isAdd ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
+                        PubSub.publish(Pubs.Snack, { message: (index < 0) ? 'Resource created.' : 'Resource updated.' });
+                        (index < 0) ? onCreated(response.data.resourceCreate) : onUpdated(index ?? 0, response.data.resourceUpdate);
                         formik.resetForm();
                         onClose();
                     },
@@ -109,6 +150,69 @@ export const ResourceDialog = ({
             }
         },
     });
+
+    // Handle languages
+    useEffect(() => {
+        console.log('booooop', languages, translations)
+        if (languages.length === 0 && translations.length > 0) {
+            setLanguage(translations[0].language);
+            setLanguages(translations.map(t => t.language));
+            formik.setValues({
+                ...formik.values,
+                description: translations[0].description,
+                title: translations[0].title,
+            })
+        }
+    }, [languages, setLanguage, setLanguages, translations])
+    const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
+        // Update translation
+        updateTranslation(oldLanguage, {
+            language: newLanguage,
+            description: formik.values.description,
+            title: formik.values.title,
+        });
+        // Change selection
+        setLanguage(newLanguage);
+        // Update languages
+        const newLanguages = [...languages];
+        const index = newLanguages.findIndex(l => l === oldLanguage);
+        if (index >= 0) {
+            newLanguages[index] = newLanguage;
+            setLanguages(newLanguages);
+        }
+    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    const updateFormikTranslation = useCallback((language: string) => {
+        const existingTranslation = translations.find(t => t.language === language);
+        formik.setValues({
+            ...formik.values,
+            description: existingTranslation?.description ?? '',
+            title: existingTranslation?.title ?? '',
+        });
+    }, [formik.values, translations]);
+    const handleLanguageSelect = useCallback((newLanguage: string) => {
+        // Update old select
+        updateTranslation(language, {
+            language,
+            description: formik.values.description,
+            title: formik.values.title,
+        })
+        // Update formik
+        updateFormikTranslation(newLanguage);
+        // Change language
+        setLanguage(newLanguage);
+    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    const handleAddLanguage = useCallback((newLanguage: string) => {
+        setLanguages([...languages, newLanguage]);
+        handleLanguageSelect(newLanguage);
+    }, [handleLanguageSelect, languages, setLanguages]);
+    const handleLanguageDelete = useCallback((language: string) => {
+        const newLanguages = [...languages.filter(l => l !== language)]
+        if (newLanguages.length === 0) return;
+        deleteTranslation(language);
+        updateFormikTranslation(newLanguages[0]);
+        setLanguage(newLanguages[0]);
+        setLanguages(newLanguages);
+    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
 
     const handleClose = () => {
         formik.resetForm();
@@ -138,13 +242,8 @@ export const ResourceDialog = ({
                 }}>
                     <Stack direction="row" spacing={1} sx={{ marginLeft: 'auto' }}>
                         <Typography component="h2" variant="h4" textAlign="center" sx={{ marginLeft: 'auto' }}>
-                            {title}
+                            {(index < 0) ? 'Add Resource' : 'Update Resource'}
                         </Typography>
-                        <SelectLanguageDialog
-                            language={language}
-                            handleSelect={setLanguage}
-                            session={session}
-                        />
                     </Stack>
                     <Box sx={{ marginLeft: 'auto' }}>
                         <HelpButton markdown={helpText} sx={{ fill: '#a0e7c4' }} />
@@ -157,6 +256,16 @@ export const ResourceDialog = ({
                     </Box>
                 </Box>
                 <Stack direction="column" spacing={2} sx={{ padding: 2 }}>
+                    {/* Language select */}
+                    <LanguageInput
+                        currentLanguage={language}
+                        handleAdd={handleAddLanguage}
+                        handleChange={handleLanguageChange}
+                        handleDelete={handleLanguageDelete}
+                        handleSelect={handleLanguageSelect}
+                        languages={languages}
+                        session={session}
+                    />
                     {/* Enter link */}
                     <TextField
                         fullWidth
@@ -164,9 +273,10 @@ export const ResourceDialog = ({
                         name="link"
                         label="Link"
                         value={formik.values.link}
+                        onBlur={formik.handleBlur}
                         onChange={formik.handleChange}
                         error={formik.touched.link && Boolean(formik.errors.link)}
-                        helperText={(formik.touched.link && formik.errors.link) ?? "Enter URL of resource"}
+                        helperText={formik.touched.link && formik.errors.link}
                     />
                     {/* Select resource type */}
                     <FormControl fullWidth>
@@ -190,6 +300,7 @@ export const ResourceDialog = ({
                         name="title"
                         label="Title"
                         value={formik.values.title}
+                        onBlur={formik.handleBlur}
                         onChange={formik.handleChange}
                         error={formik.touched.title && Boolean(formik.errors.title)}
                         helperText={(formik.touched.title && formik.errors.title) ?? "Enter title (optional)"}
@@ -201,6 +312,7 @@ export const ResourceDialog = ({
                         name="description"
                         label="Description"
                         value={formik.values.description}
+                        onBlur={formik.handleBlur}
                         onChange={formik.handleChange}
                         error={formik.touched.description && Boolean(formik.errors.description)}
                         helperText={(formik.touched.description && formik.errors.description) ?? "Enter description (optional)"}

@@ -132,7 +132,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
         // Check if user is owner of all resources
         const isOwner = (userId: string, data: any) => {
             if (!data.list) return false;
-            return data.list.some((l: any) => isUserOwner(userId, l) || isOrganizationOwner(userId, l) || isProjectOwner(userId, l) || isRoutineOwner(userId, l));
+            return isUserOwner(userId, data.list) || isOrganizationOwner(userId, data.list) || isProjectOwner(userId, data.list) || isRoutineOwner(userId, data.list);
         }
         if (!existingResources.some(r => isOwner(userId, r))) 
             throw new CustomError(CODE.Unauthorized, 'You do not own the resource, or are not an admin of its organization', { code: genErrorCode('0086') });
@@ -224,10 +224,17 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
+                console.log('in resource update', JSON.stringify(input))
                 // Find in database
-                let object = await prisma.report.findFirst({
-                    where: { ...input.where, userId }
+                let object = await prisma.resource.findFirst({
+                    where: {
+                        AND: [
+                            input.where,
+                            { list: { userId }},
+                        ]
+                    }
                 })
+                console.log('got object, ', JSON.stringify(object))
                 if (!object) 
                     throw new CustomError(CODE.ErrorUnknown, 'Resource not found', { code: genErrorCode('0088') });
                 // Update object
@@ -243,11 +250,11 @@ export const resourceMutater = (prisma: PrismaType) => ({
             }
         }
         if (deleteMany) {
-            deleted = await prisma.report.deleteMany({
+            deleted = await prisma.resource.deleteMany({
                 where: {
                     AND: [
                         { id: { in: deleteMany } },
-                        { userId },
+                        { list: { userId }},
                     ]
                 }
             })
