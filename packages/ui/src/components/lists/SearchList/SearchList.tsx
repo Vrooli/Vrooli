@@ -10,8 +10,9 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { AutocompleteListItem, getListItemLabel, getUserLanguages, listToAutocomplete, listToListItems, Pubs } from "utils";
+import { AutocompleteListItem, getUserLanguages, listToAutocomplete, listToListItems, parseSearchParams, Pubs, stringifySearchParams } from "utils";
 import { ListOrganization, ListProject, ListRoutine, ListStandard } from "types";
+import { useLocation } from "wouter";
 
 type ListItem = ListOrganization | ListProject | ListRoutine | ListStandard | ListOrganization;
 
@@ -49,6 +50,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     where,
     session,
 }: SearchListProps<SortBy>) {
+    const [, setLocation] = useLocation();
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
     const [sortByLabel, setSortByLabel] = useState<string>(defaultSortOption.label ?? sortOptions.length > 0 ? sortOptions[0].label : 'Sort');
@@ -207,13 +209,28 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, [listItems, loading]);
 
     // Handle advanced search dialog
-    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
+    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(parseSearchParams(window.location.search).advancedOpen === "true");
     const handleAdvancedSearchDialogOpen = useCallback(() => {
-        // PubSub.publish(Pubs.Snack, { message: 'Available next update. Please be patient with us😬', severity: 'error' });
-        // return;
         setAdvancedSearchDialogOpen(true)
     }, []);
     const handleAdvancedSearchDialogClose = useCallback(() => { setAdvancedSearchDialogOpen(false) }, []);
+
+    // Update query params
+    useEffect(() => {
+        const params = parseSearchParams(window.location.search);
+        // If search dialog open, add to params if not already present
+        if (advancedSearchDialogOpen) {
+            if (!params.advancedOpen) {
+                params.advancedOpen = "true";
+            }
+        }
+        // If search dialog closed, remove from params if present
+        else if (params.advancedOpen) {
+            delete params.advancedOpen;
+        }
+        // Update window.location.search
+        setLocation(stringifySearchParams(params), { replace: true });
+    }, [advancedSearchDialogOpen]);
 
     return (
         <>

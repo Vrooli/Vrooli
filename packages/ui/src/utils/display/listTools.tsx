@@ -6,7 +6,7 @@ export interface AutocompleteListItem {
     __typename: string;
     id: string;
     label: string | null;
-    stars: number;
+    stars?: number;
 }
 
 /**

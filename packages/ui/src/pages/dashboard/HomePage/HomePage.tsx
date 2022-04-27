@@ -19,7 +19,7 @@ import _ from 'lodash';
 import { Organization, Project, Routine, Standard, User } from 'types';
 
 const faqText =
-`## What is This?
+    `## What is This?
 Vrooli is an automation platform built for the decentralized age. We are aiming to become the "missing piece" in the [Project Catalyst](https://matthalloran8.medium.com/the-next-generation-of-global-collaboration-a4839766e29e) ecosystem, which:  
 - guides proposers through the process of validating, creating, and developing projects  
 - helps developers discover and implement projects  
@@ -76,6 +76,98 @@ const examplesData: [string, string][] = [
     ['Create a Cardano native asset token', '3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9'],
 ]
 
+interface ShortcutItem {
+    label: string;
+    link: string;
+}
+/**
+ * Shortcuts that can appear in the search bar
+ */
+const shortcuts: ShortcutItem[] = [
+    {
+        label: 'Create new organization',
+        link: `${APP_LINKS.Organization}/add`,
+    },
+    {
+        label: 'Create new project',
+        link: `${APP_LINKS.Project}/add`,
+    },
+    {
+        label: 'Create new single-step routine',
+        link: `${APP_LINKS.Run}/add`,
+    },
+    {
+        label: 'Create new multi-step routine',
+        link: `${APP_LINKS.Build}/add`,
+    },
+    {
+        label: 'Create new standard',
+        link: `${APP_LINKS.Standard}/add`,
+    },
+    {
+        label: 'View learn dashboard',
+        link: `${APP_LINKS.Learn}`,
+    },
+    {
+        label: 'View research dashboard',
+        link: `${APP_LINKS.Research}`,
+    },
+    {
+        label: 'View develop dashboard',
+        link: `${APP_LINKS.Develop}`,
+    },
+    {
+        label: 'View for you page',
+        link: `${APP_LINKS.ForYou}`,
+    },
+    {
+        label: 'Search organizations',
+        link: `${APP_LINKS.SearchOrganizations}`,
+    },
+    {
+        label: 'Search projects',
+        link: `${APP_LINKS.SearchProjects}`,
+    },
+    {
+        label: 'Search routines',
+        link: `${APP_LINKS.SearchRoutines}`,
+    },
+    {
+        label: 'Search standards',
+        link: `${APP_LINKS.SearchStandards}`,
+    },
+    {
+        label: 'Search users',
+        link: `${APP_LINKS.SearchUsers}`,
+    },
+    {
+        label: 'Search organizations advanced',
+        link: `${APP_LINKS.SearchOrganizations}?advancedOpen=true`,
+    },
+    {
+        label: 'Search projects advanced',
+        link: `${APP_LINKS.SearchProjects}?advancedOpen=true`,
+    },
+    {
+        label: 'Search routines advanced',
+        link: `${APP_LINKS.SearchRoutines}?advancedOpen=true`,
+    },
+    {
+        label: 'Search standards advanced',
+        link: `${APP_LINKS.SearchStandards}?advancedOpen=true`,
+    },
+    {
+        label: 'Search users advanced',
+        link: `${APP_LINKS.SearchUsers}?advancedOpen=true`,
+    },
+]
+// Shape shortcuts to match AutoCompleteListItem format
+const shortcutsItems: AutocompleteListItem[] = shortcuts.map(({ label, link }) => ({
+    __typename: "Shortcut",
+    label,
+    id: link,
+}))
+
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
  * and a FAQ section.
@@ -92,7 +184,6 @@ export const HomePage = ({
         return search ?? '';
     });
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-    // Search query removes words that start with a '!'. These are used for sorting results. TODO doesn't work
     const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
     const showForYou = useMemo(() => Array.isArray(session?.roles) && session.roles.length > 0, [session]);
@@ -102,17 +193,19 @@ export const HomePage = ({
         if (window.location.pathname === APP_LINKS.ForYou) return 1;
         return 0;
     }, []);
-    const handleTabChange = (_e, newIndex) => { 
+    const handleTabChange = (_e, newIndex) => {
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
     const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
 
     const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
-        return listToAutocomplete(_.flatten(Object.values(data?.homePage ?? [])), languages).sort((a: any, b: any) => {
+        // Group all query results and sort by number of stars
+        const queryItems = listToAutocomplete(_.flatten(Object.values(data?.homePage ?? [])), languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
-    }, [languages, data]);
+        return [...queryItems, ...shortcutsItems];
+    }, [languages, data, searchString]);
 
     const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
     const openCreateDialog = useCallback(() => { setCreateDialogOpen(true) }, [setCreateDialogOpen]);
@@ -128,8 +221,14 @@ export const HomePage = ({
         if (!newValue) return;
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
-        // Navigate to item page
-        openObject(newValue, setLocation);
+        // If selected item is a shortcut, navigate to it
+        if (newValue.__typename === 'Shortcut') {
+            setLocation(newValue.id);
+        }
+        // Otherwise, navigate to item page
+        else {
+            openObject(newValue, setLocation);
+        }
     }, [autocompleteOptions]);
 
     // Feed title is Popular when no search
@@ -203,8 +302,8 @@ export const HomePage = ({
                     break;
             }
             const listFeedItems: JSX.Element[] = listToListItems(
-                currentList, 
-                session, 
+                currentList,
+                session,
                 'feed-list-item',
                 (item: any, e: any) => toItemPage(e, item),
             );
@@ -269,7 +368,7 @@ export const HomePage = ({
                     options={autocompleteOptions}
                     getOptionKey={(option) => option.id}
                     getOptionLabel={(option) => option.label ?? ''}
-                    getOptionLabelSecondary={(option) => option.__typename ?? ''}
+                    getOptionLabelSecondary={(option) => option.__typename === 'Shortcut' ? "↪ Shortcut" : option.__typename}
                     loading={loading}
                     value={searchString}
                     onChange={updateSearch}

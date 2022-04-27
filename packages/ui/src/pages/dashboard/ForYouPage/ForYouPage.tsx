@@ -7,7 +7,7 @@ import { TitleContainer, CreateNewDialog } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ForYouPageProps } from '../types';
-import { AutocompleteListItem, listToAutocomplete, listToListItems, openObject } from 'utils';
+import { listToListItems, openObject } from 'utils';
 import _ from 'lodash';
 import { Organization, Project, Routine, Standard, User } from 'types';
 
@@ -23,22 +23,6 @@ const tabOptions = [
     ['Popular', APP_LINKS.Home],
     ['For You', APP_LINKS.ForYou],
 ];
-
-const ObjectType = {
-    Organization: 'Organization',
-    Project: 'Project',
-    Routine: 'Routine',
-    Standard: 'Standard',
-    User: 'User',
-}
-
-const linkMap: { [x: string]: [string, string] } = {
-    [ObjectType.Organization]: [APP_LINKS.SearchOrganizations, APP_LINKS.Organization],
-    [ObjectType.Project]: [APP_LINKS.SearchProjects, APP_LINKS.Project],
-    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Run],
-    [ObjectType.Standard]: [APP_LINKS.SearchStandards, APP_LINKS.Standard],
-    [ObjectType.User]: [APP_LINKS.SearchUsers, APP_LINKS.Profile],
-}
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -62,14 +46,6 @@ export const ForYouPage = ({
     const handleTabChange = (_e, newIndex) => {
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
-
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
-
-    const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
-        return listToAutocomplete(_.flatten(Object.values(data?.forYouPage ?? [])), languages).sort((a: any, b: any) => {
-            return b.stars - a.stars;
-        });
-    }, [languages, data]);
 
     const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
     const closeCreateDialog = useCallback(() => { setCreateDialogOpen(false) }, [setCreateDialogOpen]);
