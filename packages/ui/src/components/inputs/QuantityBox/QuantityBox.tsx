@@ -88,8 +88,8 @@ export const QuantityBox = ({
     }
 
     return (
-        <Tooltip title={tooltip} key={key}>
-            <Box {...props} sx={{
+        <Tooltip title={tooltip}>
+            <Box key={key} {...props} sx={{
                 ...props?.sx ?? {},
                 display: 'flex',
             }}>
@@ -109,6 +109,7 @@ export const QuantityBox = ({
                 <FormControl sx={{
                     background: (t) => t.palette.primary.contrastText,
                     width: '60%',
+                    maxWidth: `12ch`,
                     height: '100%',
                     display: 'grid',
                     "& input::-webkit-clear-button, & input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": {

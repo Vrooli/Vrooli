@@ -16,7 +16,7 @@
      },
      fields: [
          {
-             fieldName: "minimumStars",
+             fieldName: "minStars",
              label: "Minimum Stars",
              type: InputType.QuantityBox,
              props: {
@@ -25,7 +25,7 @@
              }
          },
          {
-             fieldName: "minimumScore",
+             fieldName: "minScore",
              label: "Minimum Score",
              type: InputType.QuantityBox,
              props: {

@@ -66,11 +66,11 @@ If you would like to contribute to the development of Vrooli, please contact us!
 `
 
 const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Organization', value: `${APP_LINKS.SearchOrganizations}?advancedOpen=true` },
-    { label: 'Project', value: `${APP_LINKS.SearchProjects}?advancedOpen=true` },
-    { label: 'Routine', value: `${APP_LINKS.SearchRoutines}?advancedOpen=true` },
-    { label: 'Standard', value: `${APP_LINKS.SearchStandards}?advancedOpen=true` },
-    { label: 'User', value: `${APP_LINKS.SearchUsers}?advancedOpen=true` },
+    { label: 'Organization', value: `${APP_LINKS.SearchOrganizations}?advanced=true` },
+    { label: 'Project', value: `${APP_LINKS.SearchProjects}?advanced=true` },
+    { label: 'Routine', value: `${APP_LINKS.SearchRoutines}?advanced=true` },
+    { label: 'Standard', value: `${APP_LINKS.SearchStandards}?advanced=true` },
+    { label: 'User', value: `${APP_LINKS.SearchUsers}?advanced=true` },
 ]
 
 const createNewPopupOptions: ListMenuItemData<string>[] = [
@@ -159,23 +159,23 @@ const shortcuts: ShortcutItem[] = [
     },
     {
         label: 'Search organizations advanced',
-        link: `${APP_LINKS.SearchOrganizations}?advancedOpen=true`,
+        link: `${APP_LINKS.SearchOrganizations}?advanced=true`,
     },
     {
         label: 'Search projects advanced',
-        link: `${APP_LINKS.SearchProjects}?advancedOpen=true`,
+        link: `${APP_LINKS.SearchProjects}?advanced=true`,
     },
     {
         label: 'Search routines advanced',
-        link: `${APP_LINKS.SearchRoutines}?advancedOpen=true`,
+        link: `${APP_LINKS.SearchRoutines}?advanced=true`,
     },
     {
         label: 'Search standards advanced',
-        link: `${APP_LINKS.SearchStandards}?advancedOpen=true`,
+        link: `${APP_LINKS.SearchStandards}?advanced=true`,
     },
     {
         label: 'Search users advanced',
-        link: `${APP_LINKS.SearchUsers}?advancedOpen=true`,
+        link: `${APP_LINKS.SearchUsers}?advanced=true`,
     },
     {
         label: `Beginner's Guide`,

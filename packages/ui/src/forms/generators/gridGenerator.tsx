@@ -30,7 +30,6 @@ export const generateGrid = (
     formik: any,
     onUpload: (fieldName: string, files: string[]) => void,
 ): React.ReactElement | React.ReactElement[] => {
-    console.log('generateGrid start', layout, childContainers, fields, formik);
     // Split fields into which containers they belong to.
     // Represented by 2D array, where each sub-array represents a container.
     let splitFields: FieldData[][] = [];
@@ -43,13 +42,11 @@ export const generateGrid = (
             lastField += numInContainer;
         }
     }
-    console.log('splitFields', splitFields);
     // Generate grid for each container
     let grids: React.ReactElement[] = [];
     for (let i = 0; i < splitFields.length; i++) {
         const currFields = splitFields[i];
         const currLayout = childContainers ? childContainers[i] : layout;
-        console.log('in splitFields loop', currFields, currLayout);
         // Generate component for each field in the grid, and wrap it in a grid item
         const gridItems: Array<React.ReactElement | null> = currFields.map((field, index) => {
             const inputComponent = generateInputComponent({
@@ -60,7 +57,6 @@ export const generateGrid = (
             });
             return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing, index) : null;
         });
-        console.log('got gridItems', gridItems);
         grids.push(
             <Grid
                 container
@@ -74,6 +70,5 @@ export const generateGrid = (
             </Grid>
         )
     }
-    console.log('finished generating grids', grids);
     return grids;
 };

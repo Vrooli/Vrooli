@@ -59,7 +59,7 @@ export interface CheckboxProps {
     /**
      * Array of checkbox options
      */
-    options: { label: string; }[];
+    options: { label: string }[];
     /**
      * If true, displays options in a row
      */

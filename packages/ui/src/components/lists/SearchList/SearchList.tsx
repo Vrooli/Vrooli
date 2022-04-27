@@ -65,14 +65,16 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return result;
     }, [timeFrame]);
 
-    const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after: after.current, take, sortBy, searchString, createdTimeFrame, ...where } } as any) });
+    const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
+    const { data: pageData, refetch: fetchPage, loading } = useQuery<Query, QueryVariables>(query, { variables: ({ input: { after: after.current, take, sortBy, searchString, createdTimeFrame, ...where, ...advancedSearchParams } } as any) });
     const [allData, setAllData] = useState<DataType[]>([]);
 
     // On search filters/sort change, reset the page
     useEffect(() => {
+        console.log('FETCHIN NEW PAGE DAWG');
         after.current = undefined;
         fetchPage();
-    }, [searchString, sortBy, createdTimeFrame, fetchPage]);
+    }, [advancedSearchParams, searchString, sortBy, createdTimeFrame, fetchPage, where]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {
@@ -96,8 +98,22 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return queryData.edges.map((edge, index) => edge.node);
     }, []);
 
+    // Handle advanced search dialog
+    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(parseSearchParams(window.location.search).advanced === "true");
+    const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
+    const handleAdvancedSearchDialogClose = useCallback(() => {
+        console.log('CLOSE. removingg search params');
+        setAdvancedSearchDialogOpen(false)
+    }, []);
+    const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
+        console.log('SUMIT. setting advanced search params', values);
+        setAdvancedSearchParams(values);
+    }, []);
+
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
+        // Close advanced search dialog
+        handleAdvancedSearchDialogClose();
         const parsedData = parseData(pageData);
         if (!parsedData) {
             setAllData([]);
@@ -108,7 +124,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         } else {
             setAllData(parsedData);
         }
-    }, [pageData]);
+    }, [pageData, parseData, handleAdvancedSearchDialogClose]);
 
     const autocompleteOptions: AutocompleteListItem[] = useMemo(() => {
         return listToAutocomplete(allData, getUserLanguages(session)).sort((a: any, b: any) => {
@@ -206,18 +222,11 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         )
     }, [listItems, loading]);
 
-    // Handle advanced search dialog
-    const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(parseSearchParams(window.location.search).advancedOpen === "true");
-    const handleAdvancedSearchDialogOpen = useCallback(() => {
-        setAdvancedSearchDialogOpen(true)
-    }, []);
-    const handleAdvancedSearchDialogClose = useCallback(() => { setAdvancedSearchDialogOpen(false) }, []);
-
     // Update query params
     useEffect(() => {
         let params = parseSearchParams(window.location.search);
-        if (advancedSearchDialogOpen) params.advancedOpen = "true";
-        else delete params.advancedOpen;
+        if (advancedSearchDialogOpen) params.advanced = "true";
+        else delete params.advanced;
         setLocation(stringifySearchParams(params), { replace: true });
     }, [advancedSearchDialogOpen]);
 
@@ -226,7 +235,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
             {/* Dialog for setting advanced search items */}
             <AdvancedSearchDialog
                 handleClose={handleAdvancedSearchDialogClose}
-                handleSearch={() => { }}
+                handleSearch={handleAdvancedSearchDialogSubmit}
                 isOpen={advancedSearchDialogOpen}
                 session={session}
             />

@@ -25,17 +25,17 @@ export const routineSearchSchema: FormSchema = {
             label: "Is Complete?",
             type: InputType.Radio,
             props: {
-                defaultValue: null,
+                defaultValue: 'dontCare',
                 row: true,
                 options: [
-                    { label: "Yes", value: true },
-                    { label: "No", value: false },
-                    { label: "Don't Care", value: null },
+                    { label: "Yes", value: 'yes' },
+                    { label: "No", value: 'no' },
+                    { label: "Don't Care", value: 'dontCare' },
                 ]
             }
         },
         {
-            fieldName: "minimumStars",
+            fieldName: "minStars",
             label: "Minimum Stars",
             type: InputType.QuantityBox,
             props: {
@@ -44,7 +44,7 @@ export const routineSearchSchema: FormSchema = {
             }
         },
         {
-            fieldName: "minimumScore",
+            fieldName: "minScore",
             label: "Minimum Score",
             type: InputType.QuantityBox,
             props: {
@@ -53,7 +53,7 @@ export const routineSearchSchema: FormSchema = {
             }
         },
         {
-            fieldName: "minimumSimplicity",
+            fieldName: "minSimplicity",
             label: "Minimum Simplicity",
             type: InputType.QuantityBox,
             props: {
@@ -62,7 +62,7 @@ export const routineSearchSchema: FormSchema = {
             }
         },
         {
-            fieldName: "maximumSimplicity",
+            fieldName: "maxSimplicity",
             label: "Maximum Simplicity",
             type: InputType.QuantityBox,
             props: {
@@ -71,7 +71,7 @@ export const routineSearchSchema: FormSchema = {
             }
         },
         {
-            fieldName: "minimumComplexity",
+            fieldName: "minComplexity",
             label: "Minimum Complexity",
             type: InputType.QuantityBox,
             props: {
@@ -80,7 +80,7 @@ export const routineSearchSchema: FormSchema = {
             }
         },
         {
-            fieldName: "maximumComplexity",
+            fieldName: "maxComplexity",
             label: "Maximum Complexity",
             type: InputType.QuantityBox,
             props: {

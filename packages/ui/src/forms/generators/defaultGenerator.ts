@@ -78,7 +78,6 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
  * @param fields The form's field data
  */
 export const generateDefaultProps = (fields: FieldData[]): FieldData[] => {
-    console.log('generating default props', fields)
     if (!fields) return [];
     return fields.map(field => {
         const { props, ...otherKeys } = field;

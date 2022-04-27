@@ -21,17 +21,17 @@ export const projectSearchSchema: FormSchema = {
             label: "Is Complete?",
             type: InputType.Radio,
             props: {
-                defaultValue: null,
+                defaultValue: 'dontCare',
                 row: true,
                 options: [
-                    { label: "Yes", value: true },
-                    { label: "No", value: false },
-                    { label: "Don't Care", value: null },
+                    { label: "Yes", value: 'yes' },
+                    { label: "No", value: 'no' },
+                    { label: "Don't Care", value: 'dontCare' },
                 ]
             }
         },
         {
-            fieldName: "minimumStars",
+            fieldName: "minStars",
             label: "Minimum Stars",
             type: InputType.QuantityBox,
             props: {
@@ -40,7 +40,7 @@ export const projectSearchSchema: FormSchema = {
             }
         },
         {
-            fieldName: "minimumScore",
+            fieldName: "minScore",
             label: "Minimum Score",
             type: InputType.QuantityBox,
             props: {

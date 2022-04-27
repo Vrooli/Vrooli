@@ -18,6 +18,7 @@ import { Dropzone, JSONInput, LanguageInput, MarkdownInput, QuantityBox, Selecto
 import { DropzoneProps, QuantityBoxProps, SelectorProps, TagSelectorTag } from 'components/inputs/types'
 import { CheckboxProps, FieldData, InputType, JSONProps, LanguageInputProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TagSelectorProps, TextFieldProps } from 'forms/types'
 import { updateArray } from 'utils'
+import _ from 'lodash'
 
 /**
  * Function signature shared between all input components
@@ -41,10 +42,6 @@ export const toCheckbox = ({
     const props = data.props as CheckboxProps;
     const hasError: boolean = formik.touched[data.fieldName] && Boolean(formik.errors[data.fieldName]);
     const errorText: string | null = hasError ? formik.errors[data.fieldName] : null;
-    console.log('TO CHECKBOXXXX', props, formik.values[data.fieldName]);
-    console.log('yeeties a', Array.isArray(formik.values[data.fieldName]))
-    console.log('yeeties b', formik.values[data.fieldName].lenth)
-    console.log('yeeties c', Array.isArray(formik.values[data.fieldName]) && formik.values[data.fieldName].length > index)
     return (
         <FormControl
             key={`field-${data.fieldName}-${index}`}
@@ -61,9 +58,11 @@ export const toCheckbox = ({
                         <FormControlLabel
                             control={
                                 <Checkbox
-                                    checked={(Array.isArray(formik.values[data.fieldName]) && formik.values[data.fieldName].length > index) ? formik.values[data.fieldName][index] : false}
-                                    onChange={(event) => { console.log('checkbox on change!!!', event.target.checked, index); formik.setFieldValue(data.fieldName, updateArray(formik.values[data.fieldName], index, event.target.checked)) }}
+                                    checked={(Array.isArray(formik.values[data.fieldName]) && formik.values[data.fieldName].length > index) ? formik.values[data.fieldName][index] === props.options[index] : false}
+                                    onChange={(event) => { formik.setFieldValue(data.fieldName, updateArray(formik.values[data.fieldName], index, !props.options[index])) }}
                                     name={`${data.fieldName}-${index}`}
+                                    id={`${data.fieldName}-${index}`}
+                                    value={props.options[index]}
                                 />
                             }
                             label={option.label}
@@ -167,7 +166,10 @@ export const toLanguageInput = ({
     index,
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as LanguageInputProps;
-    const languages = formik.values[data.fieldName] as string[];
+    let languages: string[] = [];
+    if (_.isObject(formik.values) && Array.isArray(formik.values[data.fieldName]) && data.fieldName in formik.values) {
+        languages = formik.values[data.fieldName] as string[];
+    }
     const addLanguage = (lang: string) => {
         formik.setFieldValue(data.fieldName, [...languages, lang]);
     };
@@ -234,8 +236,10 @@ export const toRadio = ({
             <RadioGroup
                 aria-label={data.fieldName}
                 row={props.row}
+                id={data.fieldName}
                 name={data.fieldName}
-                value={formik.values[data.fieldName]}
+                value={formik.values[data.fieldName] ?? props.defaultValue}
+                defaultValue={props.defaultValue}
                 onBlur={formik.handleBlur}
                 onChange={formik.handleChange}
                 tabIndex={index}
@@ -408,7 +412,6 @@ export const toQuantityBox = ({
     index,
 }: InputGeneratorProps): React.ReactElement => {
     const props = data.props as QuantityBoxProps;
-    console.log('quantity box generator', data, formik, index)
     return (
         <QuantityBox
             autoFocus={index === 0}
@@ -465,6 +468,5 @@ export const generateInputComponent = ({
     index,
     onUpload,
 }: InputGeneratorProps): React.ReactElement | null => {
-    console.log('generateInputComponent start', data, index);
     return typeMap[data.type]({ data, formik, index, onUpload });
 }

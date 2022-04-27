@@ -1,5 +1,6 @@
 import { FormSchema, YupSchema } from "../types";
 import { buildYup } from 'schema-to-yup';
+import { FormikConfig } from "formik";
 
 /**
  * Generate a yup schema from a form schema. Each field in this schema 
@@ -7,8 +8,7 @@ import { buildYup } from 'schema-to-yup';
  * Then we convert this schema into a yup object.
  * @param formSchema The schema of the entire form
  */
-export const generateYupSchema = (formSchema: FormSchema): any => {
-    console.log('generating yup schema a', formSchema)
+export const generateYupSchema = (formSchema: FormSchema): FormikConfig<any>['validationSchema'] => {
     if (!formSchema) return null;
     // Create shape object to describe yup validation
     const shape: YupSchema = {
@@ -22,7 +22,6 @@ export const generateYupSchema = (formSchema: FormSchema): any => {
     // Loop through each field in the form schema
     formSchema.fields.forEach(field => {
         const name = field.fieldName;
-        console.log('in yup generator field loop', field)
         if (field.yup) {
             // Add field to properties
             shape.properties[name] = { type: field.type };
@@ -47,7 +46,6 @@ export const generateYupSchema = (formSchema: FormSchema): any => {
             }
         }
     })
-    console.log('going to call buildYup', shape, config);
     // Build yup using newly-created shape and config
     return buildYup(shape, config)
 }

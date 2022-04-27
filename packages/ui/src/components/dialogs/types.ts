@@ -306,7 +306,7 @@ export interface SelectLanguageDialogProps {
 
 export interface AdvancedSearchDialogProps {
     handleClose: () => any;
-    handleSearch: () => any;
+    handleSearch: (searchQuery: { [x: string]: any }) => any;
     isOpen: boolean;
     session: Session;
 }

@@ -12,11 +12,9 @@ export const BaseForm = ({
     schema,
     onSubmit,
 }: BaseFormProps) => {
-    console.log('in baseform render', schema, onSubmit);
 
     // Add non-specified props to each input field
     const fieldInputs = useMemo<FieldData[]>(() => generateDefaultProps(schema?.fields), [schema?.fields]);
-    console.log('fieldInputs', fieldInputs);
 
     // Parse default values from fieldInputs, to use in formik
     const initialValues = useMemo(() => {
@@ -26,11 +24,9 @@ export const BaseForm = ({
         });
         return values;
     }, [fieldInputs])
-    console.log('initialValues', initialValues);
 
     // Generate yup schema from overall schema
     const validationSchema = useMemo(() => generateYupSchema(schema), [schema]);
-    console.log('validationSchema', validationSchema);
 
     // Stores uploaded files, where the key is the field name, and the value is an array of file urls
     const [uploadedFiles, setUploadedFiles] = useState<{ [x: string]: string[] }>({});
@@ -57,10 +53,9 @@ export const BaseForm = ({
         validationSchema,
         onSubmit: (values) => onSubmit(values),
     });
-    console.log('got formik', formik);
+    console.log('formik error', formik.errors);
     const grid = useMemo(() => {
         if (!schema) return null;
-        console.log('going to generate grid', schema);
         return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, onUpload)
     }, [schema, formik])
 
