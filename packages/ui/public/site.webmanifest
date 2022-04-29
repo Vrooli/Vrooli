@@ -1,7 +1,11 @@
 {
     "name": "Vrooli - Visual Work Routines",
     "short_name": "Vrooli",
-    "categories": ["education", "personalization", "productivity"],
+    "categories": [
+        "education",
+        "personalization",
+        "productivity"
+    ],
     "icons": [
         {
             "src": "/android-chrome-192x192.png",
@@ -35,9 +39,19 @@
     ],
     "shortcuts": [
         {
-            "name": "My Projects",
-            "url": "/projects",
-            "description": "Collection of created and saved projects"
+            "name": "Home",
+            "url": "/",
+            "description": "View and search all tasks"
+        },
+        {
+            "name": "For You",
+            "url": "/for-you",
+            "description": "View your active, completed, and starred routines - and more!"
+        },
+        {
+            "name": "Profile",
+            "url": "/profile",
+            "description": "View your profile and settings"
         },
         {
             "name": "Learn",
@@ -52,7 +66,13 @@
         {
             "name": "Develop",
             "url": "/develop",
-            "description": "Create and run routines"
+            "description": "Build new routines, projects, and organizations"
+        }
+    ],
+    "related_applications": [
+        {
+            "platform": "webapp",
+            "url": "https://app.vrooli.com/"
         }
     ]
 }
