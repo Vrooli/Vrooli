@@ -6,7 +6,7 @@ export class CustomError extends ApolloError {
         // Format error
         super(message || error.message, error.code);
         Object.defineProperty(this, 'name', { value: error.code });
-        // Log error
-        logger.log(LogLevel.error, message ?? error.message, logMeta);
+        // Log error, if logMeta is provided
+        if (logMeta) logger.log(LogLevel.error, message ?? error.message, logMeta);
     }
 }
