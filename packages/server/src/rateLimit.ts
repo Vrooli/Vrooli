@@ -3,7 +3,7 @@ import { GraphQLResolveInfo } from "graphql";
 import { initializeRedis } from "./redisConn";
 import { CustomError } from "./error";
 import { CODE } from "@local/shared";
-import { genErrorCode } from "./logger";
+import { genErrorCode, logger, LogLevel } from "./logger";
 
 export interface RateLimitProps {
     byAccount?: boolean;
@@ -33,15 +33,21 @@ export async function rateLimit({
     if (byAccount && !context.req.userId) throw new CustomError(CODE.Unauthorized, "If calling rateLimit with 'byAccount' set to true, you must be logged in", { code: genErrorCode('0015') });
     // Unique key for this request. Combination of GraphQL endpoint and userId/ip.
     const key = `rate-limit:${info.path.key}:${byAccount ? context.req.userId : context.req.ip}`;
-    const client = await initializeRedis();
-    // Increment and get the current count.
-    const count = await client.incr(key);
-    // If limit reached, throw error.
-    if (count > max) {
-        throw new CustomError(CODE.RateLimitExceeded, `Rate limit exceeded. Please try again in ${window} seconds.`, { code: genErrorCode('0017') });
+    try {
+        const client = await initializeRedis();
+        // Increment and get the current count.
+        const count = await client.incr(key);
+        // If limit reached, throw error.
+        if (count > max) {
+            throw new CustomError(CODE.RateLimitExceeded, `Rate limit exceeded. Please try again in ${window} seconds.`, { code: genErrorCode('0017') });
+        }
+        // If key is new, set expiration.
+        if (count === 1) {
+            await client.expire(key, window);
+        }
     }
-    // If key is new, set expiration.
-    if (count === 1) {
-        await client.expire(key, window);
+    // If Redis fails, let the user through. It's not their fault. 
+    catch (error) {
+        logger.log(LogLevel.error, 'Error occured while connecting or accessing redis server', { code: genErrorCode('0168'), error });
     }
 }

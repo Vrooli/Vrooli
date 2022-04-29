@@ -301,7 +301,7 @@ export const resolvers = {
             // If session is expired
             if (!context.req.userId || !Array.isArray(context.req.roles) || context.req.roles.length === 0) {
                 context.res.clearCookie(COOKIE.Session);
-                throw new CustomError(CODE.SessionExpired, 'Session expired. Please log in again', { code: genErrorCode('0147') });
+                throw new CustomError(CODE.SessionExpired, 'Session expired. Please log in again');
             }
             // If guest, return default session
             if (context.req.roles.includes(ROLES.Guest)) {
