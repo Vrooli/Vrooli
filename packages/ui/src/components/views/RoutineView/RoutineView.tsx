@@ -7,6 +7,7 @@ import { routineQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     AccountTree as GraphIcon,
+    DoneAll as MarkAsCompleteIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
@@ -16,13 +17,14 @@ import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
 import { ResourceList, Routine, User } from "types";
 import Markdown from "markdown-to-jsx";
-import { routineDeleteOneMutation, routineStartMutation } from "graphql/mutation";
+import { routineCompleteMutation, routineDeleteOneMutation, routineStartMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/wrappers";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { routineStart, routineStartVariables } from "graphql/generated/routineStart";
 import { validate as uuidValidate } from 'uuid';
+import { routineComplete, routineCompleteVariables } from "graphql/generated/routineComplete";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -93,6 +95,17 @@ export const RoutineView = ({
         setLocation(`${APP_LINKS.Build}/${routine?.id}`);
     }
 
+    const [logRoutineComplete] = useMutation<routineComplete>(routineCompleteMutation);
+    const markAsComplete = useCallback(() => {
+        if (!routine) return;
+        mutationWrapper({
+            mutation: logRoutineComplete,
+            input: { id: routine.id },
+            successMessage: () => 'Routine completed!🎉',
+            onSuccess: () => { setLocation(APP_LINKS.Home) },
+        })
+    }, [routine, logRoutineComplete]);
+
     const [logRoutineStart] = useMutation<routineStart, routineStartVariables>(routineStartMutation);
     const [isRunOpen, setIsRunOpen] = useState(false)
     const runRoutine = () => {
@@ -150,10 +163,19 @@ export const RoutineView = ({
     }, [routine, canEdit, session]);
 
     /**
-     * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" buttons
+     * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" buttons. 
+     * Otherwise, display "Mark as Complete" button.
      */
     const actions = useMemo(() => {
-        if (!routine?.nodes?.length) return null;
+        // If routine has no nodes
+        if (!routine?.nodes?.length) return (
+            <Grid container spacing={1}>
+                <Grid item xs={12}>
+                    <Button startIcon={<MarkAsCompleteIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
+                </Grid>
+            </Grid>
+        )
+        // If routine has nodes
         return (
             <Grid container spacing={1}>
                 <Grid item xs={12} sm={6}>

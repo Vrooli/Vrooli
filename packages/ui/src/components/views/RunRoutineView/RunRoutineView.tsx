@@ -21,6 +21,7 @@ import { parseSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { routineComplete, routineCompleteVariables } from "graphql/generated/routineComplete";
 import { routineCompleteMutation } from "graphql/mutation";
+import { mutationWrapper } from "graphql/utils";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -385,16 +386,19 @@ export const RunRoutineView = ({
         setStepParams(nextStep);
     }, [nextStep, progress, stepParams, setLocation, setProgress]);
 
-    const [logRoutineComplete] = useMutation<routineComplete, routineCompleteVariables>(routineCompleteMutation);
+    const [logRoutineComplete] = useMutation<routineComplete>(routineCompleteMutation);
     /**
      * Mark routine as complete and navigate
      */
-    const toComplete = () => {
+    const toComplete = () => useCallback(() => {
         // Log complete
-        logRoutineComplete({ variables: { input: { id: routine?.id ?? '' } } })
-        PubSub.publish(Pubs.Snack, { message: 'Routine completed!🎉' });
-        handleClose();
-    }
+        mutationWrapper({
+            mutation: logRoutineComplete,
+            input: { id: routine?.id ?? '' },
+            successMessage: () => 'Routine completed!🎉',
+            onSuccess: () => { handleClose() },
+        })
+    }, [logRoutineComplete, handleClose, mutationWrapper, routine]);
 
     /**
      * End routine early
@@ -402,7 +406,7 @@ export const RunRoutineView = ({
     const toFinishNotComplete = () => {
         console.log('tofinishnotcomplete');
         //TODO
-        // Log complete
+        // Log incomplete
         logRoutineComplete({ variables: { input: { id: routine?.id ?? '' } } })
         handleClose();
     }
