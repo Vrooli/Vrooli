@@ -1963,6 +1963,7 @@ export type RoutineCancelInput = {
 
 export type RoutineCompleteInput = {
   id: Scalars['ID'];
+  standalone?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type RoutineCountInput = {

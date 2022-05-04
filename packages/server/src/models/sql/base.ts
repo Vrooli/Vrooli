@@ -1205,8 +1205,8 @@ export async function readOneHelper<GraphQLModel>(
     let formatted = modelToGraphQL(object, partial) as RecursivePartial<GraphQLModel>;
     // If organization, project, routine, or standard, log for stats
     if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
-        console.log('ADDING VIEW LOG')
-        await Log.collection.insertOne({
+        // No need to await this, since it is not needed for the response
+        Log.collection.insertOne({
             timestamp: Date.now(),
             userId: userId,
             action: LogType.View,
@@ -1371,7 +1371,8 @@ export async function createHelper<GraphQLModel>(
                 object1Type: objectType,
                 object1Id: c.id,
             }));
-            await Log.collection.insertMany(logs)
+            // No need to await this, since it is not needed for the response
+            Log.collection.insertMany(logs)
         }
         return (await addSupplementalFields(model.prisma, userId, created, partial))[0] as any;
     }
@@ -1415,7 +1416,8 @@ export async function updateHelper<GraphQLModel>(
                 object1Type: objectType,
                 object1Id: c.id,
             }));
-            await Log.collection.insertMany(logs)
+            // No need to await this, since it is not needed for the response
+            Log.collection.insertMany(logs)
         }
         return (await addSupplementalFields(model.prisma, userId, updated, partial))[0] as any;
     }
@@ -1444,7 +1446,8 @@ export async function deleteOneHelper(
         // If organization, project, routine, or standard, log for stats
         const objectType = model.relationshipMap.__typename;
         if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
-            await Log.collection.insertOne({
+            // No need to await this, since it is not needed for the response
+            Log.collection.insertOne({
                 timestamp: Date.now(),
                 userId: userId,
                 action: LogType.Delete,
@@ -1487,7 +1490,8 @@ export async function deleteManyHelper(
             object1Type: objectType,
             object1Id: id,
         }));
-        await Log.collection.insertMany(logs)
+        // No need to await this, since it is not needed for the response
+        Log.collection.insertMany(logs)
     }
     return deleted
 }

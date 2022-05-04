@@ -825,6 +825,7 @@ export interface RoutineCancelInput {
 
 export interface RoutineCompleteInput {
   id: string;
+  standalone?: boolean | null;
 }
 
 export interface RoutineCountInput {

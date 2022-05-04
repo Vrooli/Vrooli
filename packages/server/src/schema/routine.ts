@@ -7,7 +7,7 @@ import { countHelper, createHelper, deleteOneHelper, GraphQLModelType, Log, LogT
 import { rateLimit } from '../rateLimit';
 import { CustomError } from '../error';
 import { CODE } from '@local/shared';
-import { genErrorCode } from '../logger';
+import { genErrorCode, logger, LogLevel } from '../logger';
 import { randomString } from '../auth/walletAuth';
 
 export const typeDef = gql`
@@ -265,6 +265,7 @@ export const typeDef = gql`
 
     input RoutineCompleteInput {
         id: ID!
+        standalone: Boolean
     }
 
     input RoutineCancelInput {
@@ -322,7 +323,7 @@ export const resolvers = {
             return deleteOneHelper(context.req.userId, input, RoutineModel(context.prisma));
         },
         routineStart: async (_parent: undefined, { input }: IWrap<RoutineStartInput>, context: Context, info: GraphQLResolveInfo): Promise<LogReturn> => {
-            if (!context.req.userId) 
+            if (!context.req.userId)
                 throw new CustomError(CODE.Unauthorized, 'Cannot log routine start if you are not logged in', { code: genErrorCode('0153') });
             // Check if log already exists
             const lastLog = await Log.find({
@@ -348,18 +349,29 @@ export const resolvers = {
             }
         },
         routineComplete: async (_parent: undefined, { input }: IWrap<RoutineCompleteInput>, context: Context, info: GraphQLResolveInfo): Promise<LogReturn> => {
-            if (!context.req.userId) 
+            if (!context.req.userId)
                 throw new CustomError(CODE.Unauthorized, 'Cannot log routine complete if you are not logged in', { code: genErrorCode('0154') });
-            // Make sure start log exists
-            const lastLog = await Log.find({
-                action: { $in: routineLogs },
-                input1Type: GraphQLModelType.Routine,
-                input1Id: input.id,
-                userId: context.req.userId,
-            }).sort({ timestamp: -1 }).limit(1).lean().exec();
-            if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStartIncomplete) throw new CustomError(CODE.InternalError, 'Could not find start log for routine');
-            // Update old log from incomplete to complete
-            await Log.updateOne({ _id: lastLog[0]._id }, { action: LogType.RoutineStartCompleted }).exec();
+            // If routine is standalone (i.e. was only one step), timing is not tracked. 
+            // This means there will be no start log, and that's okay.
+            let logSession = undefined;
+            if (!input.standalone) {
+                // Make sure start log exists
+                const lastLog = await Log.find({
+                    action: { $in: routineLogs },
+                    input1Type: GraphQLModelType.Routine,
+                    input1Id: input.id,
+                    userId: context.req.userId,
+                }).sort({ timestamp: -1 }).limit(1).lean().exec();
+                // If log doesn't exist, log (the other kind of log) error
+                if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStartIncomplete) {
+                    logger.log(LogLevel.error, 'Could not find start log for routine', { code: genErrorCode('0169'), userId: context.req.userId, routineId: input.id });
+                } 
+                // If log exists, set log session and change log type to completed
+                else {
+                    logSession = lastLog[0].session;
+                    await Log.updateOne({ _id: lastLog[0]._id }, { action: LogType.RoutineStartCompleted }).exec();
+                }
+            }
             // Insert new complete log
             const logData = {
                 timestamp: Date.now(),
@@ -367,13 +379,13 @@ export const resolvers = {
                 action: LogType.RoutineComplete,
                 object1Type: GraphQLModelType.Routine,
                 object1Id: input.id,
-                session: lastLog[0].session,
+                session: logSession,
             }
             const log = await Log.collection.insertOne(logData)
-            return { id: log.insertedId.toString(), ...logData } as any; //TODO remove any
+            return { id: log.insertedId.toString(), ...logData };
         },
         routineCancel: async (_parent: undefined, { input }: IWrap<RoutineCancelInput>, context: Context, info: GraphQLResolveInfo): Promise<LogReturn> => {
-            if (!context.req.userId) 
+            if (!context.req.userId)
                 throw new CustomError(CODE.Unauthorized, 'Cannot log routine cancel if you are not logged in', { code: genErrorCode('0155') });
             // Make sure start log exists
             const lastLog = await Log.find({
@@ -382,7 +394,7 @@ export const resolvers = {
                 input1Id: input.id,
                 userId: context.req.userId,
             }).sort({ timestamp: -1 }).limit(1).lean().exec();
-            if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStartIncomplete) 
+            if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStartIncomplete)
                 throw new CustomError(CODE.InternalError, 'Could not find start log for routine', { code: genErrorCode('0156') });
             // Update old log from incomplete to canceled
             await Log.updateOne({ _id: lastLog[0]._id }, { action: LogType.RoutineStartCanceled }).exec();
@@ -396,7 +408,7 @@ export const resolvers = {
                 session: lastLog[0].session,
             }
             const log = await Log.collection.insertOne(logData)
-            return { id: log.insertedId.toString(), ...logData } as any; //TODO remove any
+            return { id: log.insertedId.toString(), ...logData };
         },
     }
 }

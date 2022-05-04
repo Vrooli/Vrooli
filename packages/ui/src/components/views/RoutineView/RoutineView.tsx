@@ -102,7 +102,10 @@ export const RoutineView = ({
             mutation: logRoutineComplete,
             input: { id: routine.id },
             successMessage: () => 'Routine completed!🎉',
-            onSuccess: () => { setLocation(APP_LINKS.Home) },
+            onSuccess: () => { 
+                PubSub.publish(Pubs.Celebration);
+                setLocation(APP_LINKS.Home) 
+            },
         })
     }, [routine, logRoutineComplete]);
 

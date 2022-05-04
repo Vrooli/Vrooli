@@ -103,8 +103,9 @@ const logSchema = new Schema({
     }
 });
 
-// Model for logs
-export const Log = mongoose.model('Log', logSchema);
+// Model for logs. Logs during development are sent to their own collection.
+const collectionName = process.env.NODE_ENV === 'development' ? 'LogDev' : 'Log';
+export const Log = mongoose.model(collectionName, logSchema);
 
 // Search for logs
 export const logSearcher = () => ({

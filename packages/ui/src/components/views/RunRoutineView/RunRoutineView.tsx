@@ -390,13 +390,16 @@ export const RunRoutineView = ({
     /**
      * Mark routine as complete and navigate
      */
-    const toComplete = () => useCallback(() => {
+    const toComplete = useCallback(() => {
         // Log complete
         mutationWrapper({
             mutation: logRoutineComplete,
-            input: { id: routine?.id ?? '' },
+            input: { id: routine?.id ?? '', standalone: true },
             successMessage: () => 'Routine completed!🎉',
-            onSuccess: () => { handleClose() },
+            onSuccess: () => { 
+                PubSub.publish(Pubs.Celebration);
+                handleClose() 
+            },
         })
     }, [logRoutineComplete, handleClose, mutationWrapper, routine]);
 

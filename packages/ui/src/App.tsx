@@ -16,6 +16,7 @@ import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
 import hotkeys from 'hotkeys-js';
+import Confetti from 'react-confetti';
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -73,6 +74,7 @@ export function App() {
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState(themes.light);
     const [loading, setLoading] = useState(false);
+    const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useMutation<any>(validateSessionMutation);
 
@@ -146,12 +148,24 @@ export function App() {
                 setLoading(Boolean(data));
             }
         });
+        // Handle celebration (confetti). Defaults to 5 seconds long, but duration 
+        // can be passed in as a number
+        let celebrationSub = PubSub.subscribe(Pubs.Celebration, (_, data) => {
+            // Start confetti immediately
+            setCelebrating(true);
+            // Determine duration
+            let duration = 5000;
+            if (Number.isInteger(data)) duration = data;
+            // Stop confetti after duration
+            setTimeout(() => setCelebrating(false), duration);
+        });
         let sessionSub = PubSub.subscribe(Pubs.Session, (_, session) => {
             setSession(s => (session === undefined ? undefined : { ...s, ...session }));
         });
         let themeSub = PubSub.subscribe(Pubs.Theme, (_, data) => setTheme(themes[data] ?? themes.light));
         return (() => {
             PubSub.unsubscribe(loadingSub);
+            PubSub.unsubscribe(celebrationSub);
             PubSub.unsubscribe(sessionSub);
             PubSub.unsubscribe(themeSub);
         })
@@ -174,6 +188,7 @@ export function App() {
                             minHeight: '100vh',
                         }}>
                             <Navbar session={session ?? {}} sessionChecked={session !== undefined} />
+                            {/* Progress bar */}
                             {
                                 loading && <Box sx={{
                                     position: 'absolute',
@@ -184,6 +199,10 @@ export function App() {
                                 }}>
                                     <CircularProgress size={100} />
                                 </Box>
+                            }
+                            {/* Celebratory confetti. To be used sparingly */}
+                            {
+                                celebrating && <Confetti />
                             }
                             <AlertDialog />
                             <Snack />
