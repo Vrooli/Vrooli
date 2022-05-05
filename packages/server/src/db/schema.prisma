@@ -117,6 +117,7 @@ model node {
     translations    node_translation[]
     previous        node_link[]        @relation("node_previous")
     next            node_link[]        @relation("node_next")
+    runSteps        run_step[]
 }
 
 model node_translation {
@@ -522,6 +523,8 @@ model routine {
     score                   Int                      @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     simplicity              Int                      @default(1) // Opposite of completixy - 1 + (complexity of each subroutine) along the shortest path
     stars                   Int                      @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    timesStarted            Int                      @default(0) // Count of times the routine was started. Includes times started as subroutine, but excludes runs by the owner
+    timesCompleted          Int                      @default(0) // Count of times the routine was completed. Includes times completed as subroutine, but excludes runs by the owner
     views                   Int                      @default(0) // Count of all views. Makes queries easier than counting the relationship every time
     createdByUserId         String?                  @db.Uuid // User who created this routine
     createdByOrganizationId String?                  @db.Uuid // Organization who created this routine
@@ -545,6 +548,7 @@ model routine {
     parent                  routine?                 @relation("routine_fork", fields: [parentId], references: [id], onDelete: SetNull)
     reports                 report[]
     resourceLists           resource_list[]
+    runs                    run[]                    @relation("run_routine")
     starredBy               star[]                   @relation("star_routine")
     tags                    routine_tags[] // Categorical tags set by creators or community-voted
     translations            routine_translation[]
@@ -622,6 +626,57 @@ model routine_tags {
 
 //==============================================================
 // #endregion
+//==============================================================
+
+//==============================================================
+// #region Run
+//==============================================================
+// Stores information about individual runs of a routine.
+// Can be multiple per routine/user combination.
+//==============================================================
+
+model run {
+    id                  String     @id @default(uuid()) @db.Uuid
+    completedComplexity Int? // Complexity of routine which was already completed. Used to measure progress more accurately than just the number of nodes completed.
+    endNodeId           String?    @db.Uuid // ID of the last node executed
+    pickups             Int        @default(1) // Measures context switches. 1 means that the routine was executed completely without leaving
+    timeStarted         DateTime?  @db.Timestamptz(6)
+    timeElapsed         Int? // Time spent working on the run, in seconds
+    timeCompleted       DateTime?  @db.Timestamptz(6)
+    title               String     @db.VarChar(128) // Title of viewed item, as it appears to the user. Makes searching for items that changed names easier
+    status              RunStatus  @default(Scheduled)
+    routineId           String?    @db.Uuid
+    userId              String?    @db.Uuid
+    routine             routine?   @relation("run_routine", fields: [routineId], references: [id], onDelete: SetNull)
+    steps               run_step[]
+    user                user?      @relation("run_user", fields: [userId], references: [id])
+}
+
+// Individual step of a run. Used to store progress, and additional metrics for each step.
+// Steps may be executed multiple times (i.e. loops), so duplicate steps are allowed.
+model run_step {
+    id            String        @id @default(uuid()) @db.Uuid
+    order         Int // Execution order of the step. Routines don't need to be completed linearly 
+    pickups       Int           @default(1) // Measures context switches. 1 means that the step was executed completely without leaving
+    runId         String        @db.Uuid
+    nodeId        String        @db.Uuid
+    timeStarted   DateTime?     @db.Timestamptz(6)
+    timeElapsed   Int? // Time spent working on the step, in seconds
+    timeCompleted DateTime?     @db.Timestamptz(6)
+    status        RunStepStatus @default(InProgress)
+    run           run?          @relation(fields: [runId], references: [id], onDelete: SetNull)
+    node          node?         @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+}
+
+// TODO scheduling runs
+// // Schedules a routine to run at a specific time - once or repeatedly
+// // Can be triggered based on time or conditions
+// model run_schedule {
+
+// }
+
+//==============================================================
+// #endregion Run
 //==============================================================
 
 //==============================================================
@@ -798,6 +853,7 @@ model user {
     projectsCreated                project[]            @relation("project_user_creator") // Projects that the user created, but cannot necessarily control
     routines                       routine[]            @relation("routine_user_owner") // Routines the user can control
     routinesCreated                routine[]            @relation("routine_user_creator") // Routines the user created, but cannot necessarily control
+    runs                           run[]                @relation("run_user")
     sentReports                    report[]             @relation("report_from")
     starred                        star[]               @relation("star_by")
     starredBy                      star[]               @relation("star_user")
@@ -882,7 +938,7 @@ model view {
 }
 
 //==============================================================
-// #endregion Star
+// #endregion View
 //==============================================================
 
 //==============================================================
@@ -1001,6 +1057,21 @@ enum StandardType {
     Array
     File
     Url
+}
+
+enum RunStatus {
+    Scheduled // Routine is scheduled to run
+    InProgress // Routine is currently running
+    Completed // Routine has completed running, and was successful
+    Failed // Routine has completed running, but failed
+    Cancelled // Routine was cancelled
+}
+
+// Run steps are only created as the routine is being run, so there is no scheduling
+enum RunStepStatus {
+    InProgress // Step is currently running
+    Completed // Step has completed running
+    Skipped // Step was skipped. Only allowed if step is optional
 }
 
 //==============================================================
