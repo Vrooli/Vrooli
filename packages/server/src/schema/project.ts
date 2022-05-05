@@ -60,9 +60,11 @@ export const typeDef = gql`
         isComplete: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean
+        isViewed: Boolean!
         role: MemberRole
         score: Int!
         stars: Int!
+        views: Int!
         comments: [Comment!]!
         creator: Contributor
         forks: [Project!]!
@@ -103,6 +105,7 @@ export const typeDef = gql`
         languages: [String!]
         minScore: Int
         minStars: Int
+        minViews: Int
         organizationId: ID
         parentId: ID
         reportId: ID

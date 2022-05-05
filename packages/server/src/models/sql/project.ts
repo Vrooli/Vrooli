@@ -1,4 +1,4 @@
-import { CODE, MemberRole, projectCreate, projectTranslationCreate, projectTranslationUpdate, projectUpdate } from "@local/shared";
+import { CODE, MemberRole, projectCreate, projectTranslationCreate, projectTranslationUpdate, projectUpdate, StarFor, ViewFor, VoteFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
@@ -12,6 +12,7 @@ import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
+import { ViewModel } from "./view";
 
 //==============================================================
 /* #region Custom Components */
@@ -70,16 +71,23 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, 'project')
+                ? await StarModel(prisma).getIsStarreds(userId, ids, StarFor.Project)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, 'project')
+                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, VoteFor.Project)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
+        }
+        // Query for isViewed
+        if (partial.isViewed) {
+            const isViewedArray = userId
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, ViewFor.Project)
+                : Array(ids.length).fill(false);
+            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
         // Query for role
         if (partial.role) {
@@ -136,17 +144,20 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
         })
     },
     customQueries(input: ProjectSearchInput): { [x: string]: any } {
-        const isCompleteQuery = input.isComplete ? { isComplete: true } : {};
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
-        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}; const userIdQuery = input.userId ? { userId: input.userId } : undefined;
-        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
-        const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
-        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...isCompleteQuery, ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...resourceListsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...reportIdQuery, ...tagsQuery };
+        return {
+            ...(input.isComplete ? { isComplete: true } : {}),
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
+            ...(input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            ...(input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            ...(input.userId ? { userId: input.userId } : {}),
+            ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+            ...(input.parentId ? { parentId: input.parentId } : {}),
+            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        }
     },
 })
 

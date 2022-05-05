@@ -257,9 +257,10 @@ model organization {
     id                 String                     @id @default(uuid()) @db.Uuid
     created_at         DateTime                   @default(now()) @db.Timestamptz(6)
     updated_at         DateTime                   @default(now()) @db.Timestamptz(6)
+    handle             String?                    @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
     isOpenToNewMembers Boolean                    @default(false) // If looking for open-source contributors or team members. Paid or unpaid
     stars              Int                        @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
-    handle             String?                    @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
+    views              Int                        @default(0) // Count of all views. Makes queries easier than counting the relationship every time
     comments           comment[]
     members            organization_users[]
     projects           project[]                  @relation("project_organization_owner") // Projects the organization can contorl
@@ -272,6 +273,7 @@ model organization {
     starredBy          star[]                     @relation("star_organization")
     tags               organization_tags[] // Categorical tags set by creators or community-voted
     translations       organization_translation[]
+    viewedBy           view[]                     @relation("view_organization")
     wallets            wallet[]
 }
 
@@ -327,6 +329,7 @@ model project {
     completedAt             DateTime?             @db.Timestamptz(6) // If the project is complete, this is the time it was completed
     score                   Int                   @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     stars                   Int                   @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    views                   Int                   @default(0) // Count of all views. Makes queries easier than counting the relationship every time
     createdByUserId         String?               @db.Uuid // User who created this
     createdByOrganizationId String?               @db.Uuid // Organization who created this
     handle                  String?               @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
@@ -347,6 +350,7 @@ model project {
     tags                    project_tags[] // Categorical tags set by creators or community-voted
     translations            project_translation[]
     votes                   vote[]                @relation("vote_project")
+    viewedBy                view[]                @relation("view_project")
     wallets                 wallet[]
 }
 
@@ -518,6 +522,7 @@ model routine {
     score                   Int                      @default(0) // Count of all upvotes - downvotes. Easier to store than calculate on the fly.
     simplicity              Int                      @default(1) // Opposite of completixy - 1 + (complexity of each subroutine) along the shortest path
     stars                   Int                      @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
+    views                   Int                      @default(0) // Count of all views. Makes queries easier than counting the relationship every time
     createdByUserId         String?                  @db.Uuid // User who created this routine
     createdByOrganizationId String?                  @db.Uuid // Organization who created this routine
     organizationId          String?                  @db.Uuid // Organization who can edit this routine
@@ -543,6 +548,7 @@ model routine {
     starredBy               star[]                   @relation("star_routine")
     tags                    routine_tags[] // Categorical tags set by creators or community-voted
     translations            routine_translation[]
+    viewedBy                view[]                   @relation("view_routine")
     votes                   vote[]                   @relation("vote_routine")
 }
 
@@ -635,6 +641,7 @@ model standard {
     stars                   Int                    @default(0) // Count of all stars. Makes queries easier than counting the relationship every time
     type                    StandardType
     version                 String                 @default("1.0.0") @db.VarChar(16) // Arbitrary version number
+    views                   Int                    @default(0) // Count of all views. Makes queries easier than counting the relationship every time
     createdByUserId         String?                @db.Uuid // User who created the standard, if exists (could have been created anonymously or by an organization)
     createdByOrganizationId String?                @db.Uuid // Organization who created the standard, if exists (could have been created anonymously or by a user)
     comments                comment[]
@@ -646,6 +653,7 @@ model standard {
     starredBy               star[]                 @relation("star_standard")
     tags                    standard_tags[] // Categorical tags set by creators or community-voted
     translations            standard_translation[]
+    viewedBy                view[]                 @relation("view_standard")
     votes                   vote[]                 @relation("vote_standard")
 
     // A user or organization cannot update a standard once it has been published (except for its description and tags).
@@ -683,9 +691,9 @@ model standard_tags {
 //==============================================================
 // #region Star
 //==============================================================
-// Objects can only by a user, not an organization.
+// Objects can only be starred by a user, not an organization.
 // If a user wants to promote another's work, they can put it in a resource list.
-// Votes can be applied to comments, projects, routines, standards, and tags.
+// Stars can be applied to organizations, projects, routines, standards, tags, and users
 //==============================================================
 
 model star {
@@ -709,7 +717,7 @@ model star {
 }
 
 //==============================================================
-// #endregion Vote
+// #endregion Star
 //==============================================================
 
 //==============================================================
@@ -774,6 +782,7 @@ model user {
     theme                          String               @default("light") @db.VarChar(255)
     handle                         String?              @unique @db.VarChar(16) // Must match ADA Handle of verified wallet linked to user
     stars                          Int                  @default(0) // Count of all stars the user has RECEIVED, not given. Makes queries easier than counting the relationship every time
+    views                          Int                  @default(0) // Count of all views. Makes queries easier than counting the relationship every time
     status                         AccountStatus        @default(Unlocked)
     comments                       comment[]
     emails                         email[]
@@ -794,6 +803,8 @@ model user {
     starredBy                      star[]               @relation("star_user")
     translations                   user_translation[]
     votes                          vote[]               @relation("vote_by") // Votes the user has cast, NOT votes the user has received (since users can't be voted on)
+    viewed                         view[]               @relation("view_by")
+    viewedBy                       view[]               @relation("view_user")
     wallets                        wallet[]
 }
 
@@ -841,6 +852,37 @@ model user_tag_hidden {
 
 //==============================================================
 // #endregion
+//==============================================================
+
+//==============================================================
+// #region View
+//==============================================================
+// Objects can only be viewed by a user, not an organization.
+// Views can be applied to organizations, projects, routines, standards, and users
+//==============================================================
+
+model view {
+    id             String        @id @default(uuid()) @db.Uuid
+    lastViewed     DateTime      @default(now()) @db.Timestamptz(6)
+    title          String        @db.VarChar(128) // Title of viewed item, as it appears to the user. Makes searching for items that changed names easier
+    byId           String        @db.Uuid // ID of user who voted
+    commentId      String?       @db.Uuid
+    organizationId String?       @db.Uuid
+    projectId      String?       @db.Uuid
+    routineId      String?       @db.Uuid
+    standardId     String?       @db.Uuid
+    tagId          String?       @db.Uuid
+    userId         String?       @db.Uuid // ID of user being starred
+    by             user          @relation("view_by", fields: [byId], references: [id])
+    organization   organization? @relation("view_organization", fields: [organizationId], references: [id])
+    project        project?      @relation("view_project", fields: [projectId], references: [id], onDelete: Cascade)
+    routine        routine?      @relation("view_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    standard       standard?     @relation("view_standard", fields: [standardId], references: [id], onDelete: Cascade)
+    user           user?         @relation("view_user", fields: [userId], references: [id])
+}
+
+//==============================================================
+// #endregion Star
 //==============================================================
 
 //==============================================================

@@ -18,5 +18,6 @@ export * from './star';
 export * from './tag';
 export * from './translation';
 export * from './user';
+export * from './view';
 export * from './vote';
 export * from './wallet';

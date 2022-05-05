@@ -2,7 +2,7 @@ import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialInfo } from "./base";
 import { CustomError } from "../../error";
-import { CODE, MemberRole, organizationCreate, organizationTranslationCreate, organizationTranslationUpdate, organizationUpdate } from "@local/shared";
+import { CODE, MemberRole, organizationCreate, organizationTranslationCreate, organizationTranslationUpdate, organizationUpdate, StarFor, ViewFor } from "@local/shared";
 import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -10,6 +10,7 @@ import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
+import { ViewModel } from "./view";
 
 //==============================================================
 /* #region Custom Components */
@@ -52,9 +53,16 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, 'organization')
+                ? await StarModel(prisma).getIsStarreds(userId, ids, StarFor.Organization)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
+        }
+        // Query for isViewed
+        if (partial.isViewed) {
+            const isViewedArray = userId
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, ViewFor.Organization)
+                : Array(ids.length).fill(false);
+            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
         // Query for role
         if (partial.role) {
@@ -90,18 +98,20 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
         })
     },
     customQueries(input: OrganizationSearchInput): { [x: string]: any } {
-        const isOpenToNewMembersQuery = input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {};
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const projectIdQuery = input.projectId ? { projects: { some: { projectId: input.projectId } } } : {};
-        const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {};
-        const routineIdQuery = input.routineId ? { routines: { some: { id: input.routineId } } } : {};
-        const userIdQuery = input.userId ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {};
-        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const standardIdQuery = input.standardId ? { standards: { some: { id: input.standardId } } } : {};
-        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...isOpenToNewMembersQuery, ...languagesQuery, ...minStarsQuery, ...projectIdQuery, ...resourceListsQuery, ...resourceTypesQuery, ...routineIdQuery, ...userIdQuery, ...reportIdQuery, ...standardIdQuery, ...tagsQuery };
+        return {
+            ...(input.isOpenToNewMembers ? { isOpenToNewMembers: true } : {}),
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
+            ...(input.projectId ? { projects: { some: { projectId: input.projectId } } } : {}),
+            ...(input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            ...(input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            ...(input.routineId ? { routines: { some: { id: input.routineId } } } : {}),
+            ...(input.userId ? { members: { some: { userId: input.userId, role: { in: [MemberRole.Admin, MemberRole.Owner] } } } } : {}),
+            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.standardId ? { standards: { some: { id: input.standardId } } } : {}),
+            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        }
     },
 })
 

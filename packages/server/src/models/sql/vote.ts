@@ -24,11 +24,12 @@ export const voteFormatter = (): FormatConverter<Vote> => ({
         }
     },
     constructUnions: (data) => {
-        let { comment, project, routine, standard, ...modified } = data;
+        let { comment, project, routine, standard, tag, ...modified } = data;
         if (comment) modified.to = comment;
         else if (project) modified.to = project;
         else if (routine) modified.to = routine;
         else if (standard) modified.to = standard;
+        else if (tag) modified.to = tag;
         return modified;
     },
     deconstructUnions: (partial) => {

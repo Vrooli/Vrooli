@@ -2,7 +2,7 @@ import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Ro
 import { PrismaType, RecursivePartial } from "types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, inputCreate, inputTranslationCreate, inputTranslationUpdate, inputUpdate, MemberRole, outputTranslationCreate, outputTranslationUpdate, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@local/shared";
+import { CODE, inputCreate, inputTranslationCreate, inputTranslationUpdate, inputUpdate, MemberRole, outputTranslationCreate, outputTranslationUpdate, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate, StarFor, ViewFor, VoteFor } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -15,6 +15,7 @@ import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
 import { Log, LogType } from "../../models/nosql";
+import { ViewModel } from "./view";
 
 //==============================================================
 /* #region Custom Components */
@@ -90,16 +91,23 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, 'routine')
+                ? await StarModel(prisma).getIsStarreds(userId, ids, StarFor.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, 'routine')
+                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, VoteFor.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
+        }
+        // Query for isViewed
+        if (partial.isViewed) {
+            const isViewedArray = userId
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, ViewFor.Routine)
+                : Array(ids.length).fill(false);
+            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
         // Query for role
         if (partial.role) {
@@ -187,23 +195,26 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
         })
     },
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
-        const excludeIdsQuery = input.excludeIds ? { NOT: { id: { in: input.excludeIds } } } : {};
-        const isCompleteQuery = input.isComplete ? { isComplete: true } : {};
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        const minComplexity = input.minComplexity ? { complexity: { gte: input.minComplexity } } : {};
-        const maxComplexity = input.maxComplexity ? { complexity: { lte: input.maxComplexity } } : {};
-        const minSimplicity = input.minSimplicity ? { simplicity: { gte: input.minSimplicity } } : {};
-        const maxSimplicity = input.maxSimplicity ? { simplicity: { lte: input.maxSimplicity } } : {};
-        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
-        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const resourceListsQuery = input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {};
-        const resourceTypesQuery = input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}; const userIdQuery = input.userId ? { userId: input.userId } : undefined;
-        const organizationIdQuery = input.organizationId ? { organizationId: input.organizationId } : undefined;
-        const projectIdQuery = input.projectId ? { projectId: input.projectId } : {};
-        const parentIdQuery = input.parentId ? { parentId: input.parentId } : {};
-        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { isInternal: false, ...excludeIdsQuery, ...isCompleteQuery, ...languagesQuery, ...minComplexity, ...maxComplexity, ...minSimplicity, ...maxSimplicity, ...minScoreQuery, ...minStarsQuery, ...resourceListsQuery, ...resourceTypesQuery, ...userIdQuery, ...organizationIdQuery, ...parentIdQuery, ...projectIdQuery, ...reportIdQuery, ...tagsQuery };
+        return {
+            ...(input.excludeIds ? { NOT: { id: { in: input.excludeIds } } } : {}),
+            ...(input.isComplete ? { isComplete: true } : {}),
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minComplexity ? { complexity: { gte: input.minComplexity } } : {}),
+            ...(input.maxComplexity ? { complexity: { lte: input.maxComplexity } } : {}),
+            ...(input.minSimplicity ? { simplicity: { gte: input.minSimplicity } } : {}),
+            ...(input.maxSimplicity ? { simplicity: { lte: input.maxSimplicity } } : {}),
+            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
+            ...(input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            ...(input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            ...(input.userId ? { userId: input.userId } : {}),
+            ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+            ...(input.projectId ? { projectId: input.projectId } : {}),
+            ...(input.parentId ? { parentId: input.parentId } : {}),
+            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        }
     },
 })
 

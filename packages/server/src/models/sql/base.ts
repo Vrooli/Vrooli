@@ -19,7 +19,7 @@ import { starFormatter } from './star';
 import { voteFormatter } from './vote';
 import { emailFormatter } from './email';
 import { CustomError } from '../../error';
-import { CODE } from '@local/shared';
+import { CODE, ViewFor } from '@local/shared';
 import { profileFormatter } from './profile';
 import { memberFormatter } from './member';
 import { resolveGraphQLInfo } from '../../utils';
@@ -29,6 +29,7 @@ import { resourceListFormatter, resourceListSearcher } from './resourceList';
 import { tagHiddenFormatter } from './tagHidden';
 import { Log, LogType } from '../../models/nosql';
 import { genErrorCode } from '../../logger';
+import { ViewModel } from './view';
 const { isObject } = pkg;
 
 
@@ -60,6 +61,7 @@ export enum GraphQLModelType {
     Tag = 'Tag',
     TagHidden = 'TagHidden',
     User = 'User',
+    View = 'View',
     Vote = 'Vote',
     Wallet = 'Wallet',
 }
@@ -1203,16 +1205,9 @@ export async function readOneHelper<GraphQLModel>(
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partial) as RecursivePartial<GraphQLModel>;
-    // If organization, project, routine, or standard, log for stats
-    if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
-        // No need to await this, since it is not needed for the response
-        Log.collection.insertOne({
-            timestamp: Date.now(),
-            userId: userId,
-            action: LogType.View,
-            object1Type: objectType,
-            object1Id: input.id,
-        })
+    // If logged in and object has view count, handle it
+    if (userId && objectType in ViewFor) {
+        ViewModel(model.prisma).view(userId, { forId: input.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
     }
     return (await addSupplementalFields(model.prisma, userId, [formatted], partial))[0] as RecursivePartial<GraphQLModel>;
 }

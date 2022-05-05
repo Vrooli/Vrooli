@@ -2,7 +2,7 @@ import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy }
 import { PrismaType, RecursivePartial } from "types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, tagCreate, tagTranslationCreate, tagTranslationUpdate, tagUpdate } from "@local/shared";
+import { CODE, StarFor, tagCreate, tagTranslationCreate, tagTranslationUpdate, tagUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
 import { StarModel } from "./star";
 import _ from "lodash";
@@ -41,7 +41,7 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, 'tag')
+                ? await StarModel(prisma).getIsStarreds(userId, ids, StarFor.Tag)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }

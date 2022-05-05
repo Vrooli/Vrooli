@@ -1020,6 +1020,7 @@ export type Organization = {
   id: Scalars['ID'];
   isOpenToNewMembers: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
+  isViewed: Scalars['Boolean'];
   members: Array<Member>;
   projects: Array<Project>;
   reports: Array<Report>;
@@ -1032,6 +1033,7 @@ export type Organization = {
   tags: Array<Tag>;
   translations: Array<OrganizationTranslation>;
   updated_at: Scalars['Date'];
+  views: Scalars['Int'];
   wallets: Array<Wallet>;
 };
 
@@ -1061,6 +1063,7 @@ export type OrganizationSearchInput = {
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
   resourceLists?: InputMaybe<Array<Scalars['String']>>;
@@ -1245,6 +1248,7 @@ export type Project = {
   isComplete: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
+  isViewed: Scalars['Boolean'];
   owner?: Maybe<Contributor>;
   parent?: Maybe<Project>;
   reports: Array<Report>;
@@ -1257,6 +1261,7 @@ export type Project = {
   tags: Array<Tag>;
   translations: Array<ProjectTranslation>;
   updated_at: Scalars['Date'];
+  views: Scalars['Int'];
   wallets?: Maybe<Array<Wallet>>;
 };
 
@@ -1296,6 +1301,7 @@ export type ProjectSearchInput = {
   languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
@@ -1945,6 +1951,7 @@ export type Routine = {
   isInternal?: Maybe<Scalars['Boolean']>;
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
+  isViewed: Scalars['Boolean'];
   nodeLinks: Array<NodeLink>;
   nodeLists: Array<NodeRoutineList>;
   nodes: Array<Node>;
@@ -1964,6 +1971,7 @@ export type Routine = {
   translations: Array<RoutineTranslation>;
   updated_at: Scalars['Date'];
   version?: Maybe<Scalars['String']>;
+  views: Scalars['Int'];
 };
 
 export type RoutineCancelInput = {
@@ -2024,6 +2032,7 @@ export type RoutineSearchInput = {
   minScore?: InputMaybe<Scalars['Int']>;
   minSimplicity?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
@@ -2144,6 +2153,7 @@ export type Standard = {
   isFile: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
+  isViewed: Scalars['Boolean'];
   name: Scalars['String'];
   reports: Array<Report>;
   role?: Maybe<MemberRole>;
@@ -2157,6 +2167,7 @@ export type Standard = {
   translations: Array<StandardTranslation>;
   type: StandardType;
   updated_at: Scalars['Date'];
+  views: Scalars['Int'];
 };
 
 export type StandardCountInput = {
@@ -2191,6 +2202,7 @@ export type StandardSearchInput = {
   languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
@@ -2417,6 +2429,7 @@ export type User = {
   handle?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   isStarred: Scalars['Boolean'];
+  isViewed: Scalars['Boolean'];
   name: Scalars['String'];
   projects: Array<Project>;
   projectsCreated: Array<Project>;
@@ -2427,6 +2440,7 @@ export type User = {
   starredBy: Array<User>;
   stars: Scalars['Int'];
   translations: Array<UserTranslation>;
+  views: Scalars['Int'];
 };
 
 export type UserCountInput = {
@@ -2456,6 +2470,7 @@ export type UserSearchInput = {
   ids?: InputMaybe<Array<Scalars['ID']>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
+  minViews?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;

@@ -44,7 +44,7 @@ export const RoutineView = ({
     }, [id])
     const routine = useMemo(() => data?.routine, [data]);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null); // Routine may change if it is starred/upvoted/etc.
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role ?? ''), [routine]);
+    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as any), [routine]);
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = () => setDeleteOpen(true);

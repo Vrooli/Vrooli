@@ -1,4 +1,4 @@
-import { CODE, MemberRole, standardCreate, standardTranslationCreate, standardTranslationUpdate, standardUpdate } from "@local/shared";
+import { CODE, MemberRole, standardCreate, standardTranslationCreate, standardTranslationUpdate, standardUpdate, StarFor, ViewFor, VoteFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
@@ -11,6 +11,7 @@ import { VoteModel } from "./vote";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
+import { ViewModel } from "./view";
 
 //==============================================================
 /* #region Custom Components */
@@ -60,16 +61,23 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, 'standard')
+                ? await StarModel(prisma).getIsStarreds(userId, ids, StarFor.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, 'standard')
+                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, VoteFor.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
+        }
+        // Query for isViewed
+        if (partial.isViewed) {
+            const isViewedArray = userId
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, ViewFor.Standard)
+                : Array(ids.length).fill(false);
+            objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
         // Query for role
         if (partial.role) {
@@ -122,26 +130,28 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         })
     },
     customQueries(input: StandardSearchInput): { [x: string]: any } {
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        const minScoreQuery = input.minScore ? { score: { gte: input.minScore } } : {};
-        const minStarsQuery = input.minStars ? { stars: { gte: input.minStars } } : {};
-        const userIdQuery = input.userId ? { createdByUserId: input.userId } : {};
-        const organizationIdQuery = input.organizationId ? { createdByOrganizationId: input.organizationId } : {};
-        const projectIdQuery = input.projectId ? {
-            OR: [
-                { createdByUser: { projects: { some: { id: input.projectId } } } },
-                { createdByOrganization: { projects: { some: { id: input.projectId } } } },
-            ]
-        } : {};
-        const reportIdQuery = input.reportId ? { reports: { some: { id: input.reportId } } } : {};
-        const routineIdQuery = input.routineId ? {
-            OR: [
-                { routineInputs: { some: { routineId: input.routineId } } },
-                { routineOutputs: { some: { routineId: input.routineId } } },
-            ]
-        } : {};
-        const tagsQuery = input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {};
-        return { ...languagesQuery, ...minScoreQuery, ...minStarsQuery, ...userIdQuery, ...organizationIdQuery, ...projectIdQuery, ...reportIdQuery, ...routineIdQuery, ...tagsQuery };
+        return {
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            ...(input.minScore ? { score: { gte: input.minScore } } : {}),
+            ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minViews ? { views: { gte: input.minViews } } : {}),
+            ...(input.userId ? { createdByUserId: input.userId } : {}),
+            ...(input.organizationId ? { createdByOrganizationId: input.organizationId } : {}),
+            ...(input.projectId ? {
+                OR: [
+                    { createdByUser: { projects: { some: { id: input.projectId } } } },
+                    { createdByOrganization: { projects: { some: { id: input.projectId } } } },
+                ]
+            } : {}),
+            ...(input.reportId ? { reports: { some: { id: input.reportId } } } : {}),
+            ...(input.routineId ? {
+                OR: [
+                    { routineInputs: { some: { routineId: input.routineId } } },
+                    { routineOutputs: { some: { routineId: input.routineId } } },
+                ]
+            } : {}),
+            ...(input.tags ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        }
     },
 })
 

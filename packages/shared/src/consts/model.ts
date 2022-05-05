@@ -16,7 +16,6 @@ export const StandardType: { [x: string]: "String" | "Number" | "Boolean" | "Obj
     File: "File",
     Url: "Url",
 }
-export type StandardType = ValueOf<typeof StandardType>;
 
 //==============================================================
 /* #endregion Database Enums*/
@@ -148,7 +147,6 @@ export const ReportFor = {
     Tag: "Tag",
     User: "User",
 }
-export type ReportFor = ValueOf<typeof ReportFor>;
 
 export const ResourceFor = {
     Organization: "Organization",
@@ -156,7 +154,6 @@ export const ResourceFor = {
     Routine: "Routine",
     User: "User",
 }
-export type ResourceFor = ValueOf<typeof ResourceFor>;
 
 export const ResourceUsedFor = {
     Community: "Community",
@@ -176,7 +173,6 @@ export const ResourceUsedFor = {
     Social: "Social",
     Tutorial: "Tutorial",
 }
-export type ResourceUsedFor = ValueOf<typeof ResourceUsedFor>;
 
 export const ResourceListUsedFor = {
     Custom: "Custom",
@@ -185,37 +181,40 @@ export const ResourceListUsedFor = {
     Research: "Research",
     Develop: "Develop",
 }
-export type ResourceListUsedFor = ValueOf<typeof ResourceListUsedFor>;
 
-export const MemberRole = {
-    Admin: "Admin",
-    Member: "Member",
-    Owner: "Owner",
+export enum MemberRole {
+    Admin = "Admin",
+    Member = "Member",
+    Owner = "Owner",
 }
-export type MemberRole = ValueOf<typeof MemberRole>;
 
 export const ROLES = {
     Actor: "Actor",
     Guest: "Guest",
 }
-export type ROLES = ValueOf<typeof ROLES>;
 
-export const VoteFor = {
-    Comment: "Comment",
-    Project: "Project",
-    Routine: "Routine",
-    Standard: "Standard",
-    Tag: "Tag",
+export enum VoteFor {
+    Comment = "Comment",
+    Project = "Project",
+    Routine = "Routine",
+    Standard = "Standard",
+    Tag = "Tag",
 }
-export type VoteFor = ValueOf<typeof VoteFor>;
 
-export const StarFor = {
-    Comment: "Comment",
-    Organization: "Organization",
-    Project: "Project",
-    Routine: "Routine",
-    Standard: "Standard",
-    Tag: "Tag",
-    User: "User",
+export enum StarFor {
+    Comment = "Comment",
+    Organization = "Organization",
+    Project = "Project",
+    Routine = "Routine",
+    Standard = "Standard",
+    Tag = "Tag",
+    User = "User",
 }
-export type StarFor = ValueOf<typeof StarFor>;
+
+export enum ViewFor {
+    Organization = "Organization",
+    Project = "Project",
+    Routine = "Routine",
+    Standard = "Standard",
+    User = "User",
+}
