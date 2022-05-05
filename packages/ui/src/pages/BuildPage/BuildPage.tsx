@@ -1057,7 +1057,7 @@ export const BuildPage = ({
                     scale={scale}
                     session={session}
                     sliderColor={STATUS_COLOR[status.code]}
-                    routineId={routine?.id ?? ''}
+                    routine={routine}
                     runState={BuildRunState.Stopped}
                 />
             </Box>

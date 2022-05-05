@@ -111,14 +111,15 @@ export const RoutineView = ({
 
     const [logRoutineStart] = useMutation<routineStart, routineStartVariables>(routineStartMutation);
     const [isRunOpen, setIsRunOpen] = useState(false)
-    const runRoutine = () => {
-        if (!uuidValidate(id ?? '')) {
+    const runRoutine = useCallback(() => {
+        if (!routine || !uuidValidate(routine.id)) {
             PubSub.publish(Pubs.Snack, { message: 'Error loading routine.', severity: 'error' });
             return;
         }
         setIsRunOpen(true)
-        // Log start
-        logRoutineStart({ variables: { input: { id: id ?? '' } } })
+        // Log start, if not continuing
+        if (!Boolean(routine?.inProgressCompletedComplexity)) 
+            logRoutineStart({ variables: { input: { id: routine.id, version: routine.version ?? '' } } })
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {
@@ -126,7 +127,7 @@ export const RoutineView = ({
             return;
         }
         setLocation(`${APP_LINKS.Run}/${id}?step=1.1`);
-    };
+    }, [routine]);
     const stopRoutine = () => { setIsRunOpen(false) };
 
     const onEdit = useCallback(() => {
@@ -166,7 +167,7 @@ export const RoutineView = ({
     }, [routine, canEdit, session]);
 
     /**
-     * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" buttons. 
+     * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" (or "Continue") buttons. 
      * Otherwise, display "Mark as Complete" button.
      */
     const actions = useMemo(() => {
@@ -184,8 +185,12 @@ export const RoutineView = ({
                 <Grid item xs={12} sm={6}>
                     <Button startIcon={<GraphIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
+                {/* Show continue if routine already has progress */}
                 <Grid item xs={12} sm={6}>
-                    <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
+                    {routine && Boolean(routine.inProgressCompletedComplexity) ? 
+                        <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue ({Math.round((routine?.inProgressCompletedComplexity as number) / routine.complexity * 100)}%)</Button> :
+                        <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
+                    }
                 </Grid>
             </Grid>
         )

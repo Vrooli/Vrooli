@@ -352,6 +352,9 @@ export interface routineFields {
   completedAt: any | null;
   complexity: number;
   created_at: any;
+  inProgressCompletedSteps: number[][] | null;
+  inProgressCompletedComplexity: number | null;
+  inProgressVersion: string | null;
   inputs: routineFields_inputs[];
   isAutomatable: boolean | null;
   isComplete: boolean;

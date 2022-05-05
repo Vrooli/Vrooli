@@ -33,6 +33,7 @@ export * from './routineCancel';
 export * from './routineComplete';
 export * from './routineCreate';
 export * from './routineDeleteOne';
+export * from './routineProgressUpdate';
 export * from './routineStart';
 export * from './routineUpdate';
 export * from './sendVerificationEmail';

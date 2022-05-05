@@ -32,7 +32,7 @@ export const BuildBottomContainer = ({
     scale,
     session,
     sliderColor,
-    routineId,
+    routine,
     runState,
 }: BuildBottomContainerProps) => {
     const [, setLocation] = useLocation();
@@ -45,7 +45,7 @@ export const BuildBottomContainer = ({
     const [isRunOpen, setIsRunOpen] = useState(false)
     const runRoutine = () => {
         // Log start
-        logRoutineStart({ variables: { input: { id: routineId ?? '' } } })
+        logRoutineStart({ variables: { input: { id: routine?.id ?? '', version: routine?.version ?? '' } } })
         setLocation(`?step=1`, { replace: true });
         setIsRunOpen(true)
     };

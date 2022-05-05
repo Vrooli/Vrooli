@@ -494,6 +494,7 @@ export type Mutation = {
   routineComplete: Log;
   routineCreate: Routine;
   routineDeleteOne: Success;
+  routineProgressUpdate: Success;
   routineStart: Log;
   routineUpdate: Routine;
   sendVerificationEmail: Success;
@@ -692,6 +693,11 @@ export type MutationRoutineCreateArgs = {
 
 export type MutationRoutineDeleteOneArgs = {
   input: DeleteOneInput;
+};
+
+
+export type MutationRoutineProgressUpdateArgs = {
+  input: RoutineProgressUpdateInput;
 };
 
 
@@ -1930,6 +1936,9 @@ export type Routine = {
   creator?: Maybe<Contributor>;
   forks: Array<Routine>;
   id: Scalars['ID'];
+  inProgressCompletedComplexity?: Maybe<Scalars['Int']>;
+  inProgressCompletedSteps?: Maybe<Array<Array<Scalars['Int']>>>;
+  inProgressVersion?: Maybe<Scalars['String']>;
   inputs: Array<InputItem>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
   isComplete: Scalars['Boolean'];
@@ -1996,6 +2005,12 @@ export type RoutineEdge = {
   node: Routine;
 };
 
+export type RoutineProgressUpdateInput = {
+  completedSteps?: InputMaybe<Array<Array<Scalars['Int']>>>;
+  id: Scalars['ID'];
+  percentage?: InputMaybe<Scalars['Int']>;
+};
+
 export type RoutineSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
@@ -2048,6 +2063,7 @@ export enum RoutineSortBy {
 
 export type RoutineStartInput = {
   id: Scalars['ID'];
+  version: Scalars['String'];
 };
 
 export type RoutineTranslation = {

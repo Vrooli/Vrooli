@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Log as LogReturn, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy, RoutineStartInput, RoutineCompleteInput, RoutineCancelInput } from './types';
+import { DeleteOneInput, FindByIdInput, Log as LogReturn, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy, RoutineStartInput, RoutineCompleteInput, RoutineCancelInput, RoutineProgressUpdateInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteOneHelper, GraphQLModelType, Log, LogType, readManyHelper, readOneHelper, RoutineModel, updateHelper } from '../models';
@@ -83,6 +83,9 @@ export const typeDef = gql`
         complexity: Int!
         created_at: Date!
         updated_at: Date!
+        inProgressCompletedSteps: [[Int!]!]
+        inProgressCompletedComplexity: Int
+        inProgressVersion: String
         isAutomatable: Boolean
         isComplete: Boolean!
         isInternal: Boolean
@@ -261,6 +264,13 @@ export const typeDef = gql`
 
     input RoutineStartInput {
         id: ID!
+        version: String!
+    }
+
+    input RoutineProgressUpdateInput {
+        id: ID!
+        percentage: Int
+        completedSteps: [[Int!]!]
     }
 
     input RoutineCompleteInput {
@@ -283,6 +293,7 @@ export const typeDef = gql`
         routineUpdate(input: RoutineUpdateInput!): Routine!
         routineDeleteOne(input: DeleteOneInput!): Success!
         routineStart(input: RoutineStartInput!): Log!
+        routineProgressUpdate(input: RoutineProgressUpdateInput!): Success!
         routineComplete(input: RoutineCompleteInput!): Log!
         routineCancel(input: RoutineCancelInput!): Log!
     }
@@ -323,6 +334,7 @@ export const resolvers = {
             return deleteOneHelper(context.req.userId, input, RoutineModel(context.prisma));
         },
         routineStart: async (_parent: undefined, { input }: IWrap<RoutineStartInput>, context: Context, info: GraphQLResolveInfo): Promise<LogReturn> => {
+            await rateLimit({ context, info, max: 5000, byAccount: true });
             if (!context.req.userId)
                 throw new CustomError(CODE.Unauthorized, 'Cannot log routine start if you are not logged in', { code: genErrorCode('0153') });
             // Check if log already exists
@@ -332,6 +344,7 @@ export const resolvers = {
                 input1Id: input.id,
                 userId: context.req.userId,
             }).sort({ timestamp: -1 }).limit(1).lean().exec();
+            console.log('routien log got last log', JSON.stringify(lastLog));
             // If last log exists and is start, return it
             if (lastLog.length > 0 && lastLog[0].action === LogType.RoutineStartIncomplete) return lastLog[0];
             // Otherwise, create new start log
@@ -343,14 +356,21 @@ export const resolvers = {
                     object1Type: GraphQLModelType.Routine,
                     object1Id: input.id,
                     session: randomString(16),
+                    data: JSON.stringify({
+                        percentage: 0,
+                        completedSteps: [],
+                        version: input.version,
+                    }),
                 }
                 const log = await Log.collection.insertOne(logData)
+                console.log('created start log', JSON.stringify(log))
                 return { id: log.insertedId.toString(), ...logData } as any; //TODO remove any
             }
         },
         routineComplete: async (_parent: undefined, { input }: IWrap<RoutineCompleteInput>, context: Context, info: GraphQLResolveInfo): Promise<LogReturn> => {
+            await rateLimit({ context, info, max: 5000, byAccount: true });
             if (!context.req.userId)
-                throw new CustomError(CODE.Unauthorized, 'Cannot log routine complete if you are not logged in', { code: genErrorCode('0154') });
+                throw new CustomError(CODE.Unauthorized, 'Cannot log routine complete if you are not logged in', { code: genErrorCode('0169') });
             // If routine is standalone (i.e. was only one step), timing is not tracked. 
             // This means there will be no start log, and that's okay.
             let logSession = undefined;
@@ -364,12 +384,12 @@ export const resolvers = {
                 }).sort({ timestamp: -1 }).limit(1).lean().exec();
                 // If log doesn't exist, log (the other kind of log) error
                 if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStartIncomplete) {
-                    logger.log(LogLevel.error, 'Could not find start log for routine', { code: genErrorCode('0169'), userId: context.req.userId, routineId: input.id });
+                    logger.log(LogLevel.error, 'Could not find start log for routine', { code: genErrorCode('0170'), userId: context.req.userId, routineId: input.id });
                 } 
                 // If log exists, set log session and change log type to completed
                 else {
                     logSession = lastLog[0].session;
-                    await Log.updateOne({ _id: lastLog[0]._id }, { action: LogType.RoutineStartCompleted }).exec();
+                    Log.updateOne({ _id: lastLog[0]._id }, { action: LogType.RoutineStartCompleted }).exec();
                 }
             }
             // Insert new complete log
@@ -384,7 +404,38 @@ export const resolvers = {
             const log = await Log.collection.insertOne(logData)
             return { id: log.insertedId.toString(), ...logData };
         },
+        routineProgressUpdate: async (_parent: undefined, { input }: IWrap<RoutineProgressUpdateInput>, context: Context, info: GraphQLResolveInfo): Promise<Success> => {
+            await rateLimit({ context, info, max: 10000, byAccount: true });
+            if (!context.req.userId)
+                throw new CustomError(CODE.Unauthorized, 'Cannot log routine progress update if you are not logged in', { code: genErrorCode('0171') });
+            // Make sure start log exists
+            const lastLog = await Log.find({
+                action: { $in: routineLogs },
+                input1Type: GraphQLModelType.Routine,
+                input1Id: input.id,
+                userId: context.req.userId,
+            }).sort({ timestamp: -1 }).limit(1).lean().exec();
+            console.log('got last log', JSON.stringify(lastLog));
+            // If log doesn't exist, throw error
+            if (!lastLog || lastLog.length === 0 || lastLog[0].action !== LogType.RoutineStartIncomplete) {
+                logger.log(LogLevel.error, 'Could not find start log for routine', { code: genErrorCode('0172'), userId: context.req.userId, routineId: input.id });
+                return { success: false };
+            } 
+            // If log exists, update log
+            else {
+                const updatedData = JSON.stringify({
+                    ...lastLog[0].data,
+                    percentage: input.percentage,
+                    completedSteps: input.completedSteps,
+                })
+                console.log('updating start log with data', updatedData);
+                const log = await Log.updateOne({ _id: lastLog[0]._id }, { data: updatedData }).exec();
+                if (!log) throw new CustomError(CODE.InternalError, 'Could not update log', { code: genErrorCode('0170') });
+                return { success: true };
+            }
+        },
         routineCancel: async (_parent: undefined, { input }: IWrap<RoutineCancelInput>, context: Context, info: GraphQLResolveInfo): Promise<LogReturn> => {
+            await rateLimit({ context, info, max: 5000, byAccount: true });
             if (!context.req.userId)
                 throw new CustomError(CODE.Unauthorized, 'Cannot log routine cancel if you are not logged in', { code: genErrorCode('0155') });
             // Make sure start log exists

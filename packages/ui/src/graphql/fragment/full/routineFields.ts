@@ -189,6 +189,9 @@ export const routineFields = gql`
         completedAt
         complexity
         created_at
+        inProgressCompletedSteps
+        inProgressCompletedComplexity
+        inProgressVersion
         inputs {
             ...routineInputFields
         }

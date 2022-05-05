@@ -352,6 +352,9 @@ export interface routineCreate_routineCreate {
   completedAt: any | null;
   complexity: number;
   created_at: any;
+  inProgressCompletedSteps: number[][] | null;
+  inProgressCompletedComplexity: number | null;
+  inProgressVersion: string | null;
   inputs: routineCreate_routineCreate_inputs[];
   isAutomatable: boolean | null;
   isComplete: boolean;

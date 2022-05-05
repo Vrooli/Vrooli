@@ -852,6 +852,12 @@ export interface RoutineCreateInput {
   translationsCreate?: RoutineTranslationCreateInput[] | null;
 }
 
+export interface RoutineProgressUpdateInput {
+  id: string;
+  percentage?: number | null;
+  completedSteps?: number[][] | null;
+}
+
 export interface RoutineSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
@@ -881,6 +887,7 @@ export interface RoutineSearchInput {
 
 export interface RoutineStartInput {
   id: string;
+  version: string;
 }
 
 export interface RoutineTranslationCreateInput {

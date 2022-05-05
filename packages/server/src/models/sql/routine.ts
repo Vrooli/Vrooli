@@ -14,6 +14,7 @@ import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
+import { Log, LogType } from "../../models/nosql";
 
 //==============================================================
 /* #region Custom Components */
@@ -45,7 +46,15 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        let { isUpvoted, isStarred, role, ...rest } = partial;
+        let {
+            inProgressCompletedSteps,
+            inProgressCompletedComplexity,
+            inProgressVersion,
+            isUpvoted,
+            isStarred,
+            role,
+            ...rest
+        } = partial;
         return rest;
     },
     constructUnions: (data) => {
@@ -110,6 +119,37 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 }
                 return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
             }) as any;
+        }
+        // Query for in-progress data
+        if (partial.currentPercentage || partial.currentRunState) {
+            console.log('Querying for mongodb current data in routine supplementalfields');
+            // Fetch RoutineStartIncomplete logs with the userId and routine ids
+            const progressLogs = await Log.find({
+                action: LogType.RoutineStartIncomplete,
+                input1Type: GraphQLModelType.Routine,
+                input1Id: { $in: ids },
+                userId,
+            }).exec();
+            console.log('got progressLogs', JSON.stringify(progressLogs));
+            // The data we need is stored as JSON in the "data" field of the log, which we must parse
+            const progressData: any[] = progressLogs.filter(x => Boolean(x.data)).map(x => ({
+                routineId: x.input1Id,
+                data: JSON.parse(x.data),
+            }));
+            console.log('got progressData', JSON.stringify(progressData));
+            // Apply data fields to objects
+            objects = objects.map((x) => {
+                const progress = progressData.find(y => y.routineId === x.id);
+                if (progress) {
+                    return {
+                        ...x,
+                        inProgressCompletedComplexity: progress.data.completedComplexity,
+                        inProgressCompletedSteps: progress.data.completedSteps,
+                        inProgressVersion: progress.data.version,
+                    };
+                }
+                return x;
+            });
         }
         // Convert Prisma objects to GraphQL objects
         return objects as RecursivePartial<Routine>[];
@@ -409,7 +449,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 // Check for valid arguments
                 inputCreate.validateSync(data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(data.name, data.description)) 
+                if (hasProfanity(data.name, data.description))
                     throw new CustomError(CODE.BannedWord, 'Name or description includes bad word', { code: genErrorCode('0091') });
                 // Convert nested relationships
                 result.push({
@@ -427,7 +467,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 // Check for valid arguments
                 inputUpdate.validateSync(update.data, { abortEarly: false });
                 // Check for censored words
-                if (hasProfanity(update.data.name, update.data.description)) 
+                if (hasProfanity(update.data.name, update.data.description))
                     throw new CustomError(CODE.BannedWord, 'Name or description contains banned word', { code: genErrorCode('0092') });
                 // Convert nested relationships
                 result.push({
@@ -550,7 +590,7 @@ export const routineMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RoutineCreateInput, RoutineUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if ((createMany || updateMany || deleteMany) && !userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
         if (createMany) {
             createMany.forEach(input => routineCreate.validateSync(input, { abortEarly: false }));
@@ -585,10 +625,10 @@ export const routineMutater = (prisma: PrismaType) => ({
             if (objectsToCheck.length > 0) {
                 for (const check of objectsToCheck) {
                     // Check if user is authorized to delete
-                    if (!check.organizationId) 
+                    if (!check.organizationId)
                         throw new CustomError(CODE.Unauthorized, 'Not authorized to delete', { code: genErrorCode('0095') });
                     const [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', check.organizationId);
-                    if (!authorized) 
+                    if (!authorized)
                         throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0096') });
                 }
             }
@@ -610,7 +650,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                 if (input.createdByOrganizationId) {
                     // Make sure the user is an admin of the organization
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.createdByOrganizationId);
-                    if (!isAuthorized) 
+                    if (!isAuthorized)
                         throw new CustomError(CODE.Unauthorized, 'Not authorized to create routine', { code: genErrorCode('0097') });
                     data = {
                         ...data,
@@ -639,15 +679,15 @@ export const routineMutater = (prisma: PrismaType) => ({
                 let data = await this.toDBShape(userId, input.data);
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
-                if (!object)    
+                if (!object)
                     throw new CustomError(CODE.NotFound, 'Routine not found', { code: genErrorCode('0098') });
                 // Make sure user is authorized to update
                 if (object.organizationId) {
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', object.organizationId);
-                    if (!isAuthorized) 
+                    if (!isAuthorized)
                         throw new CustomError(CODE.Unauthorized, 'Not authorized to update routine', { code: genErrorCode('0099') });
                 } else {
-                    if (object.userId !== userId) 
+                    if (object.userId !== userId)
                         throw new CustomError(CODE.Unauthorized, 'Not authorized to update routine', { code: genErrorCode('0100') });
                 }
                 // Associate with either organization or user. This will remove the association with the other.
@@ -655,7 +695,7 @@ export const routineMutater = (prisma: PrismaType) => ({
                     // Make sure the user is an admin of the organization
                     const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.data.organizationId);
                     console.log('authorized check update routine with organization', isAuthorized, input.data.organizationId);
-                    if (!isAuthorized) 
+                    if (!isAuthorized)
                         throw new CustomError(CODE.Unauthorized, 'Not authorized to update routine', { code: genErrorCode('0101') });
                     data = {
                         ...data,

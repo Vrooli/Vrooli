@@ -20,8 +20,9 @@ import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeL
 import { parseSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { routineComplete, routineCompleteVariables } from "graphql/generated/routineComplete";
-import { routineCompleteMutation } from "graphql/mutation";
+import { routineCompleteMutation, routineProgressUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
+import { routineProgressUpdate, routineProgressUpdateVariables } from "graphql/generated/routineProgressUpdate";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -38,6 +39,19 @@ export const RunRoutineView = ({
     });
     const [, params1] = useRoute(`${APP_LINKS.Build}/:routineId`);
     const [, params2] = useRoute(`${APP_LINKS.Run}/:routineId`);
+
+    /**
+     * The amount of routine completed so far, measured in complexity
+     */
+    const [completedComplexity, setCompletedComplexity] = useState(0);
+
+    /**
+     * Every step completed so far. 
+     * Steps are stored as an array that describes their nesting, like they appear in the URL (e.g. [1], [1,3], [1,5,2]).
+     * TODO History key should be combination of routineId and updated_at, so history is reset when routine is updated.
+     */
+     const [progress, setProgress] = useHistoryState(params1?.routineId ?? params2?.routineId ?? '', [])
+
     // Query main routine being run. This should not change for the entire orchestration, 
     // no matter how deep we go.
     const [getRoutine, { data: routineData, loading: routineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
@@ -48,8 +62,23 @@ export const RunRoutineView = ({
             getRoutine({ variables: { input: { id: routineId } } })
         }
     }, [getRoutine, params1?.routineId, params2?.routineId]);
+    // On routine load
     useEffect(() => {
-        if (routineData?.routine) setRoutine(routineData.routine);
+        if (routineData?.routine) {
+            console.log('got routine data from server', routineData.routine);
+            // Set routine
+            setRoutine(routineData.routine);
+            // See if user already has partially executed this routine (with the same version)
+            if (routineData.routine.inProgressVersion !== routineData.routine.version) return;
+            // Check for in progress completed complexity (used to calculate percentage)
+            if (routineData.routine.inProgressCompletedComplexity) {
+                setCompletedComplexity(routineData.routine.inProgressCompletedComplexity);
+            }
+            // Check for in progress completed steps
+            if (Array.isArray(routineData.routine.inProgressCompletedSteps) && routineData.routine.inProgressCompletedSteps.length > 0) {
+                setProgress(routineData.routine.inProgressCompletedSteps);
+            }
+        }
     }, [routineData]);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
@@ -173,13 +202,6 @@ export const RunRoutineView = ({
     }, [stepParams, stepList]);
 
     /**
-     * Every step completed so far. 
-     * Steps are stored as an array that describes their nesting, like they appear in the URL (e.g. [1], [1,3], [1,5,2]).
-     * TODO History key should be combination of routineId and updated_at, so history is reset when routine is updated.
-     */
-    const [progress, setProgress] = useHistoryState(params1?.routineId ?? params2?.routineId ?? '', [])
-
-    /**
      * Calculates the complexity of a step
      */
     const getStepComplexity = useCallback((step: RoutineStep): number => {
@@ -194,20 +216,9 @@ export const RunRoutineView = ({
     }, []);
 
     /**
-     * Calculates progress percentage, as complexity of all completed steps / complexity of all steps
+     * Calculates the percentage of routine completed so far, measured in complexity / total complexity * 100
      */
-    const progressPercentage = useMemo(() => {
-        if (!stepList || !(stepList as RoutineListStep).steps.length || !progress || !progress.length || !routine) return 0;
-        // Add the complexity of all steps in progress
-        let completedComplexity = 0;
-        for (const completedStep of progress) {
-            const currStep = findStep(completedStep);
-            if (currStep) completedComplexity += getStepComplexity(currStep);
-        }
-        // Find the total complexity
-        const totalComplexity = routine.complexity;
-        return completedComplexity / totalComplexity * 100;
-    }, [progress, stepList, routine, findStep, getStepComplexity]);
+    const progressPercentage = useMemo(() => completedComplexity / (routine?.complexity ?? 1) * 100, [completedComplexity, routine]);
 
     // Query current subroutine, if needed. Main routine may have the data
     const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
@@ -371,6 +382,7 @@ export const RunRoutineView = ({
         setStepParams(previousStep);
     }, [previousStep, progress, stepParams, setLocation]);
 
+    const [logRoutineProgressUpdate] = useMutation<routineProgressUpdate, routineProgressUpdateVariables>(routineProgressUpdateMutation);
     /**
      * Navigate to the next subroutine
      */
@@ -381,10 +393,17 @@ export const RunRoutineView = ({
         const alreadyComplete = newProgress.find(p => p.length === stepParams.length && p.every((val, index) => val === stepParams[index]))
         if (!alreadyComplete) newProgress.push(stepParams);
         setProgress(newProgress);
+        // Calculate percentage complete
+        const currStep = findStep(stepParams);
+        const newComplexity = currStep ? (completedComplexity + getStepComplexity(currStep)) : 0;
+        const newPercentage = newComplexity / (routine?.complexity ?? 1) * 100;
+        // Update routine progress
+        setCompletedComplexity(newComplexity);
+        logRoutineProgressUpdate({ variables: { input: { id: routine?.id ?? '', percentage: newPercentage, completedSteps: newProgress } } });
         // Update current step
         setLocation(`?step=${nextStep.join('.')}`, { replace: true });
         setStepParams(nextStep);
-    }, [nextStep, progress, stepParams, setLocation, setProgress]);
+    }, [nextStep, progress, stepParams, setLocation, setProgress, routine, completedComplexity, logRoutineProgressUpdate]);
 
     const [logRoutineComplete] = useMutation<routineComplete>(routineCompleteMutation);
     /**
@@ -396,9 +415,9 @@ export const RunRoutineView = ({
             mutation: logRoutineComplete,
             input: { id: routine?.id ?? '', standalone: true },
             successMessage: () => 'Routine completed!🎉',
-            onSuccess: () => { 
+            onSuccess: () => {
                 PubSub.publish(Pubs.Celebration);
-                handleClose() 
+                handleClose()
             },
         })
     }, [logRoutineComplete, handleClose, mutationWrapper, routine]);
@@ -530,7 +549,7 @@ export const RunRoutineView = ({
                         />
                     </Box>
                     {/* Progress bar */}
-                    <LinearProgress color="secondary" variant="determinate" value={progressPercentage} sx={{ height: '15px' }} />
+                    <LinearProgress color="secondary" variant="determinate" value={completedComplexity / (routine?.complexity ?? 1) * 100} sx={{ height: '15px' }} />
                 </Stack>
                 {/* Main content. For now, either looks like view of a basic routine, or options to select an edge */}
                 <Box sx={{
