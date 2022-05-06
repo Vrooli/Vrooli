@@ -5,8 +5,6 @@ import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteManyHelper, LogType, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
 import { rateLimit } from '../rateLimit';
-import { CustomError } from '../error';
-import { CODE } from '@local/shared';
 
 export const typeDef = gql`
     enum RunSortBy {

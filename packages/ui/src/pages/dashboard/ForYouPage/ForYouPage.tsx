@@ -60,28 +60,28 @@ export const ForYouPage = ({
     }, [setLocation]);
 
     const activeRoutines = useMemo(() => listToListItems(
-        data?.forYouPage?.activeRoutines ?? [],
+        data?.forYouPage?.activeRuns ?? [],
         session,
-        'active-routines-list-item',
+        'active-runs-list-item',
         (item, event) => { toItemPage(event, item) },
     ), [data, session])
 
     const completedRoutines = useMemo(() => listToListItems(
-        data?.forYouPage?.completedRoutines ?? [],
+        data?.forYouPage?.completedRuns ?? [],
         session,
-        'completed-routines-list-item',
+        'completed-runs-list-item',
         (item, event) => { toItemPage(event, item) },
     ), [data, session])
 
     const recent = useMemo(() => listToListItems(
-        data?.forYouPage?.recent ?? [],
+        data?.forYouPage?.recentlyViewed ?? [],
         session,
         'recently-viewed-list-item',
         (item, event) => { toItemPage(event, item) },
     ), [data, session])
 
     const starred = useMemo(() => listToListItems(
-        data?.forYouPage?.starred ?? [],
+        data?.forYouPage?.recentlyStarred ?? [],
         session,
         'starred-list-item',
         (item, event) => { toItemPage(event, item) },

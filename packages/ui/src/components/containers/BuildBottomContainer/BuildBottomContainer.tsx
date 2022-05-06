@@ -11,10 +11,10 @@ import { BuildRunState } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from 'wouter';
 import { UpTransition } from 'components/dialogs';
-import { RunRoutineView } from 'components/views';
+import { RunView } from 'components/views';
 import { useMutation } from '@apollo/client';
-import { routineStart, routineStartVariables } from 'graphql/generated/routineStart';
-import { routineStartMutation } from 'graphql/mutation';
+import { runCreate, runCreateVariables } from 'graphql/generated/runCreate';
+import { runCreateMutation } from 'graphql/mutation';
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
@@ -41,11 +41,11 @@ export const BuildBottomContainer = ({
         handleScaleChange(newScale as number);
     }, [handleScaleChange]);
 
-    const [logRoutineStart] = useMutation<routineStart, routineStartVariables>(routineStartMutation);
+    const [runCreate] = useMutation<runCreate, runCreateVariables>(runCreateMutation);
     const [isRunOpen, setIsRunOpen] = useState(false)
     const runRoutine = () => {
         // Log start
-        logRoutineStart({ variables: { input: { id: routine?.id ?? '', version: routine?.version ?? '' } } })
+        runCreate({ variables: { input: { routineId: routine?.id ?? '', version: routine?.version ?? '', title: 'TODO' } } })
         setLocation(`?step=1`, { replace: true });
         setIsRunOpen(true)
     };
@@ -164,7 +164,7 @@ export const BuildBottomContainer = ({
                 open={isRunOpen}
                 TransitionComponent={UpTransition}
             >
-                <RunRoutineView
+                <RunView
                     handleClose={stopRoutine}
                     session={session}
                 />

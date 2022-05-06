@@ -16,7 +16,7 @@ export function RoutineListItem({
     onClick,
 }: RoutineListItemProps) {
     const [, setLocation] = useLocation();
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
+    const canEdit = useMemo<boolean>(() => data?.role ? [MemberRole.Admin, MemberRole.Owner].includes(data.role) : false, [data]);
 
     const { description, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;

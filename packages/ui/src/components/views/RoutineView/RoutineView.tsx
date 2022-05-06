@@ -12,19 +12,19 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunRoutineView, StarButton, UpTransition } from "components";
+import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
 import { ResourceList, Routine, User } from "types";
 import Markdown from "markdown-to-jsx";
-import { routineCompleteMutation, routineDeleteOneMutation, routineStartMutation } from "graphql/mutation";
+import { runCompleteMutation, routineDeleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/wrappers";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
-import { routineStart, routineStartVariables } from "graphql/generated/routineStart";
+import { runCreate, runCreateVariables } from "graphql/generated/runCreate";
 import { validate as uuidValidate } from 'uuid';
-import { routineComplete, routineCompleteVariables } from "graphql/generated/routineComplete";
+import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -44,7 +44,7 @@ export const RoutineView = ({
     }, [id])
     const routine = useMemo(() => data?.routine, [data]);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null); // Routine may change if it is starred/upvoted/etc.
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as any), [routine]);
+    const canEdit = useMemo<boolean>(() => routine?.role ? [MemberRole.Admin, MemberRole.Owner].includes(routine.role) : false, [routine]);
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = () => setDeleteOpen(true);
@@ -95,11 +95,11 @@ export const RoutineView = ({
         setLocation(`${APP_LINKS.Build}/${routine?.id}`);
     }
 
-    const [logRoutineComplete] = useMutation<routineComplete>(routineCompleteMutation);
+    const [runComplete] = useMutation<runComplete>(runCompleteMutation);
     const markAsComplete = useCallback(() => {
         if (!routine) return;
         mutationWrapper({
-            mutation: logRoutineComplete,
+            mutation: runComplete,
             input: { id: routine.id },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => { 
@@ -107,9 +107,9 @@ export const RoutineView = ({
                 setLocation(APP_LINKS.Home) 
             },
         })
-    }, [routine, logRoutineComplete]);
+    }, [routine, runComplete]);
 
-    const [logRoutineStart] = useMutation<routineStart, routineStartVariables>(routineStartMutation);
+    const [runCreate] = useMutation<runCreate, runCreateVariables>(runCreateMutation);
     const [isRunOpen, setIsRunOpen] = useState(false)
     const runRoutine = useCallback(() => {
         if (!routine || !uuidValidate(routine.id)) {
@@ -117,9 +117,11 @@ export const RoutineView = ({
             return;
         }
         setIsRunOpen(true)
-        // Log start, if not continuing
-        if (!Boolean(routine?.inProgressCompletedComplexity)) 
-            logRoutineStart({ variables: { input: { id: routine.id, version: routine.version ?? '' } } })
+        // Check for existing runs
+        //TODO
+        // // Log start, if not continuing
+        // if (!Boolean(routine?.inProgressCompletedComplexity)) 
+        //     runCreate({ variables: { input: { id: routine.id, version: routine.version ?? '' } } })
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {
@@ -127,7 +129,7 @@ export const RoutineView = ({
             return;
         }
         setLocation(`${APP_LINKS.Run}/${id}?step=1.1`);
-    }, [routine]);
+    }, [routine, id, runCreate]);
     const stopRoutine = () => { setIsRunOpen(false) };
 
     const onEdit = useCallback(() => {
@@ -185,12 +187,13 @@ export const RoutineView = ({
                 <Grid item xs={12} sm={6}>
                     <Button startIcon={<GraphIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
                 </Grid>
-                {/* Show continue if routine already has progress */}
+                {/* Show continue if routine already has progress TODO */}
                 <Grid item xs={12} sm={6}>
-                    {routine && Boolean(routine.inProgressCompletedComplexity) ? 
+                    {/* {routine && Boolean(routine.inProgressCompletedComplexity) ? 
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue ({Math.round((routine?.inProgressCompletedComplexity as number) / routine.complexity * 100)}%)</Button> :
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
-                    }
+                    } */}
+                    <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                 </Grid>
             </Grid>
         )
@@ -289,7 +292,7 @@ export const RoutineView = ({
                 onClose={stopRoutine}
                 TransitionComponent={UpTransition}
             >
-                <RunRoutineView
+                <RunView
                     handleClose={stopRoutine}
                     session={session}
                 />

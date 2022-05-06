@@ -109,7 +109,7 @@ export interface ReportDialogProps extends DialogProps {
     forId: string;
     onClose: () => any;
     open: boolean;
-    reportFor: ReportFor;
+    reportFor: keyof typeof ReportFor;
     session: Session;
     title?: string;
 }

@@ -1,4 +1,3 @@
-import { ValueOf } from ".";
 
 //==============================================================
 /* #region Database Enums  */
@@ -7,14 +6,14 @@ import { ValueOf } from ".";
 // For more information, see: https://github.com/prisma/prisma/discussions/9215
 //==============================================================
 
-export const StandardType: { [x: string]: "String" | "Number" | "Boolean" | "Object" | "Array" | "File" | "Url" } = {
-    String: "String",
-    Number: "Number",
-    Boolean: "Boolean",
-    Object: "Object",
-    Array: "Array",
-    File: "File",
-    Url: "Url",
+export enum StandardType {
+    String = "String",
+    Number = "Number",
+    Boolean = "Boolean",
+    Object = "Object",
+    Array = "Array",
+    File = "File",
+    Url = "Url",
 }
 
 //==============================================================
@@ -103,6 +102,17 @@ export enum RoutineSortBy {
     DateUpdatedAsc = "DateUpdatedAsc",
 }
 
+export enum RunSortBy {
+    DateStartedAsc = "DateStartedAsc",
+    DateStartedDesc = "DateStartedDesc",
+    DateCompletedAsc = "DateCompletedAsc",
+    DateCompletedDesc = "DateCompletedDesc",
+    DateCreatedAsc = "DateCreatedAsc",
+    DateCreatedDesc = "DateCreatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+}
+
 export enum StandardSortBy {
     VotesDesc = "VotesDesc",
     VotesAsc = "VotesAsc",
@@ -138,48 +148,48 @@ export enum UserSortBy {
 /* #endregion Sort Options */
 //==============================================================
 
-export const ReportFor = {
-    Comment: "Comment",
-    Organization: "Organization",
-    Project: "Project",
-    Routine: "Routine",
-    Standard: "Standard",
-    Tag: "Tag",
-    User: "User",
+export enum ReportFor {
+    Comment = "Comment",
+    Organization = "Organization",
+    Project = "Project",
+    Routine = "Routine",
+    Standard = "Standard",
+    Tag = "Tag",
+    User = "User",
 }
 
-export const ResourceFor = {
-    Organization: "Organization",
-    Project: "Project",
-    Routine: "Routine",
-    User: "User",
+export enum ResourceFor {
+    Organization = "Organization",
+    Project = "Project",
+    Routine = "Routine",
+    User = "User",
 }
 
-export const ResourceUsedFor = {
-    Community: "Community",
-    Context: "Context",
-    Developer: "Developer",
-    Donation: "Donation",
-    ExternalService: "ExternalService",
-    Feed: "Feed",
-    Install: "Install",
-    Learning: "Learning",
-    Notes : "Notes",
-    OfficialWebsite: "OfficialWebsite",
-    Proposal: "Proposal",
-    Related: "Related",
-    Researching: "Researching",
-    Scheduling: "Scheduling",
-    Social: "Social",
-    Tutorial: "Tutorial",
+export enum ResourceUsedFor {
+    Community = "Community",
+    Context = "Context",
+    Developer = "Developer",
+    Donation = "Donation",
+    ExternalService = "ExternalService",
+    Feed = "Feed",
+    Install = "Install",
+    Learning = "Learning",
+    Notes = "Notes",
+    OfficialWebsite = "OfficialWebsite",
+    Proposal = "Proposal",
+    Related = "Related",
+    Researching = "Researching",
+    Scheduling = "Scheduling",
+    Social = "Social",
+    Tutorial = "Tutorial",
 }
 
-export const ResourceListUsedFor = {
-    Custom: "Custom",
-    Display: "Display",
-    Learn: "Learn",
-    Research: "Research",
-    Develop: "Develop",
+export enum ResourceListUsedFor {
+    Custom = "Custom",
+    Display = "Display",
+    Learn = "Learn",
+    Research = "Research",
+    Develop = "Develop",
 }
 
 export enum MemberRole {
@@ -188,9 +198,9 @@ export enum MemberRole {
     Owner = "Owner",
 }
 
-export const ROLES = {
-    Actor: "Actor",
-    Guest: "Guest",
+export enum ROLES {
+    Actor = "Actor",
+    Guest = "Guest",
 }
 
 export enum VoteFor {

@@ -1,5 +1,5 @@
 import { StarFor, VoteFor } from '@local/shared';
-import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser, Resource, ResourceList, Session, Tag } from 'types';
+import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Resource, ResourceList, Session, Tag } from 'types';
 import { LabelledSortOption } from 'utils';
 
 export interface ObjectListItemProps {
@@ -18,6 +18,10 @@ export interface ProjectListItemProps extends ObjectListItemProps {
 
 export interface RoutineListItemProps extends ObjectListItemProps {
     data: ListRoutine;
+}
+
+export interface RunListItemProps extends ObjectListItemProps {
+    data: ListRun;
 }
 
 export interface StandardListItemProps extends ObjectListItemProps {

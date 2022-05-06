@@ -1,5 +1,5 @@
-import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser, Session } from "types";
-import { OrganizationListItem, ProjectListItem, RoutineListItem, StandardListItem, UserListItem } from 'components';
+import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListStar, ListUser, ListView, Session } from "types";
+import { OrganizationListItem, ProjectListItem, RoutineListItem, RunListItem, StandardListItem, UserListItem } from 'components';
 import { getTranslation, getUserLanguages } from "./translationTools";
 
 export interface AutocompleteListItem {
@@ -102,6 +102,8 @@ export function listToAutocomplete(
     }));
 }
 
+type ListItem = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView;
+
 /**
  * Converts a list of objects to a list of ListItems
  * @param objects The list of objects.
@@ -111,58 +113,60 @@ export function listToAutocomplete(
  * @returns A list of ListItems
  */
 export function listToListItems(
-    objects: readonly (ListOrganization | ListProject | ListRoutine | ListStandard | ListUser)[],
+    objects: readonly ListItem[],
     session: Session,
     keyPrefix: string,
-    onClick: (item: ListOrganization | ListProject | ListRoutine | ListStandard | ListUser, event: React.MouseEvent<HTMLElement>) => void,
+    onClick: (item: ListItem, event: React.MouseEvent<HTMLElement>) => void,
 ): JSX.Element[] {
     let listItems: JSX.Element[] = [];
     for (let i = 0; i < objects.length; i++) {
-        const curr = objects[i];
+        let curr = objects[i];
+        // If "View" or "Star" item, display the object it points to
+        if (curr.__typename === 'ListView' || curr.__typename === 'ListStar') {
+            curr = (curr as ListStar | ListView).to;
+        }
+        // Create common props
+        const commonProps = {
+            key: `${keyPrefix}-${curr.id}`,
+            index: i,
+            session,
+            onClick: (e) => onClick(curr, e)
+        }
         switch (curr.__typename) {
             case 'Organization':
                 listItems.push(<OrganizationListItem
-                    key={`${keyPrefix}-${curr.id}`}
-                    index={i}
-                    session={session}
+                    {...commonProps}
                     data={curr as ListOrganization}
-                    onClick={(e) => onClick(curr, e)}
                 />);
                 break;
             case 'Project':
                 listItems.push(<ProjectListItem
-                    key={`${keyPrefix}-${curr.id}`}
-                    index={i}
-                    session={session}
+                    {...commonProps}
                     data={curr as ListProject}
-                    onClick={(e) => onClick(curr, e)}
                 />);
                 break;
             case 'Routine':
                 listItems.push(<RoutineListItem
-                    key={`${keyPrefix}-${curr.id}`}
-                    index={i}
-                    session={session}
+                    {...commonProps}
                     data={curr as ListRoutine}
-                    onClick={(e) => onClick(curr, e)}
+                />);
+                break;
+            case 'Run':
+                listItems.push(<RunListItem
+                    {...commonProps}
+                    data={curr as ListRun}
                 />);
                 break;
             case 'Standard':
                 listItems.push(<StandardListItem
-                    key={`${keyPrefix}-${curr.id}`}
-                    index={i}
-                    session={session}
+                    {...commonProps}
                     data={curr as ListStandard}
-                    onClick={(e) => onClick(curr, e)}
                 />);
                 break;
             case 'User':
                 listItems.push(<UserListItem
-                    key={`${keyPrefix}-${curr.id}`}
-                    index={i}
-                    session={session}
+                    {...commonProps}
                     data={curr as ListUser}
-                    onClick={(e) => onClick(curr, e)}
                 />);
                 break;
             default:

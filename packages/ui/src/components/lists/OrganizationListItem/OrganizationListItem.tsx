@@ -30,7 +30,7 @@ export function OrganizationListItem({
     onClick,
 }: OrganizationListItemProps) {
     const [, setLocation] = useLocation();
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
+    const canEdit = useMemo<boolean>(() => data?.role ? [MemberRole.Admin, MemberRole.Owner].includes(data.role) : false, [data]);
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
     const { bio, name } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;

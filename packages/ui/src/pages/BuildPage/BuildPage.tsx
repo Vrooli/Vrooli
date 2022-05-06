@@ -92,7 +92,7 @@ export const BuildPage = ({
     const [status, setStatus] = useState<BuildStatusObject>({ code: BuildStatus.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
-    const canEdit = useMemo<boolean>(() => [MemberRole.Admin, MemberRole.Owner].includes(routine?.role as MemberRole), [routine]);
+    const canEdit = useMemo<boolean>(() => routine?.role ? [MemberRole.Admin, MemberRole.Owner].includes(routine.role) : false, [routine]);
     
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);

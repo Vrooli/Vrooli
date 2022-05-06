@@ -3,7 +3,7 @@ import { star } from 'graphql/generated/star';
 import { vote } from 'graphql/generated/vote';
 import { starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
-import { StarFor, VoteFor } from "@local/shared";
+import { ReportFor, StarFor, VoteFor } from "@local/shared";
 import { ListMenu, ReportDialog } from "..";
 import { BaseObjectActionDialogProps, BaseObjectAction, ListMenuItemData } from "../types";
 import {
@@ -153,7 +153,7 @@ export const BaseObjectActionDialog = ({
                 forId={objectId}
                 onClose={closeReport}
                 open={reportOpen}
-                reportFor={objectType}
+                reportFor={objectType as ReportFor}
                 session={session}
             />
             {/* Actual action dialog */}

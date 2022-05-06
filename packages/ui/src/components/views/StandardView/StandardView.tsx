@@ -39,7 +39,7 @@ export const StandardView = ({
     useEffect(() => {
         setStandard(data?.standard);
     }, [data]);
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(standard?.role ?? ''), [standard]);
+    const canEdit = useMemo<boolean>(() => standard?.role ? [MemberRole.Admin, MemberRole.Owner].includes(standard.role) : false, [standard]);
 
     useEffect(() => {
         const name = standard?.name ?? partialData?.name ?? '';

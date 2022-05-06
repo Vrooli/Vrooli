@@ -37,7 +37,7 @@ export const RoutineSubnode = ({
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
-    const canEdit = useMemo(() => data.routine.role && [MemberRole.Owner, MemberRole.Admin].includes(data.routine.role), [data.routine.role]);
+    const canEdit = useMemo<boolean>(() => data.routine.role ? [MemberRole.Owner, MemberRole.Admin].includes(data.routine.role) : false, [data.routine.role]);
 
     const { title } = useMemo(() => {
         const languages = navigator.languages;

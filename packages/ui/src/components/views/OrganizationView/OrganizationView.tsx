@@ -50,7 +50,7 @@ export const OrganizationView = ({
     useEffect(() => {
         setOrganization(data?.organization);
     }, [data]);
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(organization?.role ?? ''), [organization]);
+    const canEdit = useMemo<boolean>(() => organization?.role ? [MemberRole.Admin, MemberRole.Owner].includes(organization.role) : false, [organization]);
 
     const [language, setLanguage] = useState<string>('');
     const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);

@@ -216,8 +216,8 @@ export type ForYouPageResult = {
   __typename?: 'ForYouPageResult';
   activeRuns: Array<Run>;
   completedRuns: Array<Run>;
-  recent: Array<View>;
-  starred: Array<View>;
+  recentlyStarred: Array<Star>;
+  recentlyViewed: Array<View>;
 };
 
 export type Handle = {
@@ -2407,6 +2407,7 @@ export type StandardUpdateInput = {
 export type Star = {
   __typename?: 'Star';
   from: User;
+  id: Scalars['ID'];
   to: StarTo;
 };
 
@@ -2426,7 +2427,7 @@ export type StarInput = {
   starFor: StarFor;
 };
 
-export type StarTo = Comment | Organization | Project | Routine | Standard | Tag;
+export type StarTo = Comment | Organization | Project | Routine | Standard | Tag | User;
 
 export type StatisticsPageInput = {
   searchString: Scalars['String'];
@@ -2651,6 +2652,7 @@ export type UserTranslationUpdateInput = {
 export type View = {
   __typename?: 'View';
   from: User;
+  id: Scalars['ID'];
   lastViewed: Scalars['Date'];
   title: Scalars['String'];
   to: ProjectOrOrganizationOrRoutineOrStandardOrUser;

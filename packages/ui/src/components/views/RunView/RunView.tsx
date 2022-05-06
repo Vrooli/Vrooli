@@ -3,7 +3,7 @@ import { Box, Button, IconButton, LinearProgress, Stack, Typography } from "@mui
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
 import { useLocation, useRoute } from "wouter";
-import { RunRoutineViewProps } from "../types";
+import { RunViewProps } from "../types";
 import {
     ArrowBack as PreviousIcon,
     ArrowForward as NextIcon,
@@ -19,19 +19,18 @@ import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { parseSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
-import { routineComplete, routineCompleteVariables } from "graphql/generated/routineComplete";
-import { routineCompleteMutation, routineProgressUpdateMutation } from "graphql/mutation";
+import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
+import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
-import { routineProgressUpdate, routineProgressUpdateVariables } from "graphql/generated/routineProgressUpdate";
+import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
 
 const TERTIARY_COLOR = '#95f3cd';
 
-export const RunRoutineView = ({
+export const RunView = ({
     handleClose,
     session
-}: RunRoutineViewProps) => {
+}: RunViewProps) => {
     const [, setLocation] = useLocation();
-    // Get URL params
     const [stepParams, setStepParams] = useState<number[]>(() => {
         const stepUrl = (parseSearchParams(window.location.search).step ?? '').split('.');
         if (Array.isArray(stepUrl)) return stepUrl.map(Number)
@@ -39,6 +38,29 @@ export const RunRoutineView = ({
     });
     const [, params1] = useRoute(`${APP_LINKS.Build}/:routineId`);
     const [, params2] = useRoute(`${APP_LINKS.Run}/:routineId`);
+
+    // Get run id from URL. If not found, look for existing runs or create a new one.
+    useEffect(() => {
+        // Run ID is stored as search param in URL
+        const runId = parseSearchParams(window.location.search).runId;
+        // If ID is 'test', then this routine is being run for testing purposes. 
+        // In this case, we don't want to query/store any run data
+        if (runId === 'test') {
+            //TODO
+        }
+        // Check if ID is valid
+        if (runId && uuidValidate(runId)) {
+            //TODO
+        } 
+        // Otherwise, check if user has any existing runs with the same routine
+        else {
+            //TODO check
+            // If runs found, prompt user to select one or create a new one
+            //TODO
+            // If runs not found, create a new one
+            //TODO
+        }
+    }, []);
 
     /**
      * The amount of routine completed so far, measured in complexity
@@ -50,7 +72,7 @@ export const RunRoutineView = ({
      * Steps are stored as an array that describes their nesting, like they appear in the URL (e.g. [1], [1,3], [1,5,2]).
      * TODO History key should be combination of routineId and updated_at, so history is reset when routine is updated.
      */
-     const [progress, setProgress] = useHistoryState(params1?.routineId ?? params2?.routineId ?? '', [])
+    const [progress, setProgress] = useHistoryState(params1?.routineId ?? params2?.routineId ?? '', [])
 
     // Query main routine being run. This should not change for the entire orchestration, 
     // no matter how deep we go.
@@ -68,16 +90,16 @@ export const RunRoutineView = ({
             console.log('got routine data from server', routineData.routine);
             // Set routine
             setRoutine(routineData.routine);
-            // See if user already has partially executed this routine (with the same version)
-            if (routineData.routine.inProgressVersion !== routineData.routine.version) return;
-            // Check for in progress completed complexity (used to calculate percentage)
-            if (routineData.routine.inProgressCompletedComplexity) {
-                setCompletedComplexity(routineData.routine.inProgressCompletedComplexity);
-            }
-            // Check for in progress completed steps
-            if (Array.isArray(routineData.routine.inProgressCompletedSteps) && routineData.routine.inProgressCompletedSteps.length > 0) {
-                setProgress(routineData.routine.inProgressCompletedSteps);
-            }
+            // // See if user already has partially executed this routine (with the same version)
+            // if (routineData.routine.inProgressVersion !== routineData.routine.version) return;
+            // // Check for in progress completed complexity (used to calculate percentage)
+            // if (routineData.routine.inProgressCompletedComplexity) {
+            //     setCompletedComplexity(routineData.routine.inProgressCompletedComplexity);
+            // }
+            // // Check for in progress completed steps
+            // if (Array.isArray(routineData.routine.inProgressCompletedSteps) && routineData.routine.inProgressCompletedSteps.length > 0) {
+            //     setProgress(routineData.routine.inProgressCompletedSteps);
+            // }
         }
     }, [routineData]);
 
@@ -382,7 +404,7 @@ export const RunRoutineView = ({
         setStepParams(previousStep);
     }, [previousStep, progress, stepParams, setLocation]);
 
-    const [logRoutineProgressUpdate] = useMutation<routineProgressUpdate, routineProgressUpdateVariables>(routineProgressUpdateMutation);
+    const [logRunUpdate] = useMutation<runUpdate, runUpdateVariables>(runUpdateMutation);
     /**
      * Navigate to the next subroutine
      */
@@ -396,23 +418,22 @@ export const RunRoutineView = ({
         // Calculate percentage complete
         const currStep = findStep(stepParams);
         const newComplexity = currStep ? (completedComplexity + getStepComplexity(currStep)) : 0;
-        const newPercentage = newComplexity / (routine?.complexity ?? 1) * 100;
         // Update routine progress
         setCompletedComplexity(newComplexity);
-        logRoutineProgressUpdate({ variables: { input: { id: routine?.id ?? '', percentage: newPercentage, completedSteps: newProgress } } });
+        logRunUpdate({ variables: { input: { id: routine?.id ?? '', completedComplexity: newComplexity, stepsCreate: [{ order: progress.length, title: 'TODO' }] } } });
         // Update current step
         setLocation(`?step=${nextStep.join('.')}`, { replace: true });
         setStepParams(nextStep);
-    }, [nextStep, progress, stepParams, setLocation, setProgress, routine, completedComplexity, logRoutineProgressUpdate]);
+    }, [nextStep, progress, stepParams, setLocation, setProgress, routine, completedComplexity, logRunUpdate]);
 
-    const [logRoutineComplete] = useMutation<routineComplete>(routineCompleteMutation);
+    const [logRunComplete] = useMutation<runComplete>(runCompleteMutation);
     /**
      * Mark routine as complete and navigate
      */
     const toComplete = useCallback(() => {
         // Log complete
         mutationWrapper({
-            mutation: logRoutineComplete,
+            mutation: logRunComplete,
             input: { id: routine?.id ?? '', standalone: true },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
@@ -420,7 +441,7 @@ export const RunRoutineView = ({
                 handleClose()
             },
         })
-    }, [logRoutineComplete, handleClose, mutationWrapper, routine]);
+    }, [logRunComplete, handleClose, mutationWrapper, routine]);
 
     /**
      * End routine early
@@ -429,7 +450,7 @@ export const RunRoutineView = ({
         console.log('tofinishnotcomplete');
         //TODO
         // Log incomplete
-        logRoutineComplete({ variables: { input: { id: routine?.id ?? '' } } })
+        logRunComplete({ variables: { input: { id: routine?.id ?? '' } } })
         handleClose();
     }
 

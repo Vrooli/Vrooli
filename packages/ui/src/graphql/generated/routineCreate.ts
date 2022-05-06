@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RoutineCreateInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { RoutineCreateInput, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: routineCreate
@@ -323,6 +323,161 @@ export interface routineCreate_routineCreate_resourceLists {
   resources: routineCreate_routineCreate_resourceLists_resources[];
 }
 
+export interface routineCreate_routineCreate_runs_endNode_data_NodeEnd {
+  __typename: "NodeEnd";
+  id: string;
+  wasSuccessful: boolean;
+}
+
+export interface routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization_translations {
+  __typename: "OrganizationTranslation";
+  id: string;
+  language: string;
+  name: string;
+}
+
+export interface routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization {
+  __typename: "Organization";
+  id: string;
+  handle: string | null;
+  translations: routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
+}
+
+export interface routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_owner_User {
+  __typename: "User";
+  id: string;
+  name: string;
+  handle: string | null;
+}
+
+export type routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_owner = routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization | routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_owner_User;
+
+export interface routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_translations {
+  __typename: "RoutineTranslation";
+  id: string;
+  language: string;
+  title: string;
+  description: string | null;
+  instructions: string;
+}
+
+export interface routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine {
+  __typename: "Routine";
+  id: string;
+  complexity: number;
+  isInternal: boolean | null;
+  nodesCount: number | null;
+  role: MemberRole | null;
+  owner: routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_owner | null;
+  simplicity: number;
+  translations: routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine_translations[];
+  version: string | null;
+}
+
+export interface routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_translations {
+  __typename: "NodeRoutineListItemTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string | null;
+}
+
+export interface routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines {
+  __typename: "NodeRoutineListItem";
+  id: string;
+  index: number;
+  isOptional: boolean;
+  routine: routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_routine;
+  translations: routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines_translations[];
+}
+
+export interface routineCreate_routineCreate_runs_endNode_data_NodeRoutineList {
+  __typename: "NodeRoutineList";
+  id: string;
+  isOptional: boolean;
+  isOrdered: boolean;
+  routines: routineCreate_routineCreate_runs_endNode_data_NodeRoutineList_routines[];
+}
+
+export type routineCreate_routineCreate_runs_endNode_data = routineCreate_routineCreate_runs_endNode_data_NodeEnd | routineCreate_routineCreate_runs_endNode_data_NodeRoutineList;
+
+export interface routineCreate_routineCreate_runs_endNode_loop_whiles_translations {
+  __typename: "LoopWhileTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string;
+}
+
+export interface routineCreate_routineCreate_runs_endNode_loop_whiles {
+  __typename: "LoopWhile";
+  id: string;
+  condition: string;
+  translations: routineCreate_routineCreate_runs_endNode_loop_whiles_translations[];
+}
+
+export interface routineCreate_routineCreate_runs_endNode_loop {
+  __typename: "Loop";
+  id: string;
+  loops: number | null;
+  maxLoops: number | null;
+  operation: string | null;
+  whiles: routineCreate_routineCreate_runs_endNode_loop_whiles[];
+}
+
+export interface routineCreate_routineCreate_runs_endNode_translations {
+  __typename: "NodeTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+  title: string;
+}
+
+export interface routineCreate_routineCreate_runs_endNode {
+  __typename: "Node";
+  id: string;
+  columnIndex: number | null;
+  created_at: any;
+  rowIndex: number | null;
+  type: NodeType;
+  updated_at: any;
+  data: routineCreate_routineCreate_runs_endNode_data | null;
+  loop: routineCreate_routineCreate_runs_endNode_loop | null;
+  translations: routineCreate_routineCreate_runs_endNode_translations[];
+}
+
+export interface routineCreate_routineCreate_runs_steps_node {
+  __typename: "Node";
+  id: string;
+}
+
+export interface routineCreate_routineCreate_runs_steps {
+  __typename: "RunStep";
+  id: string;
+  order: number;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStepStatus;
+  node: routineCreate_routineCreate_runs_steps_node | null;
+}
+
+export interface routineCreate_routineCreate_runs {
+  __typename: "Run";
+  id: string;
+  completedComplexity: number;
+  endNode: routineCreate_routineCreate_runs_endNode | null;
+  pickups: number;
+  timeStarted: any | null;
+  timeElapsed: number | null;
+  timeCompleted: any | null;
+  title: string;
+  status: RunStatus;
+  steps: routineCreate_routineCreate_runs_steps[];
+}
+
 export interface routineCreate_routineCreate_tags_translations {
   __typename: "TagTranslation";
   id: string;
@@ -352,9 +507,6 @@ export interface routineCreate_routineCreate {
   completedAt: any | null;
   complexity: number;
   created_at: any;
-  inProgressCompletedSteps: number[][] | null;
-  inProgressCompletedComplexity: number | null;
-  inProgressVersion: string | null;
   inputs: routineCreate_routineCreate_inputs[];
   isAutomatable: boolean | null;
   isComplete: boolean;
@@ -367,6 +519,7 @@ export interface routineCreate_routineCreate {
   owner: routineCreate_routineCreate_owner | null;
   parent: routineCreate_routineCreate_parent | null;
   resourceLists: routineCreate_routineCreate_resourceLists[];
+  runs: routineCreate_routineCreate_runs[];
   score: number;
   simplicity: number;
   stars: number;

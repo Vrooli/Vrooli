@@ -137,13 +137,6 @@ export const typeDef = gql`
     union ProjectOrRoutine = Project | Routine
     union ProjectOrOrganization = Project | Organization
     union ProjectOrOrganizationOrRoutineOrStandardOrUser = Project | Organization | Routine | Standard | User
- 
-    type View {
-        from: User!
-        lastViewed: Date!
-        title: String!
-        to: ProjectOrOrganizationOrRoutineOrStandardOrUser!
-    }
 
     input HomePageInput {
         searchString: String!
@@ -165,8 +158,8 @@ export const typeDef = gql`
     type ForYouPageResult {
         activeRuns: [Run!]!
         completedRuns: [Run!]!
-        recent: [View!]!
-        starred: [View!]!
+        recentlyViewed: [View!]!
+        recentlyStarred: [Star!]!
     }
  
     type LearnPageResult {

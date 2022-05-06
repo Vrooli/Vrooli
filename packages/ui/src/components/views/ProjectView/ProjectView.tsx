@@ -46,7 +46,7 @@ export const ProjectView = ({
     useEffect(() => {
         setProject(data?.project);
     }, [data]);
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(project?.role ?? ''), [project]);
+    const canEdit = useMemo<boolean>(() => project?.role ? [MemberRole.Admin, MemberRole.Owner].includes(project.role) : false, [project]);
 
     const [language, setLanguage] = useState<string>('');
     const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);

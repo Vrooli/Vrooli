@@ -31,7 +31,7 @@ export function ResourceListItem({
     onClick,
 }: ResourceListItemProps) {
     const [, setLocation] = useLocation();
-    const canEdit: boolean = useMemo(() => [MemberRole.Admin, MemberRole.Owner].includes(data?.role ?? ''), [data]);
+    const canEdit = useMemo<boolean>(() => Boolean(data?.role) && [MemberRole.Admin, MemberRole.Owner].includes(data.role), [data]);
     const { description, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
         return {

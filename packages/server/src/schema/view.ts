@@ -8,6 +8,7 @@ export const typeDef = gql`
     }
   
     type View {
+        id: ID!
         from: User!
         lastViewed: Date!
         title: String!

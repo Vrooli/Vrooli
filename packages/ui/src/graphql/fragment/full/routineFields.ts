@@ -184,14 +184,40 @@ export const routineFields = gql`
             }
         }
     }
+    fragment routineStepFields on RunStep {
+        id
+        order
+        pickups
+        timeStarted
+        timeElapsed
+        timeCompleted
+        title
+        status
+        node {
+            id
+        }
+    }
+    fragment routineRunFields on Run {
+        id
+        completedComplexity
+        endNode {
+            ...routineNodeFields
+        }
+        pickups
+        timeStarted
+        timeElapsed
+        timeCompleted
+        title
+        status
+        steps {
+            ...routineStepFields
+        }
+    }
     fragment routineFields on Routine {
         id
         completedAt
         complexity
         created_at
-        inProgressCompletedSteps
-        inProgressCompletedComplexity
-        inProgressVersion
         inputs {
             ...routineInputFields
         }
@@ -235,6 +261,9 @@ export const routineFields = gql`
         }
         resourceLists {
             ...routineResourceListFields
+        }
+        runs {
+            ...routineRunFields
         }
         score
         simplicity

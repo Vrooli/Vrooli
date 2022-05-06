@@ -5,6 +5,7 @@ export * from './OrganizationListItem/OrganizationListItem';
 export * from './ProjectListItem/ProjectListItem';
 export * from './resource';
 export * from './RoutineListItem/RoutineListItem';
+export * from './RunListItem/RunListItem';
 export * from './SearchList/SearchList';
 export * from './SortMenu/SortMenu';
 export * from './StandardListItem/StandardListItem';

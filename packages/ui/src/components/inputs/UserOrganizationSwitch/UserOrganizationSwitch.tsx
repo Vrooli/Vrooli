@@ -74,7 +74,7 @@ export function UserOrganizationSwitch({
     const organizationListItems: JSX.Element[] = useMemo(() => {
         const filtered = organizations?.filter((o: ListOrganization) => getTranslation(o, 'name', languages, true)?.toLowerCase()?.includes(search.toLowerCase()) ?? '');
         return filtered?.map((o: ListOrganization, index) => {
-            const canSelect = o.role && [MemberRole.Admin, MemberRole.Owner].includes(o.role);
+            const canSelect: boolean = o.role ? [MemberRole.Admin, MemberRole.Owner].includes(o.role) : false;
             return (
                 <ListItem
                     key={index}

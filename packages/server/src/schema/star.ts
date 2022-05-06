@@ -20,7 +20,7 @@ export const typeDef = gql`
         User
     }   
 
-    union StarTo = Comment | Organization | Project | Routine | Standard | Tag
+    union StarTo = Comment | Organization | Project | Routine | Standard | Tag | User
 
     input StarInput {
         isStar: Boolean!
@@ -28,6 +28,7 @@ export const typeDef = gql`
         forId: ID!
     }
     type Star {
+        id: ID!
         from: User!
         to: StarTo!
     }
@@ -45,7 +46,9 @@ export const resolvers = {
             if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
             if (obj.hasOwnProperty('isOpenToNewMembers')) return GraphQLModelType.Organization;
             if (obj.hasOwnProperty('name')) return GraphQLModelType.User;
-            return GraphQLModelType.Routine;
+            if (obj.hasOwnProperty('tag')) return GraphQLModelType.Tag;
+            if (obj.hasOwnProperty('complexity')) return GraphQLModelType.Routine;
+            return GraphQLModelType.Comment;
         },
     },
     Mutation: {
