@@ -924,12 +924,10 @@ model view {
     lastViewed     DateTime      @default(now()) @db.Timestamptz(6)
     title          String        @db.VarChar(128) // Title of viewed item, as it appears to the user. Makes searching for items that changed names easier
     byId           String        @db.Uuid // ID of user who voted
-    commentId      String?       @db.Uuid
     organizationId String?       @db.Uuid
     projectId      String?       @db.Uuid
     routineId      String?       @db.Uuid
     standardId     String?       @db.Uuid
-    tagId          String?       @db.Uuid
     userId         String?       @db.Uuid // ID of user being starred
     by             user          @relation("view_by", fields: [byId], references: [id])
     organization   organization? @relation("view_organization", fields: [organizationId], references: [id])

@@ -39,7 +39,7 @@ export const typeDef = gql`
 
 export const resolvers = {
     StarFor: StarFor,
-    Star: {
+    StarTo: {
         __resolveType(obj: any) {
             if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
             if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;

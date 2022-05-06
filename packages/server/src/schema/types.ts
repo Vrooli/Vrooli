@@ -214,10 +214,10 @@ export type ForYouPageInput = {
 
 export type ForYouPageResult = {
   __typename?: 'ForYouPageResult';
-  activeRoutines: Array<Routine>;
-  completedRoutines: Array<Routine>;
-  recent: Array<ProjectOrOrganizationOrRoutineOrStandardOrUser>;
-  starred: Array<ProjectOrOrganizationOrRoutineOrStandardOrUser>;
+  activeRuns: Array<Run>;
+  completedRuns: Array<Run>;
+  recent: Array<View>;
+  starred: Array<View>;
 };
 
 export type Handle = {
@@ -2647,6 +2647,19 @@ export type UserTranslationUpdateInput = {
   id: Scalars['ID'];
   language: Scalars['String'];
 };
+
+export type View = {
+  __typename?: 'View';
+  from: User;
+  lastViewed: Scalars['Date'];
+  title: Scalars['String'];
+  to: ProjectOrOrganizationOrRoutineOrStandardOrUser;
+};
+
+export enum ViewSortBy {
+  LastViewedAsc = 'LastViewedAsc',
+  LastViewedDesc = 'LastViewedDesc'
+}
 
 export type Vote = {
   __typename?: 'Vote';

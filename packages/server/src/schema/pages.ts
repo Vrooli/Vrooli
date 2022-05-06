@@ -3,17 +3,17 @@
  */
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
-import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, LogSearchResult, LogSortBy, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, ForYouPageInput, ForYouPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, Log, Organization, Standard, User } from './types';
+import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, LogSearchResult, LogSortBy, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, ForYouPageInput, ForYouPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, Log, Organization, Standard, User, RunStatus, RunSortBy, ViewSortBy } from './types';
 import { CODE } from '@local/shared';
 import { IWrap } from '../types';
 import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, GraphQLModelType, logSearcher, LogType, modelToGraphQL, OrganizationModel, paginatedMongoSearch, PartialInfo, ProjectModel, readManyHelper, RoutineModel, StandardModel, toPartialSelect, UserModel } from '../models';
+import { addSupplementalFieldsMultiTypes, GraphQLModelType, logSearcher, LogType, modelToGraphQL, OrganizationModel, paginatedMongoSearch, PartialInfo, ProjectModel, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialSelect, UserModel, ViewModel } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
 
 // Query fields shared across multiple endpoints
 const tagSelect = {
-    __typename: 'Tag',
+    __typename: GraphQLModelType.Tag,
     id: true,
     created_at: true,
     tag: true,
@@ -26,7 +26,7 @@ const tagSelect = {
     }
 }
 const organizationSelect = {
-    __typename: 'Organization',
+    __typename: GraphQLModelType.Organization,
     id: true,
     handle: true,
     stars: true,
@@ -39,11 +39,13 @@ const organizationSelect = {
     tags: tagSelect,
 }
 const projectSelect = {
-    __typename: 'Project',
+    __typename: GraphQLModelType.Project,
     id: true,
+    completedAt: true,
     handle: true,
     stars: true,
     score: true,
+    isComplete: true,
     isStarred: true,
     isUpvoted: true,
     translations: {
@@ -54,9 +56,10 @@ const projectSelect = {
     tags: tagSelect,
 }
 const routineSelect = {
-    __typename: 'Routine',
+    __typename: GraphQLModelType.Routine,
     id: true,
     created_at: true,
+    completedAt: true,
     complexity: true,
     simplicity: true,
     stars: true,
@@ -72,8 +75,22 @@ const routineSelect = {
     },
     tags: tagSelect,
 }
+const runSelect = {
+    __typename: GraphQLModelType.RunStep,
+    id: true,
+    completedComplexity: true,
+    endNodeId: true,
+    pickups: true,
+    timeStarted: true,
+    timeElapsed: true,
+    timeCompleted: true,
+    title: true,
+    status: true,
+    version: true,
+    routine: routineSelect,
+}
 const standardSelect = {
-    __typename: 'Standard',
+    __typename: GraphQLModelType.Standard,
     id: true,
     name: true,
     stars: true,
@@ -87,12 +104,32 @@ const standardSelect = {
     tags: tagSelect,
 }
 const userSelect = {
-    __typename: 'User',
+    __typename: GraphQLModelType.User,
     id: true,
     name: true,
     handle: true,
     stars: true,
     isStarred: true,
+}
+const viewSelect = {
+    __typename: GraphQLModelType.View,
+    id: true,
+    lastViewed: true,
+    title: true,
+    organization: organizationSelect,
+    project: projectSelect,
+    routine: routineSelect,
+    standard: standardSelect,
+    user: userSelect,
+}
+const starSelect = {
+    __typename: GraphQLModelType.Star,
+    id: true,
+    organization: organizationSelect,
+    project: projectSelect,
+    routine: routineSelect,
+    standard: standardSelect,
+    user: userSelect,
 }
 
 export const typeDef = gql`
@@ -101,6 +138,13 @@ export const typeDef = gql`
     union ProjectOrOrganization = Project | Organization
     union ProjectOrOrganizationOrRoutineOrStandardOrUser = Project | Organization | Routine | Standard | User
  
+    type View {
+        from: User!
+        lastViewed: Date!
+        title: String!
+        to: ProjectOrOrganizationOrRoutineOrStandardOrUser!
+    }
+
     input HomePageInput {
         searchString: String!
         take: Int
@@ -119,10 +163,10 @@ export const typeDef = gql`
     }
 
     type ForYouPageResult {
-        activeRoutines: [Routine!]!
-        completedRoutines: [Routine!]!
-        recent: [ProjectOrOrganizationOrRoutineOrStandardOrUser!]!
-        starred: [ProjectOrOrganizationOrRoutineOrStandardOrUser!]!
+        activeRuns: [Run!]!
+        completedRuns: [Run!]!
+        recent: [View!]!
+        starred: [View!]!
     }
  
     type LearnPageResult {
@@ -430,65 +474,44 @@ export const resolvers = {
                 inProgress: [],
                 recent: [],
             }
-            const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
-            const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
             // Initialize models
-            const oModel = OrganizationModel(context.prisma);
             const pModel = ProjectModel(context.prisma);
             const rModel = RoutineModel(context.prisma);
-            // Find completed logs for routines
-            const completedLogs = (await paginatedMongoSearch<LogSearchResult>({
-                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.RoutineComplete] }),
-                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
-                take,
-                project: logSearcher().defaultProjection,
-            })).edges.map(({ node }: any) => node) as Log[]
-            console.log('develop query completed logs', JSON.stringify(completedLogs));
-            // Use logs to find full routine data from Prisma
-            const completedIds = completedLogs.map((node: any) => node.object1Id);
+            // Query for routines you've completed
             const completedRoutines = (await readManyHelper(
                 context.req.userId,
-                { ids: completedIds, sortBy: RoutineSortBy.DateCompletedAsc },
+                { take, isComplete: true, userId: context.req.userId, sortBy: RoutineSortBy.DateCompletedAsc },
                 routineSelect,
                 rModel,
-                { ...starsQuery },
+                {},
                 false,
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
-            // Projects can be found without looking up logs
+            // Query for projects you've completed
             const completedProjects = (await readManyHelper(
                 context.req.userId,
                 { take, isComplete: true, userId: context.req.userId, sortBy: ProjectSortBy.DateCompletedAsc },
                 projectSelect,
                 pModel,
-                { ...starsQuery },
+                {},
                 false,
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
-            // Find in progress logs
-            const inProgressLogs = (await paginatedMongoSearch<LogSearchResult>({
-                findQuery: logSearcher().getFindQuery(context.req.userId ?? '', { actions: [LogType.RoutineStartIncomplete] }),
-                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
-                take,
-                project: logSearcher().defaultProjection,
-            })).edges.map(({ node }: any) => node) as Log[]
-            console.log('develop query in progress logs', JSON.stringify(inProgressLogs));
-            // Use logs to find full routine data from Prisma
-            const inProgressIds = inProgressLogs.map((node: any) => node.object1Id);
+            // Query for routines you're currently working on
             const inProgressRoutines = (await readManyHelper(
                 context.req.userId,
-                { ids: inProgressIds, sortBy: RoutineSortBy.DateCreatedAsc },
+                { take, isComplete: false, userId: context.req.userId, sortBy: RoutineSortBy.DateCreatedAsc },
                 routineSelect,
                 rModel,
-                { ...starsQuery },
+                {},
                 false,
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
-            // Projects can be found without looking up logs
+            // Query for projects you're currently working on
             const inProgressProjects = (await readManyHelper(
                 context.req.userId,
                 { take, isComplete: false, userId: context.req.userId, sortBy: ProjectSortBy.DateCreatedAsc },
                 projectSelect,
                 pModel,
-                { ...starsQuery },
+                {},
                 false,
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
             // Query recently created/updated routines
@@ -497,7 +520,7 @@ export const resolvers = {
                 { take, userId: context.req.userId, sortBy: RoutineSortBy.DateUpdatedAsc },
                 routineSelect,
                 rModel,
-                { ...starsQuery },
+                {},
                 false,
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
             // Query recently created/updated projects
@@ -506,7 +529,7 @@ export const resolvers = {
                 { take, userId: context.req.userId, sortBy: ProjectSortBy.DateUpdatedAsc },
                 projectSelect,
                 pModel,
-                { ...starsQuery },
+                {},
                 false,
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
             // Add supplemental fields to every result
@@ -521,30 +544,15 @@ export const resolvers = {
             const completed: Array<Project | Routine> = [...withSupplemental['cr'], ...withSupplemental['cp']];
             const inProgress: Array<Project | Routine> = [...withSupplemental['ipr'], ...withSupplemental['ipp']];
             const recent: Array<Project | Routine> = [...withSupplemental['rr'], ...withSupplemental['rp']];
-            // Sort arrays by date completed/updated. Completed and inProgress have to be sorted differently than other 
-            // sorts, because the timestamp for routines is in the log, but the timestamp for projects is in the project data.
+            // Sort arrays
             completed.sort((a, b) => {
-                // Check for log, which means it's a routine
-                const aLog = completedLogs.find((log: Log) => log.id === a.id);
-                const bLog = completedLogs.find((log: Log) => log.id === b.id);
-                // Determine completedAt
-                const aCompletedAt = aLog ? aLog.timestamp : (a as Project).completedAt;
-                const bCompletedAt = bLog ? bLog.timestamp : (b as Project).completedAt;
-                // Compare
-                if (aCompletedAt < bCompletedAt) return -1;
-                if (aCompletedAt > bCompletedAt) return 1;
+                if (a.completedAt < b.completedAt) return -1;
+                if (a.completedAt > b.completedAt) return 1;
                 return 0;
             });
             inProgress.sort((a, b) => {
-                // Check for log, which means it's a routine
-                const aLog = inProgressLogs.find((log: Log) => log.id === a.id);
-                const bLog = inProgressLogs.find((log: Log) => log.id === b.id);
-                // Determine updatedAt
-                const aUpdatedAt = aLog ? aLog.timestamp : (a as Project).updated_at;
-                const bUpdatedAt = bLog ? bLog.timestamp : (b as Project).updated_at;
-                // Compare
-                if (aUpdatedAt < bUpdatedAt) return -1;
-                if (aUpdatedAt > bUpdatedAt) return 1;
+                if (a.updated_at < b.updated_at) return -1;
+                if (a.updated_at > b.updated_at) return 1;
                 return 0;
             });
             recent.sort((a, b) => {
@@ -571,179 +579,62 @@ export const resolvers = {
             const oModel = OrganizationModel(context.prisma);
             const pModel = ProjectModel(context.prisma);
             const rModel = RoutineModel(context.prisma);
+            const runModel = RunModel(context.prisma);
             const sModel = StandardModel(context.prisma);
+            const starModel = StarModel(context.prisma);
             const uModel = UserModel(context.prisma);
-            // Query RoutineIncomplete logs
-            const activeLogs = (await paginatedMongoSearch<LogSearchResult>({
-                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.RoutineStartIncomplete] }),
-                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
-                take,
-                project: logSearcher().defaultProjection,
-            })).edges.map(({ node }: any) => node) as Log[]
-            console.log('active logs!', JSON.stringify(activeLogs));
-            // Use logs to find full routine data from Prisma
-            const activeRoutineIds = activeLogs.map((node: any) => node.object1Id);
-            const activeRoutines = (await readManyHelper(
+            const vModel = ViewModel(context.prisma);
+            // Query for incomplete runs
+            const activeRuns = (await readManyHelper(
                 context.req.userId,
-                { ids: activeRoutineIds },
-                routineSelect,
-                rModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[];
-            // Sort by timestamp of corresponding log
-            activeRoutines.sort((a, b) => {
-                const aLog = activeLogs.find((log: Log) => log.object1Id === a.id);
-                const bLog = activeLogs.find((log: Log) => log.object1Id === b.id);
-                if (aLog && bLog) {
-                    if (aLog.timestamp < bLog.timestamp) return -1;
-                    if (aLog.timestamp > bLog.timestamp) return 1;
-                    return 0;
-                }
-                return 0;
-            });
-            console.log('active routines!', JSON.stringify(activeRoutines));
-            // Query recently completed routines
-            const completedLogs = (await paginatedMongoSearch<LogSearchResult>({
-                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.RoutineComplete] }),
-                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
-                take,
-                project: logSearcher().defaultProjection,
-            })).edges.map(({ node }: any) => node) as Log[]
-            // Use logs to find full routine data from Prisma
-            const completedRoutineIds = completedLogs.map((node: any) => node.object1Id);
-            const completedRoutines = (await readManyHelper(
+                { take, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
+                runSelect,
+                runModel,
+                { userId: context.req.userId },
+                false
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)) as any[]
+            // Query for complete runs
+            const completedRuns = (await readManyHelper(
                 context.req.userId,
-                { ids: completedRoutineIds },
-                routineSelect,
-                rModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[];
-            // Sort by timestamp of corresponding log
-            completedRoutines.sort((a, b) => {
-                const aLog = activeLogs.find((log: Log) => log.object1Id === a.id);
-                const bLog = activeLogs.find((log: Log) => log.object1Id === b.id);
-                if (aLog && bLog) {
-                    if (aLog.timestamp < bLog.timestamp) return -1;
-                    if (aLog.timestamp > bLog.timestamp) return 1;
-                    return 0;
-                }
-                return 0;
-            });
+                { take, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
+                runSelect,
+                runModel,
+                { userId: context.req.userId },
+                false
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)) as any[]
             // Query recently viewed objects (of any type)
-            const viewedLogs = (await paginatedMongoSearch<LogSearchResult>({
-                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.View] }),
-                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
-                take,
-                project: logSearcher().defaultProjection,
-            })).edges.map(({ node }: any) => node) as Log[]
-            console.log('viewed logs!', JSON.stringify(viewedLogs));
-            // Query recently starred objects (of any type)
-            const starredLogs = (await paginatedMongoSearch<LogSearchResult>({
-                findQuery: logSearcher().getFindQuery(context.req.userId, { actions: [LogType.Star] }),
-                sortQuery: logSearcher().getSortQuery(LogSortBy.DateCreatedAsc),
-                take,
-                project: logSearcher().defaultProjection,
-            })).edges.map(({ node }: any) => node) as Log[]
-            console.log('starred logs!', JSON.stringify(starredLogs));
-            // Group log ids from viewedLogs and starredLogs by object type, to reduce database calls
-            const combinedLogs = [...viewedLogs, ...starredLogs];
-            const organizationLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.Organization).map((log: Log) => log.object1Id) as string[];
-            const projectLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.Project).map((log: Log) => log.object1Id) as string[];
-            const routineLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.Routine).map((log: Log) => log.object1Id) as string[];
-            const standardLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.Standard).map((log: Log) => log.object1Id) as string[];
-            const userLogIds = combinedLogs.filter((log: Log) => Boolean(log.object1Id) && log.object1Type === GraphQLModelType.User).map((log: Log) => log.object1Id) as string[];
-            console.log('combined logs', JSON.stringify(combinedLogs));
-            console.log('organization log ids', JSON.stringify(organizationLogIds));
-            console.log('project log ids', JSON.stringify(projectLogIds));
-            console.log('routine log ids', JSON.stringify(routineLogIds));
-            console.log('standard log ids', JSON.stringify(standardLogIds));
-            console.log('user log ids', JSON.stringify(userLogIds));
-            // Query each object type separately
-            const organizations = (await readManyHelper(
+            const recentlyViewed = (await readManyHelper(
                 context.req.userId,
-                { ids: organizationLogIds },
-                organizationSelect,
-                oModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(organizationSelect, oModel.relationshipMap) as PartialInfo)) as any[];
-            const projects = (await readManyHelper(
+                { take, sortBy: ViewSortBy.LastViewedDesc },
+                viewSelect,
+                vModel,
+                { userId: context.req.userId },
+                false
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(viewSelect, vModel.relationshipMap) as PartialInfo)) as any[];
+            // Query recently starred objects (of any type). Make sure to ignore tags
+            const recentlyStarred = (await readManyHelper(
                 context.req.userId,
-                { ids: projectLogIds },
-                projectSelect,
-                pModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[];
-            const routines = (await readManyHelper(
-                context.req.userId,
-                { ids: routineLogIds },
-                routineSelect,
-                rModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[];
-            const standards = (await readManyHelper(
-                context.req.userId,
-                { ids: standardLogIds },
-                standardSelect,
-                sModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(standardSelect, sModel.relationshipMap) as PartialInfo)) as any[];
-            const users = (await readManyHelper(
-                context.req.userId,
-                { ids: userLogIds },
-                userSelect,
-                uModel,
-                {},
-                false,
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(userSelect, uModel.relationshipMap) as PartialInfo)) as any[];
+                { take, sortBy: UserSortBy.DateCreatedDesc },
+                starSelect,
+                starModel,
+                { userId: context.req.userId, tagId: null },
+                false
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(starSelect, starModel.relationshipMap) as PartialInfo)) as any[];
             // Add supplemental fields to every result
+            // TODO might need to do something special for viewSelect and starSelect, since they have unions
             const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [activeRoutines, completedRoutines, organizations, projects, routines, standards, users],
-                [routineSelect, routineSelect, organizationSelect, projectSelect, routineSelect, standardSelect, userSelect] as any,
-                ['ar', 'cr', 'o', 'p', 'r', 's', 'u'],
+                [activeRuns, completedRuns, recentlyViewed, recentlyStarred],
+                [runSelect, runSelect, viewSelect, starSelect] as any,
+                ['ar', 'cr', 'rv', 'rs'],
                 context.req.userId,
                 context.prisma,
             )
-            // Recombine organizations, projects, routines, standards, and users into two arrays - one for viewed and one for starred
-            // Also sort by timestamp of corresponding log
-            const viewedAndStarred = [...withSupplemental['o'], ...withSupplemental['p'], ...withSupplemental['r'], ...withSupplemental['s'], ...withSupplemental['u']];
-            const viewed = viewedAndStarred.filter((obj: Organization | Project | Routine | Standard | User) => {
-                const log = viewedLogs.find((log: Log) => log.object1Id === obj.id);
-                return Boolean(log);
-            }).sort((a, b) => {
-                const aLog = viewedLogs.find((log: Log) => log.object1Id === a.id);
-                const bLog = viewedLogs.find((log: Log) => log.object1Id === b.id);
-                if (aLog && bLog) {
-                    if (aLog.timestamp < bLog.timestamp) return -1;
-                    if (aLog.timestamp > bLog.timestamp) return 1;
-                    return 0;
-                }
-                return 0;
-            });
-            const starred = viewedAndStarred.filter((obj: Organization | Project | Routine | Standard | User) => {
-                const log = starredLogs.find((log: Log) => log.object1Id === obj.id);
-                return Boolean(log);
-            }).sort((a, b) => {
-                const aLog = starredLogs.find((log: Log) => log.object1Id === a.id);
-                const bLog = starredLogs.find((log: Log) => log.object1Id === b.id);
-                if (aLog && bLog) {
-                    if (aLog.timestamp < bLog.timestamp) return -1;
-                    if (aLog.timestamp > bLog.timestamp) return 1;
-                    return 0;
-                }
-                return 0;
-            });
             // Return results
             return {
-                activeRoutines: withSupplemental['ar'],
-                completedRoutines: withSupplemental['cr'],
-                recent: viewed,
-                starred,
+                activeRuns: withSupplemental['ar'],
+                completedRuns: withSupplemental['cr'],
+                recentlyViewed: withSupplemental['rv'],
+                recentlyStarred: withSupplemental['rs'],
             } as any
         },
         /**
