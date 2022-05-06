@@ -56,6 +56,8 @@ export enum GraphQLModelType {
     ResourceList = 'ResourceList',
     Role = 'Role',
     Routine = 'Routine',
+    Run = 'Run',
+    RunStep = 'RunStep',
     Standard = 'Standard',
     Star = 'Star',
     Tag = 'Tag',
@@ -779,7 +781,7 @@ export const deconstructUnion = (partial: any, unionField: string, relationshipT
 }
 
 /**
- * Counts the "matchness" of two objects. The more fields that match, the higher the score.
+ * Counts the "similarity" of two objects. The more fields that match, the higher the score.
  * @returns Total number of matching fields, or 0
  */
 const countSubset = (obj1: any, obj2: any): number => {

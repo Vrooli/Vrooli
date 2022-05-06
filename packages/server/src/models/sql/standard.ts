@@ -61,21 +61,21 @@ export const standardFormatter = (): FormatConverter<Standard> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, StarFor.Standard)
+                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, VoteFor.Standard)
+                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel(prisma).getIsVieweds(userId, ids, ViewFor.Standard)
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.Standard)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }

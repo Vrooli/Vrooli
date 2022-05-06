@@ -39,8 +39,9 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
     },
     customQueries(input: ResourceSearchInput): { [x: string]: any } {
         // const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
-        const languagesQuery = input.languages ? { translations: { some: { language: { in: input.languages } } } } : {};
-        return { ...languagesQuery };
+        return {
+            ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
+        }
     },
 })
 

@@ -41,14 +41,14 @@ export const userFormatter = (): FormatConverter<User> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, StarFor.User)
+                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.User)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel(prisma).getIsVieweds(userId, ids, ViewFor.User)
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.User)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }

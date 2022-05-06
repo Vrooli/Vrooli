@@ -32,6 +32,8 @@ export * from './resource';
 export * from './resourceList';
 export * from './routine';
 export * from './standard';
+export * from './step';
+export * from './run';
 export * from './tag';
 export * from './user';
 export * from './wallet';

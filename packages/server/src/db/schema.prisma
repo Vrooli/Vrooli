@@ -637,7 +637,7 @@ model routine_tags {
 
 model run {
     id                  String     @id @default(uuid()) @db.Uuid
-    completedComplexity Int? // Complexity of routine which was already completed. Used to measure progress more accurately than just the number of nodes completed.
+    completedComplexity Int        @default(0) // Complexity of routine which was already completed. Used to measure progress more accurately than just the number of nodes completed.
     endNodeId           String?    @db.Uuid // ID of the last node executed
     pickups             Int        @default(1) // Measures context switches. 1 means that the routine was executed completely without leaving
     timeStarted         DateTime?  @db.Timestamptz(6)
@@ -645,11 +645,12 @@ model run {
     timeCompleted       DateTime?  @db.Timestamptz(6)
     title               String     @db.VarChar(128) // Title of viewed item, as it appears to the user. Makes searching for items that changed names easier
     status              RunStatus  @default(Scheduled)
+    version             String     @db.VarChar(16) // Version of routine being run. Used to determine if routine has changed since run was started
     routineId           String?    @db.Uuid
-    userId              String?    @db.Uuid
+    userId              String     @db.Uuid
     routine             routine?   @relation("run_routine", fields: [routineId], references: [id], onDelete: SetNull)
     steps               run_step[]
-    user                user?      @relation("run_user", fields: [userId], references: [id])
+    user                user       @relation("run_user", fields: [userId], references: [id])
 }
 
 // Individual step of a run. Used to store progress, and additional metrics for each step.
@@ -664,7 +665,8 @@ model run_step {
     timeElapsed   Int? // Time spent working on the step, in seconds
     timeCompleted DateTime?     @db.Timestamptz(6)
     status        RunStepStatus @default(InProgress)
-    run           run?          @relation(fields: [runId], references: [id], onDelete: SetNull)
+    run           run          @relation(fields: [runId], references: [id], onDelete: Cascade)
+    title         String        @db.VarChar(128) // Title of viewed item, as it appears to the user. Makes searching for items that changed names easier
     node          node?         @relation(fields: [nodeId], references: [id], onDelete: SetNull)
 }
 

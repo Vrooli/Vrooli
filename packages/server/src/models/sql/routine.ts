@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeLink, NodeRoutineList, NodeRoutineListItem, Node, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialSelect, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { CODE, inputCreate, inputTranslationCreate, inputTranslationUpdate, inputUpdate, MemberRole, outputTranslationCreate, outputTranslationUpdate, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate, StarFor, ViewFor, VoteFor } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
@@ -16,6 +16,7 @@ import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
 import { Log, LogType } from "../../models/nosql";
 import { ViewModel } from "./view";
+import { runFormatter } from "./run";
 
 //==============================================================
 /* #region Custom Components */
@@ -54,6 +55,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
             isUpvoted,
             isStarred,
             role,
+            runs,
             ...rest
         } = partial;
         return rest;
@@ -91,21 +93,21 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, StarFor.Routine)
+                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, VoteFor.Routine)
+                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel(prisma).getIsVieweds(userId, ids, ViewFor.Routine)
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }
@@ -128,36 +130,34 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 return { ...x, role: (Boolean(x.owner?.id) && x.owner?.id === userId) ? MemberRole.Owner : undefined };
             }) as any;
         }
-        // Query for in-progress data
-        if (partial.currentPercentage || partial.currentRunState) {
-            console.log('Querying for mongodb current data in routine supplementalfields');
-            // Fetch RoutineStartIncomplete logs with the userId and routine ids
-            const progressLogs = await Log.find({
-                action: LogType.RoutineStartIncomplete,
-                input1Type: GraphQLModelType.Routine,
-                input1Id: { $in: ids },
-                userId,
-            }).exec();
-            console.log('got progressLogs', JSON.stringify(progressLogs));
-            // The data we need is stored as JSON in the "data" field of the log, which we must parse
-            const progressData: any[] = progressLogs.filter(x => Boolean(x.data)).map(x => ({
-                routineId: x.input1Id,
-                data: JSON.parse(x.data),
-            }));
-            console.log('got progressData', JSON.stringify(progressData));
-            // Apply data fields to objects
-            objects = objects.map((x) => {
-                const progress = progressData.find(y => y.routineId === x.id);
-                if (progress) {
-                    return {
-                        ...x,
-                        inProgressCompletedComplexity: progress.data.completedComplexity,
-                        inProgressCompletedSteps: progress.data.completedSteps,
-                        inProgressVersion: progress.data.version,
-                    };
+        // Query for run data. This must be done here because we are not querying all runs - just ones made by the user
+        if (_.isObject(partial.runs)) {
+            if (userId) {
+                // Find requested fields of runs
+                const runPartial = toPartialSelect(partial.runs, runFormatter().relationshipMap);
+                if (runPartial === undefined) {
+                    throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
                 }
-                return x;
-            });
+                // Query runs made by user
+                let runs: any[] = await prisma.run.findMany({
+                    where: {
+                        AND: [
+                            { routineId: { in: ids } },
+                            { userId },
+                        ]
+                    },
+                    ...selectHelper(runPartial)
+                });
+                // Format runs to GraphQL
+                runs = runs.map(r => modelToGraphQL(r, runPartial));
+                // Add supplemental fields
+                runs = await addSupplementalFields(prisma, userId, runs, runPartial);
+                // Apply data fields to objects
+                objects = objects.map((x) => ({ ...x, runs: runs.filter(r => r.routineId === x.id) }));
+            } else {
+                // Set all runs to empty array
+                objects = objects.map(x => ({ ...x, runs: [] }));
+            }
         }
         // Convert Prisma objects to GraphQL objects
         return objects as RecursivePartial<Routine>[];
@@ -203,8 +203,10 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
             ...(input.maxComplexity ? { complexity: { lte: input.maxComplexity } } : {}),
             ...(input.minSimplicity ? { simplicity: { gte: input.minSimplicity } } : {}),
             ...(input.maxSimplicity ? { simplicity: { lte: input.maxSimplicity } } : {}),
+            ...(input.maxTimesCompleted ? { timesCompleted: { lte: input.maxTimesCompleted } } : {}),
             ...(input.minScore ? { score: { gte: input.minScore } } : {}),
             ...(input.minStars ? { stars: { gte: input.minStars } } : {}),
+            ...(input.minTimesCompleted ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
             ...(input.minViews ? { views: { gte: input.minViews } } : {}),
             ...(input.resourceLists ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
             ...(input.resourceTypes ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),

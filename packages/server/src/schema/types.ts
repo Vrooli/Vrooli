@@ -490,13 +490,15 @@ export type Mutation = {
   resourceListDeleteMany: Count;
   resourceListUpdate: ResourceList;
   resourceUpdate: Resource;
-  routineCancel: Log;
-  routineComplete: Log;
   routineCreate: Routine;
   routineDeleteOne: Success;
-  routineProgressUpdate: Success;
-  routineStart: Log;
   routineUpdate: Routine;
+  runCancel: Run;
+  runComplete: Run;
+  runCreate: Run;
+  runDeleteAll: Count;
+  runDeleteMany: Count;
+  runUpdate: Run;
   sendVerificationEmail: Success;
   standardCreate: Standard;
   standardDeleteOne: Success;
@@ -676,16 +678,6 @@ export type MutationResourceUpdateArgs = {
 };
 
 
-export type MutationRoutineCancelArgs = {
-  input: RoutineCancelInput;
-};
-
-
-export type MutationRoutineCompleteArgs = {
-  input: RoutineCompleteInput;
-};
-
-
 export type MutationRoutineCreateArgs = {
   input: RoutineCreateInput;
 };
@@ -696,18 +688,33 @@ export type MutationRoutineDeleteOneArgs = {
 };
 
 
-export type MutationRoutineProgressUpdateArgs = {
-  input: RoutineProgressUpdateInput;
-};
-
-
-export type MutationRoutineStartArgs = {
-  input: RoutineStartInput;
-};
-
-
 export type MutationRoutineUpdateArgs = {
   input: RoutineUpdateInput;
+};
+
+
+export type MutationRunCancelArgs = {
+  input: RunCancelInput;
+};
+
+
+export type MutationRunCompleteArgs = {
+  input: RunCompleteInput;
+};
+
+
+export type MutationRunCreateArgs = {
+  input: RunCreateInput;
+};
+
+
+export type MutationRunDeleteManyArgs = {
+  input: DeleteManyInput;
+};
+
+
+export type MutationRunUpdateArgs = {
+  input: RunUpdateInput;
 };
 
 
@@ -1409,6 +1416,9 @@ export type Query = {
   routine?: Maybe<Routine>;
   routines: RoutineSearchResult;
   routinesCount: Scalars['Int'];
+  run?: Maybe<Run>;
+  runs: RunSearchResult;
+  runsCount: Scalars['Int'];
   standard?: Maybe<Standard>;
   standards: StandardSearchResult;
   standardsCount: Scalars['Int'];
@@ -1549,6 +1559,21 @@ export type QueryRoutinesArgs = {
 
 export type QueryRoutinesCountArgs = {
   input: RoutineCountInput;
+};
+
+
+export type QueryRunArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryRunsArgs = {
+  input: RunSearchInput;
+};
+
+
+export type QueryRunsCountArgs = {
+  input: RunCountInput;
 };
 
 
@@ -1942,9 +1967,6 @@ export type Routine = {
   creator?: Maybe<Contributor>;
   forks: Array<Routine>;
   id: Scalars['ID'];
-  inProgressCompletedComplexity?: Maybe<Scalars['Int']>;
-  inProgressCompletedSteps?: Maybe<Array<Array<Scalars['Int']>>>;
-  inProgressVersion?: Maybe<Scalars['String']>;
   inputs: Array<InputItem>;
   isAutomatable?: Maybe<Scalars['Boolean']>;
   isComplete: Scalars['Boolean'];
@@ -1963,6 +1985,7 @@ export type Routine = {
   reports: Array<Report>;
   resourceLists: Array<ResourceList>;
   role?: Maybe<MemberRole>;
+  runs: Array<Run>;
   score: Scalars['Int'];
   simplicity: Scalars['Int'];
   starredBy: Array<User>;
@@ -1972,15 +1995,6 @@ export type Routine = {
   updated_at: Scalars['Date'];
   version?: Maybe<Scalars['String']>;
   views: Scalars['Int'];
-};
-
-export type RoutineCancelInput = {
-  id: Scalars['ID'];
-};
-
-export type RoutineCompleteInput = {
-  id: Scalars['ID'];
-  standalone?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type RoutineCountInput = {
@@ -2013,12 +2027,6 @@ export type RoutineEdge = {
   node: Routine;
 };
 
-export type RoutineProgressUpdateInput = {
-  completedSteps?: InputMaybe<Array<Array<Scalars['Int']>>>;
-  id: Scalars['ID'];
-  percentage?: InputMaybe<Scalars['Int']>;
-};
-
 export type RoutineSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
@@ -2028,10 +2036,12 @@ export type RoutineSearchInput = {
   languages?: InputMaybe<Array<Scalars['String']>>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
   maxSimplicity?: InputMaybe<Scalars['Int']>;
+  maxTimesCompleted?: InputMaybe<Scalars['Int']>;
   minComplexity?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minSimplicity?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
+  minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
@@ -2069,11 +2079,6 @@ export enum RoutineSortBy {
   VotesAsc = 'VotesAsc',
   VotesDesc = 'VotesDesc'
 }
-
-export type RoutineStartInput = {
-  id: Scalars['ID'];
-  version: Scalars['String'];
-};
 
 export type RoutineTranslation = {
   __typename?: 'RoutineTranslation';
@@ -2129,6 +2134,132 @@ export type RoutineUpdateInput = {
   translationsUpdate?: InputMaybe<Array<RoutineTranslationUpdateInput>>;
   userId?: InputMaybe<Scalars['ID']>;
   version?: InputMaybe<Scalars['String']>;
+};
+
+export type Run = {
+  __typename?: 'Run';
+  completedComplexity: Scalars['Int'];
+  endNode?: Maybe<Node>;
+  id: Scalars['ID'];
+  pickups: Scalars['Int'];
+  routine?: Maybe<Routine>;
+  status: RunStatus;
+  steps: Array<RunStep>;
+  timeCompleted?: Maybe<Scalars['Date']>;
+  timeElapsed?: Maybe<Scalars['Int']>;
+  timeStarted?: Maybe<Scalars['Date']>;
+  title: Scalars['String'];
+  user: User;
+};
+
+export type RunCancelInput = {
+  id: Scalars['ID'];
+};
+
+export type RunCompleteInput = {
+  endNodeId: Scalars['ID'];
+  id: Scalars['ID'];
+  pickups?: InputMaybe<Scalars['Int']>;
+  timeElapsed?: InputMaybe<Scalars['Int']>;
+};
+
+export type RunCountInput = {
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+};
+
+export type RunCreateInput = {
+  routineId: Scalars['ID'];
+  title: Scalars['String'];
+  version: Scalars['String'];
+};
+
+export type RunEdge = {
+  __typename?: 'RunEdge';
+  cursor: Scalars['String'];
+  node: Run;
+};
+
+export type RunSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  completedTimeFrame?: InputMaybe<TimeFrame>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  routineId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<RunSortBy>;
+  startedTimeFrame?: InputMaybe<TimeFrame>;
+  status?: InputMaybe<RunStatus>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+};
+
+export type RunSearchResult = {
+  __typename?: 'RunSearchResult';
+  edges: Array<RunEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum RunSortBy {
+  DateCompletedAsc = 'DateCompletedAsc',
+  DateCompletedDesc = 'DateCompletedDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateStartedAsc = 'DateStartedAsc',
+  DateStartedDesc = 'DateStartedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
+export enum RunStatus {
+  Cancelled = 'Cancelled',
+  Completed = 'Completed',
+  Failed = 'Failed',
+  InProgress = 'InProgress',
+  Scheduled = 'Scheduled'
+}
+
+export type RunStep = {
+  __typename?: 'RunStep';
+  id: Scalars['ID'];
+  node?: Maybe<Node>;
+  order: Scalars['Int'];
+  pickups: Scalars['Int'];
+  run: Run;
+  status: RunStepStatus;
+  timeCompleted?: Maybe<Scalars['Date']>;
+  timeElapsed?: Maybe<Scalars['Int']>;
+  timeStarted?: Maybe<Scalars['Date']>;
+  title: Scalars['String'];
+};
+
+export type RunStepCreateInput = {
+  order: Scalars['Int'];
+  title: Scalars['String'];
+};
+
+export enum RunStepStatus {
+  Completed = 'Completed',
+  InProgress = 'InProgress',
+  Skipped = 'Skipped'
+}
+
+export type RunStepUpdateInput = {
+  id: Scalars['ID'];
+  pickups?: InputMaybe<Scalars['Int']>;
+  status?: InputMaybe<RunStepStatus>;
+  timeElapsed?: InputMaybe<Scalars['Int']>;
+};
+
+export type RunUpdateInput = {
+  completedComplexity?: InputMaybe<Scalars['Int']>;
+  id: Scalars['ID'];
+  pickups?: InputMaybe<Scalars['Int']>;
+  stepsCreate?: InputMaybe<Array<RunStepCreateInput>>;
+  stepsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  stepsUpdate?: InputMaybe<Array<RunStepUpdateInput>>;
+  timeElapsed?: InputMaybe<Scalars['Int']>;
 };
 
 export type SendVerificationEmailInput = {

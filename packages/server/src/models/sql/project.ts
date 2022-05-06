@@ -71,21 +71,21 @@ export const projectFormatter = (): FormatConverter<Project> => ({
         // Query for isStarred
         if (partial.isStarred) {
             const isStarredArray = userId
-                ? await StarModel(prisma).getIsStarreds(userId, ids, StarFor.Project)
+                ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Project)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
         if (partial.isUpvoted) {
             const isUpvotedArray = userId
-                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, VoteFor.Project)
+                ? await VoteModel(prisma).getIsUpvoteds(userId, ids, GraphQLModelType.Project)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isUpvoted: isUpvotedArray[i] }));
         }
         // Query for isViewed
         if (partial.isViewed) {
             const isViewedArray = userId
-                ? await ViewModel(prisma).getIsVieweds(userId, ids, ViewFor.Project)
+                ? await ViewModel(prisma).getIsVieweds(userId, ids, GraphQLModelType.Project)
                 : Array(ids.length).fill(false);
             objects = objects.map((x, i) => ({ ...x, isViewed: isViewedArray[i] }));
         }

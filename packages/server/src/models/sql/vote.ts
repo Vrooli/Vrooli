@@ -145,7 +145,7 @@ const voter = (prisma: PrismaType) => ({
     async getIsUpvoteds(
         userId: string,
         ids: string[],
-        voteFor: VoteFor
+        voteFor: keyof typeof VoteFor
     ): Promise<Array<boolean | null>> {
         // Create result array that is the same length as ids
         const result = new Array(ids.length).fill(null);

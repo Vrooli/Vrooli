@@ -105,7 +105,9 @@ const viewer = (prisma: PrismaType) => ({
                     title: input.title,
                 }
             })
-            // Update view count
+            // Check if the object is owned by the user
+            //TODO
+            // Update view count, if not owned by user
             await prismaFor.update({
                 where: { id: input.forId },
                 data: { views: viewFor.views + 1 }
@@ -145,7 +147,7 @@ const viewer = (prisma: PrismaType) => ({
     async getIsVieweds(
         userId: string,
         ids: string[],
-        viewFor: ViewFor
+        viewFor: keyof typeof ViewFor
     ): Promise<Array<boolean | null>> {
         // Create result array that is the same length as ids
         const result = new Array(ids.length).fill(null);
@@ -171,7 +173,7 @@ const viewer = (prisma: PrismaType) => ({
 //==============================================================
 
 export function ViewModel(prisma: PrismaType) {
-    const prismaObject = prisma.vote;
+    const prismaObject = prisma.view;
     const format = viewFormatter();
 
     return {

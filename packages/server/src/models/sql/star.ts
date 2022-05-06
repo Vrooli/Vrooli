@@ -129,7 +129,7 @@ const starrer = (prisma: PrismaType) => ({
     async getIsStarreds(
         userId: string,
         ids: string[],
-        starFor: StarFor
+        starFor: keyof typeof StarFor
     ): Promise<boolean[]> {
         // Create result array that is the same length as ids
         const result = new Array(ids.length).fill(false);

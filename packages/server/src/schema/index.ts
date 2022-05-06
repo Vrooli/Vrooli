@@ -15,6 +15,7 @@ import * as Resource from './resource';
 import * as ResourceList from './resourceList';
 import * as Role from './role';
 import * as Routine from './routine';
+import * as Run from './run';
 import * as Standard from './standard';
 import * as Star from './star';
 import * as Tag from './tag';
@@ -25,7 +26,7 @@ import * as Wallet from './wallet';
 const models = [
     Root, Auth, Comment, Email, Feedback, Log, Node,
     Organization, Pages, Project, Report, Resource, ResourceList, Role,
-    Routine, Standard, Star, Tag, User, Vote, Wallet
+    Routine, Run, Standard, Star, Tag, User, Vote, Wallet
 ]
 
 export const schema = makeExecutableSchema({
