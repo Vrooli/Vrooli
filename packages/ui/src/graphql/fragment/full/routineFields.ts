@@ -200,9 +200,6 @@ export const routineFields = gql`
     fragment routineRunFields on Run {
         id
         completedComplexity
-        endNode {
-            ...routineNodeFields
-        }
         pickups
         timeStarted
         timeElapsed

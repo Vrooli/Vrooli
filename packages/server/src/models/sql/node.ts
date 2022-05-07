@@ -43,8 +43,9 @@ export const nodeFormatter = (): FormatConverter<Node> => ({
 
 export const nodeRoutineListFormatter = (): FormatConverter<Node> => ({
     relationshipMap: {
+        '__typename': GraphQLModelType.NodeRoutineList,
         'routines': {
-            '__typename': GraphQLModelType.NodeRoutineList,
+            '__typename': GraphQLModelType.NodeRoutineListItem,
             'routine': GraphQLModelType.Routine,
         },
     },

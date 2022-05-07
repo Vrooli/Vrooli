@@ -29,7 +29,7 @@ import { resourceListFormatter, resourceListSearcher } from './resourceList';
 import { tagHiddenFormatter } from './tagHidden';
 import { Log, LogType } from '../../models/nosql';
 import { genErrorCode } from '../../logger';
-import { ViewModel } from './view';
+import { viewFormatter, ViewModel } from './view';
 const { isObject } = pkg;
 
 
@@ -47,6 +47,7 @@ export enum GraphQLModelType {
     NodeEnd = 'NodeEnd',
     NodeLoop = 'NodeLoop',
     NodeRoutineList = 'NodeRoutineList',
+    NodeRoutineListItem = 'NodeRoutineListItem',
     Organization = 'Organization',
     OutputItem = 'OutputItem',
     Profile = 'Profile',
@@ -88,7 +89,10 @@ export interface PartialInfo {
     __typename?: GraphQLModelType;
 }
 
-export type RelationshipMap = { [relationshipName: string]: GraphQLModelType | { [fieldName: string]: GraphQLModelType } };
+export type RelationshipMap = { 
+    __typename: GraphQLModelType;
+    [relationshipName: string]: GraphQLModelType | { [fieldName: string]: GraphQLModelType } 
+};
 
 /**
  * Helper functions for converting between Prisma types and GraphQL types
@@ -214,7 +218,7 @@ export interface CUDResult<GraphQLObject> {
 /* #endregion Type Definitions */
 //======================================================================================================================
 
-export const FormatterMap: { [x: string]: FormatConverter<any> } = {
+export const FormatterMap: { [key in GraphQLModelType]?: FormatConverter<any> } = {
     [GraphQLModelType.Comment]: commentFormatter(),
     [GraphQLModelType.Email]: emailFormatter(),
     [GraphQLModelType.InputItem]: inputItemFormatter(),
@@ -236,9 +240,10 @@ export const FormatterMap: { [x: string]: FormatConverter<any> } = {
     [GraphQLModelType.TagHidden]: tagHiddenFormatter(),
     [GraphQLModelType.User]: userFormatter(),
     [GraphQLModelType.Vote]: voteFormatter(),
+    [GraphQLModelType.View]: viewFormatter(),
 }
 
-export const SearcherMap: { [x: string]: Searcher<any> } = {
+export const SearcherMap: { [key in GraphQLModelType]?: Searcher<any> } = {
     [GraphQLModelType.Comment]: commentSearcher(),
     // 'Member': memberSearcher(),TODO create searchers for all these
     [GraphQLModelType.Organization]: organizationSearcher(),
@@ -254,7 +259,7 @@ export const SearcherMap: { [x: string]: Searcher<any> } = {
     // 'Vote': voteSearcher(),
 }
 
-export const PrismaMap: { [x: string]: (prisma: PrismaType) => any } = {
+export const PrismaMap: { [key in GraphQLModelType]?: (prisma: PrismaType) => any } = {
     [GraphQLModelType.Comment]: (prisma: PrismaType) => prisma.comment,
     [GraphQLModelType.Email]: (prisma: PrismaType) => prisma.email,
     [GraphQLModelType.Member]: (prisma: PrismaType) => prisma.organization_users,
@@ -266,11 +271,14 @@ export const PrismaMap: { [x: string]: (prisma: PrismaType) => any } = {
     [GraphQLModelType.Resource]: (prisma: PrismaType) => prisma.resource,
     [GraphQLModelType.Role]: (prisma: PrismaType) => prisma.role,
     [GraphQLModelType.Routine]: (prisma: PrismaType) => prisma.routine,
+    [GraphQLModelType.Run]: (prisma: PrismaType) => prisma.run,
     [GraphQLModelType.Standard]: (prisma: PrismaType) => prisma.standard,
+    [GraphQLModelType.RunStep]: (prisma: PrismaType) => prisma.run_step,
     [GraphQLModelType.Star]: (prisma: PrismaType) => prisma.star,
     [GraphQLModelType.Tag]: (prisma: PrismaType) => prisma.tag,
     [GraphQLModelType.User]: (prisma: PrismaType) => prisma.user,
     [GraphQLModelType.Vote]: (prisma: PrismaType) => prisma.vote,
+    [GraphQLModelType.View]: (prisma: PrismaType) => prisma.view,
 }
 
 /**
@@ -496,17 +504,17 @@ const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: Re
         }
         // If value is an object, recurse
         // Find nested value in parent relationship map, using nestedFields
-        let nestedValue: any = parentRelationshipMap;
+        let nestedValue: GraphQLModelType | Partial<RelationshipMap> | undefined = parentRelationshipMap;
         for (const field of nestedFields) {
             if (!_.isObject(nestedValue)) break;
             if (field in nestedValue) {
                 nestedValue = (nestedValue as any)[field];
             }
         }
-        if (nestedValue) nestedValue = nestedValue[selectKey];
+        if (typeof nestedValue === 'object') nestedValue = nestedValue[selectKey];
         // If nestedValue is not an object, try to get its relationshipMap
         let relationshipMap;
-        if (typeof nestedValue !== 'object') relationshipMap = FormatterMap[nestedValue]?.relationshipMap;
+        if (nestedValue !== undefined && typeof nestedValue !== 'object') relationshipMap = FormatterMap[nestedValue]?.relationshipMap;
         // If relationship map found, this becomes the new parent
         if (relationshipMap) {
             // New parent found, so we recurse with nestFields removed
@@ -873,14 +881,10 @@ const groupIdsByType = (data: { [x: string]: any }, partial: PartialInfo): [{ [x
             objectIdsDict[type].push(value);
         }
     }
-    // Add primitives to selectFieldsDict
+    // Add keys to selectFieldsDict
     const currType = partial?.__typename;
     if (currType) {
-        // Remove anything that's not a primitive from partial
-        const partialPrimitives = Object.keys(partial)
-            .filter(key => !isRelationshipObject(partial[key]))
-            .reduce((res: any, key) => (res[key] = partial[key], res), {});
-        selectFieldsDict[currType] = _.merge(selectFieldsDict[currType] ?? {}, partialPrimitives);
+        selectFieldsDict[currType] = _.merge(selectFieldsDict[currType] ?? {}, partial);
     }
     // Return objectDict and selectFieldsDict
     return [objectIdsDict, selectFieldsDict];
@@ -1043,8 +1047,8 @@ export const addSupplementalFields = async (
         });
         // Now that we have the data for each object, we can add the supplemental fields
         if (type in FormatterMap) {
-            const valuesWithSupplements = FormatterMap[type]?.addSupplementalFields
-                ? await (FormatterMap[type] as any).addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type])
+            const valuesWithSupplements = FormatterMap[type as keyof typeof FormatterMap]?.addSupplementalFields
+                ? await (FormatterMap[type as keyof typeof FormatterMap] as any).addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type])
                 : objectData;
             // Add each value to objectsById
             for (const v of valuesWithSupplements) {
@@ -1119,13 +1123,15 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
         }
     }
     // Handle base case
-    if (partial?.__typename ?? '' in FormatterMap) {
-        const formatter = FormatterMap[partial?.__typename ?? ''];
+    const type: string | undefined = partial?.__typename;
+    if (type !== undefined && type in FormatterMap) {
+        const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
         if (formatter.removeCalculatedFields) result = formatter.removeCalculatedFields(result);
         if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
         if (formatter.addCountFields) result = formatter.addCountFields(result);
     }
+    if (type) console.log('selecttoDB end\n', type, ' ', JSON.stringify(result), '\n\n');
     return result;
 }
 
@@ -1137,8 +1143,9 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
  */
 export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial: PartialInfo): GraphQLModel {
     // First convert data to usable shape
-    if (partial?.__typename ?? '' in FormatterMap) {
-        const formatter = FormatterMap[partial?.__typename ?? ''];
+    const type: string | undefined = partial?.__typename;
+    if (type !== undefined && type in FormatterMap) {
+        const formatter: FormatConverter<any> = FormatterMap[type as keyof typeof FormatterMap] as FormatConverter<any>;
         if (formatter.constructUnions) data = formatter.constructUnions(data);
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
         if (formatter.removeCountFields) data = formatter.removeCountFields(data);
@@ -1197,12 +1204,12 @@ export async function readOneHelper<GraphQLModel>(
     if (!partial)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
     // Uses __typename to determine which Prisma object is being queried
-    const objectType = partial.__typename;
-    if (!objectType || !(objectType in PrismaMap)) {
-        throw new CustomError(CODE.InternalError, `${objectType} not found`, { code: genErrorCode('0021') });
+    const objectType: string | undefined = partial.__typename;
+    if (objectType === undefined || !(objectType in PrismaMap)) {
+        throw new CustomError(CODE.InternalError, `${objectType} missing in PrismaMap`, { code: genErrorCode('0021') });
     }
     // Get the Prisma object
-    let object = await PrismaMap[objectType](model.prisma).findUnique({ where: { id: input.id }, ...selectHelper(partial) });
+    let object = await (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma).findUnique({ where: { id: input.id }, ...selectHelper(partial) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
@@ -1240,9 +1247,9 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     if (!partial)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
     // Uses __typename to determine which Prisma object is being queried
-    const objectType = partial.__typename;
-    if (!objectType || !(objectType in PrismaMap))
-        throw new CustomError(CODE.InternalError, `${objectType} not found`, { code: genErrorCode('0024') });
+    const objectType: string | undefined = partial.__typename;
+    if (objectType === undefined || !(objectType in PrismaMap))
+        throw new CustomError(CODE.InternalError, `${objectType} not found in PrismaMap`, { code: genErrorCode('0024') });
     // Create query for specified ids
     const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
     // Determine text search query
@@ -1252,13 +1259,19 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Determine updatedTimeFrame query
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Create type-specific queries
-    const typeQuery = SearcherMap[objectType]?.customQueries ? (SearcherMap[objectType] as any).customQueries(input) : undefined;
+    let typeQuery: any = undefined;
+    if (objectType in SearcherMap && SearcherMap[objectType as keyof typeof SearcherMap]?.customQueries) {
+        typeQuery = (SearcherMap[objectType as keyof typeof SearcherMap] as any).customQueries(input);
+    }
     // Combine queries
     const where = { ...additionalQueries, ...idQuery, ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
     // Determine sort order
     const orderBy = model.getSortQuery ? model.getSortQuery(input.sortBy ?? model.defaultSort) : undefined;
     // Find requested search array
-    const searchResults = await PrismaMap[objectType](model.prisma).findMany({
+    console.log('readmany partial ', JSON.stringify(partial), '\n');
+    const temp = selectHelper(partial);
+    console.log('readmanyhelper selecthelper ', JSON.stringify(temp), '\n\n');
+    const searchResults = await (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma).findMany({
         where,
         orderBy,
         take: input.take ?? 20,
@@ -1268,13 +1281,14 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
         } : undefined,
         ...selectHelper(partial)
     });
+    console.log('got search results', JSON.stringify(searchResults), '\n\n');
     // If there are results
     let paginatedResults: PaginatedSearchResult;
     if (searchResults.length > 0) {
         // Find cursor
         const cursor = searchResults[searchResults.length - 1].id;
         // Query after the cursor to check if there are more results
-        const hasNextPage = await PrismaMap[objectType](model.prisma).findMany({
+        const hasNextPage = await (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma).findMany({
             take: 1,
             cursor: {
                 id: cursor
@@ -1304,6 +1318,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // If not adding supplemental fields, return the paginated results
     if (!addSupplemental) return paginatedResults;
     // Return formatted for GraphQL
+    console.log('going to format nodes')
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partial as PartialInfo));
     formattedNodes = await addSupplementalFields(model.prisma, userId, formattedNodes, partial);
@@ -1318,12 +1333,16 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
  * @returns The number of matching objects
  */
 export async function countHelper<CountInput extends CountInputBase>(input: CountInput, model: ModelBusinessLayer<any, any>, where?: { [x: string]: any }): Promise<number> {
+    // Check if model is supported
+    const type: string = model.relationshipMap.__typename;
+    if (!type || !(type in PrismaMap))
+        throw new CustomError(CODE.InternalError, `${type} not found in PrismaMap`, { code: genErrorCode('0183') });
     // Create query for created metric
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Create query for created metric
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Count objects that match queries
-    return await PrismaMap[model.relationshipMap.__typename as string](model.prisma).count({
+    return await (PrismaMap[type as keyof typeof PrismaMap] as any)(model.prisma).count({
         where: {
             ...where,
             ...createdQuery,

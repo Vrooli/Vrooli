@@ -79,7 +79,6 @@ const runSelect = {
     __typename: GraphQLModelType.RunStep,
     id: true,
     completedComplexity: true,
-    endNodeId: true,
     pickups: true,
     timeStarted: true,
     timeElapsed: true,
@@ -116,20 +115,24 @@ const viewSelect = {
     id: true,
     lastViewed: true,
     title: true,
-    organization: organizationSelect,
-    project: projectSelect,
-    routine: routineSelect,
-    standard: standardSelect,
-    user: userSelect,
+    to: {
+        Organization: organizationSelect,
+        Project: projectSelect,
+        Routine: routineSelect,
+        Standard: standardSelect,
+        User: userSelect,
+    }
 }
 const starSelect = {
     __typename: GraphQLModelType.Star,
     id: true,
-    organization: organizationSelect,
-    project: projectSelect,
-    routine: routineSelect,
-    standard: standardSelect,
-    user: userSelect,
+    to: {
+        Organization: organizationSelect,
+        Project: projectSelect,
+        Routine: routineSelect,
+        Standard: standardSelect,
+        User: userSelect,
+    }
 }
 
 export const typeDef = gql`
@@ -315,7 +318,6 @@ export const resolvers = {
                 users: withSupplemental['u'],
             }
         },
-
         /**
          * Queries data shown on Learn page
          */
@@ -569,14 +571,9 @@ export const resolvers = {
             await rateLimit({ context, info, max: 5000 });
             const take = 5;
             // Initialize models
-            const oModel = OrganizationModel(context.prisma);
-            const pModel = ProjectModel(context.prisma);
-            const rModel = RoutineModel(context.prisma);
             const runModel = RunModel(context.prisma);
-            const sModel = StandardModel(context.prisma);
             const starModel = StarModel(context.prisma);
-            const uModel = UserModel(context.prisma);
-            const vModel = ViewModel(context.prisma);
+            const viewModel = ViewModel(context.prisma);
             // Query for incomplete runs
             const activeRuns = (await readManyHelper(
                 context.req.userId,
@@ -585,7 +582,8 @@ export const resolvers = {
                 runModel,
                 { userId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => {console.log('got active run', JSON.stringify(node)); modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)}) as any[]
+            console.log('foryoupage a', JSON.stringify(activeRuns));
             // Query for complete runs
             const completedRuns = (await readManyHelper(
                 context.req.userId,
@@ -594,16 +592,18 @@ export const resolvers = {
                 runModel,
                 { userId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)) as any[]
+            )).edges.map(({ node }: any) => {console.log('got completed run', JSON.stringify(node)); modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)}) as any[]
+            console.log('foryoupage b', JSON.stringify(completedRuns));
             // Query recently viewed objects (of any type)
             const recentlyViewed = (await readManyHelper(
                 context.req.userId,
                 { take, sortBy: ViewSortBy.LastViewedDesc },
                 viewSelect,
-                vModel,
+                viewModel,
                 { userId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(viewSelect, vModel.relationshipMap) as PartialInfo)) as any[];
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(viewSelect, viewModel.relationshipMap) as PartialInfo)) as any[];
+            console.log('foryoupage c', JSON.stringify(recentlyViewed));
             // Query recently starred objects (of any type). Make sure to ignore tags
             const recentlyStarred = (await readManyHelper(
                 context.req.userId,
@@ -613,6 +613,7 @@ export const resolvers = {
                 { userId: context.req.userId, tagId: null },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(starSelect, starModel.relationshipMap) as PartialInfo)) as any[];
+            console.log('foryoupage d', JSON.stringify(recentlyStarred));
             // Add supplemental fields to every result
             // TODO might need to do something special for viewSelect and starSelect, since they have unions
             const withSupplemental = await addSupplementalFieldsMultiTypes(
@@ -622,6 +623,7 @@ export const resolvers = {
                 context.req.userId,
                 context.prisma,
             )
+            console.log('foryoupage e', JSON.stringify(withSupplemental));
             // Return results
             return {
                 activeRuns: withSupplemental['ar'],

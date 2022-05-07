@@ -2139,7 +2139,6 @@ export type RoutineUpdateInput = {
 export type Run = {
   __typename?: 'Run';
   completedComplexity: Scalars['Int'];
-  endNode?: Maybe<Node>;
   id: Scalars['ID'];
   pickups: Scalars['Int'];
   routine?: Maybe<Routine>;
@@ -2157,7 +2156,6 @@ export type RunCancelInput = {
 };
 
 export type RunCompleteInput = {
-  endNodeId: Scalars['ID'];
   id: Scalars['ID'];
   pickups?: InputMaybe<Scalars['Int']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;

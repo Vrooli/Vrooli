@@ -35,7 +35,6 @@ export const typeDef = gql`
     type Run {
         id: ID!
         completedComplexity: Int!
-        endNode: Node
         pickups: Int!
         timeStarted: Date
         timeElapsed: Int
@@ -127,7 +126,6 @@ export const typeDef = gql`
         id: ID!
         pickups: Int
         timeElapsed: Int
-        endNodeId: ID!
     }
 
     input RunCancelInput {

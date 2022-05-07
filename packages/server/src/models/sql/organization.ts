@@ -33,6 +33,7 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
+        console.log('organization removeCalculatedFields', JSON.stringify(partial), '\n');
         let { isStarred, role, ...rest } = partial;
         return rest;
     },
@@ -116,6 +117,12 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
 })
 
 export const organizationVerifier = (prisma: PrismaType) => ({
+    /**
+     * Finds the roles a users has for a list of organizations
+     * @param userId The user's id
+     * @param ids The list of organization ids
+     * @returns An array in the same order as the ids, with either a role or undefined
+     */
     async getRoles(userId: string, ids: string[]): Promise<Array<MemberRole | undefined>> {
         // Query member data for each ID
         const roleArray = await prisma.organization_users.findMany({
@@ -127,6 +134,12 @@ export const organizationVerifier = (prisma: PrismaType) => ({
             return role?.role as MemberRole | undefined;
         });
     },
+    /**
+     * Determines if a user is an admin or member of an organization
+     * @param userId The user's ID
+     * @param organizationId The organization's ID
+     * @returns [boolean, memberData]
+     */
     async isOwnerOrAdmin(userId: string, organizationId: string): Promise<[boolean, organization_users | null]> {
         const memberData = await prisma.organization_users.findFirst({
             where: {

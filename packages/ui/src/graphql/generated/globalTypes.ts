@@ -944,7 +944,6 @@ export interface RunCompleteInput {
   id: string;
   pickups?: number | null;
   timeElapsed?: number | null;
-  endNodeId: string;
 }
 
 export interface RunCreateInput {

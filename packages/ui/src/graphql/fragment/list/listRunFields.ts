@@ -48,7 +48,7 @@ export const listRunFields = gql`
         title
         status
         routine {
-            ...runRoutineFields
+            ...listRunRoutineFields
         }
     }
 `

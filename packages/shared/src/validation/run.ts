@@ -1,5 +1,5 @@
-import { id, title } from './base';
-import { stepsCreate, stepsUpdate, stepsComplete, stepsSkip } from './step';
+import { id, idArray, title } from './base';
+import { stepsCreate, stepsUpdate } from './step';
 import * as yup from 'yup';
 
 const version = yup.string().max(16);
@@ -20,8 +20,7 @@ export const runUpdate = yup.object().shape({
     timeElapsed: timeElapsed.notRequired().default(undefined),
     stepsCreate: stepsCreate.notRequired().default(undefined),
     stepsUpdate: stepsUpdate.notRequired().default(undefined),
-    stepsComplete: stepsComplete.notRequired().default(undefined),
-    stepsSkip: stepsSkip.notRequired().default(undefined),
+    stepsDelete: idArray.notRequired().default(undefined),
 })
 
 export const runsCreate = yup.array().of(runCreate.required())

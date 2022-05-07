@@ -192,6 +192,12 @@ export enum ResourceListUsedFor {
     Develop = "Develop",
 }
 
+export enum RunStepStatus {
+    InProgress = "InProgress",
+    Completed = "Completed",
+    Skipped = "Skipped",
+}
+
 export enum MemberRole {
     Admin = "Admin",
     Member = "Member",

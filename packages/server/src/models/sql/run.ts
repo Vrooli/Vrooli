@@ -207,7 +207,6 @@ export const runMutater = (prisma: PrismaType) => ({
         const updated = await prisma.run.update({
             where: { id: input.id },
             data: {
-                endNodeId: input.endNodeId,
                 pickups: input.pickups ?? undefined,
                 timeCompleted: new Date(),
                 timeElapsed: input.timeElapsed ?? undefined,

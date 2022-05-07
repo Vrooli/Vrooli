@@ -132,6 +132,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for run data. This must be done here because we are not querying all runs - just ones made by the user
         if (_.isObject(partial.runs)) {
+            console.log('querying for run data', userId)
             if (userId) {
                 // Find requested fields of runs
                 const runPartial = toPartialSelect(partial.runs, runFormatter().relationshipMap);
@@ -158,6 +159,7 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                 // Set all runs to empty array
                 objects = objects.map(x => ({ ...x, runs: [] }));
             }
+            console.log('run data finished', JSON.stringify(objects))
         }
         // Convert Prisma objects to GraphQL objects
         return objects as RecursivePartial<Routine>[];

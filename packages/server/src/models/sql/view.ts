@@ -2,10 +2,11 @@ import { CODE, ViewFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, User } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
+import { addSupplementalFields, deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
 import { genErrorCode } from "../../logger";
 import { Log } from "../../models/nosql";
+import { OrganizationModel } from "./organization";
 
 //==============================================================
 /* #region Custom Components */
@@ -71,6 +72,7 @@ export interface ViewInput {
  */
 const viewer = (prisma: PrismaType) => ({
     async view(userId: string, input: ViewInput): Promise<boolean> {
+        console.log('creating view', JSON.stringify(input));
         // Define prisma type for viewed object
         const prismaFor = (prisma[forMapper[input.viewFor] as keyof PrismaType] as any);
         // Check if object being viewed on exists
@@ -86,6 +88,7 @@ const viewer = (prisma: PrismaType) => ({
         })
         // If view already existed
         if (view) {
+            console.log('view existed. updating time', JSON.stringify(view))
             // Update view time
             await prisma.view.update({
                 where: { id: view.id },
@@ -98,28 +101,48 @@ const viewer = (prisma: PrismaType) => ({
         // If view did not already exist
         else {
             // Create view
-            await prisma.view.create({
+            const view = await prisma.view.create({
                 data: {
                     byId: userId,
                     [`${forMapper[input.viewFor]}Id`]: input.forId,
                     title: input.title,
                 }
             })
+            console.log('view created', JSON.stringify(view))
             // Check if the object is owned by the user
-            //TODO
+            let isOwn = false;
+            switch(input.viewFor) {
+                case ViewFor.Organization:
+                    [isOwn] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.forId);
+                    break;
+                case ViewFor.Project:
+                    asdf
+                    break;
+                case ViewFor.Routine:
+                    asdf
+                    break;
+                case ViewFor.Standard:
+                    asdf
+                    break;
+                case ViewFor.User:
+                    isOwn = userId === input.forId;
+                    break;
+            }
             // Update view count, if not owned by user
-            await prismaFor.update({
-                where: { id: input.forId },
-                data: { views: viewFor.views + 1 }
-            })
-            // Log view
-            Log.collection.insertOne({
-                timestamp: Date.now(),
-                userId: userId,
-                action: LogType.View,
-                object1Type: input.viewFor,
-                object1Id: input.forId,
-            })
+            if (!isOwn) {
+                await prismaFor.update({
+                    where: { id: input.forId },
+                    data: { views: viewFor.views + 1 }
+                })
+                // Log view
+                Log.collection.insertOne({
+                    timestamp: Date.now(),
+                    userId: userId,
+                    action: LogType.View,
+                    object1Type: input.viewFor,
+                    object1Id: input.forId,
+                })
+            }
             return true;
         }
     },
