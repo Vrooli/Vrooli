@@ -1,12 +1,13 @@
-import { CODE, ViewFor } from "@local/shared";
+import { CODE, MemberRole, ViewFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, User } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
+import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
 import { genErrorCode } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
+import { initializeRedis } from "redisConn";
 
 //==============================================================
 /* #region Custom Components */
@@ -80,72 +81,148 @@ const viewer = (prisma: PrismaType) => ({
         if (!viewFor)
             throw new CustomError(CODE.ErrorUnknown, 'Could not find object being viewed', { code: genErrorCode('0173') });
         // Check if view exists
-        const view = await prisma.view.findFirst({
+        let view = await prisma.view.findFirst({
             where: {
                 byId: userId,
                 [`${forMapper[input.viewFor]}Id`]: input.forId
             }
         })
-        // If view already existed
+        // If view already existed, update view time
         if (view) {
             console.log('view existed. updating time', JSON.stringify(view))
-            // Update view time
             await prisma.view.update({
                 where: { id: view.id },
                 data: {
-                    lastViewed: new Date()
+                    lastViewed: new Date(),
+                    title: input.title,
                 }
             })
-            return true;
         }
-        // If view did not already exist
+        // If view did not exist, create it
         else {
-            // Create view
-            const view = await prisma.view.create({
+            console.log('view did not exist. creating', JSON.stringify(input))
+            view = await prisma.view.create({
                 data: {
                     byId: userId,
                     [`${forMapper[input.viewFor]}Id`]: input.forId,
                     title: input.title,
                 }
             })
-            console.log('view created', JSON.stringify(view))
-            // Check if the object is owned by the user
-            let isOwn = false;
-            switch(input.viewFor) {
-                case ViewFor.Organization:
-                    const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, [input.forId]);
-                    isOwn = Boolean(memberData[0]);
-                    break;
-                case ViewFor.Project:
-                    asdf
-                    break;
-                case ViewFor.Routine:
-                    asdf
-                    break;
-                case ViewFor.Standard:
-                    asdf
-                    break;
-                case ViewFor.User:
-                    isOwn = userId === input.forId;
-                    break;
-            }
-            // Update view count, if not owned by user
-            if (!isOwn) {
-                await prismaFor.update({
-                    where: { id: input.forId },
-                    data: { views: viewFor.views + 1 }
-                })
-                // Log view
-                Log.collection.insertOne({
-                    timestamp: Date.now(),
-                    userId: userId,
-                    action: LogType.View,
-                    object1Type: input.viewFor,
-                    object1Id: input.forId,
-                })
-            }
-            return true;
         }
+        // Check if a view from this user should increment the view count
+        let isOwn = false;
+        switch (input.viewFor) {
+            case ViewFor.Organization:
+                // Check if user is an admin or owner of the organization
+                const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, [input.forId]);
+                isOwn = Boolean(memberData[0]);
+                break;
+            case ViewFor.Project:
+                // Check if project is owned by this user or by an organization they are a member of
+                const project = await prisma.project.findFirst({
+                    where: {
+                        AND: [
+                            { id: input.forId },
+                            {
+                                OR: [
+                                    { user: { id: userId } },
+                                    {
+                                        organization: {
+                                            members: {
+                                                some: {
+                                                    id: userId,
+                                                    role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                })
+                if (project) isOwn = true;
+                break;
+            case ViewFor.Routine:
+                // Check if routine is owned by this user or by an organization they are a member of
+                const routine = await prisma.routine.findFirst({
+                    where: {
+                        AND: [
+                            { id: input.forId },
+                            {
+                                OR: [
+                                    { user: { id: userId } },
+                                    {
+                                        organization: {
+                                            members: {
+                                                some: {
+                                                    id: userId,
+                                                    role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                })
+                if (routine) isOwn = true;
+                break;
+            case ViewFor.Standard:
+                // Check if standard is owned by this user or by an organization they are a member of
+                const standard = await prisma.standard.findFirst({
+                    where: {
+                        AND: [
+                            { id: input.forId },
+                            {
+                                OR: [
+                                    { createdByUser: { id: userId } },
+                                    {
+                                        createdByOrganization: {
+                                            members: {
+                                                some: {
+                                                    id: userId,
+                                                    role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                })
+                if (standard) isOwn = true;
+                break;
+            case ViewFor.User:
+                isOwn = userId === input.forId;
+                break;
+        }
+        // If user is owner, don't do anything else
+        if (isOwn) return true;
+        // Check the last time the user viewed this object
+        const redisKey = `view:${userId}_${input.forId}_${input.viewFor}`
+        const client = await initializeRedis();
+        const lastViewed = await client.get(redisKey);
+        // If object viewed more than 1 hour ago, update view count
+        if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
+            await prismaFor.update({
+                where: { id: input.forId },
+                data: { views: viewFor.views + 1 }
+            })
+            // Log view
+            Log.collection.insertOne({
+                timestamp: Date.now(),
+                userId: userId,
+                action: LogType.View,
+                object1Type: input.viewFor,
+                object1Id: input.forId,
+            })
+        }
+        // Update last viewed time
+        await client.set(redisKey, new Date().toISOString());
+        return true;
     },
     /**
      * Deletes views from user's view list, but does not affect view count or logs.
@@ -155,7 +232,7 @@ const viewer = (prisma: PrismaType) => ({
             where: {
                 AND: [
                     { id: { in: ids } },
-                    { userId },
+                    { byId: userId },
                 ]
             }
         })
@@ -165,7 +242,7 @@ const viewer = (prisma: PrismaType) => ({
      */
     async clearViews(userId: string): Promise<Count> {
         return await prisma.view.deleteMany({
-            where: { userId }
+            where: { byId: userId }
         })
     },
     async getIsVieweds(

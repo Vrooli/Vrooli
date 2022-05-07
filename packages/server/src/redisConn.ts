@@ -12,6 +12,7 @@ let redisClient: RedisClientType;
 
 const createRedisClient = async () => {
     const url = `redis://${HOST}:${PORT}`;
+    logger.log(LogLevel.info, 'Creating Redis client', { code: genErrorCode('0184'), url });
     const redisClient = createClient({ url });
     redisClient.on('error', (error) => {
         logger.log(LogLevel.error, 'Error occured while connecting or accessing redis server', { code: genErrorCode('0002'), error });

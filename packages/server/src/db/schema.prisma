@@ -936,6 +936,8 @@ model view {
     routine        routine?      @relation("view_routine", fields: [routineId], references: [id], onDelete: Cascade)
     standard       standard?     @relation("view_standard", fields: [standardId], references: [id], onDelete: Cascade)
     user           user?         @relation("view_user", fields: [userId], references: [id])
+
+    @@unique([byId, organizationId, projectId, routineId, standardId, userId])
 }
 
 //==============================================================
