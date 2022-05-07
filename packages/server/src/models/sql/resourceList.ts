@@ -110,7 +110,8 @@ export const resourceListMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0089') });
         // TODO check that user can add resource to this forId, like in node validateMutations
         if (createMany) {

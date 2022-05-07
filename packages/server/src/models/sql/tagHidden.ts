@@ -78,7 +78,8 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
     // async validateMutations({
     //     userId, createMany, updateMany, deleteMany
     // }: ValidateMutationsInput<TagCreateInput, TagUpdateInput>): Promise<void> {
-    //     if ((createMany || updateMany || deleteMany) && !userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
+    //     if (!createMany && !updateMany && !deleteMany) return;
+    //     if (!userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations');
     //     if (createMany) {
     //         createMany.forEach(input => tagCreate.validateSync(input, { abortEarly: false }));
     //         createMany.forEach(input => verifier.profanityCheck(input));

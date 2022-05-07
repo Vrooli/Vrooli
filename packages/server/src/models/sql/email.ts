@@ -48,7 +48,8 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<EmailCreateInput, EmailUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0043') });
         if (createMany) {
             // Make sure emails aren't already in use

@@ -88,7 +88,8 @@ export const runMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RunCreateInput, RunUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId)
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0174') });
         if (createMany) {
             createMany.forEach(input => runCreate.validateSync(input, { abortEarly: false }));

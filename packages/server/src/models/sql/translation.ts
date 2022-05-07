@@ -87,7 +87,8 @@ export const translationMutater = () => ({
         { userId, createMany, updateMany, deleteMany }: ValidateMutationsInput<CreateInput, UpdateInput>,
         validators: { create: any, update: any }
     ): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0117') });
         if (createMany) {
             createMany.forEach(input => validators.create.validateSync(input, { abortEarly: false }));

@@ -82,7 +82,8 @@ export const stepFormatter = (): FormatConverter<RunStep> => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RunStepCreateInput, RunStepUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0176') });
         if (createMany) {
             createMany.forEach(input => stepCreate.validateSync(input, { abortEarly: false }));

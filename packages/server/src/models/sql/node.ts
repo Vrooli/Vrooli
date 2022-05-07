@@ -447,6 +447,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<NodeCreateInput, NodeUpdateInput>): Promise<void> {
+        if (!createMany && !updateMany && !deleteMany) return;
         if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'Must pass valid userId to validateMutations', { code: genErrorCode('0054') });
         // Make sure the user has access to these nodes

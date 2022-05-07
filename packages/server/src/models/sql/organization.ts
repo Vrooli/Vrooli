@@ -120,35 +120,41 @@ export const organizationVerifier = (prisma: PrismaType) => ({
     /**
      * Finds the roles a users has for a list of organizations
      * @param userId The user's id
-     * @param ids The list of organization ids
+     * @param organizationIds The list of organization ids
      * @returns An array in the same order as the ids, with either a role or undefined
      */
-    async getRoles(userId: string, ids: string[]): Promise<Array<MemberRole | undefined>> {
+    async getRoles(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<MemberRole | undefined>> {
+        if (organizationIds.length === 0) return [];
+        // Take out nulls
+        const idsToQuery = organizationIds.filter(x => x) as string[];
         // Query member data for each ID
-        const roleArray = await prisma.organization_users.findMany({
-            where: { organization: { id: { in: ids } }, user: { id: userId } },
+        const memberData = await prisma.organization_users.findMany({
+            where: { organization: { id: { in: idsToQuery } }, user: { id: userId } },
             select: { organizationId: true, role: true }
         });
-        return ids.map(id => {
-            const role = roleArray.find(({ organizationId }) => organizationId === id);
-            return role?.role as MemberRole | undefined;
-        });
+        // Create an array of the same length as the input, with the member data or undefined
+        return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id)) as Array<MemberRole | undefined>;
     },
     /**
-     * Determines if a user is an admin or member of an organization
+     * Determines if a user is an admin or member of a list of organizations
      * @param userId The user's ID
-     * @param organizationId The organization's ID
-     * @returns [boolean, memberData]
+     * @param organizationIds The list of organization IDs
+     * @returns Array in the same order as the ids, with either admin/owner role data or undefined
      */
-    async isOwnerOrAdmin(userId: string, organizationId: string): Promise<[boolean, organization_users | null]> {
-        const memberData = await prisma.organization_users.findFirst({
+     async isOwnerOrAdmin(userId: string, organizationIds: (string | null | undefined)[]): Promise<Array<organization_users | undefined>> {
+        if (organizationIds.length === 0) return [];
+        // Take out nulls
+        const idsToQuery = organizationIds.filter(x => x) as string[];
+        // Query member data for each ID
+        const memberData = await prisma.organization_users.findMany({
             where: {
-                organization: { id: organizationId },
+                organization: { id: { in: idsToQuery } },
                 user: { id: userId },
                 role: { in: [MemberRole.Admin as any, MemberRole.Owner as any] },
             }
         });
-        return [Boolean(memberData), memberData];
+        // Create an array of the same length as the input, with the member data or undefined
+        return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id));
     },
 })
 
@@ -171,14 +177,15 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0055') });
         if (createMany) {
             createMany.forEach(input => organizationCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
             createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
             // Check if user will pass max organizations limit
-            const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } });
+            const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } });
             if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
                 throw new CustomError(CODE.MaxOrganizationsReached, 'Cannot create any more organizations with this account - maximum reached', { code: genErrorCode('0056') });
             }

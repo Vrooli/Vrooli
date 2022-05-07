@@ -168,18 +168,23 @@ export const projectMutater = (prisma: PrismaType) => ({
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ProjectCreateInput, ProjectUpdateInput>): Promise<void> {
-        if ((createMany || updateMany || deleteMany) && !userId) 
+        if (!createMany && !updateMany && !deleteMany) return;
+        if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0073') });
+        // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
+        const organizationIds: (string | null | undefined)[] = [];
         if (createMany) {
             createMany.forEach(input => projectCreate.validateSync(input, { abortEarly: false }));
             createMany.forEach(input => TranslationModel().profanityCheck(input));
             createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['description'], CODE.LineBreaksDescription));
+            // Add createdByOrganizationIds to organizationIds array, if they are set
+            organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id))
             // Check if user will pass max projects limit
             const existingCount = await prisma.project.count({
                 where: {
                     OR: [
-                        { user: { id: userId ?? '' } },
-                        { organization: { members: { some: { userId: userId ?? '', role: MemberRole.Owner as any } } } },
+                        { user: { id: userId } },
+                        { organization: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } },
                     ]
                 }
             })
@@ -188,6 +193,14 @@ export const projectMutater = (prisma: PrismaType) => ({
             }
         }
         if (updateMany) {
+            // Add new organizationIds to organizationIds array, if they are set
+            organizationIds.push(...updateMany.map(input => input.data.organizationId).filter(id => id))
+            // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
+            const objects = await prisma.project.findMany({
+                where: { id: { in: updateMany.map(input => input.where.id) } },
+                select: { id: true, userId: true, organizationId: true },
+            });
+            organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
             for (const input of updateMany) {
                 await WalletModel(prisma).verifyHandle(GraphQLModelType.Project, input.where.id, input.data.handle);
                 projectUpdate.validateSync(input.data, { abortEarly: false });
@@ -196,24 +209,18 @@ export const projectMutater = (prisma: PrismaType) => ({
             }
         }
         if (deleteMany) {
-            // Check if user is authorized to delete
+            // Add organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.project.findMany({
                 where: { id: { in: deleteMany } },
                 select: { id: true, userId: true, organizationId: true },
             });
-            // Filter out objects that match the user's Id, since we know those are authorized
-            const objectsToCheck = objects.filter(object => object.userId !== userId);
-            if (objectsToCheck.length > 0) {
-                for (const check of objectsToCheck) {
-                    // Check if user is authorized to delete
-                    if (!check.organizationId) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete', { code: genErrorCode('0075') });
-                    const [authorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', check.organizationId);
-                    if (!authorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0076') });
-                }
-            }
+            organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
         }
+        // Find admin/owner member data for every organization
+        const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, organizationIds);
+        // If any member data is undefined, the user is not authorized to delete one or more objects
+        if (memberData.some(member => !member))
+            throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0076') })
     },
     /**
      * Performs adds, updates, and deletes of projects. First validates that every action is allowed.
@@ -241,10 +248,6 @@ export const projectMutater = (prisma: PrismaType) => ({
                 let data = await createData(input);
                 // Associate with either organization or user
                 if (input.createdByOrganizationId) {
-                    // Make sure the user is an admin of the organization
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.createdByOrganizationId);
-                    if (!isAuthorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to create project', { code: genErrorCode('0077') });
                     data = {
                         ...data,
                         organization: { connect: { id: input.createdByOrganizationId } },
@@ -277,21 +280,8 @@ export const projectMutater = (prisma: PrismaType) => ({
                 let object = await prisma.project.findFirst({ where: input.where })
                 if (!object) 
                     throw new CustomError(CODE.NotFound, 'Project not found', { code: genErrorCode('0078') });
-                // Make sure user is authorized to update
-                if (object.organizationId) {
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', object.organizationId);
-                    if (!isAuthorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update project', { code: genErrorCode('0079') });
-                } else {
-                    if (object.userId !== userId) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update project', { code: genErrorCode('0080') });
-                }
                 // Associate with either organization or user. This will remove the association with the other.
                 if (input.data.organizationId) {
-                    // Make sure the user is an admin of the organization
-                    const [isAuthorized] = await OrganizationModel(prisma).isOwnerOrAdmin(userId ?? '', input.data.organizationId);
-                    if (!isAuthorized) 
-                        throw new CustomError(CODE.Unauthorized, 'Not authorized to update project', { code: genErrorCode('0081') });
                     data = {
                         ...data,
                         organization: { connect: { id: input.data.organizationId } },

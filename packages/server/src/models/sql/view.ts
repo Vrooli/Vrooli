@@ -113,7 +113,8 @@ const viewer = (prisma: PrismaType) => ({
             let isOwn = false;
             switch(input.viewFor) {
                 case ViewFor.Organization:
-                    [isOwn] = await OrganizationModel(prisma).isOwnerOrAdmin(userId, input.forId);
+                    const memberData = await OrganizationModel(prisma).isOwnerOrAdmin(userId, [input.forId]);
+                    isOwn = Boolean(memberData[0]);
                     break;
                 case ViewFor.Project:
                     asdf
