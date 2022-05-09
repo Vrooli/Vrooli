@@ -162,11 +162,11 @@ export const resolvers = {
             await rateLimit({ context, info, max: 1000 });
             return readOneHelper(context.req.userId, input, info, RunModel(context.prisma));
         },
-        routines: async (_parent: undefined, { input }: IWrap<RunSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RunSearchResult> => {
+        runs: async (_parent: undefined, { input }: IWrap<RunSearchInput>, context: Context, info: GraphQLResolveInfo): Promise<RunSearchResult> => {
             await rateLimit({ context, info, max: 1000 });
             return readManyHelper(context.req.userId, input, info, RunModel(context.prisma));
         },
-        routinesCount: async (_parent: undefined, { input }: IWrap<RunCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
+        runsCount: async (_parent: undefined, { input }: IWrap<RunCountInput>, context: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ context, info, max: 1000 });
             return countHelper(input, RunModel(context.prisma));
         },

@@ -1,11 +1,19 @@
 import { CODE, StarFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { LogType, Star, StarInput } from "../../schema/types";
-import { PrismaType } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
+import { PrismaType, RecursivePartial } from "../../types";
+import { deconstructUnion, FormatConverter, GraphQLModelType, PartialInfo, readManyHelper } from "./base";
 import _ from "lodash";
 import { genErrorCode } from "../../logger";
 import { Log } from "../../models/nosql";
+import { CommentModel } from "./comment";
+import { OrganizationModel } from "./organization";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
+import { StandardModel } from "./standard";
+import { TagModel } from "./tag";
+import { UserModel } from "./user";
+import { resolveStarTo } from "../../schema/resolvers";
 
 //==============================================================
 /* #region Custom Components */
@@ -47,6 +55,70 @@ export const starFormatter = (): FormatConverter<Star> => ({
             [GraphQLModelType.User, 'user'],
         ]);
         return modified;
+    },
+    async addSupplementalFields(
+        prisma: PrismaType,
+        userId: string | null, // Of the user making the request
+        objects: RecursivePartial<any>[],
+        partial: PartialInfo,
+    ): Promise<RecursivePartial<Star>[]> {
+        console.log('star addsupp aaaa', JSON.stringify(objects), '\n', JSON.stringify(partial));
+        // Query for data that star is applied to
+        if (_.isObject(partial.to)) {
+            const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to))
+            const toIds = objects.map(x => x.to?.id ?? '') as string[];
+            console.log('star addsupp bbbb', toTypes, toIds);
+            // Group ids by types
+            const toIdsByType: { [x: string]: string[] } = {};
+            toTypes.forEach((type, i) => {
+                if (!toIdsByType[type]) toIdsByType[type] = [];
+                toIdsByType[type].push(toIds[i]);
+            })
+            console.log('star addsupp cccc', toIdsByType);
+            // Query for each type
+            const tos: any[] = [];
+            for (const type of Object.keys(toIdsByType)) {
+                let typeModel: any; 
+                switch (type) {
+                    case GraphQLModelType.Comment: 
+                        typeModel = CommentModel(prisma); 
+                        break;
+                    case GraphQLModelType.Organization:
+                        typeModel = OrganizationModel(prisma);
+                        break;
+                    case GraphQLModelType.Project:
+                        typeModel = ProjectModel(prisma);
+                        break;
+                    case GraphQLModelType.Routine:
+                        typeModel = RoutineModel(prisma);
+                        break;
+                    case GraphQLModelType.Standard:
+                        typeModel = StandardModel(prisma);
+                        break;
+                    case GraphQLModelType.Tag:
+                        typeModel = TagModel(prisma);
+                        break;
+                    case GraphQLModelType.User:
+                        typeModel = UserModel(prisma);
+                        break;
+                    default:
+                        throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
+                }
+                const paginated = await readManyHelper(userId, { ids: toIdsByType[type] }, partial.to[type], typeModel);
+                console.log('star addsupp dddd', JSON.stringify(paginated));
+                tos.push(...paginated.edges.map(x => x.node));
+            }
+            // Apply each "to" to the "to" property of each object
+            for (const object of objects) {
+                console.log('star addsupp eeee', JSON.stringify(object));
+                // Find the correct "to", using object.to.id
+                const to = tos.find(x => x.id === object.to.id);
+                console.log('star addsupp ffff', JSON.stringify(to));
+                object.to = to;
+            }
+        }
+        console.log('star addsupp gggg', JSON.stringify(objects));
+        return objects;
     },
 })
 

@@ -25,6 +25,7 @@ export const StarButton = ({
     // to wait for the mutation to complete
     const [internalIsStar, setInternalIsStar] = useState<boolean | null>(isStar ?? null);
     useEffect(() => setInternalIsStar(isStar ?? false), [isStar]);
+    console.log('Star button', isStar, internalIsStar);
 
     const internalStars = useMemo(() => {
         const starNum = stars ?? 0;

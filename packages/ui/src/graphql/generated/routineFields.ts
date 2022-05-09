@@ -323,129 +323,6 @@ export interface routineFields_resourceLists {
   resources: routineFields_resourceLists_resources[];
 }
 
-export interface routineFields_runs_endNode_data_NodeEnd {
-  __typename: "NodeEnd";
-  id: string;
-  wasSuccessful: boolean;
-}
-
-export interface routineFields_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization_translations {
-  __typename: "OrganizationTranslation";
-  id: string;
-  language: string;
-  name: string;
-}
-
-export interface routineFields_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization {
-  __typename: "Organization";
-  id: string;
-  handle: string | null;
-  translations: routineFields_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
-}
-
-export interface routineFields_runs_endNode_data_NodeRoutineList_routines_routine_owner_User {
-  __typename: "User";
-  id: string;
-  name: string;
-  handle: string | null;
-}
-
-export type routineFields_runs_endNode_data_NodeRoutineList_routines_routine_owner = routineFields_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization | routineFields_runs_endNode_data_NodeRoutineList_routines_routine_owner_User;
-
-export interface routineFields_runs_endNode_data_NodeRoutineList_routines_routine_translations {
-  __typename: "RoutineTranslation";
-  id: string;
-  language: string;
-  title: string;
-  description: string | null;
-  instructions: string;
-}
-
-export interface routineFields_runs_endNode_data_NodeRoutineList_routines_routine {
-  __typename: "Routine";
-  id: string;
-  complexity: number;
-  isInternal: boolean | null;
-  nodesCount: number | null;
-  role: MemberRole | null;
-  owner: routineFields_runs_endNode_data_NodeRoutineList_routines_routine_owner | null;
-  simplicity: number;
-  translations: routineFields_runs_endNode_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
-}
-
-export interface routineFields_runs_endNode_data_NodeRoutineList_routines_translations {
-  __typename: "NodeRoutineListItemTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string | null;
-}
-
-export interface routineFields_runs_endNode_data_NodeRoutineList_routines {
-  __typename: "NodeRoutineListItem";
-  id: string;
-  index: number;
-  isOptional: boolean;
-  routine: routineFields_runs_endNode_data_NodeRoutineList_routines_routine;
-  translations: routineFields_runs_endNode_data_NodeRoutineList_routines_translations[];
-}
-
-export interface routineFields_runs_endNode_data_NodeRoutineList {
-  __typename: "NodeRoutineList";
-  id: string;
-  isOptional: boolean;
-  isOrdered: boolean;
-  routines: routineFields_runs_endNode_data_NodeRoutineList_routines[];
-}
-
-export type routineFields_runs_endNode_data = routineFields_runs_endNode_data_NodeEnd | routineFields_runs_endNode_data_NodeRoutineList;
-
-export interface routineFields_runs_endNode_loop_whiles_translations {
-  __typename: "LoopWhileTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string;
-}
-
-export interface routineFields_runs_endNode_loop_whiles {
-  __typename: "LoopWhile";
-  id: string;
-  condition: string;
-  translations: routineFields_runs_endNode_loop_whiles_translations[];
-}
-
-export interface routineFields_runs_endNode_loop {
-  __typename: "Loop";
-  id: string;
-  loops: number | null;
-  maxLoops: number | null;
-  operation: string | null;
-  whiles: routineFields_runs_endNode_loop_whiles[];
-}
-
-export interface routineFields_runs_endNode_translations {
-  __typename: "NodeTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string;
-}
-
-export interface routineFields_runs_endNode {
-  __typename: "Node";
-  id: string;
-  columnIndex: number | null;
-  created_at: any;
-  rowIndex: number | null;
-  type: NodeType;
-  updated_at: any;
-  data: routineFields_runs_endNode_data | null;
-  loop: routineFields_runs_endNode_loop | null;
-  translations: routineFields_runs_endNode_translations[];
-}
-
 export interface routineFields_runs_steps_node {
   __typename: "Node";
   id: string;
@@ -468,7 +345,6 @@ export interface routineFields_runs {
   __typename: "Run";
   id: string;
   completedComplexity: number;
-  endNode: routineFields_runs_endNode | null;
   pickups: number;
   timeStarted: any | null;
   timeElapsed: number | null;

@@ -1018,6 +1018,7 @@ export const addSupplementalFields = async (
     data: { [x: string]: any }[],
     partial: PartialInfo | PartialInfo[],
 ): Promise<{ [x: string]: any }[]> => {
+    console.log('addsupplementalfields starttttttt ', JSON.stringify(data), '\n\n');
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: string[] } = {};
@@ -1026,6 +1027,8 @@ export const addSupplementalFields = async (
         const currData = data[i];
         const currPartial = Array.isArray(partial) ? partial[i] : partial;
         const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(currData, currPartial);
+        console.log('boopies childobjectidsdict', JSON.stringify(childObjectIdsDict), '\n\n');
+        console.log('beepies childselectfieldsdict', JSON.stringify(childSelectFieldsDict), '\n\n');
         // Merge each array in childObjectIdsDict into objectIdsDict
         for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
             objectIdsDict[childType] = objectIdsDict[childType] ?? [];
@@ -1037,16 +1040,18 @@ export const addSupplementalFields = async (
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
     const objectsById: { [x: string]: any } = {};
+    console.log('got selectfieldsdict', JSON.stringify(selectFieldsDict), '\n\n');
+    console.log('got objectbyidsdict', JSON.stringify(objectIdsDict), '\n\n');
 
     // Loop through each type in objectIdsDict
     for (const [type, ids] of Object.entries(objectIdsDict)) {
+        console.log('yeet type', type, '\n\n');
         // Find the data for each id in ids. Since the data parameter is an array,
         // we must loop through each element in it and call pickObjectById
-        const objectData = ids.map((id: string) => {
-            return pickObjectById(data, id);
-        });
+        const objectData = ids.map((id: string) => pickObjectById(data, id));
         // Now that we have the data for each object, we can add the supplemental fields
         if (type in FormatterMap) {
+            console.log('addsuppl in formattermap', type);
             const valuesWithSupplements = FormatterMap[type as keyof typeof FormatterMap]?.addSupplementalFields
                 ? await (FormatterMap[type as keyof typeof FormatterMap] as any).addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type])
                 : objectData;
@@ -1054,7 +1059,7 @@ export const addSupplementalFields = async (
             for (const v of valuesWithSupplements) {
                 objectsById[v.id] = v;
             }
-        }
+        } else console.log('addsuppl NOT in formattermap', type);
     }
 
     // Convert objectsById dictionary back into shape of data
@@ -1078,6 +1083,7 @@ export const addSupplementalFieldsMultiTypes = async (
     userId: string | null,
     prisma: PrismaType,
 ): Promise<{ [x: string]: any[] }> => {
+    console.log('addsupplementalfieldsmultitypes start! ')
     // Flatten data array
     const combinedData = _.flatten(data);
     // Create an array of partials, that match the data array
@@ -1131,7 +1137,6 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
         if (formatter.addCountFields) result = formatter.addCountFields(result);
     }
-    if (type) console.log('selecttoDB end\n', type, ' ', JSON.stringify(result), '\n\n');
     return result;
 }
 
@@ -1216,6 +1221,7 @@ export async function readOneHelper<GraphQLModel>(
     let formatted = modelToGraphQL(object, partial) as RecursivePartial<GraphQLModel>;
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
+        console.log('adding to view count');
         ViewModel(model.prisma).view(userId, { forId: input.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
     }
     return (await addSupplementalFields(model.prisma, userId, [formatted], partial))[0] as RecursivePartial<GraphQLModel>;
@@ -1268,9 +1274,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Determine sort order
     const orderBy = model.getSortQuery ? model.getSortQuery(input.sortBy ?? model.defaultSort) : undefined;
     // Find requested search array
-    console.log('readmany partial ', JSON.stringify(partial), '\n');
     const temp = selectHelper(partial);
-    console.log('readmanyhelper selecthelper ', JSON.stringify(temp), '\n\n');
     const searchResults = await (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma).findMany({
         where,
         orderBy,
@@ -1281,7 +1285,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
         } : undefined,
         ...selectHelper(partial)
     });
-    console.log('got search results', JSON.stringify(searchResults), '\n\n');
     // If there are results
     let paginatedResults: PaginatedSearchResult;
     if (searchResults.length > 0) {
@@ -1318,7 +1321,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // If not adding supplemental fields, return the paginated results
     if (!addSupplemental) return paginatedResults;
     // Return formatted for GraphQL
-    console.log('going to format nodes')
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partial as PartialInfo));
     formattedNodes = await addSupplementalFields(model.prisma, userId, formattedNodes, partial);

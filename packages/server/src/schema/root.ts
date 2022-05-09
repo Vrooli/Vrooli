@@ -8,6 +8,7 @@ import { Context } from '../context';
 import { GraphQLModelType } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
+import { resolveContributor } from './resolvers';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -99,11 +100,7 @@ export const resolvers = {
         }
     }),
     Contributor: {
-        __resolveType(obj: any) {
-            // Only a user has a name field
-            if (obj.hasOwnProperty('name')) return GraphQLModelType.User;
-            return GraphQLModelType.Organization;
-        },
+        __resolveType(obj: any) { return resolveContributor(obj) },
     },
     Query: {
         readAssets: async (_parent: undefined, { input }: any, context: Context, info: GraphQLResolveInfo): Promise<Array<String | null>> => {

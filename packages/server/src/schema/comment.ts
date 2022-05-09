@@ -5,6 +5,7 @@ import { CommentModel, countHelper, createHelper, deleteOneHelper, GraphQLModelT
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
+import { resolveCommentedOn } from './resolvers';
 
 export const typeDef = gql`
     enum CommentFor {
@@ -122,13 +123,7 @@ export const resolvers = {
     CommentFor: CommentFor,
     CommentSortBy: CommentSortBy,
     CommentedOn: {
-        __resolveType(obj: any) {
-            // Only a Standard has an isFile field
-            if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
-            // Only a Project has a name field
-            if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
-            return GraphQLModelType.Routine;
-        },
+        __resolveType(obj: any) { return resolveCommentedOn(obj) },
     },
     Query: {
         comment: async (_parent: undefined, { input }: IWrap<FindByIdInput>, context: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Comment> | null> => {

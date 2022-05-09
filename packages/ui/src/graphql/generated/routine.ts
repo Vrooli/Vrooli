@@ -323,129 +323,6 @@ export interface routine_routine_resourceLists {
   resources: routine_routine_resourceLists_resources[];
 }
 
-export interface routine_routine_runs_endNode_data_NodeEnd {
-  __typename: "NodeEnd";
-  id: string;
-  wasSuccessful: boolean;
-}
-
-export interface routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization_translations {
-  __typename: "OrganizationTranslation";
-  id: string;
-  language: string;
-  name: string;
-}
-
-export interface routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization {
-  __typename: "Organization";
-  id: string;
-  handle: string | null;
-  translations: routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
-}
-
-export interface routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_owner_User {
-  __typename: "User";
-  id: string;
-  name: string;
-  handle: string | null;
-}
-
-export type routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_owner = routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_owner_Organization | routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_owner_User;
-
-export interface routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_translations {
-  __typename: "RoutineTranslation";
-  id: string;
-  language: string;
-  title: string;
-  description: string | null;
-  instructions: string;
-}
-
-export interface routine_routine_runs_endNode_data_NodeRoutineList_routines_routine {
-  __typename: "Routine";
-  id: string;
-  complexity: number;
-  isInternal: boolean | null;
-  nodesCount: number | null;
-  role: MemberRole | null;
-  owner: routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_owner | null;
-  simplicity: number;
-  translations: routine_routine_runs_endNode_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
-}
-
-export interface routine_routine_runs_endNode_data_NodeRoutineList_routines_translations {
-  __typename: "NodeRoutineListItemTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string | null;
-}
-
-export interface routine_routine_runs_endNode_data_NodeRoutineList_routines {
-  __typename: "NodeRoutineListItem";
-  id: string;
-  index: number;
-  isOptional: boolean;
-  routine: routine_routine_runs_endNode_data_NodeRoutineList_routines_routine;
-  translations: routine_routine_runs_endNode_data_NodeRoutineList_routines_translations[];
-}
-
-export interface routine_routine_runs_endNode_data_NodeRoutineList {
-  __typename: "NodeRoutineList";
-  id: string;
-  isOptional: boolean;
-  isOrdered: boolean;
-  routines: routine_routine_runs_endNode_data_NodeRoutineList_routines[];
-}
-
-export type routine_routine_runs_endNode_data = routine_routine_runs_endNode_data_NodeEnd | routine_routine_runs_endNode_data_NodeRoutineList;
-
-export interface routine_routine_runs_endNode_loop_whiles_translations {
-  __typename: "LoopWhileTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string;
-}
-
-export interface routine_routine_runs_endNode_loop_whiles {
-  __typename: "LoopWhile";
-  id: string;
-  condition: string;
-  translations: routine_routine_runs_endNode_loop_whiles_translations[];
-}
-
-export interface routine_routine_runs_endNode_loop {
-  __typename: "Loop";
-  id: string;
-  loops: number | null;
-  maxLoops: number | null;
-  operation: string | null;
-  whiles: routine_routine_runs_endNode_loop_whiles[];
-}
-
-export interface routine_routine_runs_endNode_translations {
-  __typename: "NodeTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string;
-}
-
-export interface routine_routine_runs_endNode {
-  __typename: "Node";
-  id: string;
-  columnIndex: number | null;
-  created_at: any;
-  rowIndex: number | null;
-  type: NodeType;
-  updated_at: any;
-  data: routine_routine_runs_endNode_data | null;
-  loop: routine_routine_runs_endNode_loop | null;
-  translations: routine_routine_runs_endNode_translations[];
-}
-
 export interface routine_routine_runs_steps_node {
   __typename: "Node";
   id: string;
@@ -468,7 +345,6 @@ export interface routine_routine_runs {
   __typename: "Run";
   id: string;
   completedComplexity: number;
-  endNode: routine_routine_runs_endNode | null;
   pickups: number;
   timeStarted: any | null;
   timeElapsed: number | null;

@@ -8,6 +8,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { GraphQLModelType, VoteModel } from '../models';
 import { rateLimit } from '../rateLimit';
 import { genErrorCode } from '../logger';
+import { resolveVoteTo } from './resolvers';
 
 export const typeDef = gql`
     enum VoteFor {
@@ -38,12 +39,8 @@ export const typeDef = gql`
 
 export const resolvers = {
     VoteFor: VoteFor,
-    Vote: {
-        __resolveType(obj: any) {
-            if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
-            if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
-            return GraphQLModelType.Routine;
-        },
+    VoteTo: {
+        __resolveType(obj: any) { return resolveVoteTo(obj) },
     },
     Mutation: {
         /**

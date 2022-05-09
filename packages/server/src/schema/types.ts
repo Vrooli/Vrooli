@@ -2033,6 +2033,7 @@ export type RoutineSearchInput = {
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
+  isInternal?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
   maxSimplicity?: InputMaybe<Scalars['Int']>;

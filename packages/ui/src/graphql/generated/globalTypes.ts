@@ -865,6 +865,7 @@ export interface RoutineSearchInput {
   excludeIds?: string[] | null;
   ids?: string[] | null;
   isComplete?: boolean | null;
+  isInternal?: boolean | null;
   languages?: string[] | null;
   minComplexity?: number | null;
   maxComplexity?: number | null;

@@ -133,7 +133,7 @@ export const organizationVerifier = (prisma: PrismaType) => ({
             select: { organizationId: true, role: true }
         });
         // Create an array of the same length as the input, with the member data or undefined
-        return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id)) as Array<MemberRole | undefined>;
+        return organizationIds.map(id => memberData.find(({ organizationId }) => organizationId === id)).map((o) => o?.role) as Array<MemberRole | undefined>;
     },
     /**
      * Determines if a user is an admin or member of a list of organizations

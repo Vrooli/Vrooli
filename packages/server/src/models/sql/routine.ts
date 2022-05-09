@@ -88,13 +88,16 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Routine>[]> {
+        console.log('in routine addsupp aaaa', JSON.stringify(partial));
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
         if (partial.isStarred) {
+            console.log('in routine addsupp getting isStarred', userId, ids);
             const isStarredArray = userId
                 ? await StarModel(prisma).getIsStarreds(userId, ids, GraphQLModelType.Routine)
                 : Array(ids.length).fill(false);
+            console.log('got isstarredarray', JSON.stringify(isStarredArray));
             objects = objects.map((x, i) => ({ ...x, isStarred: isStarredArray[i] }));
         }
         // Query for isUpvoted
@@ -199,7 +202,8 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     customQueries(input: RoutineSearchInput): { [x: string]: any } {
         return {
             ...(input.excludeIds ? { NOT: { id: { in: input.excludeIds } } } : {}),
-            ...(input.isComplete ? { isComplete: true } : {}),
+            ...(input.isComplete ? { isComplete: input.isComplete } : { isComplete: true }),
+            ...(input.isInternal ? { isInternal: input.isInternal } : { isInternal: false }),
             ...(input.languages ? { translations: { some: { language: { in: input.languages } } } } : {}),
             ...(input.minComplexity ? { complexity: { gte: input.minComplexity } } : {}),
             ...(input.maxComplexity ? { complexity: { lte: input.maxComplexity } } : {}),

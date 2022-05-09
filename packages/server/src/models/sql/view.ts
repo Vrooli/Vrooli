@@ -1,13 +1,18 @@
 import { CODE, MemberRole, ViewFor } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, User } from "../../schema/types";
-import { PrismaType } from "../../types";
-import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
+import { PrismaType, RecursivePartial } from "../../types";
+import { deconstructUnion, FormatConverter, GraphQLModelType, PaginatedSearchResult, PartialInfo, readManyHelper } from "./base";
 import _ from "lodash";
 import { genErrorCode } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
-import { initializeRedis } from "redisConn";
+import { initializeRedis } from "../../redisConn";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
+import { StandardModel } from "./standard";
+import { UserModel } from "./user";
+import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../../schema/resolvers";
 
 //==============================================================
 /* #region Custom Components */
@@ -49,6 +54,58 @@ export const viewFormatter = (): FormatConverter<View> => ({
             [GraphQLModelType.User, 'user'],
         ]);
         return modified;
+    },
+    async addSupplementalFields(
+        prisma: PrismaType,
+        userId: string | null, // Of the user making the request
+        objects: RecursivePartial<any>[],
+        partial: PartialInfo,
+    ): Promise<RecursivePartial<View>[]> {
+        // Query for data that view is applied to
+        if (_.isObject(partial.to)) {
+            const toTypes: GraphQLModelType[] = objects.map(o => resolveProjectOrOrganizationOrRoutineOrStandardOrUser(o.to))
+            const toIds = objects.map(x => x.to?.id ?? '') as string[];
+            // Group ids by types
+            const toIdsByType: { [x: string]: string[] } = {};
+            toTypes.forEach((type, i) => {
+                if (!toIdsByType[type]) toIdsByType[type] = [];
+                toIdsByType[type].push(toIds[i]);
+            })
+            // Query for each type
+            const tos: any[] = [];
+            for (const type of Object.keys(toIdsByType)) {
+                let typeModel: any; 
+                switch (type) {
+                    case GraphQLModelType.Organization:
+                        typeModel = OrganizationModel(prisma);
+                        break;
+                    case GraphQLModelType.Project:
+                        typeModel = ProjectModel(prisma);
+                        break;
+                    case GraphQLModelType.Routine:
+                        typeModel = RoutineModel(prisma);
+                        break;
+                    case GraphQLModelType.Standard:
+                        typeModel = StandardModel(prisma);
+                        break;
+                    case GraphQLModelType.User:
+                        typeModel = UserModel(prisma);
+                        break;
+                    default:
+                        throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
+                }
+                console.log('view before readmanyhelper...', type, toIdsByType[type]);
+                const paginated = await readManyHelper(userId, { ids: toIdsByType[type] }, partial.to[type], typeModel);
+                tos.push(...paginated.edges.map(x => x.node));
+            }
+            // Apply each "to" to the "to" property of each object
+            for (const object of objects) {
+                // Find the correct "to", using object.to.id
+                const to = tos.find(x => x.id === object.to.id);
+                object.to = to;
+            }
+        }
+        return objects;
     },
 })
 

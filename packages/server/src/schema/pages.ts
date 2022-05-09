@@ -10,6 +10,7 @@ import { Context } from '../context';
 import { addSupplementalFieldsMultiTypes, GraphQLModelType, logSearcher, LogType, modelToGraphQL, OrganizationModel, paginatedMongoSearch, PartialInfo, ProjectModel, readManyHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialSelect, UserModel, ViewModel } from '../models';
 import { CustomError } from '../error';
 import { rateLimit } from '../rateLimit';
+import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
 
 // Query fields shared across multiple endpoints
 const tagSelect = {
@@ -217,32 +218,13 @@ export const typeDef = gql`
 
 export const resolvers = {
     ProjectOrRoutine: {
-        __resolveType(obj: any) {
-            // Only a project has a handle field
-            if (obj.hasOwnProperty('handle')) return GraphQLModelType.Project;
-            return GraphQLModelType.Routine;
-        }
+        __resolveType(obj: any) { return resolveProjectOrRoutine(obj) }
     },
     ProjectOrOrganization: {
-        __resolveType(obj: any) {
-            // Only a project has a score field
-            if (obj.hasOwnProperty('score')) return GraphQLModelType.Project;
-            return GraphQLModelType.Organization;
-        }
+        __resolveType(obj: any) { return resolveProjectOrOrganization(obj) }
     },
     ProjectOrOrganizationOrRoutineOrStandardOrUser: {
-        __resolveType(obj: any) {
-            // Only a routine has a complexity field
-            if (obj.hasOwnProperty('complexity')) return GraphQLModelType.Routine;
-            // Only a user has an untranslated name field
-            if (obj.hasOwnProperty('name')) return GraphQLModelType.User;
-            // Out of the remaining types, only an organization does not have isUpvoted field
-            if (!obj.hasOwnProperty('isUpvoted')) return GraphQLModelType.Organization;
-            // Out of the remaining types, only a project has a handle field
-            if (obj.hasOwnProperty('handle')) return GraphQLModelType.Project;
-            // There is only one remaining type, the standard
-            return GraphQLModelType.Standard;
-        }
+        __resolveType(obj: any) { return resolveProjectOrOrganizationOrRoutineOrStandardOrUser(obj) }
     },
     Query: {
         homePage: async (_parent: undefined, { input }: IWrap<HomePageInput>, context: Context, info: GraphQLResolveInfo): Promise<HomePageResult> => {
@@ -280,7 +262,7 @@ export const resolvers = {
                 { ...input, take, sortBy: RoutineSortBy.StarsDesc },
                 routineSelect,
                 rModel,
-                { ...starsQuery },
+                { ...starsQuery, isInternal: false },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(routineSelect, rModel.relationshipMap) as PartialInfo)) as any[]
             // Query standards
@@ -582,8 +564,7 @@ export const resolvers = {
                 runModel,
                 { userId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => {console.log('got active run', JSON.stringify(node)); modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)}) as any[]
-            console.log('foryoupage a', JSON.stringify(activeRuns));
+            )).edges.map(({ node }: any) => { modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)}) as any[]
             // Query for complete runs
             const completedRuns = (await readManyHelper(
                 context.req.userId,
@@ -592,28 +573,26 @@ export const resolvers = {
                 runModel,
                 { userId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => {console.log('got completed run', JSON.stringify(node)); modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)}) as any[]
-            console.log('foryoupage b', JSON.stringify(completedRuns));
+            )).edges.map(({ node }: any) => { modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)}) as any[]
             // Query recently viewed objects (of any type)
             const recentlyViewed = (await readManyHelper(
                 context.req.userId,
                 { take, sortBy: ViewSortBy.LastViewedDesc },
                 viewSelect,
                 viewModel,
-                { userId: context.req.userId },
+                { byId: context.req.userId },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(viewSelect, viewModel.relationshipMap) as PartialInfo)) as any[];
-            console.log('foryoupage c', JSON.stringify(recentlyViewed));
             // Query recently starred objects (of any type). Make sure to ignore tags
             const recentlyStarred = (await readManyHelper(
                 context.req.userId,
                 { take, sortBy: UserSortBy.DateCreatedDesc },
                 starSelect,
                 starModel,
-                { userId: context.req.userId, tagId: null },
+                { byId: context.req.userId, tagId: null },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(starSelect, starModel.relationshipMap) as PartialInfo)) as any[];
-            console.log('foryoupage d', JSON.stringify(recentlyStarred));
+            console.log('foryoupage recentlystarred', JSON.stringify(recentlyStarred), '\n', JSON.stringify(starSelect));
             // Add supplemental fields to every result
             // TODO might need to do something special for viewSelect and starSelect, since they have unions
             const withSupplemental = await addSupplementalFieldsMultiTypes(
@@ -623,7 +602,7 @@ export const resolvers = {
                 context.req.userId,
                 context.prisma,
             )
-            console.log('foryoupage e', JSON.stringify(withSupplemental));
+            console.log('for you page recently viewed results', JSON.stringify(withSupplemental['rs']))
             // Return results
             return {
                 activeRuns: withSupplemental['ar'],

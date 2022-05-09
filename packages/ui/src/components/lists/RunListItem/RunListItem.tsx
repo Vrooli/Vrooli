@@ -7,7 +7,7 @@ import { APP_LINKS, MemberRole, RunSortBy, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList } from '..';
 import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
-import { Routine, Run } from 'types';
+import { ListRoutine } from 'types';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 
 // Color options for profile picture
@@ -90,7 +90,7 @@ export function RunListItem({
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                         {/* Tags */}
-                        {Array.isArray(data.routine?.tags) && (data.routine as Routine).tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={(data.routine as Routine).tags ?? []} /> : null}
+                        {Array.isArray(data.routine?.tags) && (data.routine as any).tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={(data.routine as any).tags ?? []} /> : null}
                         {/* Progress bar */}
                         {/* TODO */}
                     </Stack>

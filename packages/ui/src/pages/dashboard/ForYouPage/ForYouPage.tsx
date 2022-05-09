@@ -79,6 +79,7 @@ export const ForYouPage = ({
         'recently-viewed-list-item',
         (item, event) => { toItemPage(event, item) },
     ), [data, session])
+    console.log('got recent', data?.forYouPage?.recentlyViewed);
 
     const starred = useMemo(() => listToListItems(
         data?.forYouPage?.recentlyStarred ?? [],

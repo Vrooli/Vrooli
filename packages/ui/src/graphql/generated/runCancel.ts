@@ -3,134 +3,11 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RunCancelInput, NodeType, MemberRole, RunStatus, ResourceListUsedFor, ResourceUsedFor, RunStepStatus } from "./globalTypes";
+import { RunCancelInput, RunStatus, NodeType, MemberRole, ResourceListUsedFor, ResourceUsedFor, RunStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: runCancel
 // ====================================================
-
-export interface runCancel_runCancel_endNode_data_NodeEnd {
-  __typename: "NodeEnd";
-  id: string;
-  wasSuccessful: boolean;
-}
-
-export interface runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_owner_Organization_translations {
-  __typename: "OrganizationTranslation";
-  id: string;
-  language: string;
-  name: string;
-}
-
-export interface runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_owner_Organization {
-  __typename: "Organization";
-  id: string;
-  handle: string | null;
-  translations: runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
-}
-
-export interface runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_owner_User {
-  __typename: "User";
-  id: string;
-  name: string;
-  handle: string | null;
-}
-
-export type runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_owner = runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_owner_Organization | runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_owner_User;
-
-export interface runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_translations {
-  __typename: "RoutineTranslation";
-  id: string;
-  language: string;
-  title: string;
-  description: string | null;
-  instructions: string;
-}
-
-export interface runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine {
-  __typename: "Routine";
-  id: string;
-  complexity: number;
-  isInternal: boolean | null;
-  nodesCount: number | null;
-  role: MemberRole | null;
-  owner: runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_owner | null;
-  simplicity: number;
-  translations: runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine_translations[];
-  version: string | null;
-}
-
-export interface runCancel_runCancel_endNode_data_NodeRoutineList_routines_translations {
-  __typename: "NodeRoutineListItemTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string | null;
-}
-
-export interface runCancel_runCancel_endNode_data_NodeRoutineList_routines {
-  __typename: "NodeRoutineListItem";
-  id: string;
-  index: number;
-  isOptional: boolean;
-  routine: runCancel_runCancel_endNode_data_NodeRoutineList_routines_routine;
-  translations: runCancel_runCancel_endNode_data_NodeRoutineList_routines_translations[];
-}
-
-export interface runCancel_runCancel_endNode_data_NodeRoutineList {
-  __typename: "NodeRoutineList";
-  id: string;
-  isOptional: boolean;
-  isOrdered: boolean;
-  routines: runCancel_runCancel_endNode_data_NodeRoutineList_routines[];
-}
-
-export type runCancel_runCancel_endNode_data = runCancel_runCancel_endNode_data_NodeEnd | runCancel_runCancel_endNode_data_NodeRoutineList;
-
-export interface runCancel_runCancel_endNode_loop_whiles_translations {
-  __typename: "LoopWhileTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string;
-}
-
-export interface runCancel_runCancel_endNode_loop_whiles {
-  __typename: "LoopWhile";
-  id: string;
-  condition: string;
-  translations: runCancel_runCancel_endNode_loop_whiles_translations[];
-}
-
-export interface runCancel_runCancel_endNode_loop {
-  __typename: "Loop";
-  id: string;
-  loops: number | null;
-  maxLoops: number | null;
-  operation: string | null;
-  whiles: runCancel_runCancel_endNode_loop_whiles[];
-}
-
-export interface runCancel_runCancel_endNode_translations {
-  __typename: "NodeTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string;
-}
-
-export interface runCancel_runCancel_endNode {
-  __typename: "Node";
-  id: string;
-  columnIndex: number | null;
-  created_at: any;
-  rowIndex: number | null;
-  type: NodeType;
-  updated_at: any;
-  data: runCancel_runCancel_endNode_data | null;
-  loop: runCancel_runCancel_endNode_loop | null;
-  translations: runCancel_runCancel_endNode_translations[];
-}
 
 export interface runCancel_runCancel_routine_inputs_translations {
   __typename: "InputItemTranslation";
@@ -519,7 +396,6 @@ export interface runCancel_runCancel {
   __typename: "Run";
   id: string;
   completedComplexity: number;
-  endNode: runCancel_runCancel_endNode | null;
   pickups: number;
   timeStarted: any | null;
   timeElapsed: number | null;

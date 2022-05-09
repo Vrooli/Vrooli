@@ -8,6 +8,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { GraphQLModelType, StarModel } from '../models';
 import { rateLimit } from '../rateLimit';
 import { genErrorCode } from '../logger';
+import { resolveStarTo } from './resolvers';
 
 export const typeDef = gql`
     enum StarFor {
@@ -41,15 +42,7 @@ export const typeDef = gql`
 export const resolvers = {
     StarFor: StarFor,
     StarTo: {
-        __resolveType(obj: any) {
-            if (obj.hasOwnProperty('isFile')) return GraphQLModelType.Standard;
-            if (obj.hasOwnProperty('isComplete')) return GraphQLModelType.Project;
-            if (obj.hasOwnProperty('isOpenToNewMembers')) return GraphQLModelType.Organization;
-            if (obj.hasOwnProperty('name')) return GraphQLModelType.User;
-            if (obj.hasOwnProperty('tag')) return GraphQLModelType.Tag;
-            if (obj.hasOwnProperty('complexity')) return GraphQLModelType.Routine;
-            return GraphQLModelType.Comment;
-        },
+        __resolveType(obj: any) { return resolveStarTo(obj) },
     },
     Mutation: {
         /**

@@ -118,12 +118,15 @@ export function listToListItems(
     keyPrefix: string,
     onClick: (item: ListItem, event: React.MouseEvent<HTMLElement>) => void,
 ): JSX.Element[] {
+    console.log('listtolistitems start', objects)
     let listItems: JSX.Element[] = [];
     for (let i = 0; i < objects.length; i++) {
         let curr = objects[i];
         // If "View" or "Star" item, display the object it points to
-        if (curr.__typename === 'ListView' || curr.__typename === 'ListStar') {
+        if (curr.__typename === 'View' || curr.__typename === 'Star') {
+            console.log('was view or star a', curr)
             curr = (curr as ListStar | ListView).to;
+            console.log('now is', curr)
         }
         // Create common props
         const commonProps = {
