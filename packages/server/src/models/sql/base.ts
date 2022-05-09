@@ -30,6 +30,7 @@ import { tagHiddenFormatter } from './tagHidden';
 import { Log, LogType } from '../../models/nosql';
 import { genErrorCode } from '../../logger';
 import { viewFormatter, ViewModel } from './view';
+import { runFormatter, runSearcher } from './run';
 const { isObject } = pkg;
 
 
@@ -234,6 +235,7 @@ export const FormatterMap: { [key in GraphQLModelType]?: FormatConverter<any> } 
     [GraphQLModelType.ResourceList]: resourceListFormatter(),
     [GraphQLModelType.Role]: roleFormatter(),
     [GraphQLModelType.Routine]: routineFormatter(),
+    [GraphQLModelType.Run]: runFormatter(),
     [GraphQLModelType.Standard]: standardFormatter(),
     [GraphQLModelType.Star]: starFormatter(),
     [GraphQLModelType.Tag]: tagFormatter(),
@@ -252,6 +254,7 @@ export const SearcherMap: { [key in GraphQLModelType]?: Searcher<any> } = {
     [GraphQLModelType.Resource]: resourceSearcher(),
     [GraphQLModelType.ResourceList]: resourceListSearcher(),
     [GraphQLModelType.Routine]: routineSearcher(),
+    [GraphQLModelType.Run]: runSearcher(),
     [GraphQLModelType.Standard]: standardSearcher(),
     // 'Star': starSearcher(),
     [GraphQLModelType.Tag]: tagSearcher(),
@@ -905,7 +908,7 @@ const isRelationshipObject = (obj: any): boolean => _.isObject(obj) && Object.pr
 const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.every(e => isRelationshipObject(e));
 
 /**
- * Recombines objects from supplementalFields calls into shape that matches info
+ * Recombines objects returned from calls to supplementalFields into shape that matches info
  * @param data Original, unsupplemented data, where each object has an ID
  * @param objectsById Dictionary of objects with supplemental fields added, where each value contains at least an ID
  * @returns data with supplemental fields added
@@ -1015,7 +1018,7 @@ const pickObjectById = (data: any, id: string): any => {
 export const addSupplementalFields = async (
     prisma: PrismaType,
     userId: string | null,
-    data: { [x: string]: any }[],
+    data: ({ [x: string]: any } | null | undefined)[],
     partial: PartialInfo | PartialInfo[],
 ): Promise<{ [x: string]: any }[]> => {
     console.log('addsupplementalfields starttttttt ', JSON.stringify(data), '\n\n');
@@ -1026,6 +1029,7 @@ export const addSupplementalFields = async (
     for (let i = 0; i < data.length; i++) {
         const currData = data[i];
         const currPartial = Array.isArray(partial) ? partial[i] : partial;
+        if (!currData || !currPartial) continue;
         const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(currData, currPartial);
         console.log('boopies childobjectidsdict', JSON.stringify(childObjectIdsDict), '\n\n');
         console.log('beepies childselectfieldsdict', JSON.stringify(childSelectFieldsDict), '\n\n');
@@ -1062,8 +1066,9 @@ export const addSupplementalFields = async (
         } else console.log('addsuppl NOT in formattermap', type);
     }
 
+    console.log('before combinesupplements calllllllll', JSON.stringify(data), '\n\n', JSON.stringify(objectsById), '\n\n');
     // Convert objectsById dictionary back into shape of data
-    let result = data.map(d => combineSupplements(d, objectsById));
+    let result = data.map(d => (d === null || d === undefined) ? d : combineSupplements(d, objectsById));
     return result
 }
 
@@ -1083,7 +1088,6 @@ export const addSupplementalFieldsMultiTypes = async (
     userId: string | null,
     prisma: PrismaType,
 ): Promise<{ [x: string]: any[] }> => {
-    console.log('addsupplementalfieldsmultitypes start! ')
     // Flatten data array
     const combinedData = _.flatten(data);
     // Create an array of partials, that match the data array
@@ -1095,8 +1099,10 @@ export const addSupplementalFieldsMultiTypes = async (
             combinedPartials.push(currPartial);
         }
     }
+    console.log('in addsupp multi aaa', JSON.stringify(combinedData), '\n\n', JSON.stringify(combinedPartials), '\n\n');
     // Call addSupplementalFields
     const combinedResult = await addSupplementalFields(prisma, userId, combinedData, combinedPartials);
+    console.log('in addsupp multi bbb', JSON.stringify(combinedResult), '\n\n');
     // Convert combinedResult into object with keys equal to objectTypes, and values equal to arrays of those types
     const formatted: { [y: string]: any[] } = {};
     let start = 0;
@@ -1106,6 +1112,7 @@ export const addSupplementalFieldsMultiTypes = async (
         formatted[currKey] = combinedResult.slice(start, end);
         start = end;
     }
+    console.log('in addsupp multi ccc', JSON.stringify(formatted), '\n\n');
     return formatted;
 }
 
@@ -1147,6 +1154,7 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
  * @returns Valid GraphQL object
  */
 export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial: PartialInfo): GraphQLModel {
+    console.log('modeltographql start', JSON.stringify(data), '\n\n', JSON.stringify(partial), '\n\n\n');
     // First convert data to usable shape
     const type: string | undefined = partial?.__typename;
     if (type !== undefined && type in FormatterMap) {
@@ -1184,6 +1192,7 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
             data[key] = modelToGraphQL(value, (partial as any)[key]);
         }
     }
+    console.log('modeltographql end', JSON.stringify(data), '\n\n\n');
     return data as any;
 }
 

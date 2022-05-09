@@ -942,7 +942,8 @@ export interface RunCancelInput {
 }
 
 export interface RunCompleteInput {
-  id: string;
+  id?: string | null;
+  exists?: boolean | null;
   pickups?: number | null;
   timeElapsed?: number | null;
 }

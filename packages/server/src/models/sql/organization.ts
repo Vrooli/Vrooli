@@ -33,7 +33,6 @@ export const organizationFormatter = (): FormatConverter<Organization> => ({
         'tags': GraphQLModelType.Tag,
     },
     removeCalculatedFields: (partial) => {
-        console.log('organization removeCalculatedFields', JSON.stringify(partial), '\n');
         let { isStarred, role, ...rest } = partial;
         return rest;
     },

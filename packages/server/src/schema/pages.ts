@@ -77,7 +77,7 @@ const routineSelect = {
     tags: tagSelect,
 }
 const runSelect = {
-    __typename: GraphQLModelType.RunStep,
+    __typename: GraphQLModelType.Run,
     id: true,
     completedComplexity: true,
     pickups: true,
@@ -564,7 +564,8 @@ export const resolvers = {
                 runModel,
                 { userId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => { modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)}) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(runSelect, runModel.relationshipMap) as PartialInfo)) as any[]
+            console.log('foryoupage a', JSON.stringify(activeRuns))
             // Query for complete runs
             const completedRuns = (await readManyHelper(
                 context.req.userId,
@@ -573,7 +574,8 @@ export const resolvers = {
                 runModel,
                 { userId: context.req.userId },
                 false
-            )).edges.map(({ node }: any) => { modelToGraphQL(node, toPartialSelect(routineSelect, runModel.relationshipMap) as PartialInfo)}) as any[]
+            )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(runSelect, runModel.relationshipMap) as PartialInfo)) as any[]
+            console.log('foryoupage b', JSON.stringify(completedRuns))
             // Query recently viewed objects (of any type)
             const recentlyViewed = (await readManyHelper(
                 context.req.userId,
@@ -592,9 +594,7 @@ export const resolvers = {
                 { byId: context.req.userId, tagId: null },
                 false
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(starSelect, starModel.relationshipMap) as PartialInfo)) as any[];
-            console.log('foryoupage recentlystarred', JSON.stringify(recentlyStarred), '\n', JSON.stringify(starSelect));
             // Add supplemental fields to every result
-            // TODO might need to do something special for viewSelect and starSelect, since they have unions
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],
                 [runSelect, runSelect, viewSelect, starSelect] as any,
@@ -602,7 +602,8 @@ export const resolvers = {
                 context.req.userId,
                 context.prisma,
             )
-            console.log('for you page recently viewed results', JSON.stringify(withSupplemental['rs']))
+            console.log('for you page active runs results', JSON.stringify(withSupplemental['ar']), '\n\n\n\n')
+            console.log('for you page completed runs results', JSON.stringify(withSupplemental['cr']), '\n\n\n\n')
             // Return results
             return {
                 activeRuns: withSupplemental['ar'],

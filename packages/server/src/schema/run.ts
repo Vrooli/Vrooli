@@ -123,7 +123,8 @@ export const typeDef = gql`
     }
 
     input RunCompleteInput {
-        id: ID!
+        id: ID # Either run ID, or routine ID
+        exists: Boolean # If true, run ID is provided, otherwise routine ID so we can create a run
         pickups: Int
         timeElapsed: Int
     }
@@ -147,11 +148,6 @@ export const typeDef = gql`
         runCancel(input: RunCancelInput!): Run!
     }
 `
-
-// All logs related to executing routines. Used to query for last status of routine.
-// To make querying easier, the log type for starting a routine changes as the progress of the routine is tracked. 
-// For example, the log will start as LogType.RoutineStartIncomplete, then switch to LogType.RoutineStartCompleted when the routine is completed.
-const runLogs = [LogType.RoutineCancel, LogType.RoutineComplete, LogType.RoutineStartCanceled, LogType.RoutineStartCompleted, LogType.RoutineStartIncomplete]
 
 export const resolvers = {
     RunSortBy: RunSortBy,

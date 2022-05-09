@@ -1,13 +1,15 @@
 import { CODE, runCreate, runUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
-import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialSelect, ValidateMutationsInput } from "./base";
+import { PrismaType, RecursivePartial } from "../../types";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, PartialInfo, readManyHelper, Searcher, selectHelper, timeFrameToPrisma, toPartialSelect, ValidateMutationsInput } from "./base";
 import _ from "lodash";
 import { genErrorCode } from "../../logger";
 import { Log } from "../../models/nosql";
 import { TranslationModel } from "./translation";
 import { StepModel } from "./step";
+import { run } from "@prisma/client";
+import { RoutineModel } from "./routine";
 
 //==============================================================
 /* #region Custom Components */
@@ -188,36 +190,61 @@ export const runMutater = (prisma: PrismaType) => ({
         });
     },
     /**
-     * Marks a run as completed
+     * Marks a run as completed. Run does not have to exist, since this can be called on simple routines 
+     * via the "Mark as Complete" button. We could create a new run every time a simple routine is viewed 
+     * to get around this, but I'm not sure if that would be a good idea. Most of the time, I imagine users
+     * will just be looking at the routine instead of using it.
      */
     async complete(userId: string, input: RunCompleteInput, info: InfoType): Promise<Run> {
         // Convert info to partial
         const partial = toPartialSelect(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0179') });
-        // Find in database
-        let object = await prisma.run.findFirst({
-            where: {
-                AND: [
-                    { userId },
-                    { id: input.id },
-                ]
-            }
-        })
-        if (!object) throw new CustomError(CODE.NotFound, 'Run not found.', { code: genErrorCode('0180') });
-        // Update object
-        const updated = await prisma.run.update({
-            where: { id: input.id },
-            data: {
-                pickups: input.pickups ?? undefined,
-                timeCompleted: new Date(),
-                timeElapsed: input.timeElapsed ?? undefined,
-            },
-            ...selectHelper(partial)
-        });
+        let run: run | null;
+        // Check if run is being created or updated
+        if (input.exists) {
+            // Find in database
+            run = await prisma.run.findFirst({
+                where: {
+                    AND: [
+                        { userId },
+                        { id: input.id ?? '' },
+                    ]
+                }
+            })
+            if (!run) throw new CustomError(CODE.NotFound, 'Run not found.', { code: genErrorCode('0180') });
+            // Update object
+            run = await prisma.run.update({
+                where: { id: input.id },
+                data: {
+                    pickups: input.pickups ?? undefined,
+                    timeCompleted: new Date(),
+                    timeElapsed: input.timeElapsed ?? undefined,
+                },
+                ...selectHelper(partial)
+            });
+        } else {
+            // Create new run
+            run = await prisma.run.create({
+                data: {
+                    timeStarted: new Date(),
+                    timeCompleted: new Date(),
+                    timeElapsed: input.timeElapsed ?? undefined,
+                    pickups: input.pickups ?? undefined,
+                    routineId: input.id,
+                    status: RunStatus.Completed,
+                    title: 'TODO',
+                    userId,
+                    version: 'TODO',
+                }
+            });
+        }
+        console.log('run complete herrr', JSON.stringify(run));
         // Convert to GraphQL
-        let converted: any = modelToGraphQL(updated, partial);
+        let converted: any = modelToGraphQL(run, partial);
+        console.log('run complete converted', JSON.stringify(converted));
         // Add supplemental fields
-        converted = addSupplementalFields(prisma, userId, [converted], partial);
+        converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
+        console.log('run complete addsupp', JSON.stringify(converted));
         // Log run completion
         Log.collection.insertOne({
             timestamp: Date.now(),
@@ -226,7 +253,7 @@ export const runMutater = (prisma: PrismaType) => ({
             object1Type: GraphQLModelType.Run,
             object1Id: input.id,
             object2Type: GraphQLModelType.Routine,
-            object2Id: object.routineId,
+            object2Id: run.routineId,
         });
         // Return converted object
         return converted as Run;
@@ -259,7 +286,7 @@ export const runMutater = (prisma: PrismaType) => ({
         // Convert to GraphQL
         let converted: any = modelToGraphQL(updated, partial);
         // Add supplemental fields
-        converted = addSupplementalFields(prisma, userId, [converted], partial);
+        converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
         // Log run cancellation
         Log.collection.insertOne({
             timestamp: Date.now(),

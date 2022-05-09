@@ -100,7 +100,7 @@ export const RoutineView = ({
         if (!routine) return;
         mutationWrapper({
             mutation: runComplete,
-            input: { id: routine.id },
+            input: { id: routine.id, exists: false },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => { 
                 PubSub.publish(Pubs.Celebration);

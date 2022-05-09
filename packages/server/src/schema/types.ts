@@ -2157,7 +2157,8 @@ export type RunCancelInput = {
 };
 
 export type RunCompleteInput = {
-  id: Scalars['ID'];
+  exists?: InputMaybe<Scalars['Boolean']>;
+  id?: InputMaybe<Scalars['ID']>;
   pickups?: InputMaybe<Scalars['Int']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
 };
