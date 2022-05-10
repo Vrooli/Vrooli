@@ -1,13 +1,11 @@
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
 import { developPage } from 'graphql/generated/developPage';
-import { LogType } from 'graphql/generated/globalTypes';
-import { logs, logsVariables } from 'graphql/generated/logs';
 import { profile } from 'graphql/generated/profile';
 import { profileUpdateMutation } from 'graphql/mutation';
-import { developPageQuery, logsQuery, profileQuery } from 'graphql/query';
+import { developPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Organization, Project, ResourceList, Routine, Standard, User } from 'types';
 import { listToListItems, openObject } from 'utils';
@@ -47,6 +45,7 @@ const defaultResourceList: ResourceList = {
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
+    const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
@@ -99,7 +98,11 @@ export const DevelopPage = ({
     }), [developPageData, session])
 
     return (
-        <Box id="page">
+        <Box id='page' sx={{
+            [breakpoints.up('md')]: {
+                paddingTop: '10vh',
+            },
+        }}>
             {/* Title and help button */}
             <Stack
                 direction="row"

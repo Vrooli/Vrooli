@@ -1,5 +1,5 @@
 import { APP_LINKS } from '@local/shared';
-import { Box, Button, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import {
     Help as FAQIcon,
     Article as WhitePaperIcon,
@@ -32,12 +32,12 @@ const buttonProps = {
 
 export const WelcomePage = () => {
     const [, setLocation] = useLocation();
+    const { breakpoints } = useTheme();
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
 
     return (
         <Box
             sx={{
-                marginTop: '10vh',
                 minHeight: '100vh',
                 width: '100vw',
                 display: 'flex',
@@ -48,6 +48,9 @@ export const WelcomePage = () => {
                 backgroundSize: '400% 400%',
                 animation: 'gradient 15s ease infinite',
                 overflowX: 'hidden',
+                [breakpoints.up('md')]: {
+                    paddingTop: '10vh',
+                },
             }}
         >
             <Box sx={{

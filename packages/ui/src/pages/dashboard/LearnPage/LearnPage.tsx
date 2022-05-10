@@ -1,5 +1,5 @@
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { HelpButton, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
 import { ProjectSortBy, ResourceListUsedFor, ResourceUsedFor, RoutineSortBy } from 'graphql/generated/globalTypes';
 import { learnPage } from 'graphql/generated/learnPage';
@@ -36,6 +36,7 @@ const tutorialText =
 export const LearnPage = ({
     session,
 }: LearnPageProps) => {
+    const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
@@ -78,7 +79,11 @@ export const LearnPage = ({
     }), [learnPageData, session])
 
     return (
-        <Box id="page">
+        <Box id='page' sx={{
+            [breakpoints.up('md')]: {
+                paddingTop: '10vh',
+            },
+        }}>
             {/* Title and help button */}
             <Stack
                 direction="row"

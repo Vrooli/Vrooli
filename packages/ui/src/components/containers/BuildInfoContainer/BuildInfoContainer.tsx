@@ -6,7 +6,7 @@
  * To the right is a button to switch to the metadata view/edit component. You can view/edit the 
  * title, descriptions, instructions, inputs, outputs, tags, etc.
  */
-import { Box, IconButton, Menu, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
     Close as CloseIcon,
@@ -57,7 +57,7 @@ export const BuildInfoContainer = ({
     session,
     status,
 }: BuildInfoContainerProps) => {
-
+    const { breakpoints } = useTheme();
     /**
      * List of status messages converted to markdown. 
      * If one message, no bullet points. If multiple, bullet points.
@@ -108,9 +108,11 @@ export const BuildInfoContainer = ({
             justifyContent="space-between"
             sx={{
                 zIndex: 2,
-                paddingTop: '10vh',
                 background: (t) => t.palette.primary.light,
                 color: (t) => t.palette.primary.contrastText,
+                [breakpoints.up('md')]: {
+                    paddingTop: '10vh',
+                },
             }}
         >
             {/* Status indicator */}

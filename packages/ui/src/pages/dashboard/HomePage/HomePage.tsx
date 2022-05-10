@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv } from 'styles';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
@@ -203,6 +203,7 @@ const shortcutsItems: AutocompleteListItem[] = shortcuts.map(({ label, link }) =
 export const HomePage = ({
     session
 }: HomePageProps) => {
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>(() => {
         const { search } = parseSearchParams(window.location.search);
@@ -384,7 +385,11 @@ export const HomePage = ({
     }, [setLocation]);
 
     return (
-        <Box id="page">
+        <Box id='page' sx={{
+            [breakpoints.up('md')]: {
+                paddingTop: '10vh',
+            },
+        }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
             {showForYou && <Tabs
                 value={tabIndex}
@@ -431,7 +436,7 @@ export const HomePage = ({
                 onClose={closeCreateNew}
             />
             {/* Prompt stack */}
-            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '30vh' } }}>
+            <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: { xs: '5vh', sm: '20vh' } }}>
                 <Typography component="h1" variant="h2" textAlign="center">What would you like to do?</Typography>
                 {/* ========= #region Custom SearchBar ========= */}
                 <AutocompleteSearchBar
@@ -461,7 +466,7 @@ export const HomePage = ({
                             variant="h6"
                             onClick={() => { setLocation(`${APP_LINKS.Run}/${example[1]}`) }}
                             sx={{
-                                color: (t) => t.palette.text.secondary,
+                                color: palette.text.secondary,
                                 fontStyle: 'italic',
                                 cursor: 'pointer',
                             }}

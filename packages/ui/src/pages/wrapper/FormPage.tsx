@@ -1,33 +1,5 @@
-import { Container, Theme, Typography } from '@mui/material';
+import { Box, Container, Theme, Typography, useTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-
-const useStyles = makeStyles((theme: Theme) => ({
-    formHeader: {
-        backgroundColor: theme.palette.primary.main,
-        color: theme.palette.primary.contrastText,
-        padding: '1em',
-        textAlign: 'center'
-    },
-    container: {
-        backgroundColor: theme.palette.background.paper,
-        display: 'grid',
-        position: 'relative',
-        boxShadow: '0px 2px 4px -1px rgb(0 0 0 / 20%), 0px 4px 5px 0px rgb(0 0 0 / 14%), 0px 1px 10px 0px rgb(0 0 0 / 12%)',
-        minWidth: '300px',
-        maxWidth: 'min(100%, 700px)',
-        borderRadius: '10px',
-        overflow: 'hidden',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        marginBottom: '20px'
-    },
-    [theme.breakpoints.down("sm")]: {
-        page: {
-            padding: '0',
-            paddingTop: 'calc(14vh + 20px)',
-        }
-      },
-}));
 
 interface Props {
     title: string;
@@ -42,18 +14,44 @@ export const FormPage = ({
     children,
     maxWidth = '90%',
 }: Props) => {
-    const classes = useStyles();
+    const { breakpoints, palette } = useTheme();
 
     return (
-        <div id='page' style={{maxWidth: maxWidth}}>
-            <div className={classes.container}>
-                <Container className={classes.formHeader}>
+        <Box id='page' sx={{
+            maxWidth: maxWidth,
+            [breakpoints.up('md')]: {
+                paddingTop: '10vh',
+            },
+            [breakpoints.down("sm")]: {
+                padding: '0',
+                paddingTop: 'calc(14vh + 20px)',
+            },
+        }}>
+            <Box sx={{
+                backgroundColor: palette.background.paper,
+                display: 'grid',
+                position: 'relative',
+                boxShadow: '0px 2px 4px -1px rgb(0 0 0 / 20%), 0px 4px 5px 0px rgb(0 0 0 / 14%), 0px 1px 10px 0px rgb(0 0 0 / 12%)',
+                minWidth: '300px',
+                maxWidth: 'min(100%, 700px)',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                marginBottom: '20px'
+            }}>
+                <Container sx={{
+                    backgroundColor: palette.primary.main,
+                    color: palette.primary.contrastText,
+                    padding: '1em',
+                    textAlign: 'center',
+                }}>
                     <Typography variant="h3" >{title}</Typography>
                 </Container>
                 <Container>
                     {children}
                 </Container>
-            </div>
-        </div>
+            </Box>
+        </Box >
     );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Box, IconButton, Menu, Tooltip } from '@mui/material';
+import { Box, IconButton, Menu, Tooltip, useTheme } from '@mui/material';
 import { HelpOutline as HelpIcon } from "@mui/icons-material";
 import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
@@ -12,6 +12,7 @@ export const HelpButton = ({
     sxRoot,
     sx,
 }: HelpButtonProps) => {
+    const { palette } = useTheme();
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
 
@@ -27,7 +28,7 @@ export const HelpButton = ({
         return (
             <Box>
                 <Box sx={{ 
-                    background: (t) => t.palette.mode === 'light' ? t.palette.primary.dark : t.palette.secondary.dark,
+                    background: palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark,
                     display: 'flex',
                     flexDirection: 'row-reverse',
                     paddingRight: '0.5rem',
@@ -75,7 +76,7 @@ export const HelpButton = ({
                         }}
                         sx={{
                             '& .MuiPopover-paper': {
-                                background: (t) => t.palette.background.paper,
+                                background: palette.background.paper,
                                 maxWidth: 'min(90vw, 400px)',
                             },
                             '& .MuiMenu-list': {

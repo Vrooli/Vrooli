@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { Box } from "@mui/material"
+import { Box, useTheme } from "@mui/material"
 import { BaseObjectDialog, OrganizationView } from "components";
 import { OrganizationViewPageProps } from "./types";
 import { ObjectDialogAction } from "components/dialogs/types";
@@ -13,6 +13,7 @@ export const OrganizationViewPage = ({
     session
 }: OrganizationViewPageProps) => {
     const [, setLocation] = useLocation();
+    const { breakpoints } = useTheme();
     // Get URL params
     const [matchView, paramsView] = useRoute(`${APP_LINKS.Organization}/:id`);
     const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.Organization}/edit/:id`);
@@ -42,7 +43,13 @@ export const OrganizationViewPage = ({
     }, [id, setLocation]);
 
     return (
-        <Box pt="10vh" sx={{ minHeight: '88vh' }}>
+        <Box sx={{
+            minHeight: '100vh',
+            [breakpoints.up('md')]: {
+                paddingTop: '10vh',
+                minHeight: '88vh',
+            },
+        }}>
             {/* Add dialog */}
             <BaseObjectDialog
                 hasNext={false}

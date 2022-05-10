@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import Logo from 'assets/img/Logo.png';
 import { BUSINESS_NAME, APP_LINKS } from '@local/shared';
-import { AppBar, Toolbar, Typography, Theme } from '@mui/material';
+import { AppBar, Toolbar, Typography, Theme, useTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { Hamburger } from '../Hamburger/Hamburger';
 import { NavList } from '../NavList/NavList';
 import { useLocation } from 'wouter';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
-
-const SHOW_HAMBURGER_AT = 900;
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -47,11 +44,6 @@ const useStyles = makeStyles((theme: Theme) => ({
         fontFamily: `Lato`,
         color: theme.palette.primary.contrastText,
     },
-    [theme.breakpoints.down(350)]: {
-        navName: {
-            display: 'none',
-        }
-    },
 }));
 
 export const Navbar = ({
@@ -59,10 +51,9 @@ export const Navbar = ({
     sessionChecked,
 }: NavbarProps) => {
     const classes = useStyles();
+    const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
-    const [show_hamburger, setShowHamburger] = useState(false);
-
-    let child_props = { session, sessionChecked };
+    const [show, setShow] = useState(false); // Not shown on mobile
 
     useEffect(() => {
         updateWindowDimensions();
@@ -71,12 +62,12 @@ export const Navbar = ({
         return () => window.removeEventListener("resize", updateWindowDimensions);
     }, []);
 
-    const updateWindowDimensions = () => setShowHamburger(window.innerWidth <= SHOW_HAMBURGER_AT);
+    const updateWindowDimensions = () => setShow(window.innerWidth >= breakpoints.values.md);
 
     const toHome = useCallback(() => setLocation(APP_LINKS.Home), [setLocation]);
 
     return (
-        <HideOnScroll>
+        show ? <HideOnScroll>
             <AppBar className={classes.root}>
                 <Toolbar>
                     <div className={classes.navLogoContainer} onClick={toHome}>
@@ -86,10 +77,10 @@ export const Navbar = ({
                         <Typography className={classes.navName} variant="h6" noWrap>{BUSINESS_NAME}</Typography>
                     </div>
                     <div className={classes.toRight}>
-                        {show_hamburger ? <Hamburger {...child_props} /> : <NavList {...child_props} />}
+                        <NavList session={session} sessionChecked={sessionChecked} />
                     </div>
                 </Toolbar>
             </AppBar>
-        </HideOnScroll>
+        </HideOnScroll> : null
     );
 }

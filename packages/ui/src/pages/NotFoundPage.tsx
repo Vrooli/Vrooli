@@ -1,10 +1,16 @@
 import { Link } from 'wouter';
-import { Box, Button } from '@mui/material';
+import { Box, Button, useTheme } from '@mui/material';
 import { APP_LINKS } from '@local/shared';
 
 export const NotFoundPage = () => {
+    const { breakpoints } = useTheme();
+    
     return (
-        <Box id="page">
+        <Box id='page' sx={{
+            [breakpoints.up('md')]: {
+                paddingTop: '10vh',
+            },
+        }}>
             <Box
                 sx={{
                     position: 'absolute',

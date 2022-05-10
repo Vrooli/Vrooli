@@ -408,7 +408,7 @@ export const NodeGraph = ({
         <Box id="graph-root" position="relative" sx={{
             cursor: isShiftKeyPressed ? 'nesw-resize' : 'move',
             minWidth: '100%',
-            height: { xs: '72vh', md: '80vh' },
+            height: { xs: '90vh', md: '80vh' },
             overflowX: 'auto',
             overflowY: 'auto',
             margin: 0,

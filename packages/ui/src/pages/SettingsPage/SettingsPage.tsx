@@ -42,6 +42,7 @@ const settingPages: { [x: string]: [SettingsForm, string, SvgIconComponent] } = 
 export function SettingsPage({
     session,
 }: SettingsPageProps) {
+    const { breakpoints, palette } = useTheme();
     const [location, setLocation] = useLocation();
     const selectedPage = useMemo<SettingsForm>(() => { return parseSearchParams(window.location.search).page as unknown as SettingsForm ?? SettingsForm.Profile }, [window.location.search]);
     const editing = useMemo<boolean>(() => Boolean(parseSearchParams(window.location.search).editing), [window.location.search]);
@@ -98,12 +99,19 @@ export function SettingsPage({
     }, [selectedPage, editing, profile, onUpdated]);
 
     return (
-        <Box id="page" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Box id='page' sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center',
+            [breakpoints.up('md')]: {
+                paddingTop: '10vh',
+            },
+        }}>
             <Box sx={{
                 ...containerShadow,
                 borderRadius: 2,
                 overflow: 'overlay',
-                background: (t) => t.palette.background.default,
+                background: palette.background.default,
                 width: 'min(100%, 700px)',
                 minHeight: '300px',
                 position: 'relative',
@@ -117,7 +125,7 @@ export function SettingsPage({
                     top: 0,
                     bottom: 0,
                     backgroundColor: '#e4efff',
-                    borderRight: (t) => `1px solid ${t.palette.text.primary}`,
+                    borderRight: `1px solid ${palette.text.primary}`,
 
                 }}>
                     <List>
