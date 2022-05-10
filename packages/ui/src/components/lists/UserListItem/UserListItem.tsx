@@ -26,6 +26,7 @@ const colorOptions: [string, string][] = [
 export const UserListItem = ({
     data,
     index,
+    loading,
     onClick,
     session,
 }: UserListItemProps) => {
@@ -34,18 +35,27 @@ export const UserListItem = ({
 
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
 
-    const { bio } = useMemo(() => {
+    const { bio, name } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
         return {
             bio: getTranslation(data, 'bio', languages, true),
+            name: data?.name ?? (data?.handle ? `$${data.handle}` : ''),
         }
     }, [data, session]);
 
     const handleClick = useCallback((e: any) => {
+        // Prevent propagation
+        e.stopPropagation();
+        // If data not supplied, don't open
+        if (!data) return;
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the user's profile
-        else setLocation(`${APP_LINKS.Profile}/${data.id}`)
+        else {
+            // Prefer using handle if available
+            const link = data.handle ?? data.id;
+            setLocation(`${APP_LINKS.Profile}/${link}`);
+        }
     }, [onClick, data, setLocation]);
 
     return (
@@ -79,7 +89,7 @@ export const UserListItem = ({
                     </Box>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         <ListItemText
-                            primary={data.name}
+                            primary={name}
                             sx={{ ...multiLineEllipsis(1) }}
                         />
                         <ListItemText
@@ -89,12 +99,12 @@ export const UserListItem = ({
                     </Stack>
                     {
                         !isOwn && <StarButton
-                            isStar={data.isStarred}
-                            objectId={data.id ?? ''}
+                            isStar={data?.isStarred}
+                            objectId={data?.id ?? ''}
                             onChange={(isStar: boolean) => { }}
                             session={session}
                             starFor={StarFor.User}
-                            stars={data.stars}
+                            stars={data?.stars}
                         />
                     }
                 </ListItemButton>

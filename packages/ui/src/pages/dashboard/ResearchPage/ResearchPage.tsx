@@ -115,46 +115,56 @@ export const ResearchPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+    const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);
     }, [setLocation]);
 
-    const processes = useMemo(() => listToListItems(
-        researchPageData?.researchPage?.processes ?? [],
+    const processes = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: researchPageData?.researchPage?.processes,
+        keyPrefix: 'research-process-list-item',
+        loading: researchPageLoading,
+        onClick: toItemPage,
         session,
-        'research-process-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [researchPageData, session])
+    }), [researchPageData, session])
 
-    const newlyCompleted = useMemo(() => listToListItems(
-        researchPageData?.researchPage?.newlyCompleted ?? [],
+    const newlyCompleted = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Project'),
+        items: researchPageData?.researchPage?.newlyCompleted,
+        keyPrefix: 'newly-completed-list-item',
+        loading: researchPageLoading,
+        onClick: toItemPage,
         session,
-        'newly-completed-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [researchPageData, session])
+    }), [researchPageData, session])
 
-    const needVotes = useMemo(() => listToListItems(
-        researchPageData?.researchPage?.needVotes ?? [],
+    const needVotes = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Project'),
+        items: researchPageData?.researchPage?.needVotes,
+        keyPrefix: 'need-votes-list-item',
+        loading: researchPageLoading,
+        onClick: toItemPage,
         session,
-        'need-votes-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [researchPageData, session])
+    }), [researchPageData, session])
 
-    const needInvestments = useMemo(() => listToListItems(
-        researchPageData?.researchPage?.needInvestments ?? [],
+    const needInvestments = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Project'),
+        items: researchPageData?.researchPage?.needInvestments,
+        keyPrefix: 'need-investments-list-item',
+        loading: researchPageLoading,
+        onClick: toItemPage,
         session,
-        'need-investments-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [researchPageData, session])
+    }), [researchPageData, session])
 
-    const needMembers = useMemo(() => listToListItems(
-        researchPageData?.researchPage?.needMembers ?? [],
+    const needMembers = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Organization'),
+        items: researchPageData?.researchPage?.needMembers,
+        keyPrefix: 'need-members-list-item',
+        loading: researchPageLoading,
+        onClick: toItemPage,
         session,
-        'need-members-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [researchPageData, session])
+    }), [researchPageData, session])
 
     return (
         <Box id="page">

@@ -53,40 +53,48 @@ export const ForYouPage = ({
     /**
      * Opens page for list item
      */
-     const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+     const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);
     }, [setLocation]);
 
-    const activeRoutines = useMemo(() => listToListItems(
-        data?.forYouPage?.activeRuns ?? [],
+    const activeRuns = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: data?.forYouPage?.activeRuns,
+        keyPrefix: 'active-runs-list-item',
+        loading,
+        onClick: toItemPage,
         session,
-        'active-runs-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [data, session])
+    }), [data, session])
+    console.log('ACTIVE RUNS', activeRuns);
 
-    const completedRoutines = useMemo(() => listToListItems(
-        data?.forYouPage?.completedRuns ?? [],
+    const completedRuns = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: data?.forYouPage?.completedRuns,
+        keyPrefix: 'completed-runs-list-item',
+        loading,
+        onClick: toItemPage,
         session,
-        'completed-runs-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [data, session])
+    }), [data, session])
 
-    const recent = useMemo(() => listToListItems(
-        data?.forYouPage?.recentlyViewed ?? [],
+    const recent = useMemo(() => listToListItems({
+        dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
+        items: data?.forYouPage?.recentlyViewed,
+        keyPrefix: 'recent-list-item',
+        loading,
+        onClick: toItemPage,
         session,
-        'recently-viewed-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [data, session])
-    console.log('got recent', data?.forYouPage?.recentlyViewed);
-
-    const starred = useMemo(() => listToListItems(
-        data?.forYouPage?.recentlyStarred ?? [],
+    }), [data, session])
+    
+    const starred = useMemo(() => listToListItems({
+        dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
+        items: data?.forYouPage?.recentlyStarred,
+        keyPrefix: 'starred-list-item',
+        loading,
+        onClick: toItemPage,
         session,
-        'starred-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [data, session])
+    }), [data, session])
 
     return (
         <Box id="page">
@@ -123,25 +131,22 @@ export const ForYouPage = ({
                 <TitleContainer
                     title={"Active Routines"}
                     helpText={activeRoutinesText}
-                    loading={loading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
-                    {activeRoutines}
+                    {activeRuns}
                 </TitleContainer>
                 <TitleContainer
                     title={"Completed Routines"}
                     helpText={completedRoutinesText}
-                    loading={loading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
-                    {completedRoutines}
+                    {completedRuns}
                 </TitleContainer>
                 <TitleContainer
                     title={"Recently Viewed"}
                     helpText={recentText}
-                    loading={loading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -150,7 +155,6 @@ export const ForYouPage = ({
                 <TitleContainer
                     title={"Starred"}
                     helpText={starredText}
-                    loading={loading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >

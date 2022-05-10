@@ -53,25 +53,29 @@ export const LearnPage = ({
     /**
      * Opens page for list item
      */
-     const toItemPage = useCallback((event: any, item: Project | Routine) => {
+     const toItemPage = useCallback((item: Project | Routine, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);
     }, [setLocation]);
 
-    const courses = useMemo(() => listToListItems(
-        learnPageData?.learnPage?.courses ?? [],
+    const courses = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Project'),
+        items: learnPageData?.learnPage?.courses,
+        keyPrefix: 'course-list-item',
+        loading: learnPageLoading,
+        onClick: toItemPage,
         session,
-        'course-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [learnPageData, session])
+    }), [learnPageData, session])
 
-    const tutorials = useMemo(() => listToListItems(
-        learnPageData?.learnPage?.tutorials ?? [],
+    const tutorials = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: learnPageData?.learnPage?.tutorials,
+        keyPrefix: 'tutorial-list-item',
+        loading: learnPageLoading,
+        onClick: toItemPage,
         session,
-        'tutorial-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [learnPageData, session])
+    }), [learnPageData, session])
 
     return (
         <Box id="page">

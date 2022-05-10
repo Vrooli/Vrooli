@@ -282,7 +282,7 @@ export const HomePage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+    const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
         if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
@@ -315,29 +315,37 @@ export const HomePage = ({
         let listFeeds: JSX.Element[] = [];
         for (const objectType of feedOrder) {
             let currentList: any[] = [];
+            let dummyType: string = '';
             switch (objectType) {
                 case ObjectType.Organization:
                     currentList = data?.homePage?.organizations ?? [];
+                    dummyType = 'Organization';
                     break;
                 case ObjectType.Project:
                     currentList = data?.homePage?.projects ?? [];
+                    dummyType = 'Project';
                     break;
                 case ObjectType.Routine:
                     currentList = data?.homePage?.routines ?? [];
+                    dummyType = 'Routine';
                     break;
                 case ObjectType.Standard:
                     currentList = data?.homePage?.standards ?? [];
+                    dummyType = 'Standard';
                     break;
                 case ObjectType.User:
                     currentList = data?.homePage?.users ?? [];
+                    dummyType = 'User';
                     break;
             }
-            const listFeedItems: JSX.Element[] = listToListItems(
-                currentList,
+            const listFeedItems: JSX.Element[] = listToListItems({
+                dummyItems: new Array(5).fill(dummyType),
+                items: currentList,
+                keyPrefix: `feed-list-item-${objectType}`,
+                loading,
+                onClick: toItemPage,
                 session,
-                'feed-list-item',
-                (item: any, e: any) => toItemPage(e, item),
-            );
+            });
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((
                     <TitleContainer

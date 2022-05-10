@@ -65,32 +65,38 @@ export const DevelopPage = ({
     /**
      * Opens page for list item
      */
-    const toItemPage = useCallback((event: any, item: Organization | Project | Routine | Standard | User) => {
+    const toItemPage = useCallback((item: Organization | Project | Routine | Standard | User, event: any) => {
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);
     }, [setLocation]);
 
-    const inProgress = useMemo(() => listToListItems(
-        developPageData?.developPage?.inProgress ?? [],
+    const inProgress = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: developPageData?.developPage?.inProgress,
+        keyPrefix: 'in-progress-list-item',
+        loading: developPageLoading,
+        onClick: toItemPage,
         session,
-        'in-progress-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [developPageData, session])
+    }), [developPageData, session])
 
-    const recent = useMemo(() => listToListItems(
-        developPageData?.developPage?.recent ?? [],
+    const recent = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: developPageData?.developPage?.recent,
+        keyPrefix: 'recent-list-item',
+        loading: developPageLoading,
+        onClick: toItemPage,
         session,
-        'recently-updated-list-item',
-        (item, event) => { toItemPage(event, item) },
-    ), [developPageData, session])
+    }), [developPageData, session])
 
-    const completed = useMemo(() => listToListItems(
-        developPageData?.developPage?.completed ?? [],
+    const completed = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'),
+        items: developPageData?.developPage?.completed,
+        keyPrefix: 'completed-list-item',
+        loading: developPageLoading,
+        onClick: toItemPage,
         session,
-        'completed-list-item',
-        () => { }
-    ), [developPageData, session])
+    }), [developPageData, session])
 
     return (
         <Box id="page">

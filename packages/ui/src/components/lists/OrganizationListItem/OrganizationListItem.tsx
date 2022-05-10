@@ -24,9 +24,10 @@ const colorOptions: [string, string][] = [
 ]
 
 export function OrganizationListItem({
-    session,
-    index,
     data,
+    index,
+    loading,
+    session,
     onClick,
 }: OrganizationListItemProps) {
     const [, setLocation] = useLocation();
@@ -43,10 +44,16 @@ export function OrganizationListItem({
     const handleClick = useCallback((e: any) => {
         // Prevent propagation
         e.stopPropagation();
+        // If data not supplied, don't open
+        if (!data) return;
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Organization}/${data.id}`)
+        else {
+            // Prefer using handle if available
+            const link = data.handle ?? data.id;
+            setLocation(`${APP_LINKS.Organization}/${link}`);
+        }
     }, [onClick, data, setLocation]);
 
     return (
@@ -90,15 +97,15 @@ export function OrganizationListItem({
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                         {/* Tags */}
-                        {Array.isArray(data.tags) && data.tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} /> : null}
+                        {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                     </Stack>
                     {
                         canEdit ? null : <StarButton
                             session={session}
-                            objectId={data.id ?? ''}
+                            objectId={data?.id ?? ''}
                             starFor={StarFor.Organization}
-                            isStar={data.isStarred}
-                            stars={data.stars}
+                            isStar={data?.isStarred}
+                            stars={data?.stars}
                             onChange={(isStar: boolean) => { }}
                         />
                     }

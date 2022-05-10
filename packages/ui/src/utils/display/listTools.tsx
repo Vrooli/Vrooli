@@ -1,6 +1,7 @@
 import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListStar, ListUser, ListView, Session } from "types";
 import { OrganizationListItem, ProjectListItem, RoutineListItem, RunListItem, StandardListItem, UserListItem } from 'components';
 import { getTranslation, getUserLanguages } from "./translationTools";
+import { ObjectListItemProps } from "components/lists/types";
 
 export interface AutocompleteListItem {
     __typename: string;
@@ -102,78 +103,100 @@ export function listToAutocomplete(
     }));
 }
 
+/**
+ * Maps __typename to the corresponding ListItem component.
+ */
+export const listItemMap: { [x: string] : (props: ObjectListItemProps<any>) => JSX.Element } = {
+    'Organization': (props) => <OrganizationListItem {...props} />,
+    'Project': (props) => <ProjectListItem {...props} />,
+    'Routine': (props) => <RoutineListItem {...props} />,
+    'Run': (props) => <RunListItem {...props} />,
+    'Standard': (props) => <StandardListItem {...props} />,
+    'User': (props) => <UserListItem {...props} />,
+};
+
 type ListItem = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListStar | ListUser | ListView;
+
+export interface ListToListItemProps {
+    /**
+     * List of dummy items types to display while loading
+     */
+    dummyItems?: string[];
+    /**
+     * The list of item data
+     */
+    items?: readonly ListItem[],
+    /**
+     * Each list item's key will be `${keyPrefix}-${id}`
+     */
+    keyPrefix: string,
+    /**
+     * Whether the list is loading
+     */
+    loading: boolean,
+    /**
+     * Function to call when a list item is clicked
+     */
+    onClick: (item: ListItem, event: React.MouseEvent<HTMLElement>) => void,
+    /**
+     * Current session
+     */
+    session: Session,
+}
 
 /**
  * Converts a list of objects to a list of ListItems
- * @param objects The list of objects.
- * @param session Current session
- * @param keyPrefix Each list item's key will be `${keyPrefix}-${id}`.
- * @param onClick Function to call when a list item is clicked.
  * @returns A list of ListItems
  */
-export function listToListItems(
-    objects: readonly ListItem[],
-    session: Session,
-    keyPrefix: string,
-    onClick: (item: ListItem, event: React.MouseEvent<HTMLElement>) => void,
-): JSX.Element[] {
-    console.log('listtolistitems start', objects)
+export function listToListItems({
+    dummyItems,
+    keyPrefix,
+    items,
+    loading,
+    onClick,
+    session,
+}: ListToListItemProps): JSX.Element[] {
+    console.log('a', items);
     let listItems: JSX.Element[] = [];
-    for (let i = 0; i < objects.length; i++) {
-        let curr = objects[i];
+    // If loading, display dummy items
+    if (loading) {
+        console.log('loading', dummyItems);
+        if (!dummyItems) return listItems;
+        for (let i = 0; i < dummyItems.length; i++) {
+            console.log('dummy loop', dummyItems[i], dummyItems[i] in listItemMap, listItemMap[dummyItems[i]]);
+            if (dummyItems[i] in listItemMap) {
+                const CurrItem = listItemMap[dummyItems[i]];
+                console.log('CURR ITEMMMMM', CurrItem);
+                listItems.push(<CurrItem 
+                    key={`${keyPrefix}-${i}`} 
+                    data={null}
+                    index={i}
+                    loading={true}
+                    session={session}
+                />);
+            }
+        }
+    }
+    if (!items) return listItems;
+    console.log('shouldnt be undefined if here', items)
+    for (let i = 0; i < items.length; i++) {
+        let curr = items[i];
         // If "View" or "Star" item, display the object it points to
         if (curr.__typename === 'View' || curr.__typename === 'Star') {
-            console.log('was view or star a', curr)
             curr = (curr as ListStar | ListView).to;
-            console.log('now is', curr)
         }
         // Create common props
         const commonProps = {
             key: `${keyPrefix}-${curr.id}`,
+            data: curr,
             index: i,
+            loading: loading,
             session,
             onClick: (e) => onClick(curr, e)
         }
-        switch (curr.__typename) {
-            case 'Organization':
-                listItems.push(<OrganizationListItem
-                    {...commonProps}
-                    data={curr as ListOrganization}
-                />);
-                break;
-            case 'Project':
-                listItems.push(<ProjectListItem
-                    {...commonProps}
-                    data={curr as ListProject}
-                />);
-                break;
-            case 'Routine':
-                listItems.push(<RoutineListItem
-                    {...commonProps}
-                    data={curr as ListRoutine}
-                />);
-                break;
-            case 'Run':
-                listItems.push(<RunListItem
-                    {...commonProps}
-                    data={curr as ListRun}
-                />);
-                break;
-            case 'Standard':
-                listItems.push(<StandardListItem
-                    {...commonProps}
-                    data={curr as ListStandard}
-                />);
-                break;
-            case 'User':
-                listItems.push(<UserListItem
-                    {...commonProps}
-                    data={curr as ListUser}
-                />);
-                break;
-            default:
-                break;
+        if (curr.__typename in listItemMap) {
+            const CurrItem = listItemMap[curr.__typename];
+            listItems.push(<CurrItem {...commonProps} />);
         }
     }
     return listItems;

@@ -1,32 +1,32 @@
+import react from 'react';
 import { StarFor, VoteFor } from '@local/shared';
 import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Resource, ResourceList, Session, Tag } from 'types';
 import { LabelledSortOption } from 'utils';
 
-export interface ObjectListItemProps {
+export interface ObjectListItemProps<DataType> {
+    data: DataType | null;
+    /**
+     * Index in list
+     */
+    index: number;
+    /**
+     * True if data is still being fetched
+     */
+    loading: boolean;
     session: Session;
-    index: number; // Index in list
-    onClick?: (e: any, data: any) => void; // Full data passed back, to display while more details load
+    /**
+     * onClick handler. Passes back full data so we can display 
+     * known properties of the object, while waiting for the full data to be fetched.
+     */
+    onClick?: (e: React.MouseEvent<any>, data: DataType) => any;
 }
 
-export interface OrganizationListItemProps extends ObjectListItemProps {
-    data: ListOrganization;
-}
-
-export interface ProjectListItemProps extends ObjectListItemProps {
-    data: ListProject;
-}
-
-export interface RoutineListItemProps extends ObjectListItemProps {
-    data: ListRoutine;
-}
-
-export interface RunListItemProps extends ObjectListItemProps {
-    data: ListRun;
-}
-
-export interface StandardListItemProps extends ObjectListItemProps {
-    data: ListStandard;
-}
+export type OrganizationListItemProps = ObjectListItemProps<ListOrganization>;
+export type ProjectListItemProps = ObjectListItemProps<ListProject>;
+export type RoutineListItemProps = ObjectListItemProps<ListRoutine>;
+export type RunListItemProps = ObjectListItemProps<ListRun>;
+export type StandardListItemProps = ObjectListItemProps<ListStandard>;
+export type UserListItemProps = ObjectListItemProps<ListUser>;
 
 export interface SortMenuProps {
     sortOptions: any[];
@@ -116,8 +116,4 @@ export interface UpvoteDownvoteProps {
     objectId: string;
     voteFor: VoteFor;
     onChange: (isUpvote: boolean | null) => void;
-}
-
-export interface UserListItemProps extends ObjectListItemProps {
-    data: ListUser;
 }

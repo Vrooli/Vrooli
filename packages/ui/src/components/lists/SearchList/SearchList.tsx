@@ -132,12 +132,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         });
     }, [allData, session]);
 
-    const listItems = useMemo(() => listToListItems(
-        allData,
-        session,
-        itemKeyPrefix,
-        (item) => onObjectSelect(item),
-    ), [allData, session, itemKeyPrefix, onObjectSelect])
+    const listItems = useMemo(() => listToListItems({
+        dummyItems: new Array(5).fill('Routine'), //TODO
+        items: allData,
+        keyPrefix: itemKeyPrefix,
+        loading,
+        onClick: (item) => onObjectSelect(item),
+        session: session,
+    }), [allData, session, itemKeyPrefix, onObjectSelect])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button

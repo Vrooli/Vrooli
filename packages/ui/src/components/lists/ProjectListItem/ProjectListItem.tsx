@@ -10,9 +10,10 @@ import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
 import { Project } from 'types';
 
 export function ProjectListItem({
-    session,
-    index,
     data,
+    index,
+    loading,
+    session,
     onClick,
 }: ProjectListItemProps) {
     const [, setLocation] = useLocation();
@@ -27,10 +28,18 @@ export function ProjectListItem({
     }, [data, session]);
 
     const handleClick = useCallback((e: any) => {
-        // If onClick provided, call if
+        // Prevent propagation
+        e.stopPropagation();
+        // If data not supplied, don't open
+        if (!data) return;
+        // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Project}/${data.id}`)
+        else {
+            // Prefer using handle if available
+            const link = data.handle ?? data.id;
+            setLocation(`${APP_LINKS.Project}/${link}`);
+        }
     }, [onClick, setLocation, data]);
 
     return (
@@ -46,10 +55,10 @@ export function ProjectListItem({
                 <ListItemButton component="div" onClick={handleClick}>
                     <UpvoteDownvote
                         session={session}
-                        objectId={data.id ?? ''}
+                        objectId={data?.id ?? ''}
                         voteFor={VoteFor.Project}
-                        isUpvoted={data.isUpvoted}
-                        score={data.score}
+                        isUpvoted={data?.isUpvoted}
+                        score={data?.score}
                         onChange={(isUpvoted: boolean | null) => { }}
                     />
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
@@ -62,15 +71,15 @@ export function ProjectListItem({
                             sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
                         />
                         {/* Tags */}
-                        {Array.isArray(data.tags) && data.tags.length > 0 ? <TagList session={session} parentId={data.id ?? ''} tags={data.tags ?? []} /> : null}
+                        {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                     </Stack>
                     {
                         canEdit ? null : <StarButton
                             session={session}
-                            objectId={data.id ?? ''}
+                            objectId={data?.id ?? ''}
                             starFor={StarFor.Project}
-                            isStar={data.isStarred}
-                            stars={data.stars}
+                            isStar={data?.isStarred}
+                            stars={data?.stars}
                             onChange={(isStar: boolean) => { }}
                         />
                     }
