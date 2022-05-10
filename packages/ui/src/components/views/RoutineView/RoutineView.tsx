@@ -12,19 +12,18 @@ import {
     MoreHoriz as EllipsisIcon,
     PlayCircle as StartIcon,
 } from "@mui/icons-material";
-import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunView, StarButton, UpTransition } from "components";
+import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunPickerDialog, RunView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
 import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
-import { ResourceList, Routine, User } from "types";
+import { Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
-import { runCompleteMutation, routineDeleteOneMutation, runCreateMutation } from "graphql/mutation";
+import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/wrappers";
 import { NodeType, StarFor } from "graphql/generated/globalTypes";
 import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
-import { runCreate, runCreateVariables } from "graphql/generated/runCreate";
 import { validate as uuidValidate } from 'uuid';
-import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
+import { runComplete } from "graphql/generated/runComplete";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -109,27 +108,29 @@ export const RoutineView = ({
         })
     }, [routine, runComplete]);
 
-    const [runCreate] = useMutation<runCreate, runCreateVariables>(runCreateMutation);
     const [isRunOpen, setIsRunOpen] = useState(false)
-    const runRoutine = useCallback(() => {
+    const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
+    const handleRunSelect = useCallback((run: Run) => {
+        console.log('RUN SELECTTTTT', run);
+        setLocation(`?run=${run.id}&step=1`, { replace: true });
+        setIsRunOpen(true);
+    }, [routine]);
+    const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
+
+    const runRoutine = useCallback((e: any) => {
+        // Validate routine before trying to run
         if (!routine || !uuidValidate(routine.id)) {
             PubSub.publish(Pubs.Snack, { message: 'Error loading routine.', severity: 'error' });
             return;
         }
-        setIsRunOpen(true)
-        // Check for existing runs
-        //TODO
-        // // Log start, if not continuing
-        // if (!Boolean(routine?.inProgressCompletedComplexity)) 
-        //     runCreate({ variables: { input: { id: routine.id, version: routine.version ?? '' } } })
         // Find first node
         const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
         if (!firstNode) {
             PubSub.publish(Pubs.Snack, { message: 'Routine invalid - cannot run.', severity: 'Error' });
             return;
         }
-        setLocation(`${APP_LINKS.Run}/${id}?step=1.1`);
-    }, [routine, id, runCreate]);
+        setSelectRunAnchor(e.currentTarget);
+    }, [routine]);
     const stopRoutine = () => { setIsRunOpen(false) };
 
     const onEdit = useCallback(() => {
@@ -189,11 +190,10 @@ export const RoutineView = ({
                 </Grid>
                 {/* Show continue if routine already has progress TODO */}
                 <Grid item xs={12} sm={6}>
-                    {/* {routine && Boolean(routine.inProgressCompletedComplexity) ? 
-                        <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue ({Math.round((routine?.inProgressCompletedComplexity as number) / routine.complexity * 100)}%)</Button> :
+                    {routine && routine.runs.length > 0 ? 
+                        <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
-                    } */}
-                    <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
+                    }
                 </Grid>
             </Grid>
         )
@@ -277,6 +277,14 @@ export const RoutineView = ({
             margin: 'auto',
             minHeight: '88vh',
         }}>
+            {/* Chooses which run to use */}
+            <RunPickerDialog
+                anchorEl={selectRunAnchor}
+                handleClose={handleSelectRunClose}
+                onSelect={handleRunSelect}
+                routine={routine}
+                session={session}
+            />
             {/* Delete routine confirmation dialog */}
             <DeleteRoutineDialog
                 isOpen={deleteOpen}
@@ -292,10 +300,11 @@ export const RoutineView = ({
                 onClose={stopRoutine}
                 TransitionComponent={UpTransition}
             >
-                <RunView
+                {routine && <RunView
                     handleClose={stopRoutine}
+                    routine={routine}
                     session={session}
-                />
+                />}
             </Dialog>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <BaseObjectActionDialog

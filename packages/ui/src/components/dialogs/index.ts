@@ -14,6 +14,7 @@ export * from './ProjectDialog/ProjectDialog';
 export * from './ReportDialog/ReportDialog';
 export * from './ResourceDialog/ResourceDialog';
 export * from './RoutineDialog/RoutineDialog';
+export * from './RunPickerDialog/RunPickerDialog';
 export * from './RunStepsDialog/RunStepsDialog';
 export * from './SelectLanguageDialog/SelectLanguageDialog';
 export * from './SubroutineInfoDialog/SubroutineInfoDialog';

@@ -135,13 +135,18 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
         }
         // Query for run data. This must be done here because we are not querying all runs - just ones made by the user
         if (_.isObject(partial.runs)) {
-            console.log('querying for run data', userId)
+            console.log('querying for run data', userId, '\n\n')
             if (userId) {
-                // Find requested fields of runs
-                const runPartial = toPartialSelect(partial.runs, runFormatter().relationshipMap);
+                // Find requested fields of runs. Also add routineId, so we 
+                // can associate runs with their routine
+                const runPartial = {
+                    ...toPartialSelect(partial.runs, runFormatter().relationshipMap),
+                    routineId: true
+                }
                 if (runPartial === undefined) {
                     throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
                 }
+                console.log('run partial', JSON.stringify(runPartial), '\n\n');
                 // Query runs made by user
                 let runs: any[] = await prisma.run.findMany({
                     where: {
@@ -152,17 +157,19 @@ export const routineFormatter = (): FormatConverter<Routine> => ({
                     },
                     ...selectHelper(runPartial)
                 });
+                console.log('queried runs', JSON.stringify(runs), '\n\n');
                 // Format runs to GraphQL
                 runs = runs.map(r => modelToGraphQL(r, runPartial));
+                console.log('formatted runs', JSON.stringify(runs), '\n\n');
                 // Add supplemental fields
                 runs = await addSupplementalFields(prisma, userId, runs, runPartial);
+                console.log('addsuppl runs', JSON.stringify(runs), '\n\n');
                 // Apply data fields to objects
                 objects = objects.map((x) => ({ ...x, runs: runs.filter(r => r.routineId === x.id) }));
             } else {
                 // Set all runs to empty array
                 objects = objects.map(x => ({ ...x, runs: [] }));
             }
-            console.log('run data finished', JSON.stringify(objects))
         }
         // Convert Prisma objects to GraphQL objects
         return objects as RecursivePartial<Routine>[];

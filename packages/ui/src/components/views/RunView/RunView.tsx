@@ -16,7 +16,7 @@ import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
-import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, SubroutineStep } from "types";
+import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, SubroutineStep } from "types";
 import { parseSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
@@ -28,6 +28,7 @@ const TERTIARY_COLOR = '#95f3cd';
 
 export const RunView = ({
     handleClose,
+    routine,
     session
 }: RunViewProps) => {
     const [, setLocation] = useLocation();
@@ -38,29 +39,6 @@ export const RunView = ({
     });
     const [, params1] = useRoute(`${APP_LINKS.Build}/:routineId`);
     const [, params2] = useRoute(`${APP_LINKS.Run}/:routineId`);
-
-    // Get run id from URL. If not found, look for existing runs or create a new one.
-    useEffect(() => {
-        // Run ID is stored as search param in URL
-        const runId = parseSearchParams(window.location.search).runId;
-        // If ID is 'test', then this routine is being run for testing purposes. 
-        // In this case, we don't want to query/store any run data
-        if (runId === 'test') {
-            //TODO
-        }
-        // Check if ID is valid
-        if (runId && uuidValidate(runId)) {
-            //TODO
-        } 
-        // Otherwise, check if user has any existing runs with the same routine
-        else {
-            //TODO check
-            // If runs found, prompt user to select one or create a new one
-            //TODO
-            // If runs not found, create a new one
-            //TODO
-        }
-    }, []);
 
     /**
      * The amount of routine completed so far, measured in complexity
@@ -74,34 +52,15 @@ export const RunView = ({
      */
     const [progress, setProgress] = useHistoryState(params1?.routineId ?? params2?.routineId ?? '', [])
 
-    // Query main routine being run. This should not change for the entire orchestration, 
-    // no matter how deep we go.
-    const [getRoutine, { data: routineData, loading: routineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
-    const [routine, setRoutine] = useState<Routine | null>(null);
+    const [testMode, setTestMode] = useState<boolean>(false);
+    // Get run id from URL. If not found, look for existing runs or create a new one.
     useEffect(() => {
-        const routineId = params1?.routineId ?? params2?.routineId ?? ''
-        if (uuidValidate(routineId)) {
-            getRoutine({ variables: { input: { id: routineId } } })
-        }
-    }, [getRoutine, params1?.routineId, params2?.routineId]);
-    // On routine load
-    useEffect(() => {
-        if (routineData?.routine) {
-            console.log('got routine data from server', routineData.routine);
-            // Set routine
-            setRoutine(routineData.routine);
-            // // See if user already has partially executed this routine (with the same version)
-            // if (routineData.routine.inProgressVersion !== routineData.routine.version) return;
-            // // Check for in progress completed complexity (used to calculate percentage)
-            // if (routineData.routine.inProgressCompletedComplexity) {
-            //     setCompletedComplexity(routineData.routine.inProgressCompletedComplexity);
-            // }
-            // // Check for in progress completed steps
-            // if (Array.isArray(routineData.routine.inProgressCompletedSteps) && routineData.routine.inProgressCompletedSteps.length > 0) {
-            //     setProgress(routineData.routine.inProgressCompletedSteps);
-            // }
-        }
-    }, [routineData]);
+        // Run ID is stored as search param in URL
+        const runId = parseSearchParams(window.location.search).runId;
+        // If ID is 'test', then this routine is being run for testing purposes. 
+        // In this case, we don't want to query/store any run data
+        setTestMode(!runId || runId === 'test' || !uuidValidate(runId));
+    }, []);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 

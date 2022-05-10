@@ -137,7 +137,7 @@ export interface ListToListItemProps {
     /**
      * Function to call when a list item is clicked
      */
-    onClick: (item: ListItem, event: React.MouseEvent<HTMLElement>) => void,
+    onClick?: (item: ListItem, event: React.MouseEvent<HTMLElement>) => void,
     /**
      * Current session
      */
@@ -192,7 +192,7 @@ export function listToListItems({
             index: i,
             loading: loading,
             session,
-            onClick: (e) => onClick(curr, e)
+            onClick: onClick ? (e) => onClick(curr, e) : undefined
         }
         if (curr.__typename in listItemMap) {
             const CurrItem = listItemMap[curr.__typename];

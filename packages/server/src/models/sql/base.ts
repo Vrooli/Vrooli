@@ -1021,7 +1021,6 @@ export const addSupplementalFields = async (
     data: ({ [x: string]: any } | null | undefined)[],
     partial: PartialInfo | PartialInfo[],
 ): Promise<{ [x: string]: any }[]> => {
-    console.log('addsupplementalfields starttttttt ', JSON.stringify(data), '\n\n');
     // Group data IDs and select fields by type. This is needed to reduce the number of times 
     // the database is called, as we can query all objects of the same type at once
     let objectIdsDict: { [x: string]: string[] } = {};
@@ -1031,8 +1030,6 @@ export const addSupplementalFields = async (
         const currPartial = Array.isArray(partial) ? partial[i] : partial;
         if (!currData || !currPartial) continue;
         const [childObjectIdsDict, childSelectFieldsDict] = groupIdsByType(currData, currPartial);
-        console.log('boopies childobjectidsdict', JSON.stringify(childObjectIdsDict), '\n\n');
-        console.log('beepies childselectfieldsdict', JSON.stringify(childSelectFieldsDict), '\n\n');
         // Merge each array in childObjectIdsDict into objectIdsDict
         for (const [childType, childObjects] of Object.entries(childObjectIdsDict)) {
             objectIdsDict[childType] = objectIdsDict[childType] ?? [];
@@ -1044,18 +1041,14 @@ export const addSupplementalFields = async (
 
     // Dictionary to store objects by ID, instead of type. This is needed to combineSupplements
     const objectsById: { [x: string]: any } = {};
-    console.log('got selectfieldsdict', JSON.stringify(selectFieldsDict), '\n\n');
-    console.log('got objectbyidsdict', JSON.stringify(objectIdsDict), '\n\n');
 
     // Loop through each type in objectIdsDict
     for (const [type, ids] of Object.entries(objectIdsDict)) {
-        console.log('yeet type', type, '\n\n');
         // Find the data for each id in ids. Since the data parameter is an array,
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: string) => pickObjectById(data, id));
         // Now that we have the data for each object, we can add the supplemental fields
         if (type in FormatterMap) {
-            console.log('addsuppl in formattermap', type);
             const valuesWithSupplements = FormatterMap[type as keyof typeof FormatterMap]?.addSupplementalFields
                 ? await (FormatterMap[type as keyof typeof FormatterMap] as any).addSupplementalFields(prisma, userId, objectData, selectFieldsDict[type])
                 : objectData;
@@ -1063,10 +1056,8 @@ export const addSupplementalFields = async (
             for (const v of valuesWithSupplements) {
                 objectsById[v.id] = v;
             }
-        } else console.log('addsuppl NOT in formattermap', type);
+        }
     }
-
-    console.log('before combinesupplements calllllllll', JSON.stringify(data), '\n\n', JSON.stringify(objectsById), '\n\n');
     // Convert objectsById dictionary back into shape of data
     let result = data.map(d => (d === null || d === undefined) ? d : combineSupplements(d, objectsById));
     return result
@@ -1099,10 +1090,8 @@ export const addSupplementalFieldsMultiTypes = async (
             combinedPartials.push(currPartial);
         }
     }
-    console.log('in addsupp multi aaa', JSON.stringify(combinedData), '\n\n', JSON.stringify(combinedPartials), '\n\n');
     // Call addSupplementalFields
     const combinedResult = await addSupplementalFields(prisma, userId, combinedData, combinedPartials);
-    console.log('in addsupp multi bbb', JSON.stringify(combinedResult), '\n\n');
     // Convert combinedResult into object with keys equal to objectTypes, and values equal to arrays of those types
     const formatted: { [y: string]: any[] } = {};
     let start = 0;
@@ -1112,7 +1101,6 @@ export const addSupplementalFieldsMultiTypes = async (
         formatted[currKey] = combinedResult.slice(start, end);
         start = end;
     }
-    console.log('in addsupp multi ccc', JSON.stringify(formatted), '\n\n');
     return formatted;
 }
 
@@ -1154,7 +1142,6 @@ export const selectToDB = (partial: PartialInfo): { [x: string]: any } => {
  * @returns Valid GraphQL object
  */
 export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial: PartialInfo): GraphQLModel {
-    console.log('modeltographql start', JSON.stringify(data), '\n\n', JSON.stringify(partial), '\n\n\n');
     // First convert data to usable shape
     const type: string | undefined = partial?.__typename;
     if (type !== undefined && type in FormatterMap) {
@@ -1192,7 +1179,6 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
             data[key] = modelToGraphQL(value, (partial as any)[key]);
         }
     }
-    console.log('modeltographql end', JSON.stringify(data), '\n\n\n');
     return data as any;
 }
 

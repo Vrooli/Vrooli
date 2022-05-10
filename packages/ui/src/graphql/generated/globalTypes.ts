@@ -150,6 +150,17 @@ export enum RoutineSortBy {
   VotesDesc = "VotesDesc",
 }
 
+export enum RunSortBy {
+  DateCompletedAsc = "DateCompletedAsc",
+  DateCompletedDesc = "DateCompletedDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateStartedAsc = "DateStartedAsc",
+  DateStartedDesc = "DateStartedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+}
+
 export enum RunStatus {
   Cancelled = "Cancelled",
   Completed = "Completed",
@@ -948,10 +959,30 @@ export interface RunCompleteInput {
   timeElapsed?: number | null;
 }
 
+export interface RunCountInput {
+  createdTimeFrame?: TimeFrame | null;
+  updatedTimeFrame?: TimeFrame | null;
+}
+
 export interface RunCreateInput {
   routineId: string;
   title: string;
   version: string;
+}
+
+export interface RunSearchInput {
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  startedTimeFrame?: TimeFrame | null;
+  completedTimeFrame?: TimeFrame | null;
+  excludeIds?: string[] | null;
+  ids?: string[] | null;
+  status?: RunStatus | null;
+  routineId?: string | null;
+  searchString?: string | null;
+  sortBy?: RunSortBy | null;
+  take?: number | null;
+  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface RunStepCreateInput {

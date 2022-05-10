@@ -60,21 +60,19 @@ export const ForYouPage = ({
     }, [setLocation]);
 
     const activeRuns = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill('Routine'),
+        dummyItems: new Array(5).fill('Run'),
         items: data?.forYouPage?.activeRuns,
         keyPrefix: 'active-runs-list-item',
         loading,
-        onClick: toItemPage,
         session,
     }), [data, session])
     console.log('ACTIVE RUNS', activeRuns);
 
     const completedRuns = useMemo(() => listToListItems({
-        dummyItems: new Array(5).fill('Routine'),
+        dummyItems: new Array(5).fill('Run'),
         items: data?.forYouPage?.completedRuns,
         keyPrefix: 'completed-runs-list-item',
         loading,
-        onClick: toItemPage,
         session,
     }), [data, session])
 

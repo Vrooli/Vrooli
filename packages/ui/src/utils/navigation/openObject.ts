@@ -37,7 +37,7 @@ export const openSearchPage = (objectType: ObjectType, setLocation: SetLocation)
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
-export const openObject = (object: { id: string, __typename: string }, setLocation: SetLocation) => {
+export const openObject = (object: { id: string, handle?: string | null, __typename: string }, setLocation: SetLocation) => {
     // Check if __typename is in linkMap
     if (!linkMap.hasOwnProperty(object.__typename)) {
         PubSub.publish(Pubs.Snack, { message: 'Could not parse object type.', severity: 'error' });
@@ -45,5 +45,6 @@ export const openObject = (object: { id: string, __typename: string }, setLocati
     }
     // Navigate to object page
     const linkBases = linkMap[object.__typename];
-    setLocation(`${linkBases[1]}/${object.id}`);
+    const linkId = object.hasOwnProperty('handle') ? object.handle : object.id;
+    setLocation(`${linkBases[1]}/${linkId}`);
 }
