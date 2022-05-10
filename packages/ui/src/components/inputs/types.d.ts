@@ -200,6 +200,11 @@ export interface TagSelectorProps {
     onTagsClear: () => any;
 }
 
+export interface ThemeSwitchProps {
+    theme: 'light' | 'dark';
+    onChange: (theme: 'light' | 'dark') => any;
+}
+
 export interface UserOrganizationSwitchProps extends UseSwitchProps {
     session: Session;
     selected: ListOrganization | null;

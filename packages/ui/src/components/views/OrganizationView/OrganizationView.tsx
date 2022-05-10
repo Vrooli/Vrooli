@@ -19,7 +19,7 @@ import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -282,7 +282,10 @@ export const OrganizationView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon color="primary" />
+                                    <EditIcon sx={{
+                                        fill: (t) => t.palette.mode === 'light' ? 
+                                            t.palette.primary.main : t.palette.secondary.light,
+                                    }} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -312,7 +315,7 @@ export const OrganizationView = ({
                     ) : (
                         organization?.created_at && (<Box sx={{ display: 'flex' }} >
                             <CalendarIcon />
-                            {`Joined ${new Date(organization.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                            {`Joined ${displayDate(organization.created_at)}`}
                         </Box>)
                     )
                 }

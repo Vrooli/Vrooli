@@ -16,7 +16,7 @@ import {
 import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationSortOptions, projectDefaultSortOption, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { ResourceList, Standard, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
@@ -286,7 +286,10 @@ export const UserView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon color="primary" />
+                                    <EditIcon sx={{
+                                        fill: (t) => t.palette.mode === 'light' ? 
+                                            t.palette.primary.main : t.palette.secondary.light,
+                                    }} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -316,7 +319,7 @@ export const UserView = ({
                     ) :
                         user?.created_at && (<Box sx={{ display: 'flex' }} >
                             <CalendarIcon />
-                            {`Joined ${new Date(user.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                            {`Joined ${displayDate(user.created_at)}`}
                         </Box>)
                 }
                 {/* Description */}

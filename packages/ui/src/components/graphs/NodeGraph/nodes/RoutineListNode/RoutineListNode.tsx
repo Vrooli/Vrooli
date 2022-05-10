@@ -304,8 +304,8 @@ export const RoutineListNode = ({
                         display: 'flex',
                         height: '48px', // Lighthouse SEO requirement
                         alignItems: 'center',
-                        backgroundColor: (t) => t.palette.primary.dark,
-                        color: (t) => t.palette.primary.contrastText,
+                        backgroundColor: (t) => t.palette.mode === 'light' ? t.palette.primary.dark : t.palette.secondary.dark,
+                        color: (t) => t.palette.mode === 'light' ? t.palette.primary.contrastText : t.palette.secondary.contrastText,
                         padding: '0.1em',
                         textAlign: 'center',
                         cursor: isEditing ? 'grab' : 'pointer',

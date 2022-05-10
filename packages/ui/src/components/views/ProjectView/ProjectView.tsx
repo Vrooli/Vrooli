@@ -19,7 +19,7 @@ import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
 import { validate as uuidValidate } from 'uuid';
 
 enum TabOptions {
@@ -257,7 +257,10 @@ export const ProjectView = ({
                                     size="small"
                                     onClick={onEdit}
                                 >
-                                    <EditIcon color="primary" />
+                                    <EditIcon sx={{
+                                        fill: (t) => t.palette.mode === 'light' ? 
+                                            t.palette.primary.main : t.palette.secondary.light,
+                                    }} />
                                 </IconButton>
                             </Tooltip>
                         </Stack>
@@ -287,7 +290,7 @@ export const ProjectView = ({
                     ) : (
                         project?.created_at && (<Box sx={{ display: 'flex' }} >
                             <CalendarIcon />
-                            {`Created ${new Date(project.created_at).toLocaleDateString(navigator.language, { year: 'numeric', month: 'long' })}`}
+                            {`Created ${displayDate(project.created_at)}`}
                         </Box>)
                     )
                 }

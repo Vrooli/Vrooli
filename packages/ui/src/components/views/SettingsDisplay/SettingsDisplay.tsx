@@ -19,6 +19,7 @@ import { SettingsDisplayProps } from "../types";
 import { useLocation } from "wouter";
 import { HelpButton, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
+import { ThemeSwitch } from "components/inputs";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -68,6 +69,9 @@ export const SettingsDisplay = ({
         setHiddenTags([]);
     }, [setHiddenTags]);
 
+    // Handle theme
+    const [theme, setTheme] = useState<string>('light');
+
     useEffect(() => {
         if (profile?.starredTags) {
             setStarredTags(profile.starredTags);
@@ -75,13 +79,16 @@ export const SettingsDisplay = ({
         if (profile?.hiddenTags) {
             setHiddenTags(profile.hiddenTags.map(t => t.tag as any));
         }
+        if (profile?.theme) {
+            setTheme(profile.theme);
+        }
     }, [profile]);
 
     // Handle update
     const [mutation] = useMutation<user>(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            theme: profile?.theme ?? 'light',
+            theme,
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
@@ -145,6 +152,12 @@ export const SettingsDisplay = ({
                 <Typography component="h1" variant="h3">Display Preferences</Typography>
                 <HelpButton markdown={helpText} sx={{ fill: TERTIARY_COLOR }} />
             </Stack>
+            <Box sx={{ margin: 2, marginBottom: 5 }}>
+                <ThemeSwitch
+                    theme={formik.values.theme as 'light' | 'dark'}
+                    onChange={(t) => formik.setFieldValue('theme', t)}
+                />
+            </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <InterestsIcon sx={{ marginRight: 1 }} />
                 <Typography component="h2" variant="h5" textAlign="center">Favorite Topics</Typography>

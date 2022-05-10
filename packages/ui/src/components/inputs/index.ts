@@ -9,4 +9,5 @@ export * from './QuantityBox/QuantityBox';
 export * from './SearchBar/SearchBar';
 export * from './Selector/Selector';
 export * from './TagSelector/TagSelector';
+export * from './ThemeSwitch/ThemeSwitch';
 export * from './UserOrganizationSwitch/UserOrganizationSwitch';

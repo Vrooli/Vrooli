@@ -81,7 +81,7 @@ export function ListMenu<T>({
                     display: 'flex',
                     alignItems: 'center',
                     padding: 1,
-                    background: (t) => t.palette.primary.dark
+                    background: (t) => t.palette.mode === 'light' ? t.palette.primary.dark : t.palette.secondary.dark,
                 }}
             >
                 <Typography
@@ -89,7 +89,7 @@ export function ListMenu<T>({
                     textAlign="center"
                     sx={{
                         width: '-webkit-fill-available',
-                        color: (t) => t.palette.primary.contrastText,
+                        color: (t) => t.palette.mode === 'light' ? t.palette.primary.contrastText : t.palette.secondary.contrastText,
                     }}
                 >
                     {title}

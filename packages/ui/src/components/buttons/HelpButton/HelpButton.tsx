@@ -26,9 +26,14 @@ export const HelpButton = ({
     const menu = useMemo(() => {
         return (
             <Box>
-                <Box sx={{ background: (t) => t.palette.primary.dark }}>
-                    <IconButton edge="start" color="inherit" onClick={closeMenu} aria-label="close">
-                        <CloseIcon sx={{ fill: 'white', marginLeft: '0.5em' }}/>
+                <Box sx={{ 
+                    background: (t) => t.palette.mode === 'light' ? t.palette.primary.dark : t.palette.secondary.dark,
+                    display: 'flex',
+                    flexDirection: 'row-reverse',
+                    paddingRight: '0.5rem',
+                }}>
+                    <IconButton color="inherit" onClick={closeMenu} aria-label="close">
+                        <CloseIcon sx={{ fill: 'white' }}/>
                     </IconButton>
                 </Box>
                 <Box sx={{ padding: 1 }}>

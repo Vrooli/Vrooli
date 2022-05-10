@@ -175,7 +175,21 @@ export function App() {
         <StyledEngineProvider injectFirst>
             <CssBaseline />
             <ThemeProvider theme={theme}>
-                <div id="App">
+                <Box id="App" sx={{
+                    // Style visited, active, and hovered links differently
+                    a: {
+                        color: theme.palette.mode === 'light' ? '#d922d4' : '#dd86db',
+                        '&:visited': {
+                            color: theme.palette.mode === 'light' ? '#a00c9c' : '#f551ef',
+                        },
+                        '&:active': {
+                            color: theme.palette.mode === 'light' ? '#a00c9c' : '#f551ef',
+                        },
+                        '&:hover': {
+                            color: theme.palette.mode === 'light' ? '#ff46fa' : '#f3d4f2',
+                        },
+                    },
+                }}>
                     <main
                         id="page-container"
                         style={{
@@ -184,7 +198,9 @@ export function App() {
                         }}
                     >
                         <Box id="content-wrap" sx={{
-                            background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)',
+                            background: theme.palette.mode === 'light' ? 
+                                'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)' : 
+                                'fixed radial-gradient(circle, rgba(17,18,19,1) 0%, rgba(0,0,0,1) 100%)',
                             minHeight: '100vh',
                         }}>
                             <Navbar session={session ?? {}} sessionChecked={session !== undefined} />
@@ -214,7 +230,7 @@ export function App() {
                         <BottomNav session={session ?? {}} />
                         <Footer />
                     </main>
-                </div>
+                </Box>
             </ThemeProvider>
         </StyledEngineProvider>
     );

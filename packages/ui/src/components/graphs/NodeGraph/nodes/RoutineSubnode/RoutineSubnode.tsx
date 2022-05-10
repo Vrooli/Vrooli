@@ -115,8 +115,10 @@ export const RoutineSubnode = ({
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    backgroundColor: canEdit ? (t) => t.palette.primary.main : '#667899',
-                    color: (t) => t.palette.primary.contrastText,
+                    backgroundColor: canEdit ? 
+                        ((t) => t.palette.mode === 'light' ? t.palette.primary.dark : t.palette.secondary.dark) : 
+                        '#667899',
+                    color: (t) => t.palette.mode === 'light' ? t.palette.primary.contrastText : t.palette.secondary.contrastText,
                     padding: '0.1em',
                     textAlign: 'center',
                     cursor: 'pointer',

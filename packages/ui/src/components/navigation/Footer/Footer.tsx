@@ -1,12 +1,12 @@
 import { APP_LINKS, EMAIL, LANDING_LINKS, LANDING_URL, SOCIALS } from '@local/shared';
 import {
-    Box, 
-    List, 
-    ListItem, 
-    ListItemButton, 
-    ListItemIcon, 
-    ListItemText, 
-    Grid, 
+    Box,
+    List,
+    ListItem,
+    ListItemButton,
+    ListItemIcon,
+    ListItemText,
+    Grid,
     Tooltip,
 } from '@mui/material';
 import { DiscordIcon, GitHubIcon, TwitterIcon } from 'assets/img';
@@ -30,10 +30,10 @@ export const Footer = () => {
     ]
 
     return (
-        <Box 
+        <Box
             display={showFooter ? 'block' : 'none'}
-            overflow="hidden" 
-            position="relative" 
+            overflow="hidden"
+            position="relative"
             paddingBottom="7vh"
             sx={{
                 backgroundColor: (t) => t.palette.primary.dark,
@@ -45,20 +45,20 @@ export const Footer = () => {
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary="Resources" sx={{textTransform: 'uppercase'}} />
+                            <ListItemText primary="Resources" sx={{ textTransform: 'uppercase' }} />
                         </ListItem>
                         <ListItemButton component="a" onClick={() => openLink(setLocation, `${LANDING_URL}${LANDING_LINKS.About}`)} >
-                            <ListItemText primary="About Us" />
+                            <ListItemText primary="About Us" sx={{ color: (t) => t.palette.primary.contrastText }} />
                         </ListItemButton>
                         <ListItemButton component="a" onClick={() => openLink(setLocation, APP_LINKS.Stats)} >
-                            <ListItemText primary="View Stats" />
+                            <ListItemText primary="View Stats" sx={{ color: (t) => t.palette.primary.contrastText }} />
                         </ListItemButton>
                     </List>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                     <List component="nav">
                         <ListItem component="h3" >
-                            <ListItemText primary="Contact" sx={{textTransform: 'uppercase'}} />
+                            <ListItemText primary="Contact" sx={{ textTransform: 'uppercase' }} />
                         </ListItem>
                         {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
                             <Tooltip key={key} title={tooltip} placement="left">
@@ -73,7 +73,7 @@ export const Footer = () => {
                     </List>
                 </Grid>
             </Grid>
-            <CopyrightBreadcrumbs sx={{color: (t) => t.palette.primary.contrastText}} />
+            <CopyrightBreadcrumbs sx={{ color: (t) => t.palette.primary.contrastText }} />
         </Box>
     );
 }

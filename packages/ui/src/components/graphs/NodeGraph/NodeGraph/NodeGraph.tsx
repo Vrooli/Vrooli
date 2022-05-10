@@ -431,8 +431,7 @@ export const NodeGraph = ({
                 width: 'fit-content',
                 minHeight: '-webkit-fill-available',
                 // Create grid background pattern
-                backgroundColor: `#a8b6c3`,
-                '--line-color': `rgba(0 0 0 / .05)`,
+                '--line-color': (t) => t.palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
                 '--line-thickness': `1px`,
                 '--minor-length': `${80 * scale}px`,
                 '--major-length': `${400 * scale}px`,
