@@ -16,7 +16,7 @@ import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
-import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, SubroutineStep } from "types";
+import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { parseSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { runComplete } from "graphql/generated/runComplete";
@@ -146,7 +146,7 @@ export const RunView = ({
             description: getTranslation(routine, 'description', languages, true),
             steps: resultSteps,
         });
-    }, [routine]);
+    }, [languages, routine]);
 
     /**
      * Returns the requested step
@@ -362,7 +362,7 @@ export const RunView = ({
         // Update current step
         setLocation(`?step=${previousStep.join('.')}`, { replace: true });
         setStepParams(previousStep);
-    }, [previousStep, progress, stepParams, setLocation]);
+    }, [previousStep, setLocation]);
 
     const [logRunUpdate] = useMutation<runUpdate, runUpdateVariables>(runUpdateMutation);
     /**
@@ -384,7 +384,7 @@ export const RunView = ({
         // Update current step
         setLocation(`?step=${nextStep.join('.')}`, { replace: true });
         setStepParams(nextStep);
-    }, [nextStep, progress, stepParams, setLocation, setProgress, routine, completedComplexity, logRunUpdate]);
+    }, [nextStep, progress, stepParams, setProgress, findStep, completedComplexity, getStepComplexity, logRunUpdate, routine?.id, setLocation]);
 
     const [logRunComplete] = useMutation<runComplete>(runCompleteMutation);
     /**
@@ -401,18 +401,18 @@ export const RunView = ({
                 handleClose()
             },
         })
-    }, [logRunComplete, handleClose, mutationWrapper, routine]);
+    }, [logRunComplete, handleClose, routine]);
 
     /**
      * End routine early
      */
-    const toFinishNotComplete = () => {
+    const toFinishNotComplete = useCallback(() => {
         console.log('tofinishnotcomplete');
         //TODO
         // Log incomplete
         logRunComplete({ variables: { input: { id: routine?.id ?? '' } } })
         handleClose();
-    }
+    }, [handleClose, logRunComplete, routine]);
 
     /**
      * Find the step array of a given nodeId
@@ -421,7 +421,7 @@ export const RunView = ({
      * @param location The current location array, since this is recursive
      * @return The step array of the given step
      */
-    const findLocationArray = (nodeId: string, step: RoutineStep, location: number[] = []): number[] | null => {
+    const findLocationArray = useCallback((nodeId: string, step: RoutineStep, location: number[] = []): number[] | null => {
         if (step.type === RoutineStepType.RoutineList) {
             if ((step as RoutineListStep)?.nodeId === nodeId) return location;
             const stepList = step as RoutineListStep;
@@ -434,7 +434,7 @@ export const RunView = ({
             }
         }
         return null;
-    }
+    }, []); 
 
     /**
      * Navigate to selected decision
@@ -452,7 +452,7 @@ export const RunView = ({
         // Navigate to current step
         setLocation(`?step=${locationArray.join('.')}`, { replace: true });
         setStepParams(locationArray);
-    }, [stepList]);
+    }, [findLocationArray, setLocation, stepList, toFinishNotComplete]);
 
     /**
      * Displays either a subroutine view or decision view
@@ -474,7 +474,7 @@ export const RunView = ({
                     session={session}
                 />
         }
-    }, [currentStep, subroutineLoading]);
+    }, [currentStep, routine?.nodes, session, subroutineLoading, toDecision]);
 
     return (
         <Box sx={{ minHeight: '100vh' }}>

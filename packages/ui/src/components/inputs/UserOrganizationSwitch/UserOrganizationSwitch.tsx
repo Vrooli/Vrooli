@@ -8,16 +8,12 @@ import { useLazyQuery } from '@apollo/client';
 import { ListOrganization } from 'types';
 import { noSelect } from 'styles';
 import { Close as CloseIcon } from '@mui/icons-material';
-import { useLocation } from 'wouter';
 import {
     Apartment as OrganizationIcon,
     Person as SelfIcon
 } from '@mui/icons-material';
 import { getTranslation, getUserLanguages } from 'utils';
-
-const blue = {
-    700: '#0059B2',
-};
+import { useLocation } from 'wouter';
 
 const grey = {
     400: '#BFC7CF',
@@ -32,7 +28,7 @@ export function UserOrganizationSwitch({
     ...props
 }: UserOrganizationSwitchProps) {
     const { palette } = useTheme();
-    const [location, setLocation] = useLocation();
+    const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session])
 
     // Query for organizations the user is a member of, including ones where 
@@ -45,7 +41,7 @@ export function UserOrganizationSwitch({
             }
         }
     });
-    const organizations = organizationsData?.organizations?.edges?.map(e => e.node) ?? [];
+    const organizations = useMemo(() => organizationsData?.organizations?.edges?.map(e => e.node) ?? [] as ListOrganization[], [organizationsData]);
     useEffect(() => {
         if (session?.id) {
             getOrganizationsData()
@@ -91,7 +87,7 @@ export function UserOrganizationSwitch({
                 </ListItem>
             )
         });
-    }, [search, organizations, onChange, closeMenu]);
+    }, [organizations, languages, search, onChange, closeMenu]);
 
     const Icon = useMemo(() => Boolean(selected) ? OrganizationIcon : SelfIcon, [selected]);
 

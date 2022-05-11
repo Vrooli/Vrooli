@@ -130,7 +130,7 @@ export const InputOutputContainer = ({
         if (isInput && (newItem as RoutineInput).isRequired !== true && (newItem as RoutineInput).isRequired !== false) newItemFormatted.isRequired = true;
         newList.splice(index + 1, 0, newItemFormatted);
         handleUpdate(newList as any);
-    }, [handleUpdate, language, list, isOpenArray]);
+    }, [list, language, isInput, handleUpdate]);
 
     const onUpdate = useCallback((index: number, updatedItem: RoutineInput | RoutineOutput) => {
         handleUpdate(updateArray(list, index, updatedItem));
@@ -148,7 +148,7 @@ export const InputOutputContainer = ({
      * Calculates absolute position of the center of an object by its ID, relative to this component
      * @returns x and y coordinates of the center point, as well as the start and end x
      */
-    const getPoint = (id: string): { x: number, y: number } | null => {
+    const getPoint = useCallback((id: string): { x: number, y: number } | null => {
         // Find graph and node
         const container = document.getElementById(`${isInput ? 'input' : 'output'}-container`);
         const item = document.getElementById(id);
@@ -162,7 +162,7 @@ export const InputOutputContainer = ({
             x: container.scrollLeft + itemRect.left + (itemRect.width / 2) - containerRect.left,
             y: container.scrollTop + itemRect.top + (itemRect.height / 2) - containerRect.top,
         }
-    }
+    }, [isInput]);
 
     /**
      * Calculate the start and end position of the line connecting the inputs/outputs. 
@@ -194,7 +194,7 @@ export const InputOutputContainer = ({
             setLineDims({ top, left, width, height, from, to });
         }
         else setLineDims(null);
-    }, [isInput, list, setLineDims]);
+    }, [getPoint, isInput, list.length]);
 
     /**
      * Continually update line position
@@ -247,7 +247,7 @@ export const InputOutputContainer = ({
             standard
         }));
         closeAddStandardDialog();
-    }, [addStandardIndex, closeAddStandardDialog, handleUpdate, list, addStandardIndex]);
+    }, [addStandardIndex, closeAddStandardDialog, handleUpdate, list]);
     const handleRemoveStandard = useCallback((index: number) => {
         // Remove standard from item at index
         handleUpdate(updateArray(list, index, {

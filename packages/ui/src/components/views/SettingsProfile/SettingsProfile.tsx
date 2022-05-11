@@ -92,19 +92,7 @@ export const SettingsProfile = ({
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
-    }, [translations, setTranslations]);
-
-    useEffect(() => {
-        setTranslations(profile?.translations?.map(t => ({
-            id: t.id,
-            language: t.language,
-            bio: t.bio ?? '',
-        })) ?? [{ language: getUserLanguages(session)[0], bio: '' }]);
-        formik.setValues({
-            ...formik.values,
-            name: profile?.name ?? '',
-        })
-    }, [profile, session]);
+    }, [getTranslationsUpdate]);
 
     // Handle update
     const [mutation] = useMutation<user>(profileUpdateMutation);
@@ -134,6 +122,18 @@ export const SettingsProfile = ({
         },
     });
 
+    useEffect(() => {
+        setTranslations(profile?.translations?.map(t => ({
+            id: t.id,
+            language: t.language,
+            bio: t.bio ?? '',
+        })) ?? [{ language: getUserLanguages(session)[0], bio: '' }]);
+        formik.setValues({
+            ...formik.values,
+            name: profile?.name ?? '',
+        })
+    }, [formik, profile, session]);
+
     // Handle languages
     const [language, setLanguage] = useState<string>('');
     const [languages, setLanguages] = useState<string[]>([]);
@@ -151,7 +151,7 @@ export const SettingsProfile = ({
                 setLanguages([getUserLanguages(session)[0]]);
             }
         }
-    }, [languages, setLanguage, setLanguages, translations])
+    }, [formik, languages, session, setLanguage, setLanguages, translations])
     const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
         // Update translation
         updateTranslation(oldLanguage, {
@@ -167,14 +167,14 @@ export const SettingsProfile = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, languages, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
             ...formik.values,
             bio: existingTranslation?.bio ?? '',
         });
-    }, [formik.setValues, translations]);
+    }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
@@ -185,7 +185,7 @@ export const SettingsProfile = ({
         updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
-    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    }, [updateTranslation, language, formik.values.bio, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
@@ -197,7 +197,7 @@ export const SettingsProfile = ({
         updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
+    }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, !formik.touched || formik.isSubmitting, true, () => { }],

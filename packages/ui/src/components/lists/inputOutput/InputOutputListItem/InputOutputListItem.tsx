@@ -9,7 +9,7 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation, getUserLanguages } from 'utils';
+import { getTranslation } from 'utils';
 import { useFormik } from 'formik';
 
 export const InputOutputListItem = ({
@@ -76,7 +76,7 @@ export const InputOutputListItem = ({
             handleClose(index);
         }
         else handleOpen(index);
-    }, [isOpen, handleClose, handleOpen, index]);
+    }, [isOpen, handleOpen, index, formik, handleClose]);
 
     return (
         <Box

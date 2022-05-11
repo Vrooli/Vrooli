@@ -11,7 +11,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
 import {
     Cancel as CancelIcon,
@@ -19,8 +19,7 @@ import {
     Search as SearchIcon,
 } from '@mui/icons-material';
 import { useFormik } from 'formik';
-import { FieldData, FormSchema, InputType } from 'forms/types';
-import { BaseForm } from 'forms';
+import { FieldData, FormSchema } from 'forms/types';
 import { organizationSearchSchema, projectSearchSchema, routineSearchSchema, standardSearchSchema, userSearchSchema } from './schemas';
 import { useReactPath } from 'utils';
 import { APP_LINKS } from '@local/shared';
@@ -196,7 +195,7 @@ export const AdvancedSearchDialog = ({
                 </IconButton>
             </Box>
         </Box>
-    ), [])
+    ), [handleClose, palette.primary.contrastText, palette.primary.dark])
 
     return (
         <Dialog

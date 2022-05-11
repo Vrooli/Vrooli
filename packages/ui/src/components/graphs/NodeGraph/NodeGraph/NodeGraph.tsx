@@ -76,7 +76,7 @@ export const NodeGraph = ({
     /**
      * When a node is being dragged near the edge of the grid, the grid scrolls
      */
-    const nodeScroll = () => {
+    const nodeScroll = useCallback(() => {
         const gridElement = document.getElementById('graph-root');
         if (!gridElement) return;
         if (dragRefs.current.currPosition === null) return;
@@ -116,7 +116,7 @@ export const NodeGraph = ({
         if (verticalMove === false) scrollUp();
         else if (verticalMove === true) scrollDown();
         dragRefs.current.timeout = setTimeout(nodeScroll, 50);
-    }
+    }, [])
 
     const clearScroll = () => {
         if (dragRefs.current.timeout) clearTimeout(dragRefs.current.timeout);
@@ -126,7 +126,7 @@ export const NodeGraph = ({
     /**
      * Rescales the graph when pinching
      */
-    const pinch = () => {
+    const pinch = useCallback(() => {
         if (pinchRefs.current.currPosition === null) return;
         // Determine the distance between the last time this function was called and now
         const { x, y } = pinchRefs.current.currPosition;
@@ -141,12 +141,12 @@ export const NodeGraph = ({
         pinchRefs.current.lastPosition = pinchRefs.current.currPosition;
         // Set a timeout to call this function again
         if (pinchRefs.current.timeout) setTimeout(pinch, 100);
-    }
+    }, [])
 
-    const clearPinch = () => {
+    const clearPinch = useCallback(() => {
         if (pinchRefs.current.timeout) clearTimeout(pinchRefs.current.timeout);
         pinchRefs.current = { currPosition: null, lastPosition: null, isShiftKeyPressed: false, timeout: null }
-    }
+    }, [])
 
     /**
      * Checks if a point is inside a rectangle
@@ -228,7 +228,7 @@ export const NodeGraph = ({
         if (nodesInColumn.length === 1 && nodesInColumn[0].id === nodeId) return;
         // Complete drop
         handleNodeDrop(nodeId, columnIndex, rowIndex);
-    }, [nodesById, scale]);
+    }, [columns, handleNodeDrop, nodesById]);
 
     // Set listeners for:
     // - click-and-drag background
@@ -353,7 +353,7 @@ export const NodeGraph = ({
             PubSub.unsubscribe(dragStartSub);
             PubSub.unsubscribe(dragDropSub);
         }
-    }, [handleDragStop, setIsShiftKeyPressed]);
+    }, [clearPinch, handleDragStop, nodeScroll, pinch, setIsShiftKeyPressed]);
 
     /**
      * Edges (links) displayed between nodes
@@ -380,11 +380,11 @@ export const NodeGraph = ({
                 handleEdit={() => { }}
             />
         }).filter(edge => edge) as JSX.Element[];
-    }, [dragId, isEditing, links, nodesById, scale]);
+    }, [dragId, handleLinkDelete, handleNodeInsert, isEditing, links, nodesById, scale]);
 
     useEffect(() => {
         setEdges(calculateEdges());
-    }, [dragId, isEditing, links, nodesById, scale]);
+    }, [calculateEdges, dragId, isEditing, links, nodesById, scale]);
 
     /**
      * Node column objects
@@ -404,7 +404,7 @@ export const NodeGraph = ({
             nodes={col}
             scale={scale}
         />)
-    }, [columns, dragId, isEditing, labelVisible, scale]);
+    }, [columns, dragId, handleAction, handleNodeDrop, handleNodeUpdate, isEditing, labelVisible, language, scale]);
 
     return (
         <Box id="graph-root" position="relative" sx={{

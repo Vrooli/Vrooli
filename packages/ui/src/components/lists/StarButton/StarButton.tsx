@@ -47,7 +47,7 @@ export const StarButton = ({
             input: { isStar, starFor, forId: objectId },
             onSuccess: (response) => { onChange(response.data.star) },
         })
-    }, [session.id, internalIsStar, objectId, starFor]);
+    }, [session.id, internalIsStar, mutation, starFor, objectId, onChange]);
 
     const Icon = internalIsStar ? IsStarredIcon : IsNotStarredIcon;
     const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';

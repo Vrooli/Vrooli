@@ -16,7 +16,7 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { Forms, Pubs } from 'utils';
+import { Forms, Pubs, useReactSearch } from 'utils';
 import { APP_LINKS, CODE } from '@local/shared';
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/walletIntegration';
@@ -31,7 +31,6 @@ import {
 import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import { parseSearchParams } from 'utils/navigation/urlTools';
 import { emailLogIn } from 'graphql/generated/emailLogIn';
 import { StartPageProps } from 'pages/types';
 
@@ -53,8 +52,7 @@ export const StartPage = ({
 }: StartPageProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
-    const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, [window.location.search]);
+    const { redirect, code: verificationCode } = useReactSearch();
 
     const [emailLogIn] = useMutation<emailLogIn>(emailLogInMutation);
     const [guestLogIn] = useMutation<any>(guestLogInMutation);
@@ -110,7 +108,7 @@ export const StartPage = ({
                 setPopupForm(Forms.LogIn);
             }
         }
-    }, [emailLogIn, verificationCode, redirect, session.id])
+    }, [emailLogIn, verificationCode, redirect, session.id, setLocation])
 
     // Wallet provider select popup
     const [providerOpen, setProviderPopupOpen] = useState(false);
@@ -169,7 +167,7 @@ export const StartPage = ({
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
         }
-    }, [downloadExtension, openWalletDownloadDialog, setLocation, redirect, toEmailLogIn])
+    }, [openWalletDownloadDialog, setLocation, redirect, toEmailLogIn])
 
     const requestGuestToken = useCallback(() => {
         mutationWrapper({

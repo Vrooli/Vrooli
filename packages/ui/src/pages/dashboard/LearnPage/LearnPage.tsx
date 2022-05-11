@@ -1,13 +1,11 @@
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
-import { HelpButton, ProjectListItem, ResourceListHorizontal, RoutineListItem, TitleContainer } from 'components';
-import { ProjectSortBy, ResourceListUsedFor, ResourceUsedFor, RoutineSortBy } from 'graphql/generated/globalTypes';
+import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { ResourceListUsedFor } from 'graphql/generated/globalTypes';
 import { learnPage } from 'graphql/generated/learnPage';
 import { profile } from 'graphql/generated/profile';
-import { projects, projectsVariables } from 'graphql/generated/projects';
-import { routines, routinesVariables } from 'graphql/generated/routines';
 import { profileUpdateMutation } from 'graphql/mutation';
-import { learnPageQuery, profileQuery, projectsQuery, routinesQuery } from 'graphql/query';
+import { learnPageQuery, profileQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Project, ResourceList, Routine } from 'types';
 import { listToListItems, openObject } from 'utils';
@@ -47,7 +45,7 @@ export const LearnPage = ({
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         getProfile();
-    }, [updateResources]);
+    }, [getProfile]);
 
     const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery);
 
@@ -67,7 +65,7 @@ export const LearnPage = ({
         loading: learnPageLoading,
         onClick: toItemPage,
         session,
-    }), [learnPageData, session])
+    }), [learnPageData?.learnPage?.courses, learnPageLoading, session, toItemPage])
 
     const tutorials = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
@@ -76,7 +74,7 @@ export const LearnPage = ({
         loading: learnPageLoading,
         onClick: toItemPage,
         session,
-    }), [learnPageData, session])
+    }), [learnPageData?.learnPage?.tutorials, learnPageLoading, session, toItemPage])
 
     return (
         <Box id='page' sx={{

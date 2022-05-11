@@ -53,7 +53,7 @@ export const UserDialog = ({
                 })
                 break;
         }
-    }, [del, setLocation, state, update]);
+    }, [setLocation, update]);
 
     const title = useMemo(() => {
         switch (state) {

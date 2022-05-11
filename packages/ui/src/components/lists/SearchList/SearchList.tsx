@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { Box, Button, CircularProgress, List, SxProps, Theme, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, CircularProgress, List, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickSize, containerShadow } from "styles";
@@ -139,7 +139,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         loading,
         onClick: (item) => onObjectSelect(item),
         session: session,
-    }), [allData, session, itemKeyPrefix, onObjectSelect])
+    }), [allData, itemKeyPrefix, loading, session, onObjectSelect])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -158,9 +158,9 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     useEffect(() => {
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
+    }, [handleScroll]);
 
-    const handleSearch = useCallback((newString: string) => { setSearchString(newString) }, []);
+    const handleSearch = useCallback((newString: string) => { setSearchString(newString) }, [setSearchString]);
 
     const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
     const handleSortClose = (label?: string, selected?: string) => {
@@ -222,7 +222,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 }
             </Box>
         )
-    }, [listItems, loading]);
+    }, [listItems, loading, noResultsText, palette.background.paper]);
 
     // Update query params
     useEffect(() => {
@@ -230,7 +230,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         if (advancedSearchDialogOpen) params.advanced = "true";
         else delete params.advanced;
         setLocation(stringifySearchParams(params), { replace: true });
-    }, [advancedSearchDialogOpen]);
+    }, [advancedSearchDialogOpen, setLocation]);
 
     return (
         <>

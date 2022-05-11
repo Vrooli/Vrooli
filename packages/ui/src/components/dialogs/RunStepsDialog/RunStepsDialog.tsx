@@ -168,7 +168,7 @@ export const RunStepsDialog = ({
                     </StyledTreeItem>
                 )
         }
-    }, [history]);
+    }, [handleLoadSubroutine, handleStepParamsUpdate, history, setLocation]);
 
     return (
         <>

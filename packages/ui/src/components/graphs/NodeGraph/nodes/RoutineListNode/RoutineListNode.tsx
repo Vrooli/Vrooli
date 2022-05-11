@@ -25,7 +25,7 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
-import { getTranslation, BuildAction, Pubs, updateTranslationField, getUserLanguages } from 'utils';
+import { getTranslation, BuildAction, Pubs, updateTranslationField } from 'utils';
 import { EditableLabel } from 'components/inputs';
 
 export const RoutineListNode = ({
@@ -56,7 +56,7 @@ export const RoutineListNode = ({
             ...node,
             translations: updateTranslationField(node, 'title', newLabel, language) as any[],
         });
-    }, [handleUpdate, node]);
+    }, [handleUpdate, language, node]);
 
     const onOrderedChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
         handleUpdate({
@@ -78,7 +78,7 @@ export const RoutineListNode = ({
     // Opens dialog to add a new subroutine, so no suroutineId is passed
     const handleSubroutineAdd = useCallback(() => {
         handleAction(BuildAction.AddSubroutine, node.id);
-    }, [node.id]);
+    }, [handleAction, node.id]);
     const handleSubroutineEdit = useCallback((subroutineId: string) => {
         handleAction(BuildAction.EditSubroutine, node.id, subroutineId);
     }, [handleAction, node.id]);
@@ -104,7 +104,7 @@ export const RoutineListNode = ({
         return {
             label: getTranslation(node, 'title', [language], true),
         }
-    }, [node]);
+    }, [language, node]);
 
     const handleTouchMove = useCallback((e: any) => {
         if (!canExpand) return;
@@ -144,7 +144,7 @@ export const RoutineListNode = ({
                 { text: 'Cancel' }
             ]
         });
-    }, [])
+    }, [handleNodeDelete, handleNodeUnlink])
 
     const labelObject = useMemo(() => {
         if (!labelVisible) return null;
@@ -217,7 +217,7 @@ export const RoutineListNode = ({
                 />
             </Tooltip>
         </Collapse>
-    ), [collapseOpen, node?.data, isEditing, label]);
+    ), [collapseOpen, isEditing, label, node?.data, onOrderedChange, onOptionalChange]);
 
     const routines = useMemo(() => (node?.data as NodeDataRoutineList)?.routines?.map(routine => (
         <RoutineSubnode
@@ -233,7 +233,7 @@ export const RoutineListNode = ({
             language={language}
             scale={scale}
         />
-    )), [collapseOpen, node?.data, isEditing, labelVisible, scale]);
+    )), [node?.data, handleSubroutineOpen, handleSubroutineEdit, handleSubroutineDelete, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale]);
 
     const addButton = useMemo(() => isEditing ? (
         <IconButton
@@ -259,7 +259,7 @@ export const RoutineListNode = ({
         >
             <AddIcon />
         </IconButton>
-    ) : null, [addSize, isEditing]);
+    ) : null, [addSize, handleSubroutineAdd, isEditing]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);

@@ -165,7 +165,6 @@ export const toLanguageInput = ({
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as LanguageInputProps;
     let languages: string[] = [];
     if (_.isObject(formik.values) && Array.isArray(formik.values[data.fieldName]) && data.fieldName in formik.values) {
         languages = formik.values[data.fieldName] as string[];
@@ -346,7 +345,6 @@ export const toTagSelector = ({
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = data.props as TagSelectorProps;
     const tags = formik.values[data.fieldName] as TagSelectorTag[];
     const addTag = (tag: TagSelectorTag) => {
         formik.setFieldValue(data.fieldName, [...tags, tag]);

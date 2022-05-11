@@ -1,17 +1,16 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useRoute } from "wouter";
-import { APP_LINKS, id } from "@local/shared";
+import { APP_LINKS } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import PubSub from 'pubsub-js';
 import { routineUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getLanguageSubtag, getTranslation, getUserLanguages, Pubs, updateTranslation } from "utils";
+import { formatForUpdate } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -38,7 +37,7 @@ export const RoutineUpdate = ({
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     useEffect(() => {
         if (id) getData({ variables: { input: { id } } });
-    }, [id])
+    }, [getData, id])
     const routine = useMemo(() => data?.routine, [data]);
 
     // Handle user/organization switch
@@ -94,7 +93,7 @@ export const RoutineUpdate = ({
             const updatedTranslationsList = o.translations.filter(t => t.language !== language);
             return { ...o, translations: updatedTranslationsList };
         }));
-    }, [translations, setTranslations]);
+    }, [translations, inputsList, outputsList]);
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = translations.findIndex(t => language === t.language);
@@ -111,7 +110,7 @@ export const RoutineUpdate = ({
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
-    }, [translations, setTranslations]);
+    }, [getTranslationsUpdate]);
 
     useEffect(() => {
         if (routine?.owner?.__typename === 'Organization') setOrganizationFor(routine.owner as ListOrganization);
@@ -187,7 +186,7 @@ export const RoutineUpdate = ({
                 title: translations[0].title,
             })
         }
-    }, [languages, setLanguage, setLanguages, translations])
+    }, [formik, languages, setLanguage, setLanguages, translations])
     const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
         // Update main translations
         updateTranslation(oldLanguage, {
@@ -228,7 +227,7 @@ export const RoutineUpdate = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, inputsList, languages, outputsList, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, inputsList, languages, outputsList, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -237,7 +236,7 @@ export const RoutineUpdate = ({
             instructions: existingTranslation?.instructions ?? '',
             title: existingTranslation?.title ?? '',
         });
-    }, [formik.setValues, translations]);
+    }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
@@ -250,7 +249,7 @@ export const RoutineUpdate = ({
         updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
-    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    }, [updateTranslation, language, formik.values.description, formik.values.instructions, formik.values.title, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
@@ -262,12 +261,12 @@ export const RoutineUpdate = ({
         updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
+    }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, Boolean(formik.isSubmitting || !formik.isValid), true, () => { }],
         ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-    ], [formik, onCancel, session]);
+    ], [formik, onCancel]);
     const [formBottom, setFormBottom] = useState<number>(0);
     const handleResize = useCallback(({ height }: any) => {
         setFormBottom(height);
@@ -381,7 +380,7 @@ export const RoutineUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
+    ), [session, organizationFor, onSwitchChange, language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, formik, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, tags, addTag, removeTag, clearTags]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

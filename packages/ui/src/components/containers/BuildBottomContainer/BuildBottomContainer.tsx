@@ -45,7 +45,7 @@ export const BuildBottomContainer = ({
     const handleRunSelect = useCallback((run: Run) => {
         setLocation(`?run=${run.id}&step=1`, { replace: true });
         setIsRunOpen(true);
-    }, [routine]);
+    }, [setLocation]);
     const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
 
     const runRoutine = useCallback((e: any) => {
@@ -57,7 +57,7 @@ export const BuildBottomContainer = ({
         else {
             setSelectRunAnchor(e.currentTarget);
         }
-    }, []);
+    }, [isEditing, setLocation]);
     const stopRoutine = () => {
         setLocation(window.location.pathname, { replace: true });
         setIsRunOpen(false)

@@ -7,7 +7,6 @@ import { APP_LINKS, MemberRole, ProjectSortBy, StarFor, VoteFor } from '@local/s
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from 'components';
 import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
-import { Project } from 'types';
 
 export function ProjectListItem({
     data,

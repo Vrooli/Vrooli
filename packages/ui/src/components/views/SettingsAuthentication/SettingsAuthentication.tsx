@@ -52,7 +52,7 @@ export const SettingsAuthentication = ({
         mutationWrapper({ mutation: logOut })
         PubSub.publish(Pubs.Session, {});
         setLocation(APP_LINKS.Home);
-    }, []);
+    }, [logOut, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         onUpdated({

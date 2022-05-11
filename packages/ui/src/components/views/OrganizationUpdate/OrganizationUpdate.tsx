@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { organizationUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { organizationUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getTranslation } from "utils";
+import { formatForUpdate } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -36,7 +36,7 @@ export const OrganizationUpdate = ({
     const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
     useEffect(() => {
         if (id) getData({ variables: { input: { id } } });
-    }, [id])
+    }, [getData, id])
     const organization = useMemo(() => data?.organization, [data]);
 
     // Handle resources
@@ -83,7 +83,7 @@ export const OrganizationUpdate = ({
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
-    }, [translations, setTranslations]);
+    }, [getTranslationsUpdate]);
 
     useEffect(() => {
         setResourceList(organization?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -146,7 +146,7 @@ export const OrganizationUpdate = ({
                 name: translations[0].name,
             })
         }
-    }, [languages, setLanguage, setLanguages, translations])
+    }, [formik, languages, setLanguage, setLanguages, translations])
     const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
         // Update translation
         updateTranslation(oldLanguage, {
@@ -163,7 +163,7 @@ export const OrganizationUpdate = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, languages, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -171,7 +171,7 @@ export const OrganizationUpdate = ({
             bio: existingTranslation?.bio ?? '',
             name: existingTranslation?.name ?? '',
         });
-    }, [formik.setValues, translations]);
+    }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
@@ -183,7 +183,7 @@ export const OrganizationUpdate = ({
         updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
-    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    }, [updateTranslation, language, formik.values.bio, formik.values.name, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
@@ -195,12 +195,12 @@ export const OrganizationUpdate = ({
         updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
+    }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, Boolean(formik.isSubmitting || !formik.isValid), true, () => { }],
         ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-    ], [formik, onCancel, session]);
+    ], [formik, onCancel]);
     const [formBottom, setFormBottom] = useState<number>(0);
     const handleResize = useCallback(({ height }: any) => {
         setFormBottom(height);
@@ -267,7 +267,7 @@ export const OrganizationUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
+    ), [language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, session, formik.values.name, formik.values.bio, formik.handleBlur, formik.handleChange, formik.touched.name, formik.touched.bio, formik.errors.name, formik.errors.bio, resourceList, handleResourcesUpdate, tags, addTag, removeTag, clearTags]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

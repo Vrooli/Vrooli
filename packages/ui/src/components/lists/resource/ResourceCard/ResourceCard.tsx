@@ -63,7 +63,7 @@ export const ResourceCard = ({
             description: getTranslation(data, 'description', languages, true),
             title: getTranslation(data, 'title', languages, true),
         };
-    }, [data]);
+    }, [data, session?.languages]);
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
@@ -96,7 +96,7 @@ export const ResourceCard = ({
         }
         // If handle, open ADA Handle payment site
         else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
-    }, [data]);
+    }, [data.link, setLocation]);
     const handleRightClick = useCallback((event: any) => {
         if (onRightClick) onRightClick(event, index);
     }, [onRightClick, index]);

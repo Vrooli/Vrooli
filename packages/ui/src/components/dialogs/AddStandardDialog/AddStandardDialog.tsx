@@ -63,7 +63,7 @@ export const AddStandardDialog = ({
             handleAdd(standardData.standard);
             handleClose();
         }
-    }, [handleCreateClose, standardData]);
+    }, [handleAdd, handleClose, handleCreateClose, standardData]);
 
     /**
      * Title bar with help button and close icon
@@ -90,7 +90,7 @@ export const AddStandardDialog = ({
                 </IconButton>
             </Box>
         </Box>
-    ), [])
+    ), [handleClose, palette.primary.contrastText, palette.primary.dark])
 
     const [searchString, setSearchString] = useState<string>('');
     const [sortBy, setSortBy] = useState<string | undefined>(undefined);

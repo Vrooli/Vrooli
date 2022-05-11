@@ -34,7 +34,7 @@ export const WalletList = ({
                 handleUpdate(updateArray(list, index, updatedWallet));
             },
         })
-    }, [handleUpdate, list]);
+    }, [handleUpdate, list, updateMutation]);
 
     const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(walletDeleteOneMutation);
     const onDelete = useCallback((wallet: Wallet) => {
@@ -62,7 +62,7 @@ export const WalletList = ({
                 { text: 'Cancel', onClick: () => { } },
             ]
         });
-    }, [handleUpdate, list, numVerifiedEmails]);
+    }, [deleteMutation, handleUpdate, list, numVerifiedEmails]);
 
     // Opens link to install wallet extension
     const downloadExtension = useCallback((provider: WalletProvider) => {
@@ -83,7 +83,7 @@ export const WalletList = ({
         setWalletDialogFor('verify');
         setSelectedIndex(index);
         setproviderOpen(true);
-    }, []);
+    }, [list]);
     const openProviderDownloadDialog = useCallback(() => {
         setWalletDialogFor('download');
         setproviderOpen(true);
@@ -146,7 +146,7 @@ export const WalletList = ({
                 verified: true,
             }));
         }
-    }, [selectedIndex]);
+    }, [handleUpdate, list, openProviderDownloadDialog, selectedIndex]);
 
     const handleProviderClose = useCallback(() => {
         setproviderOpen(false);
@@ -160,7 +160,7 @@ export const WalletList = ({
             downloadExtension(selected);
         }
         handleProviderClose();
-    }, [addWallet, downloadExtension, handleProviderClose, list, verifyWallet, walletDialogFor])
+    }, [addWallet, downloadExtension, handleProviderClose, verifyWallet, walletDialogFor])
 
     return (
         <>

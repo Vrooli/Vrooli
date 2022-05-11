@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { TagListProps } from '../types';
 import { Chip, Stack, Tooltip, Typography } from '@mui/material';
 
@@ -7,8 +7,6 @@ export const TagList = ({
     parentId,
     tags,
 }: TagListProps) => {
-    const [inputValue, setInputValue] = useState<string>('');
-
     const [chips, numTagsCutOff] = useMemo(() => {
         let charactersBeforeCutoff = 50;
         let chipResult: JSX.Element[] = [];

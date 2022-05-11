@@ -7,7 +7,6 @@ import { APP_LINKS, MemberRole, StandardSortBy, StarFor, VoteFor } from '@local/
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from '..';
 import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
-import { Standard } from 'types';
 
 export function StandardListItem({
     data,

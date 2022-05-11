@@ -83,14 +83,14 @@ export const BaseObjectActionDialog = ({
             mutation: star,
             input: { isStar, starFor, forId: objectId },
         })
-    }, [objectId]);
+    }, [objectId, star]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
         mutationWrapper({
             mutation: vote,
             input: { isUpvote, voteFor, forId: objectId },
         })
-    }, [objectId]);
+    }, [objectId, vote]);
 
     const onSelect = useCallback((action: BaseObjectAction) => {
         switch (action) {
@@ -129,7 +129,7 @@ export const BaseObjectActionDialog = ({
                 break;
         }
         onClose();
-    }, [onClose]);
+    }, [handleStar, handleVote, objectType, onClose, openDonate, openReport, openShare]);
 
     const data: ListMenuItemData<BaseObjectAction>[] = useMemo(() => {
         // Convert options to ListMenuItemData
@@ -144,7 +144,7 @@ export const BaseObjectActionDialog = ({
                     preview,
                 }
             })
-    }, []);
+    }, [availableOptions]);
 
     return (
         <>

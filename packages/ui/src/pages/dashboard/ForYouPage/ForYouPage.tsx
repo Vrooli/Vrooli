@@ -8,7 +8,6 @@ import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { ForYouPageProps } from '../types';
 import { listToListItems, openObject } from 'utils';
-import _ from 'lodash';
 import { Organization, Project, Routine, Standard, User } from 'types';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
@@ -66,7 +65,7 @@ export const ForYouPage = ({
         keyPrefix: 'active-runs-list-item',
         loading,
         session,
-    }), [data, session])
+    }), [data?.forYouPage?.activeRuns, loading, session])
     console.log('ACTIVE RUNS', activeRuns);
 
     const completedRuns = useMemo(() => listToListItems({
@@ -75,7 +74,7 @@ export const ForYouPage = ({
         keyPrefix: 'completed-runs-list-item',
         loading,
         session,
-    }), [data, session])
+    }), [data?.forYouPage?.completedRuns, loading, session])
 
     const recent = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
@@ -84,7 +83,7 @@ export const ForYouPage = ({
         loading,
         onClick: toItemPage,
         session,
-    }), [data, session])
+    }), [data?.forYouPage?.recentlyViewed, loading, session, toItemPage])
     
     const starred = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
@@ -93,7 +92,7 @@ export const ForYouPage = ({
         loading,
         onClick: toItemPage,
         session,
-    }), [data, session])
+    }), [data?.forYouPage?.recentlyStarred, loading, session, toItemPage])
 
     return (
         <Box id='page' sx={{

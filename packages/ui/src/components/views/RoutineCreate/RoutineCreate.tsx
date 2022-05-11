@@ -80,7 +80,7 @@ export const RoutineCreate = ({
             const updatedTranslationsList = o.translations.filter(t => t.language !== language);
             return { ...o, translations: updatedTranslationsList };
         }));
-    }, [translations, setTranslations]);
+    }, [translations, inputsList, outputsList]);
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = translations.findIndex(t => language === t.language);
@@ -97,7 +97,7 @@ export const RoutineCreate = ({
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
-    }, [translations, setTranslations]);
+    }, [getTranslationsUpdate]);
 
     // Handle create
     const [mutation] = useMutation<routine>(routineCreateMutation);
@@ -189,7 +189,7 @@ export const RoutineCreate = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, inputsList, languages, outputsList, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, inputsList, languages, outputsList, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -198,7 +198,7 @@ export const RoutineCreate = ({
             instructions: existingTranslation?.instructions ?? '',
             title: existingTranslation?.title ?? '',
         });
-    }, [formik.setValues, translations]);
+    }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
@@ -211,7 +211,7 @@ export const RoutineCreate = ({
         updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
-    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    }, [updateTranslation, language, formik.values.description, formik.values.instructions, formik.values.title, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
@@ -223,7 +223,7 @@ export const RoutineCreate = ({
         updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
+    }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => {
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);

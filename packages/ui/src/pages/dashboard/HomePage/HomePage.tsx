@@ -261,7 +261,7 @@ export const HomePage = ({
         else {
             openObject(newValue, setLocation);
         }
-    }, [autocompleteOptions]);
+    }, [searchString, setLocation]);
 
     // Feed title is Popular when no search
     const getFeedTitle = useCallback((objectName: string) => {

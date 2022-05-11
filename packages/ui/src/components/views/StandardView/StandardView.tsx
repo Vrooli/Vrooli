@@ -2,7 +2,7 @@ import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/mate
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
-import { standard, standardVariables, standard_standard_creator_Organization, standard_standard_creator_User } from "graphql/generated/standard";
+import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -62,7 +62,7 @@ export const StandardView = ({
             description: getTranslation(standard, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             name: standard?.name ?? partialData?.name,
         };
-    }, [language, partialData, session, standard]);
+    }, [language, partialData, standard]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
@@ -140,7 +140,7 @@ export const StandardView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [contributedBy, description, name, openMoreMenu])
+    ), [contributedBy, description, name, openMoreMenu, palette.background.paper, palette.primary.dark])
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {

@@ -57,7 +57,7 @@ export const BaseForm = ({
     const grid = useMemo(() => {
         if (!schema) return null;
         return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, onUpload)
-    }, [schema, formik])
+    }, [schema, formik, onUpload])
 
     return (
         <form onSubmit={formik.handleSubmit}>

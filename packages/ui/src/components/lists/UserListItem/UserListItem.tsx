@@ -7,7 +7,6 @@ import { APP_LINKS, StarFor, UserSortBy } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton } from '..';
 import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
-import { User } from 'types';
 import { Person as PersonIcon } from '@mui/icons-material';
 
 // Color options for profile picture
@@ -32,7 +31,7 @@ export const UserListItem = ({
 }: UserListItemProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const isOwn = useMemo(() => data?.id == session?.id, [data, session]);
+    const isOwn = useMemo(() => data?.id === session?.id, [data, session]);
 
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
 

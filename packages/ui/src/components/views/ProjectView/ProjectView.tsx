@@ -56,7 +56,7 @@ export const ProjectView = ({
         const userLanguages = getUserLanguages(session);
         setAvailableLanguages(availableLanguages);
         setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [project]);
+    }, [project, session]);
 
     const { name, description, handle, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
@@ -108,15 +108,15 @@ export const ProjectView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const shareLink = () => {
+    const shareLink = useCallback(() => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Project}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
-    }
+    }, [id]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal page
         setLocation(Boolean(params?.id) ? `${APP_LINKS.Project}/edit/${id}` : `${APP_LINKS.SearchProjects}/edit/${id}`);
-    }, [setLocation, id]);
+    }, [setLocation, params?.id, id]);
 
     // Determine options available to object, in order
     const moreOptions: BaseObjectAction[] = useMemo(() => {
@@ -184,7 +184,7 @@ export const ProjectView = ({
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [currTabType, id, session]);
+    }, [currTabType, id, setLocation]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -331,7 +331,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [handle, name, project, partialData, canEdit, openMoreMenu, session]);
+    ), [palette.background.paper, palette.primary.dark, palette.primary.main, palette.mode, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project?.created_at, project?.id, project?.isStarred, project?.stars, description, shareLink, session]);
 
     /**
     * Opens add new page
@@ -345,7 +345,7 @@ export const ProjectView = ({
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType]);
+    }, [currTabType, setLocation]);
 
     return (
         <>

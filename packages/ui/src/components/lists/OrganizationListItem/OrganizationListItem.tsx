@@ -7,7 +7,6 @@ import { APP_LINKS, MemberRole, OrganizationSortBy, StarFor } from '@local/share
 import { useLocation } from 'wouter';
 import { StarButton, TagList } from '..';
 import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
-import { Organization } from 'types';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 
 // Color options for profile picture

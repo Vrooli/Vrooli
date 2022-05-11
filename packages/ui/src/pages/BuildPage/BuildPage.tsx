@@ -366,7 +366,7 @@ export const BuildPage = ({
                 setLocation(`${APP_LINKS.Build}/${data.routineCreate.id}`); 
             },
         })
-    }, [changedRoutine, mutationWrapper]);
+    }, [changedRoutine, routineCreate, setLocation]);
 
     /**
      * Mutates routine data
@@ -427,7 +427,7 @@ export const BuildPage = ({
                 { language, title },
             ]
         } as any);
-    }, [changedRoutine]);
+    }, [changedRoutine, language]);
 
     const revertChanges = useCallback(() => {
         // If updating routine, revert to original routine
@@ -437,7 +437,7 @@ export const BuildPage = ({
         }
         // If adding new routine, go back
         else window.history.back();
-    }, [routine])
+    }, [id, routine])
 
     /**
      * Deletes the entire routine. Assumes confirmation was already given.
@@ -450,7 +450,7 @@ export const BuildPage = ({
             successMessage: () => 'Routine deleted.',
             onSuccess: () => { setLocation(APP_LINKS.Home) },
         })
-    }, [routine, routineDelete])
+    }, [routine, routineDelete, setLocation])
 
     /**
      * Calculates the new set of links for an routine when a node is 
@@ -480,7 +480,7 @@ export const BuildPage = ({
         let keptLinks = changedRoutine.nodeLinks.filter(l => !deletingLinks.includes(l));
         // Return new links combined with kept links
         return [...keptLinks, ...newLinks as any[]];
-    }, [changedRoutine?.nodeLinks]);
+    }, [changedRoutine]);
 
     /**
      * Generates a new node object, but doens't add it to the routine
@@ -539,7 +539,7 @@ export const BuildPage = ({
             nodes: deleteArrayIndex(changedRoutine.nodes, nodeIndex),
             nodeLinks: linksList,
         });
-    }, [changedRoutine]);
+    }, [calculateNewLinksList, changedRoutine]);
 
     /**
      * Deletes a subroutine from a node
@@ -622,7 +622,7 @@ export const BuildPage = ({
                 nodes: updated,
             });
         }
-    }, [changedRoutine]);
+    }, [calculateNewLinksList, changedRoutine]);
 
     /**
      * Updates a node's data
@@ -675,7 +675,7 @@ export const BuildPage = ({
             nodeLinks: [...linksList, ...newLinks as any],
         };
         setChangedRoutine(newRoutine);
-    }, [changedRoutine]);
+    }, [changedRoutine, generateNewNode]);
 
     /**
      * Adds a routine list item to a routine list
@@ -730,7 +730,7 @@ export const BuildPage = ({
                 nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
             });
         }
-    }, [changedRoutine]);
+    }, [changedRoutine, generateNewNode, handleNodeInsert]);
 
     /**
      * Add a new routine list BEFORE a node
@@ -759,7 +759,7 @@ export const BuildPage = ({
                 nodeLinks: [...changedRoutine.nodeLinks, newLink as any],
             });
         }
-    }, [changedRoutine]);
+    }, [changedRoutine, generateNewNode, handleNodeInsert]);
 
     /**
      * Updates the current selected subroutine
@@ -798,7 +798,7 @@ export const BuildPage = ({
             return;
         }
         setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
-    }, [selectedSubroutine, changedRoutine, routine]);
+    }, [selectedSubroutine, routine, changedRoutine, setLocation]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
         switch (action) {

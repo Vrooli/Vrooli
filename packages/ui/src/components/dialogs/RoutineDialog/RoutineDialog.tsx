@@ -74,7 +74,7 @@ export const RoutineDialog = ({
                     session={session}
                 />
         }
-    }, [state]);
+    }, [onAction, partialData, session, state]);
 
     return (
         <BaseObjectDialog

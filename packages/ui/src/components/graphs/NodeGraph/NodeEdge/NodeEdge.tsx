@@ -49,7 +49,7 @@ export const NodeEdge = ({
     const toggleEdit = useCallback((event) => {
         if (Boolean(anchorEl)) setAnchorEl(null);
         else setAnchorEl(event.currentTarget);
-    }, []);
+    }, [anchorEl]);
     const closeEdit = () => { setAnchorEl(null) };
     const isEditOpen = Boolean(anchorEl);
 
@@ -157,7 +157,7 @@ export const NodeEdge = ({
         // Update edge quickly when dragging, and slowly when not dragging
         // Updates are needed when not dragging to handle adding/removing nodes
         let delta = 1000; // Milliseconds
-        if (dragId && dragId === link.fromId || dragId === link.toId) {
+        if (dragId && (dragId === link.fromId || dragId === link.toId)) {
             delta = 15;
         }
         dragRef.current = setInterval(() => { calculateDims(); }, delta);
@@ -319,7 +319,7 @@ export const NodeEdge = ({
                 </Popover>
             </>
         );
-    }, [dims, isEditing, isEditOpen, isFromRoutineList, isToRoutineList, scale]);
+    }, [isEditing, dims, isFromRoutineList, isToRoutineList, isEditOpen, scale, toggleEdit, anchorEl, palette.secondary.main, palette.error.main, handleEditClick, handleAdd, link, handleDelete]);
 
     return (
         <>

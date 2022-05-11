@@ -1,12 +1,10 @@
-import { Box, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Stack, SwipeableDrawer, useTheme } from '@mui/material';
+import { Box, List, ListItem, ListItemIcon, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
 import {
     Lock as AuthenticationIcon,
-    ChevronLeft as CloseIcon,
     LightMode as DisplayIcon,
     Notifications as NotificationsIcon,
-    ChevronRight as OpenIcon,
     AccountCircle as ProfileIcon,
     SvgIconComponent
 } from '@mui/icons-material';
@@ -51,7 +49,7 @@ export function SettingsPage({
     const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => {
         if (session?.id) getData();
-    }, [session])
+    }, [getData, session])
     const [profile, setProfile] = useState<profile_profile | undefined>(undefined);
     useEffect(() => {
         if (data?.profile) setProfile(data.profile);
@@ -83,7 +81,7 @@ export function SettingsPage({
                 </ListItem>
             )
         });
-    }, [selectedPage, drawerOpen]);
+    }, [selectedPage, drawerOpen, setLocation]);
 
     const mainContent: JSX.Element = useMemo(() => {
         switch (selectedPage) {
@@ -96,7 +94,7 @@ export function SettingsPage({
             case SettingsForm.Authentication:
                 return <SettingsAuthentication session={session} profile={profile} onUpdated={onUpdated} />
         }
-    }, [selectedPage, editing, profile, onUpdated]);
+    }, [selectedPage, session, profile, onUpdated]);
 
     return (
         <Box id='page' sx={{ 

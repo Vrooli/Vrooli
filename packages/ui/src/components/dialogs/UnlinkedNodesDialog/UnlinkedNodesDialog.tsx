@@ -62,7 +62,7 @@ export const UnlinkedNodesDialog = ({
             default:
                 return null;
         }
-    }, [])
+    }, [language])
 
     return (
         <Box id="unlinked-nodes-dialog" sx={{

@@ -29,7 +29,7 @@ export const AddBeforeLinkDialog = ({
     const getNodeName = useCallback((nodeId: string) => {
         const node = nodes.find(n => n.id === nodeId);
         return getTranslation(node, 'title', getUserLanguages(session), true);
-    }, [nodes, nodeId, session]);
+    }, [nodes, session]);
 
     /**
      * Find links where the "toId" is the nodeId

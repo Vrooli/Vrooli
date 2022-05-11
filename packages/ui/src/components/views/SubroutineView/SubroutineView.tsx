@@ -1,4 +1,3 @@
-import { APP_LINKS } from "@local/shared";
 import { Box, CircularProgress, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import {
     MoreHoriz as EllipsisIcon,
@@ -7,8 +6,7 @@ import { ResourceListHorizontal } from "components";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useMemo, useState } from "react";
 import { containerShadow } from "styles";
-import { ResourceList, Routine, User } from "types";
-import { getOwnedByString, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
+import { getOwnedByString, getTranslation, getUserLanguages, toOwnedBy } from "utils";
 import { useLocation } from "wouter";
 import { SubroutineViewProps } from "../types";
 

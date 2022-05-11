@@ -62,7 +62,7 @@ export const LanguageInput = ({
             )
         });
         return tagList;
-    }, [currentLanguage, handleAdd, handleChange, handleSelect, languages, session]);
+    }, [currentLanguage, handleChange, handleDelete, handleSelect, languages, session]);
 
     return (
         <Box sx={{

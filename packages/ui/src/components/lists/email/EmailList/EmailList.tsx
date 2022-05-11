@@ -63,7 +63,7 @@ export const EmailList = ({
                 handleUpdate(updateArray(list, index, updatedEmail));
             },
         })
-    }, [handleUpdate, list]);
+    }, [handleUpdate, list, updateMutation]);
 
     const [deleteMutation, { loading: loadingDelete }] = useMutation<any>(emailDeleteOneMutation);
     const onDelete = useCallback((email: Email) => {
@@ -91,7 +91,7 @@ export const EmailList = ({
                 { text: 'Cancel', onClick: () => { } },
             ]
         });
-    }, [handleUpdate, list, numVerifiedWallets]);
+    }, [deleteMutation, handleUpdate, list, numVerifiedWallets]);
 
     const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<any>(sendVerificationEmailMutation);
     const sendVerificationEmail = useCallback((email: Email) => {

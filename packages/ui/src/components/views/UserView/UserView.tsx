@@ -117,10 +117,10 @@ export const UserView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const shareLink = () => {
+    const shareLink = useCallback(() => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Profile}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
-    }
+    }, [id]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
@@ -205,7 +205,7 @@ export const UserView = ({
                     onSearchSelect: (o: any) => { },
                 }
         }
-    }, [currTabType, id, session]);
+    }, [currTabType, id, setLocation]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -359,7 +359,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, partialData, session, shareLink, user]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.mode, palette.primary.dark, palette.primary.main, palette.secondary.dark, palette.secondary.light, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.stars]);
 
     /**
      * Opens add new page
@@ -379,7 +379,7 @@ export const UserView = ({
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType]);
+    }, [currTabType, setLocation]);
 
     return (
         <>

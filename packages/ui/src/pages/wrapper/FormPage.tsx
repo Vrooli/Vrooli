@@ -1,5 +1,4 @@
-import { Box, Container, Theme, Typography, useTheme } from '@mui/material';
-import { makeStyles } from '@mui/styles';
+import { Box, Container, Typography, useTheme } from '@mui/material';
 
 interface Props {
     title: string;

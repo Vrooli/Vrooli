@@ -33,8 +33,6 @@ import { BaseObjectAction, BuildInfoDialogProps } from '../types';
 import Markdown from 'markdown-to-jsx';
 import { MarkdownInput, ResourceListHorizontal } from 'components';
 import { getOwnedByString, getTranslation, Pubs, toOwnedBy } from 'utils';
-import { APP_LINKS } from '@local/shared';
-import { ResourceList, User } from 'types';
 import { useLocation } from 'wouter';
 import { useFormik } from 'formik';
 import { routineUpdateForm as validationSchema } from '@local/shared';

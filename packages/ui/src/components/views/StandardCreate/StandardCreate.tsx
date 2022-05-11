@@ -69,7 +69,7 @@ export const StandardCreate = ({
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
-    }, [translations, setTranslations]);
+    }, [getTranslationsUpdate]);
 
     // Handle create
     const [mutation] = useMutation<standard>(standardCreateMutation);
@@ -137,14 +137,14 @@ export const StandardCreate = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, languages, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
             ...formik.values,
             description: existingTranslation?.description ?? '',
         });
-    }, [formik.setValues, translations]);
+    }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
@@ -155,7 +155,7 @@ export const StandardCreate = ({
         updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
-    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    }, [updateTranslation, language, formik.values.description, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
@@ -167,7 +167,7 @@ export const StandardCreate = ({
         updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
+    }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => {
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);

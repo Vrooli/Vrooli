@@ -70,7 +70,7 @@ export const ResourceListHorizontal = ({
                 resources: list.resources.filter(r => r.id !== resource.id) as any,
             });
         }
-    }, [handleUpdate, list, mutate]);
+    }, [deleteMutation, handleUpdate, list, mutate]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -109,7 +109,7 @@ export const ResourceListHorizontal = ({
             mutate={mutate}
             session={session}
         /> : null
-    ), [editingIndex, onAdd, onUpdate, isDialogOpen, list, editingIndex, mutate]);
+    ), [list, editingIndex, isDialogOpen, closeDialog, onAdd, onUpdate, mutate, session]);
 
     return (
         <Box>

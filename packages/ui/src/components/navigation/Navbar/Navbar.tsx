@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import Logo from 'assets/img/Logo.png';
 import { BUSINESS_NAME, APP_LINKS } from '@local/shared';
-import { AppBar, Toolbar, Typography, Theme, useTheme } from '@mui/material';
+import { AppBar, Toolbar, Typography, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { NavList } from '../NavList/NavList';
 import { useLocation } from 'wouter';
@@ -58,7 +58,6 @@ export const Navbar = ({
     sessionChecked,
 }: NavbarProps) => {
     const classes = useStyles();
-    const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
 
     const toHome = useCallback(() => setLocation(APP_LINKS.Home), [setLocation]);

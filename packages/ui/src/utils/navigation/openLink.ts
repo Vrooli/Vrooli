@@ -1,7 +1,6 @@
 // Automatically determines whether to open a link in a new tab, or push to history.
 // This is useful for a list of links, where some may lead to the landing page, while
 import { SetLocation } from "types";
-import { Path } from "wouter";
 
 // others lead to the main application
 export const openLink = (setLocation: SetLocation, link: string) => {

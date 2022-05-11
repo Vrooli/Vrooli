@@ -71,7 +71,7 @@ export function ResourceListItem({
         }
         // If handle, open ADA Handle payment site
         else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
-    }, [data]);
+    }, [data.link, setLocation]);
 
     return (
         <Tooltip placement="top" title="Open in new tab">

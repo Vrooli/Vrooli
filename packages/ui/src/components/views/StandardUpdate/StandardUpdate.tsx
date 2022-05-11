@@ -7,11 +7,10 @@ import { standardQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils/wrappers';
-import PubSub from 'pubsub-js';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getLanguageSubtag, getUserLanguages, Pubs, updateTranslation } from "utils";
+import { formatForUpdate } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -75,7 +74,7 @@ export const StandardUpdate = ({
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
-    }, [translations, setTranslations]);
+    }, [getTranslationsUpdate]);
 
     useEffect(() => {
         setTags(standard?.tags ?? []);
@@ -130,7 +129,7 @@ export const StandardUpdate = ({
                 description: translations[0].description,
             })
         }
-    }, [languages, setLanguage, setLanguages, translations])
+    }, [formik, languages, setLanguage, setLanguages, translations])
     const handleLanguageChange = useCallback((oldLanguage: string, newLanguage: string) => {
         // Update translation
         updateTranslation(oldLanguage, {
@@ -146,14 +145,14 @@ export const StandardUpdate = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, languages, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
             ...formik.values,
             description: existingTranslation?.description ?? '',
         });
-    }, [formik.setValues, translations]);
+    }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
@@ -164,7 +163,7 @@ export const StandardUpdate = ({
         updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
-    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    }, [updateTranslation, language, formik.values.description, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
@@ -176,12 +175,12 @@ export const StandardUpdate = ({
         updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
+    }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => [
         ['Save', SaveIcon, Boolean(formik.isSubmitting || !formik.isValid), true, () => { }],
         ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
-    ], [formik, onCancel, session]);
+    ], [formik, onCancel]);
     const [formBottom, setFormBottom] = useState<number>(0);
     const handleResize = useCallback(({ height }: any) => {
         setFormBottom(height);
@@ -211,7 +210,7 @@ export const StandardUpdate = ({
                 />
             </Grid>
         </Grid>
-    ), [formik, actions, handleResize, formBottom, session, tags, addTag, removeTag, clearTags]);
+    ), [language, handleAddLanguage, handleLanguageChange, handleLanguageDelete, handleLanguageSelect, languages, session, tags, addTag, removeTag, clearTags]);
 
 
     return (

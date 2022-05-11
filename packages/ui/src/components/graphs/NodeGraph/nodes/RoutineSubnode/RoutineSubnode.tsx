@@ -12,7 +12,6 @@ import { ChangeEvent, CSSProperties, useCallback, useMemo } from 'react';
 import { RoutineSubnodeProps } from '../types';
 import {
     Close as DeleteIcon,
-    Edit as EditIcon,
 } from '@mui/icons-material';
 import {
     routineNodeCheckboxOption,
@@ -58,7 +57,7 @@ export const RoutineSubnode = ({
             ...data,
             translations: updateTranslationField(data, 'title', newLabel, language) as any[],
         });
-    }, [handleUpdate, data]);
+    }, [handleUpdate, data, language]);
 
     const onOptionalChange = useCallback((e: ChangeEvent<HTMLInputElement>, checked: boolean) => {
         handleUpdate(data.id, {

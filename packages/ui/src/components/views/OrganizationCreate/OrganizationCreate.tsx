@@ -1,4 +1,4 @@
-import { Box, Grid, TextField } from "@mui/material";
+import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { organization } from "graphql/generated/organization";
 import { mutationWrapper } from 'graphql/utils/wrappers';
@@ -8,7 +8,7 @@ import { organizationCreateMutation } from "graphql/mutation";
 import { formatForCreate, getUserLanguages } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LanguageInput, ResourceListHorizontal, SelectLanguageDialog, TagSelector } from "components";
+import { LanguageInput, ResourceListHorizontal, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
 import {
     Add as CreateIcon,
@@ -70,7 +70,7 @@ export const OrganizationCreate = ({
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
-    }, [translations, setTranslations]);
+    }, [getTranslationsUpdate]);
 
     // Handle create
     const [mutation] = useMutation<organization>(organizationCreateMutation);
@@ -130,7 +130,7 @@ export const OrganizationCreate = ({
             newLanguages[index] = newLanguage;
             setLanguages(newLanguages);
         }
-    }, [formik.values, languages, translations, setLanguage, setLanguages, updateTranslation]);
+    }, [formik.values, languages, setLanguage, setLanguages, updateTranslation]);
     const updateFormikTranslation = useCallback((language: string) => {
         const existingTranslation = translations.find(t => t.language === language);
         formik.setValues({
@@ -138,7 +138,7 @@ export const OrganizationCreate = ({
             bio: existingTranslation?.bio ?? '',
             name: existingTranslation?.name ?? '',
         });
-    }, [formik.setValues, translations]);
+    }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
         // Update old select
         updateTranslation(language, {
@@ -150,7 +150,7 @@ export const OrganizationCreate = ({
         updateFormikTranslation(newLanguage);
         // Change language
         setLanguage(newLanguage);
-    }, [formik.values, formik.setValues, language, translations, setLanguage, updateTranslation]);
+    }, [updateTranslation, language, formik.values.bio, formik.values.name, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
@@ -162,7 +162,7 @@ export const OrganizationCreate = ({
         updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
         setLanguages(newLanguages);
-    }, [deleteTranslation, handleLanguageSelect, languages, setLanguages]);
+    }, [deleteTranslation, languages, updateFormikTranslation]);
 
     const actions: DialogActionItem[] = useMemo(() => {
         const correctRole = Array.isArray(session?.roles) && session.roles.includes(ROLES.Actor);
@@ -170,7 +170,7 @@ export const OrganizationCreate = ({
             ['Create', CreateIcon, Boolean(!correctRole || formik.isSubmitting), true, () => { }],
             ['Cancel', CancelIcon, formik.isSubmitting, false, onCancel],
         ] as DialogActionItem[]
-    }, [formik.isSubmitting, formik.isValid, onCancel, session]);
+    }, [formik.isSubmitting, onCancel, session]);
     const [formBottom, setFormBottom] = useState<number>(0);
     const handleResize = useCallback(({ height }: any) => {
         setFormBottom(height);

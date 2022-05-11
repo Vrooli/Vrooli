@@ -129,7 +129,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
-    }), [researchPageData, session])
+    }), [researchPageData?.researchPage?.processes, researchPageLoading, session, toItemPage])
 
     const newlyCompleted = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Project'),
@@ -138,7 +138,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
-    }), [researchPageData, session])
+    }), [researchPageData?.researchPage?.newlyCompleted, researchPageLoading, session, toItemPage])
 
     const needVotes = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Project'),
@@ -147,7 +147,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
-    }), [researchPageData, session])
+    }), [researchPageData?.researchPage?.needVotes, researchPageLoading, session, toItemPage])
 
     const needInvestments = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Project'),
@@ -156,7 +156,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
-    }), [researchPageData, session])
+    }), [researchPageData?.researchPage?.needInvestments, researchPageLoading, session, toItemPage])
 
     const needMembers = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Organization'),
@@ -165,7 +165,7 @@ export const ResearchPage = ({
         loading: researchPageLoading,
         onClick: toItemPage,
         session,
-    }), [researchPageData, session])
+    }), [researchPageData?.researchPage?.needMembers, researchPageLoading, session, toItemPage])
 
     return (
         <Box id='page' sx={{

@@ -9,7 +9,7 @@ import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink } from 'ut
 import { Button, Container, IconButton, Theme, useTheme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useLocation } from 'wouter';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
 import { APP_LINKS } from '@local/shared';
 
@@ -56,12 +56,12 @@ export const NavList = ({
     const [, setLocation] = useLocation();
 
     const [isMobile, setIsMobile] = useState(false); // Not shown on mobile
+    const updateWindowDimensions = useCallback(() => setIsMobile(window.innerWidth <= breakpoints.values.md), [breakpoints]);
     useEffect(() => {
         updateWindowDimensions();
         window.addEventListener("resize", updateWindowDimensions);
         return () => window.removeEventListener("resize", updateWindowDimensions);
-    }, []);
-    const updateWindowDimensions = () => setIsMobile(window.innerWidth <= breakpoints.values.md);
+    }, [updateWindowDimensions]);
 
     const nav_actions = useMemo<Action[]>(() => getUserActions({ roles: session.roles ?? [], exclude: [ACTION_TAGS.Home] }), [session.roles]);
     // Display button for entering main application

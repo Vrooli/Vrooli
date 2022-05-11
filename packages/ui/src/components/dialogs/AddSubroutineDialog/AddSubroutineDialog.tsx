@@ -59,7 +59,7 @@ export const AddSubroutineDialog = ({
             handleAdd(nodeId, routineData.routine);
             handleClose();
         }
-    }, [handleCreateClose, routineData]);
+    }, [handleAdd, handleClose, handleCreateClose, nodeId, routineData]);
 
     /**
      * Title bar with help button and close icon
@@ -86,7 +86,7 @@ export const AddSubroutineDialog = ({
                 </IconButton>
             </Box>
         </Box>
-    ), [])
+    ), [handleClose, palette.primary.contrastText, palette.primary.dark])
 
     const [searchString, setSearchString] = useState<string>('');
     const [sortBy, setSortBy] = useState<string | undefined>(undefined);

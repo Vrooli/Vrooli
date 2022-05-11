@@ -97,7 +97,7 @@ export const BuildInfoContainer = ({
                 </Box>
             </Box>
         )
-    }, [statusMarkdown])
+    }, [palette.primary.dark, statusMarkdown])
 
     return (
         <Stack

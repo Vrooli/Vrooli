@@ -44,7 +44,7 @@ export const RunPickerDialog = ({
             onSuccess: (response) => { onSelect(response.data.runCreate); handleClose(); },
             onError: () => { PubSub.publish(Pubs.Snack, { message: 'Failed to create run.', severity: 'error' }) },
         })
-    }, [routine]);
+    }, [handleClose, onSelect, routine, runCreate, session]);
 
     useEffect(() => {
         if (!open) return;

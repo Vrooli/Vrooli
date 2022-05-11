@@ -18,7 +18,7 @@ import {
 } from '@mui/icons-material';
 import { UpTransition } from 'components';
 import { useCallback, useState } from 'react';
-import { BaseObjectDialogProps as BaseObjectDialogProps, ObjectDialogAction } from '../types';
+import { BaseObjectDialogProps, ObjectDialogAction } from '../types';
 
 /**
  * Dialog for displaying any "Add" form

@@ -57,7 +57,7 @@ export const DevelopPage = ({
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         getProfile();
-    }, [updateResources]);
+    }, [getProfile]);
 
     const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery);
 
@@ -77,7 +77,7 @@ export const DevelopPage = ({
         loading: developPageLoading,
         onClick: toItemPage,
         session,
-    }), [developPageData, session])
+    }), [developPageData?.developPage?.inProgress, developPageLoading, session, toItemPage])
 
     const recent = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
@@ -86,7 +86,7 @@ export const DevelopPage = ({
         loading: developPageLoading,
         onClick: toItemPage,
         session,
-    }), [developPageData, session])
+    }), [developPageData?.developPage?.recent, developPageLoading, session, toItemPage])
 
     const completed = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
@@ -95,7 +95,7 @@ export const DevelopPage = ({
         loading: developPageLoading,
         onClick: toItemPage,
         session,
-    }), [developPageData, session])
+    }), [developPageData?.developPage?.completed, developPageLoading, session, toItemPage])
 
     return (
         <Box id='page' sx={{

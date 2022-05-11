@@ -41,7 +41,7 @@ export const RoutineView = ({
     const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     useEffect(() => {
         if (id) getData({ variables: { input: { id } } });
-    }, [id])
+    }, [getData, id])
     const routine = useMemo(() => data?.routine, [data]);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null); // Routine may change if it is starred/upvoted/etc.
     const canEdit = useMemo<boolean>(() => routine?.role ? [MemberRole.Admin, MemberRole.Owner].includes(routine.role) : false, [routine]);
@@ -66,7 +66,7 @@ export const RoutineView = ({
             successMessage: () => 'Routine deleted.',
             onSuccess: () => { setLocation(APP_LINKS.Home) },
         })
-    }, [routine, routineDelete])
+    }, [routine, routineDelete, setLocation])
 
     // Find data about run, if specified in query params
     const runId: string | undefined = useMemo(() => {
@@ -81,14 +81,14 @@ export const RoutineView = ({
         const userLanguages = getUserLanguages(session);
         setAvailableLanguages(availableLanguages);
         setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [routine]);
+    }, [routine, session]);
     const { title, description, instructions } = useMemo(() => {
         return {
             title: getTranslation(routine, 'title', [language]) ?? getTranslation(partialData, 'title', [language]),
             description: getTranslation(routine, 'description', [language]) ?? getTranslation(partialData, 'description', [language]),
             instructions: getTranslation(routine, 'instructions', [language]) ?? getTranslation(partialData, 'instructions', [language]),
         };
-    }, [routine, partialData, session]);
+    }, [routine, language, partialData]);
 
     useEffect(() => {
         document.title = `${title} | Vrooli`;
@@ -113,7 +113,7 @@ export const RoutineView = ({
                 setLocation(APP_LINKS.Home) 
             },
         })
-    }, [routine, runComplete]);
+    }, [routine, runComplete, setLocation]);
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
@@ -121,7 +121,7 @@ export const RoutineView = ({
         console.log('RUN SELECTTTTT', run);
         setLocation(`?run=${run.id}&step=1`, { replace: true });
         setIsRunOpen(true);
-    }, [routine]);
+    }, [setLocation]);
     const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
 
     const runRoutine = useCallback((e: any) => {
@@ -144,13 +144,13 @@ export const RoutineView = ({
         else {
             setSelectRunAnchor(e.currentTarget);
         }
-    }, [routine, runId]);
+    }, [handleRunSelect, routine, runId]);
     const stopRoutine = () => { setIsRunOpen(false) };
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
         setLocation(Boolean(params?.id) ? `${APP_LINKS.Routine}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
-    }, [setLocation, id]);
+    }, [setLocation, params?.id, id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -211,7 +211,7 @@ export const RoutineView = ({
                 </Grid>
             </Grid>
         )
-    }, [routine, viewGraph, runRoutine]);
+    }, [routine, markAsComplete, viewGraph, runRoutine]);
 
     const resourceList = useMemo(() => {
         if (!routine || 
@@ -281,7 +281,7 @@ export const RoutineView = ({
                 {actions}
             </>
         )
-    }, [loading, actions, description, instructions]);
+    }, [loading, routine, resourceList, instructions, description, actions]);
 
     return (
         <Box sx={{

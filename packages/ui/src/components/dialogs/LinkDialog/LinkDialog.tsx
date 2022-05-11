@@ -85,7 +85,7 @@ export const LinkDialog = ({
                 </IconButton>
             </Box>
         </Box>
-    ), [handleClose, isAdd]);
+    ), [handleClose, isAdd, palette.primary.contrastText, palette.primary.dark]);
 
     /**
      * Calculate the "From" and "To" options
@@ -169,7 +169,7 @@ export const LinkDialog = ({
                 renderInput={(params) => <TextField {...params} label="To" />}
             />
         </Stack>
-    ), [fromOptions, toOptions, language, handleFromSelect, handleToSelect]);
+    ), [fromOptions, toOptions, getNodeTitle, handleFromSelect, handleToSelect]);
 
     /**
      * Container for creating link conditions.

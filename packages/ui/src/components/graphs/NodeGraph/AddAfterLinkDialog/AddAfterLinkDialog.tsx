@@ -29,7 +29,7 @@ export const AddAfterLinkDialog = ({
     const getNodeName = useCallback((nodeId: string) => {
         const node = nodes.find(n => n.id === nodeId);
         return getTranslation(node, 'title', getUserLanguages(session), true);
-    }, [nodes, nodeId, session]);
+    }, [nodes, session]);
 
     /**
      * Find links where the "fromId" is the nodeId

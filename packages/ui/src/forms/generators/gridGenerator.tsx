@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FieldData, GridContainer, GridContainerBase, GridSpacing, GridItemSpacing } from 'forms/types';
+import { FieldData, GridContainer, GridContainerBase, GridItemSpacing } from 'forms/types';
 import { generateInputComponent } from '.';
 
 /**

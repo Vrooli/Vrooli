@@ -60,7 +60,7 @@ export const OrganizationView = ({
         const userLanguages = getUserLanguages(session);
         setAvailableLanguages(availableLanguages);
         setLanguage(getPreferredLanguage(availableLanguages, userLanguages));
-    }, [organization]);
+    }, [organization, session]);
 
     const { bio, handle, name, resourceList } = useMemo(() => {
         const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
@@ -70,7 +70,7 @@ export const OrganizationView = ({
             name: getTranslation(organization, 'name', [language]) ?? getTranslation(partialData, 'name', [language]),
             resourceList,
         };
-    }, [language, organization, partialData, session]);
+    }, [language, organization, partialData]);
 
     useEffect(() => {
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
@@ -114,15 +114,15 @@ export const OrganizationView = ({
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
-    const shareLink = () => {
+    const shareLink = useCallback(() => {
         navigator.clipboard.writeText(`https://vrooli.com${APP_LINKS.Organization}/${id}`);
         PubSub.publish(Pubs.Snack, { message: 'Copied🎉' })
-    }
+    }, [id]);
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
         setLocation(Boolean(params?.id) ? `${APP_LINKS.Organization}/edit/${id}` : `${APP_LINKS.SearchOrganizations}/edit/${id}`);
-    }, [setLocation, id]);
+    }, [setLocation, params?.id, id]);
 
     // Create search data
     const { itemKeyPrefix, placeholder, sortOptions, defaultSortOption, searchQuery, where, noResultsText, onSearchSelect } = useMemo<SearchListGenerator>(() => {
@@ -184,7 +184,7 @@ export const OrganizationView = ({
                     onSearchSelect: (o: any) => { },
                 }
         }
-    }, [currTabType, session, id]);
+    }, [currTabType, setLocation, id]);
 
     // Handle url search
     const [searchString, setSearchString] = useState<string>('');
@@ -356,7 +356,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [bio, session, name, organization, partialData, canEdit, onEdit]);
+    ), [palette.background.paper, palette.primary.dark, palette.primary.main, palette.mode, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.isStarred, organization?.stars, bio, shareLink, session]);
 
     /**
      * Opens add new page
@@ -376,7 +376,7 @@ export const OrganizationView = ({
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType]);
+    }, [currTabType, setLocation]);
 
     return (
         <>
