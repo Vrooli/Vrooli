@@ -1,4 +1,4 @@
-import { Box, Button, IconButton, List, ListItem, ListItemText, Menu, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, IconButton, List, ListItem, ListItemText, Menu, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { UserOrganizationSwitchProps } from '../types';
 import { organizationsQuery } from 'graphql/query';
@@ -31,6 +31,7 @@ export function UserOrganizationSwitch({
     disabled,
     ...props
 }: UserOrganizationSwitchProps) {
+    const { palette } = useTheme();
     const [location, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session])
 
@@ -114,7 +115,7 @@ export function UserOrganizationSwitch({
                 onClose={(e) => { closeMenu() }}
                 sx={{
                     '& .MuiMenu-paper': {
-                        background: (t) => t.palette.background.paper
+                        background: palette.background.paper
                     },
                     '& .MuiMenu-list': {
                         paddingTop: '0',
@@ -127,7 +128,7 @@ export function UserOrganizationSwitch({
                         display: 'flex',
                         alignItems: 'center',
                         padding: 1,
-                        background: (t) => t.palette.primary.dark
+                        background: palette.primary.dark
                     }}
                 >
                     <Typography
@@ -135,7 +136,7 @@ export function UserOrganizationSwitch({
                         textAlign="center"
                         sx={{
                             width: '-webkit-fill-available',
-                            color: (t) => t.palette.primary.contrastText,
+                            color: palette.primary.contrastText,
                         }}
                     >
                         Select Organization
@@ -144,7 +145,7 @@ export function UserOrganizationSwitch({
                         edge="end"
                         onClick={(e) => { closeMenu() }}
                     >
-                        <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                        <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                     </IconButton>
                 </Box>
                 <TextField
@@ -194,7 +195,7 @@ export function UserOrganizationSwitch({
                 }}>
                     {/* Track */}
                     <Box component="span" sx={{
-                        backgroundColor: (t) => t.palette.mode === 'dark' ? grey[800] : grey[400],
+                        backgroundColor: palette.mode === 'dark' ? grey[800] : grey[400],
                         borderRadius: '16px',
                         width: '100%',
                         height: '65%',
@@ -202,7 +203,7 @@ export function UserOrganizationSwitch({
                     }}>
                         {/* Thumb */}
                         <IconButton sx={{
-                            backgroundColor: (t) => t.palette.secondary.main,
+                            backgroundColor: palette.secondary.main,
                             display: 'inline-flex',
                             width: '30px',
                             height: '30px',

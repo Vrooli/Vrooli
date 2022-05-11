@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Box, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
 import { containerShadow } from 'styles';
@@ -24,6 +24,7 @@ export const ResourceListHorizontal = ({
     list,
     session,
 }: ResourceListHorizontalProps) => {
+    const { palette } = useTheme();
 
     const onAdd = useCallback((newResource: Resource) => {
         if (!list) return;
@@ -131,8 +132,8 @@ export const ResourceListHorizontal = ({
                 sx={{
                     ...containerShadow,
                     borderRadius: '16px',
-                    background: (t) => t.palette.background.default,
-                    border: (t) => `1px ${t.palette.text.primary}`,
+                    background: palette.background.default,
+                    border: `1px ${palette.text.primary}`,
                 }}
             >
                 <Stack direction="row" spacing={2} p={2} sx={{

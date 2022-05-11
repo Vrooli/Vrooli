@@ -8,7 +8,8 @@ import {
     DialogContent,
     Grid,
     IconButton,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdvancedSearchDialogProps } from '../types';
@@ -120,6 +121,7 @@ export const AdvancedSearchDialog = ({
     isOpen,
     session,
 }: AdvancedSearchDialogProps) => {
+    const { palette } = useTheme();
     // Search schema to use
     const [schema, setSchema] = useState<FormSchema | null>(null);
 
@@ -175,8 +177,8 @@ export const AdvancedSearchDialog = ({
      */
     const titleBar = useMemo(() => (
         <Box sx={{
-            background: (t) => t.palette.primary.dark,
-            color: (t) => t.palette.primary.contrastText,
+            background: palette.primary.dark,
+            color: palette.primary.contrastText,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -190,7 +192,7 @@ export const AdvancedSearchDialog = ({
                     edge="start"
                     onClick={(e) => { handleClose() }}
                 >
-                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
@@ -212,7 +214,7 @@ export const AdvancedSearchDialog = ({
                 </DialogContent>
                 {/* Search/Cancel buttons */}
                 <Grid container spacing={1} sx={{
-                    background: (t) => t.palette.primary.dark,
+                    background: palette.primary.dark,
                     maxWidth: 'min(700px, 100%)',
                     margin: 0,
                 }}>

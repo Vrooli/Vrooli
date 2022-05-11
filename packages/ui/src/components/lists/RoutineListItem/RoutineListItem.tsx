@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { RoutineListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
@@ -7,7 +7,6 @@ import { APP_LINKS, MemberRole, RoutineSortBy, StarFor, VoteFor } from '@local/s
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from '..';
 import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
-import { Routine } from 'types';
 
 export function RoutineListItem({
     data,
@@ -16,6 +15,7 @@ export function RoutineListItem({
     session,
     onClick,
 }: RoutineListItemProps) {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const canEdit = useMemo<boolean>(() => data?.role ? [MemberRole.Admin, MemberRole.Owner].includes(data.role) : false, [data]);
 
@@ -35,7 +35,7 @@ export function RoutineListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Run}/${data.id}`)
+        else setLocation(`${APP_LINKS.Routine}/${data.id}`)
     }, [onClick, data, setLocation]);
 
     return (
@@ -64,7 +64,7 @@ export function RoutineListItem({
                         />
                         <ListItemText
                             primary={description}
-                            sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
+                            sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />
                         {/* Tags */}
                         {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}

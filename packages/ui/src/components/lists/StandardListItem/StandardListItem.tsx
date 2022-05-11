@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { StandardListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
@@ -16,6 +16,7 @@ export function StandardListItem({
     session,
     onClick,
 }: StandardListItemProps) {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const canEdit = useMemo<boolean>(() => Boolean(data?.role) && [MemberRole.Admin, MemberRole.Owner].includes(data.role), [data]);
 
@@ -63,7 +64,7 @@ export function StandardListItem({
                         />
                         <ListItemText
                             primary={description}
-                            sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
+                            sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />
                         {/* Tags */}
                         {Array.isArray(data?.tags) && (data.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}

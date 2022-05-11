@@ -5,7 +5,7 @@ import { AddBeforeLinkDialogProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { useCallback, useMemo } from 'react';
 import { NodeLink } from 'types';
-import { Box, Dialog, IconButton, List, ListItem, ListItemText, Typography } from '@mui/material';
+import { Box, Dialog, IconButton, List, ListItem, ListItemText, Typography, useTheme } from '@mui/material';
 import {
     Close as CloseIcon,
 } from '@mui/icons-material';
@@ -21,6 +21,7 @@ export const AddBeforeLinkDialog = ({
     links,
     session,
 }: AddBeforeLinkDialogProps) => {
+    const { palette } = useTheme();
 
     /**
      * Gets the name of a node from its id
@@ -51,13 +52,13 @@ export const AddBeforeLinkDialog = ({
                     display: 'flex',
                     alignItems: 'center',
                     padding: 1,
-                    background: (t) => t.palette.primary.dark
+                    background: palette.primary.dark
                 }}
             >
                 <Typography
                     variant="h6"
                     textAlign="center"
-                    sx={{ width: '-webkit-fill-available', color: (t) => t.palette.primary.contrastText }}
+                    sx={{ width: '-webkit-fill-available', color: palette.primary.contrastText }}
                 >
                     Select Link
                 </Typography>
@@ -65,7 +66,7 @@ export const AddBeforeLinkDialog = ({
                     edge="end"
                     onClick={handleClose}
                 >
-                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
             <List>

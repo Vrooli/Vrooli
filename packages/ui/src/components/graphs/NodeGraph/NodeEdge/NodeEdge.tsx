@@ -5,7 +5,7 @@ import {
     Edit as EditIcon,
     Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { Box, IconButton, Popover, Stack, Tooltip } from '@mui/material';
+import { Box, IconButton, Popover, Stack, Tooltip, useTheme } from '@mui/material';
 
 type Point = {
     x: number;
@@ -37,6 +37,8 @@ export const NodeEdge = ({
     dragId,
     scale,
 }: NodeEdgeProps) => {
+    const { palette } = useTheme();
+
     const padding = 100; // Adds padding to make sure the line doesn't get cut off
     // Store dimensions of edge
     const [dims, setDims] = useState<EdgePositions | null>(null);
@@ -264,11 +266,11 @@ export const NodeEdge = ({
                                 onClick={() => { handleAdd(link) }}
                                 aria-label='Insert node on edge'
                                 sx={{
-                                    background: (t) => t.palette.secondary.main,
+                                    background: palette.secondary.main,
                                     transition: 'brightness 0.2s ease-in-out',
                                     '&:hover': {
                                         filter: `brightness(105%)`,
-                                        background: (t) => t.palette.secondary.main,
+                                        background: palette.secondary.main,
                                     },
                                 }}
                             >
@@ -302,11 +304,11 @@ export const NodeEdge = ({
                                 onClick={() => { handleDelete(link) }}
                                 aria-label='Delete link button'
                                 sx={{
-                                    background: (t) => t.palette.error.main,
+                                    background: palette.error.main,
                                     transition: 'brightness 0.2s ease-in-out',
                                     '&:hover': {
                                         filter: `brightness(105%)`,
-                                        background: (t) => t.palette.error.main,
+                                        background: palette.error.main,
                                     },
                                 }}
                             >

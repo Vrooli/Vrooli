@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { Box, CircularProgress, Link, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Link, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { TitleContainerProps } from '../types';
 import { clickSize, containerShadow } from 'styles';
 import { HelpButton } from 'components';
@@ -15,6 +15,8 @@ export function TitleContainer({
     sx,
     children,
 }: TitleContainerProps) {
+    const { palette } = useTheme();
+
     return (
         <Tooltip placement="bottom" title={tooltip}>
             <Box id={id} display="flex" justifyContent="center">
@@ -24,7 +26,7 @@ export function TitleContainer({
                         ...containerShadow,
                         borderRadius: '8px',
                         overflow: 'overlay',
-                        background: (t) => t.palette.background.default,
+                        background: palette.background.default,
                         width: 'min(100%, 700px)',
                         cursor: onClick ? 'pointer' : 'default',
                         '&:hover': {
@@ -35,8 +37,8 @@ export function TitleContainer({
                 >
                     {/* Title container */}
                     <Box sx={{
-                        background: (t) => t.palette.primary.dark,
-                        color: (t) => t.palette.primary.contrastText,
+                        background: palette.primary.dark,
+                        color: palette.primary.contrastText,
                         padding: 0.5,
                     }}>
                         {/* Title */}
@@ -73,7 +75,7 @@ export function TitleContainer({
                                             marginBottom: 'auto',
                                             marginRight: 2,
                                         }}>
-                                            <Typography sx={{ color: (t) => t.palette.secondary.dark }}>{label}</Typography>
+                                            <Typography sx={{ color: palette.secondary.dark }}>{label}</Typography>
                                         </Link>
                                     ))}
                                 </Stack>

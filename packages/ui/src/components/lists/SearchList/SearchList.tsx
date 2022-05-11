@@ -1,5 +1,5 @@
 import { useQuery } from "@apollo/client";
-import { Box, Button, CircularProgress, List, Tooltip, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, List, SxProps, Theme, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clickSize, containerShadow } from "styles";
@@ -10,8 +10,7 @@ import {
     Sort as SortListIcon,
 } from '@mui/icons-material';
 import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { AutocompleteListItem, getUserLanguages, listToAutocomplete, listToListItems, parseSearchParams, Pubs, stringifySearchParams } from "utils";
-import { ListOrganization, ListProject, ListRoutine, ListStandard } from "types";
+import { AutocompleteListItem, getUserLanguages, listToAutocomplete, listToListItems, parseSearchParams, stringifySearchParams } from "utils";
 import { useLocation } from "wouter";
 
 const searchButtonStyle = {
@@ -48,6 +47,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     where,
     session,
 }: SearchListProps<SortBy>) {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [sortAnchorEl, setSortAnchorEl] = useState(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState(null);
@@ -198,7 +198,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 marginRight: 'auto',
                 ...(hasItems ? {
                     ...containerShadow,
-                    background: (t) => t.palette.background.paper,
+                    background: palette.background.paper,
                     borderRadius: '8px',
                     overflow: 'overlay',
                 } : {}),
@@ -274,7 +274,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleSortOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <SortListIcon sx={{ fill: (t) => t.palette.secondary.main }} />
+                        <SortListIcon sx={{ fill: palette.secondary.main }} />
                         {sortByLabel}
                     </Box>
                 </Tooltip>
@@ -283,7 +283,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleTimeOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <TimeIcon sx={{ fill: (t) => t.palette.secondary.main }} />
+                        <TimeIcon sx={{ fill: palette.secondary.main }} />
                         {timeFrameLabel}
                     </Box>
                 </Tooltip>
@@ -292,7 +292,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                         onClick={handleAdvancedSearchDialogOpen}
                         sx={{ ...searchButtonStyle }}
                     >
-                        <AdvancedIcon sx={{ fill: (t) => t.palette.secondary.main }} />
+                        <AdvancedIcon sx={{ fill: palette.secondary.main }} />
                         Advanced
                     </Box>
                 </Tooltip>

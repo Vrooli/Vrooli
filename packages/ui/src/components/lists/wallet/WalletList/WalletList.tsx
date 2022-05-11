@@ -2,9 +2,9 @@
  * Displays a list of wallets for the user to manage
  */
 import { WalletListProps } from '../types';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Wallet } from 'types';
-import { Box, Button, Dialog, ListItem, ListItemText, Typography } from '@mui/material';
+import { Box, Button, Dialog, ListItem, ListItemText, Typography, useTheme } from '@mui/material';
 import {
     Add as AddIcon,
 } from '@mui/icons-material';
@@ -20,6 +20,7 @@ export const WalletList = ({
     numVerifiedEmails,
     list,
 }: WalletListProps) => {
+    const { palette } = useTheme();
 
     const [updateMutation, { loading: loadingUpdate }] = useMutation<any>(walletUpdateMutation);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
@@ -176,7 +177,7 @@ export const WalletList = ({
                         padding: 1,
                         paddingLeft: 2,
                         paddingRight: 2,
-                        background: (t) => t.palette.primary.dark,
+                        background: palette.primary.dark,
                         color: 'white',
                     }}
                 >

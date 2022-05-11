@@ -2,7 +2,7 @@
  * Handles selecting a run from a list of runs.
  */
 
-import { Box, Button, IconButton, List, ListItem, ListItemText, Menu, Typography } from "@mui/material";
+import { Box, Button, IconButton, List, ListItem, ListItemText, Menu, Typography, useTheme } from "@mui/material";
 import { mutationWrapper } from "graphql/utils";
 import { useCallback, useEffect, useMemo } from "react";
 import { noSelect } from "styles";
@@ -22,6 +22,8 @@ export const RunPickerDialog = ({
     routine,
     session
 }: RunPickerDialogProps) => {
+    const { palette } = useTheme();
+
     const open = useMemo(() => Boolean(anchorEl), [anchorEl]);
 
     const [runCreate] = useMutation<runCreate>(runCreateMutation);
@@ -89,7 +91,7 @@ export const RunPickerDialog = ({
             onClose={handleClose}
             sx={{
                 '& .MuiMenu-paper': {
-                    background: (t) => t.palette.background.paper
+                    background: palette.background.paper
                 },
                 '& .MuiMenu-list': {
                     paddingTop: '0',
@@ -102,7 +104,7 @@ export const RunPickerDialog = ({
                     display: 'flex',
                     alignItems: 'center',
                     padding: 1,
-                    background: (t) => t.palette.primary.dark
+                    background: palette.primary.dark
                 }}
             >
                 <Typography
@@ -110,7 +112,7 @@ export const RunPickerDialog = ({
                     textAlign="center"
                     sx={{
                         width: '-webkit-fill-available',
-                        color: (t) => t.palette.primary.contrastText,
+                        color: palette.primary.contrastText,
                     }}
                 >
                     Continue Existing Run?
@@ -119,7 +121,7 @@ export const RunPickerDialog = ({
                     edge="end"
                     onClick={handleClose}
                 >
-                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
             <List>

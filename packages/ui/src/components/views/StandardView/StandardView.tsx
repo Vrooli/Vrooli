@@ -1,4 +1,4 @@
-import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
@@ -24,6 +24,7 @@ export const StandardView = ({
     partialData,
     session,
 }: StandardViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Standard}/:id`);
@@ -86,14 +87,14 @@ export const StandardView = ({
             ml='auto'
             mr='auto'
             mt={8}
-            bgcolor={(t) => t.palette.background.paper}
+            bgcolor={palette.background.paper}
             sx={{ ...containerShadow }}
         >
             <Box
                 width={'min(100px, 25vw)'}
                 height={'min(100px, 25vw)'}
                 borderRadius='100%'
-                border={(t) => `4px solid ${t.palette.primary.dark}`}
+                border={`4px solid ${palette.primary.dark}`}
                 bgcolor='#939eb9'
                 position='absolute'
                 display='flex'

@@ -13,7 +13,7 @@ export const APP_LINKS = {
     Profile: '/profile', // View profile
     Project: '/project', // View or update specific project
     Research: '/research', // Research dashboard
-    Run: '/run', // Displays a UI corresponding to the current subroutine
+    Routine: '/routine', // Displays a UI corresponding to the current subroutine
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
     SearchOrganizations: '/search/organization', // Search organizations
     SearchProjects: '/search/project', // Search projects

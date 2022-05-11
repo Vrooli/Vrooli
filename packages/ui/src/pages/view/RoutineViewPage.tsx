@@ -15,8 +15,8 @@ export const RoutineViewPage = ({
     const [, setLocation] = useLocation();
     const { breakpoints } = useTheme();
     // Get URL params
-    const [matchView, paramsView] = useRoute(`${APP_LINKS.Run}/:id`);
-    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.Run}/edit/:id`);
+    const [matchView, paramsView] = useRoute(`${APP_LINKS.Routine}/:id`);
+    const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.Routine}/edit/:id`);
     const id = useMemo(() => paramsView?.id ?? paramsUpdate?.id ?? '', [paramsView, paramsUpdate]);
 
     const isAddDialogOpen = useMemo(() => Boolean(matchView) && paramsView?.id === 'add', [matchView, paramsView]);
@@ -25,7 +25,7 @@ export const RoutineViewPage = ({
     const onAction = useCallback((action: ObjectDialogAction, data?: any) => {
         switch (action) {
             case ObjectDialogAction.Add:
-                setLocation(`${APP_LINKS.Run}/${data?.id}`, { replace: true });
+                setLocation(`${APP_LINKS.Routine}/${data?.id}`, { replace: true });
                 break;
             case ObjectDialogAction.Cancel:
                 window.history.back();
@@ -34,7 +34,7 @@ export const RoutineViewPage = ({
                 window.history.back();
                 break;
             case ObjectDialogAction.Edit:
-                setLocation(`${APP_LINKS.Run}/edit/${id}`);
+                setLocation(`${APP_LINKS.Routine}/edit/${id}`);
                 break;
             case ObjectDialogAction.Save:
                 window.history.back();

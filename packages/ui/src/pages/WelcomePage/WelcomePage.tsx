@@ -31,8 +31,8 @@ const buttonProps = {
 }
 
 export const WelcomePage = () => {
+    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
-    const { breakpoints } = useTheme();
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
 
     return (
@@ -104,7 +104,7 @@ export const WelcomePage = () => {
                             brightness: '120%',
                         }
                     }}>
-                        <Typography sx={{ marginRight: 2, color: (t) => t.palette.secondary.light }}>I know what I'm doing</Typography>
+                        <Typography sx={{ marginRight: 2, color: palette.secondary.light }}>I know what I'm doing</Typography>
                     </Link>
                 </Box>
             </Box>

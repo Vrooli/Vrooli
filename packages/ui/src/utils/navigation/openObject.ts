@@ -17,7 +17,7 @@ export enum ObjectType {
 const linkMap: { [key in ObjectType]: [string, string] } = {
     [ObjectType.Organization]: [APP_LINKS.SearchOrganizations, APP_LINKS.Organization],
     [ObjectType.Project]: [APP_LINKS.SearchProjects, APP_LINKS.Project],
-    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Run],
+    [ObjectType.Routine]: [APP_LINKS.SearchRoutines, APP_LINKS.Routine],
     [ObjectType.Standard]: [APP_LINKS.SearchStandards, APP_LINKS.Standard],
     [ObjectType.User]: [APP_LINKS.SearchUsers, APP_LINKS.Profile],
 }

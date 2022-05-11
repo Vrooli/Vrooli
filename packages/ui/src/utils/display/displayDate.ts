@@ -1,8 +1,9 @@
 /**
  * Displays a date in a human readable format
  * @param timestamp Timestamp of date to display
+ * @param showTime Whether to display the time and date, or just the date
  */
-export const displayDate = (timestamp: number): string => {
+export const displayDate = (timestamp: number, showTime: boolean = true): string => {
     // Create date object
     const date = new Date(timestamp);
     // Only display year if it's not the current year
@@ -16,5 +17,5 @@ export const displayDate = (timestamp: number): string => {
     // Get time string
     const timeString = date.toLocaleTimeString(navigator.language);
     // Return date and time string
-    return `${dateString} ${timeString}`;
+    return showTime ? `${dateString} ${timeString}` : dateString;
 }

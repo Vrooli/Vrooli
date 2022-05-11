@@ -1,5 +1,5 @@
 import { APP_LINKS } from "@local/shared";
-import { Box, Button, IconButton, LinearProgress, Stack, Typography } from "@mui/material"
+import { Box, Button, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
 import { useLocation, useRoute } from "wouter";
@@ -19,7 +19,7 @@ import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, SubroutineStep } from "types";
 import { parseSearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
-import { runComplete, runCompleteVariables } from "graphql/generated/runComplete";
+import { runComplete } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import { runUpdate, runUpdateVariables } from "graphql/generated/runUpdate";
@@ -31,6 +31,7 @@ export const RunView = ({
     routine,
     session
 }: RunViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [stepParams, setStepParams] = useState<number[]>(() => {
         const stepUrl = (parseSearchParams(window.location.search).step ?? '').split('.');
@@ -38,7 +39,7 @@ export const RunView = ({
         return []
     });
     const [, params1] = useRoute(`${APP_LINKS.Build}/:routineId`);
-    const [, params2] = useRoute(`${APP_LINKS.Run}/:routineId`);
+    const [, params2] = useRoute(`${APP_LINKS.Routine}/:routineId`);
 
     /**
      * The amount of routine completed so far, measured in complexity
@@ -489,8 +490,8 @@ export const RunView = ({
                         justifyContent: 'space-between',
                         padding: '0.5rem',
                         width: '100%',
-                        backgroundColor: (t) => t.palette.primary.dark,
-                        color: (t) => t.palette.primary.contrastText,
+                        backgroundColor: palette.primary.dark,
+                        color: palette.primary.contrastText,
                     }}>
                         {/* Close Icon */}
                         <IconButton
@@ -545,7 +546,7 @@ export const RunView = ({
                 </Box>
                 {/* Action bar */}
                 <Box p={2} sx={{
-                    background: (t) => t.palette.primary.dark,
+                    background: palette.primary.dark,
                     position: 'fixed',
                     bottom: 0,
                     width: '100vw',

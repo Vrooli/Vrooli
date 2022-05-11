@@ -5,7 +5,8 @@ import {
     DialogContent,
     IconButton,
     Stack,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { BaseObjectDialog, HelpButton } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -34,6 +35,7 @@ export const AddSubroutineDialog = ({
     routineId,
     session,
 }: AddSubroutineDialogProps) => {
+    const { palette } = useTheme();
 
     // Create new routine dialog
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -64,8 +66,8 @@ export const AddSubroutineDialog = ({
      */
     const titleBar = useMemo(() => (
         <Box sx={{
-            background: (t) => t.palette.primary.dark,
-            color: (t) => t.palette.primary.contrastText,
+            background: palette.primary.dark,
+            color: palette.primary.contrastText,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -80,7 +82,7 @@ export const AddSubroutineDialog = ({
                     edge="start"
                     onClick={(e) => { handleClose() }}
                 >
-                    <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>

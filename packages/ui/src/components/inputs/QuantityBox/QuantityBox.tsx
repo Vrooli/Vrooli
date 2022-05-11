@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect } from "react";
-import { Box, FormControl, IconButton, Input, InputLabel, SxProps, Theme, Tooltip } from '@mui/material';
+import { Box, FormControl, IconButton, Input, InputLabel, SxProps, Theme, Tooltip, useTheme } from '@mui/material';
 import {
     Add as AddIcon,
     Remove as RemoveIcon
@@ -41,6 +41,8 @@ export const QuantityBox = ({
     value,
     ...props
 }: QuantityBoxProps) => {
+    const { palette } = useTheme();
+
     const holdRefs = useRef<HoldRefs>({
         which: null,
         speed: 1,
@@ -107,7 +109,7 @@ export const QuantityBox = ({
                     <RemoveIcon />
                 </IconButton>
                 <FormControl sx={{
-                    background: (t) => t.palette.primary.contrastText,
+                    background: palette.primary.contrastText,
                     width: '60%',
                     maxWidth: `12ch`,
                     height: '100%',

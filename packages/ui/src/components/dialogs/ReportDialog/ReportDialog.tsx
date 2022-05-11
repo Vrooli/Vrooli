@@ -1,6 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { reportCreate as validationSchema } from '@local/shared';
-import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
 import { reportCreate } from 'graphql/generated/reportCreate';
@@ -44,6 +44,7 @@ export const ReportDialog = ({
     session,
     title = 'Report',
 }: ReportDialogProps) => {
+    const { palette } = useTheme();
 
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
@@ -97,8 +98,8 @@ export const ReportDialog = ({
             <form onSubmit={formik.handleSubmit}>
                 <Box sx={{
                     padding: 1,
-                    background: (t) => t.palette.primary.dark,
-                    color: (t) => t.palette.primary.contrastText,
+                    background: palette.primary.dark,
+                    color: palette.primary.contrastText,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -119,7 +120,7 @@ export const ReportDialog = ({
                             edge="start"
                             onClick={handleClose}
                         >
-                            <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                            <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Box>
                 </Box>

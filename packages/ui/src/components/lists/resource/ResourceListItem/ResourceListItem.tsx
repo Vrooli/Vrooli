@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { ResourceListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
@@ -30,6 +30,7 @@ export function ResourceListItem({
     data,
     onClick,
 }: ResourceListItemProps) {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const canEdit = useMemo<boolean>(() => Boolean(data?.role) && [MemberRole.Admin, MemberRole.Owner].includes(data.role), [data]);
     const { description, title } = useMemo(() => {
@@ -100,7 +101,7 @@ export function ResourceListItem({
                         {/* Bio/Description */}
                         <ListItemText
                             primary={description}
-                            sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
+                            sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />
                     </Stack>
                     <OpenLinkIcon />

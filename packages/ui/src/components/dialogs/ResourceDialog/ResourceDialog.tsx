@@ -1,6 +1,6 @@
 import { useMutation } from '@apollo/client';
 import { resourceCreateForm as validationSchema } from '@local/shared';
-import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Dialog, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { HelpButton } from 'components/buttons';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
@@ -62,6 +62,8 @@ export const ResourceDialog = ({
     session,
     listId,
 }: ResourceDialogProps) => {
+    const { palette } = useTheme();
+
     const [addMutation, { loading: addLoading }] = useMutation<resourceCreate>(resourceCreateMutation);
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
 
@@ -234,8 +236,8 @@ export const ResourceDialog = ({
             <form onSubmit={formik.handleSubmit}>
                 <Box sx={{
                     padding: 1,
-                    background: (t) => t.palette.primary.dark,
-                    color: (t) => t.palette.primary.contrastText,
+                    background: palette.primary.dark,
+                    color: palette.primary.contrastText,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -251,7 +253,7 @@ export const ResourceDialog = ({
                             edge="start"
                             onClick={handleClose}
                         >
-                            <CloseIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                            <CloseIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Box>
                 </Box>

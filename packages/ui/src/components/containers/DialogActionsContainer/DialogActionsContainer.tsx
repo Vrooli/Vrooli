@@ -1,4 +1,4 @@
-import { Box, Button, Grid } from "@mui/material";
+import { Box, Button, Grid, useTheme } from "@mui/material";
 import { DialogActionsContainerProps, DialogActionItem } from "../types";
 import { useCallback, useMemo } from "react";
 import Measure from "react-measure";
@@ -8,6 +8,7 @@ export const DialogActionsContainer = ({
     actions,
     onResize,
 }: DialogActionsContainerProps) => {
+    const { palette } = useTheme();
 
     const handleResize = useCallback(({ bounds }: any) => {
         if (onResize) onResize({ width: bounds.width, height: bounds.height });
@@ -53,7 +54,7 @@ export const DialogActionsContainer = ({
                     bottom: fixed ? '0' : 'auto',
                     width: fixed ? '-webkit-fill-available' : 'auto',
                     zIndex: 4,
-                    background: (t) => t.palette.primary.main,
+                    background: palette.primary.main,
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',

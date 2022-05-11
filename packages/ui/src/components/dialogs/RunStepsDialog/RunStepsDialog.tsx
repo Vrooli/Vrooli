@@ -16,6 +16,7 @@ import {
     SvgIcon,
     SwipeableDrawer,
     Typography,
+    useTheme,
 } from '@mui/material';
 import { RunStepsDialogProps } from '../types';
 import { routine, routineVariables } from "graphql/generated/routine";
@@ -118,6 +119,7 @@ export const RunStepsDialog = ({
     stepList,
     sxs,
 }: RunStepsDialogProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
@@ -185,8 +187,8 @@ export const RunStepsDialog = ({
                 }}
                 sx={{
                     '& .MuiDrawer-paper': {
-                        background: (t) => t.palette.background.default,
-                        borderRight: `1px solid ${(t) => t.palette.text.primary}`,
+                        background: palette.background.default,
+                        borderRight: `1px solid ${palette.text.primary}`,
                         minHeight: '100vh',
                         minWidth: '300px',
                         overflowY: 'auto',
@@ -198,21 +200,21 @@ export const RunStepsDialog = ({
                     display: 'flex',
                     flexDirection: 'row',
                     alignItems: 'center',
-                    background: (t) => t.palette.primary.dark,
-                    color: (t) => t.palette.primary.contrastText,
+                    background: palette.primary.dark,
+                    color: palette.primary.contrastText,
                     padding: 1,
                 }}>
                     {/* Title */}
                     <Typography variant="h6" sx={{
                         flexGrow: 1,
-                        color: (t) => t.palette.primary.contrastText,
+                        color: palette.primary.contrastText,
                     }}>
                         {`Steps (${Math.floor(percentComplete)}% Complete)`}
                     </Typography>
                     <IconButton onClick={closeDialog} sx={{
-                        color: (t) => t.palette.primary.contrastText,
+                        color: palette.primary.contrastText,
                         borderRadius: 0,
-                        borderBottom: `1px solid ${(t) => t.palette.primary.dark}`,
+                        borderBottom: `1px solid ${palette.primary.dark}`,
                         justifyContent: 'end',
                         flexDirection: 'row-reverse',
                         marginLeft: 'auto',

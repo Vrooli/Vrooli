@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Dialog, Grid, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material"
+import { Box, Button, CircularProgress, Dialog, Grid, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, MemberRole } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
@@ -14,7 +14,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunPickerDialog, RunView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, Pubs, toOwnedBy } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, parseSearchParams, Pubs, toOwnedBy } from "utils";
 import { Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
@@ -31,9 +31,10 @@ export const RoutineView = ({
     partialData,
     session,
 }: RoutineViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Get URL params
-    const [, params] = useRoute(`${APP_LINKS.Run}/:id`);
+    const [, params] = useRoute(`${APP_LINKS.Routine}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchRoutines}/view/:id`);
     const id = params?.id ?? params2?.id;
     // Fetch data
@@ -66,6 +67,12 @@ export const RoutineView = ({
             onSuccess: () => { setLocation(APP_LINKS.Home) },
         })
     }, [routine, routineDelete])
+
+    // Find data about run, if specified in query params
+    const runId: string | undefined = useMemo(() => {
+        const params = parseSearchParams(window.location.search)
+        return params.run;
+    }, [])
 
     const [language, setLanguage] = useState<string>('');
     const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
@@ -129,13 +136,20 @@ export const RoutineView = ({
             PubSub.publish(Pubs.Snack, { message: 'Routine invalid - cannot run.', severity: 'Error' });
             return;
         }
-        setSelectRunAnchor(e.currentTarget);
-    }, [routine]);
+        // If run specified use that
+        if (runId) {
+            handleRunSelect({ id: runId } as Run);
+        }
+        // Otherwise, open dialog to select runs
+        else {
+            setSelectRunAnchor(e.currentTarget);
+        }
+    }, [routine, runId]);
     const stopRoutine = () => { setIsRunOpen(false) };
 
     const onEdit = useCallback(() => {
         // Depends on if we're in a search popup or a normal organization page
-        setLocation(Boolean(params?.id) ? `${APP_LINKS.Run}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
+        setLocation(Boolean(params?.id) ? `${APP_LINKS.Routine}/edit/${id}` : `${APP_LINKS.SearchRoutines}/edit/${id}`);
     }, [setLocation, id]);
 
     // More menu
@@ -321,7 +335,7 @@ export const RoutineView = ({
             />
             {/* Main container */}
             <Box sx={{
-                background: (t) => t.palette.background.paper,
+                background: palette.background.paper,
                 overflowY: 'auto',
                 width: 'min(96vw, 600px)',
                 borderRadius: '8px',
@@ -335,8 +349,8 @@ export const RoutineView = ({
                     justifyContent: 'center',
                     padding: 2,
                     marginBottom: 1,
-                    background: (t) => t.palette.primary.main,
-                    color: (t) => t.palette.primary.contrastText,
+                    background: palette.primary.main,
+                    color: palette.primary.contrastText,
                 }}>
                     {/* Show star button and ellipsis next to title */}
                     <Stack direction="row" spacing={1} alignItems="center">
@@ -371,14 +385,14 @@ export const RoutineView = ({
                                     marginRight: 1,
                                 }}
                             >
-                                <EllipsisIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                                <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
                             </IconButton>
                         </Tooltip>
                     </Stack>
                     <Stack direction="row" spacing={1}>
                         {ownedBy && (
                             <Link onClick={toOwner}>
-                                <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                                <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
                             </Link>
                         )}
                         <Typography variant="body1">{routine?.version}</Typography>

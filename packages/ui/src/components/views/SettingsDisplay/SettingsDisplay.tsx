@@ -1,4 +1,4 @@
-import { Box, Container, Grid, Stack, Typography } from "@mui/material"
+import { Box, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -43,6 +43,7 @@ export const SettingsDisplay = ({
     profile,
     onUpdated,
 }: SettingsDisplayProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     // Handle starred tags
@@ -144,8 +145,8 @@ export const SettingsDisplay = ({
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
             {/* Title */}
             <Stack direction="row" justifyContent="center" alignItems="center" sx={{
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
                 padding: 0.5,
                 marginBottom: 2,
             }}>

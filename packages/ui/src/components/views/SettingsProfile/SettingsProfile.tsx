@@ -1,4 +1,4 @@
-import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography } from "@mui/material"
+import { Autocomplete, Box, Container, Grid, IconButton, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { user } from "graphql/generated/user";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -40,6 +40,7 @@ export const SettingsProfile = ({
     profile,
     session,
 }: SettingsProfileProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     // Query for handles associated with the user
@@ -207,8 +208,8 @@ export const SettingsProfile = ({
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
             {/* Title */}
             <Box sx={{
-                background: (t) => t.palette.primary.dark,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
                 padding: 0.5,
                 marginBottom: 2,
                 display: 'flex',
@@ -250,7 +251,7 @@ export const SettingsProfile = ({
                                 aria-label='fetch-handles'
                                 onClick={fetchHandles}
                                 sx={{
-                                    background: (t) => t.palette.secondary.main,
+                                    background: palette.secondary.main,
                                     borderRadius: '0 5px 5px 0',
                                 }}>
                                 <RefreshIcon />

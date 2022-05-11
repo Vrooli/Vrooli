@@ -1,5 +1,5 @@
 import { APP_LINKS } from "@local/shared";
-import { Box, CircularProgress, IconButton, Link, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, CircularProgress, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import {
     MoreHoriz as EllipsisIcon,
 } from "@mui/icons-material";
@@ -17,6 +17,7 @@ export const SubroutineView = ({
     data,
     session,
 }: SubroutineViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const { description, instructions, title } = useMemo(() => {
@@ -60,7 +61,7 @@ export const SubroutineView = ({
     )
     return (
         <Box sx={{
-            background: (t) => t.palette.background.paper,
+            background: palette.background.paper,
             overflowY: 'auto',
             width: 'min(96vw, 600px)',
             borderRadius: '8px',
@@ -74,8 +75,8 @@ export const SubroutineView = ({
                 justifyContent: 'center',
                 padding: 2,
                 marginBottom: 1,
-                background: (t) => t.palette.primary.main,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.main,
+                color: palette.primary.contrastText,
             }}>
                 {/* Show more ellipsis next to title */}
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -91,14 +92,14 @@ export const SubroutineView = ({
                                 marginRight: 1,
                             }}
                         >
-                            <EllipsisIcon sx={{ fill: (t) => t.palette.primary.contrastText }} />
+                            <EllipsisIcon sx={{ fill: palette.primary.contrastText }} />
                         </IconButton>
                     </Tooltip>
                 </Stack>
                 <Stack direction="row" spacing={1}>
                     {ownedBy ? (
                         <Link onClick={toOwner}>
-                            <Typography variant="body1" sx={{ color: (t) => t.palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                            <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
                         </Link>
                     ) : null}
                     <Typography variant="body1">{data?.version}</Typography>
@@ -111,7 +112,7 @@ export const SubroutineView = ({
                 {/* Description */}
                 <Box sx={{
                     padding: 1,
-                    border: `1px solid ${(t) => t.palette.primary.dark}`,
+                    border: `1px solid ${palette.primary.dark}`,
                     borderRadius: 1,
                     color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
                 }}>
@@ -121,7 +122,7 @@ export const SubroutineView = ({
                 {/* Instructions */}
                 <Box sx={{
                     padding: 1,
-                    border: `1px solid ${(t) => t.palette.background.paper}`,
+                    border: `1px solid ${palette.background.paper}`,
                     borderRadius: 1,
                     color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
                 }}>

@@ -1,4 +1,4 @@
-import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { IconButton, ListItem, Popover, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { SelectLanguageDialogProps } from '../types';
 import {
     ArrowDropDown as ArrowDropDownIcon,
@@ -22,6 +22,7 @@ export const SelectLanguageDialog = ({
     session,
     sxs,
 }: SelectLanguageDialogProps) => {
+    const { palette } = useTheme();
     const [searchString, setSearchString] = useState('');
     const updateSearchString = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         setSearchString(event.target.value);
@@ -99,7 +100,7 @@ export const SelectLanguageDialog = ({
                     maxHeight: 'min(100vh, 600px)',
                     overflowX: 'auto',
                     overflowY: 'hidden',
-                    background: (t) => t.palette.background.paper,
+                    background: palette.background.paper,
                     borderRadius: '8px',
                     padding: '8px',
                     "&::-webkit-scrollbar": {

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Box, Chip, FormControl, InputLabel, MenuItem, Select, Theme } from '@mui/material';
+import { Box, Chip, FormControl, InputLabel, MenuItem, Select, Theme, useTheme } from '@mui/material';
 import isArray from 'lodash/isArray';
 import { SelectorProps } from '../types';
 
@@ -20,6 +20,8 @@ export const Selector = ({
     style,
     ...props
 }: SelectorProps) => {
+    const { palette } = useTheme();
+
     const getOptionStyle = useCallback((theme: Theme, option: any) => {
         const label = getOptionLabel ? getOptionLabel(option) : option;
         return {
@@ -38,7 +40,7 @@ export const Selector = ({
             <InputLabel
                 id={inputAriaLabel}
                 shrink={selected?.length > 0}
-                sx={{ color: (t) => t.palette.background.textPrimary }}
+                sx={{ color: palette.background.textPrimary }}
             >
                 {label}
             </InputLabel>
@@ -77,7 +79,7 @@ export const Selector = ({
                 {...props}
                 sx={{
                     ...style,
-                    color: (t) => t.palette.background.textPrimary
+                    color: palette.background.textPrimary
                 }}
             >
                 {

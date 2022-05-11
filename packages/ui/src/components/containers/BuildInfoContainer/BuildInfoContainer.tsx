@@ -57,7 +57,7 @@ export const BuildInfoContainer = ({
     session,
     status,
 }: BuildInfoContainerProps) => {
-    const { breakpoints } = useTheme();
+    const { breakpoints, palette } = useTheme();
     /**
      * List of status messages converted to markdown. 
      * If one message, no bullet points. If multiple, bullet points.
@@ -87,7 +87,7 @@ export const BuildInfoContainer = ({
     const statusMenu = useMemo(() => {
         return (
             <Box>
-                <Box sx={{ background: (t) => t.palette.primary.dark }}>
+                <Box sx={{ background: palette.primary.dark }}>
                     <IconButton edge="start" color="inherit" onClick={closeStatusMenu} aria-label="close">
                         <CloseIcon sx={{ fill: 'white', marginLeft: '0.5em' }} />
                     </IconButton>
@@ -108,8 +108,8 @@ export const BuildInfoContainer = ({
             justifyContent="space-between"
             sx={{
                 zIndex: 2,
-                background: (t) => t.palette.primary.light,
-                color: (t) => t.palette.primary.contrastText,
+                background: palette.primary.light,
+                color: palette.primary.contrastText,
                 paddingTop: '64px',
                 [breakpoints.up('md')]: {
                     paddingTop: '10vh',
@@ -149,7 +149,7 @@ export const BuildInfoContainer = ({
                 }}
                 sx={{
                     '& .MuiPopover-paper': {
-                        background: (t) => t.palette.background.paper,
+                        background: palette.background.paper,
                         maxWidth: 'min(100vw, 400px)',
                     },
                     '& .MuiMenu-list': {

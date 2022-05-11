@@ -4,7 +4,7 @@
  * will add it to the routine. Links are generated automatically if possible.
  * Otherwise, a popup is displayed to allow the user to manually specify which node the link should connect to.
  */
-import { Box, Stack } from '@mui/material';
+import { Box, Stack, useTheme } from '@mui/material';
 import { NodeColumn, NodeEdge } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pubs } from 'utils';
@@ -41,6 +41,8 @@ export const NodeGraph = ({
     nodesById,
     scale = 1,
 }: NodeGraphProps) => {
+    const { palette } = useTheme();
+
     // Stores edges
     const [edges, setEdges] = useState<JSX.Element[]>([])
     // Dragging a node
@@ -431,7 +433,7 @@ export const NodeGraph = ({
                 width: 'fit-content',
                 minHeight: '-webkit-fill-available',
                 // Create grid background pattern
-                '--line-color': (t) => t.palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
+                '--line-color': palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
                 '--line-thickness': `1px`,
                 '--minor-length': `${80 * scale}px`,
                 '--major-length': `${400 * scale}px`,

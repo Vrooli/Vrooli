@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { Box, LinearProgress, ListItem, ListItemButton, ListItemText, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, LinearProgress, ListItem, ListItemButton, ListItemText, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { RunListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
@@ -7,7 +7,6 @@ import { APP_LINKS, MemberRole, RunSortBy, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList } from '..';
 import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
-import { ListRoutine } from 'types';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 import { RunStatus } from 'graphql/generated/globalTypes';
 
@@ -61,6 +60,7 @@ export function RunListItem({
     onClick,
     session,
 }: RunListItemProps) {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const canEdit = useMemo<boolean>(() => data?.routine?.role ? [MemberRole.Admin, MemberRole.Owner].includes(data.routine.role) : false, [data]);
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
@@ -87,7 +87,7 @@ export function RunListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Run}/${data.routine?.id ?? ''}?run=${data.id}`);
+        else setLocation(`${APP_LINKS.Routine}/${data.routine?.id ?? ''}?run=${data.id}`);
     }, [onClick, data, setLocation]);
 
     return (
@@ -128,17 +128,17 @@ export function RunListItem({
                         {/* Bio/Description */}
                         {!loading && <ListItemText
                             primary={bio}
-                            sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
+                            sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />}
                         {/* Completed At */}
                         {completedAt && <ListItemText
                             primary={`Completed: ${completedAt}`}
-                            sx={{ ...multiLineEllipsis(1), color: (t) => t.palette.text.secondary }}
+                            sx={{ ...multiLineEllipsis(1), color: palette.text.secondary }}
                         />}
                         {/* Started At */}
                         {!completedAt && startedAt && <ListItemText
                             primary={`Started: ${startedAt}`}
-                            sx={{ ...multiLineEllipsis(1), color: (t) => t.palette.text.secondary }}
+                            sx={{ ...multiLineEllipsis(1), color: palette.text.secondary }}
                         />}
                         {/* Tags */}
                         {Array.isArray(data?.routine?.tags) && (data?.routine as any).tags.length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={(data?.routine as any).tags ?? []} /> : null}

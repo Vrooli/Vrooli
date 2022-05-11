@@ -5,7 +5,8 @@ import {
     FormControlLabel,
     IconButton,
     Tooltip,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { ChangeEvent, CSSProperties, MouseEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { RoutineListNodeProps } from '../types';
@@ -39,6 +40,8 @@ export const RoutineListNode = ({
     node,
     scale = 1,
 }: RoutineListNodeProps) => {
+    const { palette } = useTheme();
+
     // Stores position of click/touch start, to cancel click event if drag occurs
     const clickStartPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
     // Stores if touch event was a drag
@@ -280,8 +283,8 @@ export const RoutineListNode = ({
                 display: 'block',
                 borderRadius: '12px',
                 overflow: 'hidden',
-                backgroundColor: (t) => t.palette.background.paper,
-                color: (t) => t.palette.background.textPrimary,
+                backgroundColor: palette.background.paper,
+                color: palette.background.textPrimary,
                 boxShadow: '0px 0px 12px gray',
             }}
         >
@@ -304,8 +307,8 @@ export const RoutineListNode = ({
                         display: 'flex',
                         height: '48px', // Lighthouse SEO requirement
                         alignItems: 'center',
-                        backgroundColor: (t) => t.palette.mode === 'light' ? t.palette.primary.dark : t.palette.secondary.dark,
-                        color: (t) => t.palette.mode === 'light' ? t.palette.primary.contrastText : t.palette.secondary.contrastText,
+                        backgroundColor: palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark,
+                        color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
                         padding: '0.1em',
                         textAlign: 'center',
                         cursor: isEditing ? 'grab' : 'pointer',

@@ -11,8 +11,8 @@ export const formSubmit: SxProps = {
     margin: '16px auto',
 } as CSSProperties;
 
-export const formNavLink = (t: Theme): SxProps => ({
-    color: t.palette.secondary.dark,
+export const formNavLink = ({ palette }: Theme): SxProps => ({
+    color: palette.secondary.dark,
     display: 'flex',
     alignItems: 'center',
 }) as CSSProperties;

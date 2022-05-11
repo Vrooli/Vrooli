@@ -1,4 +1,4 @@
-import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material"
+import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
 import { APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
@@ -17,7 +17,7 @@ import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationSort
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
 import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
-import { ResourceList, Standard, User } from "types";
+import { ResourceList, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
 import { validate as uuidValidate } from 'uuid';
@@ -35,6 +35,7 @@ export const UserView = ({
     session,
     partialData,
 }: UserViewProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Get URL params
     const [isProfile] = useRoute(`${APP_LINKS.Profile}`);
@@ -179,7 +180,7 @@ export const UserView = ({
                     defaultSortOption: routineDefaultSortOption,
                     searchQuery: routinesQuery,
                     where: { userId: id },
-                    onSearchSelect: (newValue) => openLink(APP_LINKS.Run, newValue.id),
+                    onSearchSelect: (newValue) => openLink(APP_LINKS.Routine, newValue.id),
                 }
             case TabOptions.Standards:
                 return {
@@ -233,14 +234,14 @@ export const UserView = ({
             ml='auto'
             mr='auto'
             mt={3}
-            bgcolor={(t) => t.palette.background.paper}
+            bgcolor={palette.background.paper}
             sx={{ ...containerShadow }}
         >
             <Box
                 width={'min(100px, 25vw)'}
                 height={'min(100px, 25vw)'}
                 borderRadius='100%'
-                border={(t) => `4px solid ${t.palette.primary.dark}`}
+                border={`4px solid ${palette.primary.dark}`}
                 bgcolor='#939eb9'
                 position='absolute'
                 display='flex'
@@ -287,8 +288,8 @@ export const UserView = ({
                                     onClick={onEdit}
                                 >
                                     <EditIcon sx={{
-                                        fill: (t) => t.palette.mode === 'light' ? 
-                                            t.palette.primary.main : t.palette.secondary.light,
+                                        fill: palette.mode === 'light' ? 
+                                            palette.primary.main : palette.secondary.light,
                                     }} />
                                 </IconButton>
                             </Tooltip>
@@ -304,7 +305,7 @@ export const UserView = ({
                             variant="h6"
                             textAlign="center"
                             sx={{
-                                color: (t) => t.palette.secondary.dark,
+                                color: palette.secondary.dark,
                                 cursor: 'pointer',
                             }}
                         >${handle}</Typography>
@@ -319,7 +320,7 @@ export const UserView = ({
                     ) :
                         user?.created_at && (<Box sx={{ display: 'flex' }} >
                             <CalendarIcon />
-                            {`Joined ${displayDate(user.created_at)}`}
+                            {`Joined ${displayDate(user.created_at, false)}`}
                         </Box>)
                 }
                 {/* Description */}

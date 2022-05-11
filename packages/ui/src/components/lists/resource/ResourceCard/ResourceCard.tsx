@@ -3,7 +3,8 @@ import {
     IconButton,
     Stack,
     Tooltip,
-    Typography
+    Typography,
+    useTheme,
 } from '@mui/material';
 import { getTranslation, openLink, Pubs, ResourceType } from 'utils';
 import { useCallback, useMemo } from 'react';
@@ -53,6 +54,7 @@ export const ResourceCard = ({
     onRightClick,
     session,
 }: ResourceCardProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const { description, title } = useMemo(() => {
@@ -152,12 +154,12 @@ export const ResourceCard = ({
                     <IconButton size="small" onClick={onDelete} aria-label="close" sx={{
                         ...buttonProps,
                         right: '-15px',
-                        background: (t) => t.palette.error.main,
+                        background: palette.error.main,
                         color: 'white',
                         transition: 'brightness 0.2s ease-in-out',
                         '&:hover': {
                             filter: `brightness(105%)`,
-                            background: (t) => t.palette.error.main,
+                            background: palette.error.main,
                         },
                     } as any}>
                         <DeleteIcon />

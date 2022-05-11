@@ -5,7 +5,8 @@ import {
     FormControlLabel,
     Stack,
     Tooltip,
-    Typography
+    Typography,
+    useTheme
 } from '@mui/material';
 import { ChangeEvent, CSSProperties, useCallback, useMemo } from 'react';
 import { RoutineSubnodeProps } from '../types';
@@ -34,6 +35,8 @@ export const RoutineSubnode = ({
     handleUpdate,
     language,
 }: RoutineSubnodeProps) => {
+    const { palette } = useTheme();
+
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
@@ -106,8 +109,8 @@ export const RoutineSubnode = ({
                 marginBottom: '8px',
                 borderRadius: '12px',
                 overflow: 'overlay',
-                backgroundColor: (t) => t.palette.background.paper,
-                color: (t) => t.palette.background.textPrimary,
+                backgroundColor: palette.background.paper,
+                color: palette.background.textPrimary,
             }}
         >
             <Container
@@ -116,9 +119,9 @@ export const RoutineSubnode = ({
                     display: 'flex',
                     alignItems: 'center',
                     backgroundColor: canEdit ? 
-                        ((t) => t.palette.mode === 'light' ? t.palette.primary.dark : t.palette.secondary.dark) : 
+                        (palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark) : 
                         '#667899',
-                    color: (t) => t.palette.mode === 'light' ? t.palette.primary.contrastText : t.palette.secondary.contrastText,
+                    color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,
                     padding: '0.1em',
                     textAlign: 'center',
                     cursor: 'pointer',

@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { UserListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
@@ -30,6 +30,7 @@ export const UserListItem = ({
     onClick,
     session,
 }: UserListItemProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const isOwn = useMemo(() => data?.id == session?.id, [data, session]);
 
@@ -94,7 +95,7 @@ export const UserListItem = ({
                         />
                         <ListItemText
                             primary={bio}
-                            sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
+                            sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />
                     </Stack>
                     {

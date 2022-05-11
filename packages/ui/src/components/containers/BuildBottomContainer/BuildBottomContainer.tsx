@@ -1,4 +1,4 @@
-import { Box, Button, Dialog, IconButton, Slider, Stack, Tooltip } from '@mui/material';
+import { Box, Button, Dialog, IconButton, Slider, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
     Add as AddIcon,
@@ -12,11 +12,7 @@ import { BuildBottomContainerProps } from '../types';
 import { useLocation } from 'wouter';
 import { RunPickerDialog, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
-import { useMutation } from '@apollo/client';
-import { runCreate, runCreateVariables } from 'graphql/generated/runCreate';
-import { runCreateMutation } from 'graphql/mutation';
 import { Run } from 'types';
-import { APP_LINKS } from '@local/shared';
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
@@ -37,6 +33,7 @@ export const BuildBottomContainer = ({
     routine,
     runState,
 }: BuildBottomContainerProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const onScaleChange = useCallback((_event: any, newScale: number | number[]) => {
@@ -164,7 +161,7 @@ export const BuildBottomContainer = ({
     return (
         <Box p={2} sx={{
             alignItems: 'center',
-            background: (t) => t.palette.primary.light,
+            background: palette.primary.light,
             display: 'flex',
             justifyContent: 'center',
             paddingBottom: { xs: '72px', md: '16px' },

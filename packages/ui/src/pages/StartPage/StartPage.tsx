@@ -14,6 +14,7 @@ import {
     Stack,
     SxProps,
     Typography,
+    useTheme,
 } from '@mui/material';
 import { Forms, Pubs } from 'utils';
 import { APP_LINKS, CODE } from '@local/shared';
@@ -50,6 +51,7 @@ const buttonProps: SxProps = {
 export const StartPage = ({
     session,
 }: StartPageProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const redirect = useMemo(() => parseSearchParams(window.location.search).redirect?.replaceAll('%2F', '/'), [window.location.search]);
     const verificationCode = useMemo(() => parseSearchParams(window.location.search).code, [window.location.search]);
@@ -211,7 +213,7 @@ export const StartPage = ({
                         padding: 1,
                         paddingLeft: 2,
                         paddingRight: 2,
-                        background: (t) => t.palette.primary.dark,
+                        background: palette.primary.dark,
                         color: 'white',
                     }}
                 >
@@ -260,7 +262,7 @@ export const StartPage = ({
                         width: '100',
                         borderRadius: '4px 4px 0 0',
                         padding: 1,
-                        background: (t) => t.palette.primary.dark,
+                        background: palette.primary.dark,
                         color: 'white',
                     }}
                 >
