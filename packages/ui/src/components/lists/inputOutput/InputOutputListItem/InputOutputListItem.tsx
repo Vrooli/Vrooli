@@ -9,8 +9,9 @@ import {
     ExpandLess as ExpandLessIcon,
     ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
-import { getTranslation } from 'utils';
+import { getTranslation, updateArray } from 'utils';
 import { useFormik } from 'formik';
+import { NewObject, RoutineInput, RoutineOutput } from 'types';
 
 export const InputOutputListItem = ({
     isEditing,
@@ -27,24 +28,13 @@ export const InputOutputListItem = ({
     language,
     session,
 }: InputOutputListItemProps) => {
-
-    type Translation = {
-        language: string;
-        description: string;
-    };
+    
+    type Translation = NewObject<(RoutineInput | RoutineOutput)['translations'][0]>;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = item.translations.findIndex(t => language === t.language);
-        // If language exists, update
-        if (index >= 0) {
-            const newTranslations = [...item.translations];
-            newTranslations[index] = { ...translation } as any;
-            return newTranslations;
-        }
-        // Otherwise, add new
-        else {
-            return [...item.translations, translation];
-        }
+        // Add to array, or update if found
+        return index >= 0 ? updateArray(item.translations, index, translation) : [...item.translations, translation];
     }, [item.translations]);
 
     const formik = useFormik({

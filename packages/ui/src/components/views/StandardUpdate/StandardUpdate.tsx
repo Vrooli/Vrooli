@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { standardUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardUpdateMutation } from "graphql/mutation";
-import { formatForUpdate } from "utils";
+import { formatForUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -19,7 +19,7 @@ import { LanguageInput, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { Organization } from "types";
+import { NewObject, Organization, Standard } from "types";
 
 export const StandardUpdate = ({
     onCancel,
@@ -50,10 +50,7 @@ export const StandardUpdate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = {
-        language: string;
-        description: string;
-    };
+    type Translation = NewObject<Standard['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -61,16 +58,8 @@ export const StandardUpdate = ({
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = translations.findIndex(t => language === t.language);
-        // If language exists, update
-        if (index >= 0) {
-            const newTranslations = [...translations];
-            newTranslations[index] = { ...translation };
-            return newTranslations;
-        }
-        // Otherwise, add new
-        else {
-            return [...translations, translation];
-        }
+        // Add to array, or update if found
+        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
@@ -126,7 +115,7 @@ export const StandardUpdate = ({
             setLanguages(translations.map(t => t.language));
             formik.setValues({
                 ...formik.values,
-                description: translations[0].description,
+                description: translations[0].description ?? '',
             })
         }
     }, [formik, languages, setLanguage, setLanguages, translations])

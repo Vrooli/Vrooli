@@ -10,7 +10,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { projectUpdateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectUpdateMutation } from "graphql/mutation";
-import { formatForUpdate } from "utils";
+import { formatForUpdate, updateArray } from "utils";
 import {
     Restore as CancelIcon,
     Save as SaveIcon,
@@ -19,7 +19,7 @@ import { DialogActionItem } from "components/containers/types";
 import { TagSelectorTag } from "components/inputs/types";
 import { LanguageInput, ResourceListHorizontal, TagSelector, UserOrganizationSwitch } from "components";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
-import { ListOrganization, Project, ResourceList } from "types";
+import { ListOrganization, NewObject, Project, ResourceList } from "types";
 import { v4 as uuidv4 } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 
@@ -62,11 +62,7 @@ export const ProjectUpdate = ({
     }, [setTags]);
 
     // Handle translations
-    type Translation = {
-        language: string;
-        description: string;
-        name: string;
-    };
+    type Translation = NewObject<Project['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -74,16 +70,8 @@ export const ProjectUpdate = ({
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = translations.findIndex(t => language === t.language);
-        // If language exists, update
-        if (index >= 0) {
-            const newTranslations = [...translations];
-            newTranslations[index] = { ...translation };
-            return newTranslations;
-        }
-        // Otherwise, add new
-        else {
-            return [...translations, translation];
-        }
+        // Add to array, or update if found
+        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
@@ -149,7 +137,7 @@ export const ProjectUpdate = ({
             setLanguages(translations.map(t => t.language));
             formik.setValues({
                 ...formik.values,
-                description: translations[0].description,
+                description: translations[0].description ?? '',
                 name: translations[0].name,
             })
         }

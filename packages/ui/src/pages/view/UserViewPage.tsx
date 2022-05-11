@@ -12,7 +12,7 @@ export const UserViewPage = ({
             minHeight: '100vh',
             paddingTop: '64px',
             [breakpoints.up('md')]: {
-                paddingTop: '10vh',
+                paddingTop: '8vh',
                 minHeight: '88vh',
             },
         }}>

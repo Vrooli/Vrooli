@@ -9,12 +9,13 @@ import { ResourceDialogProps } from '../types';
 import {
     Close as CloseIcon
 } from '@mui/icons-material';
-import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs } from 'utils';
+import { formatForCreate, formatForUpdate, getTranslation, getUserLanguages, Pubs, updateArray } from 'utils';
 import { resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdate } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useState } from 'react';
 import { LanguageInput } from 'components/inputs';
+import { NewObject, Resource } from 'types';
 
 const helpText =
     `## What are resources?
@@ -67,11 +68,7 @@ export const ResourceDialog = ({
     const [updateMutation, { loading: updateLoading }] = useMutation<resourceUpdate>(resourceUpdateMutation);
 
     // Handle translations
-    type Translation = {
-        language: string;
-        description: string;
-        title: string;
-    };
+    type Translation = NewObject<Resource['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -79,16 +76,8 @@ export const ResourceDialog = ({
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = translations.findIndex(t => language === t.language);
-        // If language exists, update
-        if (index >= 0) {
-            const newTranslations = [...translations];
-            newTranslations[index] = { ...translation };
-            return newTranslations;
-        }
-        // Otherwise, add new
-        else {
-            return [...translations, translation];
-        }
+        // Add to array, or update if found
+        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));

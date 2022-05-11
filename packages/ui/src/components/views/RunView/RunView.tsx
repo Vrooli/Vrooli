@@ -434,7 +434,7 @@ export const RunView = ({
             }
         }
         return null;
-    }, []); 
+    }, []);
 
     /**
      * Navigate to selected decision
@@ -534,7 +534,9 @@ export const RunView = ({
                 </Stack>
                 {/* Main content. For now, either looks like view of a basic routine, or options to select an edge */}
                 <Box sx={{
-                    background: 'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)',
+                    background: palette.mode === 'light' ?
+                        'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)' :
+                        'fixed radial-gradient(circle, rgba(17,18,19,1) 0%, rgba(0,0,0,1) 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

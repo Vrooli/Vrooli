@@ -112,7 +112,7 @@ export const BuildInfoContainer = ({
                 color: palette.primary.contrastText,
                 paddingTop: '64px',
                 [breakpoints.up('md')]: {
-                    paddingTop: '10vh',
+                    paddingTop: '8vh',
                 },
             }}
         >

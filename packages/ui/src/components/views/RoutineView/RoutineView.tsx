@@ -97,9 +97,9 @@ export const RoutineView = ({
     const ownedBy = useMemo<string | null>(() => getOwnedByString(routine, [language]), [routine, language]);
     const toOwner = useCallback(() => { toOwnedBy(routine, setLocation) }, [routine, setLocation]);
 
-    const viewGraph = () => {
+    const viewGraph = useCallback(() => {
         setLocation(`${APP_LINKS.Build}/${routine?.id}`);
-    }
+    }, [routine?.id, setLocation]);
 
     const [runComplete] = useMutation<runComplete>(runCompleteMutation);
     const markAsComplete = useCallback(() => {

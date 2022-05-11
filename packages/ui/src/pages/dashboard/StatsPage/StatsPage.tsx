@@ -23,7 +23,7 @@ export const StatsPage = () => {
             padding: '0.5em',
             paddingTop: '64px',
             [breakpoints.up('md')]: {
-                paddingTop: '10vh',
+                paddingTop: '8vh',
             },
         }}>
             <Tabs

@@ -36,6 +36,7 @@ export const ContactInfo = ({
                     alignItems: 'baseline',
                     background: 'transparent',
                     height: 'fit-content',
+                    padding: 1,
                 }}>
                 {contactInfo.map(([tooltip, label, link, Icon], index: number) => (
                     <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
@@ -44,7 +45,7 @@ export const ContactInfo = ({
                             onClick={(e) => openLink(e, link)}
                             icon={
                                 <IconButton sx={{ background: palette.secondary.main }}>
-                                    <Icon fill="#1e581f" />
+                                    <Icon fill={palette.secondary.contrastText} />
                                 </IconButton>
                             }
                             sx={{

@@ -124,8 +124,8 @@ export const BuildPage = ({
 
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
-    const openDelete = () => setDeleteOpen(true);
-    const closeDelete = () => setDeleteOpen(false);
+    const openDelete = useCallback(() => setDeleteOpen(true), []);
+    const closeDelete = useCallback(() => setDeleteOpen(false), []);
 
     /**
      * Hacky way to display dragging nodes over over elements. Disables z-index when dragging

@@ -81,7 +81,7 @@ export const LearnPage = ({
             padding: '0.5em',
             paddingTop: '64px',
             [breakpoints.up('md')]: {
-                paddingTop: '10vh',
+                paddingTop: '8vh',
             },
         }}>
             {/* Title and help button */}

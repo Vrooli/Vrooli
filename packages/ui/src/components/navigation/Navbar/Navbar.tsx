@@ -44,7 +44,7 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
     [theme.breakpoints.up('md')]: {
         root: {
-            height: '10vh',
+            height: '8vh',
         },
         navLogo: {
             width: '6vh',

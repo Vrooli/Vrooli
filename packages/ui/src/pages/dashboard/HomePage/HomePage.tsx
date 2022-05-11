@@ -389,7 +389,7 @@ export const HomePage = ({
             padding: '0.5em',
             paddingTop: '64px',
             [breakpoints.up('md')]: {
-                paddingTop: '10vh',
+                paddingTop: '8vh',
             },
         }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}

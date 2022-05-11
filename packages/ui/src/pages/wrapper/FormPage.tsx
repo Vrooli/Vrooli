@@ -20,7 +20,7 @@ export const FormPage = ({
             maxWidth: maxWidth,
             [breakpoints.up('md')]: {
                 padding: '0.5em',
-                paddingTop: '10vh',
+                paddingTop: '8vh',
             },
             [breakpoints.down("sm")]: {
                 padding: '0',

@@ -6,7 +6,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { APP_LINKS, profileUpdateSchema as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { formatForUpdate, getUserLanguages, Pubs } from "utils";
+import { formatForUpdate, getUserLanguages, Pubs, updateArray } from "utils";
 import {
     Refresh as RefreshIcon,
     Restore as CancelIcon,
@@ -20,6 +20,7 @@ import { LanguageInput } from "components/inputs";
 import { HelpButton } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
+import { NewObject, Profile } from "types";
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -68,10 +69,7 @@ export const SettingsProfile = ({
     }, [profile]);
 
     // Handle translations
-    type Translation = {
-        language: string;
-        bio: string;
-    };
+    type Translation = NewObject<Profile['translations'][0]>;
     const [translations, setTranslations] = useState<Translation[]>([]);
     const deleteTranslation = useCallback((language: string) => {
         setTranslations([...translations.filter(t => t.language !== language)]);
@@ -79,16 +77,8 @@ export const SettingsProfile = ({
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
         const index = translations.findIndex(t => language === t.language);
-        // If language exists, update
-        if (index >= 0) {
-            const newTranslations = [...translations];
-            newTranslations[index] = { ...translation };
-            return newTranslations;
-        }
-        // Otherwise, add new
-        else {
-            return [...translations, translation];
-        }
+        // Add to array, or update if found
+        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
     }, [translations]);
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
@@ -128,27 +118,30 @@ export const SettingsProfile = ({
             language: t.language,
             bio: t.bio ?? '',
         })) ?? [{ language: getUserLanguages(session)[0], bio: '' }]);
-        formik.setValues({
-            ...formik.values,
-            name: profile?.name ?? '',
-        })
-    }, [formik, profile, session]);
+    }, [profile?.translations, session])
 
     // Handle languages
     const [language, setLanguage] = useState<string>('');
     const [languages, setLanguages] = useState<string[]>([]);
     useEffect(() => {
+        console.log('loop potential a', languages, translations)
         if (languages.length === 0) {
             if (translations.length > 0) {
+                console.log('setting languages from translations')
                 setLanguage(translations[0].language);
                 setLanguages(translations.map(t => t.language));
                 formik.setValues({
                     ...formik.values,
-                    bio: translations[0].bio,
+                    bio: translations[0].bio ?? '',
                 })
             } else {
-                setLanguage(getUserLanguages(session)[0]);
-                setLanguages([getUserLanguages(session)[0]]);
+                const userLanguages = getUserLanguages(session);
+                // Check if userLanguages is the same as languages
+                if (userLanguages.length > 0 && JSON.stringify(userLanguages) !== JSON.stringify(languages)) {
+                    console.log('setting user languages', userLanguages, languages, JSON.stringify(userLanguages) !== JSON.stringify(languages))
+                    setLanguage(userLanguages[0]);
+                    setLanguages(userLanguages);
+                }
             }
         }
     }, [formik, languages, session, setLanguage, setLanguages, translations])
@@ -176,6 +169,7 @@ export const SettingsProfile = ({
         });
     }, [formik, translations]);
     const handleLanguageSelect = useCallback((newLanguage: string) => {
+        console.log('language select', newLanguage)
         // Update old select
         updateTranslation(language, {
             language,
@@ -187,10 +181,12 @@ export const SettingsProfile = ({
         setLanguage(newLanguage);
     }, [updateTranslation, language, formik.values.bio, updateFormikTranslation]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
+        console.log('language add', newLanguage)
         setLanguages([...languages, newLanguage]);
         handleLanguageSelect(newLanguage);
     }, [handleLanguageSelect, languages, setLanguages]);
     const handleLanguageDelete = useCallback((language: string) => {
+        console.log('language delete', language)
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         deleteTranslation(language);

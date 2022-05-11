@@ -55,6 +55,10 @@ export const SettingsAuthentication = ({
     }, [logOut, setLocation]);
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
+        if (!profile) {
+            PubSub.publish(Pubs.Snack, { mesage: 'Profile not loaded.', severity: 'error' });
+            return;
+        }
         onUpdated({
             ...profile,
             wallets: updatedList,
@@ -63,6 +67,10 @@ export const SettingsAuthentication = ({
     const numVerifiedEmails = profile?.emails?.filter((email) => email.verified)?.length ?? 0;
 
     const updateEmails = useCallback((updatedList: Email[]) => {
+        if (!profile) {
+            PubSub.publish(Pubs.Snack, { mesage: 'Profile not loaded.', severity: 'error' });
+            return;
+        }
         onUpdated({
             ...profile,
             emails: updatedList,

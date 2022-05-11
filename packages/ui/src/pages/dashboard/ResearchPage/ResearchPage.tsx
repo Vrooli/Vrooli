@@ -109,7 +109,7 @@ export const ResearchPage = ({
     const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         getProfile();
-    }, [updateResources]);
+    }, [getProfile]);
 
     const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery);
 
@@ -172,7 +172,7 @@ export const ResearchPage = ({
             padding: '0.5em',
             paddingTop: '64px',
             [breakpoints.up('md')]: {
-                paddingTop: '10vh',
+                paddingTop: '8vh',
             },
         }}>
             {/* Title and help button */}
