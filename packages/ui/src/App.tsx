@@ -38,7 +38,6 @@ const useStyles = makeStyles(() => ({
         '#page': {
             minWidth: '100vw',
             minHeight: '100vh',
-            padding: '0.5em',
         },
         '@media (min-width:500px)': {
             '#page': {

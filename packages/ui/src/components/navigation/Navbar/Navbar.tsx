@@ -11,7 +11,7 @@ import { HideOnScroll } from '..';
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
         background: theme.palette.primary.dark,
-        height: '10vh',
+        height: '64px',
     },
     toRight: {
         marginLeft: 'auto',
@@ -32,10 +32,8 @@ const useStyles = makeStyles((theme: Theme) => ({
         verticalAlign: 'middle',
         fill: 'black',
         marginLeft: 'max(-5px, -5vw)',
-        minWidth: '50px',
-        minHeight: '50px',
-        width: '6vh',
-        height: '6vh',
+        width: '48px',
+        height: '48px',
     },
     navName: {
         position: 'relative',
@@ -43,6 +41,15 @@ const useStyles = makeStyles((theme: Theme) => ({
         fontSize: '3.5em',
         fontFamily: `Lato`,
         color: theme.palette.primary.contrastText,
+    },
+    [theme.breakpoints.up('md')]: {
+        root: {
+            height: '10vh',
+        },
+        navLogo: {
+            width: '6vh',
+            height: '6vh',
+        }
     },
 }));
 
@@ -53,21 +60,11 @@ export const Navbar = ({
     const classes = useStyles();
     const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
-    const [show, setShow] = useState(false); // Not shown on mobile
-
-    useEffect(() => {
-        updateWindowDimensions();
-        window.addEventListener("resize", updateWindowDimensions);
-
-        return () => window.removeEventListener("resize", updateWindowDimensions);
-    }, []);
-
-    const updateWindowDimensions = () => setShow(window.innerWidth >= breakpoints.values.md);
 
     const toHome = useCallback(() => setLocation(APP_LINKS.Home), [setLocation]);
 
     return (
-        show ? <HideOnScroll>
+        <HideOnScroll>
             <AppBar className={classes.root}>
                 <Toolbar>
                     <div className={classes.navLogoContainer} onClick={toHome}>
@@ -81,6 +78,6 @@ export const Navbar = ({
                     </div>
                 </Toolbar>
             </AppBar>
-        </HideOnScroll> : null
+        </HideOnScroll>
     );
 }

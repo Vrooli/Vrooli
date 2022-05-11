@@ -20,11 +20,12 @@ export const FormPage = ({
         <Box id='page' sx={{
             maxWidth: maxWidth,
             [breakpoints.up('md')]: {
+                padding: '0.5em',
                 paddingTop: '10vh',
             },
             [breakpoints.down("sm")]: {
                 padding: '0',
-                paddingTop: 'calc(14vh + 20px)',
+                paddingTop: '64px',
             },
         }}>
             <Box sx={{

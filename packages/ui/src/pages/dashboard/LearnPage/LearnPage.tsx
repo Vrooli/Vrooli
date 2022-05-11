@@ -80,6 +80,8 @@ export const LearnPage = ({
 
     return (
         <Box id='page' sx={{
+            padding: '0.5em',
+            paddingTop: '64px',
             [breakpoints.up('md')]: {
                 paddingTop: '10vh',
             },

@@ -48,6 +48,7 @@ export const WelcomePage = () => {
                 backgroundSize: '400% 400%',
                 animation: 'gradient 15s ease infinite',
                 overflowX: 'hidden',
+                paddingTop: '64px',
                 [breakpoints.up('md')]: {
                     paddingTop: '10vh',
                 },

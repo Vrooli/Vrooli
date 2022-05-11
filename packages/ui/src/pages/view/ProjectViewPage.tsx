@@ -45,6 +45,7 @@ export const ProjectViewPage = ({
     return (
         <Box sx={{
             minHeight: '100vh',
+            paddingTop: '64px',
             [breakpoints.up('md')]: {
                 paddingTop: '10vh',
                 minHeight: '88vh',

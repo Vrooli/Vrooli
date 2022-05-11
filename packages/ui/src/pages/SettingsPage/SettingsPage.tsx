@@ -103,6 +103,8 @@ export function SettingsPage({
             display: 'flex', 
             justifyContent: 'center', 
             alignItems: 'center',
+            padding: '0.5em',
+            paddingTop: '64px',
             [breakpoints.up('md')]: {
                 paddingTop: '10vh',
             },
