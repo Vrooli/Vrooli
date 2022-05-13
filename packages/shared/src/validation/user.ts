@@ -1,6 +1,7 @@
 import { idArray, id, language, bio, name, handle } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
+import { tagHiddensCreate, tagHiddensUpdate } from './tagHidden';
 
 export const theme = yup.string().max(128);
 
@@ -45,12 +46,12 @@ export const profileUpdateSchema = yup.object().shape({
     name: name.notRequired().default(undefined),
     handle: handle.notRequired().default(undefined),
     theme: theme.notRequired().default(undefined),
-    starredTagsCreate: tagsCreate.notRequired().default(undefined),
     starredTagsConnect: idArray.notRequired().default(undefined),
     starredTagsDisconnect: idArray.notRequired().default(undefined),
-    hiddenTagsCreate: tagsCreate.notRequired().default(undefined),
-    hiddenTagsConnect: idArray.notRequired().default(undefined),
-    hiddenTagsDisconnect: idArray.notRequired().default(undefined),
+    starredTagsCreate: tagsCreate.notRequired().default(undefined),
+    hiddenTagsDelete: idArray.notRequired().default(undefined),
+    hiddenTagsCreate: tagHiddensCreate.notRequired().default(undefined),
+    hiddenTagsUpdate: tagHiddensUpdate.notRequired().default(undefined),
     // Don't apply validation to current password. If you change password requirements, users would be unable to change their password. 
     // Also only require current password when changing new password
     currentPassword: yup.string().max(128).when('newPassword', {

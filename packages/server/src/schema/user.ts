@@ -88,9 +88,9 @@ export const typeDef = gql`
         handle: String
         name: String
         theme: String
-        hiddenTagsConnect: [ID!]
-        hiddenTagsDisconnect: [ID!]
-        hiddenTagsCreate: [TagCreateInput!]
+        hiddenTagsDelete: [ID!]
+        hiddenTagsCreate: [TagHiddenCreateInput!]
+        hiddenTagsUpdate: [TagHiddenUpdateInput!]
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceCreateInput!]
         resourceListsUpdate: [ResourceUpdateInput!]

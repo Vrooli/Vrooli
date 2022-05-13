@@ -1,4 +1,4 @@
-import { CODE, MemberRole, projectCreate, projectTranslationCreate, projectTranslationUpdate, projectUpdate, StarFor, ViewFor, VoteFor } from "@local/shared";
+import { CODE, MemberRole, projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectSortBy, Count, ResourceListUsedFor } from "../../schema/types";
@@ -174,8 +174,8 @@ export const projectMutater = (prisma: PrismaType) => ({
         // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
         const organizationIds: (string | null | undefined)[] = [];
         if (createMany) {
-            createMany.forEach(input => projectCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            projectsCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany);
             createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['description'], CODE.LineBreaksDescription));
             // Add createdByOrganizationIds to organizationIds array, if they are set
             organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id))
@@ -193,6 +193,8 @@ export const projectMutater = (prisma: PrismaType) => ({
             }
         }
         if (updateMany) {
+            projectsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data));
             // Add new organizationIds to organizationIds array, if they are set
             organizationIds.push(...updateMany.map(input => input.data.organizationId).filter(id => id))
             // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
@@ -203,8 +205,6 @@ export const projectMutater = (prisma: PrismaType) => ({
             organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
             for (const input of updateMany) {
                 await WalletModel(prisma).verifyHandle(GraphQLModelType.Project, input.where.id, input.data.handle);
-                projectUpdate.validateSync(input.data, { abortEarly: false });
-                TranslationModel().profanityCheck(input.data);
                 TranslationModel().validateLineBreaks(input.data, ['description'], CODE.LineBreaksDescription);
             }
         }

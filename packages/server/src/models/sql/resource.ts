@@ -1,4 +1,4 @@
-import { CODE, resourceCreate, resourceUpdate } from "@local/shared";
+import { CODE, resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@local/shared";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count, MemberRole } from "../../schema/types";
 import { PrismaType } from "types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
@@ -194,14 +194,14 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0087') });
         if (createMany) {
-            createMany.forEach(input => resourceCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            resourcesCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany);
             await this.authorizedAdd(userId as string, createMany, prisma);
             // Check for max resources on object TODO
         }
         if (updateMany) {
-            updateMany.forEach(input => resourceUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
+            resourcesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data));
             await this.authorizedUpdateOrDelete(userId as string, updateMany.map(u => u.where.id), prisma);
         }
     },

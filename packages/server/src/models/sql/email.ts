@@ -1,9 +1,9 @@
-import { CODE, emailCreate, emailUpdate } from "@local/shared";
+import { CODE, emailsCreate, emailsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../../schema/types";
 import { PrismaType } from "types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
-import { hasProfanity } from "../../utils/censor";
+import { validateProfanity } from "../../utils/censor";
 import { profileValidater } from "./profile";
 import { genErrorCode } from "../../logger";
 
@@ -19,13 +19,12 @@ export const emailFormatter = (): FormatConverter<Email> => ({
 })
 
 export const emailVerifier = () => ({
-    profanityCheck(data: EmailCreateInput): void {
-        if (hasProfanity(data.emailAddress)) 
-            throw new CustomError(CODE.BannedWord, 'Email address contains banned word', { code: genErrorCode('0042') });
+    profanityCheck(data: EmailCreateInput[]): void {
+        validateProfanity(data.map(d => d.emailAddress));
     },
 })
 
-export const emailMutater = (prisma: PrismaType, verifier: any) => ({
+export const emailMutater = (prisma: PrismaType, verifier: ReturnType<typeof emailVerifier>) => ({
     async relationshipBuilder(
         userId: string | null,
         input: { [x: string]: any },
@@ -52,21 +51,17 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
         if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0043') });
         if (createMany) {
+            emailsCreate.validateSync(createMany, { abortEarly: false });
+            verifier.profanityCheck(createMany);
             // Make sure emails aren't already in use
             const emails = await prisma.email.findMany({
                 where: { emailAddress: { in: createMany.map(email => email.emailAddress) } },
             });
             if (emails.length > 0) 
                 throw new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0044') });
-            // Perform other checks
-            for (const email of createMany) {
-                // Check for valid arguments
-                emailCreate.validateSync(email, { abortEarly: false });
-                // Check for censored words
-                verifier.profanityCheck(email as EmailCreateInput);
-            }
         }
         if (updateMany) {
+            emailsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             // Make sure emails are owned by user
             const emails = await prisma.email.findMany({
                 where: {
@@ -78,10 +73,6 @@ export const emailMutater = (prisma: PrismaType, verifier: any) => ({
             });
             if (emails.length !== updateMany.length) 
                 throw new CustomError(CODE.EmailInUse, 'At least one of these emails is not yours', { code: genErrorCode('0045') });
-            for (const email of updateMany) {
-                // Check for valid arguments
-                emailUpdate.validateSync(email.data, { abortEarly: false });
-            }
         }
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<EmailCreateInput, EmailUpdateInput>): Promise<CUDResult<Email>> {

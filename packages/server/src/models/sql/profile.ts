@@ -1,9 +1,9 @@
 import { PrismaType, RecursivePartial } from "types";
-import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, TagSearchInput, User, UserDeleteInput } from "../../schema/types";
+import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagCreateInput, TagHidden, TagSearchInput, User, UserDeleteInput } from "../../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
-import { addJoinTablesHelper, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, PaginatedSearchResult, readManyHelper, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialSelect } from "./base";
+import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, padSelect, PaginatedSearchResult, PartialInfo, readManyHelper, readOneHelper, relationshipToPrisma, removeJoinTablesHelper, selectHelper, toPartialSelect } from "./base";
 import { user } from "@prisma/client";
-import { CODE, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
+import { CODE, profileUpdateSchema, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import bcrypt from 'bcrypt';
 import { hasProfanity } from "../../utils/censor";
@@ -13,6 +13,8 @@ import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
+import { ResourceListModel } from "./resourceList";
+import { TagHiddenModel } from "./tagHidden";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -20,6 +22,18 @@ const HASHING_ROUNDS = 8;
 const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 3;
 const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 10;
 const SOFT_LOCKOUT_DURATION = 15 * 60 * 1000;
+
+const tagSelect = {
+    id: true,
+    created_at: true,
+    tag: true,
+    stars: true,
+    translations: {
+        id: true,
+        language: true,
+        description: true,
+    }
+}
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
 export const profileFormatter = (): FormatConverter<User> => ({
@@ -101,7 +115,7 @@ export const profileValidater = () => ({
             [AccountStatus.SoftLocked]: CODE.SoftLockout,
             [AccountStatus.HardLocked]: CODE.HardLockout
         }
-        if (user.status in status_to_code) 
+        if (user.status in status_to_code)
             throw new CustomError(status_to_code[user.status], 'Account is locked or deleted', { code: genErrorCode('0059'), status: user.status });
         // Validate plaintext password against hash
         return bcrypt.compareSync(plaintext, user.password)
@@ -125,7 +139,7 @@ export const profileValidater = () => ({
             });
         }
         // If account is deleted or hard-locked, throw error
-        if (unable_to_reset.includes(user.status)) 
+        if (unable_to_reset.includes(user.status))
             throw new CustomError(CODE.BadCredentials, 'Account is locked. Please contact us for assistance', { code: genErrorCode('0060'), status: user.status });
         // If password is valid
         if (this.validatePassword(password, user)) {
@@ -192,7 +206,7 @@ export const profileValidater = () => ({
             select: { userId: true }
         })
         // If email is not associated with a user, throw error
-        if (!email.userId) 
+        if (!email.userId)
             throw new CustomError(CODE.ErrorUnknown, 'Email not associated with a user', { code: genErrorCode('0061') });
         // Send new verification email
         sendVerificationLink(emailAddress, email.userId, verificationCode);
@@ -218,10 +232,10 @@ export const profileValidater = () => ({
                 lastVerificationCodeRequestAttempt: true
             }
         })
-        if (!email) 
+        if (!email)
             throw new CustomError(CODE.EmailNotVerified, 'Email not found', { code: genErrorCode('0062') });
         // Check that userId matches email's userId
-        if (email.userId !== userId) 
+        if (email.userId !== userId)
             throw new CustomError(CODE.EmailNotVerified, 'Email does not belong to user', { code: genErrorCode('0063') });
         // If email already verified, remove old verification code
         if (email.verified) {
@@ -237,11 +251,11 @@ export const profileValidater = () => ({
             if (this.validateCode(code, email.verificationCode, email.lastVerificationCodeRequestAttempt)) {
                 await prisma.email.update({
                     where: { id: email.id },
-                    data: { 
-                        verified: true, 
+                    data: {
+                        verified: true,
                         lastVerifiedTime: new Date().toISOString(),
-                        verificationCode: null, 
-                        lastVerificationCodeRequestAttempt: null 
+                        verificationCode: null,
+                        lastVerificationCodeRequestAttempt: null
                     }
                 })
                 return true;
@@ -261,7 +275,7 @@ export const profileValidater = () => ({
      * @returns Session object
      */
     async toSession(user: RecursivePartial<user>, prisma: PrismaType): Promise<Session> {
-        if (!user.id) 
+        if (!user.id)
             throw new CustomError(CODE.ErrorUnknown, 'User ID not found', { code: genErrorCode('0064') });
         // Update user's lastSessionVerified
         await prisma.user.update({
@@ -310,83 +324,78 @@ const profileQuerier = (prisma: PrismaType) => ({
         userId: string,
         info: InfoType,
     ): Promise<RecursivePartial<Profile> | null> {
+        const partial = toPartialSelect(info, profileFormatter().relationshipMap);
+        if (!partial)
+            throw new CustomError(CODE.InternalError, 'Could not convert info to partial select.', { code: genErrorCode('0190') });
+        // Query profile data and tags
         const profileData = await readOneHelper<Profile>(userId, { id: userId }, info, ProfileModel(prisma) as any);
-        const starFields = {
-            id: true,
-            created_at: true,
-            isStarred: true,
-            tag: true,
-            stars: true,
-            translations: {
-                id: true,
-                language: true,
-                description: true,
-            },
+        const { starredTags, hiddenTags } = await this.myTags(userId, partial);
+        // Format for GraphQL
+        let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
+        // Return with supplementalfields added
+        const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
+        return {
+            ...data,
+            starredTags,
+            hiddenTags
         }
-        // Query starred tags
-        const starredTagIds = (await prisma.star.findMany({
-            where: {
-                AND: [
-                    { byId: userId },
-                    { NOT: { tagId: null } }
-                ]
-            },
-            select: { tagId: true }
-        })).filter((star: any) => star.tagId).map((star: any) => star.tagId);
-        const starredTags = (await readManyHelper(userId, { ids: starredTagIds, take: 200 }, starFields, TagModel(prisma)))
-            .edges.map((edge: any) => edge.node);
-        // Query hidden tags
-        const hiddenData = (await prisma.user_tag_hidden.findMany({
-            where: { userId },
-            select: {
-                id: true,
-                tagId: true,
-                isBlur: true,
-            }
-        }));
-        const hiddenTagIds = hiddenData.map((hidden: any) => hidden.tagId);
-        const hiddenTags = (await readManyHelper(userId, { ids: hiddenTagIds, take: 200 }, starFields, TagModel(prisma)))
-            .edges.map((edge: any) => {
-                // Combine tags with hidden data
-                const extraData = hiddenData.find((hidden: any) => hidden.tagId === edge.node.id);
-                return {
-                    id: extraData?.id ?? '',
-                    isBlur: extraData?.isBlur ?? false,
-                    tagId: extraData?.tagId ?? '',
-                    tag: edge.node,
-                }
-            })
-        return { ...profileData, starredTags, hiddenTags };
     },
     /**
      * Custom search for finding tags you have starred/hidden
      */
     async myTags(
-        where: { [x: string]: any },
-        userId: string | null,
-        input: TagSearchInput,
-        info: InfoType,
-    ): Promise<PaginatedSearchResult> {
-        // If myId or hidden specified, limit results.
-        let idsLimit: string[] | undefined = undefined;
-        // Looking for tags the requesting user has starred
-        if (userId && input.myTags) {
-            idsLimit = (await prisma.star.findMany({
+        userId: string,
+        partial: PartialInfo,
+    ): Promise<{ starredTags: Tag[], hiddenTags: TagHidden[] }> {
+        console.log('MY TAGS STARTTTT', JSON.stringify(partial), '\n\n')
+        let starredTags: Tag[] = [];
+        let hiddenTags: any[] = [];
+        if (partial.starredTags) {
+            // Query starred tags
+            const data = (await prisma.star.findMany({
                 where: {
                     AND: [
                         { byId: userId },
                         { NOT: { tagId: null } }
                     ]
+                },
+                select: { tag: padSelect(tagSelect) }
+            })).map((star: any) => star.tag)
+            console.log('starred tags data', JSON.stringify(data), '\n\n');
+            // Format for GraphQL
+            const formatted: any[] = data.map(d => modelToGraphQL(d, partial.starredTags as PartialInfo));
+            console.log('starred tags formatted. ', JSON.stringify(formatted), '\n\n');
+            // Return with supplementalfields added
+            starredTags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted, partial.starredTags as PartialInfo) as Tag[];
+            // starredTags = (await addSupplementalFields(prisma, userId, formatted, partial.starredTags as PartialInfo)) as Tag[];
+            console.log('starred tags suppled', JSON.stringify(starredTags), '\n\n');
+        }
+        if (partial.hiddenTags) {
+            // Query hidden tags
+            const data = (await prisma.user_tag_hidden.findMany({
+                where: { userId },
+                select: {
+                    id: true,
+                    isBlur: true,
+                    tag: padSelect(tagSelect)
                 }
-            })).map(s => s.tagId).filter(s => s !== null) as string[];
+            }));
+            console.log('hidden tags data', JSON.stringify(data), '\n\n');
+            // Format for GraphQL
+            const formatted: any[] = data.map(d => modelToGraphQL(d, partial.hiddenTags as PartialInfo));
+            console.log('hidden tags formatted', JSON.stringify(formatted), '\n\n');
+            // Call addsupplementalFields on tags of hidden data
+            const tags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted.map(f => f.tag), partial.hiddenTags as PartialInfo) as Tag[];
+            console.log('hidden tags suppled a', JSON.stringify(tags), '\n\n');
+            // const tags = (await addSupplementalFields(prisma, userId, formatted.map(f => f.tag), partial.hiddenTags as PartialInfo)) as Tag[];
+            hiddenTags = data.map((d: any) => ({
+                id: d.id,
+                isBlur: d.isBlur,
+                tag: tags.find(t => t.id === d.tag.id)
+            }))
+            console.log('hidden tags suppled bbbbb', JSON.stringify(hiddenTags), '\n\n');
         }
-        // Looking for tags the requesting user has hidden
-        else if (userId && input.hidden) {
-            idsLimit = (await prisma.user_tag_hidden.findMany({
-                where: { userId }
-            })).map(s => s.tagId).filter(s => s !== null) as string[]
-        }
-        return await readManyHelper(userId, { ...input, ids: idsLimit }, info, TagModel(prisma))
+        return { starredTags, hiddenTags };
     },
 })
 
@@ -396,42 +405,79 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         input: ProfileUpdateInput,
         info: InfoType,
     ): Promise<RecursivePartial<Profile>> {
+        console.log('update profile startttttt', JSON.stringify(input), '\n\n')
+        profileUpdateSchema.validateSync(input, { abortEarly: false });
         await WalletModel(prisma).verifyHandle(GraphQLModelType.User, userId, input.handle);
-        if (hasProfanity(input.name)) 
+        if (hasProfanity(input.name))
             throw new CustomError(CODE.BannedWord, 'User name contains banned word', { code: genErrorCode('0066') });
-        TranslationModel().profanityCheck(input);
+        TranslationModel().profanityCheck([input]);
         TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio)
         // Convert info to partial select
         const partial = toPartialSelect(info, formatter.relationshipMap);
-        if (!partial) 
+        if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0067') });
-        // Create user data
+        // Handle starred tags
+        const tagsToCreate: TagCreateInput[] = [];
+        const tagsToConnect: string[] = [];
+        if (input.starredTagsConnect) {
+            // Check if tags exist
+            const tags = await prisma.tag.findMany({
+                where: { id: { in: input.starredTagsConnect } },
+            })
+            // Add existing tags to tagsToConnect
+            tagsToConnect.push(...tags.map(tag => tag.id));
+        }
+        if (input.starredTagsCreate) {
+            // Check if tags exist
+            const tags = await prisma.tag.findMany({
+                where: { tag: { in: input.starredTagsCreate.map(c => c.tag) } },
+            })
+            // Add existing tags to tagsToConnect
+            tagsToConnect.push(...tags.map(tag => tag.id));
+            // Add new tags to tagsToCreate
+            const newTags = input.starredTagsCreate.filter(c => !tags.find(tag => tag.tag === c.tag));
+            tagsToCreate.push(...newTags);
+        }
+        // Create new tags
+        const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel(prisma).toDBShape(userId, tag)));
+        const createdTags = await prisma.$transaction(
+            createTagsData.map((data) => prisma.tag.create({ data })),
+        );
+        // Combine connect IDs and created IDs
+        const tagIds = [...tagsToConnect, ...createdTags.map(t => t.id)];
+        // Convert tagIds to star creates
+        const starredCreate = tagIds.map(tagId => ({ tagId }));
+        // Convert starredTagsDisconnect to star deletes
+        const starredDelete = input.starredTagsDisconnect?.map(tagId => ({ id: tagId }));
+        //Create user data
         let userData: { [x: string]: any } = {
             handle: input.handle,
             name: input.name,
             theme: input.theme,
-            // hiddenTags: await TagModel(prisma).relationshipBuilder(userId, {
-            //     id: userId,
-            //     tagsCreate: input.hiddenTagsCreate,
-            //     tagsConnect: input.hiddenTagsConnect,
-            //     tagsDisconnect: input.hiddenTagsDisconnect,
-            // }, GraphQLModelType.User), //TODO will break because there needs to be a model between the user and tags
-            // resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
-            // starred: await TagModel(prisma).relationshipBuilder(userId, {
-            //     id: userId,
-            //     tagsCreate: input.starredTagsCreate,
-            //     tagsConnect: input.starredTagsConnect,
-            //     tagsDisconnect: input.starredTagsDisconnect,
-            // }, GraphQLModelType.User),
+            hiddenTags: await TagHiddenModel(prisma).relationshipBuilder(userId, input, false),
+            resourceLists: await ResourceListModel(prisma).relationshipBuilder(userId, input, false),
+            starred: {
+                create: starredCreate,
+                delete: starredDelete,
+            },
             translations: TranslationModel().relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
         };
         // Update user
-        const user = await prisma.user.update({
+        const profileData = await prisma.user.update({
             where: { id: userId },
             data: userData,
             ...selectHelper(partial)
         });
-        return modelToGraphQL(user, partial);
+        const { starredTags, hiddenTags } = await profileQuerier(prisma).myTags(userId, partial);
+        // Format for GraphQL
+        let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
+        // Return with supplementalfields added
+        const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
+        return {
+            ...data,
+            starredTags,
+            hiddenTags
+        }
     },
     async updateEmails(
         userId: string,
@@ -440,13 +486,13 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
     ): Promise<RecursivePartial<Profile>> {
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) 
+        if (!user)
             throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0068') });
-        if (!validater.validatePassword(input.currentPassword, user)) 
+        if (!validater.validatePassword(input.currentPassword, user))
             throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0069') });
         // Convert input to partial select
         const partial = toPartialSelect(info, formatter.relationshipMap);
-        if (!partial) 
+        if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0070') });
         // Create user data
         let userData: { [x: string]: any } = {
@@ -470,9 +516,9 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
     async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) 
+        if (!user)
             throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0071') });
-        if (!validater.validatePassword(input.password, user)) 
+        if (!validater.validatePassword(input.password, user))
             throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0072') });
         await prisma.user.delete({
             where: { id: userId }

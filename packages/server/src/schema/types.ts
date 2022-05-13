@@ -1227,9 +1227,9 @@ export type ProfileEmailUpdateInput = {
 
 export type ProfileUpdateInput = {
   handle?: InputMaybe<Scalars['String']>;
-  hiddenTagsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  hiddenTagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  hiddenTagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  hiddenTagsCreate?: InputMaybe<Array<TagHiddenCreateInput>>;
+  hiddenTagsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  hiddenTagsUpdate?: InputMaybe<Array<TagHiddenUpdateInput>>;
   name?: InputMaybe<Scalars['String']>;
   resourceListsCreate?: InputMaybe<Array<ResourceCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -2491,6 +2491,17 @@ export type TagHidden = {
   __typename?: 'TagHidden';
   isBlur: Scalars['Boolean'];
   tag: Tag;
+};
+
+export type TagHiddenCreateInput = {
+  isBlur?: InputMaybe<Scalars['Boolean']>;
+  tagConnect?: InputMaybe<Scalars['ID']>;
+  tagCreate?: InputMaybe<TagCreateInput>;
+};
+
+export type TagHiddenUpdateInput = {
+  id?: InputMaybe<Scalars['ID']>;
+  isBlur?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type TagSearchInput = {

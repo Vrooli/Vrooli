@@ -92,7 +92,7 @@ export const viewFormatter = (): FormatConverter<View> => ({
                         typeModel = UserModel(prisma);
                         break;
                     default:
-                        throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
+                        throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
                 }
                 console.log('view before readmanyhelper...', type, toIdsByType[type]);
                 const paginated = await readManyHelper(userId, { ids: toIdsByType[type] }, partial.to[type], typeModel);

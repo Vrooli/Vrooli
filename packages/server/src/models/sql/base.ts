@@ -439,7 +439,7 @@ export const removeCountFieldsHelper = (obj: any, map: CountMap): any => {
 /**
  * Adds "select" to the correct parts of an object to make it a Prisma select
  */
-const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
+export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
     let converted: { [x: string]: any } = {};
     Object.keys(fields).forEach((key) => {
         if (Object.keys(fields[key]).length > 0) converted[key] = padSelect(fields[key]);

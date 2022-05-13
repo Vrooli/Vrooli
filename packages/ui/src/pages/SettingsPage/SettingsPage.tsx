@@ -126,7 +126,7 @@ export function SettingsPage({
                     left: 0,
                     top: 0,
                     bottom: 0,
-                    backgroundColor: palette.mode === 'light' ? '#e4efff' : palette.secondary.light,
+                    backgroundColor: palette.mode === 'light' ? '#e4efff' : palette.primary.light,
                     borderRight: `1px solid ${palette.mode === 'light' ? palette.text.primary : palette.background.default}`,
 
                 }}>

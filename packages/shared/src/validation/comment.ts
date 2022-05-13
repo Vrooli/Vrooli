@@ -34,3 +34,6 @@ export const commentUpdate = yup.object().shape({
     translationsCreate: commentTranslationsCreate.notRequired().default(undefined),
     translationsUpdate: commentTranslationsUpdate.notRequired().default(undefined),
 })
+
+export const commentsCreate = yup.array().of(commentCreate.required())
+export const commentsUpdate = yup.array().of(commentUpdate.required())

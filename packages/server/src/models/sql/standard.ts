@@ -1,9 +1,9 @@
-import { CODE, MemberRole, standardCreate, standardTranslationCreate, standardTranslationUpdate, standardUpdate, StarFor, ViewFor, VoteFor } from "@local/shared";
+import { CODE, MemberRole, standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count } from "../../schema/types";
 import { addCreatorField, addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
-import { hasProfanity } from "../../utils/censor";
+import { validateProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -156,14 +156,13 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
 })
 
 export const standardVerifier = () => ({
-    profanityCheck(data: StandardCreateInput | StandardUpdateInput): void {
-        if (hasProfanity((data as any)?.name)) 
-            throw new CustomError(CODE.BannedWord, 'Name contains banned word', { code: genErrorCode('0102') });
+    profanityCheck(data: (StandardCreateInput | StandardUpdateInput)[]): void {
+        validateProfanity(data.map((d: any) => d.name));
         TranslationModel().profanityCheck(data);
     },
 })
 
-export const standardMutater = (prisma: PrismaType, verifier: any) => ({
+export const standardMutater = (prisma: PrismaType, verifier: ReturnType<typeof standardVerifier>) => ({
     async toDBShapeAdd(userId: string | null, data: StandardCreateInput): Promise<any> {
         return {
             name: data.name,
@@ -222,21 +221,21 @@ export const standardMutater = (prisma: PrismaType, verifier: any) => ({
         // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
         const organizationIds: (string | null | undefined)[] = [];
         if (createMany) {
+            standardsCreate.validateSync(createMany, { abortEarly: false });
+            verifier.profanityCheck(createMany);
             // Add createdByOrganizationIds to organizationIds array, if they are set
             organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id));
-            createMany.forEach(input => standardCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
             // Check for max standards created by user TODO
         }
         if (updateMany) {
+            standardsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            verifier.profanityCheck(updateMany.map(u => u.data));
             // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
             const objects = await prisma.standard.findMany({
                 where: { id: { in: updateMany.map(input => input.where.id) } },
                 select: { id: true, createdByUserId: true, createdByOrganizationId: true },
             });
             organizationIds.push(...objects.filter(object => object.createdByUserId !== userId).map(object => object.createdByOrganizationId));
-            updateMany.forEach(input => standardUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input.data));
         }
         if (deleteMany) {
             // Add organizationIds to organizationIds array, if userId does not match the object's userId

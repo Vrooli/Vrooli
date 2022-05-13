@@ -2,8 +2,8 @@ import { Count, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy }
 import { PrismaType, RecursivePartial } from "types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, GraphQLModelType, joinRelationshipToPrisma, modelToGraphQL, PartialInfo, RelationshipTypes, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, StarFor, tagCreate, tagTranslationCreate, tagTranslationUpdate, tagUpdate } from "@local/shared";
-import { hasProfanity } from "../../utils/censor";
+import { CODE, tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@local/shared";
+import { validateProfanity } from "../../utils/censor";
 import { StarModel } from "./star";
 import _ from "lodash";
 import { TranslationModel } from "./translation";
@@ -36,6 +36,8 @@ export const tagFormatter = (): FormatConverter<Tag> => ({
         objects: RecursivePartial<any>[],
         partial: PartialInfo,
     ): Promise<RecursivePartial<Tag>[]> {
+        console.log('IN TAG addsupp objects', JSON.stringify(objects), '\n\n');
+        console.log('IN TAG addsupp partial', JSON.stringify(partial), '\n\n');
         // Get all of the ids
         const ids = objects.map(x => x.id) as string[];
         // Query for isStarred
@@ -82,14 +84,13 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
 })
 
 export const tagVerifier = () => ({
-    profanityCheck(data: TagCreateInput | TagUpdateInput): void {
-        if (hasProfanity(data.tag)) 
-            throw new CustomError(CODE.BannedWord, 'Tag contains banned word', { code: genErrorCode('0111') });
+    profanityCheck(data: (TagCreateInput | TagUpdateInput)[]): void {
+        validateProfanity(data.map((d: any) => d.tag));
         TranslationModel().profanityCheck(data);
     },
 })
 
-export const tagMutater = (prisma: PrismaType, verifier: any) => ({
+export const tagMutater = (prisma: PrismaType, verifier: ReturnType<typeof tagVerifier>) => ({
     async toDBShape(userId: string | null, data: TagCreateInput | TagUpdateInput): Promise<any> {
         return {
             name: data.tag,
@@ -105,6 +106,7 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         [GraphQLModelType.Project]: 'project_tags_taggedid_tagid_unique',
         [GraphQLModelType.Routine]: 'routine_tags_taggedid_tagid_unique',
         [GraphQLModelType.Standard]: 'standard_tags_taggedid_tagid_unique',
+        [GraphQLModelType.TagHidden]: 'user_tags_hidden_userid_tagid_unique',
     },
     async relationshipBuilder(
         userId: string | null,
@@ -128,12 +130,9 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         }
         // Validate create
         if (Array.isArray(input[`${relationshipName}Create`])) {
-            for (const tag of input[`${relationshipName}Create`]) {
-                // Check for valid arguments
-                tagCreate.validateSync(tag, { abortEarly: false });
-                // Check for censored words
-                verifier.profanityCheck(tag as TagCreateInput);
-            }
+            const createMany = input[`${relationshipName}Create`];
+            tagsCreate.validateSync(createMany, { abortEarly: false });
+            verifier.profanityCheck(createMany);
         }
         // Convert input to Prisma shape
         // Updating/deleting tags is not supported. This must be done in its own query.
@@ -157,13 +156,13 @@ export const tagMutater = (prisma: PrismaType, verifier: any) => ({
         if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0112') });
         if (createMany) {
-            createMany.forEach(input => tagCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
+            tagsCreate.validateSync(createMany, { abortEarly: false });
+            verifier.profanityCheck(createMany);
             // Check for max tags on object TODO
         }
         if (updateMany) {
-            updateMany.forEach(input => tagUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input.data));
+            tagsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            verifier.profanityCheck(updateMany.map(u => u.data));
         }
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {

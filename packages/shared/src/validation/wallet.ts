@@ -5,3 +5,5 @@ export const walletUpdate = yup.object().shape({
     id: id.required(),
     name: name.notRequired().default(undefined),
 })
+
+export const walletsUpdate = yup.array().of(walletUpdate.required())

@@ -1,4 +1,4 @@
-import { CODE, commentCreate, CommentSortBy, commentTranslationCreate, commentTranslationUpdate, commentUpdate } from "@local/shared";
+import { CODE, commentCreate, commentsCreate, CommentSortBy, commentsUpdate, commentTranslationCreate, commentTranslationUpdate, commentUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentUpdateInput, Count } from "../../schema/types";
 import { PrismaType } from "types";
@@ -106,13 +106,13 @@ export const commentMutater = (prisma: PrismaType) => ({
         if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0038') });
         if (createMany) {
-            createMany.forEach(input => commentCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            commentsCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany)
             // TODO check limits on comments to prevent spam
         }
         if (updateMany) {
-            updateMany.forEach(input => commentUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
+            commentsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data))
         }
         if (deleteMany) {
             // Check that user created each comment

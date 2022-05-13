@@ -653,9 +653,9 @@ export interface ProfileUpdateInput {
   handle?: string | null;
   name?: string | null;
   theme?: string | null;
-  hiddenTagsConnect?: string[] | null;
-  hiddenTagsDisconnect?: string[] | null;
-  hiddenTagsCreate?: TagCreateInput[] | null;
+  hiddenTagsDelete?: string[] | null;
+  hiddenTagsCreate?: TagHiddenCreateInput[] | null;
+  hiddenTagsUpdate?: TagHiddenUpdateInput[] | null;
   resourceListsDelete?: string[] | null;
   resourceListsCreate?: ResourceCreateInput[] | null;
   resourceListsUpdate?: ResourceUpdateInput[] | null;
@@ -1087,6 +1087,17 @@ export interface TagCreateInput {
   anonymous?: boolean | null;
   tag: string;
   translationsCreate?: TagTranslationCreateInput[] | null;
+}
+
+export interface TagHiddenCreateInput {
+  isBlur?: boolean | null;
+  tagCreate?: TagCreateInput | null;
+  tagConnect?: string | null;
+}
+
+export interface TagHiddenUpdateInput {
+  id?: string | null;
+  isBlur?: boolean | null;
 }
 
 export interface TagSearchInput {

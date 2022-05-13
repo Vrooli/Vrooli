@@ -536,7 +536,7 @@ export const RunView = ({
                 <Box sx={{
                     background: palette.mode === 'light' ?
                         'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)' :
-                        'fixed radial-gradient(circle, rgba(17,18,19,1) 0%, rgba(0,0,0,1) 100%)',
+                        palette.background.default,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

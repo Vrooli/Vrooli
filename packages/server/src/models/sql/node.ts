@@ -1,9 +1,9 @@
-import { Count, Node, NodeCreateInput, NodeType, NodeUpdateInput } from "../../schema/types";
+import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
 import { CUDInput, CUDResult, deconstructUnion, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType } from "./base";
 import { CustomError } from "../../error";
-import { CODE, nodeCreate, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, loopCreate, loopUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, nodeUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@local/shared";
+import { CODE, nodeEndCreate, nodeEndUpdate, nodeLinksCreate, nodeLinksUpdate, nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeTranslationCreate, nodeTranslationUpdate, nodeUpdate, whilesCreate, whilesUpdate, whensCreate, whensUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate, loopsCreate, loopsUpdate, nodesCreate, nodesUpdate } from "@local/shared";
 import { PrismaType } from "types";
-import { hasProfanityRecursive } from "../../utils/censor";
+import { validateProfanity } from "../../utils/censor";
 import { RoutineModel } from "./routine";
 import pkg from '@prisma/client';
 import { TranslationModel } from "./translation";
@@ -118,13 +118,16 @@ export const nodeVerifier = () => ({
             throw new CustomError(CODE.ErrorUnknown, `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`, { code: genErrorCode('0052') });
         }
     },
-    profanityCheck(data: NodeCreateInput | NodeUpdateInput): void {
-        if (hasProfanityRecursive(data, ['condition', 'description', 'title'])) 
-            throw new CustomError(CODE.BannedWord, 'Detected bad word in node', { code: genErrorCode('0053') });
+    profanityCheck(data:( NodeCreateInput | NodeUpdateInput)[]): void {
+        validateProfanity(data.map((d: any) => ({
+            condition: d.condition,
+            description: d.description,
+            title: d.title,
+        })));
     },
 })
 
-export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
+export const nodeMutater = (prisma: PrismaType, verifier: ReturnType<typeof nodeVerifier>) => ({
     async toDBShape(userId: string | null, data: NodeCreateInput | NodeUpdateInput): Promise<any> {
         let nodeData: { [x: string]: any } = {
             id: data.id,
@@ -209,17 +212,13 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         if (Array.isArray(formattedInput.create)) {
             // Check for valid arguments
             whensCreate.validateSync(formattedInput.create, { abortEarly: false });
-            for (const data of formattedInput.create) {
-                TranslationModel().profanityCheck(data);
-            }
+            TranslationModel().profanityCheck(formattedInput.create);
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             // Check for valid arguments
-            whensUpdate.validateSync(formattedInput.update, { abortEarly: false });
-            for (const data of formattedInput.update) {
-                TranslationModel().profanityCheck(data);
-            }
+            whensUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(formattedInput.update.map(u => u.data));
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -253,7 +252,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             // Check for valid arguments
-            nodeLinksUpdate.validateSync(formattedInput.update, { abortEarly: false });
+            nodeLinksUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
             for (let data of formattedInput.update) {
                 // Convert nested relationships
                 data.data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
@@ -314,7 +313,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             // Check for valid arguments (censored words must be checked in earlier function)
-            whilesUpdate.validateSync(formattedInput.update, { abortEarly: false });
+            whilesUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -332,18 +331,16 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'loop', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate create
         if (Array.isArray(formattedInput.create)) {
+            loopsCreate.validateSync(formattedInput.create, { abortEarly: false });
             for (const data of formattedInput.create) {
-                // Check for valid arguments
-                loopCreate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
             }
         }
         // Validate update
         if (Array.isArray(formattedInput.update)) {
+            loopsUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
             for (const data of formattedInput.update) {
-                // Check for valid arguments
-                loopUpdate.validateSync(data, { abortEarly: false });
                 // Convert nested relationships
                 data.data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
             }
@@ -385,7 +382,7 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         // Validate update
         if (Array.isArray(formattedInput.update)) {
             // Check for valid arguments
-            nodeRoutineListItemsUpdate.validateSync(formattedInput.update, { abortEarly: false });
+            nodeRoutineListItemsUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
             let result = [];
             for (const data of formattedInput.update) {
                 // Cannot switch routines, so no need to worry about it in the update
@@ -458,14 +455,14 @@ export const nodeMutater = (prisma: PrismaType, verifier: any) => ({
         if (allNodeIds.length === 0) return;
         const routineId: string | null = await verifier.authorizedCheck(userId, allNodeIds, prisma);
         if (createMany) {
-            createMany.forEach(input => nodeCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => verifier.profanityCheck(input));
+            nodesCreate.validateSync(createMany, { abortEarly: false });
+            verifier.profanityCheck(createMany);
             // Check if will pass max nodes (on routine) limit
             if (routineId) await verifier.maximumCheck(routineId, (createMany?.length ?? 0) - (deleteMany?.length ?? 0), prisma);
         }
         if (updateMany) {
-            updateMany.forEach(input => nodeUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => verifier.profanityCheck(input.data));
+            nodesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            verifier.profanityCheck(updateMany.map(u => u.data));
         }
     },
     /**

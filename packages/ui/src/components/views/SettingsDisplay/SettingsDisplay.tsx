@@ -16,7 +16,6 @@ import {
 import { DialogActionItem } from "components/containers/types";
 import { DialogActionsContainer } from "components/containers/DialogActionsContainer/DialogActionsContainer";
 import { SettingsDisplayProps } from "../types";
-import { useLocation } from "wouter";
 import { HelpButton, TagSelector } from "components";
 import { TagSelectorTag } from "components/inputs/types";
 import { ThemeSwitch } from "components/inputs";
@@ -44,7 +43,6 @@ export const SettingsDisplay = ({
     onUpdated,
 }: SettingsDisplayProps) => {
     const { palette } = useTheme();
-    const [, setLocation] = useLocation();
 
     // Handle starred tags
     const [starredTags, setStarredTags] = useState<TagSelectorTag[]>([]);
@@ -100,19 +98,23 @@ export const SettingsDisplay = ({
             if (filteredHiddenTags.length !== hiddenTags.length) {
                 PubSub.publish(Pubs.Snack, { message: 'Detected topics in both favorites and hidden. These have been removed from hidden.', severity: 'warning' });
             }
+            // Starred tags are handled like normal tags (at least on the frontend), since they contain no extra data
             const starredTagsUpdate = starredTags.length > 0 ? {
                 starredTagsCreate: starredTags.filter(t => !t.id && !profile?.starredTags?.some(tag => tag.tag === t.tag)).map(t => ({ tag: t.tag })),
                 starredTagsConnect: starredTags.filter(t => t.id && !profile?.starredTags?.some(tag => tag.tag === t.tag)).map(t => (t.id)),
                 starredTagsDisconnect: profile?.starredTags?.filter(t => !starredTags.some(st => st.tag === t.tag)).map(t => (t.id)),
             } : {};
+            // Hidden tags are wrapped in an object that specifies blur/no blur, so we have to structure them differently
+            // Get tags within hidden tags data the same way as starred tags
+            const hTagsCreate = filteredHiddenTags.length > 0 ? filteredHiddenTags.filter(t => !t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => ({ tag: t.tag })) : [];
+            const hTagsConnect = filteredHiddenTags.length > 0 ? filteredHiddenTags.filter(t => t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => (t.id)) : [];
+            const hTagsDelete = filteredHiddenTags.length > 0 ? profile?.hiddenTags?.filter(t => !filteredHiddenTags.some(ht => ht.tag === t.tag.tag)).map((t: any) => (t.id)) : [];
+            // tagsCreate and tagsUpdate are joined into hiddenTagsCreate, and tagsDelete becomes hiddenTagsDelete
             const hiddenTagsUpdate = filteredHiddenTags.length > 0 ? {
-                hiddenTagsCreate: filteredHiddenTags.filter(t => !t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => ({ tag: t.tag })),
-                hiddenTagsConnect: filteredHiddenTags.filter(t => t.id && !profile?.hiddenTags?.some(tag => tag.tag.tag === t.tag)).map(t => (t.id)),
-                hiddenTagsDisconnect: profile?.hiddenTags?.filter(t => !filteredHiddenTags.some(ht => ht.tag === t.tag.tag)).map((t: any) => (t.id)),
+                hiddenTagsCreate: [...hTagsCreate.map(t => ({ tagCreate: t, isBlur: false })), ...hTagsConnect.map(t => ({ tagConnect: t, isBlur: false }))],
+                // hiddenTagsUpdate: TODO don't support blurring yet, so no reason to update
+                hiddenTagsDelete: hTagsDelete,
             } : {};
-            //TODO temp
-            PubSub.publish(Pubs.Snack, { message: 'Available next update. Please be patient with us😬', severity: 'error' });
-            return;
             mutationWrapper({
                 mutation,
                 input: formatForUpdate(profile, {
@@ -139,7 +141,7 @@ export const SettingsDisplay = ({
             setStarredTags([]);
             setHiddenTags([]);
         }],
-    ], [formik, setLocation]);
+    ], [formik]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>

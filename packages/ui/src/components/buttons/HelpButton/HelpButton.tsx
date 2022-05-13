@@ -42,7 +42,7 @@ export const HelpButton = ({
                 </Box>
             </Box>
         )
-    }, [markdown])
+    }, [markdown, palette.mode, palette.primary.dark, palette.secondary.dark])
 
     return (
         <Box

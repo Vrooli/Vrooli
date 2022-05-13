@@ -1,4 +1,4 @@
-import { CODE, walletUpdate } from "@local/shared";
+import { CODE, walletsUpdate, walletUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { PrismaType } from "types";
 import { Count, Wallet, WalletUpdateInput } from "../../schema/types";
@@ -97,6 +97,7 @@ export const walletMutater = (prisma: PrismaType) => ({
             throw new CustomError(CODE.InternalError, 'Not allowed to create wallets with this method', { code: genErrorCode('0122') });
         }
         if (updateMany) {
+            walletsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             // Make sure wallets are owned by user or user is an admin/owner of organization
             const wallets = await prisma.wallet.findMany({
                 where: {
@@ -108,10 +109,6 @@ export const walletMutater = (prisma: PrismaType) => ({
             });
             if (wallets.length !== updateMany.length) 
                 throw new CustomError(CODE.NotYourWallet, 'At least one of these wallets is not yours', { code: genErrorCode('0123') });
-            for (const wallet of updateMany) {
-                // Check for valid arguments
-                walletUpdate.validateSync(wallet.data, { abortEarly: false });
-            }
         }
     },
     async cud({ partial, userId, createMany, updateMany, deleteMany }: CUDInput<unknown, WalletUpdateInput>): Promise<CUDResult<Wallet>> {

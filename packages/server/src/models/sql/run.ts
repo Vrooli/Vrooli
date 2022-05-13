@@ -1,15 +1,14 @@
-import { CODE, runCreate, runUpdate } from "@local/shared";
+import { CODE, runsCreate, runsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
-import { PrismaType, RecursivePartial } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, PartialInfo, readManyHelper, Searcher, selectHelper, timeFrameToPrisma, toPartialSelect, ValidateMutationsInput } from "./base";
+import { PrismaType } from "../../types";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialSelect, ValidateMutationsInput } from "./base";
 import _ from "lodash";
 import { genErrorCode } from "../../logger";
 import { Log } from "../../models/nosql";
-import { TranslationModel } from "./translation";
 import { StepModel } from "./step";
 import { run } from "@prisma/client";
-import { RoutineModel } from "./routine";
+import { validateProfanity } from "../../utils/censor";
 
 //==============================================================
 /* #region Custom Components */
@@ -64,10 +63,16 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
     },
 })
 
+export const runVerifier = () => ({
+    profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
+        validateProfanity(data.map((d: any) => d.title));
+    },
+})
+
 /**
  * Handles run instances of routines
  */
-export const runMutater = (prisma: PrismaType) => ({
+export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVerifier>) => ({
     async toDBShapeAdd(userId: string, data: RunCreateInput): Promise<any> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
@@ -94,14 +99,12 @@ export const runMutater = (prisma: PrismaType) => ({
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0174') });
         if (createMany) {
-            createMany.forEach(input => runCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            runsCreate.validateSync(createMany, { abortEarly: false });
+            verifier.profanityCheck(createMany);
         }
         if (updateMany) {
-            for (const input of updateMany) {
-                runUpdate.validateSync(input.data, { abortEarly: false });
-                TranslationModel().profanityCheck(input.data);
-            }
+            runsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            verifier.profanityCheck(updateMany.map(u => u.data));
             // Check that user owns each run
             //TODO
         }
@@ -314,13 +317,15 @@ export function RunModel(prisma: PrismaType) {
     const prismaObject = prisma.run;
     const format = runFormatter();
     const search = runSearcher();
-    const mutate = runMutater(prisma);
+    const verify = runVerifier();
+    const mutate = runMutater(prisma, verify);
 
     return {
         prisma,
         prismaObject,
         ...format,
         ...search,
+        ...verify,
         ...mutate,
     }
 }

@@ -22,7 +22,6 @@ export const UserDialog = ({
     const [state, id] = useMemo(() => Boolean(params?.params) ? (params?.params as string).split("/") : [undefined, undefined], [params]);
 
     const [update] = useMutation<user>(profileUpdateMutation);
-    const [del] = useMutation<user>(userDeleteOneMutation);
 
     const onAction = useCallback((action: ObjectDialogAction) => {
         switch (action) {

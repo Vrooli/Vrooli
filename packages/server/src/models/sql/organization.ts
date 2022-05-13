@@ -2,7 +2,7 @@ import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor } from "../../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, GraphQLModelType, PartialInfo } from "./base";
 import { CustomError } from "../../error";
-import { CODE, MemberRole, organizationCreate, organizationTranslationCreate, organizationTranslationUpdate, organizationUpdate, StarFor, ViewFor } from "@local/shared";
+import { CODE, MemberRole, organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@local/shared";
 import { organization_users } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -157,7 +157,7 @@ export const organizationVerifier = (prisma: PrismaType) => ({
     },
 })
 
-export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
+export const organizationMutater = (prisma: PrismaType, verifier: ReturnType<typeof organizationVerifier>) => ({
     async toDBShape(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
         // If creating new, add yourself as member
         let members = {};
@@ -180,8 +180,8 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
         if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0055') });
         if (createMany) {
-            createMany.forEach(input => organizationCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            organizationsCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany);
             createMany.forEach(input => TranslationModel().validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
             // Check if user will pass max organizations limit
             const existingCount = await prisma.organization.count({ where: { members: { some: { userId: userId, role: MemberRole.Owner as any } } } });
@@ -190,10 +190,10 @@ export const organizationMutater = (prisma: PrismaType, verifier: any) => ({
             }
         }
         if (updateMany) {
+            organizationsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data));
             for (const input of updateMany) {
                 await WalletModel(prisma).verifyHandle(GraphQLModelType.Organization, input.where.id, input.data.handle);
-                organizationUpdate.validateSync(input.data, { abortEarly: false });
-                TranslationModel().profanityCheck(input.data);
                 TranslationModel().validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio);
             }
             // Check that user is owner OR admin of each organization

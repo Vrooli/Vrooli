@@ -35,5 +35,6 @@ export * from './standard';
 export * from './step';
 export * from './run';
 export * from './tag';
+export * from './tagHidden';
 export * from './user';
 export * from './wallet';

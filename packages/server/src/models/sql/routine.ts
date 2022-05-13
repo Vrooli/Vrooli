@@ -1,8 +1,8 @@
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeLink, NodeRoutineList, NodeRoutineListItem, Node, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "types";
 import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addOwnerField, addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, PartialInfo, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, removeOwnerField, Searcher, selectHelper, toPartialSelect, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
-import { CODE, inputCreate, inputTranslationCreate, inputTranslationUpdate, inputUpdate, MemberRole, outputTranslationCreate, outputTranslationUpdate, routineCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate, StarFor, ViewFor, VoteFor } from "@local/shared";
+import { CODE, inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, inputUpdate, MemberRole, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routinesUpdate, routineTranslationCreate, routineTranslationUpdate } from "@local/shared";
 import { hasProfanity } from "../../utils/censor";
 import { OrganizationModel } from "./organization";
 import { TagModel } from "./tag";
@@ -14,7 +14,6 @@ import _ from "lodash";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { genErrorCode } from "../../logger";
-import { Log, LogType } from "../../models/nosql";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
 
@@ -470,10 +469,9 @@ export const routineMutater = (prisma: PrismaType) => ({
         //TODO
         // Validate create
         if (Array.isArray(createMany)) {
+            inputsCreate.validateSync(createMany, { abortEarly: false });
             let result = [];
             for (let data of createMany) {
-                // Check for valid arguments
-                inputCreate.validateSync(data, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(data.name, data.description))
                     throw new CustomError(CODE.BannedWord, 'Name or description includes bad word', { code: genErrorCode('0091') });
@@ -488,10 +486,9 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // Validate update
         if (Array.isArray(updateMany)) {
+            inputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             let result = [];
             for (let update of updateMany) {
-                // Check for valid arguments
-                inputUpdate.validateSync(update.data, { abortEarly: false });
                 // Check for censored words
                 if (hasProfanity(update.data.name, update.data.description))
                     throw new CustomError(CODE.BannedWord, 'Name or description contains banned word', { code: genErrorCode('0092') });
@@ -534,12 +531,10 @@ export const routineMutater = (prisma: PrismaType) => ({
         //TODO
         // Validate create
         if (Array.isArray(createMany)) {
+            outputsCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany);
             let result = [];
             for (let data of createMany) {
-                // Check for valid arguments
-                inputCreate.validateSync(data, { abortEarly: false });
-                // Check for censored words
-                TranslationModel().profanityCheck(data);
                 // Convert nested relationships
                 result.push({
                     name: data.name,
@@ -551,12 +546,10 @@ export const routineMutater = (prisma: PrismaType) => ({
         }
         // Validate update
         if (Array.isArray(updateMany)) {
+            outputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data));
             let result = [];
             for (let update of updateMany) {
-                // Check for valid arguments
-                inputUpdate.validateSync(update.data, { abortEarly: false });
-                // Check for censored words
-                TranslationModel().profanityCheck(update.data);
                 // Convert nested relationships
                 result.push({
                     where: update.where,
@@ -622,10 +615,10 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
         const organizationIds: (string | null | undefined)[] = [];
         if (createMany) {
+            routinesCreate.validateSync(createMany, { abortEarly: false });
+            TranslationModel().profanityCheck(createMany);
             // Add createdByOrganizationIds to organizationIds array, if they are set
             organizationIds.push(...createMany.map(input => input.createdByOrganizationId).filter(id => id));
-            createMany.forEach(input => routineCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
             createMany.forEach(input => this.validateNodePositions(input));
             // Check if user will pass max routines limit
             const existingCount = await prisma.routine.count({
@@ -641,6 +634,8 @@ export const routineMutater = (prisma: PrismaType) => ({
             }
         }
         if (updateMany) {
+            routinesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            TranslationModel().profanityCheck(updateMany.map(u => u.data));
             // Add new organizationIds to organizationIds array, if they are set
             organizationIds.push(...updateMany.map(input => input.data.organizationId).filter(id => id))
             // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
@@ -649,8 +644,6 @@ export const routineMutater = (prisma: PrismaType) => ({
                 select: { id: true, userId: true, organizationId: true },
             });
             organizationIds.push(...objects.filter(object => object.userId !== userId).map(object => object.organizationId));
-            updateMany.forEach(input => routineUpdate.validateSync(input.data, { abortEarly: false }));
-            updateMany.forEach(input => TranslationModel().profanityCheck(input.data));
             updateMany.forEach(input => this.validateNodePositions(input.data));
         }
         if (deleteMany) {

@@ -1,11 +1,11 @@
-import { CODE, stepCreate, stepUpdate } from "@local/shared";
+import { CODE, stepsCreate, stepsUpdate } from "@local/shared";
 import { CustomError } from "../../error";
 import { Count, RunStep, RunStepCreateInput, RunStepStatus, RunStepUpdateInput} from "../../schema/types";
 import { PrismaType } from "../../types";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper, ValidateMutationsInput } from "./base";
 import _ from "lodash";
 import { genErrorCode } from "../../logger";
-import { TranslationModel } from "./translation";
+import { validateProfanity } from "../../utils/censor";
 
 //==============================================================
 /* #region Custom Components */
@@ -19,10 +19,16 @@ export const stepFormatter = (): FormatConverter<RunStep> => ({
     },
 })
 
+export const stepVerifier = () => ({
+    profanityCheck(data: (RunStepCreateInput | RunStepUpdateInput)[]): void {
+        validateProfanity(data.map((d: any) => d.title));
+    },
+})
+
 /**
  * Handles mutations of run steps
  */
- export const stepMutater = (prisma: PrismaType) => ({
+ export const stepMutater = (prisma: PrismaType, verifier: ReturnType<typeof stepVerifier>) => ({
     async toDBShapeAdd(userId: string, data: RunStepCreateInput): Promise<any> {
         return {
             order: data.order,
@@ -86,14 +92,12 @@ export const stepFormatter = (): FormatConverter<RunStep> => ({
         if (!userId) 
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0176') });
         if (createMany) {
-            createMany.forEach(input => stepCreate.validateSync(input, { abortEarly: false }));
-            createMany.forEach(input => TranslationModel().profanityCheck(input));
+            stepsCreate.validateSync(createMany, { abortEarly: false });
+            verifier.profanityCheck(createMany);
         }
         if (updateMany) {
-            for (const input of updateMany) {
-                stepUpdate.validateSync(input.data, { abortEarly: false });
-                TranslationModel().profanityCheck(input.data);
-            }
+            stepsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+            verifier.profanityCheck(updateMany.map(u => u.data));
             // Check that user owns each run
             //TODO
         }
@@ -167,12 +171,14 @@ export const stepFormatter = (): FormatConverter<RunStep> => ({
 export function StepModel(prisma: PrismaType) {
     const prismaObject = prisma.run_step;
     const format = stepFormatter();
-    const mutate = stepMutater(prisma);
+    const verify = stepVerifier();
+    const mutate = stepMutater(prisma, verify);
 
     return {
         prisma,
         prismaObject,
         ...format,
+        ...verify,
         ...mutate,
     }
 }
