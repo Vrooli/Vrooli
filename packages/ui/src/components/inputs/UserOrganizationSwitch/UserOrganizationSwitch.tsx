@@ -3,7 +3,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { UserOrganizationSwitchProps } from '../types';
 import { organizationsQuery } from 'graphql/query';
 import { organizations, organizationsVariables } from 'graphql/generated/organizations';
-import { APP_LINKS, MemberRole, OrganizationSortBy } from '@local/shared';
+import { APP_LINKS, OrganizationSortBy } from '@local/shared';
 import { useLazyQuery } from '@apollo/client';
 import { ListOrganization } from 'types';
 import { noSelect } from 'styles';
@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import { getTranslation, getUserLanguages } from 'utils';
 import { useLocation } from 'wouter';
+import { owns } from 'utils/authentication';
 
 const grey = {
     400: '#BFC7CF',
@@ -71,7 +72,7 @@ export function UserOrganizationSwitch({
     const organizationListItems: JSX.Element[] = useMemo(() => {
         const filtered = organizations?.filter((o: ListOrganization) => getTranslation(o, 'name', languages, true)?.toLowerCase()?.includes(search.toLowerCase()) ?? '');
         return filtered?.map((o: ListOrganization, index) => {
-            const canSelect: boolean = o.role ? [MemberRole.Admin, MemberRole.Owner].includes(o.role) : false;
+            const canSelect: boolean = owns(o.role);
             return (
                 <ListItem
                     key={index}

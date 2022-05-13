@@ -121,7 +121,7 @@ function getTimeIntervalStart(timeInterval: StatTimeInterval): number {
  */
 async function calculateActiveUsers(timeInterval: StatTimeInterval, prisma: PrismaType): Promise<number> {
     console.log('activeusers start', timeInterval)
-    console.log(getTimeIntervalStart(timeInterval), new Date(getTimeIntervalStart(timeInterval)) )
+    console.log(getTimeIntervalStart(timeInterval), new Date(getTimeIntervalStart(timeInterval)))
     // Count users in database who have used the site in the last time interval
     const activeUsers = await prisma.user.count({
         where: {
@@ -262,7 +262,7 @@ async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in
             [StatType.Standards]: await calculateStandards(timeInterval, prisma),
         }
     } catch (error) {
-        logger.log(LogLevel.error, 'Caught error calculating stats', { code: genErrorCode('0000'), error }); 
+        logger.log(LogLevel.error, 'Caught error calculating stats', { code: genErrorCode('0000'), error });
     } finally {
         return results;
     }
@@ -276,30 +276,34 @@ async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in
  */
 async function logStats(timeInterval: StatTimeInterval) {
     console.log('logstats start', timeInterval);
-    // Query the database for the statistics relevant to this time interval
-    const stats = await calculateStats(timeInterval);
-    // Create and save new MongoDB object for this time interval
-    switch (timeInterval) {
-        case StatTimeInterval.Daily:
-            const dailyStats = new StatDay(stats);
-            await dailyStats.save();
-            break;
-        case StatTimeInterval.Weekly:
-            const weeklyStats = new StatWeek(stats);
-            await weeklyStats.save();
-            break;
-        case StatTimeInterval.Monthly:
-            const monthlyStats = new StatMonth(stats);
-            await monthlyStats.save();
-            break;
-        case StatTimeInterval.Yearly:
-            const yearlyStats = new StatYear(stats);
-            await yearlyStats.save();
-            break;
-        case StatTimeInterval.AllTime:
-            const allTimeStats = new StatAllTime(stats);
-            await allTimeStats.save();
-            break;
+    try {
+        // Query the database for the statistics relevant to this time interval
+        const stats = await calculateStats(timeInterval);
+        // Create and save new MongoDB object for this time interval
+        switch (timeInterval) {
+            case StatTimeInterval.Daily:
+                const dailyStats = new StatDay(stats);
+                await dailyStats.save();
+                break;
+            case StatTimeInterval.Weekly:
+                const weeklyStats = new StatWeek(stats);
+                await weeklyStats.save();
+                break;
+            case StatTimeInterval.Monthly:
+                const monthlyStats = new StatMonth(stats);
+                await monthlyStats.save();
+                break;
+            case StatTimeInterval.Yearly:
+                const yearlyStats = new StatYear(stats);
+                await yearlyStats.save();
+                break;
+            case StatTimeInterval.AllTime:
+                const allTimeStats = new StatAllTime(stats);
+                await allTimeStats.save();
+                break;
+        }
+    } catch (error) {
+        logger.log(LogLevel.error, 'Caught error logging stats', { code: genErrorCode('0192'), error });
     }
 }
 

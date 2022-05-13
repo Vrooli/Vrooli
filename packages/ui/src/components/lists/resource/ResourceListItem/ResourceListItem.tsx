@@ -3,7 +3,7 @@ import { IconButton, ListItem, ListItemButton, ListItemText, Stack, Tooltip, use
 import { ResourceListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { adaHandleRegex, MemberRole, ResourceSortBy, ResourceUsedFor, urlRegex, walletAddressRegex } from '@local/shared';
+import { adaHandleRegex, ResourceSortBy, ResourceUsedFor, urlRegex, walletAddressRegex } from '@local/shared';
 import { useLocation } from 'wouter';
 import { getTranslation, LabelledSortOption, labelledSortOptions, openLink, Pubs, ResourceType } from 'utils';
 import { Resource } from 'types';
@@ -11,6 +11,7 @@ import { getResourceIcon } from '..';
 import {
     OpenInNew as OpenLinkIcon
 } from '@mui/icons-material';
+import { owns } from 'utils/authentication';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -32,7 +33,7 @@ export function ResourceListItem({
 }: ResourceListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => Boolean(data?.role) && [MemberRole.Admin, MemberRole.Owner].includes(data.role), [data]);
+    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
     const { description, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
         return {

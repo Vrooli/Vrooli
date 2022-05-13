@@ -3,10 +3,11 @@ import { ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from
 import { RoutineListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, MemberRole, RoutineSortBy, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, RoutineSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from '..';
-import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
+import { owns } from 'utils/authentication';
 
 export function RoutineListItem({
     data,
@@ -17,7 +18,7 @@ export function RoutineListItem({
 }: RoutineListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => data?.role ? [MemberRole.Admin, MemberRole.Owner].includes(data.role) : false, [data]);
+    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
 
     const { description, title } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -45,7 +46,7 @@ export function RoutineListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
-                    background: index % 2 === 0 ? 'default' : '#e9e9e9',
+                    background: listItemColor(index, palette),
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>

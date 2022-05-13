@@ -2489,6 +2489,7 @@ export type TagEdge = {
 
 export type TagHidden = {
   __typename?: 'TagHidden';
+  id: Scalars['ID'];
   isBlur: Scalars['Boolean'];
   tag: Tag;
 };

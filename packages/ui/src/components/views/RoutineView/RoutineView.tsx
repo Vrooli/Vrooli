@@ -24,6 +24,7 @@ import { BaseObjectAction } from "components/dialogs/types";
 import { containerShadow } from "styles";
 import { validate as uuidValidate } from 'uuid';
 import { runComplete } from "graphql/generated/runComplete";
+import { owns } from "utils/authentication";
 
 const TERTIARY_COLOR = '#95f3cd';
 
@@ -44,7 +45,7 @@ export const RoutineView = ({
     }, [getData, id])
     const routine = useMemo(() => data?.routine, [data]);
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null); // Routine may change if it is starred/upvoted/etc.
-    const canEdit = useMemo<boolean>(() => routine?.role ? [MemberRole.Admin, MemberRole.Owner].includes(routine.role) : false, [routine]);
+    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
     // Open boolean for delete routine confirmation
     const [deleteOpen, setDeleteOpen] = useState(false);
     const openDelete = () => setDeleteOpen(true);

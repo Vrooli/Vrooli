@@ -19,7 +19,7 @@ import {
 import { Forms, Pubs, useReactSearch } from 'utils';
 import { APP_LINKS, CODE } from '@local/shared';
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/walletIntegration';
+import { hasWalletExtension, validateWallet, WalletProvider, walletProviderInfo } from 'utils/authentication/walletIntegration';
 import { ROLES } from '@local/shared';
 import { HelpButton } from 'components';
 import {

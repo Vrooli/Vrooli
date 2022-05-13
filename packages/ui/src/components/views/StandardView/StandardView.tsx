@@ -1,6 +1,6 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, MemberRole } from "@local/shared";
+import { APP_LINKS } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
@@ -19,6 +19,7 @@ import { BaseObjectAction } from "components/dialogs/types";
 import { getCreatedByString, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils";
 import { validate as uuidValidate } from 'uuid';
 import { Standard } from "types";
+import { owns } from "utils/authentication";
 
 export const StandardView = ({
     partialData,
@@ -31,7 +32,6 @@ export const StandardView = ({
     const [, params2] = useRoute(`${APP_LINKS.SearchStandards}/view/:id`);
     const id: string = params?.id ?? params2?.id ?? '';
     // Fetch data
-    // Fetch data
     const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery);
     const [standard, setStandard] = useState<Standard | null | undefined>(null);
     useEffect(() => {
@@ -40,7 +40,7 @@ export const StandardView = ({
     useEffect(() => {
         setStandard(data?.standard);
     }, [data]);
-    const canEdit = useMemo<boolean>(() => standard?.role ? [MemberRole.Admin, MemberRole.Owner].includes(standard.role) : false, [standard]);
+    const canEdit = useMemo<boolean>(() => owns(standard?.role), [standard]);
 
     useEffect(() => {
         const name = standard?.name ?? partialData?.name ?? '';

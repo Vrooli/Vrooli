@@ -1269,7 +1269,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Determine sort order
     const orderBy = model.getSortQuery ? model.getSortQuery(input.sortBy ?? model.defaultSort) : undefined;
     // Find requested search array
-    const temp = selectHelper(partial);
     const searchResults = await (PrismaMap[objectType as keyof typeof PrismaMap] as any)(model.prisma).findMany({
         where,
         orderBy,

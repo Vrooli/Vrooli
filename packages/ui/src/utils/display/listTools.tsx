@@ -2,6 +2,7 @@ import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, List
 import { OrganizationListItem, ProjectListItem, RoutineListItem, RunListItem, StandardListItem, UserListItem } from 'components';
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { ObjectListItemProps } from "components/lists/types";
+import { Theme } from "@mui/material";
 
 export interface AutocompleteListItem {
     __typename: string;
@@ -200,4 +201,40 @@ export function listToListItems({
         }
     }
     return listItems;
+}
+
+/**
+ * Determines background color for a list item. Alternates between 
+ * two colors.
+ * @param index Index of list item
+ * @param palette MUI theme palette
+ * @returns String of background color
+ */
+export const listItemColor = (index: number, palette: Theme['palette']): string => {
+    const lightColors = [palette.background.default, palette.background.paper];
+    const darkColors = [palette.background.default, palette.background.paper];
+    return (palette.mode === 'light') ? lightColors[index % lightColors.length] : darkColors[index % darkColors.length];
+}
+
+/**
+ * Color options for placeholder icon
+ * [background color, silhouette color]
+ */
+const placeholderColors: [string, string][] = [
+    ["#197e2c", "#b5ffc4"],
+    ["#b578b6", "#fecfea"],
+    ["#4044d6", "#e1c7f3"],
+    ["#d64053", "#fbb8c5"],
+    ["#d69440", "#e5d295"],
+    ["#40a4d6", "#79e0ef"],
+    ["#6248e4", "#aac3c9"],
+    ["#8ec22c", "#cfe7b4"],
+]
+
+/**
+ * Finds a random color for a placeholder icon
+ * @returns [background color code, silhouette color code]
+ */
+export const placeholderColor = (): [string, string] => {
+    return placeholderColors[Math.floor(Math.random() * placeholderColors.length)];
 }

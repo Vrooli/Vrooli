@@ -1,26 +1,14 @@
 // Used to display popular/search results of a particular object type
-import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { OrganizationListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, MemberRole, OrganizationSortBy, StarFor } from '@local/shared';
+import { APP_LINKS, OrganizationSortBy, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList } from '..';
-import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, placeholderColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
-
-// Color options for profile picture
-// [background color, silhouette color]
-const colorOptions: [string, string][] = [
-    ["#197e2c", "#b5ffc4"],
-    ["#b578b6", "#fecfea"],
-    ["#4044d6", "#e1c7f3"],
-    ["#d64053", "#fbb8c5"],
-    ["#d69440", "#e5d295"],
-    ["#40a4d6", "#79e0ef"],
-    ["#6248e4", "#aac3c9"],
-    ["#8ec22c", "#cfe7b4"],
-]
+import { owns } from 'utils/authentication';
 
 export function OrganizationListItem({
     data,
@@ -29,9 +17,10 @@ export function OrganizationListItem({
     session,
     onClick,
 }: OrganizationListItemProps) {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => data?.role ? [MemberRole.Admin, MemberRole.Owner].includes(data.role) : false, [data]);
-    const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
+    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
+    const profileColors = useMemo(() => placeholderColor(), []);
     const { bio, name } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
         return {
@@ -62,7 +51,7 @@ export function OrganizationListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
-                    background: index % 2 === 0 ? 'default' : '#e9e9e9',
+                    background: listItemColor(index, palette),
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
@@ -93,7 +82,7 @@ export function OrganizationListItem({
                         {/* Bio/Description */}
                         <ListItemText
                             primary={bio}
-                            sx={{ ...multiLineEllipsis(2), color: (t) => t.palette.text.secondary }}
+                            sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                         />
                         {/* Tags */}
                         {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}

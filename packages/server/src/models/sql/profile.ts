@@ -1,7 +1,7 @@
 import { PrismaType, RecursivePartial } from "types";
-import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagCreateInput, TagHidden, TagSearchInput, User, UserDeleteInput } from "../../schema/types";
+import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagCreateInput, TagHidden, User, UserDeleteInput } from "../../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
-import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, padSelect, PaginatedSearchResult, PartialInfo, readManyHelper, readOneHelper, relationshipToPrisma, removeJoinTablesHelper, selectHelper, toPartialSelect } from "./base";
+import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, padSelect, PartialInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialSelect } from "./base";
 import { user } from "@prisma/client";
 import { CODE, profileUpdateSchema, ROLES, userTranslationCreate, userTranslationUpdate } from "@local/shared";
 import { CustomError } from "../../error";
@@ -385,7 +385,7 @@ const profileQuerier = (prisma: PrismaType) => ({
             const formatted: any[] = data.map(d => modelToGraphQL(d, partial.hiddenTags as PartialInfo));
             console.log('hidden tags formatted', JSON.stringify(formatted), '\n\n');
             // Call addsupplementalFields on tags of hidden data
-            const tags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted.map(f => f.tag), partial.hiddenTags as PartialInfo) as Tag[];
+            const tags = await (TagModel(prisma) as any).addSupplementalFields(prisma, userId, formatted.map(f => f.tag), (partial as any).hiddenTags.tag as PartialInfo) as Tag[];
             console.log('hidden tags suppled a', JSON.stringify(tags), '\n\n');
             // const tags = (await addSupplementalFields(prisma, userId, formatted.map(f => f.tag), partial.hiddenTags as PartialInfo)) as Tag[];
             hiddenTags = data.map((d: any) => ({
@@ -448,7 +448,17 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
         // Convert tagIds to star creates
         const starredCreate = tagIds.map(tagId => ({ tagId }));
         // Convert starredTagsDisconnect to star deletes
-        const starredDelete = input.starredTagsDisconnect?.map(tagId => ({ id: tagId }));
+        const starredDelete = input.starredTagsDisconnect ? await prisma.star.findMany({
+            where: {
+                AND: [
+                    { byId: userId },
+                    { tagId: { in: input.starredTagsDisconnect } },
+                    { NOT: { tagId: null } }
+                ]
+            },
+            select: { id: true }
+        }) : [];
+        console.log('starred deleteeeee', JSON.stringify(starredDelete), '\n\n');
         //Create user data
         let userData: { [x: string]: any } = {
             handle: input.handle,
@@ -462,6 +472,7 @@ const profileMutater = (formatter: FormatConverter<User>, validater: any, prisma
             },
             translations: TranslationModel().relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
         };
+        console.log('updateprofile userData', JSON.stringify(userData), '\n\n');
         // Update user
         const profileData = await prisma.user.update({
             where: { id: userId },

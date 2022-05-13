@@ -3,10 +3,11 @@ import { ListItem, ListItemButton, ListItemText, Stack, Tooltip, useTheme } from
 import { StandardListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, MemberRole, StandardSortBy, StarFor, VoteFor } from '@local/shared';
+import { APP_LINKS, StandardSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList, UpvoteDownvote } from '..';
-import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
+import { owns } from 'utils/authentication';
 
 export function StandardListItem({
     data,
@@ -17,7 +18,7 @@ export function StandardListItem({
 }: StandardListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => Boolean(data?.role) && [MemberRole.Admin, MemberRole.Owner].includes(data.role), [data]);
+    const canEdit = useMemo<boolean>(() => owns(data?.role), [data]);
 
     const { description } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -44,7 +45,7 @@ export function StandardListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
-                    background: index % 2 === 0 ? 'default' : '#e9e9e9',
+                    background: listItemColor(index, palette),
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>

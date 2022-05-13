@@ -16,11 +16,12 @@ import isEqual from 'lodash/isEqual';
 import { useLocation, useRoute } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { BuildStatusObject } from 'components/graphs/NodeGraph/types';
-import { MemberRole, NodeType } from 'graphql/generated/globalTypes';
+import { NodeType } from 'graphql/generated/globalTypes';
 import { BuildPageProps } from 'pages/types';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseObjectAction } from 'components/dialogs/types';
+import { owns } from 'utils/authentication';
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -92,7 +93,7 @@ export const BuildPage = ({
     const [status, setStatus] = useState<BuildStatusObject>({ code: BuildStatus.Incomplete, messages: ['Calculating...'] });
     // Determines the size of the nodes and edges
     const [scale, setScale] = useState<number>(1);
-    const canEdit = useMemo<boolean>(() => routine?.role ? [MemberRole.Admin, MemberRole.Owner].includes(routine.role) : false, [routine]);
+    const canEdit = useMemo<boolean>(() => owns(routine?.role), [routine]);
     
     // Open/close unlinked nodes drawer
     const [isUnlinkedNodesOpen, setIsUnlinkedNodesOpen] = useState<boolean>(false);

@@ -3,12 +3,13 @@ import { Box, LinearProgress, ListItem, ListItemButton, ListItemText, Stack, Too
 import { RunListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { APP_LINKS, MemberRole, RunSortBy, StarFor } from '@local/shared';
+import { APP_LINKS, RunSortBy, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton, TagList } from '..';
-import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
+import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 import { RunStatus } from 'graphql/generated/globalTypes';
+import { owns } from 'utils/authentication';
 
 // Color options for profile picture
 // [background color, silhouette color]
@@ -62,7 +63,7 @@ export function RunListItem({
 }: RunListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const canEdit = useMemo<boolean>(() => data?.routine?.role ? [MemberRole.Admin, MemberRole.Owner].includes(data.routine.role) : false, [data]);
+    const canEdit = useMemo<boolean>(() => owns(data?.routine?.role), [data]);
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
     const { bio, name, percentComplete, startedAt, completedAt } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -97,7 +98,7 @@ export function RunListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
-                    background: index % 2 === 0 ? 'default' : '#e9e9e9',
+                    background: listItemColor(index, palette),
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>

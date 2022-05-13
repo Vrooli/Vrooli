@@ -19,8 +19,8 @@ import {
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { getTranslation, updateTranslationField } from 'utils';
-import { MemberRole } from 'graphql/generated/globalTypes';
 import { EditableLabel } from 'components/inputs';
+import { owns } from 'utils/authentication';
 
 export const RoutineSubnode = ({
     data,
@@ -39,7 +39,7 @@ export const RoutineSubnode = ({
     const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
     const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
-    const canEdit = useMemo<boolean>(() => data.routine.role ? [MemberRole.Owner, MemberRole.Admin].includes(data.routine.role) : false, [data.routine.role]);
+    const canEdit = useMemo<boolean>(() => owns(data.routine?.role), [data.routine]);
 
     const { title } = useMemo(() => {
         const languages = navigator.languages;

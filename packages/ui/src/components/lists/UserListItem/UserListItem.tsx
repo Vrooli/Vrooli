@@ -6,21 +6,8 @@ import { useCallback, useMemo } from 'react';
 import { APP_LINKS, StarFor, UserSortBy } from '@local/shared';
 import { useLocation } from 'wouter';
 import { StarButton } from '..';
-import { getTranslation, LabelledSortOption, labelledSortOptions } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, placeholderColor } from 'utils';
 import { Person as PersonIcon } from '@mui/icons-material';
-
-// Color options for profile picture
-// [background color, silhouette color]
-const colorOptions: [string, string][] = [
-    ["#197e2c", "#b5ffc4"],
-    ["#b578b6", "#fecfea"],
-    ["#4044d6", "#e1c7f3"],
-    ["#d64053", "#fbb8c5"],
-    ["#d69440", "#e5d295"],
-    ["#40a4d6", "#79e0ef"],
-    ["#6248e4", "#aac3c9"],
-    ["#8ec22c", "#cfe7b4"],
-]
 
 export const UserListItem = ({
     data,
@@ -33,7 +20,7 @@ export const UserListItem = ({
     const [, setLocation] = useLocation();
     const isOwn = useMemo(() => data?.id === session?.id, [data, session]);
 
-    const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
+    const profileColors = useMemo(() => placeholderColor(), []);
 
     const { bio, name } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
@@ -65,7 +52,7 @@ export const UserListItem = ({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
-                    background: index % 2 === 0 ? 'default' : '#e9e9e9',
+                    background: listItemColor(index, palette),
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>

@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, MemberRole, StarFor } from "@local/shared";
+import { APP_LINKS, StarFor } from "@local/shared";
 import { useLazyQuery } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
 import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
@@ -23,6 +23,7 @@ import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, g
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { owns } from "utils/authentication";
 
 enum TabOptions {
     Resources = "Resources",
@@ -51,7 +52,7 @@ export const OrganizationView = ({
     useEffect(() => {
         setOrganization(data?.organization);
     }, [data]);
-    const canEdit = useMemo<boolean>(() => organization?.role ? [MemberRole.Admin, MemberRole.Owner].includes(organization.role) : false, [organization]);
+    const canEdit = useMemo<boolean>(() => owns(organization?.role), [organization]);
 
     const [language, setLanguage] = useState<string>('');
     const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);

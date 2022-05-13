@@ -68,6 +68,7 @@ export const profileFields = gql`
             }
         }
         hiddenTags {
+            id
             isBlur
             tag {
                 id
