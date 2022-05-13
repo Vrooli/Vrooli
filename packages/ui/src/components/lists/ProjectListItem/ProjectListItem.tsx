@@ -15,6 +15,7 @@ export function ProjectListItem({
     loading,
     session,
     onClick,
+    tooltip = 'View details',
 }: ProjectListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -44,7 +45,7 @@ export function ProjectListItem({
     }, [onClick, setLocation, data]);
 
     return (
-        <Tooltip placement="top" title="View details">
+        <Tooltip placement="top" title={tooltip ?? 'View Details'}>
             <ListItem
                 disablePadding
                 onClick={handleClick}

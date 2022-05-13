@@ -229,6 +229,7 @@ export interface SubroutineInfoDialogProps {
     isEditing: boolean;
     language: string;
     open: boolean;
+    session: Session;
     subroutine: Routine | null;
     onClose: () => any;
 }

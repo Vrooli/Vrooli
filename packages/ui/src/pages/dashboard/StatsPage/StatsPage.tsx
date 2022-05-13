@@ -1,4 +1,4 @@
-import { Box, Tab, Tabs, Typography, useTheme } from '@mui/material';
+import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { useState } from 'react';
 import { StatsList } from 'components';
 
@@ -10,8 +10,6 @@ const tabProps = (index: number) => ({
 const tabLabels = ['Daily', 'Weekly', 'Monthly', 'Yearly', 'All time'];
 
 export const StatsPage = () => {
-    const { breakpoints } = useTheme();
-    
     // Handle tabs
     const [tabIndex, setTabIndex] = useState(0);
     const handleTabChange = (event, newValue) => {
@@ -21,10 +19,7 @@ export const StatsPage = () => {
     return (
         <Box id='page' sx={{
             padding: '0.5em',
-            paddingTop: '64px',
-            [breakpoints.up('md')]: {
-                paddingTop: '8vh',
-            },
+            paddingTop: { xs: '64px', md: '80px' },
         }}>
             <Tabs
                 value={tabIndex}

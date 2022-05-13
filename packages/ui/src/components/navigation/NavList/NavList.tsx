@@ -32,7 +32,6 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
     button: {
         fontSize: '1.5em',
-        marginLeft: '20px',
         borderRadius: '10px',
     },
     menuItem: {

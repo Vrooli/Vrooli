@@ -203,7 +203,7 @@ const shortcutsItems: AutocompleteListItem[] = shortcuts.map(({ label, link }) =
 export const HomePage = ({
     session
 }: HomePageProps) => {
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>(() => {
         const { search } = parseSearchParams(window.location.search);
@@ -387,10 +387,7 @@ export const HomePage = ({
     return (
         <Box id='page' sx={{
             padding: '0.5em',
-            paddingTop: '64px',
-            [breakpoints.up('md')]: {
-                paddingTop: '8vh',
-            },
+            paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
             {showForYou && <Tabs

@@ -373,7 +373,7 @@ export const resolvers = {
             )).edges.map(({ node }: any) => modelToGraphQL(node, toPartialSelect(projectSelect, pModel.relationshipMap) as PartialInfo)) as any[]
             const newlyCompletedRoutines = (await readManyHelper(
                 context.req.userId,
-                { take, isComplete: true, sortBy: RoutineSortBy.DateCompletedAsc },
+                { take, isComplete: true, isInternal: false, sortBy: RoutineSortBy.DateCompletedAsc },
                 routineSelect,
                 rModel,
                 { ...starsQuery },

@@ -16,6 +16,7 @@ export function OrganizationListItem({
     loading,
     session,
     onClick,
+    tooltip,
 }: OrganizationListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -45,7 +46,7 @@ export function OrganizationListItem({
     }, [onClick, data, setLocation]);
 
     return (
-        <Tooltip placement="top" title="View details">
+        <Tooltip placement="top" title={tooltip ?? 'View Details'}>
             <ListItem
                 disablePadding
                 onClick={handleClick}

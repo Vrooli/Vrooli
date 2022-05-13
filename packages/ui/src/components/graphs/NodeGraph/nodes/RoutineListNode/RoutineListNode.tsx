@@ -21,7 +21,6 @@ import { NodeContextMenu, NodeWidth } from '../..';
 import {
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
-    routineNodeListOptions,
 } from '../styles';
 import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
@@ -179,7 +178,9 @@ export const RoutineListNode = ({
     }, [collapseOpen, label, labelVisible, isEditing, node.id, handleLabelUpdate, isLinked]);
 
     const optionsCollapse = useMemo(() => (
-        <Collapse in={collapseOpen} sx={{ ...routineNodeListOptions }}>
+        <Collapse in={collapseOpen} sx={{ 
+            background: palette.mode === 'light' ? '#b0bbe7' : '#384164',
+         }}>
             <Tooltip placement={'top'} title='Must complete routines in order'>
                 <FormControlLabel
                     disabled={!isEditing}
@@ -217,7 +218,7 @@ export const RoutineListNode = ({
                 />
             </Tooltip>
         </Collapse>
-    ), [collapseOpen, isEditing, label, node?.data, onOrderedChange, onOptionalChange]);
+    ), [collapseOpen, palette.mode, isEditing, label, node?.data, onOrderedChange, onOptionalChange]);
 
     const routines = useMemo(() => (node?.data as NodeDataRoutineList)?.routines?.map(routine => (
         <RoutineSubnode

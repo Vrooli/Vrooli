@@ -40,7 +40,7 @@ const settingPages: { [x: string]: [SettingsForm, string, SvgIconComponent] } = 
 export function SettingsPage({
     session,
 }: SettingsPageProps) {
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const searchParams = useReactSearch();
     const { selectedPage } = useMemo(() => ({
@@ -104,10 +104,7 @@ export function SettingsPage({
             justifyContent: 'center', 
             alignItems: 'center',
             padding: '0.5em',
-            paddingTop: '64px',
-            [breakpoints.up('md')]: {
-                paddingTop: '8vh',
-            },
+            paddingTop: { xs: '64px', md: '80px' },
         }}>
             <Box sx={{
                 ...containerShadow,

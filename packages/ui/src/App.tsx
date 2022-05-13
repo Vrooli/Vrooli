@@ -81,14 +81,18 @@ export function App() {
     useEffect(() => {
         // if not a hash link, scroll to top
         if (window.location.hash === '') {
+            console.log('scroll to top')
             window.scrollTo(0, 0);
         }
         // else scroll to id
         else {
             setTimeout(() => {
                 const id = window.location.hash.replace('#', '');
+                console.log('hash timeout id', id)
                 const element = document.getElementById(id);
+                console.log('hash timeout element', element)
                 if (element) {
+                    console.log('hash scrolling into view')
                     element.scrollIntoView();
                 }
             }, 0);
@@ -196,9 +200,7 @@ export function App() {
                         }}
                     >
                         <Box id="content-wrap" sx={{
-                            background: theme.palette.mode === 'light' ? 
-                                'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)' : 
-                                theme.palette.background.default,
+                            background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
                             minHeight: '100vh',
                         }}>
                             <Navbar session={session ?? {}} sessionChecked={session !== undefined} />
@@ -216,7 +218,16 @@ export function App() {
                             }
                             {/* Celebratory confetti. To be used sparingly */}
                             {
-                                celebrating && <Confetti />
+                                celebrating && <Confetti
+                                    initialVelocityY={-10}
+                                    recycle={false}
+                                    confettiSource={{
+                                        x: 0,
+                                        y: 40,
+                                        w: window.innerWidth,
+                                        h: 0
+                                    }}
+                                />
                             }
                             <AlertDialog />
                             <Snack />

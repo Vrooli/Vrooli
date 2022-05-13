@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { Box, useTheme } from "@mui/material"
+import { Box } from "@mui/material"
 import { BaseObjectDialog, StandardView } from "components";
 import { StandardViewPageProps } from "./types";
 import { ObjectDialogAction } from "components/dialogs/types";
@@ -13,7 +13,6 @@ export const StandardViewPage = ({
     session
 }: StandardViewPageProps) => {
     const [, setLocation] = useLocation();
-    const { breakpoints } = useTheme();
     // Get URL params
     const [matchView, paramsView] = useRoute(`${APP_LINKS.Standard}/:id`);
     const [matchUpdate, paramsUpdate] = useRoute(`${APP_LINKS.Standard}/edit/:id`);
@@ -45,11 +44,7 @@ export const StandardViewPage = ({
     return (
         <Box sx={{
             minHeight: '100vh',
-            paddingTop: '64px',
-            [breakpoints.up('md')]: {
-                paddingTop: '8vh',
-                minHeight: '88vh',
-            },
+            paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Add dialog */}
             <BaseObjectDialog

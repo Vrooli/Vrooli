@@ -1,5 +1,5 @@
 import { APP_LINKS } from "@local/shared";
-import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography } from "@mui/material";
 import { SearchList } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
@@ -32,7 +32,6 @@ export function BaseSearchPage<DataType, SortBy>({
     onPopupButtonClick,
     session,
 }: BaseSearchPageProps<DataType, SortBy>) {
-    const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
     // Handle url search
     const [searchString, setSearchString] = useState<string>(parseSearchParams(window.location.search).search ?? '');
@@ -86,10 +85,7 @@ export function BaseSearchPage<DataType, SortBy>({
     return (
         <Box id='page' sx={{
             padding: '0.5em',
-            paddingTop: '64px',
-            [breakpoints.up('md')]: {
-                paddingTop: '8vh',
-            },
+            paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Navigate between search pages */}
             <Tabs

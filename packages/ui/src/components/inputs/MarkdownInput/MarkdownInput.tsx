@@ -366,6 +366,7 @@ export const MarkdownInput = ({
                                 borderTop: 'none',
                                 fontFamily: 'inherit',
                                 fontSize: 'inherit',
+                                color: palette.text.primary
                             }}
                         />
                     )

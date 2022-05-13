@@ -15,6 +15,7 @@ export function StandardListItem({
     loading,
     session,
     onClick,
+    tooltip = 'View details',
 }: StandardListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -39,7 +40,7 @@ export function StandardListItem({
     }, [onClick, data, setLocation]);
 
     return (
-        <Tooltip placement="top" title="View details">
+        <Tooltip placement="top" title={tooltip ?? 'View Details'}>
             <ListItem
                 disablePadding
                 onClick={handleClick}

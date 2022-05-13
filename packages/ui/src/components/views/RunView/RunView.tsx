@@ -534,15 +534,12 @@ export const RunView = ({
                 </Stack>
                 {/* Main content. For now, either looks like view of a basic routine, or options to select an edge */}
                 <Box sx={{
-                    background: palette.mode === 'light' ?
-                        'fixed radial-gradient(circle, rgba(208,213,226,1) 7%, rgba(179,191,217,1) 66%, rgba(160,188,249,1) 94%)' :
-                        palette.background.default,
+                    background: palette.mode === 'light' ? '#c2cadd' : palette.background.default,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: 'auto',
                     overflowY: 'auto',
-                    minHeight: '88vh',
                 }}>
                     {childView}
                 </Box>

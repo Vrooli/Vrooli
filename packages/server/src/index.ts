@@ -28,6 +28,7 @@ const main = async () => {
     // Setup databases
     await setupDatabase();
     try {
+        mongoose.set('debug', process.env.NODE_ENV === 'development');
         await mongoose.connect(process.env.MONGO_CONN ?? '', {
             useNewUrlParser: true,
             useUnifiedTopology: true,

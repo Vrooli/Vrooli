@@ -1,20 +1,14 @@
-import { Box, useTheme } from "@mui/material"
+import { Box } from "@mui/material"
 import { UserView } from "components";
 import { UserViewPageProps } from "./types";
 
 export const UserViewPage = ({
     session
 }: UserViewPageProps) => {
-    const { breakpoints } = useTheme();
-
     return (
         <Box sx={{
             minHeight: '100vh',
-            paddingTop: '64px',
-            [breakpoints.up('md')]: {
-                paddingTop: '8vh',
-                minHeight: '88vh',
-            },
+            paddingTop: { xs: '64px', md: '80px' },
         }}>
             <UserView session={session} />
         </Box>

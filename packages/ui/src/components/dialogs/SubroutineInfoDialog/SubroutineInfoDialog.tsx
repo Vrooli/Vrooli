@@ -2,7 +2,7 @@
  * Drawer to display a routine list item's info on the build page. 
  * Swipes up from bottom of screen
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AccountTree as GraphIcon,
     Close as CloseIcon,
@@ -23,8 +23,9 @@ import { SubroutineInfoDialogProps } from '../types';
 import { getOwnedByString, getTranslation, toOwnedBy } from 'utils';
 import Markdown from 'markdown-to-jsx';
 import { routineUpdateForm as validationSchema } from '@local/shared';
-import { MarkdownInput } from 'components/inputs';
+import { InputOutputContainer, MarkdownInput } from 'components';
 import { useFormik } from 'formik';
+import { RoutineInputList, RoutineOutputList } from 'types';
 
 export const SubroutineInfoDialog = ({
     handleUpdate,
@@ -32,6 +33,7 @@ export const SubroutineInfoDialog = ({
     isEditing,
     open,
     language,
+    session,
     subroutine,
     onClose,
 }: SubroutineInfoDialogProps) => {
@@ -40,6 +42,23 @@ export const SubroutineInfoDialog = ({
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(subroutine, [language]), [subroutine, language]);
     const toOwner = useCallback(() => { toOwnedBy(subroutine, setLocation) }, [subroutine, setLocation]);
+
+    // Handle inputs
+    const [inputsList, setInputsList] = useState<RoutineInputList>([]);
+    const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
+        setInputsList(updatedList);
+    }, [setInputsList]);
+
+    // Handle outputs
+    const [outputsList, setOutputsList] = useState<RoutineOutputList>([]);
+    const handleOutputsUpdate = useCallback((updatedList: RoutineOutputList) => {
+        setOutputsList(updatedList);
+    }, [setOutputsList]);
+
+    useEffect(() => {
+        setInputsList(subroutine?.inputs ?? []);
+        setOutputsList(subroutine?.outputs ?? []);
+    }, [subroutine]);
 
     // Handle update
     const formik = useFormik({
@@ -85,7 +104,6 @@ export const SubroutineInfoDialog = ({
             sx={{
                 '& .MuiDrawer-paper': {
                     background: palette.background.default,
-                    borderLeft: `1px solid ${palette.text.primary}`,
                     maxHeight: 'min(300px, 100vh)',
                 }
             }}
@@ -176,6 +194,28 @@ export const SubroutineInfoDialog = ({
                                 )
                             }
                         </Box>
+                    </Grid>
+                    {/* Inputs */}
+                    <Grid item xs={12} sm={6}>
+                        <InputOutputContainer
+                            isEditing={isEditing}
+                            handleUpdate={handleInputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                            isInput={true}
+                            language={language}
+                            list={inputsList}
+                            session={session}
+                        />
+                    </Grid>
+                    {/* Outputs */}
+                    <Grid item xs={12} sm={6}>
+                        <InputOutputContainer
+                            isEditing={isEditing}
+                            handleUpdate={handleOutputsUpdate as (updatedList: RoutineInputList | RoutineOutputList) => void}
+                            isInput={false}
+                            language={language}
+                            list={outputsList}
+                            session={session}
+                        />
                     </Grid>
                 </Grid>
             </Box>

@@ -1,6 +1,6 @@
 import { Box, Button, CircularProgress, Dialog, Grid, IconButton, Link, Stack, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation, useRoute } from "wouter";
-import { APP_LINKS, MemberRole } from "@local/shared";
+import { APP_LINKS } from "@local/shared";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -109,9 +109,9 @@ export const RoutineView = ({
             mutation: runComplete,
             input: { id: routine.id, exists: false },
             successMessage: () => 'Routine completed!🎉',
-            onSuccess: () => { 
+            onSuccess: () => {
                 PubSub.publish(Pubs.Celebration);
-                setLocation(APP_LINKS.Home) 
+                setLocation(APP_LINKS.Home)
             },
         })
     }, [routine, runComplete, setLocation]);
@@ -205,7 +205,7 @@ export const RoutineView = ({
                 </Grid>
                 {/* Show continue if routine already has progress TODO */}
                 <Grid item xs={12} sm={6}>
-                    {routine && routine.runs.length > 0 ? 
+                    {routine && routine.runs.length > 0 ?
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
                         <Button startIcon={<StartIcon />} fullWidth onClick={runRoutine} color="secondary">Start Now</Button>
                     }
@@ -215,7 +215,7 @@ export const RoutineView = ({
     }, [routine, markAsComplete, viewGraph, runRoutine]);
 
     const resourceList = useMemo(() => {
-        if (!routine || 
+        if (!routine ||
             !Array.isArray(routine.resourceLists) ||
             routine.resourceLists.length < 1 ||
             routine.resourceLists[0].resources.length < 1) return null;
@@ -263,18 +263,18 @@ export const RoutineView = ({
                     <Box sx={{
                         padding: 1,
                         borderRadius: 1,
-                        color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
+                        color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
                     }}>
-                        <Typography variant="h6">Description</Typography>
-                        <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
+                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
+                        <Typography variant="body1">{description ?? 'No description set'}</Typography>
                     </Box>
                     {/* Instructions */}
                     <Box sx={{
                         padding: 1,
                         borderRadius: 1,
-                        color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
+                        color: Boolean(instructions) ? palette.background.textPrimary : palette.background.textSecondary,
                     }}>
-                        <Typography variant="h6">Instructions</Typography>
+                        <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
                         <Markdown>{instructions ?? 'No instructions'}</Markdown>
                     </Box>
                 </Stack>
@@ -282,7 +282,7 @@ export const RoutineView = ({
                 {actions}
             </>
         )
-    }, [loading, routine, resourceList, instructions, description, actions]);
+    }, [loading, routine, resourceList, description, palette.background.textPrimary, palette.background.textSecondary, instructions, actions]);
 
     return (
         <Box sx={{

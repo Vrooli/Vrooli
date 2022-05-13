@@ -169,8 +169,9 @@ const starrer = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { stars: starringFor.stars + 1 }
             })
+            console.log('before log star')
             // Log star event
-            await Log.collection.insertOne({
+            Log.collection.insertOne({
                 timestamp: Date.now(),
                 userId: userId,
                 action: LogType.Star,
@@ -187,8 +188,9 @@ const starrer = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { stars: starringFor.stars - 1 }
             })
+            console.log('before log unstar')
             // Log unstar event
-            await Log.collection.insertOne({
+            Log.collection.insertOne({
                 timestamp: Date.now(),
                 userId: userId,
                 action: LogType.RemoveStar,

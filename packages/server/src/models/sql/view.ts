@@ -268,6 +268,7 @@ const viewer = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { views: viewFor.views + 1 }
             })
+            console.log('before log view')
             // Log view
             Log.collection.insertOne({
                 timestamp: Date.now(),

@@ -50,7 +50,7 @@ export const AddSubroutineDialog = ({
     }, [setIsCreateOpen]);
 
     // If routine selected from search, query for full data
-    const [getRoutine, { data: routineData, loading }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const handleRoutineSelect = useCallback((routine: Routine) => {
         getRoutine({ variables: { input: { id: routine.id } } });
     }, [getRoutine]);
@@ -97,7 +97,10 @@ export const AddSubroutineDialog = ({
             open={isOpen}
             onClose={handleClose}
             sx={{
-                '& .MuiDialogContent-root': { overflow: 'visible', background: '#cdd6df' },
+                '& .MuiDialogContent-root': { 
+                    overflow: 'visible', 
+                    background: palette.mode === 'light' ? '#cdd6df' : '#182028',
+                },
                 '& .MuiDialog-paper': { overflow: 'visible' }
             }}
         >
@@ -118,18 +121,6 @@ export const AddSubroutineDialog = ({
             {titleBar}
             <DialogContent>
                 <Stack direction="column" spacing={4}>
-                    <Button
-                        fullWidth
-                        onClick={handleCreateOpen}
-                        startIcon={<CreateIcon />}
-                    >Create</Button>
-                    <Box sx={{
-                        alignItems: 'center',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                    }}>
-                        <Typography variant="h6" sx={{ marginLeft: 'auto', marginRight: 'auto' }}>Or</Typography>
-                    </Box>
                     <SearchList
                         itemKeyPrefix='routine-list-item'
                         defaultSortOption={routineDefaultSortOption}
@@ -148,6 +139,11 @@ export const AddSubroutineDialog = ({
                         timeFrame={timeFrame}
                         where={uuidValidate(routineId) ? { excludeIds: [routineId] } : undefined}
                     />
+                    <Button
+                        fullWidth
+                        onClick={handleCreateOpen}
+                        startIcon={<CreateIcon />}
+                    >Create New</Button>
                 </Stack>
             </DialogContent>
         </Dialog>

@@ -143,6 +143,10 @@ export interface ListToListItemProps {
      * Current session
      */
     session: Session,
+    /**
+     * Tooltip text to display when hovering over a list item
+     */
+    tooltip?: string,
 }
 
 /**
@@ -156,6 +160,7 @@ export function listToListItems({
     loading,
     onClick,
     session,
+    tooltip,
 }: ListToListItemProps): JSX.Element[] {
     console.log('a', items);
     let listItems: JSX.Element[] = [];
@@ -174,6 +179,7 @@ export function listToListItems({
                     index={i}
                     loading={true}
                     session={session}
+                    tooltip={tooltip}
                 />);
             }
         }
@@ -193,7 +199,8 @@ export function listToListItems({
             index: i,
             loading: loading,
             session,
-            onClick: onClick ? (e) => onClick(curr, e) : undefined
+            onClick: onClick ? (e) => onClick(curr, e) : undefined,
+            tooltip: tooltip,
         }
         if (curr.__typename in listItemMap) {
             const CurrItem = listItemMap[curr.__typename];

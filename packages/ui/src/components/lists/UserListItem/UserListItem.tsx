@@ -15,6 +15,7 @@ export const UserListItem = ({
     loading,
     onClick,
     session,
+    tooltip = 'View details',
 }: UserListItemProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -46,7 +47,7 @@ export const UserListItem = ({
     }, [onClick, data, setLocation]);
 
     return (
-        <Tooltip placement="top" title="View details">
+        <Tooltip placement="top" title={tooltip ?? 'View Details'}>
             <ListItem
                 disablePadding
                 onClick={handleClick}

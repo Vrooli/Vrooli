@@ -28,7 +28,7 @@ export const HelpButton = ({
         return (
             <Box>
                 <Box sx={{ 
-                    background: palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark,
+                    background: palette.primary.dark,
                     display: 'flex',
                     flexDirection: 'row-reverse',
                     paddingRight: '0.5rem',
@@ -42,7 +42,7 @@ export const HelpButton = ({
                 </Box>
             </Box>
         )
-    }, [markdown, palette.mode, palette.primary.dark, palette.secondary.dark])
+    }, [markdown, palette.primary.dark])
 
     return (
         <Box

@@ -57,7 +57,7 @@ export const BuildInfoContainer = ({
     session,
     status,
 }: BuildInfoContainerProps) => {
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
     /**
      * List of status messages converted to markdown. 
      * If one message, no bullet points. If multiple, bullet points.
@@ -110,10 +110,7 @@ export const BuildInfoContainer = ({
                 zIndex: 2,
                 background: palette.primary.light,
                 color: palette.primary.contrastText,
-                paddingTop: '64px',
-                [breakpoints.up('md')]: {
-                    paddingTop: '8vh',
-                },
+                paddingTop: { xs: '64px', md: '80px' },
             }}
         >
             {/* Status indicator */}

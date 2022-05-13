@@ -1383,6 +1383,7 @@ export async function createHelper<GraphQLModel>(
                 object1Type: objectType,
                 object1Id: c.id,
             }));
+            console.log('before log createhelper', JSON.stringify(logs), '\n\n')
             // No need to await this, since it is not needed for the response
             Log.collection.insertMany(logs)
         }
@@ -1428,6 +1429,7 @@ export async function updateHelper<GraphQLModel>(
                 object1Type: objectType,
                 object1Id: c.id,
             }));
+            console.log('before log updatehelper', JSON.stringify(logs), '\n\n')
             // No need to await this, since it is not needed for the response
             Log.collection.insertMany(logs)
         }
@@ -1458,6 +1460,7 @@ export async function deleteOneHelper(
         // If organization, project, routine, or standard, log for stats
         const objectType = model.relationshipMap.__typename;
         if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
+            console.log('before log deleteone')
             // No need to await this, since it is not needed for the response
             Log.collection.insertOne({
                 timestamp: Date.now(),
@@ -1502,6 +1505,7 @@ export async function deleteManyHelper(
             object1Type: objectType,
             object1Id: id,
         }));
+        console.log('before log deleteManyHelper', JSON.stringify(logs), '\n\n')
         // No need to await this, since it is not needed for the response
         Log.collection.insertMany(logs)
     }

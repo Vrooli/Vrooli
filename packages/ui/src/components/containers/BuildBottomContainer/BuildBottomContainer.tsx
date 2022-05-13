@@ -159,12 +159,12 @@ export const BuildBottomContainer = ({
     }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleCancelUpdate, handleUpdate, isAdding, isEditing, loading, runRoutine, runState]);
 
     return (
-        <Box p={2} sx={{
+        <Box p={1} sx={{
             alignItems: 'center',
             background: palette.primary.light,
             display: 'flex',
             justifyContent: 'center',
-            paddingBottom: { xs: '72px', md: '16px' },
+            paddingBottom: { xs: '64px', md: '8px' },
         }}>
             {/* Chooses which run to use */}
             <RunPickerDialog

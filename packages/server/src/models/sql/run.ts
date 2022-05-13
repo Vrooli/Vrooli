@@ -146,6 +146,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                     object2Id: createMany[i].routineId,
                 })
             }
+            console.log('before log run cud', JSON.stringify(logData), '\n\n');
             Log.collection.insertMany(logData);
         }
         if (updateMany) {
@@ -248,6 +249,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
         console.log('run complete addsupp', JSON.stringify(converted));
+        console.log('before log run complete')
         // Log run completion
         Log.collection.insertOne({
             timestamp: Date.now(),
@@ -290,6 +292,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
         let converted: any = modelToGraphQL(updated, partial);
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
+        console.log('before log run cancel')
         // Log run cancellation
         Log.collection.insertOne({
             timestamp: Date.now(),

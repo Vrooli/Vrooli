@@ -1,4 +1,4 @@
-import { Box, Stack, Tab, Tabs, useTheme } from '@mui/material';
+import { Box, Stack, Tab, Tabs } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { forYouPage, forYouPageVariables } from 'graphql/generated/forYouPage';
 import { useQuery } from '@apollo/client';
@@ -34,7 +34,6 @@ export const ForYouPage = ({
     session
 }: ForYouPageProps) => {
     const [, setLocation] = useLocation();
-    const { breakpoints } = useTheme();
     const { data, refetch, loading } = useQuery<forYouPage, forYouPageVariables>(forYouPageQuery, { variables: { input: {} } });
     useEffect(() => { refetch() }, [refetch]);
 
@@ -97,10 +96,7 @@ export const ForYouPage = ({
     return (
         <Box id='page' sx={{
             padding: '0.5em',
-            paddingTop: '64px',
-            [breakpoints.up('md')]: {
-                paddingTop: '8vh',
-            },
+            paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Navigate between normal home page (shows popular results) and for you page (shows personalized results) */}
             <Tabs

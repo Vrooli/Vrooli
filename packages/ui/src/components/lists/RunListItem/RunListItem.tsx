@@ -60,6 +60,7 @@ export function RunListItem({
     loading,
     onClick,
     session,
+    tooltip = 'View details',
 }: RunListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -92,7 +93,7 @@ export function RunListItem({
     }, [onClick, data, setLocation]);
 
     return (
-        <Tooltip placement="top" title="View details">
+        <Tooltip placement="top" title={tooltip ?? 'View Details'}>
             <ListItem
                 disablePadding
                 onClick={handleClick}

@@ -942,6 +942,7 @@ export const BuildPage = ({
                 handleViewFull={handleSubroutineViewFull}
                 language={language}
                 open={Boolean(selectedSubroutine)}
+                session={session}
                 subroutine={selectedSubroutine}
                 onClose={closeRoutineInfo}
             />

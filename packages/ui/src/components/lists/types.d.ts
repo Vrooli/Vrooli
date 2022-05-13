@@ -19,6 +19,10 @@ export interface ObjectListItemProps<DataType> {
      * known properties of the object, while waiting for the full data to be fetched.
      */
     onClick?: (e: React.MouseEvent<any>, data: DataType) => any;
+    /**
+     * Tooltip text to display when hovering over the item
+     */
+    tooltip?: string | null | undefined;
 }
 
 export type OrganizationListItemProps = ObjectListItemProps<ListOrganization>;

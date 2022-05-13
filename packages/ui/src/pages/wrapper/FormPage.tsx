@@ -13,19 +13,13 @@ export const FormPage = ({
     children,
     maxWidth = '90%',
 }: Props) => {
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
 
     return (
         <Box id='page' sx={{
             maxWidth: maxWidth,
-            [breakpoints.up('md')]: {
-                padding: '0.5em',
-                paddingTop: '8vh',
-            },
-            [breakpoints.down("sm")]: {
-                padding: '0',
-                paddingTop: '64px',
-            },
+            padding: { sx: '0', md: '0.5em' },
+            paddingTop: { xs: '64px', md: '80px' },
         }}>
             <Box sx={{
                 backgroundColor: palette.background.paper,

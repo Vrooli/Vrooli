@@ -9,10 +9,8 @@ import {
 } from '@mui/icons-material';
 import { useLocation } from 'wouter';
 import { clickSize } from 'styles';
-
-/**
- * 
- */
+import { Pubs } from 'utils';
+import { useEffect } from 'react';
 
 const buttonProps = {
     height: "48px",
@@ -31,9 +29,14 @@ const buttonProps = {
 }
 
 export const WelcomePage = () => {
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
+
+    // Show confetti on page load
+    useEffect(() => {
+        PubSub.publish(Pubs.Celebration);
+    }, []);
 
     return (
         <Box
@@ -44,14 +47,9 @@ export const WelcomePage = () => {
                 justifyContent: 'center',
                 alignItems: 'center',
                 textAlign: 'center',
-                background: `linear-gradient(-46deg, #ffba65, #b3629e, #1a5fb5, #41bbb5) 50%/cover no-repeat fixed`,
-                backgroundSize: '400% 400%',
                 animation: 'gradient 15s ease infinite',
                 overflowX: 'hidden',
-                paddingTop: '64px',
-                [breakpoints.up('md')]: {
-                    paddingTop: '8vh',
-                },
+                paddingTop: { xs: '64px', md: '80px' },
             }}
         >
             <Box sx={{
@@ -60,9 +58,8 @@ export const WelcomePage = () => {
                 borderRadius: 2,
                 overflow: 'overlay',
                 marginTop: '-5vh',
-                backgroundColor: '#3232324f',
-                backdropFilter: 'blur(10px)',
-                color: 'white',
+                background: palette.mode === 'light' ? palette.primary.dark : palette.background.paper,
+                color: palette.mode === 'light' ? palette.primary.contrastText : palette.background.textPrimary,
             }}>
                 <Typography component="h1" variant="h2" mb={1}>Welcome to Vrooli!</Typography>
                 <Typography component="h2" variant="h4" mb={3}>Not sure where to start?</Typography>

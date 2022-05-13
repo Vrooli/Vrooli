@@ -1,6 +1,6 @@
 import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
-import { Box, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { profile } from 'graphql/generated/profile';
@@ -97,7 +97,6 @@ const defaultResourceList: ResourceList = {
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
-    const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
@@ -170,10 +169,7 @@ export const ResearchPage = ({
     return (
         <Box id='page' sx={{
             padding: '0.5em',
-            paddingTop: '64px',
-            [breakpoints.up('md')]: {
-                paddingTop: '8vh',
-            },
+            paddingTop: { xs: '64px', md: '80px' },
         }}>
             {/* Title and help button */}
             <Stack

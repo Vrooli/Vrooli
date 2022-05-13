@@ -1,6 +1,7 @@
 export * from './UserListItem/UserListItem';
 export * from './DateRangeMenu/DateRangeMenu';
 export * from './email';
+export * from './inputOutput';
 export * from './OrganizationListItem/OrganizationListItem';
 export * from './ProjectListItem/ProjectListItem';
 export * from './resource';

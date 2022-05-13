@@ -44,7 +44,7 @@ export const RoutineUpdate = ({
     const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
     const onSwitchChange = useCallback((organization: ListOrganization | null) => { setOrganizationFor(organization) }, [setOrganizationFor]);
 
-    // Hanlde inputs
+    // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineInputList>([]);
     const handleInputsUpdate = useCallback((updatedList: RoutineInputList) => {
         setInputsList(updatedList);
