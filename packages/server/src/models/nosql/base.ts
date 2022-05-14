@@ -1,3 +1,4 @@
+import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "./log";
 
 interface PaginatedMongoSearchProps {
@@ -83,7 +84,7 @@ export async function paginatedMongoSearch<ReturnType>({
             paginatedResults.edges.pop();
             paginatedResults.pageInfo.hasNextPage = true;
         }
-    });
+    }).catch(error => logger.log(LogLevel.error, 'Failed querying MongoDB search', { code: genErrorCode('0193'), error }));
     console.log('returning paginated results', JSON.stringify(paginatedResults));
     return paginatedResults;
 }

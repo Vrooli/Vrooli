@@ -11,13 +11,13 @@ import {
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getTranslation, getUserLanguages, Pubs, RoutineStepType, updateArray, useHistoryState } from "utils";
+import { getTranslation, getUserLanguages, Pubs, RoutineStepType, updateArray, useHistoryState, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
 import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, RoutineListStep, RoutineStep, SubroutineStep } from "types";
-import { parseSearchParams } from "utils/navigation/urlTools";
+import { stringifySearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { runComplete } from "graphql/generated/runComplete";
 import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
@@ -33,13 +33,29 @@ export const RunView = ({
 }: RunViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const [stepParams, setStepParams] = useState<number[]>(() => {
-        const stepUrl = (parseSearchParams(window.location.search).step ?? '').split('.');
-        if (Array.isArray(stepUrl)) return stepUrl.map(Number)
-        return []
-    });
+    const params = useReactSearch();
+    const { stepParams, runId, testMode } = useMemo(() => {
+        console.log('hissssss', params)
+        console.log('calculating step paramsssssss', params.step ? params.step.split('.').map(Number) : [])
+        return {
+            stepParams: params.step ? params.step.split('.').map(Number) : [],
+            runId: uuidValidate(params.run) ? params.run : undefined,
+            testMode: params.run === 'test',
+        }
+    }, [params])
     const [, params1] = useRoute(`${APP_LINKS.Build}/:routineId`);
     const [, params2] = useRoute(`${APP_LINKS.Routine}/:routineId`);
+
+    /**
+     * Updates step params
+     * @param newParams The new step params, as an array
+     */
+     const setStepParams = useCallback((newParams: number[]) => {
+        setLocation(stringifySearchParams({
+            ...params,
+            step: newParams.join('.'),
+        }), { replace: true });
+    }, [params, setLocation]);
 
     /**
      * The amount of routine completed so far, measured in complexity
@@ -52,16 +68,6 @@ export const RunView = ({
      * TODO History key should be combination of routineId and updated_at, so history is reset when routine is updated.
      */
     const [progress, setProgress] = useHistoryState(params1?.routineId ?? params2?.routineId ?? '', [])
-
-    const [testMode, setTestMode] = useState<boolean>(false);
-    // Get run id from URL. If not found, look for existing runs or create a new one.
-    useEffect(() => {
-        // Run ID is stored as search param in URL
-        const runId = parseSearchParams(window.location.search).runId;
-        // If ID is 'test', then this routine is being run for testing purposes. 
-        // In this case, we don't want to query/store any run data
-        setTestMode(!runId || runId === 'test' || !uuidValidate(runId));
-    }, []);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -206,14 +212,15 @@ export const RunView = ({
     const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery);
     const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
     useEffect(() => {
+        console.log('calculating step', stepParams)
         // If no steps, redirect to first step
         if (stepParams.length === 0) {
-            setLocation(`?step=1`, { replace: true });
             setStepParams([1]);
             return;
         }
         // Current step is the last step in steps list
         const currStep = findStep(stepParams);
+        console.log('found currstep', currStep)
         if (!currStep) {
             // TODO might need to fetch subroutines multiple times to get to current step, so this shouldn't be an error
             return;
@@ -221,7 +228,6 @@ export const RunView = ({
         // If current step is a list, then redirect to first step in list
         if (currStep.type === RoutineStepType.RoutineList) {
             const newStepList = [...stepParams, 1];
-            setLocation(`?step=${newStepList.join('.')}`, { replace: true });
             setStepParams(newStepList);
             return;
         }
@@ -236,7 +242,7 @@ export const RunView = ({
         } else {
             setCurrentStep(currStep);
         }
-    }, [stepParams, getSubroutine, stepList, findStep, setLocation]);
+    }, [findStep, getSubroutine, params, setStepParams, stepParams]);
     // Add subroutine data to stepList when new data is fetched
     useEffect(() => {
         const subroutine = subroutineData?.routine;
@@ -360,9 +366,8 @@ export const RunView = ({
     const toPrevious = useCallback(() => {
         if (!previousStep) return;
         // Update current step
-        setLocation(`?step=${previousStep.join('.')}`, { replace: true });
         setStepParams(previousStep);
-    }, [previousStep, setLocation]);
+    }, [previousStep, setStepParams]);
 
     const [logRunUpdate] = useMutation<runUpdate, runUpdateVariables>(runUpdateMutation);
     /**
@@ -380,28 +385,36 @@ export const RunView = ({
         const newComplexity = currStep ? (completedComplexity + getStepComplexity(currStep)) : 0;
         // Update routine progress
         setCompletedComplexity(newComplexity);
-        logRunUpdate({ variables: { input: { id: routine?.id ?? '', completedComplexity: newComplexity, stepsCreate: [{ order: progress.length, title: 'TODO' }] } } });
+        // Log if not in test mode
+        if (!testMode && runId) {
+            logRunUpdate({ variables: { input: { id: runId, completedComplexity: newComplexity, stepsCreate: [{ order: progress.length, title: 'TODO' }] } } });
+        }
         // Update current step
-        setLocation(`?step=${nextStep.join('.')}`, { replace: true });
         setStepParams(nextStep);
-    }, [nextStep, progress, stepParams, setProgress, findStep, completedComplexity, getStepComplexity, logRunUpdate, routine?.id, setLocation]);
+    }, [completedComplexity, findStep, getStepComplexity, logRunUpdate, nextStep, progress, runId, setProgress, setStepParams, stepParams, testMode]);
 
     const [logRunComplete] = useMutation<runComplete>(runCompleteMutation);
     /**
      * Mark routine as complete and navigate
      */
     const toComplete = useCallback(() => {
+        // Don't actually do it if in test mode
+        if (testMode || !runId) {
+            PubSub.publish(Pubs.Celebration);
+            handleClose();
+            return;
+        }
         // Log complete
         mutationWrapper({
             mutation: logRunComplete,
-            input: { id: routine?.id ?? '', standalone: true },
+            input: { id: runId, standalone: true },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
                 PubSub.publish(Pubs.Celebration);
                 handleClose()
             },
         })
-    }, [logRunComplete, handleClose, routine]);
+    }, [testMode, runId, logRunComplete, handleClose]);
 
     /**
      * End routine early
@@ -409,10 +422,12 @@ export const RunView = ({
     const toFinishNotComplete = useCallback(() => {
         console.log('tofinishnotcomplete');
         //TODO
-        // Log incomplete
-        logRunComplete({ variables: { input: { id: routine?.id ?? '' } } })
+        // Log if not in test mode
+        if (!testMode && runId) {
+            logRunComplete({ variables: { input: { id: runId ?? '' } } })
+        }
         handleClose();
-    }, [handleClose, logRunComplete, routine]);
+    }, [handleClose, logRunComplete, runId, testMode]);
 
     /**
      * Find the step array of a given nodeId
@@ -450,14 +465,14 @@ export const RunView = ({
         const locationArray = findLocationArray(selectedNode.id, stepList);
         if (!locationArray) return;
         // Navigate to current step
-        setLocation(`?step=${locationArray.join('.')}`, { replace: true });
         setStepParams(locationArray);
-    }, [findLocationArray, setLocation, stepList, toFinishNotComplete]);
+    }, [findLocationArray, setStepParams, stepList, toFinishNotComplete]);
 
     /**
      * Displays either a subroutine view or decision view
      */
     const childView = useMemo(() => {
+        console.log('in child view', currentStep)
         if (!currentStep) return null;
         switch (currentStep.type) {
             case RoutineStepType.Subroutine:
@@ -540,6 +555,7 @@ export const RunView = ({
                     justifyContent: 'center',
                     margin: 'auto',
                     overflowY: 'auto',
+                    minHeight: '86vh',
                 }}>
                     {childView}
                 </Box>

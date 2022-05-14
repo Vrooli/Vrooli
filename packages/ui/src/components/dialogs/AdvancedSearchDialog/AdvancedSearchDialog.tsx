@@ -120,7 +120,7 @@ export const AdvancedSearchDialog = ({
     isOpen,
     session,
 }: AdvancedSearchDialogProps) => {
-    const { palette } = useTheme();
+    const theme = useTheme();
     // Search schema to use
     const [schema, setSchema] = useState<FormSchema | null>(null);
 
@@ -168,16 +168,16 @@ export const AdvancedSearchDialog = ({
     console.log('formik error', formik.errors);
     const grid = useMemo(() => {
         if (!schema) return null;
-        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, () => { })
-    }, [schema, formik])
+        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, theme, () => { })
+    }, [schema, formik, theme])
 
     /**
      * Title bar with help button and close icon
      */
     const titleBar = useMemo(() => (
         <Box sx={{
-            background: palette.primary.dark,
-            color: palette.primary.contrastText,
+            background: theme.palette.primary.dark,
+            color: theme.palette.primary.contrastText,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -191,19 +191,24 @@ export const AdvancedSearchDialog = ({
                     edge="start"
                     onClick={(e) => { handleClose() }}
                 >
-                    <CloseIcon sx={{ fill: palette.primary.contrastText }} />
+                    <CloseIcon sx={{ fill: theme.palette.primary.contrastText }} />
                 </IconButton>
             </Box>
         </Box>
-    ), [handleClose, palette.primary.contrastText, palette.primary.dark])
+    ), [handleClose, theme])
 
     return (
         <Dialog
             open={isOpen}
             onClose={handleClose}
             sx={{
-                '& .MuiDialogContent-root': { overflow: 'visible', background: '#cdd6df' },
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialogContent-root': { 
+                    overflow: 'visible', 
+                    background: theme.palette.mode === 'light' ? '#cdd6df' : '#182028', 
+                },
+                '& .MuiDialog-paper': { 
+                    overflow: 'visible',
+                }
             }}
         >
             {titleBar}
@@ -213,7 +218,7 @@ export const AdvancedSearchDialog = ({
                 </DialogContent>
                 {/* Search/Cancel buttons */}
                 <Grid container spacing={1} sx={{
-                    background: palette.primary.dark,
+                    background: theme.palette.primary.dark,
                     maxWidth: 'min(700px, 100%)',
                     margin: 0,
                 }}>

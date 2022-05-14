@@ -45,6 +45,6 @@ export const openObject = (object: { id: string, handle?: string | null, __typen
     }
     // Navigate to object page
     const linkBases = linkMap[object.__typename];
-    const linkId = object.hasOwnProperty('handle') ? object.handle : object.id;
+    const linkId = object.handle ? object.handle : object.id;
     setLocation(`${linkBases[1]}/${linkId}`);
 }

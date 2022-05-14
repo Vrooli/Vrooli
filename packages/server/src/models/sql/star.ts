@@ -4,7 +4,7 @@ import { LogType, Star, StarInput } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType, PartialInfo, readManyHelper } from "./base";
 import _ from "lodash";
-import { genErrorCode } from "../../logger";
+import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { CommentModel } from "./comment";
 import { OrganizationModel } from "./organization";
@@ -177,7 +177,7 @@ const starrer = (prisma: PrismaType) => ({
                 action: LogType.Star,
                 object1Type: input.starFor,
                 object1Id: input.forId,
-            })
+            }).catch(error => logger.log(LogLevel.error, 'Failed creating "Star" log', { code: genErrorCode('0201'), error }));
         }
         // If star did exist and we don't want to star, delete
         else if (star && !input.isStar) {
@@ -196,7 +196,7 @@ const starrer = (prisma: PrismaType) => ({
                 action: LogType.RemoveStar,
                 object1Type: input.starFor,
                 object1Id: input.forId,
-            })
+            }).catch(error => logger.log(LogLevel.error, 'Failed creating "Remove Star" log', { code: genErrorCode('0202'), error }));
         }
         return true;
     },

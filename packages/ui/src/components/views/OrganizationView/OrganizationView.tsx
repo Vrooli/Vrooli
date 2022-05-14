@@ -6,10 +6,10 @@ import { organization, organizationVariables } from "graphql/generated/organizat
 import { usersQuery, projectsQuery, routinesQuery, standardsQuery, organizationQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
+    Apartment as ProfileIcon,
     CardGiftcard as DonateIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
-    Person as PersonIcon,
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
@@ -19,7 +19,7 @@ import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, Pubs } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { validate as uuidValidate } from 'uuid';
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
@@ -39,6 +39,7 @@ export const OrganizationView = ({
 }: OrganizationViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
     const [, params] = useRoute(`${APP_LINKS.Organization}/:id`);
     const [, params2] = useRoute(`${APP_LINKS.SearchOrganizations}/view/:id`);
@@ -238,18 +239,20 @@ export const OrganizationView = ({
                 width={'min(100px, 25vw)'}
                 height={'min(100px, 25vw)'}
                 borderRadius='100%'
-                border={`4px solid ${palette.primary.dark}`}
-                bgcolor='#939eb9'
                 position='absolute'
                 display='flex'
                 justifyContent='center'
                 alignItems='center'
                 left='50%'
                 top="-55px"
-                sx={{ transform: 'translateX(-50%)' }}
+                sx={{ 
+                    border: `1px solid black`,
+                    backgroundColor: profileColors[0],
+                    transform: 'translateX(-50%)',
+                }}
             >
-                <PersonIcon sx={{
-                    fill: '#cfd0d1',
+                <ProfileIcon sx={{
+                    fill: profileColors[1],
                     width: '80%',
                     height: '80%',
                 }} />
@@ -329,7 +332,7 @@ export const OrganizationView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: bio ? 'black' : 'gray' }}>{bio ?? 'No bio set'}</Typography>
+                        <Typography variant="body1" sx={{ color: Boolean(bio) ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? 'No bio set'}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -357,7 +360,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.primary.dark, palette.primary.main, palette.mode, palette.secondary.light, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.isStarred, organization?.stars, bio, shareLink, session]);
+    ), [palette, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization?.created_at, organization?.id, organization?.isStarred, organization?.stars, bio, shareLink, session]);
 
     /**
      * Opens add new page

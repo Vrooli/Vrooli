@@ -132,10 +132,10 @@ export const SubroutineInfoDialog = ({
                 <Stack direction="row" sx={{ marginLeft: 'auto' }}>
                     {ownedBy ? (
                         <Link onClick={toOwner}>
-                            <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                            <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
                         </Link>
                     ) : null}
-                    <Typography variant="body1">{subroutine?.version}</Typography>
+                    <Typography variant="body1"> - {subroutine?.version}</Typography>
                 </Stack>
             </Box>
             {/* Main content */}

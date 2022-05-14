@@ -28,7 +28,7 @@ import { outputItemFormatter } from './outputItem';
 import { resourceListFormatter, resourceListSearcher } from './resourceList';
 import { tagHiddenFormatter } from './tagHidden';
 import { Log, LogType } from '../../models/nosql';
-import { genErrorCode } from '../../logger';
+import { genErrorCode, logger, LogLevel } from '../../logger';
 import { viewFormatter, ViewModel } from './view';
 import { runFormatter, runSearcher } from './run';
 const { isObject } = pkg;
@@ -1385,7 +1385,7 @@ export async function createHelper<GraphQLModel>(
             }));
             console.log('before log createhelper', JSON.stringify(logs), '\n\n')
             // No need to await this, since it is not needed for the response
-            Log.collection.insertMany(logs)
+            Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Create" log', { code: genErrorCode('0194'), error }));
         }
         return (await addSupplementalFields(model.prisma, userId, created, partial))[0] as any;
     }
@@ -1431,7 +1431,7 @@ export async function updateHelper<GraphQLModel>(
             }));
             console.log('before log updatehelper', JSON.stringify(logs), '\n\n')
             // No need to await this, since it is not needed for the response
-            Log.collection.insertMany(logs)
+            Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Update" log', { code: genErrorCode('0195'), error }));
         }
         return (await addSupplementalFields(model.prisma, userId, updated, partial))[0] as any;
     }
@@ -1468,7 +1468,7 @@ export async function deleteOneHelper(
                 action: LogType.Delete,
                 object1Type: objectType,
                 object1Id: input.id,
-            })
+            }).catch(error => logger.log(LogLevel.error, 'Failed creating "Delete" log', { code: genErrorCode('0196'), error }));
         }
         return { success: true }
     }
@@ -1507,7 +1507,7 @@ export async function deleteManyHelper(
         }));
         console.log('before log deleteManyHelper', JSON.stringify(logs), '\n\n')
         // No need to await this, since it is not needed for the response
-        Log.collection.insertMany(logs)
+        Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Delete" logs', { code: genErrorCode('0197'), error }));
     }
     return deleted
 }

@@ -246,17 +246,6 @@ export const RoutineView = ({
             <>
                 {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
                 <Stack direction="column" spacing={2} padding={1}>
-                    {/* Metadata */}
-                    {Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 && <Box sx={{
-                        padding: 1,
-                        borderRadius: 1,
-                    }}>
-                        {/* TODO click to view */}
-                        <Typography variant="h6">Metadata</Typography>
-                        {/* <Typography variant="body1">Status: TODO</Typography> */}
-                        <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
-
-                    </Box>}
                     {/* Resources */}
                     {resourceList}
                     {/* Description */}
@@ -277,6 +266,18 @@ export const RoutineView = ({
                         <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
                         <Markdown>{instructions ?? 'No instructions'}</Markdown>
                     </Box>
+                    {/* Stats */}
+                    {Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 && <Box sx={{
+                        padding: 1,
+                        borderRadius: 1,
+                    }}>
+                        {/* TODO click to view */}
+                        <Typography variant="h6">Stats</Typography>
+                        <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
+                        <Typography variant="body1">Simplicity: {routine?.simplicity}</Typography>
+                        <Typography variant="body1">Score: {routine?.score}</Typography>
+                        <Typography variant="body1">Stars: {routine?.stars}</Typography>
+                    </Box>}
                 </Stack>
                 {/* Actions */}
                 {actions}
@@ -393,10 +394,10 @@ export const RoutineView = ({
                     <Stack direction="row" spacing={1}>
                         {ownedBy && (
                             <Link onClick={toOwner}>
-                                <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                                <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
                             </Link>
                         )}
-                        <Typography variant="body1">{routine?.version}</Typography>
+                        <Typography variant="body1"> - {routine?.version}</Typography>
                     </Stack>
                 </Stack>
                 {/* Body container */}

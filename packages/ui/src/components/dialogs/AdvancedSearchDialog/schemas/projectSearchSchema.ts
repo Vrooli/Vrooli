@@ -13,8 +13,23 @@ export const projectSearchSchema: FormSchema = {
     formLayout: {
         title: "Search Projects",
         direction: "column",
-        rowSpacing: 5,
+        spacing: 4,
     },
+    containers: [
+        {
+            totalItems: 1,
+        },
+        {
+            totalItems: 2,
+            spacing: 2,
+        },
+        {
+            totalItems: 1
+        },
+        {
+            totalItems: 1
+        }
+    ],
     fields: [
         {
             fieldName: "isComplete",

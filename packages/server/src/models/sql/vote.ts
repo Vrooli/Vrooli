@@ -4,7 +4,7 @@ import { LogType, Vote, VoteInput } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType } from "./base";
 import _ from "lodash";
-import { genErrorCode } from "../../logger";
+import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 
 //==============================================================
@@ -87,7 +87,7 @@ const voter = (prisma: PrismaType) => ({
                     action: LogType.RemoveVote,
                     object1Type: input.voteFor,
                     object1Id: input.forId,
-                })
+                }).catch(error => logger.log(LogLevel.error, 'Failed creating "Remove Vote" log', { code: genErrorCode('0204'), error }));
             }
             // Otherwise, update the vote
             else {
@@ -103,7 +103,7 @@ const voter = (prisma: PrismaType) => ({
                     action: input.isUpvote ? LogType.Upvote : LogType.Downvote,
                     object1Type: input.voteFor,
                     object1Id: input.forId,
-                })
+                }).catch(error => logger.log(LogLevel.error, 'Failed creating "Upvote/Downvote" log', { code: genErrorCode('0205'), error }));
             }
             // Update the score
             const oldVoteCount = vote.isUpvote ? 1 : vote.isUpvote === null ? 0 : -1;
@@ -135,7 +135,7 @@ const voter = (prisma: PrismaType) => ({
                 action: input.isUpvote ? LogType.Upvote : LogType.Downvote,
                 object1Type: input.voteFor,
                 object1Id: input.forId,
-            })
+            }).catch(error => logger.log(LogLevel.error, 'Failed creating "Upvote/Downvote" log', { code: genErrorCode('0206'), error }));
             // Update the score
             const voteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
             await prismaFor.update({

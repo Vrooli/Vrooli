@@ -4,6 +4,7 @@ import { BaseFormProps } from '../types';
 import { useFormik } from 'formik';
 import { FieldData } from 'forms/types';
 import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
+import { useTheme } from '@mui/material';
 
 /**
  * Form component that is generated from a JSON schema
@@ -12,6 +13,7 @@ export const BaseForm = ({
     schema,
     onSubmit,
 }: BaseFormProps) => {
+    const theme = useTheme();
 
     // Add non-specified props to each input field
     const fieldInputs = useMemo<FieldData[]>(() => generateDefaultProps(schema?.fields), [schema?.fields]);
@@ -56,8 +58,8 @@ export const BaseForm = ({
     console.log('formik error', formik.errors);
     const grid = useMemo(() => {
         if (!schema) return null;
-        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, onUpload)
-    }, [schema, formik, onUpload])
+        return generateGrid(schema.formLayout, schema.containers, schema.fields, formik, theme, onUpload)
+    }, [schema, formik, theme, onUpload])
 
     return (
         <form onSubmit={formik.handleSubmit}>

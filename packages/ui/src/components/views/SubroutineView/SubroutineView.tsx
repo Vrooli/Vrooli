@@ -34,7 +34,7 @@ export const SubroutineView = ({
     const [schema, setSchema] = useState<any>();
 
     const resourceList = useMemo(() => {
-        if (!data || 
+        if (!data ||
             !Array.isArray(data.resourceLists) ||
             data.resourceLists.length < 1 ||
             data.resourceLists[0].resources.length < 1) return null;
@@ -83,7 +83,7 @@ export const SubroutineView = ({
                         <IconButton
                             aria-label="More"
                             size="small"
-                            onClick={() => {}}
+                            onClick={() => { }}
                             sx={{
                                 display: 'block',
                                 marginLeft: 'auto',
@@ -97,10 +97,10 @@ export const SubroutineView = ({
                 <Stack direction="row" spacing={1}>
                     {ownedBy ? (
                         <Link onClick={toOwner}>
-                            <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                            <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
                         </Link>
                     ) : null}
-                    <Typography variant="body1">{data?.version}</Typography>
+                    <Typography variant="body1"> - {data?.version}</Typography>
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
@@ -110,21 +110,19 @@ export const SubroutineView = ({
                 {/* Description */}
                 <Box sx={{
                     padding: 1,
-                    border: `1px solid ${palette.primary.dark}`,
                     borderRadius: 1,
-                    color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
+                    color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary,
                 }}>
-                    <Typography variant="h6">Description</Typography>
-                    <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
+                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Description</Typography>
+                    <Typography variant="body1">{description ?? 'No description set'}</Typography>
                 </Box>
                 {/* Instructions */}
                 <Box sx={{
                     padding: 1,
-                    border: `1px solid ${palette.background.paper}`,
                     borderRadius: 1,
-                    color: Boolean(instructions) ? 'text.primary' : 'text.secondary',
+                    color: Boolean(instructions) ? palette.background.textPrimary : palette.background.textSecondary
                 }}>
-                    <Typography variant="h6">Instructions</Typography>
+                    <Typography variant="h6" sx={{ color: palette.background.textPrimary }}>Instructions</Typography>
                     <Markdown>{instructions ?? 'No instructions'}</Markdown>
                 </Box>
             </Stack>

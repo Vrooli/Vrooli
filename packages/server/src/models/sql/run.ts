@@ -4,7 +4,7 @@ import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, 
 import { PrismaType } from "../../types";
 import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, InfoType, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialSelect, ValidateMutationsInput } from "./base";
 import _ from "lodash";
-import { genErrorCode } from "../../logger";
+import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { StepModel } from "./step";
 import { run } from "@prisma/client";
@@ -147,7 +147,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                 })
             }
             console.log('before log run cud', JSON.stringify(logData), '\n\n');
-            Log.collection.insertMany(logData);
+            Log.collection.insertMany(logData).catch(error => logger.log(LogLevel.error, 'Failed creating "Run Start" log', { code: genErrorCode('0198'), error }));
         }
         if (updateMany) {
             // Loop through each update input
@@ -259,7 +259,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             object1Id: input.id,
             object2Type: GraphQLModelType.Routine,
             object2Id: run.routineId,
-        });
+        }).catch(error => logger.log(LogLevel.error, 'Failed creating "Run Complete" log', { code: genErrorCode('0199'), error }));
         // Return converted object
         return converted as Run;
     },
@@ -302,7 +302,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             object1Id: input.id,
             object2Type: GraphQLModelType.Routine,
             object2Id: object.routineId,
-        });
+        }).catch(error => logger.log(LogLevel.error, 'Failed creating "Run Cancel" log', { code: genErrorCode('0200'), error }));
         // Return converted object
         return converted as Run;
     },

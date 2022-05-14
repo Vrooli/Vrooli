@@ -12,7 +12,7 @@ import { FormSchema, InputType } from "forms/types";
     formLayout: {
         title: "Search Organizations",
         direction: "column",
-        rowSpacing: 5,
+        spacing: 4,
     },
     fields: [
         {

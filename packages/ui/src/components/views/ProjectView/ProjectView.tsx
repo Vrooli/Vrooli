@@ -9,7 +9,6 @@ import {
     CardGiftcard as DonateIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
-    Person as PersonIcon,
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
@@ -209,26 +208,6 @@ export const ProjectView = ({
             bgcolor={palette.background.paper}
             sx={{ ...containerShadow }}
         >
-            <Box
-                width={'min(100px, 25vw)'}
-                height={'min(100px, 25vw)'}
-                borderRadius='100%'
-                border={`4px solid ${palette.primary.dark}`}
-                bgcolor='#939eb9'
-                position='absolute'
-                display='flex'
-                justifyContent='center'
-                alignItems='center'
-                left='50%'
-                top="-55px"
-                sx={{ transform: 'translateX(-50%)' }}
-            >
-                <PersonIcon sx={{
-                    fill: '#cfd0d1',
-                    width: '80%',
-                    height: '80%',
-                }} />
-            </Box>
             <Tooltip title="See all options">
                 <IconButton
                     aria-label="More"
@@ -304,7 +283,7 @@ export const ProjectView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: description ? 'black' : 'gray' }}>{description ?? 'No description set'}</Typography>
+                        <Typography variant="body1" sx={{ color: Boolean(description) ? palette.background.textPrimary : palette.background.textSecondary }}>{description ?? 'No description set'}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">

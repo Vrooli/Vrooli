@@ -1,4 +1,4 @@
-import { Grid } from '@mui/material';
+import { Grid, Stack, Theme } from '@mui/material';
 import { FieldData, GridContainer, GridContainerBase, GridItemSpacing } from 'forms/types';
 import { generateInputComponent } from '.';
 
@@ -16,11 +16,33 @@ export const generateGridItem = (component: React.ReactElement, sizes: GridItemS
 );
 
 /**
+ * Calculates size of grid item based on the number of items in the grid. 
+ * 1 item is { xs: 12 }, 
+ * 2 items is { xs: 12, sm: 6 },
+ * 3 items is { xs: 12, sm: 6, md: 4 },
+ * 4+ items is { xs: 12, sm: 6, md: 4, lg: 3 }
+ * @returns Size of grid item
+ */
+export const calculateGridItemSize = (numItems: number): GridItemSpacing => {
+    switch (numItems) {
+        case 1:
+            return { xs: 12 };
+        case 2:
+            return { xs: 12, sm: 6 };
+        case 3:
+            return { xs: 12, sm: 6, md: 4 };
+        default:
+            return { xs: 12, sm: 6, md: 4, lg: 3 };
+    }
+}
+
+/**
  * Wraps a list of Grid items in a Grid container
  * @returns Grid component
  * @param layout Layout data of the grid
  * @param fields Fields inside the grid
  * @param formik Formik object
+ * @param theme MUI theme object
  * @param onUpload Callback for uploading files
  */
 export const generateGrid = (
@@ -28,12 +50,23 @@ export const generateGrid = (
     childContainers: GridContainer[] | undefined,
     fields: FieldData[],
     formik: any,
+    theme: Theme,
     onUpload: (fieldName: string, files: string[]) => void,
-): React.ReactElement | React.ReactElement[] => {
+): JSX.Element => {
     // Split fields into which containers they belong to.
     // Represented by 2D array, where each sub-array represents a container.
     let splitFields: FieldData[][] = [];
-    if (!childContainers) splitFields = [fields];
+    let containers: GridContainer[];
+    if (!childContainers) {
+        splitFields = [fields];
+        containers = [{
+            ...layout,
+            title: undefined,
+            description: undefined,
+            totalItems: fields.length,
+            showBorder: false,
+        }]
+    }
     else {
         let lastField = 0;
         for (let i = 0; i < childContainers.length; i++) {
@@ -41,12 +74,14 @@ export const generateGrid = (
             splitFields.push(fields.slice(lastField, lastField + numInContainer));
             lastField += numInContainer;
         }
+        containers = childContainers;
     }
     // Generate grid for each container
     let grids: React.ReactElement[] = [];
     for (let i = 0; i < splitFields.length; i++) {
-        const currFields = splitFields[i];
-        const currLayout = childContainers ? childContainers[i] : layout;
+        console.log('in split fields loop', i, splitFields[i]);
+        const currFields: FieldData[] = splitFields[i];
+        const currLayout: GridContainer = containers[i];
         // Generate component for each field in the grid, and wrap it in a grid item
         const gridItems: Array<React.ReactElement | null> = currFields.map((field, index) => {
             const inputComponent = generateInputComponent({
@@ -55,20 +90,39 @@ export const generateGrid = (
                 index,
                 onUpload,
             });
-            return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing, index) : null;
+            return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing ?? calculateGridItemSize(currFields.length), index) : null;
         });
         grids.push(
-            <Grid
-                container
-                direction={layout?.direction ?? 'row'}
+            <fieldset
                 key={`grid-container-${i}`}
-                spacing={layout?.spacing}
-                columnSpacing={layout?.columnSpacing}
-                rowSpacing={layout?.rowSpacing}
+                style={{
+                    borderRadius: '8px',
+                    border: currLayout?.showBorder ? `1px solid ${theme.palette.background.textPrimary}` : 'none',
+                }}
             >
-                {gridItems}
-            </Grid>
+                {currLayout?.title && <legend >{currLayout?.title}</legend>}
+                <Grid
+                    container
+                    direction={currLayout?.direction ?? 'row'}
+                    key={`form-container-${i}`}
+                    spacing={currLayout?.spacing}
+                    columnSpacing={currLayout?.columnSpacing}
+                    rowSpacing={currLayout?.rowSpacing}
+                >
+                    {gridItems}
+                </Grid>
+            </fieldset>
         )
     }
-    return grids;
+    return (
+        <form>
+            <Stack
+                direction={layout?.direction ?? 'row'}
+                key={`form-container`}
+                spacing={layout?.spacing}
+            >
+                {grids}
+            </Stack>
+        </form>
+    )
 };

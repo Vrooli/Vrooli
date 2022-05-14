@@ -4,7 +4,7 @@ import { Count, LogType, User } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { deconstructUnion, FormatConverter, GraphQLModelType, PaginatedSearchResult, PartialInfo, readManyHelper } from "./base";
 import _ from "lodash";
-import { genErrorCode } from "../../logger";
+import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { OrganizationModel } from "./organization";
 import { initializeRedis } from "../../redisConn";
@@ -276,7 +276,7 @@ const viewer = (prisma: PrismaType) => ({
                 action: LogType.View,
                 object1Type: input.viewFor,
                 object1Id: input.forId,
-            })
+            }).catch(error => logger.log(LogLevel.error, 'Failed creating "View" log', { code: genErrorCode('0203'), error }));
         }
         // Update last viewed time
         await client.set(redisKey, new Date().toISOString());

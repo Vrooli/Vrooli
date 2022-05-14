@@ -168,10 +168,10 @@ export const BuildInfoDialog = ({
                         <Stack direction="row" spacing={1}>
                             {ownedBy ? (
                                 <Link onClick={toOwner}>
-                                    <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy} - </Typography>
+                                    <Typography variant="body1" sx={{ color: palette.primary.contrastText, cursor: 'pointer' }}>{ownedBy}</Typography>
                                 </Link>
                             ) : null}
-                            <Typography variant="body1">{routine?.version}</Typography>
+                            <Typography variant="body1"> - {routine?.version}</Typography>
                         </Stack>
                     </Stack>
                     <IconButton onClick={closeMenu} sx={{

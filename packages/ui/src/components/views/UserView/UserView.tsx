@@ -9,14 +9,14 @@ import {
     CardGiftcard as DonateIcon,
     Edit as EditIcon,
     MoreHoriz as EllipsisIcon,
-    Person as PersonIcon,
+    Person as ProfileIcon,
     Share as ShareIcon,
     Today as CalendarIcon,
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, organizationDefaultSortOption, OrganizationSortOptions, projectDefaultSortOption, ProjectSortOptions, ResourceListVertical, routineDefaultSortOption, RoutineSortOptions, SearchList, SelectLanguageDialog, standardDefaultSortOption, StandardSortOptions, StarButton } from "components";
 import { containerShadow } from "styles";
 import { UserViewProps } from "../types";
-import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, Pubs } from "utils";
+import { displayDate, getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, placeholderColor, Pubs } from "utils";
 import { ResourceList, User } from "types";
 import { BaseObjectAction } from "components/dialogs/types";
 import { SearchListGenerator } from "components/lists/types";
@@ -37,6 +37,7 @@ export const UserView = ({
 }: UserViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
     const [isProfile] = useRoute(`${APP_LINKS.Profile}`);
     const [, params1] = useRoute(`${APP_LINKS.Profile}/:id`);
@@ -242,17 +243,20 @@ export const UserView = ({
                 height={'min(100px, 25vw)'}
                 borderRadius='100%'
                 border={`4px solid ${palette.primary.dark}`}
-                bgcolor='#939eb9'
                 position='absolute'
                 display='flex'
                 justifyContent='center'
                 alignItems='center'
                 left='50%'
                 top="-55px"
-                sx={{ transform: 'translateX(-50%)' }}
+                sx={{ 
+                    border: `1px solid black`,
+                    backgroundColor: profileColors[0],
+                    transform: 'translateX(-50%)',
+                }}
             >
-                <PersonIcon sx={{
-                    fill: '#cfd0d1',
+                <ProfileIcon sx={{
+                    fill: profileColors[1],
                     width: '80%',
                     height: '80%',
                 }} />
@@ -331,7 +335,7 @@ export const UserView = ({
                             <LinearProgress color="inherit" />
                         </Stack>
                     ) : (
-                        <Typography variant="body1" sx={{ color: bio ? 'black' : 'gray' }}>{bio ?? 'No bio set'}</Typography>
+                        <Typography variant="body1" sx={{ color: Boolean(bio) ? palette.background.textPrimary : palette.background.textSecondary }}>{bio ?? 'No bio set'}</Typography>
                     )
                 }
                 <Stack direction="row" spacing={2} alignItems="center">
@@ -359,7 +363,7 @@ export const UserView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette.background.paper, palette.mode, palette.primary.dark, palette.primary.main, palette.secondary.dark, palette.secondary.light, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.stars]);
+    ), [bio, handle, isOwn, loading, name, onEdit, openMoreMenu, palette, profileColors, session, shareLink, user?.created_at, user?.id, user?.isStarred, user?.stars]);
 
     /**
      * Opens add new page

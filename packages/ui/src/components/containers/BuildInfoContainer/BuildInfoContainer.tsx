@@ -6,11 +6,14 @@
  * To the right is a button to switch to the metadata view/edit component. You can view/edit the 
  * title, descriptions, instructions, inputs, outputs, tags, etc.
  */
-import { Box, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import {
     Close as CloseIcon,
     Edit as EditIcon,
+    Mood as ValidIcon,
+    MoodBad as InvalidIcon,
+    SentimentDissatisfied as IncompleteIcon,
 } from '@mui/icons-material';
 import { getTranslation, BuildStatus } from 'utils';
 import { BuildInfoContainerProps } from '../types';
@@ -32,14 +35,19 @@ Lorem ipsum dolor sit amet consectetur adipisicing elit.
  * Status indicator and slider change color to represent routine's status
  */
 const STATUS_COLOR = {
-    [BuildStatus.Incomplete]: '#cde22c', // Yellow
-    [BuildStatus.Invalid]: '#ff6a6a', // Red
-    [BuildStatus.Valid]: '#00d51e', // Green
+    [BuildStatus.Incomplete]: '#82970e', // Yellow
+    [BuildStatus.Invalid]: '#802a2d', // Red
+    [BuildStatus.Valid]: '#01a918', // Green
 }
 const STATUS_LABEL = {
     [BuildStatus.Incomplete]: 'Incomplete',
     [BuildStatus.Invalid]: 'Invalid',
     [BuildStatus.Valid]: 'Valid',
+}
+const STATUS_ICON = {
+    [BuildStatus.Incomplete]: IncompleteIcon,
+    [BuildStatus.Invalid]: InvalidIcon,
+    [BuildStatus.Valid]: ValidIcon,
 }
 
 const TERTIARY_COLOR = '#95f3cd';
@@ -99,6 +107,8 @@ export const BuildInfoContainer = ({
         )
     }, [palette.primary.dark, statusMarkdown])
 
+    const StatusIcon = useMemo(() => STATUS_ICON[status.code], [status]);
+
     return (
         <Stack
             id="build-routine-information-bar"
@@ -115,7 +125,21 @@ export const BuildInfoContainer = ({
         >
             {/* Status indicator */}
             <Tooltip title='Press for details'>
-                <Box onClick={openStatusMenu} sx={{
+                <Chip
+                    icon={<StatusIcon sx={{ fill: 'white' }} />}
+                    label={STATUS_LABEL[status.code]}
+                    onClick={openStatusMenu}
+                    sx={{
+                        ...noSelect,
+                        background: STATUS_COLOR[status.code],
+                        color: 'white',
+                        cursor: 'pointer',
+                        marginTop: 'auto',
+                        marginBottom: 'auto',
+                        marginLeft: 2,
+                    }}
+                />
+                {/* <Box onClick={openStatusMenu} sx={{
                     ...noSelect,
                     cursor: 'pointer',
                     borderRadius: 1,
@@ -128,7 +152,7 @@ export const BuildInfoContainer = ({
                     marginTop: 'auto',
                     marginBottom: 'auto',
                     marginLeft: 2,
-                }}>{STATUS_LABEL[status.code]}</Box>
+                }}>{STATUS_LABEL[status.code]}</Box> */}
             </Tooltip>
             <Menu
                 id='status-menu'
