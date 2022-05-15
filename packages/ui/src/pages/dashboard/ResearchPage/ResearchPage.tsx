@@ -114,29 +114,62 @@ export const ResearchPage = ({
     /**
      * Navigates to "New Routine" page, with "Learn" tag as default
      */
-    const toCreateProcess = useCallback(() => {
+    const toCreateProcess = useCallback((event: any) => {
+        event?.stopPropagation();
         setLocation(`${APP_LINKS.Routine}/add${stringifySearchParams({ tags: ['Research'] })}`);
     }, [setLocation]);
 
     /**
      * Navigates to "New Project" page
      */
-    const toCreateProject = useCallback(() => {
+    const toCreateProject = useCallback((event: any) => {
+        event?.stopPropagation();
         setLocation(`${APP_LINKS.Project}/add`);
     }, [setLocation]);
 
     /**
      * Navigates to "New Organization" page
      */
-    const toCreateOrganization = useCallback(() => {
+    const toCreateOrganization = useCallback((event: any) => {
+        event?.stopPropagation();
         setLocation(`${APP_LINKS.Organization}/add`);
     }, [setLocation]);
 
     /**
      * Navigates to "Update Profile" page
      */
-    const toUpdateProfile = useCallback(() => {
+    const toUpdateProfile = useCallback((event: any) => {
+        event?.stopPropagation();
         setLocation(`${APP_LINKS.Settings}?page="profile"`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "Routine Search" page, with "Research" tag as default
+     */
+    const toSeeAllProcesses = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.SearchRoutines}${stringifySearchParams({ tags: ['Research'] })}`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "Project Search" page, with "isComplete" set to true and "sort" set to "DateUpdatedDesc" 
+     */
+    const toSeeAllNewlyCompleted = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.SearchProjects}${stringifySearchParams({
+            isComplete: true,
+            sort: 'DateUpdatedDesc'
+        })}`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "Organization Search" page, with "isOpenToNewMembers" set to true
+     */
+     const toSeeAllJoinATeam = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.SearchOrganizations}${stringifySearchParams({
+            isOpenToNewMembers: true
+        })}`);
     }, [setLocation]);
 
     return (
@@ -167,16 +200,16 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Processes"}
                     helpText={processesText}
-                    onClick={() => { }}
-                    options={[['Create', toCreateProcess], ['See all', () => { }]]}
+                    onClick={toSeeAllProcesses}
+                    options={[['Create', toCreateProcess], ['See all', toSeeAllProcesses]]}
                 >
                     {processes}
                 </TitleContainer>
                 <TitleContainer
                     title={"Newly Completed"}
                     helpText={newlyCompletedText}
-                    onClick={() => { }}
-                    options={[['Create', toCreateProject], ['See all', () => { }]]}
+                    onClick={toSeeAllNewlyCompleted}
+                    options={[['Create', toCreateProject], ['See all', toSeeAllNewlyCompleted]]}
                 >
                     {newlyCompleted}
                 </TitleContainer>
@@ -199,8 +232,8 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Join a Team"}
                     helpText={joinATeamText}
-                    onClick={() => { }}
-                    options={[['Create', toCreateOrganization], ['Update profile', toUpdateProfile], ['See all', () => { }]]}
+                    onClick={toSeeAllJoinATeam}
+                    options={[['Create', toCreateOrganization], ['Update profile', toUpdateProfile], ['See all', toSeeAllJoinATeam]]}
                 >
                     {needMembers}
                 </TitleContainer>

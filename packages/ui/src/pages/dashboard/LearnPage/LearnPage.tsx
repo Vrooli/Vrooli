@@ -61,15 +61,33 @@ export const LearnPage = ({
     /**
      * Navigates to "New Project" page, with "Learn" tag as default
      */
-    const toCreateCourse = useCallback(() => {
+    const toCreateCourse = useCallback((event: any) => {
+        event?.stopPropagation();
         setLocation(`${APP_LINKS.Project}/add${stringifySearchParams({ tags: ['Learn'] })}`);
     }, [setLocation]);
 
     /**
      * Navigates to "New Routine" page, with "Learn" tag as default
      */
-    const toCreateTutorial = useCallback(() => {
+    const toCreateTutorial = useCallback((event: any) => {
+        event?.stopPropagation();
         setLocation(`${APP_LINKS.Routine}/add${stringifySearchParams({ tags: ['Learn'] })}`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "Project Search" page, with "Learn" tag as default
+     */
+    const toSeeAllCourses = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.SearchProjects}${stringifySearchParams({ tags: ['Learn'] })}`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "Routine Search" page, with "Learn" tag as default
+     */
+    const toSeeAllTutorials = useCallback((event: any) => {
+        event?.stopPropagation();
+        setLocation(`${APP_LINKS.SearchRoutines}${stringifySearchParams({ tags: ['Learn'] })}`);
     }, [setLocation]);
 
     const courses = useMemo(() => listToListItems({
@@ -119,8 +137,8 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Courses"}
                     helpText={courseText}
-                    onClick={() => { }}
-                    options={[['Create', toCreateCourse], ['See all', () => { }]]}
+                    onClick={toSeeAllCourses}
+                    options={[['Create', toCreateCourse], ['See all', toSeeAllCourses]]}
                 >
                     {courses}
                 </TitleContainer>
@@ -128,8 +146,8 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Tutorials"}
                     helpText={tutorialText}
-                    onClick={() => { }}
-                    options={[['Create', toCreateTutorial], ['See all', () => { }]]}
+                    onClick={toSeeAllTutorials}
+                    options={[['Create', toCreateTutorial], ['See all', toSeeAllTutorials]]}
                 >
                     {tutorials}
                 </TitleContainer>

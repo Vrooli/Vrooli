@@ -97,6 +97,14 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         return queryData.edges.map((edge, index) => edge.node);
     }, []);
 
+    const searchParams = useReactSearch();
+    useEffect(() => {
+        if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
+        // Any search params that aren't advanced, search, sort, or time are set to the advanced search params
+        const { advanced, search, sort, time, ...advancedData } = searchParams;
+        setAdvancedSearchParams(advancedData);
+    }, [searchParams]);
+
     // Handle advanced search dialog
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
     const handleAdvancedSearchDialogOpen = useCallback(() => { setAdvancedSearchDialogOpen(true) }, []);
@@ -106,13 +114,15 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, []);
     const handleAdvancedSearchDialogSubmit = useCallback((values: any) => {
         console.log('SUMIT. setting advanced search params', values);
-        setAdvancedSearchParams(values);
-    }, []);
-
-    const search = useReactSearch();
-    useEffect(() => {
-        if (typeof search.advanced === 'boolean') setAdvancedSearchDialogOpen(search.advanced);
-    }, [search]);
+        // Remove undefined and 0 values
+        const valuesWithoutBlanks = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined && v !== 0));
+        // Add advanced search params to url search params
+        setLocation(stringifySearchParams({ 
+            ...searchParams,
+            ...valuesWithoutBlanks 
+        }));
+        setAdvancedSearchParams(valuesWithoutBlanks);
+    }, [searchParams, setLocation]);
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {

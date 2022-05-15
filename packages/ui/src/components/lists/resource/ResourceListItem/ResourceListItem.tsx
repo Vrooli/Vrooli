@@ -5,7 +5,7 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { adaHandleRegex, ResourceSortBy, ResourceUsedFor, urlRegex, walletAddressRegex } from '@local/shared';
 import { useLocation } from 'wouter';
-import { getTranslation, LabelledSortOption, labelledSortOptions, openLink, Pubs, ResourceType } from 'utils';
+import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, openLink, Pubs, ResourceType } from 'utils';
 import { Resource } from 'types';
 import { getResourceIcon } from '..';
 import {
@@ -81,8 +81,8 @@ export function ResourceListItem({
                 onClick={handleClick}
                 sx={{
                     display: 'flex',
-                    background: index % 2 === 0 ? '#c8d6e9' : '#e9e9e9',
-                    color: 'black',
+                    background: listItemColor(index, palette),
+                    color: palette.background.textPrimary,
                 }}
             >
                 <ListItemButton component="div" onClick={handleClick}>
