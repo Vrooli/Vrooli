@@ -36,10 +36,10 @@ export const RunView = ({
     const params = useReactSearch();
     const { stepParams, runId, testMode } = useMemo(() => {
         console.log('hissssss', params)
-        console.log('calculating step paramsssssss', params.step ? params.step.split('.').map(Number) : [])
+        console.log('calculating step paramsssssss', params.step)
         return {
-            stepParams: params.step ? params.step.split('.').map(Number) : [],
-            runId: uuidValidate(params.run) ? params.run : undefined,
+            stepParams: Array.isArray(params.step) ? params.step as number[] : [],
+            runId: typeof params.run === 'string' && uuidValidate(params.run) ? params.run : undefined,
             testMode: params.run === 'test',
         }
     }, [params])
@@ -53,7 +53,7 @@ export const RunView = ({
      const setStepParams = useCallback((newParams: number[]) => {
         setLocation(stringifySearchParams({
             ...params,
-            step: newParams.join('.'),
+            step: newParams,
         }), { replace: true });
     }, [params, setLocation]);
 

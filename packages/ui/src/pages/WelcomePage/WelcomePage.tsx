@@ -80,7 +80,7 @@ export const WelcomePage = () => {
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Read the White Paper</Button>
                     <Button
-                        onClick={() => setLocation(`${APP_LINKS.Settings}?page=profile`)}
+                        onClick={() => setLocation(`${APP_LINKS.Settings}?page="profile"`)}
                         startIcon={<ProfileIcon />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Set Up Profile</Button>

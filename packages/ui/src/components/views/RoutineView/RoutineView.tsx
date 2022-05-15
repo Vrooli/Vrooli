@@ -14,7 +14,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunPickerDialog, RunView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, parseSearchParams, Pubs, toOwnedBy } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, parseSearchParams, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
@@ -69,11 +69,10 @@ export const RoutineView = ({
         })
     }, [routine, routineDelete, setLocation])
 
-    // Find data about run, if specified in query params
-    const runId: string | undefined = useMemo(() => {
-        const params = parseSearchParams(window.location.search)
-        return params.run;
-    }, [])
+    const search = useReactSearch(null);
+    const { runId } = useMemo(() => ({
+        runId: typeof search.run === 'string' && uuidValidate(search.run) ? search.run : null,
+    }), [search]);
 
     const [language, setLanguage] = useState<string>('');
     const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
@@ -119,8 +118,10 @@ export const RoutineView = ({
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
     const handleRunSelect = useCallback((run: Run) => {
-        console.log('RUN SELECTTTTT', run);
-        setLocation(`?run=${run.id}&step=1`, { replace: true });
+        setLocation(stringifySearchParams({
+            run: run.id,
+            step: [1]
+        }), { replace: true });
         setIsRunOpen(true);
     }, [setLocation]);
     const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);

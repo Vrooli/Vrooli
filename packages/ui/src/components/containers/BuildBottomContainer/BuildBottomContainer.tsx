@@ -7,7 +7,7 @@ import {
     PlayCircle as RunIcon,
     Update as UpdateIcon
 } from '@mui/icons-material';
-import { BuildRunState } from 'utils';
+import { BuildRunState, stringifySearchParams } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from 'wouter';
 import { RunPickerDialog, UpTransition } from 'components/dialogs';
@@ -43,7 +43,10 @@ export const BuildBottomContainer = ({
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
     const handleRunSelect = useCallback((run: Run) => {
-        setLocation(`?run=${run.id}&step=1`, { replace: true });
+        setLocation(stringifySearchParams({
+            run: run.id,
+            step: [1]
+        }), { replace: true });
         setIsRunOpen(true);
     }, [setLocation]);
     const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
@@ -51,7 +54,10 @@ export const BuildBottomContainer = ({
     const runRoutine = useCallback((e: any) => {
         // If editing, don't use a real run
         if (isEditing) {
-            setLocation(`?run=test&step=1`, { replace: true });
+            setLocation(stringifySearchParams({
+                run: "test",
+                step: [1]
+            }), { replace: true });
             setIsRunOpen(true);
         }
         else {

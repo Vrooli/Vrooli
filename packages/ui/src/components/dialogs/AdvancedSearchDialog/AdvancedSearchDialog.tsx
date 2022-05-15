@@ -134,7 +134,6 @@ export const AdvancedSearchDialog = ({
 
     // Get field inputs from schema, and add default values
     const fieldInputs = useMemo<FieldData[]>(() => schema?.fields ? generateDefaultProps(schema.fields) : [], [schema?.fields]);
-    console.log('fieldInputs', fieldInputs);
 
     // Parse default values from fieldInputs, to use in formik
     const initialValues = useMemo(() => {
@@ -144,11 +143,9 @@ export const AdvancedSearchDialog = ({
         });
         return values;
     }, [fieldInputs])
-    console.log('initialValues', initialValues);
 
     // Generate yup validation schema
     const validationSchema = useMemo(() => schema ? generateYupSchema(schema) : undefined, [schema]);
-    console.log('validationSchema', validationSchema);
 
     /**
      * Controls updates and validation of form
@@ -162,6 +159,7 @@ export const AdvancedSearchDialog = ({
             // Shape values to match search query
             const searchValues = shapeFormik[path](values);
             handleSearch(searchValues);
+            handleClose();
         },
     });
     console.log('formik values', formik.values)

@@ -5,7 +5,7 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, ProjectSortBy, StarFor, VoteFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton, TagList, UpvoteDownvote } from 'components';
+import { StarButton, TagList, TextLoading, UpvoteDownvote } from 'components';
 import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
 import { owns } from 'utils/authentication';
 
@@ -64,14 +64,14 @@ export function ProjectListItem({
                         onChange={(isUpvoted: boolean | null) => { }}
                     />
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
-                        <ListItemText
+                        {loading ? <TextLoading /> : <ListItemText
                             primary={name}
                             sx={{ ...multiLineEllipsis(1) }}
-                        />
-                        <ListItemText
+                        />}
+                        {loading ? <TextLoading /> : <ListItemText
                             primary={description}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
-                        />
+                        />}
                         {/* Tags */}
                         {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                     </Stack>

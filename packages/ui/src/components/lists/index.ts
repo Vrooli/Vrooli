@@ -13,6 +13,7 @@ export * from './StandardListItem/StandardListItem';
 export * from './StarButton/StarButton';
 export * from './StatsList/StatsList';
 export * from './TagList/TagList';
+export * from './TextLoading/TextLoading';
 export * from './TimeMenu/TimeMenu';
 export * from './UpvoteDownvote/UpvoteDownvote';
 export * from './wallet';

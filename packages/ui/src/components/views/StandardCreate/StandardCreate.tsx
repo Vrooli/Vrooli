@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { ROLES, standardCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, updateArray } from "utils";
+import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -25,6 +25,7 @@ export const StandardCreate = ({
     onCancel,
     session,
 }: StandardCreateProps) => {
+    const params = useReactSearch(null);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuidv4(), usedFor: ResourceListUsedFor.Display } as any);
@@ -59,6 +60,11 @@ export const StandardCreate = ({
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
     }, [getTranslationsUpdate]);
+
+    useEffect(() => {
+        if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
+        else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
+    }, [params]);
 
     // Handle create
     const [mutation] = useMutation<standard>(standardCreateMutation);

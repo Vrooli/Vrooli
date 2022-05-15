@@ -14,7 +14,7 @@ import {
     Add as CreateIcon,
     Search as SearchIcon,
 } from '@mui/icons-material';
-import { AutocompleteListItem, listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage } from 'utils';
+import { AutocompleteListItem, listToAutocomplete, listToListItems, ObjectType, openObject, openSearchPage, useReactSearch } from 'utils';
 import _ from 'lodash';
 import { Organization, Project, Routine, Standard, User } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
@@ -205,10 +205,11 @@ export const HomePage = ({
 }: HomePageProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const [searchString, setSearchString] = useState<string>(() => {
-        const { search } = parseSearchParams(window.location.search);
-        return search ?? '';
-    });
+    const [searchString, setSearchString] = useState<string>('');
+    const searchParams = useReactSearch();
+    useEffect(() => {
+        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
+    }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
     const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
@@ -252,7 +253,7 @@ export const HomePage = ({
     const onInputSelect = useCallback((newValue: AutocompleteListItem) => {
         if (!newValue) return;
         // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
+        if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
         // If selected item is a shortcut, navigate to it
         if (newValue.__typename === 'Shortcut') {
             setLocation(newValue.id);
@@ -275,7 +276,7 @@ export const HomePage = ({
     const toSearchPage = useCallback((event: any, objectType: ObjectType) => {
         event?.stopPropagation();
         // Replace current state with search string, so that search is not lost
-        if (searchString) setLocation(`${APP_LINKS.Home}?search=${searchString}`, { replace: true });
+        if (searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
         // Navigate to search page
         openSearchPage(objectType, setLocation);
     }, [searchString, setLocation]);
@@ -352,7 +353,6 @@ export const HomePage = ({
                     <TitleContainer
                         key={`feed-list-${objectType}`}
                         title={getFeedTitle(`${objectType}s`)}
-                        loading={loading}
                         onClick={(e) => toSearchPage(e, objectType)}
                         options={[['See more results', (e) => { toSearchPage(e, objectType) }]]}
                     >

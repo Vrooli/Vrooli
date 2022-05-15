@@ -5,7 +5,7 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, RunSortBy, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton, TagList } from '..';
+import { StarButton, TagList, TextLoading } from '..';
 import { displayDate, getTranslation, LabelledSortOption, labelledSortOptions, listItemColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 import { RunStatus } from 'graphql/generated/globalTypes';
@@ -39,21 +39,6 @@ function CompletionBar(props) {
     );
 }
 
-function TextLoading(props) {
-    return (
-        <LinearProgress 
-            variant={props.variant} 
-            {...props} 
-            sx={{ 
-                ...props.sx,
-                borderRadius: 1, 
-                height: 8,
-                maxWidth: '300px',
-            }} 
-        />
-    )
-}
-
 export function RunListItem({
     data,
     index,
@@ -66,7 +51,7 @@ export function RunListItem({
     const [, setLocation] = useLocation();
     const canEdit = useMemo<boolean>(() => owns(data?.routine?.role), [data]);
     const profileColors = useMemo(() => colorOptions[Math.floor(Math.random() * colorOptions.length)], []);
-    const { bio, name, percentComplete, startedAt, completedAt } = useMemo(() => {
+    const { name, percentComplete, startedAt, completedAt } = useMemo(() => {
         const languages = session?.languages ?? navigator.languages;
         const completedComplexity = data?.completedComplexity ?? null;
         const totalComplexity = data?.routine?.complexity ?? null;
@@ -89,7 +74,7 @@ export function RunListItem({
         // If onClick provided, call it
         if (onClick) onClick(e, data);
         // Otherwise, navigate to the object's page
-        else setLocation(`${APP_LINKS.Routine}/${data.routine?.id ?? ''}?run=${data.id}`);
+        else setLocation(`${APP_LINKS.Routine}/${data.routine?.id ?? ''}?run="${data.id}"`);
     }, [onClick, data, setLocation]);
 
     return (
@@ -123,15 +108,12 @@ export function RunListItem({
                     </Box>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         {/* Name/Title */}
-                        {loading ? <TextLoading color="inherit" /> : <ListItemText
+                        {loading ? <TextLoading /> : <ListItemText
                             primary={name}
                             sx={{ ...multiLineEllipsis(1) }}
                         />}
-                        {/* Bio/Description */}
-                        {!loading && <ListItemText
-                            primary={bio}
-                            sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
-                        />}
+                        {/* Additional loading bar */}
+                        {loading && <TextLoading />}
                         {/* Completed At */}
                         {completedAt && <ListItemText
                             primary={`Completed: ${completedAt}`}

@@ -7,6 +7,7 @@ import { useLocation } from "wouter";
 import { BaseSearchPageProps } from "./types";
 import { Add as AddIcon } from '@mui/icons-material';
 import { parseSearchParams, stringifySearchParams } from "utils/navigation/urlTools";
+import { useReactSearch } from "utils";
 
 const tabOptions = [
     ['Organizations', APP_LINKS.SearchOrganizations],
@@ -34,17 +35,25 @@ export function BaseSearchPage<DataType, SortBy>({
 }: BaseSearchPageProps<DataType, SortBy>) {
     const [, setLocation] = useLocation();
     // Handle url search
-    const [searchString, setSearchString] = useState<string>(parseSearchParams(window.location.search).search ?? '');
-    const [sortBy, setSortBy] = useState<string | undefined>(parseSearchParams(window.location.search).sort ?? defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
-    const [timeFrame, setTimeFrame] = useState<string | undefined>(parseSearchParams(window.location.search).time);
+    const [searchString, setSearchString] = useState<string>('');
+    const [sortBy, setSortBy] = useState<string | undefined>(defaultSortOption.value ?? sortOptions.length > 0 ? sortOptions[0].value : undefined);
+    const [timeFrame, setTimeFrame] = useState<string | undefined>(undefined);
+    const searchParams = useReactSearch(null);
     useEffect(() => {
-        const params: { [x: string]: string } = parseSearchParams(window.location.search);
+        if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
+        if (typeof searchParams.sort === 'string') setSortBy(searchParams.sort);
+        if (typeof searchParams.time === 'string') setTimeFrame(searchParams.time);
+    }, [searchParams]);
+    useEffect(() => {
+        console.log('basesearch useeffect start', window.location.search)
+        const params = parseSearchParams(window.location.search);
         if (searchString) params.search = searchString;
         else delete params.search;
         if (sortBy) params.sort = sortBy;
         else delete params.sort;
         if (timeFrame) params.time = timeFrame;
         else delete params.time;
+        console.log('basesearch setting location', params)
         setLocation(stringifySearchParams(params), { replace: true });
     }, [searchString, sortBy, timeFrame, setLocation]);
     // Handle tabs

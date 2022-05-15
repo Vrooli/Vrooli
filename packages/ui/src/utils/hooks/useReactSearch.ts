@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { parseSearchParams } from "utils/navigation";
 
+type SearchValue = string | number | boolean | (string | number | boolean)[];
 /**
  * Hook for detecting changes of window.location.search.
  * @param pollInterval How often to check for changes in window.location.search. 
@@ -8,7 +9,7 @@ import { parseSearchParams } from "utils/navigation";
  * this hook for too many things.
  */
 export const useReactSearch = (pollInterval: number | null = 50) => {
-    const [search, setSearch] = useState<{ [x: string]: string }>(parseSearchParams(window.location.search));
+    const [search, setSearch] = useState<{ [x: string]: SearchValue }>(parseSearchParams(window.location.search));
     const listenToSearch = useCallback(() => {
         const newSearch = parseSearchParams(window.location.search);
         if (JSON.stringify(newSearch) !== JSON.stringify(search)) {

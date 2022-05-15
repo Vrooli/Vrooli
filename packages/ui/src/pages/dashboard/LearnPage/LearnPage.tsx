@@ -1,14 +1,14 @@
-import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
+import { useLazyQuery, useQuery } from '@apollo/client';
+import { APP_LINKS } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
 import { ResourceListUsedFor } from 'graphql/generated/globalTypes';
 import { learnPage } from 'graphql/generated/learnPage';
 import { profile } from 'graphql/generated/profile';
-import { profileUpdateMutation } from 'graphql/mutation';
 import { learnPageQuery, profileQuery } from 'graphql/query';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Project, ResourceList, Routine } from 'types';
-import { listToListItems, openObject } from 'utils';
+import { listToListItems, openObject, stringifySearchParams } from 'utils';
 import { useLocation } from 'wouter';
 import { LearnPageProps } from '../types';
 
@@ -37,14 +37,15 @@ export const LearnPage = ({
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
-
-    const resourceList: ResourceList = useMemo(() => {
-        return (profileData?.profile?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? []) as ResourceList;
+    const [resourceList, setResourceList] = useState<ResourceList | null>(null);
+    useEffect(() => {
+        if (!profileData?.profile?.resourceLists) return;
+        const list = profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? null;
+        setResourceList(list);
     }, [profileData]);
-    const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        getProfile();
-    }, [getProfile]);
+        setResourceList(updatedList);
+    }, []);
 
     const { data: learnPageData, loading: learnPageLoading } = useQuery<learnPage>(learnPageQuery);
 
@@ -55,6 +56,20 @@ export const LearnPage = ({
         event?.stopPropagation();
         // Navigate to item page
         openObject(item, setLocation);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "New Project" page, with "Learn" tag as default
+     */
+    const toCreateCourse = useCallback(() => {
+        setLocation(`${APP_LINKS.Project}/add${stringifySearchParams({ tags: ['Learn'] })}`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "New Routine" page, with "Learn" tag as default
+     */
+    const toCreateTutorial = useCallback(() => {
+        setLocation(`${APP_LINKS.Routine}/add${stringifySearchParams({ tags: ['Learn'] })}`);
     }, [setLocation]);
 
     const courses = useMemo(() => listToListItems({
@@ -104,9 +119,8 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Courses"}
                     helpText={courseText}
-                    loading={learnPageLoading}
                     onClick={() => { }}
-                    options={[['Create', () => { }], ['See all', () => { }]]}
+                    options={[['Create', toCreateCourse], ['See all', () => { }]]}
                 >
                     {courses}
                 </TitleContainer>
@@ -114,9 +128,8 @@ export const LearnPage = ({
                 <TitleContainer
                     title={"Tutorials"}
                     helpText={tutorialText}
-                    loading={learnPageLoading}
                     onClick={() => { }}
-                    options={[['Create', () => { }], ['See all', () => { }]]}
+                    options={[['Create', toCreateTutorial], ['See all', () => { }]]}
                 >
                     {tutorials}
                 </TitleContainer>

@@ -1,15 +1,13 @@
-import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
-import { ResourceListUsedFor } from '@local/shared';
+import { useLazyQuery, useQuery } from '@apollo/client';
+import { APP_LINKS, ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
-import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { profile } from 'graphql/generated/profile';
 import { researchPage } from 'graphql/generated/researchPage';
-import { profileUpdateMutation } from 'graphql/mutation';
 import { profileQuery, researchPageQuery } from 'graphql/query';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Organization, Project, ResourceList, Routine, Standard, User } from 'types';
-import { listToListItems, openObject } from 'utils';
+import { listToListItems, openObject, stringifySearchParams } from 'utils';
 import { useLocation } from 'wouter';
 import { ResearchPageProps } from '../types';
 
@@ -41,74 +39,21 @@ If you are not logged in, default resources will be displayed.`
 const voteText =
     `Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
 
-/**
- * Default research resources
- */
-const defaultResourceList: ResourceList = {
-    usedFor: ResourceListUsedFor.Research,
-    resources: [
-        {
-            link: 'https://cardano.stackexchange.com/',
-            usedFor: ResourceUsedFor.Community,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'Cardano Stack Exchange',
-                    description: 'Browse and ask technical questions about Cardano',
-                }
-            ]
-        } as any,
-        {
-            link: 'https://www.wolframalpha.com/',
-            usedFor: ResourceUsedFor.Researching,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'Wolfram Alpha',
-                    description: 'Find answers to math questions',
-                }
-            ]
-        } as any,
-        {
-            link: 'https://www.improvethenews.org/',
-            usedFor: ResourceUsedFor.Feed,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'News Feed',
-                    description: 'Catch up on the latest news, with sliders for biases',
-                }
-            ]
-        } as any,
-        {
-            link: 'https://scholar.google.com/',
-            usedFor: ResourceUsedFor.Researching,
-            translations: [
-                {
-                    language: 'en',
-                    title: 'Google Scholar',
-                    description: 'Research scientific articles',
-                }
-            ]
-        } as any,
-    ]
-} as any;
-
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
-
-    const resourceList = useMemo(() => {
-        if (!profileData?.profile?.resourceLists) return defaultResourceList;
-        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Research) ?? null;
+    const [resourceList, setResourceList] = useState<ResourceList | null>(null);
+    useEffect(() => {
+        if (!profileData?.profile?.resourceLists) return;
+        const list = profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? null;
+        setResourceList(list);
     }, [profileData]);
-    const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        getProfile();
-    }, [getProfile]);
+        setResourceList(updatedList);
+    }, []);
 
     const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery);
 
@@ -166,6 +111,34 @@ export const ResearchPage = ({
         session,
     }), [researchPageData?.researchPage?.needMembers, researchPageLoading, session, toItemPage])
 
+    /**
+     * Navigates to "New Routine" page, with "Learn" tag as default
+     */
+    const toCreateProcess = useCallback(() => {
+        setLocation(`${APP_LINKS.Routine}/add${stringifySearchParams({ tags: ['Research'] })}`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "New Project" page
+     */
+    const toCreateProject = useCallback(() => {
+        setLocation(`${APP_LINKS.Project}/add`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "New Organization" page
+     */
+    const toCreateOrganization = useCallback(() => {
+        setLocation(`${APP_LINKS.Organization}/add`);
+    }, [setLocation]);
+
+    /**
+     * Navigates to "Update Profile" page
+     */
+    const toUpdateProfile = useCallback(() => {
+        setLocation(`${APP_LINKS.Settings}?page="profile"`);
+    }, [setLocation]);
+
     return (
         <Box id='page' sx={{
             padding: '0.5em',
@@ -194,45 +167,40 @@ export const ResearchPage = ({
                 <TitleContainer
                     title={"Processes"}
                     helpText={processesText}
-                    loading={researchPageLoading}
                     onClick={() => { }}
-                    options={[['Create', () => { }], ['See all', () => { }]]}
+                    options={[['Create', toCreateProcess], ['See all', () => { }]]}
                 >
                     {processes}
                 </TitleContainer>
                 <TitleContainer
                     title={"Newly Completed"}
                     helpText={newlyCompletedText}
-                    loading={researchPageLoading}
                     onClick={() => { }}
-                    options={[['See all', () => { }]]}
+                    options={[['Create', toCreateProject], ['See all', () => { }]]}
                 >
                     {newlyCompleted}
                 </TitleContainer>
                 <TitleContainer
                     title={"Vote"}
                     helpText={voteText}
-                    loading={researchPageLoading}
                     onClick={() => { }}
-                    options={[['See all', () => { }]]}
+                    options={[['Create', toCreateProject], ['See all', () => { }]]}
                 >
                     {needVotes}
                 </TitleContainer>
                 <TitleContainer
                     title={"Donate or Invest"}
                     helpText={donateOrInvestText}
-                    loading={researchPageLoading}
                     onClick={() => { }}
-                    options={[['See all', () => { }]]}
+                    options={[['Create', toCreateProject], ['See all', () => { }]]}
                 >
                     {needInvestments}
                 </TitleContainer>
                 <TitleContainer
                     title={"Join a Team"}
                     helpText={joinATeamText}
-                    loading={researchPageLoading}
                     onClick={() => { }}
-                    options={[['Update profile', () => { }], ['See all', () => { }]]}
+                    options={[['Create', toCreateOrganization], ['Update profile', toUpdateProfile], ['See all', () => { }]]}
                 >
                     {needMembers}
                 </TitleContainer>

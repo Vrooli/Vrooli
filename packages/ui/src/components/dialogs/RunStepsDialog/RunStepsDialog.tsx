@@ -24,7 +24,7 @@ import { useLazyQuery } from '@apollo/client';
 import { routineQuery } from 'graphql/query';
 import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
 import { RoutineStep } from 'types';
-import { RoutineStepType } from 'utils';
+import { parseSearchParams, RoutineStepType, stringifySearchParams } from 'utils';
 import { useLocation } from 'wouter';
 
 function MinusSquare(props) {
@@ -138,7 +138,11 @@ export const RunStepsDialog = ({
         const locationLabel = location.join('.');
         const realLocationLabel = realLocation.join('.');
         const toLocation = () => {
-            setLocation(`?step=${realLocation.join('.')}`, { replace: true });
+            const searchParams = parseSearchParams(window.location.search);
+            setLocation(stringifySearchParams({
+                run: searchParams.run,
+                step: realLocation
+            }), { replace: true });
             handleStepParamsUpdate(realLocation);
         }
         switch (step.type) {

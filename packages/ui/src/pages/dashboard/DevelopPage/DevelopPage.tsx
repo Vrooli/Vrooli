@@ -1,12 +1,11 @@
-import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
+import { useLazyQuery, useQuery } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
 import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
 import { developPage } from 'graphql/generated/developPage';
 import { profile } from 'graphql/generated/profile';
-import { profileUpdateMutation } from 'graphql/mutation';
 import { developPageQuery, profileQuery } from 'graphql/query';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Organization, Project, ResourceList, Routine, Standard, User } from 'types';
 import { listToListItems, openObject } from 'utils';
 import { useLocation } from 'wouter';
@@ -33,30 +32,21 @@ const inProgressText =
 const recentText =
     `Recently updated projects and routines`
 
-/**
- * Default develop resources TODO
- */
-const defaultResourceList: ResourceList = {
-    usedFor: ResourceListUsedFor.Develop,
-    resources: [
-    ]
-} as any;
-
 export const DevelopPage = ({
     session
 }: DevelopPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery);
     useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
-
-    const resourceList = useMemo(() => {
-        if (!profileData?.profile?.resourceLists) return defaultResourceList;
-        return profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Research) ?? null;
+    const [resourceList, setResourceList] = useState<ResourceList | null>(null);
+    useEffect(() => {
+        if (!profileData?.profile?.resourceLists) return;
+        const list = profileData.profile.resourceLists.find(list => list.usedFor === ResourceListUsedFor.Learn) ?? null;
+        setResourceList(list);
     }, [profileData]);
-    const [updateResources] = useMutation<profile>(profileUpdateMutation);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        getProfile();
-    }, [getProfile]);
+        setResourceList(updatedList);
+    }, []);
 
     const { data: developPageData, loading: developPageLoading } = useQuery<developPage>(developPageQuery);
 
@@ -125,7 +115,6 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"In Progress"}
                     helpText={inProgressText}
-                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
@@ -134,7 +123,6 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"Recent"}
                     helpText={recentText}
-                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
@@ -143,7 +131,6 @@ export const DevelopPage = ({
                 <TitleContainer
                     title={"Completed"}
                     helpText={completedText}
-                    loading={developPageLoading}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >

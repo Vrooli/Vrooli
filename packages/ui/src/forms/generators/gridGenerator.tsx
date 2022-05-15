@@ -79,7 +79,6 @@ export const generateGrid = (
     // Generate grid for each container
     let grids: React.ReactElement[] = [];
     for (let i = 0; i < splitFields.length; i++) {
-        console.log('in split fields loop', i, splitFields[i]);
         const currFields: FieldData[] = splitFields[i];
         const currLayout: GridContainer = containers[i];
         // Generate component for each field in the grid, and wrap it in a grid item

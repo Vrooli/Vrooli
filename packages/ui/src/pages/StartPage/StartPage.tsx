@@ -52,7 +52,11 @@ export const StartPage = ({
 }: StartPageProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const { redirect, code: verificationCode } = useReactSearch();
+    const search = useReactSearch();
+    const { redirect, verificationCode } = useMemo(() => ({
+        redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
+        verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
+    }), [search]);
 
     const [emailLogIn] = useMutation<emailLogIn>(emailLogInMutation);
     const [guestLogIn] = useMutation<any>(guestLogInMutation);

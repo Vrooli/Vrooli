@@ -162,17 +162,13 @@ export function listToListItems({
     session,
     tooltip,
 }: ListToListItemProps): JSX.Element[] {
-    console.log('a', items);
     let listItems: JSX.Element[] = [];
     // If loading, display dummy items
     if (loading) {
-        console.log('loading', dummyItems);
         if (!dummyItems) return listItems;
         for (let i = 0; i < dummyItems.length; i++) {
-            console.log('dummy loop', dummyItems[i], dummyItems[i] in listItemMap, listItemMap[dummyItems[i]]);
             if (dummyItems[i] in listItemMap) {
                 const CurrItem = listItemMap[dummyItems[i]];
-                console.log('CURR ITEMMMMM', CurrItem);
                 listItems.push(<CurrItem 
                     key={`${keyPrefix}-${i}`} 
                     data={null}
@@ -185,7 +181,6 @@ export function listToListItems({
         }
     }
     if (!items) return listItems;
-    console.log('shouldnt be undefined if here', items)
     for (let i = 0; i < items.length; i++) {
         let curr = items[i];
         // If "View" or "Star" item, display the object it points to

@@ -5,7 +5,7 @@ import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
 import { APP_LINKS, OrganizationSortBy, StarFor } from '@local/shared';
 import { useLocation } from 'wouter';
-import { StarButton, TagList } from '..';
+import { StarButton, TagList, TextLoading } from '..';
 import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, placeholderColor } from 'utils';
 import { Apartment as ApartmentIcon } from '@mui/icons-material';
 import { owns } from 'utils/authentication';
@@ -76,15 +76,15 @@ export function OrganizationListItem({
                     </Box>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
                         {/* Name/Title */}
-                        <ListItemText
+                        {loading ? <TextLoading /> : <ListItemText
                             primary={name}
                             sx={{ ...multiLineEllipsis(1) }}
-                        />
+                        />}
                         {/* Bio/Description */}
-                        <ListItemText
+                        {loading ? <TextLoading /> : <ListItemText
                             primary={bio}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
-                        />
+                        />}
                         {/* Tags */}
                         {Array.isArray(data?.tags) && (data?.tags as any).length > 0 ? <TagList session={session} parentId={data?.id ?? ''} tags={data?.tags ?? []} /> : null}
                     </Stack>

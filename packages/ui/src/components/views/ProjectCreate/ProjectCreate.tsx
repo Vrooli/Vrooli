@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { projectCreateForm as validationSchema, ROLES } from '@local/shared';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, updateArray } from "utils";
+import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -26,6 +26,7 @@ export const ProjectCreate = ({
     onCancel,
     session,
 }: ProjectCreateProps) => {
+    const params = useReactSearch(null);
 
     // Handle user/organization switch
     const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
@@ -64,6 +65,11 @@ export const ProjectCreate = ({
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
     }, [getTranslationsUpdate]);
+
+    useEffect(() => {
+        if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
+        else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
+    }, [params]);
 
     // Handle create
     const [mutation] = useMutation<project>(projectCreateMutation);

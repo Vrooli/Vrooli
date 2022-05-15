@@ -70,7 +70,7 @@ export function SettingsPage({
                 <ListItem
                     key={index}
                     button
-                    onClick={() => { setLocation(`${APP_LINKS.Settings}?page=${link}`, { replace: true }) }}
+                    onClick={() => { setLocation(`${APP_LINKS.Settings}?page="${link}"`, { replace: true }) }}
                     sx={{
                         transition: 'brightness 0.2s ease-in-out',
                         background: selected ? '#5bb6ce6e' : 'inherit',

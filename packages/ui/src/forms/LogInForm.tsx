@@ -20,12 +20,17 @@ import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
+import { useMemo } from 'react';
 
 export const LogInForm = ({
     onFormChange = () => { }
 }: LogInFormProps) => {
     const [, setLocation] = useLocation();
-    const { redirect, code: verificationCode } = useReactSearch();
+    const search = useReactSearch();
+    const { redirect, verificationCode } = useMemo(() => ({
+        redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
+        verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
+    }), [search]);
 
     const [emailLogIn, { loading }] = useMutation<emailLogIn>(emailLogInMutation);
 

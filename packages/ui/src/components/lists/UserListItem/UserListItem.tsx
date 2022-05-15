@@ -8,6 +8,7 @@ import { useLocation } from 'wouter';
 import { StarButton } from '..';
 import { getTranslation, LabelledSortOption, labelledSortOptions, listItemColor, placeholderColor } from 'utils';
 import { Person as PersonIcon } from '@mui/icons-material';
+import { TextLoading } from '../TextLoading/TextLoading';
 
 export const UserListItem = ({
     data,
@@ -76,14 +77,14 @@ export const UserListItem = ({
                         }} />
                     </Box>
                     <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available' }}>
-                        <ListItemText
+                        {loading ? <TextLoading /> : <ListItemText
                             primary={name}
                             sx={{ ...multiLineEllipsis(1) }}
-                        />
-                        <ListItemText
+                        />}
+                        {loading ? <TextLoading /> : <ListItemText
                             primary={bio}
                             sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
-                        />
+                        />}
                     </Stack>
                     {
                         !isOwn && <StarButton

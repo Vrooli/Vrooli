@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils/wrappers';
 import { ROLES, routineCreateForm as validationSchema } from '@local/shared';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
-import { formatForCreate, getUserLanguages, updateArray } from "utils";
+import { formatForCreate, getUserLanguages, updateArray, useReactSearch } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DialogActionItem } from "components/containers/types";
@@ -26,6 +26,7 @@ export const RoutineCreate = ({
     onCancel,
     session,
 }: RoutineCreateProps) => {
+    const params = useReactSearch(null);
 
     // Handle user/organization switch
     const [organizationFor, setOrganizationFor] = useState<ListOrganization | null>(null);
@@ -85,6 +86,11 @@ export const RoutineCreate = ({
     const updateTranslation = useCallback((language: string, translation: Translation) => {
         setTranslations(getTranslationsUpdate(language, translation));
     }, [getTranslationsUpdate]);
+
+    useEffect(() => {
+        if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
+        else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
+    }, [params]);
 
     // Handle create
     const [mutation] = useMutation<routine>(routineCreateMutation);
