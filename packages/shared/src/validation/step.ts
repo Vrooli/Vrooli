@@ -6,9 +6,12 @@ const order = yup.number().integer().min(0);
 const pickups = yup.number().integer().min(0);
 const stepStatus = yup.string().oneOf(Object.values(RunStepStatus))
 const timeElapsed = yup.number().integer().min(0);
+const step = yup.array().of(yup.number().integer().min(0));
 
 export const stepCreate = yup.object().shape({
+    nodeId: id.required(),
     order: order.required(),
+    step: step.required(),
     title: title.required(),
 })
 

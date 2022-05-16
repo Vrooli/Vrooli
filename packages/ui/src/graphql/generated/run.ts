@@ -389,6 +389,7 @@ export interface run_run_steps {
   timeCompleted: any | null;
   title: string;
   status: RunStepStatus;
+  step: number[];
   node: run_run_steps_node | null;
 }
 

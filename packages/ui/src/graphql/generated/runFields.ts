@@ -389,6 +389,7 @@ export interface runFields_steps {
   timeCompleted: any | null;
   title: string;
   status: RunStepStatus;
+  step: number[];
   node: runFields_steps_node | null;
 }
 

@@ -45,7 +45,7 @@ export const BuildBottomContainer = ({
     const handleRunSelect = useCallback((run: Run) => {
         setLocation(stringifySearchParams({
             run: run.id,
-            step: [1]
+            step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
         }), { replace: true });
         setIsRunOpen(true);
     }, [setLocation]);

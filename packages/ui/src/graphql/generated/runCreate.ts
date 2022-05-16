@@ -389,6 +389,7 @@ export interface runCreate_runCreate_steps {
   timeCompleted: any | null;
   title: string;
   status: RunStepStatus;
+  step: number[];
   node: runCreate_runCreate_steps_node | null;
 }
 

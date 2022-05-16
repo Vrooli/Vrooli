@@ -2228,6 +2228,7 @@ export type RunStep = {
   pickups: Scalars['Int'];
   run: Run;
   status: RunStepStatus;
+  step: Array<Scalars['Int']>;
   timeCompleted?: Maybe<Scalars['Date']>;
   timeElapsed?: Maybe<Scalars['Int']>;
   timeStarted?: Maybe<Scalars['Date']>;
@@ -2235,7 +2236,9 @@ export type RunStep = {
 };
 
 export type RunStepCreateInput = {
+  nodeId: Scalars['ID'];
   order: Scalars['Int'];
+  step: Array<Scalars['Int']>;
   title: Scalars['String'];
 };
 

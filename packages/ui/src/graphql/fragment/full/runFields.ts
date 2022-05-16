@@ -259,6 +259,7 @@ export const runFields = gql`
         timeCompleted
         title
         status
+        step
         node {
             id
         }

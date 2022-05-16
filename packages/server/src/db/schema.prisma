@@ -665,10 +665,11 @@ model run_step {
     timeStarted   DateTime?     @db.Timestamptz(6)
     timeElapsed   Int? // Time spent working on the step, in seconds
     timeCompleted DateTime?     @db.Timestamptz(6)
+    step         Int[]        
     status        RunStepStatus @default(InProgress)
     run           run          @relation(fields: [runId], references: [id], onDelete: Cascade)
     title         String        @db.VarChar(128) // Title of viewed item, as it appears to the user. Makes searching for items that changed names easier
-    node          node?         @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+    node          node         @relation(fields: [nodeId], references: [id], onDelete: SetNull)
 }
 
 // TODO scheduling runs

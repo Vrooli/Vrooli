@@ -31,8 +31,10 @@ export const stepVerifier = () => ({
  export const stepMutater = (prisma: PrismaType, verifier: ReturnType<typeof stepVerifier>) => ({
     async toDBShapeAdd(userId: string, data: RunStepCreateInput): Promise<any> {
         return {
+            nodeId: data.nodeId,
             order: data.order,
             status: RunStepStatus.InProgress,
+            step: data.step,
             title: data.title,
         }
     },

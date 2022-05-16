@@ -19,13 +19,13 @@ export const SubroutineView = ({
     const [, setLocation] = useLocation();
 
     const { description, instructions, title } = useMemo(() => {
-        const languages = navigator.languages;
+        const languages = session.languages ?? navigator.languages;
         return {
             description: getTranslation(data, 'description', languages, true),
             instructions: getTranslation(data, 'instructions', languages, true),
             title: getTranslation(data, 'title', languages, true),
         }
-    }, [data]);
+    }, [data, session.languages]);
 
     const ownedBy = useMemo<string | null>(() => getOwnedByString(data, getUserLanguages(session)), [data, session]);
     const toOwner = useCallback(() => { toOwnedBy(data, setLocation) }, [data, setLocation]);

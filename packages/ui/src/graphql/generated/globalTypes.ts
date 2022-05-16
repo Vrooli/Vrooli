@@ -986,7 +986,9 @@ export interface RunSearchInput {
 }
 
 export interface RunStepCreateInput {
+  nodeId: string;
   order: number;
+  step: number[];
   title: string;
 }
 

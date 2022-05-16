@@ -1,4 +1,4 @@
-import { APP_LINKS } from "@local/shared";
+import { APP_LINKS, RunStepStatus } from "@local/shared";
 import { Box, Button, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
@@ -10,13 +10,13 @@ import {
     Close as CloseIcon,
     DoneAll as CompleteIcon,
 } from '@mui/icons-material';
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getTranslation, getUserLanguages, Pubs, RoutineStepType, updateArray, useHistoryState, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { validate as uuidValidate } from 'uuid';
-import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, RoutineListStep, RoutineStep, SubroutineStep } from "types";
+import { DecisionStep, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, RoutineListStep, RoutineStep, RunStep, SubroutineStep } from "types";
 import { stringifySearchParams } from "utils/navigation/urlTools";
 import { NodeType } from "graphql/generated/globalTypes";
 import { runComplete } from "graphql/generated/runComplete";
@@ -45,12 +45,16 @@ export const RunView = ({
     }, [params])
     const [, params1] = useRoute(`${APP_LINKS.Build}/:routineId`);
     const [, params2] = useRoute(`${APP_LINKS.Routine}/:routineId`);
+    const run = useMemo(() => {
+        if (!routine) return undefined;
+        return routine.runs.find(run => run.id === runId);
+    }, [routine, runId]);
 
     /**
      * Updates step params
      * @param newParams The new step params, as an array
      */
-     const setStepParams = useCallback((newParams: number[]) => {
+    const setStepParams = useCallback((newParams: number[]) => {
         setLocation(stringifySearchParams({
             ...params,
             step: newParams,
@@ -146,7 +150,7 @@ export const RunView = ({
         // Main routine acts like routine list
         setStepList({
             type: RoutineStepType.RoutineList,
-            nodeId: null,
+            nodeId: '',
             isOrdered: true,
             title: getTranslation(routine, 'title', languages, true) ?? 'Untitled',
             description: getTranslation(routine, 'description', languages, true),
@@ -175,6 +179,9 @@ export const RunView = ({
         return stepParams.length === 0 ? -1 : Number(stepParams[stepParams.length - 1]);
     }, [stepParams]);
 
+    /**
+     * The number of steps in the current-level node, or -1 if not found.
+     */
     const stepsInCurrentNode = useMemo(() => {
         if (!stepParams || !stepList) return -1;
         // For each step in ids array (except for the last id), find the nested step in the steps array.
@@ -188,6 +195,31 @@ export const RunView = ({
         }
         return currNestedSteps.type === RoutineStepType.RoutineList ? (currNestedSteps as RoutineListStep).steps.length : -1;
     }, [stepParams, stepList]);
+
+    /**
+     * Current step run data
+     */
+    const currStepRunData = useMemo(() => {
+        const runStep = run?.steps?.find((step: RunStep) => step.stepId === step.id);
+        return runStep;
+    }, [run?.steps]);
+
+    /**
+     * Interval to track time spent on each step.
+     */
+    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [timeElapsed, setTimeElapsed] = useState<number>(0);
+    useEffect(() => {
+        if (!currStepRunData) return;
+        intervalRef.current = setInterval(() => { setTimeElapsed(t => t + 1); }, 1000);
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+    }, [currStepRunData]);
+
+    useEffect(() => {
+        console.log('timeElapsed', timeElapsed);
+    }, [timeElapsed]);
 
     /**
      * Calculates the complexity of a step
@@ -386,12 +418,42 @@ export const RunView = ({
         // Update routine progress
         setCompletedComplexity(newComplexity);
         // Log if not in test mode
-        if (!testMode && runId) {
-            logRunUpdate({ variables: { input: { id: runId, completedComplexity: newComplexity, stepsCreate: [{ order: progress.length, title: 'TODO' }] } } });
+        if (!testMode && run) {
+            // Find next step, to store in log
+            const nextData = findStep(nextStep);
+            if (nextData?.type === RoutineStepType.RoutineList) {
+                // Find data to update current step
+                const existingCurrStepData = run.steps.find(s => s.node?.id === (currStep as RoutineListStep)?.nodeId)
+                const stepUpdate = existingCurrStepData ? {
+                    id: existingCurrStepData.id,
+                    status: RunStepStatus.Completed,
+                    timeElapsed: (existingCurrStepData.timeElapsed ?? 0) + timeElapsed,
+                    pickups: existingCurrStepData.pickups + 1,
+                } : undefined
+                // Make sure next step hasn't been logged already (meaning you've worked on it before)
+                const existingNextStepData = run.steps.find(s => s.node?.id === nextData.nodeId);
+                if (!existingNextStepData) {
+                    logRunUpdate({
+                        variables: {
+                            input: {
+                                id: run.id,
+                                completedComplexity: newComplexity,
+                                stepsCreate: [{
+                                    order: progress.length,
+                                    title: (nextData as RoutineListStep).title,
+                                    nodeId: (nextData as RoutineListStep).nodeId,
+                                    step: nextStep,
+                                }],
+                                stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+                            }
+                        }
+                    });
+                }
+            }
         }
         // Update current step
         setStepParams(nextStep);
-    }, [completedComplexity, findStep, getStepComplexity, logRunUpdate, nextStep, progress, runId, setProgress, setStepParams, stepParams, testMode]);
+    }, [completedComplexity, findStep, getStepComplexity, logRunUpdate, nextStep, progress, run, setProgress, setStepParams, stepParams, testMode, timeElapsed]);
 
     const [logRunComplete] = useMutation<runComplete>(runCompleteMutation);
     /**
@@ -399,35 +461,62 @@ export const RunView = ({
      */
     const toComplete = useCallback(() => {
         // Don't actually do it if in test mode
-        if (testMode || !runId) {
+        if (testMode || !run) {
             PubSub.publish(Pubs.Celebration);
             handleClose();
             return;
         }
+        const currentStepRunData = run.steps.find(s => s.node?.id === (currentStep as RoutineListStep)?.nodeId);
+        const stepUpdate = currentStepRunData ? {
+            id: currentStepRunData.id,
+            timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed,
+            pickups: currentStepRunData.pickups + 1,
+        } : undefined
         // Log complete
         mutationWrapper({
             mutation: logRunComplete,
-            input: { id: runId, standalone: true },
+            input: {
+                id: run.id,
+                standalone: true,
+                completedComplexity: run.completedComplexity,
+                timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
+                pickups: run.pickups + 1,
+                stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+            },
             successMessage: () => 'Routine completed!🎉',
             onSuccess: () => {
                 PubSub.publish(Pubs.Celebration);
                 handleClose()
             },
         })
-    }, [testMode, runId, logRunComplete, handleClose]);
+    }, [testMode, run, timeElapsed, logRunComplete, handleClose, currentStep]);
 
     /**
      * End routine early
      */
     const toFinishNotComplete = useCallback(() => {
-        console.log('tofinishnotcomplete');
-        //TODO
-        // Log if not in test mode
-        if (!testMode && runId) {
-            logRunComplete({ variables: { input: { id: runId ?? '' } } })
+        // Update pickups/time elapsed if not in test mode
+        if (!testMode && run) {
+            // Find current step in run data
+            const currentStepRunData = run.steps.find(s => s.node?.id === (currentStep as RoutineListStep)?.nodeId);
+            const stepUpdate = currentStepRunData ? {
+                id: currentStepRunData.id,
+                timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed,
+                pickups: currentStepRunData.pickups + 1,
+            } : undefined
+            logRunUpdate({
+                variables: {
+                    input: {
+                        id: run.id,
+                        timeElapsed: (run.timeElapsed ?? 0) + timeElapsed,
+                        pickups: run.pickups + 1,
+                        stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
+                    }
+                }
+            });
         }
         handleClose();
-    }, [handleClose, logRunComplete, runId, testMode]);
+    }, [currentStep, handleClose, logRunUpdate, run, testMode, timeElapsed]);
 
     /**
      * Find the step array of a given nodeId

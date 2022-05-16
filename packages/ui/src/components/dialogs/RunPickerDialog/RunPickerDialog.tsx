@@ -9,7 +9,7 @@ import { noSelect } from "styles";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerDialogProps } from "../types";
 import { Close as CloseIcon } from "@mui/icons-material";
-import { Pubs } from "utils";
+import { parseSearchParams, Pubs } from "utils";
 import { useMutation } from "@apollo/client";
 import { runCreate } from "graphql/generated/runCreate";
 import { runCreateMutation } from "graphql/mutation";
@@ -23,8 +23,19 @@ export const RunPickerDialog = ({
     session
 }: RunPickerDialogProps) => {
     const { palette } = useTheme();
-
     const open = useMemo(() => Boolean(anchorEl), [anchorEl]);
+
+    // If runId is in the URL, select that run automatically
+    useEffect(() => {
+        if (!routine) return;
+        const searchParams = parseSearchParams(window.location.search);
+        if (!searchParams.run) return
+        const run = routine.runs.find(run => run.id === searchParams.run);
+        if (run) {
+            onSelect(run);
+            handleClose();
+        }
+    }, [routine, onSelect, handleClose]);
 
     const [runCreate] = useMutation<runCreate>(runCreateMutation);
     const createNewRun = useCallback(() => {

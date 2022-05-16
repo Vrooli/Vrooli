@@ -14,7 +14,7 @@ import {
 } from "@mui/icons-material";
 import { BaseObjectActionDialog, DeleteRoutineDialog, ResourceListHorizontal, RunPickerDialog, RunView, StarButton, UpTransition } from "components";
 import { RoutineViewProps } from "../types";
-import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, parseSearchParams, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
+import { getLanguageSubtag, getOwnedByString, getPreferredLanguage, getTranslation, getUserLanguages, Pubs, stringifySearchParams, toOwnedBy, useReactSearch } from "utils";
 import { Routine, Run } from "types";
 import Markdown from "markdown-to-jsx";
 import { runCompleteMutation, routineDeleteOneMutation } from "graphql/mutation";
@@ -118,9 +118,10 @@ export const RoutineView = ({
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
     const handleRunSelect = useCallback((run: Run) => {
+        console.log('handle run selectttt', run)
         setLocation(stringifySearchParams({
             run: run.id,
-            step: [1]
+            step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
         }), { replace: true });
         setIsRunOpen(true);
     }, [setLocation]);

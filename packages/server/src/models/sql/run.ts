@@ -79,6 +79,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
             timeStarted: new Date(),
             routineId: data.routineId,
             status: RunStatus.InProgress,
+            step: await StepModel(prisma).relationshipBuilder(userId, data, false, 'step'),
             title: data.title,
             userId,
             version: data.version,
@@ -152,10 +153,14 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
         if (updateMany) {
             // Loop through each update input
             for (const input of updateMany) {
+                console.log('going to update runnnnnnn', JSON.stringify(input), '\n\n')
                 // Find in database
                 let object = await prisma.run.findFirst({
                     where: { ...input.where, userId }
                 })
+                console.log('found run in db', JSON.stringify(object), '\n\n')
+                const temp = await this.toDBShapeUpdate(userId, input.data);
+                console.log('run todbshapeupdate', JSON.stringify(temp), '\n\n')
                 if (!object) throw new CustomError(CODE.ErrorUnknown, 'Run not found.', { code: genErrorCode('0176') });
                 // Update object
                 const currUpdated = await prisma.run.update({
@@ -223,6 +228,7 @@ export const runMutater = (prisma: PrismaType, verifier: ReturnType<typeof runVe
                     pickups: input.pickups ?? undefined,
                     timeCompleted: new Date(),
                     timeElapsed: input.timeElapsed ?? undefined,
+                    //TODO update final step data
                 },
                 ...selectHelper(partial)
             });

@@ -55,6 +55,7 @@ export const typeDef = gql`
         timeCompleted: Date
         title: String!
         status: RunStepStatus!
+        step: [Int!]!
         run: Run!
         node: Node
     }
@@ -96,6 +97,7 @@ export const typeDef = gql`
         routineId: ID!
         title: String!
         version: String!
+        step: [RunStepCreateInput!]
         # If scheduling info provided, not starting immediately
         # TODO
     }
@@ -111,7 +113,9 @@ export const typeDef = gql`
     }
 
     input RunStepCreateInput {
+        nodeId: ID!
         order: Int!
+        step: [Int!]!
         title: String!
     }
 
@@ -127,6 +131,7 @@ export const typeDef = gql`
         exists: Boolean # If true, run ID is provided, otherwise routine ID so we can create a run
         pickups: Int
         timeElapsed: Int
+        finalStepUpdate: RunStepUpdateInput
     }
 
     input RunCancelInput {

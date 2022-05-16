@@ -24,5 +24,6 @@ export interface runStepFields {
   timeCompleted: any | null;
   title: string;
   status: RunStepStatus;
+  step: number[];
   node: runStepFields_node | null;
 }
