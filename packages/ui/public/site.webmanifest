@@ -1,9 +1,8 @@
 {
-    "name": "Vrooli - Visual Work Routines",
+    "name": "Vrooli - Productivity, Decentralized",
     "short_name": "Vrooli",
     "categories": [
-        "education",
-        "personalization",
+        "automation",
         "productivity"
     ],
     "icons": [

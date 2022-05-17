@@ -65,7 +65,7 @@ export const BuildInfoContainer = ({
     session,
     status,
 }: BuildInfoContainerProps) => {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
     /**
      * List of status messages converted to markdown. 
      * If one message, no bullet points. If multiple, bullet points.
@@ -109,119 +109,126 @@ export const BuildInfoContainer = ({
 
     const StatusIcon = useMemo(() => STATUS_ICON[status.code], [status]);
 
-    return (
-        <Stack
-            id="build-routine-information-bar"
-            direction="row"
-            spacing={2}
-            width="100%"
-            justifyContent="space-between"
-            sx={{
-                zIndex: 2,
-                background: palette.primary.light,
-                color: palette.primary.contrastText,
-                paddingTop: { xs: '64px', md: '80px' },
-            }}
-        >
-            {/* Status indicator */}
-            <Tooltip title='Press for details'>
-                <Chip
-                    icon={<StatusIcon sx={{ fill: 'white' }} />}
-                    label={STATUS_LABEL[status.code]}
-                    onClick={openStatusMenu}
+    const title = useMemo(() => (
+        <EditableLabel
+            canEdit={isEditing}
+            handleUpdate={handleTitleUpdate}
+            renderLabel={(t) => (
+                <Typography
+                    component="h2"
+                    variant="h5"
+                    textAlign="center"
                     sx={{
-                        ...noSelect,
-                        background: STATUS_COLOR[status.code],
-                        color: 'white',
-                        cursor: 'pointer',
-                        marginTop: 'auto',
-                        marginBottom: 'auto',
-                        marginLeft: 2,
+                        fontSize: { xs: '1em', sm: '1.25em', md: '1.5em' },
                     }}
-                />
-                {/* <Box onClick={openStatusMenu} sx={{
-                    ...noSelect,
-                    cursor: 'pointer',
-                    borderRadius: 1,
-                    border: `2px solid ${STATUS_COLOR[status.code]}`,
-                    color: STATUS_COLOR[status.code],
-                    height: 'fit-content',
-                    fontWeight: 'bold',
-                    fontSize: 'larger',
-                    padding: 0.5,
-                    marginTop: 'auto',
-                    marginBottom: 'auto',
-                    marginLeft: 2,
-                }}>{STATUS_LABEL[status.code]}</Box> */}
-            </Tooltip>
-            <Menu
-                id='status-menu'
-                open={statusMenuOpen}
-                disableScrollLock={true}
-                anchorEl={statusMenuAnchorEl}
-                onClose={closeStatusMenu}
-                anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'center',
-                }}
-                transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'center',
-                }}
+                >{t}</Typography>
+            )}
+            text={getTranslation(routine, 'title', [language], false) ?? 'Loading...'}
+        />
+    ), [handleTitleUpdate, isEditing, language, routine]);
+
+    return (
+        <>
+            {/* Display title first on small screens */}
+            <Box sx={{ display: breakpoints.down('md') ? 'block' : 'none' }}>
+                {title}
+            </Box>
+            <Stack
+                id="build-routine-information-bar"
+                direction="row"
+                spacing={2}
+                width="100%"
+                justifyContent="space-between"
                 sx={{
-                    '& .MuiPopover-paper': {
-                        background: palette.background.paper,
-                        maxWidth: 'min(100vw, 400px)',
-                    },
-                    '& .MuiMenu-list': {
-                        padding: 0,
-                    }
+                    zIndex: 2,
+                    background: palette.primary.light,
+                    color: palette.primary.contrastText,
+                    paddingTop: { xs: '64px', md: '80px' },
                 }}
             >
-                {statusMenu}
-            </Menu>
-            {/* Title */}
-            <EditableLabel
-                canEdit={isEditing}
-                handleUpdate={handleTitleUpdate}
-                renderLabel={(t) => (
-                    <Typography
-                        component="h2"
-                        variant="h5"
-                        textAlign="center"
+                {/* Status indicator */}
+                <Tooltip title='Press for details'>
+                    <Chip
+                        icon={<StatusIcon sx={{ fill: 'white' }} />}
+                        label={STATUS_LABEL[status.code]}
+                        onClick={openStatusMenu}
                         sx={{
-                            fontSize: { xs: '1em', sm: '1.25em', md: '1.5em' },
+                            ...noSelect,
+                            background: STATUS_COLOR[status.code],
+                            color: 'white',
+                            cursor: isEditing ? 'pointer' : 'default',
+                            marginTop: 'auto',
+                            marginBottom: 'auto',
+                            marginLeft: 2,
+                            // Hide label on small screens
+                            '& .MuiChip-label': {
+                                display: { xs: 'none', md: 'block' },
+                            },
+                            // Hiding label messes up spacing with icon
+                            '& .MuiSvgIcon-root': {
+                                marginLeft: '4px',
+                                marginRight: { xs: '4px', md: '-4px' },
+                            },
                         }}
-                    >{t}</Typography>
-                )}
-                text={getTranslation(routine, 'title', [language], false) ?? 'Loading...'}
-            />
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    />
+                </Tooltip>
+                <Menu
+                    id='status-menu'
+                    open={statusMenuOpen}
+                    disableScrollLock={true}
+                    anchorEl={statusMenuAnchorEl}
+                    onClose={closeStatusMenu}
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'center',
+                    }}
+                    transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'center',
+                    }}
+                    sx={{
+                        '& .MuiPopover-paper': {
+                            background: palette.background.paper,
+                            maxWidth: 'min(100vw, 400px)',
+                        },
+                        '& .MuiMenu-list': {
+                            padding: 0,
+                        }
+                    }}
+                >
+                    {statusMenu}
+                </Menu>
                 {/* Language select */}
                 <SelectLanguageDialog
                     handleSelect={handleLanguageUpdate}
                     language={language}
                     session={session}
                 />
-                {/* Edit button */}
-                {canEdit && !isEditing ? (
-                    <IconButton aria-label="confirm-title-change" onClick={handleStartEdit} >
-                        <EditIcon sx={{ fill: TERTIARY_COLOR }} />
-                    </IconButton>
-                ) : null}
-                {/* Help button */}
-                <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
-                {/* Display routine description, insturctionss, etc. */}
-                <BuildInfoDialog
-                    handleAction={handleRoutineAction}
-                    handleUpdate={handleRoutineUpdate}
-                    isEditing={isEditing}
-                    language={language}
-                    routine={routine}
-                    session={session}
-                    sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
-                />
-            </Box>
-        </Stack>
+                {/* Display title between icons on large screen */}
+                <Box sx={{ display: breakpoints.up('md') ? 'block' : 'none' }}>
+                    {title}
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {/* Edit button */}
+                    {canEdit && !isEditing ? (
+                        <IconButton aria-label="confirm-title-change" onClick={handleStartEdit} >
+                            <EditIcon sx={{ fill: TERTIARY_COLOR }} />
+                        </IconButton>
+                    ) : null}
+                    {/* Help button */}
+                    <HelpButton markdown={helpText} sxRoot={{ margin: "auto", marginRight: 1 }} sx={{ color: TERTIARY_COLOR }} />
+                    {/* Display routine description, insturctionss, etc. */}
+                    <BuildInfoDialog
+                        handleAction={handleRoutineAction}
+                        handleUpdate={handleRoutineUpdate}
+                        isEditing={isEditing}
+                        language={language}
+                        routine={routine}
+                        session={session}
+                        sxs={{ icon: { fill: TERTIARY_COLOR, marginRight: 1 } }}
+                    />
+                </Box>
+            </Stack>
+        </>
     )
 };

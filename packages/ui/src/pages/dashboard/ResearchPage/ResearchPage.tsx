@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { APP_LINKS, ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
 import { profile } from 'graphql/generated/profile';
 import { researchPage } from 'graphql/generated/researchPage';
 import { profileQuery, researchPageQuery } from 'graphql/query';
@@ -197,46 +197,46 @@ export const ResearchPage = ({
                     mutate={true}
                     session={session}
                 />
-                <TitleContainer
+                <ListTitleContainer
                     title={"Processes"}
                     helpText={processesText}
                     onClick={toSeeAllProcesses}
                     options={[['Create', toCreateProcess], ['See all', toSeeAllProcesses]]}
                 >
                     {processes}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Newly Completed"}
                     helpText={newlyCompletedText}
                     onClick={toSeeAllNewlyCompleted}
                     options={[['Create', toCreateProject], ['See all', toSeeAllNewlyCompleted]]}
                 >
                     {newlyCompleted}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Vote"}
                     helpText={voteText}
                     onClick={() => { }}
                     options={[['Create', toCreateProject], ['See all', () => { }]]}
                 >
                     {needVotes}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Donate or Invest"}
                     helpText={donateOrInvestText}
                     onClick={() => { }}
                     options={[['Create', toCreateProject], ['See all', () => { }]]}
                 >
                     {needInvestments}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Join a Team"}
                     helpText={joinATeamText}
                     onClick={toSeeAllJoinATeam}
                     options={[['Create', toCreateOrganization], ['Update profile', toUpdateProfile], ['See all', toSeeAllJoinATeam]]}
                 >
                     {needMembers}
-                </TitleContainer>
+                </ListTitleContainer>
             </Stack>
         </Box>
     )

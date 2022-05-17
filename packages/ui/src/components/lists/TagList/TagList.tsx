@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import { TagListProps } from '../types';
-import { Chip, Stack, Tooltip, Typography } from '@mui/material';
+import { Chip, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 
 export const TagList = ({
     session,
     parentId,
     tags,
 }: TagListProps) => {
+    const { palette } = useTheme();
+
     const [chips, numTagsCutOff] = useMemo(() => {
         let charactersBeforeCutoff = 50;
         let chipResult: JSX.Element[] = [];
@@ -20,7 +22,7 @@ export const TagList = ({
                         label={tag.tag}
                         size="small"
                         sx={{
-                            backgroundColor: '#a068ce',
+                            backgroundColor: palette.mode === 'light' ? '#8148b0' : '#8148b0', //'#a068ce',
                             color: 'white',
                             width: 'fit-content',
                         }} />

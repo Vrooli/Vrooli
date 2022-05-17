@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { APP_LINKS } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
 import { ResourceListUsedFor } from 'graphql/generated/globalTypes';
 import { learnPage } from 'graphql/generated/learnPage';
 import { profile } from 'graphql/generated/profile';
@@ -134,23 +134,23 @@ export const LearnPage = ({
                     session={session}
                 />}
                 {/* Available courses */}
-                <TitleContainer
+                <ListTitleContainer
                     title={"Courses"}
                     helpText={courseText}
                     onClick={toSeeAllCourses}
                     options={[['Create', toCreateCourse], ['See all', toSeeAllCourses]]}
                 >
                     {courses}
-                </TitleContainer>
+                </ListTitleContainer>
                 {/* Available tutorials */}
-                <TitleContainer
+                <ListTitleContainer
                     title={"Tutorials"}
                     helpText={tutorialText}
                     onClick={toSeeAllTutorials}
                     options={[['Create', toCreateTutorial], ['See all', toSeeAllTutorials]]}
                 >
                     {tutorials}
-                </TitleContainer>
+                </ListTitleContainer>
             </Stack>
         </Box>
     )

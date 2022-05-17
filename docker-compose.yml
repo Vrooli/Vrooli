@@ -94,7 +94,7 @@ services:
             - ./data/postgres:/var/lib/postgresql/data
             - ./packages/db/entrypoint:/docker-entrypoint-initdb.d
     redis:
-        image: redis
+        image: redis:7-alpine
         container_name: redis
         restart: always
         networks:

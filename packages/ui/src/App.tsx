@@ -180,15 +180,15 @@ export function App() {
                 <Box id="App" sx={{
                     // Style visited, active, and hovered links differently
                     a: {
-                        color: theme.palette.mode === 'light' ? '#d922d4' : '#dd86db',
+                        color: theme.palette.mode === 'light' ? '#001cd3' : '#dd86db',
                         '&:visited': {
-                            color: theme.palette.mode === 'light' ? '#a00c9c' : '#f551ef',
+                            color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
                         },
                         '&:active': {
-                            color: theme.palette.mode === 'light' ? '#a00c9c' : '#f551ef',
+                            color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
                         },
                         '&:hover': {
-                            color: theme.palette.mode === 'light' ? '#ff46fa' : '#f3d4f2',
+                            color: theme.palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
                         },
                     },
                 }}>

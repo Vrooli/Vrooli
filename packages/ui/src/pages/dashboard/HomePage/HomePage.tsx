@@ -4,12 +4,11 @@ import { centeredDiv } from 'styles';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
 import { homePageQuery } from 'graphql/query';
-import { AutocompleteSearchBar, TitleContainer, ListMenu } from 'components';
+import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu } from 'components';
 import { useLocation } from 'wouter';
 import { APP_LINKS } from '@local/shared';
 import { HomePageProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { parseSearchParams } from 'utils/navigation/urlTools';
 import {
     Add as CreateIcon,
     Search as SearchIcon,
@@ -350,14 +349,14 @@ export const HomePage = ({
             });
             if (loading || listFeedItems.length > 0) {
                 listFeeds.push((
-                    <TitleContainer
+                    <ListTitleContainer
                         key={`feed-list-${objectType}`}
                         title={getFeedTitle(`${objectType}s`)}
                         onClick={(e) => toSearchPage(e, objectType)}
                         options={[['See more results', (e) => { toSearchPage(e, objectType) }]]}
                     >
                         {listFeedItems}
-                    </TitleContainer>
+                    </ListTitleContainer>
                 ))
             }
         }
@@ -398,7 +397,7 @@ export const HomePage = ({
                 variant="scrollable"
                 scrollButtons="auto"
                 allowScrollButtonsMobile
-                aria-label="search-type-tabs"
+                aria-label="home-pages"
                 sx={{
                     marginBottom: 2,
                     '& .MuiTabs-flexContainer': {
@@ -410,7 +409,10 @@ export const HomePage = ({
                     <Tab
                         key={index}
                         id={`home-tab-${index}`}
-                        {...{ 'aria-controls': `home-tabpanel-${index}` }}
+                        {...{ 
+                            'aria-labelledBy': `home-pages`,
+                            'aria-label': `home page ${option[0]}`,
+                        }}
                         label={option[0]}
                         color={index === 0 ? '#ce6c12' : 'default'}
                     />

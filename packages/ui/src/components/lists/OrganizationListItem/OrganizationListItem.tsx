@@ -65,7 +65,7 @@ export function OrganizationListItem({
                         justifyContent='center'
                         alignItems='center'
                         sx={{
-                            display: { xs: 'none', sm: 'flex' },
+                            display: 'flex',
                         }}
                     >
                         <ApartmentIcon sx={{

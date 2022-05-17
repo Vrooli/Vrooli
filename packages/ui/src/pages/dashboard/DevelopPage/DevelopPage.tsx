@@ -1,7 +1,7 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { ResourceListUsedFor } from '@local/shared';
 import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ResourceListHorizontal, TitleContainer } from 'components';
+import { HelpButton, ListTitleContainer, ResourceListHorizontal } from 'components';
 import { developPage } from 'graphql/generated/developPage';
 import { profile } from 'graphql/generated/profile';
 import { developPageQuery, profileQuery } from 'graphql/query';
@@ -112,30 +112,30 @@ export const DevelopPage = ({
                     mutate={true}
                     session={session}
                 />
-                <TitleContainer
+                <ListTitleContainer
                     title={"In Progress"}
                     helpText={inProgressText}
                     onClick={() => { }}
                     options={[['Create', () => { }], ['See all', () => { }]]}
                 >
                     {inProgress}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Recent"}
                     helpText={recentText}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {recent}
-                </TitleContainer>
-                <TitleContainer
+                </ListTitleContainer>
+                <ListTitleContainer
                     title={"Completed"}
                     helpText={completedText}
                     onClick={() => { }}
                     options={[['See all', () => { }]]}
                 >
                     {completed}
-                </TitleContainer>
+                </ListTitleContainer>
             </Stack>
         </Box>
     )
