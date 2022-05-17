@@ -13,6 +13,7 @@ import { EditableLabelProps } from '../types';
 export const EditableLabel = ({
     canEdit,
     handleUpdate,
+    placeholder,
     renderLabel,
     text,
     sxs,
@@ -39,7 +40,7 @@ export const EditableLabel = ({
         setActive(false);
     }, [changedText, handleUpdate]);
     const cancel = useCallback(() => {
-        setChangedText(text);
+        setChangedText(text ?? '');
         setActive(false);
     }, [text]);
 
@@ -53,6 +54,7 @@ export const EditableLabel = ({
                 name="title"
                 autoComplete="routine-title"
                 label="Title"
+                placeholder={placeholder}
                 value={changedText}
                 onChange={onTextChange}
                 sx={{
@@ -63,7 +65,7 @@ export const EditableLabel = ({
                     },
                     '& .MuiInputBase-root': {
                         borderBottom: 'none',
-                        borderRadius: '32px',
+                        borderRadius: '16px',
                         border: `2px solid green`,//TODO titleValid ? green : red
                         overflow: 'overlay',
                     },
@@ -89,10 +91,10 @@ export const EditableLabel = ({
             ...(sxs?.stack ?? {}),
             display: 'flex', 
             alignItems: 'center', 
-            cursor: 'pointer', 
+            cursor: canEdit ? 'pointer' : 'default', 
             paddingTop: 1, 
             paddingBottom: 1
         }} onClick={toggleActive}>
-            {renderLabel(text)}
+            {renderLabel(text.trim().length > 0 ? text : (placeholder ?? ''))}
         </Box>)
 };

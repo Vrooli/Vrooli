@@ -55,6 +55,7 @@ export interface BuildInfoContainerProps {
     handleTitleUpdate: (newTitle: string) => void;
     isEditing: boolean;
     language: string;
+    loading: boolean;
     routine: Routine | null;
     session: Session;
     status: BuildStatusObject;

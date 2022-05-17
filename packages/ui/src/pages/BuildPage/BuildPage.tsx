@@ -956,6 +956,7 @@ export const BuildPage = ({
                 handleTitleUpdate={updateRoutineTitle}
                 isEditing={isEditing}
                 language={language}
+                loading={loadingRead}
                 routine={changedRoutine}
                 session={session}
                 status={status}

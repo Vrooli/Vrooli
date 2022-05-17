@@ -7,7 +7,7 @@
  * title, descriptions, instructions, inputs, outputs, tags, etc.
  */
 import { Box, Chip, IconButton, Menu, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Close as CloseIcon,
     Edit as EditIcon,
@@ -61,11 +61,12 @@ export const BuildInfoContainer = ({
     handleTitleUpdate,
     isEditing,
     language,
+    loading,
     routine,
     session,
     status,
 }: BuildInfoContainerProps) => {
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
     /**
      * List of status messages converted to markdown. 
      * If one message, no bullet points. If multiple, bullet points.
@@ -113,6 +114,7 @@ export const BuildInfoContainer = ({
         <EditableLabel
             canEdit={isEditing}
             handleUpdate={handleTitleUpdate}
+            placeholder={loading ? 'Loading...' : 'Enter title...'}
             renderLabel={(t) => (
                 <Typography
                     component="h2"
@@ -121,18 +123,29 @@ export const BuildInfoContainer = ({
                     sx={{
                         fontSize: { xs: '1em', sm: '1.25em', md: '1.5em' },
                     }}
-                >{t}</Typography>
+                >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
             )}
-            text={getTranslation(routine, 'title', [language], false) ?? 'Loading...'}
+            text={getTranslation(routine, 'title', [language], false) ?? ''}
         />
-    ), [handleTitleUpdate, isEditing, language, routine]);
+    ), [handleTitleUpdate, isEditing, language, loading, routine]);
 
     return (
         <>
             {/* Display title first on small screens */}
-            <Box sx={{ display: breakpoints.down('md') ? 'block' : 'none' }}>
+            <Stack
+                id="routine-title-and-language"
+                direction="row"
+                justifyContent="center"
+                sx={{
+                    zIndex: 2,
+                    background: palette.mode === 'light' ? '#19487a' : '#383844',
+                    color: palette.primary.contrastText,
+                    height: '64px',
+                    display: { xs: 'flex', md: 'none' },
+                    marginTop: { xs: '64px', md: '0' },
+                }}>
                 {title}
-            </Box>
+            </Stack>
             <Stack
                 id="build-routine-information-bar"
                 direction="row"
@@ -141,9 +154,10 @@ export const BuildInfoContainer = ({
                 justifyContent="space-between"
                 sx={{
                     zIndex: 2,
+                    height: '48px',
                     background: palette.primary.light,
                     color: palette.primary.contrastText,
-                    paddingTop: { xs: '64px', md: '80px' },
+                    marginTop: { xs: '0', md: '80px' },
                 }}
             >
                 {/* Status indicator */}
@@ -162,12 +176,12 @@ export const BuildInfoContainer = ({
                             marginLeft: 2,
                             // Hide label on small screens
                             '& .MuiChip-label': {
-                                display: { xs: 'none', md: 'block' },
+                                display: { xs: 'none', sm: 'block' },
                             },
                             // Hiding label messes up spacing with icon
                             '& .MuiSvgIcon-root': {
                                 marginLeft: '4px',
-                                marginRight: { xs: '4px', md: '-4px' },
+                                marginRight: { xs: '4px', sm: '-4px' },
                             },
                         }}
                     />
@@ -198,17 +212,29 @@ export const BuildInfoContainer = ({
                 >
                     {statusMenu}
                 </Menu>
-                {/* Language select */}
-                <SelectLanguageDialog
-                    handleSelect={handleLanguageUpdate}
-                    language={language}
-                    session={session}
-                />
                 {/* Display title between icons on large screen */}
-                <Box sx={{ display: breakpoints.up('md') ? 'block' : 'none' }}>
+                <Stack
+                    id="routine-title-and-language"
+                    direction="row"
+                    justifyContent="center"
+                    sx={{ display: { xs: 'none', md: 'flex' } }}>
                     {title}
-                </Box>
+                </Stack>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    {/* Language select */}
+                    <SelectLanguageDialog
+                        handleSelect={handleLanguageUpdate}
+                        language={language}
+                        availableLanguages={routine?.translations.map(t => t.language) ?? []}
+                        session={session}
+                        sxs={{
+                            root: {
+                                marginTop: 'auto',
+                                marginBottom: 'auto',
+                                height: 'fit-content',
+                            }
+                        }}
+                    />
                     {/* Edit button */}
                     {canEdit && !isEditing ? (
                         <IconButton aria-label="confirm-title-change" onClick={handleStartEdit} >

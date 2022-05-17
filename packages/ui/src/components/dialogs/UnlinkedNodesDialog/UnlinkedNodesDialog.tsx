@@ -15,7 +15,7 @@ import {
     useTheme,
 } from '@mui/material';
 import { UnlinkedNodesDialogProps } from '../types';
-import { containerShadow } from 'styles';
+import { containerShadow, noSelect } from 'styles';
 import { useCallback } from 'react';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node } from 'types';
@@ -98,7 +98,7 @@ export const UnlinkedNodesDialog = ({
                         {open ? <ShrinkIcon sx={{ fill: 'black' }} /> : <ExpandIcon sx={{ fill: 'black' }} />}
                     </IconButton>
                 </Tooltip>
-                <Typography variant="h6">Unlinked ({nodes.length})</Typography>
+                <Typography variant="h6" sx={{ ...noSelect }}>Unlinked ({nodes.length})</Typography>
             </Box>
             {open ? (
                 <Stack direction="column" spacing={1}>

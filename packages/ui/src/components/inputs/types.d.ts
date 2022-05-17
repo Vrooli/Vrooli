@@ -32,6 +32,7 @@ export interface DropzoneProps {
 export interface EditableLabelProps {
     canEdit: boolean;
     handleUpdate: (newTitle: string) => void;
+    placeholder?: string;
     renderLabel: (label: string) => JSX.Element;
     sxs?: { stack?: { [x: string]: any } };
     text: string;

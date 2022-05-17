@@ -44,7 +44,7 @@ export const RoutineSubnode = ({
     const { title } = useMemo(() => {
         const languages = navigator.languages;
         return {
-            title: getTranslation(data, 'title', languages, true) ?? getTranslation(data.routine, 'title', languages, true)
+            title: getTranslation(data, 'title', languages, true) ?? getTranslation(data.routine, 'title', languages, true) ?? ''
         }
     }, [data]);
 

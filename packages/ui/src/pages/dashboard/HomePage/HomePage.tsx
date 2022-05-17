@@ -210,7 +210,7 @@ export const HomePage = ({
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-    const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
+    const { data, refetch, error, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } } });
     useEffect(() => { refetch() }, [refetch, searchString]);
     const showForYou = useMemo(() => Array.isArray(session?.roles) && session.roles.length > 0, [session]);
 

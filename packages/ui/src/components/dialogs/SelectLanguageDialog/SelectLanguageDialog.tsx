@@ -163,6 +163,7 @@ export const SelectLanguageDialog = ({
                         filter: canDropdownOpen ? 'brightness(120%)' : 'brightness(100%)',
                     },
                     transition: 'all 0.2s ease-in-out',
+                    width: 'fit-content',
                 }}>
                     {canDelete && <IconButton onClick={onDelete} size="large" sx={{ padding: '4px', marginRight: '-8px' }}>
                         <DeleteIcon sx={{ fill: 'red' }} />

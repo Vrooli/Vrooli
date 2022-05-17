@@ -410,7 +410,13 @@ export const NodeGraph = ({
         <Box id="graph-root" position="relative" sx={{
             cursor: isShiftKeyPressed ? 'nesw-resize' : 'move',
             minWidth: '100%',
-            height: { xs: '90vh', md: '80vh' },
+            // Graph fills remaining space that is not taken up by other elements. 
+            // On small screens, these are: navbar (64px), routine title (64px), other top build icons (48px),
+            // build bottom (48px), and bottom navbar (56px). This makes the size: 
+            // 100vh - (64 + 64 + 48 + 48 + 56) = calc(100vh - 280px).
+            // On larger screens, these are: navbar (80px), other top build icons (48px), and build bottom (48px).
+            // This makes the size 100vh - (80 + 48 + 48) = calc(100vh - 176px).
+            height: { xs: 'calc(100vh - 280px)', md: 'calc(100vh - 176px)' },
             overflowX: 'auto',
             overflowY: 'auto',
             margin: 0,

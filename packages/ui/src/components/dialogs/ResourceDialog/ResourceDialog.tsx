@@ -148,8 +148,8 @@ export const ResourceDialog = ({
             setLanguages(translations.map(t => t.language));
             formik.setValues({
                 ...formik.values,
-                description: translations[0].description,
-                title: translations[0].title,
+                description: translations[0].description ?? '',
+                title: translations[0].title ?? '',
             })
         }
     }, [formik, languages, setLanguage, setLanguages, translations])
